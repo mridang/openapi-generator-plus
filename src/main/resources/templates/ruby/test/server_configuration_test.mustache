@@ -175,6 +175,19 @@ describe {{moduleName}}::ServerConfiguration do
     _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com/v2'
   end
 
+  it 'bhv_misc_297 replaces every templated variable with its supplied value when several are present' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}/{region}',
+      variables: {
+        'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod'),
+        'version' => {{moduleName}}::ServerVariable.new(default_value: '2'),
+        'region' => {{moduleName}}::ServerVariable.new(default_value: 'us')
+      }
+    )
+    _(config.url({ 'env' => 'staging', 'version' => '3', 'region' => 'eu' }))
+      .must_equal 'https://staging.api.example.com/v3/eu'
+  end
+
   it 'bhv_servers_002 replaces every occurrence of a variable repeated in the template' do
     config = {{moduleName}}::ServerConfiguration.new(
       url_template: 'https://{host}.example.com/{host}',

@@ -154,6 +154,13 @@ describe {{moduleName}}::TransportOptions do
     _(error).wont_be_kind_of {{apiErrorParent}}
   end
 
+  it 'bhv_misc_298 a malformed proxy URL fails with the invalid proxy URL error' do
+    error = assert_raises(ArgumentError) do
+      {{moduleName}}::TransportOptions.builder.proxy('not-a-url').build
+    end
+    _(error.message).must_match(/\AInvalid proxy URL/)
+  end
+
   it 'bhv_options_013 unparseable proxy URL raises ArgumentError, not URI::InvalidURIError' do
     error = assert_raises(ArgumentError) do
       {{moduleName}}::TransportOptions.builder.proxy('http://[bad').build

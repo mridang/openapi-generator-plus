@@ -103,6 +103,13 @@ describe 'Composed Schema' do
       _(food.hash).must_equal(same_food.hash)
     end
 
+    it 'bhv_misc_294 a subtype payload without its discriminator decodes as the variant the mapping names' do
+      food = {{moduleName}}::ObjectSerializer.deserialize('{"weightKg":2.5}', 'DryFood')
+
+      _(food).must_be_kind_of({{moduleName}}::Models::DryFood)
+      _(food.food_type).must_equal('dry')
+    end
+
     it 'bhv_unions_030 a subtype whose discriminator key is absent is filled with the mapping default' do
       food = {{moduleName}}::ObjectSerializer.deserialize('{"weightKg":2.5}', 'DryFood')
 
@@ -267,6 +274,20 @@ describe 'Composed Schema' do
       _(first).wont_equal(other)
     end
 
+    it 'bhv_misc_293 an anyOf value keeps every matching variant and skips the ones that do not match' do
+      both = {{moduleName}}::ObjectSerializer.deserialize(
+        '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+      surgery_only = {{moduleName}}::ObjectSerializer.deserialize(
+        '{"procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+
+      _({{moduleName}}::Models::PetTreatment.matched_instances(both).map(&:class))
+        .must_equal([{{moduleName}}::Models::Medication, {{moduleName}}::Models::Surgery])
+      _({{moduleName}}::Models::PetTreatment.matched_instances(surgery_only).map(&:class))
+        .must_equal([{{moduleName}}::Models::Surgery])
+    end
+
     it 'bhv_unions_003 exposes actual_instance and matched_instances for anyOf values' do
       both = {{moduleName}}::ObjectSerializer.deserialize(
         '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
@@ -378,6 +399,17 @@ describe 'Composed Schema' do
 
       _(result).must_be_kind_of(String)
       _(result).wont_be_kind_of(Array)
+    end
+
+    it 'bhv_misc_295 a byte-string variant round-trips through base64 and a non-list value is refused for the array variant' do
+      encoded = {{moduleName}}::ObjectSerializer.encode_oneof_body([[0x01, 0x02].pack('C*')], 'SetPetAvatarThumbnailRequest')
+      json = {{moduleName}}::ObjectSerializer.serialize(encoded)
+      result = {{moduleName}}::ObjectSerializer.deserialize(json, 'SetPetAvatarThumbnailRequest')
+
+      _(json).must_equal('["AQI="]')
+      _(result.map(&:bytes)).must_equal([[0x01, 0x02]])
+      _ { {{moduleName}}::ObjectSerializer.deserialize('{"x":1}', 'SetPetAvatarThumbnailRequest') }
+        .must_raise {{moduleName}}::Errors::SerializationError
     end
 
     it 'serializes the array byte variant as an array of base64 strings' do

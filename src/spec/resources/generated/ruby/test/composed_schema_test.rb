@@ -103,6 +103,13 @@ describe 'Composed Schema' do
       _(food.hash).must_equal(same_food.hash)
     end
 
+    it 'bhv_misc_294 a subtype payload without its discriminator decodes as the variant the mapping names' do
+      food = Petstore::Client::ObjectSerializer.deserialize('{"weightKg":2.5}', 'DryFood')
+
+      _(food).must_be_kind_of(Petstore::Client::Models::DryFood)
+      _(food.food_type).must_equal('dry')
+    end
+
     it 'bhv_unions_030 a subtype whose discriminator key is absent is filled with the mapping default' do
       food = Petstore::Client::ObjectSerializer.deserialize('{"weightKg":2.5}', 'DryFood')
 
@@ -267,6 +274,20 @@ describe 'Composed Schema' do
       _(first).wont_equal(other)
     end
 
+    it 'bhv_misc_293 an anyOf value keeps every matching variant and skips the ones that do not match' do
+      both = Petstore::Client::ObjectSerializer.deserialize(
+        '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+      surgery_only = Petstore::Client::ObjectSerializer.deserialize(
+        '{"procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+
+      _(Petstore::Client::Models::PetTreatment.matched_instances(both).map(&:class))
+        .must_equal([Petstore::Client::Models::Medication, Petstore::Client::Models::Surgery])
+      _(Petstore::Client::Models::PetTreatment.matched_instances(surgery_only).map(&:class))
+        .must_equal([Petstore::Client::Models::Surgery])
+    end
+
     it 'bhv_unions_003 exposes actual_instance and matched_instances for anyOf values' do
       both = Petstore::Client::ObjectSerializer.deserialize(
         '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
@@ -378,6 +399,17 @@ describe 'Composed Schema' do
 
       _(result).must_be_kind_of(String)
       _(result).wont_be_kind_of(Array)
+    end
+
+    it 'bhv_misc_295 a byte-string variant round-trips through base64 and a non-list value is refused for the array variant' do
+      encoded = Petstore::Client::ObjectSerializer.encode_oneof_body([[0x01, 0x02].pack('C*')], 'SetPetAvatarThumbnailRequest')
+      json = Petstore::Client::ObjectSerializer.serialize(encoded)
+      result = Petstore::Client::ObjectSerializer.deserialize(json, 'SetPetAvatarThumbnailRequest')
+
+      _(json).must_equal('["AQI="]')
+      _(result.map(&:bytes)).must_equal([[0x01, 0x02]])
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"x":1}', 'SetPetAvatarThumbnailRequest') }
+        .must_raise Petstore::Client::Errors::SerializationError
     end
 
     it 'serializes the array byte variant as an array of base64 strings' do
