@@ -1882,3 +1882,26 @@ test('bhv operations 164 a call with a missing required parameter raises a type 
     expect(fn () => $api->getPetByIdWithHttpInfo(null))->toThrow(\TypeError::class);
     expect($client->capturedUrl ?? '')->toBe('');
 });
+
+test('bhv operations 161 a text plain response is returned as the raw text even when it looks like base64', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'aGVsbG8=', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+    $result = $testApi->call('GET', '/test/echo', [], [], null,
+        ['text/plain'], 'application/json', 'string');
+    expect($result)->toBe('aGVsbG8=');
+});
