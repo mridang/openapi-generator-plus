@@ -3640,4 +3640,66 @@ class BaseApiTest {
       assertEquals("http://localhost/items/7", hook.infos.get(1).url());
     }
   }
+
+  @Test
+  void bhvMisc065SchemeCredentialsAreCopiedWhenTheApiIsBuilt() {
+    Map<String, Authenticator> held = new HashMap<>();
+    held.put("a", new TestAuthenticator(Map.of("X", "a"), Map.of(), Map.of()));
+    TestableApi api =
+        new TestableApi(
+            new CapturingApiClient(), new Configuration("http://localhost", Map.of()), held);
+
+    held.put("b", new TestAuthenticator(Map.of("X", "b"), Map.of(), Map.of()));
+
+    assertNull(api.firstHeld("b"));
+  }
+
+  @Test
+  void bhvMisc072EveryGroupHoldsTheDefaultAndTheSchemeCredentials() {
+    var client = new CapturingApiClient();
+    var config = new Configuration("http://localhost", Map.of());
+    var pet = new com.example.petstore.models.Pet("rex", java.util.Set.of("https://x.invalid/rex"));
+    var fallback =
+        new TestAuthenticator(Map.of("X-Credential", "default-cred"), Map.of(), Map.of());
+    var scheme = new TestAuthenticator(Map.of("X-Credential", "scheme-cred"), Map.of(), Map.of());
+    var group = new PetApi(client, config, fallback, Map.of("petStoreBearer", scheme));
+    try {
+      group.addPet(pet);
+    } catch (Exception ignored) {
+      // Response shape is irrelevant; only the outbound headers are asserted.
+    }
+    assertEquals("scheme-cred", client.capturedHeaders.get("X-Credential"));
+  }
+
+  @Test
+  void bhvMisc081AStringResultWithABase64TransportBodyIsDecoded() throws ApiException {
+    ApiClient client =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(200, "aGVsbG8=", Map.of("Content-Type", "application/pdf"));
+
+    String result =
+        new TestableApi(client, "http://localhost", null)
+            .call(
+                "GET",
+                "/test/echo",
+                new HashMap<>(),
+                new HashMap<>(),
+                null,
+                new String[] {"application/pdf"},
+                "application/json",
+                STRING_TYPE,
+                null);
+
+    assertEquals("hello", result);
+  }
+
+  @Test
+  void bhvMisc159A401IsReplayedOnceWhenAnAuthenticatorCanSupplyFreshCredentials()
+      throws ApiException {
+    var client = new ScriptedApiClient(401, 200);
+    var auth = new RotatingTokenAuthenticator(true);
+    callWith(client, auth, "{}", "application/json");
+    assertEquals(2, client.sentHeaders.size());
+    assertEquals(1, auth.invalidations);
+  }
 }

@@ -165,6 +165,46 @@ defmodule PetstoreClient.DefaultApiClientTest do
     assert err.status_code == 0
   end
 
+  test "bhv transport 093 a server whose certificate is signed by a CA other than the configured one is rejected with a network error" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new())
+
+    err =
+      assert_raise PetstoreClient.Errors.NetworkError, fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "#{chasm_url}/test/echo",
+          %{},
+          nil
+        )
+      end
+
+    assert err.status_code == 0
+  end
+
+  test "bhv misc 269 a self-signed endpoint is reached when verification is off and rejected when it is on" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+
+    off =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(verify_ssl: false))
+
+    assert PetstoreClient.DefaultApiClient.send_request(
+             off,
+             :get,
+             "#{chasm_url}/test/echo",
+             %{},
+             nil
+           ).status_code == 200
+
+    on =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(verify_ssl: true))
+
+    assert_raise PetstoreClient.Errors.NetworkError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(on, :get, "#{chasm_url}/test/echo", %{}, nil)
+    end
+  end
+
   test "bhv transport 023 the default transport rejects a certificate from an untrusted CA" do
     chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
     client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new())
@@ -230,6 +270,25 @@ defmodule PetstoreClient.DefaultApiClientTest do
     client = PetstoreClient.DefaultApiClient.new(transport)
     assert client.proxy_auth_header == "Basic dXNlcjpwYXNz"
     assert PetstoreClient.DefaultApiClient.proxy_auth_header(client) == "Basic dXNlcjpwYXNz"
+  end
+
+  test "bhv misc 272 credentials embedded in the proxy URL are accepted by an authenticating proxy end to end" do
+    chasm_url = System.fetch_env!("CHASM_INTERNAL_HTTP_URL")
+    proxy_url = System.fetch_env!("PROXY_AUTH_URL")
+    authed_proxy = "http://user:pass@" <> String.replace_prefix(proxy_url, "http://", "")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(proxy: authed_proxy)
+      )
+
+    assert PetstoreClient.DefaultApiClient.send_request(
+             client,
+             :get,
+             "#{chasm_url}/test/echo",
+             %{},
+             nil
+           ).status_code == 200
   end
 
   test "bhv transport 016 makes HTTPS request through proxy with verify_ssl=false" do
@@ -340,6 +399,39 @@ defmodule PetstoreClient.DefaultApiClientTest do
              200
   end
 
+  test "bhv transport 086 a request that exceeds its timeout fails with the network timeout error within the time budget" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 200))
+
+    started = System.monotonic_time(:millisecond)
+
+    assert_raise PetstoreClient.Errors.NetworkTimeoutError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/chain/1",
+        %{},
+        nil
+      )
+    end
+
+    assert System.monotonic_time(:millisecond) - started < 1_000
+  end
+
+  test "bhv misc 263 a per-call timeout longer than the client's timeout lets a slow response complete" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    chain = "#{chasm_url}/test/redirect/chain/1"
+
+    client =
+      PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new(timeout: 1200))
+
+    assert PetstoreClient.DefaultApiClient.send_request(client, :get, chain, %{}, nil,
+             timeout: 5000
+           ).status_code == 200
+  end
+
   test "bhv retries 015 a Set-Cookie of one response is never replayed on the next request" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
     client = PetstoreClient.DefaultApiClient.new()
@@ -423,6 +515,26 @@ defmodule PetstoreClient.DefaultApiClientTest do
     end
   end
 
+  test "bhv misc 271 with no proxy configured the client connects directly even when a proxy variable is set" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    saved = System.get_env("HTTP_PROXY")
+    System.put_env("HTTP_PROXY", "http://127.0.0.1:9")
+
+    try do
+      client = PetstoreClient.DefaultApiClient.new()
+
+      assert PetstoreClient.DefaultApiClient.send_request(
+               client,
+               :get,
+               "#{chasm_url}/test/echo",
+               %{},
+               nil
+             ).status_code == 200
+    after
+      if saved, do: System.put_env("HTTP_PROXY", saved), else: System.delete_env("HTTP_PROXY")
+    end
+  end
+
   test "bhv transport 012 injects custom User-Agent header" do
     chasm_url = System.fetch_env!("CHASM_HTTP_URL")
 
@@ -468,6 +580,23 @@ defmodule PetstoreClient.DefaultApiClientTest do
              ~r/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
              request_id
            )
+  end
+
+  test "bhv misc 275 the request is sent with the intended HTTP method and the response is returned to the caller" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+    client = PetstoreClient.DefaultApiClient.new()
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+    assert Jason.decode!(response.body)["method"] == "POST"
   end
 
   test "bhv transport 007 generates unique request ids" do
@@ -634,6 +763,60 @@ defmodule PetstoreClient.DefaultApiClientTest do
     json = Jason.decode!(response.body)
     assert json["method"] == "GET"
     assert json["body"] == ""
+  end
+
+  test "bhv misc 173 a streamed body is replayed across an https to http redirect only when it is empty" do
+    https = "https://example.com/x"
+    http = "http://example.com/x"
+
+    assert PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "payload")
+    refute PetstoreClient.DefaultApiClient.refuse_body_replay?(307, https, http, "")
+  end
+
+  test "bhv misc 226 with redirect following enabled a 302 is followed to its target and the final 200 is returned" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/redirect/302",
+        %{},
+        nil
+      )
+
+    assert response.status_code == 200
+  end
+
+  test "bhv misc 223 a redirect that turns the follow-up into a GET drops the body and its Content-Length" do
+    chasm_url = System.fetch_env!("CHASM_HTTP_URL")
+
+    transport = PetstoreClient.TransportOptions.new(follow_redirects: true, max_redirects: 5)
+    client = PetstoreClient.DefaultApiClient.new(transport)
+
+    response =
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :post,
+        "#{chasm_url}/test/redirect/303",
+        %{"Content-Type" => "application/json"},
+        "hello-body"
+      )
+
+    json = Jason.decode!(response.body)
+    assert json["method"] == "GET"
+    assert json["body"] == ""
+    refute Map.has_key?(json["headers"], "content-length")
+  end
+
+  test "bhv misc 237 an ISO-8859-1 error body decodes to UTF-8 text" do
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain; charset=ISO-8859-1"
+           ) == "é"
   end
 
   # Gap N1 (canonical 302 case): a 302 carrying a body over an https->http hop

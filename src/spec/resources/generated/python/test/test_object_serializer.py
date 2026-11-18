@@ -10,6 +10,10 @@ from petstore_client.errors import OpenAPIException
 from petstore_client.errors import SerializationException
 from petstore_client.object_serializer import ObjectSerializer
 from petstore_client.models.category import Category
+from petstore_client.models.defaults import Defaults, DefaultsModeEnum
+from petstore_client.models.department import Department
+from petstore_client.models.employee import Employee
+from petstore_client.models.metadata import Metadata
 from petstore_client.models.native_values import NativeValues
 from petstore_client.models.order import Order, OrderStatusEnum
 from petstore_client.models.pet import Pet
@@ -44,6 +48,14 @@ class TestDateTimeOffsetPreservation:
         dt = datetime.datetime.fromisoformat("2024-01-01T12:30:45.123000+00:00")
         result = ObjectSerializer.stringify(dt)
         assert ".123" in result
+
+    def test_bhv_misc_121_an_object_with_no_declared_schema_is_written_as_a_json_object(
+        self,
+    ) -> None:
+        assert json.loads(ObjectSerializer().serialize({"a": 1, "b": "x"})) == {
+            "a": 1,
+            "b": "x",
+        }
 
     def test_bhv_serializationobject_044_date_only_serializes_as_iso8601_date(
         self,
@@ -183,6 +195,41 @@ class TestContainerDatetimeAwareDecodeRule:
         # The container path (List[datetime]) shares the same rule element-wise.
         with pytest.raises((ValueError, SerializationException)):
             ObjectSerializer()._deserialize(["2024-01-01T12:30:45"], "List[datetime]")
+
+    def test_bhv_misc_214_an_unserializable_query_content_value_raises_a_serialization_error(
+        self,
+    ) -> None:
+        cyclic: dict[str, Any] = {}
+        cyclic["self"] = cyclic
+
+        with pytest.raises(SerializationException):
+            ObjectSerializer().serialize(cyclic)
+
+    def test_bhv_misc_215_an_input_object_with_no_fields_is_filled_with_every_declared_default(
+        self,
+    ) -> None:
+        restored = ObjectSerializer().deserialize("{}", "Defaults")
+
+        assert restored.retries == 3
+        assert restored.label == "untitled"
+        assert restored.scale == 0.25
+
+    def test_bhv_misc_230_a_model_with_no_extra_properties_writes_only_its_declared_keys(
+        self,
+    ) -> None:
+        parsed = json.loads(ObjectSerializer().serialize(Category(name="x")))
+
+        assert "data" not in parsed
+        assert "additionalProperties" not in parsed
+
+    def test_bhv_misc_231_a_model_built_in_code_keeps_a_wrong_typed_value_while_decoding_refuses_it(
+        self,
+    ) -> None:
+        built = Category.model_construct(name=123)
+
+        assert built.name == 123
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name": 123}', "Category")
 
 
 class TestNonAsciiSerialization:
@@ -606,6 +653,47 @@ class TestNativeValueFormats:
         )
         assert ObjectSerializer.stringify(Decimal("1E+3")) == "1000"
 
+    def test_bhv_misc_245_a_time_of_day_in_a_plain_object_is_serialized_as_a_json_string(
+        self,
+    ) -> None:
+        out = json.loads(
+            ObjectSerializer().serialize({"at": datetime.time(10, 20, 30)})
+        )
+
+        assert out == {"at": "10:20:30"}
+
+    def test_bhv_misc_252_an_enum_wire_value_with_separators_round_trips_unchanged(
+        self,
+    ) -> None:
+        from petstore_client.models.separator import Separator
+
+        value = ObjectSerializer().deserialize('"@@"', "Separator")
+
+        assert isinstance(value, Separator)
+        assert ObjectSerializer().serialize(value) == '"@@"'
+
+    def test_bhv_serialization_116_a_property_named_as_a_keyword_keeps_its_wire_key(
+        self,
+    ) -> None:
+        from petstore_client.models.edge_cases import EdgeCases
+
+        model = ObjectSerializer().deserialize('{"class":"x"}', "EdgeCases")
+
+        assert isinstance(model, EdgeCases)
+        assert model.class_ == "x"
+        assert json.loads(ObjectSerializer().serialize(model))["class"] == "x"
+
+    def test_bhv_misc_235_a_duration_with_fractional_seconds_keeps_its_fraction_when_serialized(
+        self,
+    ) -> None:
+        import datetime
+
+        from petstore_client._duration import _format_timedelta_protobuf
+
+        assert (
+            _format_timedelta_protobuf(datetime.timedelta(milliseconds=1500)) == "1.5s"
+        )
+
 
 class TestNullOptionalField:
     def test_bhv_serialization_070_a_json_null_for_an_optional_field_decodes_to_none(
@@ -615,6 +703,13 @@ class TestNullOptionalField:
             '{"name":"Fido","photoUrls":[],"category":null}', "Pet"
         )
         assert pet.category is None
+
+    def test_bhv_misc_243_an_absent_optional_array_field_decodes_to_none_not_an_empty_list(
+        self,
+    ) -> None:
+        from petstore_client.models.native_values import NativeValues
+
+        assert NativeValues().addresses is None
 
 
 class TestNumberIsLossless:
@@ -679,6 +774,51 @@ class TestDurationRoundTrip:
         for value in values:
             text = ObjectSerializer.stringify(value)
             assert ObjectSerializer()._deserialize(text, "datetime.timedelta") == value
+
+    def test_bhv_misc_246_a_negative_whole_second_duration_string_parses_to_a_negative_duration(
+        self,
+    ) -> None:
+        from petstore_client._duration import _parse_timedelta_protobuf
+
+        assert _parse_timedelta_protobuf("-3s") == datetime.timedelta(seconds=-3)
+
+    def test_bhv_misc_248_a_duration_with_days_is_formatted_as_a_seconds_string(
+        self,
+    ) -> None:
+        from petstore_client._duration import _format_timedelta_protobuf
+
+        assert _format_timedelta_protobuf(datetime.timedelta(days=1)) == "86400s"
+
+    def test_bhv_misc_251_a_duration_string_with_a_day_designator_is_rejected(
+        self,
+    ) -> None:
+        from petstore_client._duration import _parse_timedelta_protobuf
+
+        with pytest.raises(ValueError):
+            _parse_timedelta_protobuf("1d")
+
+    def test_bhv_misc_256_a_fractional_second_keeps_only_the_digits_present(
+        self,
+    ) -> None:
+        from petstore_client._duration import _format_timedelta_protobuf
+
+        assert (
+            _format_timedelta_protobuf(
+                datetime.timedelta(seconds=1, microseconds=500000)
+            )
+            == "1.5s"
+        )
+
+    def test_bhv_serialization_080_a_protobuf_duration_spans_the_full_range_and_rejects_one_past(
+        self,
+    ) -> None:
+        from petstore_client._duration import _parse_timedelta_protobuf
+
+        assert _parse_timedelta_protobuf("315576000000s") == datetime.timedelta(
+            seconds=315576000000
+        )
+        with pytest.raises(ValueError):
+            _parse_timedelta_protobuf("315576000001s")
 
 
 class TestSetSanitization:
@@ -1182,6 +1322,14 @@ class TestUuidRoundtrip:
         result = ObjectSerializer().serialize(u)
         assert json.loads(result) == "12345678-1234-5678-1234-567812345678"
 
+    def test_bhv_misc_247_a_uuid_string_with_the_wrong_segment_lengths_is_rejected(
+        self,
+    ) -> None:
+        with pytest.raises((SerializationException, ValueError)):
+            ObjectSerializer()._deserialize(
+                "1234-5678-1234-5678-1234567890", "uuid.UUID"
+            )
+
 
 class TestExtraFieldsOnDeserialize:
     def test_bhv_serialization_072_several_undeclared_keys_of_any_shape_are_skipped(
@@ -1199,6 +1347,42 @@ class TestExtraFieldsOnDeserialize:
         assert isinstance(category, Category)
         assert category.id == 1
         assert category.name == "Dogs"
+
+    def test_bhv_misc_288_a_snake_case_key_at_the_top_level_is_captured_as_an_undeclared_extra(
+        self,
+    ) -> None:
+        from petstore_client.models.freeform import Freeform
+
+        model = ObjectSerializer().deserialize(
+            '{"label":"x","snake_case_key":1}', "Freeform"
+        )
+
+        assert isinstance(model, Freeform)
+        assert model.additional_properties == {"snake_case_key": 1}
+
+    def test_bhv_misc_289_a_snake_case_key_inside_a_list_element_is_captured_as_an_undeclared_extra(
+        self,
+    ) -> None:
+        from petstore_client.models.freeform import Freeform
+
+        items = ObjectSerializer().deserialize(
+            '[{"label":"x","snake_case_key":1}]', "List[Freeform]"
+        )
+
+        assert isinstance(items[0], Freeform)
+        assert items[0].additional_properties == {"snake_case_key": 1}
+
+    def test_bhv_misc_234_a_model_in_a_list_keeps_its_additional_properties_through_a_round_trip(
+        self,
+    ) -> None:
+        from petstore_client.models.freeform import Freeform
+
+        serializer = ObjectSerializer()
+        items = serializer.deserialize('[{"label":"x","extra":"y"}]', "List[Freeform]")
+        restored = serializer.deserialize(serializer.serialize(items), "List[Freeform]")
+
+        assert isinstance(restored[0], Freeform)
+        assert restored[0].additional_properties == {"extra": "y"}
 
 
 class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
@@ -1317,6 +1501,23 @@ class TestFixtureModelsOnTheWire:
         assert isinstance(decoded, EdgeCases)
         assert decoded.phase == EdgeCasesPhaseEnum(wire)
         assert json.loads(ObjectSerializer().serialize(decoded)) == {"phase": wire}
+
+    def test_bhv_misc_137_a_generated_enum_lists_its_declared_values_and_rejects_others(
+        self,
+    ) -> None:
+        from petstore_client.models.separator import Separator
+
+        assert [member.value for member in Separator] == [" ", "@@", "a-b", "a_b"]
+        with pytest.raises(ValueError):
+            Separator("not-declared")
+
+    def test_bhv_misc_138_converting_an_enum_member_to_text_yields_its_wire_value(
+        self,
+    ) -> None:
+        from petstore_client.models.separator import Separator
+
+        assert str(Separator.A_B) == "a-b"
+        assert f"{Separator.SPACE_1}" == " "
 
     def test_bhv_serializationobject_161_separator_wire_values_decode_to_distinct_members_and_re_encode(
         self,
@@ -1492,6 +1693,37 @@ class TestWireNamesMapsAndFreeForm:
             == '{"a":2,"b":1,"c":3}'
         )
 
+    def test_bhv_misc_249_a_free_form_object_keeps_its_object_and_integer_entries_on_a_round_trip(
+        self,
+    ) -> None:
+        from petstore_client.models.freeform import Freeform
+
+        model = ObjectSerializer().deserialize(
+            '{"label":"x","nested":{"a":1},"count":2}', "Freeform"
+        )
+
+        assert isinstance(model, Freeform)
+        assert json.loads(ObjectSerializer().serialize(model)) == {
+            "label": "x",
+            "nested": {"a": 1},
+            "count": 2,
+        }
+
+    def test_bhv_serialization_121_a_model_part_is_serialized_with_wire_names_and_the_sdk_datetime_format(
+        self,
+    ) -> None:
+        out = json.loads(
+            ObjectSerializer().serialize(
+                Metadata(
+                    created_at=datetime.datetime(
+                        2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                    )
+                )
+            )
+        )
+
+        assert out["createdAt"].startswith("2024-01-02T03:04:05")
+
 
 class TestRequiredNullableOnTheWire:
     """S5: a property that is required and nullable must be present on decode,
@@ -1523,6 +1755,13 @@ class TestRequiredNullableOnTheWire:
         assert (
             ObjectSerializer().serialize(RequiredNullable(note="n")) == '{"note":"n"}'
         )
+
+    def test_bhv_misc_242_a_read_only_property_is_not_sent_on_the_wire(self) -> None:
+        from petstore_client.models.account import Account
+
+        out = ObjectSerializer().serialize(Account(id=7, username="u"))
+
+        assert '"id"' not in out
 
 
 class TestExcludeNoneOnSerialize:
@@ -3851,3 +4090,104 @@ class TestEnumMemberNames:
             .name
             == "Last"
         )
+
+
+class TestStringDefaultAndCollectionCopy:
+    def test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        filled = ObjectSerializer().deserialize("{}", Defaults)
+        assert filled.greeting == 'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b'
+
+    def test_bhv_misc_139_a_collection_passed_into_a_model_is_copied(self) -> None:
+        from petstore_client.models.binary_vault import BinaryVault
+
+        source = [b"\x04\x05"]
+        vault = BinaryVault(seal=b"\x01", shards=source)
+        source.append(b"\x06")
+        assert vault.shards == [b"\x04\x05"]
+
+
+class TestModelRequiredCopyAndEquality:
+    def test_bhv_misc_140_building_a_model_without_a_required_property_names_it(
+        self,
+    ) -> None:
+        with pytest.raises(TypeError, match="'name'"):
+            Employee()
+
+    def test_bhv_misc_141_a_model_built_without_a_defaulted_property_holds_the_default(
+        self,
+    ) -> None:
+        model = Defaults()
+        assert model.retries == 3
+        assert model.mode == DefaultsModeEnum.MEDIUM
+
+    def test_bhv_misc_142_additional_properties_are_returned_unchanged_by_key(
+        self,
+    ) -> None:
+        meta = ObjectSerializer().deserialize('{"note":"x","owner":"ann"}', Metadata)
+        assert meta.additional_properties["note"] == "x"
+        assert list(meta.additional_properties) == ["note", "owner"]
+
+    def test_bhv_misc_143_a_copy_keeps_the_additional_properties_and_compares_equal(
+        self,
+    ) -> None:
+        original = Metadata(additional_properties={"customField": "a"})
+        copy = original.model_copy()
+        assert copy.additional_properties == {"customField": "a"}
+        assert copy == original
+
+    def test_bhv_misc_144_validating_a_model_refuses_a_string_for_a_numeric_field(
+        self,
+    ) -> None:
+        with pytest.raises(ValidationError):
+            Defaults.model_validate({"retries": "3"})
+
+    def test_bhv_misc_146_a_copy_with_no_changes_is_a_new_equal_instance(self) -> None:
+        original = Department(name="Ops")
+        copy = original.model_copy()
+        assert copy is not original
+        assert copy == original
+
+    def test_bhv_misc_147_a_copy_holds_the_same_nested_object_as_the_original(
+        self,
+    ) -> None:
+        original = Department(name="Ops", lead=Employee(name="Ann"))
+        copy = original.model_copy(update={"name": "Eng"})
+        assert copy.lead is original.lead
+
+    def test_bhv_misc_148_a_copy_serializes_to_the_wire_form_with_its_changes_applied(
+        self,
+    ) -> None:
+        original = Department(name="Ops", lead=Employee(name="Ann"))
+        copy = original.model_copy(update={"name": "Eng"})
+        expected = Department(name="Eng", lead=Employee(name="Ann"))
+        assert json.loads(ObjectSerializer().serialize(copy)) == json.loads(
+            ObjectSerializer().serialize(expected)
+        )
+
+    def test_bhv_misc_150_models_with_equal_fields_compare_equal_and_differing_ones_do_not(
+        self,
+    ) -> None:
+        assert Employee(name="Ann") == Employee(name="Ann")
+        assert Employee(name="Ann") != Employee(name="Bo")
+
+    def test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries(self) -> None:
+        assert Metadata(additional_properties={"a": "1", "b": "2"}) == Metadata(
+            additional_properties={"a": "1", "b": "2"}
+        )
+        assert Metadata(additional_properties={"a": "1", "b": "2"}) != Metadata(
+            additional_properties={"a": "1", "b": "3"}
+        )
+
+    def test_bhv_misc_244_a_body_with_a_leading_byte_order_mark_decodes_into_the_model(
+        self,
+    ) -> None:
+        category = ObjectSerializer().deserialize(
+            '\ufeff{"id":1,"name":"Dogs"}', "Category"
+        )
+
+        assert isinstance(category, Category)
+        assert category.id == 1

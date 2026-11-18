@@ -368,3 +368,82 @@ describe 'Metadata', 'copy, equality and enum contract' do
     _(short).must_equal(padded)
   end
 end
+
+describe 'Metadata', 'copies and equality' do
+  parallelize_me!
+
+  it 'bhv_misc_139 a collection passed into a model is copied so later changes to the source do not reach it' do
+    source = { 'owner' => 'team-a' }
+    item = Petstore::Client::Models::Metadata.new(additional_properties: source)
+    source['owner'] = 'team-b'
+    source['extra'] = 'added'
+
+    _(item.additional_properties).must_equal('owner' => 'team-a')
+    _ { item.additional_properties['owner'] = 'x' }.must_raise FrozenError
+  end
+
+  it 'bhv_misc_143 a copy keeps the additional properties and compares equal to the original' do
+    original = Petstore::Client::Models::Metadata.new(additional_properties: { 'customField' => 'a' })
+    copy = original.with
+
+    _(copy.additional_properties).must_equal('customField' => 'a')
+    _(copy).must_equal(original)
+  end
+
+  it 'bhv_misc_146 a copy with no changes is a new instance that compares equal to the original' do
+    original = Petstore::Client::Models::Metadata.new(created_at: Time.utc(2024, 1, 1, 0, 0, 0))
+    copy = original.with
+
+    _(copy).wont_be_same_as(original)
+    _(copy).must_equal(original)
+  end
+
+  it 'bhv_misc_147 a copy holds the same nested object as the original rather than a duplicate' do
+    original = Petstore::Client::Models::Department.new(
+      name: 'Ops',
+      lead: Petstore::Client::Models::Employee.new(name: 'Ann')
+    )
+    copy = original.with(name: 'Eng')
+
+    _(copy.lead).must_be_same_as(original.lead)
+  end
+
+  it 'bhv_misc_148 a copy serializes to the wire form of the original with its changes applied' do
+    original = Petstore::Client::Models::Department.new(
+      name: 'Ops',
+      lead: Petstore::Client::Models::Employee.new(name: 'Ann')
+    )
+    copy = original.with(name: 'Eng')
+
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(copy))).must_equal(
+      'name' => 'Eng', 'lead' => { 'name' => 'Ann' }
+    )
+  end
+
+  it 'bhv_misc_149 a copy with an attribute the model does not declare is refused naming the attribute' do
+    original = Petstore::Client::Models::Metadata.new
+
+    error = _ { original.with(undeclaredField: 'x') }.must_raise ArgumentError
+    _(error.message).must_include 'undeclaredField'
+  end
+
+  it 'bhv_misc_150 models whose fields hold equal values compare equal, and differing values compare unequal' do
+    created = Time.utc(2024, 1, 1, 0, 0, 0)
+
+    _(Petstore::Client::Models::Metadata.new(created_at: created)).must_equal(
+      Petstore::Client::Models::Metadata.new(created_at: created)
+    )
+    _(Petstore::Client::Models::Metadata.new(created_at: created)).wont_equal(
+      Petstore::Client::Models::Metadata.new(created_at: Time.utc(2025, 1, 1, 0, 0, 0))
+    )
+  end
+
+  it 'bhv_misc_151 a model holding a map compares equal when the entries match and unequal when any entry differs' do
+    _(Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })).must_equal(
+      Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })
+    )
+    _(Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })).wont_equal(
+      Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '3' })
+    )
+  end
+end

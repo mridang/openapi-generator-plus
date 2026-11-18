@@ -38,6 +38,7 @@ import (
 	pkgerrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -3886,5 +3887,419 @@ func TestBhvMisc175_DefaultApiClientUnit_CredentialHeaderNamesAreStrippedInAnyCa
 	}
 	if receivedTrace != "kept" {
 		t.Errorf("expected the ordinary header kept, got %q", receivedTrace)
+	}
+}
+
+// A self-signed endpoint is reached only when certificate verification is off.
+func TestBhvMisc269_DefaultApiClientUnit_ASelfSignedEndpointIsReachedOnlyWithVerificationOff(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	unverified, buildErr := NewTransportOptionsBuilder().VerifySsl(false).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(unverified).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("expected the self-signed endpoint to be reached with verification off, got %v", err)
+	}
+
+	verified, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(verified).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err == nil {
+		t.Error("expected the self-signed endpoint to be refused with verification on")
+	}
+}
+
+// A missing CA certificate file is refused even when verification is off, and the error names the file.
+func TestBhvMisc270_DefaultApiClientUnit_AMissingCaFileIsRejectedEvenWithVerificationOff(t *testing.T) {
+	t.Parallel()
+	_, err := NewTransportOptionsBuilder().VerifySsl(false).CACertPath("/nonexistent/ca.pem").Build()
+	if !errors.Is(err, ErrInvalidCACertificate) {
+		t.Fatalf("expected ErrInvalidCACertificate, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "/nonexistent/ca.pem") {
+		t.Errorf("expected the error to name the certificate file, got %q", err.Error())
+	}
+}
+
+// With no proxy configured the client connects directly, whatever proxy environment variables are set.
+func TestBhvMisc271_DefaultApiClientUnit_WithNoProxyTheClientConnectsDirectlyDespiteProxyEnvironment(t *testing.T) {
+	var proxyHits atomic.Int32
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyHits.Add(1)
+		w.WriteHeader(http.StatusBadGateway)
+	}))
+	defer proxy.Close()
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer target.Close()
+	t.Setenv("HTTP_PROXY", proxy.URL)
+	t.Setenv("http_proxy", proxy.URL)
+
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", target.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected the target's 200 directly, got %d", resp.StatusCode)
+	}
+	if got := proxyHits.Load(); got != 0 {
+		t.Errorf("expected no request through the proxy, got %d", got)
+	}
+}
+
+// Credentials in the proxy URL are sent to an authenticating proxy, which then lets the request through.
+func TestBhvMisc272_DefaultApiClientUnit_CredentialsInTheProxyUrlAreAcceptedByTheProxy(t *testing.T) {
+	t.Parallel()
+	var sawAuth atomic.Value
+	proxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawAuth.Store(r.Header.Get("Proxy-Authorization"))
+		if r.Header.Get("Proxy-Authorization") != "Basic dXNlcjpwYXNz" {
+			w.WriteHeader(http.StatusProxyAuthRequired)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer proxy.Close()
+
+	proxyURL := "http://user:pass@" + strings.TrimPrefix(proxy.URL, "http://")
+	transport, buildErr := NewTransportOptionsBuilder().Proxy(proxyURL).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", "http://target.example.com/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected the proxy to let the request through with 200, got %d", resp.StatusCode)
+	}
+	if got, _ := sawAuth.Load().(string); got != "Basic dXNlcjpwYXNz" {
+		t.Errorf("expected the proxy to receive the URL credentials, got %q", got)
+	}
+}
+
+// The request id is a version 4 UUID when injection is on and is absent when it is off.
+func TestBhvMisc273_DefaultApiClientUnit_TheRequestIdIsAVersion4UuidWhenInjectedAndAbsentOtherwise(t *testing.T) {
+	t.Parallel()
+	seen := make(chan string, 2)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Get("X-Request-ID")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	on, buildErr := NewTransportOptionsBuilder().InjectRequestID(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(on).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	id := <-seen
+	if len(id) != 36 || id[14] != '4' || !strings.ContainsRune("89ab", rune(id[19])) {
+		t.Errorf("expected a version 4 UUID, got %q", id)
+	}
+
+	off, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(off).SendRequest("GET", server.URL+"/test", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := <-seen; got != "" {
+		t.Errorf("expected no request id when injection is off, got %q", got)
+	}
+}
+
+// A non-2xx response is returned to the caller with its status code and body intact.
+func TestBhvMisc274_DefaultApiClientUnit_ANon2xxResponseIsReturnedWithItsStatusIntact(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTeapot)
+		_, _ = w.Write([]byte("short and stout"))
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the response back, got error %v", err)
+	}
+	if resp.StatusCode != http.StatusTeapot {
+		t.Errorf("expected status 418, got %d", resp.StatusCode)
+	}
+	if resp.Body != "short and stout" {
+		t.Errorf("expected the body intact, got %q", resp.Body)
+	}
+}
+
+// The request is sent with the method it was given, and its response comes back to the caller.
+func TestBhvMisc275_DefaultApiClientUnit_TheRequestIsSentWithItsMethodAndItsResponseReturned(t *testing.T) {
+	t.Parallel()
+	var method atomic.Value
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		method.Store(r.Method)
+		_, _ = w.Write([]byte("patched"))
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("PATCH", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got, _ := method.Load().(string); got != "PATCH" {
+		t.Errorf("expected the PATCH method on the wire, got %q", got)
+	}
+	if resp.StatusCode != http.StatusOK || resp.Body != "patched" {
+		t.Errorf("expected the 200 response with its body, got %d %q", resp.StatusCode, resp.Body)
+	}
+}
+
+// A response in a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message.
+func TestBhvMisc285_DefaultApiClientUnit_AnUnsupportedContentEncodingIsRefusedWithItsExactMessage(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Encoding", "x-unknown")
+		_, _ = w.Write([]byte("payload"))
+	}))
+	defer server.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	_, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err == nil {
+		t.Fatal("expected the unsupported encoding to be refused")
+	}
+	if !strings.Contains(err.Error(), "unsupported Content-Encoding 'x-unknown'") {
+		t.Errorf("expected the exact unsupported-encoding message, got %q", err.Error())
+	}
+}
+
+func TestBhvMisc182_DefaultApiClientUnit_RemovingAHeaderMatchesEverySpellingOfItsName(t *testing.T) {
+	t.Parallel()
+	for _, spelling := range []string{"Authorization", "authorization", "AUTHORIZATION"} {
+		var leaked atomic.Bool
+		target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "" {
+				leaked.Store(true)
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, target.URL+"/", http.StatusTemporaryRedirect)
+		}))
+		transport, err := NewTransportOptionsBuilder().FollowRedirects(true).DefaultHeader(spelling, "Bearer secret").Build()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		client := NewDefaultApiClient(transport)
+		_, _ = client.SendRequest(http.MethodGet, origin.URL+"/", nil, nil)
+		_ = client.Close()
+		origin.Close()
+		target.Close()
+		if leaked.Load() {
+			t.Errorf("expected the %s header to be removed across the redirect", spelling)
+		}
+	}
+}
+
+func TestBhvMisc183_DefaultApiClientUnit_ClosingAClientWithNothingToReleaseSucceeds(t *testing.T) {
+	t.Parallel()
+	client := &Client{}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected Close to succeed, got %v", err)
+	}
+}
+
+func TestBhvMisc184_DefaultApiClientUnit_CloseDoesNotWaitForOrCancelAnInFlightRequest(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	served := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(served)
+		<-release
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	client := NewDefaultApiClient(nil)
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.SendRequest(http.MethodGet, server.URL+"/", nil, nil)
+		done <- err
+	}()
+	<-served
+	if err := client.Close(); err != nil {
+		t.Fatalf("expected Close to return at once, got %v", err)
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Errorf("expected the in-flight request to finish, got %v", err)
+	}
+}
+
+func TestBhvMisc186_DefaultApiClientUnit_CACertBundleWithReadyMadeConnectionIsRejectedAtBuild(t *testing.T) {
+	t.Parallel()
+	_, err := NewTransportOptionsBuilder().HttpClient(&http.Client{}).CACertPath("/tmp/ca.pem").Build()
+	if !errors.Is(err, ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict, got %v", err)
+	}
+}
+
+func TestBhvMisc187_DefaultApiClientUnit_ClientTakesHostAndTokenFromTheEnvironment(t *testing.T) {
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", server.URL)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+
+	client, err := NewClientWithToken("", "", nil)
+	if err != nil {
+		t.Fatalf("expected the client to take its host and token from the environment, got %v", err)
+	}
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "Bearer env-token" {
+		t.Errorf("expected the environment token to be sent, got %q", got)
+	}
+}
+
+func TestBhvMisc188_DefaultApiClientUnit_ReportsClosedOnlyAfterCloseIsCalled(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	client := NewDefaultApiClient(nil)
+
+	if _, err := client.SendRequest(http.MethodGet, server.URL+"/", nil, nil); errors.Is(err, ErrClientClosed) {
+		t.Fatal("expected a client that was never closed to accept requests")
+	}
+	_ = client.Close()
+	if _, err := client.SendRequest(http.MethodGet, server.URL+"/", nil, nil); !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed after Close, got %v", err)
+	}
+}
+
+func TestBhvMisc203_DefaultApiClientUnit_ClosingAnAlreadyClosedClientDoesNothing(t *testing.T) {
+	t.Parallel()
+	client := NewDefaultApiClient(nil)
+	_ = client.Close()
+	if err := client.Close(); err != nil {
+		t.Errorf("expected a second Close to return no error, got %v", err)
+	}
+}
+
+func TestBhvMisc204_DefaultApiClientUnit_ConstructingWithoutRequiredHostOrTokenFailsAtOnce(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "")
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
+	_, err := NewClientWithToken("", "", nil)
+	if !errors.Is(err, auth.ErrMissingCredential) {
+		t.Errorf("expected ErrMissingCredential, got %v", err)
+	}
+}
+
+func TestBhvMisc206_DefaultApiClientUnit_ClientWithOnlyADefaultAuthenticatorTakesItsHost(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	authObj, err := auth.NewBearerAuthenticator(server.URL, "token")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewClientWithAuthenticator(authObj, nil)
+
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	if got := hits.Load(); got != 1 {
+		t.Errorf("expected the request to reach the authenticator's host, got %d hits", got)
+	}
+}
+
+func TestBhvMisc207_DefaultApiClientUnit_TokenNotPassedIsReadFromItsEnvironmentVariable(t *testing.T) {
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+
+	client, err := NewClientWithToken(server.URL, "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "Bearer env-token" {
+		t.Errorf("expected the environment token to be sent, got %q", got)
+	}
+}
+
+func TestBhvMisc208_DefaultApiClientUnit_EmptyEnvironmentVariableCountsAsUnset(t *testing.T) {
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "")
+	_, err := NewClientWithToken("http://localhost", "", nil)
+	if !errors.Is(err, auth.ErrMissingCredential) {
+		t.Errorf("expected an empty variable to be treated as unset, got %v", err)
+	}
+}
+
+func TestBhvMisc224_DefaultApiClientUnit_TransportDefaultHeadersAreNotSentAfterACrossOriginRedirect(t *testing.T) {
+	t.Parallel()
+	var leaked atomic.Bool
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("X-Default-Header") != "" {
+			leaked.Store(true)
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+"/", http.StatusTemporaryRedirect)
+	}))
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).DefaultHeader("X-Default-Header", "transport-default").Build()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, _ = client.SendRequest(http.MethodGet, origin.URL+"/", nil, nil)
+	_ = client.Close()
+	origin.Close()
+	target.Close()
+	if leaked.Load() {
+		t.Error("expected the transport default header not to reach the other origin")
 	}
 }

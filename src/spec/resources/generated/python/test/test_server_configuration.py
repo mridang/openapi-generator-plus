@@ -273,3 +273,132 @@ class TestHostileGlobalServer:
 
         assert server.get_url() == "https://o'neil.example.com/api"
         assert server.get_url({"tenant": "a&b"}) == "https://a&b.example.com/api"
+
+
+class TestServerVariableOrderAndResolution:
+    def test_bhv_misc_154_editing_the_variables_map_does_not_change_the_configuration(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{region}.example.com",
+            variables={"region": ServerVariable(default_value="eu")},
+        )
+        with pytest.raises(TypeError):
+            config.variables["region"] = ServerVariable(default_value="us")
+        assert config.get_url() == "https://eu.example.com"
+
+    def test_bhv_misc_155_an_unset_enum_variable_with_a_disallowed_default_is_refused_naming_it(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{region}.example.com",
+            variables={
+                "region": ServerVariable(default_value="apac", enum_values=("eu", "us"))
+            },
+        )
+        with pytest.raises(ValueError, match="'region'"):
+            config.get_url()
+
+    def test_bhv_misc_156_the_list_of_all_servers_keeps_the_declared_order(
+        self,
+    ) -> None:
+        import petstore_client.servers as servers
+
+        for index, server in enumerate(ALL):
+            assert server is getattr(servers, f"SERVER_{index}")
+
+    def test_bhv_misc_157_explicit_variable_values_are_resolved_into_the_url(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/v{version}",
+            variables={
+                "env": ServerVariable(default_value="prod"),
+                "version": ServerVariable(default_value="2"),
+            },
+        )
+        assert config.get_url() == "https://prod.api.example.com/v2"
+
+    def test_bhv_misc_257_a_variable_with_an_empty_enum_accepts_any_value(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={"env": ServerVariable(default_value="x", enum_values=[])},
+        )
+
+        assert config.get_url({"env": "anything"}) == "https://anything.example.com"
+
+    def test_bhv_misc_258_a_variable_without_an_override_uses_its_default(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url() == "https://prod.example.com"
+
+    def test_bhv_misc_259_a_placeholder_with_no_declared_variable_stays_in_the_url(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.{region}.example.com",
+            variables={"env": ServerVariable(default_value="prod")},
+        )
+
+        assert config.get_url() == "https://prod.{region}.example.com"
+
+    def test_bhv_misc_260_a_none_value_for_an_enum_variable_is_rejected(self) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com",
+            variables={
+                "env": ServerVariable(
+                    default_value="prod", enum_values=["prod", "staging"]
+                )
+            },
+        )
+
+        with pytest.raises(ValueError):
+            config.get_url({"env": None})
+
+    def test_bhv_misc_261_a_value_with_backslashes_is_inserted_without_escape_processing(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://example.com/{path}",
+            variables={"path": ServerVariable(default_value="x")},
+        )
+
+        assert config.get_url({"path": "a\\b\\n"}) == "https://example.com/a\\b\\n"
+
+    def test_bhv_misc_278_a_templated_server_url_resolves_each_default_when_no_overrides_are_given(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.example.com/v{version}",
+            variables={
+                "env": ServerVariable(default_value="prod"),
+                "version": ServerVariable(default_value="2"),
+            },
+        )
+
+        assert config.get_url() == "https://prod.example.com/v2"
+
+    def test_bhv_misc_297_every_variable_in_a_multi_variable_url_is_replaced_when_the_url_is_built(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.{region}.example.com/v{version}",
+            variables={
+                "env": ServerVariable(default_value="prod"),
+                "region": ServerVariable(default_value="eu"),
+                "version": ServerVariable(default_value="3"),
+            },
+        )
+
+        assert config.get_url({"region": "us"}) == "https://prod.us.example.com/v3"
+
+
+class TestFixedServerUrl:
+    def test_bhv_misc_158_a_server_with_a_fixed_url_reports_that_url_unchanged(
+        self,
+    ) -> None:
+        config = ServerConfiguration(url_template="https://fixed.example.com/v1/items")
+        assert config.get_url() == "https://fixed.example.com/v1/items"

@@ -1594,4 +1594,37 @@ class OAuth2TokenManagerTest {
     assertTrue(bodies.get(1).contains("grant_type=refresh_token"), bodies.get(1));
     assertTrue(bodies.get(1).contains("refresh_token=r1"), bodies.get(1));
   }
+
+  @Test
+  void bhvMisc069ANonStringAccessTokenIsRefusedNamingTheField() {
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(fakeClient(200, "{\"access_token\":123}"));
+
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    OAuth2TokenException ex =
+        assertThrowsExactly(
+            OAuth2TokenException.class,
+            () -> manager.getAccessToken("https://auth.example.com/token", params));
+    assertTrue(ex.getMessage().contains("access_token"), ex.getMessage());
+  }
+
+  @Test
+  void bhvMisc172ATokenRequestIsSentOnceEvenWhenTheServerAnswers503() {
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          callCount.incrementAndGet();
+          return new ApiHttpResponse(503, "{\"error\":\"temporarily_unavailable\"}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+    org.junit.jupiter.api.Assertions.assertThrows(
+        OAuth2ServerException.class,
+        () -> manager.getAccessToken("https://auth.example.com/token", params));
+    assertEquals(1, callCount.get());
+  }
 }

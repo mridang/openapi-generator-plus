@@ -3547,4 +3547,301 @@ class ObjectSerializerTest {
     private <T> T decode(String json, Class<T> type) {
         return java.util.Objects.requireNonNull(serializer.deserialize(json, type));
     }
+
+
+    @Test
+    void bhvMisc085UuidTextNotInCanonicalFormIsRefusedWhenBuilt() {
+        assertThrows(IllegalArgumentException.class, () -> UUID.fromString("0123456789abcdef0123456789abcdef"));
+        assertThrows(IllegalArgumentException.class, () -> UUID.fromString("not-a-uuid"));
+    }
+
+    @Test
+    void bhvMisc086ContainerElementHoldingJsonTextIsNotDecodedASecondTime() {
+        java.lang.reflect.Type listOfDateTimes =
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.time.OffsetDateTime>>() {}.getType();
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("[\"\\\"2024-01-15T10:00:00Z\\\"\"]", listOfDateTimes));
+    }
+
+    @Test
+    void bhvMisc087DecimalInLooselyBuiltBodyIsWrittenAsBareJsonNumber() {
+        assertEquals("{\"weightKg\":12.5}",
+                ObjectSerializer.stringify(java.util.Map.of("weightKg", new java.math.BigDecimal("12.5"))));
+    }
+
+    @Test
+    void bhvMisc088DecimalDecodedFromTextKeepsTheDecimalPlacesItWasWrittenWith() {
+        java.math.BigDecimal value = serializer.deserialize("\"1.50\"", java.math.BigDecimal.class);
+        assertEquals(2, value.scale());
+    }
+
+    @Test
+    void bhvMisc089UtcDateTimeIsWrittenInCanonicalFormDirectlyAndInListAndMap() {
+        java.time.OffsetDateTime when = java.time.OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+        assertEquals("\"2024-01-02T03:04:05.000+00:00\"", ObjectSerializer.stringify(when));
+        assertEquals("[\"2024-01-02T03:04:05.000+00:00\"]", ObjectSerializer.stringify(java.util.List.of(when)));
+        assertEquals("{\"at\":\"2024-01-02T03:04:05.000+00:00\"}", ObjectSerializer.stringify(java.util.Map.of("at", when)));
+    }
+
+    @Test
+    void bhvMisc090DurationWithFractionalSecondsIsWrittenInProtobufWireForm() {
+        assertEquals("1.500s", ObjectSerializer.stringify(Duration.ofMillis(1500)));
+    }
+
+    @Test
+    void bhvMisc094FreeFormJsonObjectIsWrittenWithItsMembersAndValuesUnchanged() {
+        java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("ownerId", 198772);
+        payload.put("at", "2024-01-15T10:30:00Z");
+        assertEquals("{\"ownerId\":198772,\"at\":\"2024-01-15T10:30:00Z\"}", ObjectSerializer.stringify(payload));
+    }
+
+    @Test
+    void bhvMisc102ABinaryFieldSetInCodeKeepsExactlyTheBytesItWasGiven() {
+        byte[] raw = {0x00, (byte) 0xFF, 0x10, 0x42};
+        {{modelPackage}}.BinaryVault vault = {{modelPackage}}.BinaryVault.builder().seal(raw).build();
+        assertTrue(Arrays.equals(raw, vault.seal));
+        assertTrue(Arrays.equals(raw, vault.toBuilder().build().seal));
+    }
+
+    @Test
+    void bhvMisc103RejectingUndeclaredKeysOnOneStrictModelLeavesOtherModelsAcceptingThem() {
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("{\"rogue\":\"x\"}", {{modelPackage}}.StrictTag.class));
+        assertInstanceOf({{modelPackage}}.Metadata.class,
+                serializer.deserialize("{\"rogue\":\"x\"}", {{modelPackage}}.Metadata.class));
+    }
+
+    @Test
+    void bhvMisc104AStringFieldDeclaredWithTheEmailFormatDecodesWithoutValidation() {
+        String json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}";
+        assertEquals("x@", serializer.deserialize(json, {{modelPackage}}.NativeValues.class).contact);
+    }
+
+    @Test
+    void bhvMisc105CopyingAModelNeverValidatesTheValuesItIsGiven() {
+        assertEquals(500, {{modelPackage}}.Order.builder().build().toBuilder().quantity(500).build().quantity);
+    }
+
+    @Test
+    void bhvMisc106ANullArrayElementKeepsItsPositionWhenSerialized() {
+        assertEquals("[1,null,2]", serializer.serialize(Arrays.asList(1, null, 2)));
+    }
+
+    @Test
+    void bhvMisc107AScalarFormQueryParameterIsEmittedUnderItsOwnNameAndValue() {
+        Object styled = ValueSerializer.serializeStyled("filter", "x", "query", "string", null, "form", true);
+        Map<String, Object> query = new java.util.LinkedHashMap<>();
+        ValueSerializer.putQuery(query, "filter", styled, false);
+        assertEquals(Map.of("filter", "x"), query);
+    }
+
+    @Test
+    void bhvMisc108AModelBuiltWithAnIntegerEnumMemberKeepsThatMembersWireValue() {
+        String json = serializer.serialize({{modelPackage}}.Subscription.builder().rank({{modelPackage}}.Rank.LOW).build());
+        assertTrue(json.contains("\"rank\":1"), json);
+    }
+
+    @Test
+    void bhvMisc109ANestedObjectIsValidatedWithTheOuterRulesAtDecode() {
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("{\"lastError\":{\"code\":\"three\"}}", {{modelPackage}}.EdgeCases.class));
+    }
+
+    @Test
+    void bhvMisc110AListOfDatesWithANonDateElementIsRefused() {
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("[\"2024-01-01\",\"not-a-date\"]",
+                        new com.fasterxml.jackson.core.type.TypeReference<List<LocalDate>>() {}.getType()));
+    }
+
+    @Test
+    void bhvMisc111ACollectionOfUniqueStringsOrNumbersIsWrittenInSortedOrder() {
+        assertEquals("{\"values\":[\"z\",\"\uFFFD\",\"\uD83D\uDE00\"]}",
+                serializer.serialize(Map.of("values", new java.util.HashSet<>(List.of("\uD83D\uDE00", "\uFFFD", "z")))));
+        assertEquals("{\"values\":[1,2,10]}",
+                serializer.serialize(Map.of("values", new java.util.HashSet<>(List.of(10, 2, 1)))));
+    }
+
+    @Test
+    void bhvMisc112ARepeatedElementOfAUniqueArrayKeepsOneCopy() {
+        java.util.Set<String> values = serializer.deserialize("[\"a\",\"a\",\"b\"]",
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.Set<String>>() {}.getType());
+        assertEquals(java.util.Set.of("a", "b"), values);
+    }
+
+    @Test
+    void bhvMisc113AStringFormShowsTheContentsOfListMapAndByteFields() {
+        {{modelPackage}}.BinaryVault vault = {{modelPackage}}.BinaryVault.builder()
+                .seal(new byte[] {1, 2, 3})
+                .shards(List.of(new byte[] {4, 5}, new byte[] {6}))
+                .labels(Map.of("first", new byte[] {7, 8}))
+                .build();
+        String text = vault.toString();
+        assertTrue(text.contains("seal=[1, 2, 3]"), text);
+        assertTrue(text.contains("[4, 5]") && text.contains("[7, 8]"), text);
+        assertFalse(text.contains("[B@"), text);
+    }
+
+    @Test
+    void bhvMisc115ABareStringIsAQuotedJsonString() {
+        assertEquals("\"hello\"", serializer.serialize("hello"));
+    }
+
+    @Test
+    void bhvMisc116AnInt32FieldAcceptsExactlyItsDeclaredBoundsAndRefusesTheRest() {
+        assertEquals(1, decodeOrder("{\"quantity\":1}").quantity);
+        assertEquals(100, decodeOrder("{\"quantity\":100}").quantity);
+        for (String wire : List.of("0", "101", "1.5")) {
+            assertThrows(SerializationException.class, () -> decodeOrder("{\"quantity\":" + wire + "}"));
+        }
+    }
+
+    @Test
+    void bhvMisc117AnAbsentValueWritesTheJsonNullLiteral() {
+        assertEquals("null", serializer.serialize(null));
+    }
+
+    @Test
+    void bhvMisc118TheExactCaseValueIsTheOneDecoded() {
+        assertEquals("Exact", serializer.deserialize("{\"NAME\":\"Other\",\"name\":\"Exact\"}",
+                {{modelPackage}}.Category.class).name);
+    }
+
+    @Test
+    void bhvMisc119TwoKeysThatDifferOnlyByAnEscapeAreOneKeyAndTheLastValueWins() {
+        assertEquals("Last", serializer.deserialize("{\"name\":\"First\",\"\\u006eame\":\"Last\"}",
+                {{modelPackage}}.Category.class).name);
+    }
+
+    private {{modelPackage}}.Order decodeOrder(String json) {
+        return java.util.Objects.requireNonNull(serializer.deserialize(json, {{modelPackage}}.Order.class));
+    }
+
+    @Test
+    void bhvMisc121AnObjectWithNoDeclaredSchemaIsWrittenAsAJsonObject() {
+        Map<String, Object> properties = new java.util.LinkedHashMap<>();
+        properties.put("a", 1);
+        properties.put("b", "x");
+        assertEquals("{\"a\":1,\"b\":\"x\"}", serializer.serialize(properties));
+    }
+
+    @Test
+    void bhvMisc122AStringDefaultIsAppliedAsTheExactLiteral() {
+        assertEquals("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
+                serializer.deserialize("{}", {{modelPackage}}.Defaults.class).greeting);
+    }
+
+    @Test
+    void bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndRejectsOthers() {
+        assertEquals(List.of(" ", "@@", "a-b", "a_b"),
+                Arrays.stream({{modelPackage}}.Separator.values()).map({{modelPackage}}.Separator::getValue).toList());
+        assertThrows(IllegalArgumentException.class, () -> {{modelPackage}}.Separator.fromValue("not-declared"));
+    }
+
+    @Test
+    void bhvMisc138ConvertingAnEnumMemberToTextYieldsItsWireValue() {
+        assertEquals("a-b", {{modelPackage}}.Separator.A_B.toString());
+        assertEquals(" ", String.valueOf({{modelPackage}}.Separator.SPACE_1));
+    }
+
+    @Test
+    void bhvMisc139ACollectionPassedIntoAModelIsCopiedSoLaterChangesDoNotReachIt() {
+        java.util.List<byte[]> source = new java.util.ArrayList<>(List.of(new byte[] {4, 5}));
+        {{modelPackage}}.BinaryVault vault =
+                {{modelPackage}}.BinaryVault.builder().seal(new byte[] {1}).shards(source).build();
+        source.add(new byte[] {6});
+        assertEquals(1, vault.shards.size());
+        assertThrows(UnsupportedOperationException.class, () -> vault.shards.add(new byte[] {7}));
+    }
+
+    @Test
+    void bhvMisc140BuildingAModelWithoutARequiredPropertyNamesIt() {
+        NullPointerException thrown = assertThrows(
+                NullPointerException.class, () -> {{modelPackage}}.Employee.builder().build());
+        assertEquals("name is required", thrown.getMessage());
+    }
+
+    @Test
+    void bhvMisc141AModelBuiltWithoutADefaultedPropertyHoldsTheDefault() {
+        {{modelPackage}}.Defaults model = {{modelPackage}}.Defaults.builder().build();
+        assertEquals(3, model.retries);
+        assertEquals({{modelPackage}}.Defaults.ModeEnum.MEDIUM, model.mode);
+    }
+
+    @Test
+    void bhvMisc142AdditionalPropertiesAreReturnedUnchangedByKey() {
+        {{modelPackage}}.Metadata meta =
+                serializer.deserialize("{\"note\":\"x\",\"owner\":\"ann\"}", {{modelPackage}}.Metadata.class);
+        assertEquals("x", meta.getAdditionalProperties().get("note"));
+        assertEquals(List.of("note", "owner"), List.copyOf(meta.getAdditionalProperties().keySet()));
+    }
+
+    @Test
+    void bhvMisc143ACopyKeepsTheAdditionalPropertiesAndComparesEqual() {
+        {{modelPackage}}.Metadata original =
+                {{modelPackage}}.Metadata.builder().putAdditionalProperty("customField", "a").build();
+        {{modelPackage}}.Metadata copy = original.toBuilder().build();
+        assertEquals(Map.of("customField", "a"), copy.getAdditionalProperties());
+        assertEquals(original, copy);
+    }
+
+    @Test
+    void bhvMisc144ValidatingAModelRefusesAStringForANumericField() {
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("{\"retries\":\"3\"}", {{modelPackage}}.Defaults.class));
+    }
+
+    @Test
+    void bhvMisc145ReadingTheUndeclaredKeysReturnsACopyThatCannotChangeTheInstance() {
+        {{modelPackage}}.Metadata meta =
+                serializer.deserialize("{\"createdAt\":\"2024-01-01T00:00:00Z\",\"note\":\"x\"}", {{modelPackage}}.Metadata.class);
+        Map<String, String> props = meta.getAdditionalProperties();
+        assertThrows(UnsupportedOperationException.class, () -> props.put("note", "changed"));
+        assertEquals("x", meta.getAdditionalProperties().get("note"));
+    }
+
+    @Test
+    void bhvMisc146ACopyWithNoChangesIsANewEqualInstance() {
+        {{modelPackage}}.Department original = {{modelPackage}}.Department.builder().name("Ops").build();
+        {{modelPackage}}.Department copy = original.toBuilder().build();
+        assertNotSame(original, copy);
+        assertEquals(original, copy);
+    }
+
+    @Test
+    void bhvMisc147ACopyHoldsTheSameNestedObjectAsTheOriginal() {
+        {{modelPackage}}.Employee lead = {{modelPackage}}.Employee.builder().name("Ann").build();
+        {{modelPackage}}.Department original = {{modelPackage}}.Department.builder().name("Ops").lead(lead).build();
+        {{modelPackage}}.Department copy = original.toBuilder().name("Eng").build();
+        assertTrue(original.lead == copy.lead);
+    }
+
+    @Test
+    void bhvMisc148ACopySerializesToTheWireFormWithItsChangesApplied() {
+        {{modelPackage}}.Department original = {{modelPackage}}.Department.builder()
+                .name("Ops").lead({{modelPackage}}.Employee.builder().name("Ann").build()).build();
+        {{modelPackage}}.Department copy = original.toBuilder().name("Eng").build();
+        {{modelPackage}}.Department expected = {{modelPackage}}.Department.builder()
+                .name("Eng").lead({{modelPackage}}.Employee.builder().name("Ann").build()).build();
+        assertEquals(serializer.serialize(expected), serializer.serialize(copy));
+    }
+
+    @Test
+    void bhvMisc150ModelsWithEqualFieldsCompareEqualAndDifferingOnesDoNot() {
+        assertEquals({{modelPackage}}.Employee.builder().name("Ann").build(),
+                {{modelPackage}}.Employee.builder().name("Ann").build());
+        assertNotEquals({{modelPackage}}.Employee.builder().name("Ann").build(),
+                {{modelPackage}}.Employee.builder().name("Bo").build());
+    }
+
+    @Test
+    void bhvMisc151AModelHoldingAMapComparesByItsEntries() {
+        assertEquals(
+                {{modelPackage}}.Metadata.builder().putAdditionalProperty("a", "1").putAdditionalProperty("b", "2").build(),
+                {{modelPackage}}.Metadata.builder().putAdditionalProperty("a", "1").putAdditionalProperty("b", "2").build());
+        assertNotEquals(
+                {{modelPackage}}.Metadata.builder().putAdditionalProperty("a", "1").putAdditionalProperty("b", "2").build(),
+                {{modelPackage}}.Metadata.builder().putAdditionalProperty("a", "1").putAdditionalProperty("b", "3").build());
+    }
 }

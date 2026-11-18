@@ -214,6 +214,35 @@ void main() {
     );
 
     test(
+      'bhv misc 082 an enum in a path parameter is sent as its wire value',
+      () async {
+        String? path;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          path = request.uri.path;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"sample"}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getBySwatch(Swatch.red, null);
+
+          expect(path, endsWith('/red'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv operations 107 getBySwatch omits the optional query parameter and header when they are not set',
       () async {
         String? query;
@@ -823,6 +852,21 @@ void main() {
           expect(department.name, equals('d'));
           expect(department.lead?.name, equals('e'));
           expect(department.lead?.department?.name, equals('d2'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 215 getDefaults fills every declared default when the body is an empty object',
+      () async {
+        final server = await _serveJson('{}');
+        try {
+          final defaults = await _storeApiFor(server).getDefaults(null);
+          expect(defaults.retries, equals(3));
+          expect(defaults.label, equals('untitled'));
+          expect(defaults.scale, equals(0.25));
         } finally {
           await server.close();
         }

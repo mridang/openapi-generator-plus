@@ -14,6 +14,10 @@ import { SerializationError } from "../src/errors/serialization-error.js";
 
 describe("ValueSerializer", () => {
   describe("path location", () => {
+    test("bhvMisc082 an enum value given in a path parameter is sent as its wire value", () => {
+      expect(ValueSerializer.serialize("sold", "path", "string")).toBe("sold");
+    });
+
     test("bhv serialization 005 a path value keeps unreserved and sub-delimiters and encodes the rest", () => {
       expect(
         ValueSerializer.serialize("a-._~!$&'()*+,;=:@", "path", "string"),
@@ -96,6 +100,12 @@ describe("ValueSerializer", () => {
   });
 
   describe("query location", () => {
+    test("bhvMisc083 a query supplied as raw text keeps its repeated keys, values and percent-encodings as written", () => {
+      expect(
+        ValueSerializer.encodeQueryAllowingReserved("a=1&a=2&b=%20x"),
+      ).toBe("a=1&a=2&b=%20x");
+    });
+
     test("bhv langnode 168 null returns undefined", () => {
       expect(
         ValueSerializer.serialize(null, "query", "string"),
@@ -1523,5 +1533,30 @@ describe("ValueSerializer", () => {
         String(ValueSerializer.serialize(['{"a":1}'], "query", "array")),
       ).toContain('{"a":1}');
     });
+  });
+});
+
+describe("ValueSerializer misc behaviours", () => {
+  it("bhv misc 107 a scalar form query parameter keeps its string value", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "filter",
+        "x",
+        "query",
+        "string",
+        null,
+        "form",
+        true,
+      ),
+    ).toBe("x");
+  });
+
+  it("bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out", () => {
+    expect(
+      ValueSerializer.toWireMap("filter", { a: "1", c: undefined, b: "2" }),
+    ).toEqual([
+      ["a", "1"],
+      ["b", "2"],
+    ]);
   });
 });

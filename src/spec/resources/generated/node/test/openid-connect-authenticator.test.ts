@@ -166,6 +166,32 @@ describe("OpenIdConnectAuthenticator", () => {
     );
   });
 
+  test("bhv misc 201 a failed discovery request reports its path without the query string", async () => {
+    authenticator = new OpenIdConnectAuthenticator(
+      "https://api.example.com",
+      "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+      "my-client-id",
+      "my-client-secret",
+      "https://myapp.example.com/callback",
+      ["openid"],
+    );
+    authenticator.setApiClient(mockClient);
+    mockClient.responses = [
+      {
+        statusCode: 503,
+        body: "down",
+        headers: { "content-type": "text/plain" },
+      },
+    ];
+
+    const error = await authenticator
+      .buildAuthorizationUrl()
+      .catch((e: unknown) => e);
+
+    expect((error as ApiError).requestPath).toBe(
+      "/.well-known/openid-configuration",
+    );
+  });
   test("bhv authoidc 033 a failed discovery request reports its method and path in the error", async () => {
     mockClient.responses = [
       {
@@ -237,6 +263,44 @@ describe("OpenIdConnectAuthenticator", () => {
   });
 
   describe("PKCE and token renewal", () => {
+    test("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce", async () => {
+      mockClient.responses = [discoveryResponse(), discoveryResponse()];
+      const query = new URL(await authenticator.buildAuthorizationUrl())
+        .searchParams;
+      expect(query.get("code_challenge")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(query.get("code_challenge_method")).toBe("S256");
+      expect(query.has("nonce")).toBe(false);
+    });
+
+    test("bhv misc 199 discovery runs again when the cached document has a zero max-age", async () => {
+      mockClient.responses = [
+        discoveryResponse("max-age=0"),
+        discoveryResponse("max-age=0"),
+      ];
+      await authenticator.buildAuthorizationUrl();
+      await authenticator.buildAuthorizationUrl();
+      expect(mockClient.callCount).toBe(2);
+    });
+    test("bhvMisc076 a call after a dropped code exchange reuses the discovered configuration and sees the code as not yet exchanged", async () => {
+      mockClient.responses = [
+        discoveryResponse("max-age=3600"),
+        { statusCode: 500, body: "", headers: {} },
+        tokenResponse("tok1"),
+      ];
+      await authenticator.buildAuthorizationUrl();
+      await expect(
+        authenticator.exchangeCode("my-auth-code"),
+      ).rejects.toThrow();
+      expect(mockClient.callCount).toBe(2);
+
+      await authenticator.buildAuthorizationUrl();
+      expect(mockClient.callCount).toBe(2);
+
+      mockClient.responses = [tokenResponse("tok2")];
+      await authenticator.exchangeCode("my-auth-code");
+      expect(mockClient.callCount).toBe(3);
+    });
+
     const discoveryResponse = (
       cacheControl = "max-age=0",
     ): ApiHttpResponse => ({

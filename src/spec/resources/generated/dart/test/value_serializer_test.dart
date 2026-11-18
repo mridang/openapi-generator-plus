@@ -15,6 +15,53 @@ import 'package:petstore_client/src/object_serializer.dart' show stringify;
 
 void main() {
   group('ValueSerializer', () {
+    test(
+      'bhv misc 083 a query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written',
+      () {
+        expect(
+          encodeQueryAllowingReserved('tag=a&tag=b&q=x%20y%2Bz'),
+          equals('tag=a&tag=b&q=x%20y%2Bz'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 107 a scalar form query parameter is sent under its own name with its string value',
+      () {
+        expect(serializeValue('x', 'query', 'string', ''), equals('x'));
+      },
+    );
+
+    test(
+      'bhv misc 120 an object parameter becomes name and value pairs sorted by wire name, without absent values',
+      () {
+        final result = serializeDeepObject('filter', {
+          'b': '2',
+          'c': null,
+          'a': '1',
+        });
+        expect(result.keys.toList(), equals(['filter[a]', 'filter[b]']));
+      },
+    );
+
+    test(
+      'bhv misc 084 a set optional scalar sends its value in every location',
+      () {
+        expect(serializeValue(7, 'path', 'integer', ''), equals('7'));
+        expect(serializeValue(7, 'header', 'integer', ''), equals('7'));
+        expect(serializeValue(7, 'cookie', 'integer', ''), equals('7'));
+        expect(serializeValue(7, 'query', 'integer', ''), equals('7'));
+      },
+    );
+
+    test(
+      'bhv misc 086 an element that holds JSON text is taken as its own value and not decoded again',
+      () {
+        final result = serializeValue(['{"a":1}'], 'query', 'array', 'csv');
+        expect(result, allOf(contains('%7B'), isNot(contains('%257B'))));
+      },
+    );
+
     // serializeValue by location
 
     test('bhv serializationparam 062 serializeValue path null', () {
@@ -1508,6 +1555,26 @@ void main() {
         expect(
           encodeRfc3986QueryComponent('a b+c~d*', spaceToPlus: true),
           equals('a+b%2Bc~d%2A'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 106 a non-exploded array query parameter joins its values with commas',
+      () {
+        expect(
+          serializeValue(['a', 'b'], 'query', 'array', 'csv'),
+          equals('a,b'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 108 a path parameter with no declared style uses the simple style',
+      () {
+        expect(
+          serializeValue('hello world', 'path', 'string', ''),
+          equals('hello%20world'),
         );
       },
     );

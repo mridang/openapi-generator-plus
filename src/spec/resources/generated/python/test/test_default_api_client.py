@@ -1112,6 +1112,39 @@ class TestConcurrentRedirects:
         # Each plain request independently returned 200.
         assert all(r.status_code == 200 for r in plain_results)
 
+    def test_bhv_misc_266_caller_default_headers_replace_the_user_agent_and_request_id_in_any_case(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient(
+            TransportOptions.builder().inject_request_id(True).build()
+        )
+        response = client.send_request(
+            "GET",
+            chasm_http_url + "/test/echo",
+            {"USER-AGENT": "caller-agent", "X-REQUEST-ID": "caller-id"},
+            None,
+        )
+        body = json.loads(response.body)
+        assert body["headers"]["user-agent"] == "caller-agent"
+        assert body["headers"]["x-request-id"] == "caller-id"
+
+    def test_bhv_misc_267_a_caller_supplied_http_client_default_headers_are_sent_with_each_request(
+        self, chasm_http_url: Any
+    ) -> None:
+        import urllib3
+
+        pool = urllib3.PoolManager(headers={"X-Pool-Default": "yes"})
+        client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+        assert json.loads(response.body)["headers"]["x-pool-default"] == "yes"
+
+    def test_bhv_misc_275_the_request_is_sent_with_the_intended_method_and_the_response_returned(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request("PATCH", chasm_http_url + "/test/echo", {}, None)
+        assert response.status_code == 200
+
 
 class TestMultipartBody:
     def test_bhv_serializationwire_027_sends_multipart_form_data(
@@ -1135,10 +1168,24 @@ class TestMultipartBody:
         with pytest.raises(ValueError):
             client.send_request("POST", chasm_http_url + "/test/echo", {}, bad_fields)
 
+    def test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "POST", chasm_http_url + "/test/echo", {}, {"file": b"file content"}
+        )
+        assert "file content" in response.body
+
 
 class TestHttpCompression:
     """The fixture serves one JSON body under each codec whatever the request
     advertises, so the plain text proves the client decoded it."""
+
+    def test_bhv_transport_088_a_gzip_encoded_body_is_decoded_before_it_is_returned(
+        self, chasm_http_url: Any
+    ) -> None:
+        self._assert_decompresses(chasm_http_url, "gzip")
 
     def _assert_decompresses(self, chasm_http_url: Any, encoding: str) -> None:
         client = DefaultApiClient()
@@ -1260,6 +1307,42 @@ class TestTlsVerificationEnforced:
 
         assert response.status_code == 200
         assert '"method"' in response.body
+
+    def test_bhv_misc_268_a_trusted_ca_certificate_is_rejected_when_the_hostname_does_not_match(
+        self, chasm_https_url: Any, ca_cert_path: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(True)
+            .ca_cert_path(ca_cert_path)
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        with pytest.raises(NetworkException):
+            client.send_request(
+                "GET", self._address_url(chasm_https_url) + "/test/echo", {}, None
+            )
+
+    def test_bhv_misc_269_a_self_signed_endpoint_is_reached_only_with_verification_disabled(
+        self, chasm_https_url: Any
+    ) -> None:
+        off = DefaultApiClient(TransportOptions.builder().verify_ssl(False).build())
+        assert (
+            off.send_request(
+                "GET", chasm_https_url + "/test/echo", {}, None
+            ).status_code
+            == 200
+        )
+        on = DefaultApiClient(TransportOptions.builder().build())
+        with pytest.raises(NetworkException):
+            on.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+    def test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error(
+        self, chasm_https_url: Any
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        with pytest.raises(NetworkException):
+            client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
 
 
 class TestDefaultTrustStore:

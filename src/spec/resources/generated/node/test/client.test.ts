@@ -47,6 +47,21 @@ import { Pet } from "../src/models/index.js";
 describe("Client", () => {
   const authenticator = new BearerAuthenticator("/api/v3", "test-token");
 
+  test("bhv misc 203 closing a client that is already closed does nothing and raises no error", async () => {
+    const client = new Client(authenticator);
+    await client.close();
+
+    await expect(client.close()).resolves.toBeUndefined();
+  });
+
+  test("bhv misc 206 a client built with only a default authenticator is constructed", () => {
+    const onlyDefault = new BearerAuthenticator(
+      "https://only-default.example.com",
+      "tok",
+    );
+
+    expect(() => new Client(onlyDefault)).not.toThrow();
+  });
   test("bhv lifecycle 012 construct with authenticator only", () => {
     const client = new Client(authenticator);
 
@@ -513,6 +528,19 @@ describe("Client", () => {
       expect(new Client(credentials)).toBeDefined();
     });
 
+    test("bhv misc 197 an operation none of whose schemes the client holds is sent with the default authenticator", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        new BearerAuthenticator(host, "default-token"),
+        transport,
+      );
+
+      await client.pet.deletePet(1);
+
+      expect(seen[seen.length - 1]!.headers["Authorization"]).toBe(
+        "Bearer default-token",
+      );
+    });
     test("bhv lifecycle 026 a client with no credential at all is refused", () => {
       expect(() => new Client({})).toThrow(
         new TypeError("At least one credential is required"),

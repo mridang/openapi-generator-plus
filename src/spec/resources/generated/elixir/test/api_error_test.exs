@@ -17,6 +17,43 @@ defmodule PetstoreClient.ApiErrorTest do
     assert err.error_body == nil
   end
 
+  test "bhv misc 284 a generated call that receives a typed status raises that typed error" do
+    for {status, name} <- [
+          {400, :BadRequestError},
+          {403, :ForbiddenError},
+          {404, :NotFoundError},
+          {409, :ConflictError},
+          {422, :UnprocessableEntityError},
+          {429, :TooManyRequestsError},
+          {500, :InternalServerError},
+          {502, :BadGatewayError}
+        ] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, "")
+      assert error.__struct__ == Module.concat(PetstoreClient.Errors, name)
+    end
+  end
+
+  test "bhv misc 283 the package root module re-exports every error type in the error tree" do
+    assert PetstoreClient.errors() == PetstoreClient.Errors.OpenAPIError.exceptions()
+    assert Enum.all?(PetstoreClient.errors(), &Code.ensure_loaded?/1)
+  end
+
+  test "bhv misc 281 headers from a received response are copied onto the error raised for that response" do
+    error = PetstoreClient.Errors.ApiError.from_response(500, %{"x-trace-id" => "abc123"}, "boom")
+
+    assert error.response_headers == %{"x-trace-id" => "abc123"}
+  end
+
+  test "bhv misc 264 each listed error HTTP status raises the SDK's API error carrying that status code" do
+    for status <- [400, 401, 403, 404, 409, 422, 429, 500, 502] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, "")
+
+      assert Exception.exception?(error)
+      assert PetstoreClient.Errors.ApiError.api_error?(error)
+      assert error.status_code == status
+    end
+  end
+
   test "bhv errors 021 nil headers and body mark transport-no-response" do
     # apierror-responsebody-headers-nullable-split: nil is distinct from an
     # empty header map / empty body so a pre-response transport failure can
@@ -114,6 +151,19 @@ defmodule PetstoreClient.ApiErrorTest do
                String.duplicate("a", 1_024) <> "... (1976 more bytes)"
 
     assert byte_size(err.response_body) == 3_000
+  end
+
+  test "bhv misc 280 the message truncated at 1 KiB states how many bytes were left out" do
+    body = String.duplicate("b", 1_100)
+
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "bad gateway",
+        status_code: 502,
+        response_body: body
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) =~ "... (76 more bytes)"
   end
 
   test "bhv errors 086 the message leaves a body of exactly 1 KiB whole" do

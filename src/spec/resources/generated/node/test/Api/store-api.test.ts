@@ -426,6 +426,49 @@ describe("StoreApi response shapes", () => {
     }
   });
 
+  test("bhv misc 079 a 200 response decodes as the Reservation the 200 status declares", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      '{"reservationId":31,"quantity":4}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      close();
+    }
+  });
+
+  test("bhv misc 079 a 201 response decodes as the ReservationReceipt the 201 status declares", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      "application/json",
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+      expect((result as ReservationReceipt).receiptCode).toBe("R-1");
+    } finally {
+      close();
+    }
+  });
+
+  test("bhv misc 080 a 200 body that only fits the 201 schema is refused", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      "application/json",
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
   test("bhv operations 120 reserveStock decodes a 201 body as the new receipt", async () => {
     const { api: mockApi, close } = await createMockServer(
       201,
@@ -925,5 +968,19 @@ describe("StoreApi misc behaviours", () => {
   test("bhv misc 013 an operation with no parameters can be called with no argument and returns its result", async () => {
     const result = await api.getInventory();
     expect(result).toBeDefined();
+  });
+
+  test("bhv misc 114 a success response is decoded by the decoder for the status code actually received", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      "application/json",
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+    } finally {
+      close();
+    }
   });
 });

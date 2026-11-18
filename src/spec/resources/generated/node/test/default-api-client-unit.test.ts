@@ -3153,6 +3153,21 @@ describe("request header and byte body handling", () => {
     expect(seen[1]!["Authorization"]).toBe("Bearer api-only");
   });
 
+  it("bhv misc 202 a text body sent without a declared content type goes out as bare JSON", async () => {
+    let seenHeaders: Record<string, string> = {};
+    global.fetch = (async (
+      _url: unknown,
+      init: { headers: Record<string, string> },
+    ) => {
+      seenHeaders = init.headers;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = new DefaultApiClient();
+
+    await client.sendRequest("POST", "http://api.example/x", {}, "hello");
+
+    expect(seenHeaders["Content-Type"]).toBe("application/json");
+  });
   it("bhv misc 217 sends a plain Uint8Array body as raw bytes, not multipart", async () => {
     let seenBody: unknown;
     let seenHeaders: Record<string, string> = {};
@@ -4632,5 +4647,342 @@ describe("DefaultApiClient misc transport behaviours", () => {
     const plain = Buffer.from('{"userId":1}', "utf-8");
     const out = await DefaultApiClient.ensureDecoded(plain, "gzip");
     expect(out.toString("utf-8")).toBe('{"userId":1}');
+  });
+});
+
+describe("DefaultApiClient multipart parts and bodies (misc behaviours)", () => {
+  function captureMultipartBody(): Promise<{
+    url: string;
+    getBody: () => string;
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let chunks: Buffer[] = [];
+      const srv = http.createServer((req, res) => {
+        chunks = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end('{"ok":true}');
+        });
+      });
+      srv.listen(0, "127.0.0.1", () => {
+        const addr = srv.address() as { port: number };
+        resolve({
+          url: `http://127.0.0.1:${addr.port}/upload`,
+          getBody: () => Buffer.concat(chunks).toString("binary"),
+          close: () => srv.close(),
+        });
+      });
+    });
+  }
+
+  it("bhv misc 096 a text part carries only its Content-Disposition", async () => {
+    const { url, getBody, close } = await captureMultipartBody();
+    try {
+      await new DefaultApiClient().sendRequest(
+        "POST",
+        url,
+        {},
+        { title: "hello" },
+      );
+      const body = getBody();
+      expect(body).toContain(
+        'Content-Disposition: form-data; name="title"\r\n\r\nhello\r\n',
+      );
+      expect(body).not.toContain("Content-Transfer-Encoding");
+    } finally {
+      close();
+    }
+  });
+
+  it("bhv misc 097 each array element is its own part in the order given", async () => {
+    const { url, getBody, close } = await captureMultipartBody();
+    try {
+      await new DefaultApiClient().sendRequest(
+        "POST",
+        url,
+        {},
+        { tags: ["a", "b"], name: "x" },
+      );
+      const body = getBody();
+      expect(body.split('name="tags"').length - 1).toBe(2);
+      expect(body.indexOf("\r\n\r\na\r\n")).toBeLessThan(
+        body.indexOf("\r\n\r\nb\r\n"),
+      );
+      expect(body.split('name="name"').length - 1).toBe(1);
+    } finally {
+      close();
+    }
+  });
+
+  it("bhv misc 098 a caller-supplied stream used as a multipart part is read into the body and never closed", async () => {
+    const { url, getBody, close } = await captureMultipartBody();
+    try {
+      const stream = new Blob(["hello"], { type: "text/plain" });
+      await new DefaultApiClient().sendRequest(
+        "POST",
+        url,
+        {},
+        { upload: stream },
+      );
+      expect(getBody()).toContain("hello");
+      expect(await stream.text()).toBe("hello");
+    } finally {
+      close();
+    }
+  });
+
+  it("bhv misc 101 a multipart source that cannot be read fails the call instead of sending an empty payload", async () => {
+    const realFetch = global.fetch;
+    let sent = false;
+    global.fetch = (async () => {
+      sent = true;
+      return new Response("{}", { status: 200 });
+    }) as unknown as typeof fetch;
+    class UnreadableSource extends Blob {
+      arrayBuffer(): Promise<ArrayBuffer> {
+        return Promise.reject(new Error("source gone"));
+      }
+    }
+    try {
+      await expect(
+        new DefaultApiClient().sendRequest(
+          "POST",
+          "http://api.example/up",
+          {},
+          { file: new UnreadableSource(["x"]) },
+        ),
+      ).rejects.toThrow();
+      expect(sent).toBe(false);
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
+
+  it("bhv misc 095 bytes invalid in the declared charset decode to U+FFFD replacement characters", () => {
+    expect(
+      DefaultApiClient.decodeBody(
+        Buffer.from([0x61, 0xff, 0x62, 0xfe]),
+        "text/plain; charset=utf-8",
+      ),
+    ).toBe("a�b�");
+  });
+});
+
+describe("automatic retries misc behaviours", () => {
+  type Step = Response | Error;
+  let delays: number[];
+  let calls: Array<{ headers: Record<string, string>; body?: unknown }>;
+
+  beforeEach(() => {
+    delays = [];
+    calls = [];
+    jest.spyOn(globalThis, "setTimeout").mockImplementation(((
+      handler: () => void,
+      ms?: number,
+    ) => {
+      delays.push(ms ?? 0);
+      handler();
+      return 0 as unknown as NodeJS.Timeout;
+    }) as unknown as typeof setTimeout);
+  });
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function playing(
+    steps: Step[],
+    configure: (
+      builder: ReturnType<typeof TransportOptions.builder>,
+    ) => void = () => undefined,
+  ): DefaultApiClient {
+    const scripted = (async (
+      _url: unknown,
+      init?: { headers?: Record<string, string>; body?: unknown },
+    ) => {
+      calls.push({ headers: { ...(init?.headers ?? {}) }, body: init?.body });
+      const step = steps[Math.min(calls.length, steps.length) - 1]!;
+      if (step instanceof Error) {
+        throw step;
+      }
+      return step.clone();
+    }) as unknown as typeof fetch;
+    const builder = TransportOptions.builder().fetch(scripted);
+    configure(builder);
+    return new DefaultApiClient(builder.build());
+  }
+  const reply = (
+    status: number,
+    headers: Record<string, string> = {},
+  ): Response => new Response("body", { status, headers });
+  const send = (
+    client: DefaultApiClient,
+    options?: Parameters<DefaultApiClient["sendRequest"]>[4],
+  ) => client.sendRequest("GET", "http://api.example/items", {}, null, options);
+
+  it("bhv misc 162 an idempotent request whose connection drops before any response is sent again once", async () => {
+    const response = await send(
+      playing([new TypeError("fetch failed"), reply(200)]),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("bhv misc 164 a retry whose wait fits within the remaining timeout budget is sent", async () => {
+    const response = await send(
+      playing([reply(503, { "Retry-After": "1" }), reply(200)], (builder) =>
+        builder.timeout(60000),
+      ),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("bhv misc 166 a call that disables its deadline is not cut short while it waits to retry", async () => {
+    const response = await send(
+      playing([reply(503, { "Retry-After": "30" }), reply(200)], (builder) =>
+        builder.timeout(1000),
+      ),
+      { timeout: null },
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("bhv misc 167 a retryable status is attempted up to the retry limit and then returned as the last response", async () => {
+    const response = await send(playing([reply(503)]));
+    expect(response.statusCode).toBe(503);
+    expect(calls).toHaveLength(3);
+  });
+
+  it("bhv misc 168 with no retry setting a failing request is sent three times, pausing 0.5 s and then 1 s between attempts", async () => {
+    jest.spyOn(Math, "random").mockReturnValue(0);
+    await send(playing([reply(503)]));
+    expect(calls).toHaveLength(3);
+    expect(delays).toEqual([500, 1000]);
+  });
+
+  it("bhv misc 169 the pause between retries starts at 0.5 s, doubles on each attempt and never exceeds 8 s", async () => {
+    await send(
+      playing([reply(500)], (builder) => builder.maxRetries(6).timeout(null)),
+    );
+    expect(delays).toHaveLength(6);
+    delays.forEach((delay, index) => {
+      const base = Math.min(500 * 2 ** index, 8000);
+      expect(delay).toBeGreaterThanOrEqual(base * 0.75);
+      expect(delay).toBeLessThanOrEqual(base);
+    });
+  });
+
+  it("bhv misc 171 a per-call maximum retry count larger than the transport limit applies to that call and allows more attempts", async () => {
+    await send(
+      playing([reply(503)], (builder) => builder.maxRetries(1)),
+      { maxRetries: 4 },
+    );
+    expect(calls).toHaveLength(5);
+  });
+
+  const headerValue = (
+    headers: Record<string, string>,
+    name: string,
+  ): string | undefined =>
+    Object.entries(headers).find(([key]) => key.toLowerCase() === name)?.[1];
+
+  it("bhv misc 173 a streamed body is refused across an https to http redirect when the body is not empty", async () => {
+    const client = playing(
+      [reply(307, { Location: "http://api.example/plain" }), reply(200)],
+      (builder) => builder.followRedirects(true),
+    );
+    await expect(
+      client.sendRequest("POST", "https://api.example/items", {}, "payload"),
+    ).rejects.toThrow("Refusing to replay request body");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("bhv misc 177 a default Content-Type header given in any letter case is not sent when the request has no body", async () => {
+    const client = playing([reply(200)], (builder) =>
+      builder.defaultHeader("content-type", "application/json"),
+    );
+    await send(client);
+    expect(headerValue(calls[0]!.headers, "content-type")).toBeUndefined();
+  });
+
+  it("bhv misc 178 a declared multipart content type other than form-data reaches the transport with its subtype kept", async () => {
+    const client = playing([reply(200)]);
+    await client.sendRequest(
+      "POST",
+      "http://api.example/items",
+      { "Content-Type": "multipart/related" },
+      { note: "hello" },
+    );
+    expect(
+      headerValue(calls[0]!.headers, "content-type")!.startsWith(
+        "multipart/related; boundary=",
+      ),
+    ).toBe(true);
+  });
+
+  it("bhv misc 179 a form-urlencoded body sends the application/x-www-form-urlencoded Content-Type", async () => {
+    const client = playing([reply(200)]);
+    await client.sendRequest(
+      "POST",
+      "http://api.example/items",
+      { "Content-Type": "application/x-www-form-urlencoded" },
+      "a=1",
+    );
+    expect(headerValue(calls[0]!.headers, "content-type")).toBe(
+      "application/x-www-form-urlencoded",
+    );
+  });
+
+  it("bhv misc 181 content placed in a header is sent exactly as serialised, with no percent-encoding applied", async () => {
+    const client = playing([reply(200)]);
+    await client.sendRequest(
+      "GET",
+      "http://api.example/items",
+      { "X-Raw": "a%20b c/d" },
+      null,
+    );
+    expect(headerValue(calls[0]!.headers, "x-raw")).toBe("a%20b c/d");
+  });
+
+  it.each(["Authorization", "authorization", "AUTHORIZATION"])(
+    "bhv misc 182 a cross-origin redirect removes the %s header whatever its letter case",
+    async (name) => {
+      const client = playing(
+        [reply(302, { Location: "https://other.example/next" }), reply(200)],
+        (builder) => builder.followRedirects(true),
+      );
+      await client.sendRequest(
+        "GET",
+        "https://api.example/items",
+        { [name]: "Bearer x" },
+        null,
+      );
+      expect(calls).toHaveLength(2);
+      expect(headerValue(calls[1]!.headers, "authorization")).toBeUndefined();
+    },
+  );
+});
+
+describe("DefaultApiClient lifecycle misc behaviours", () => {
+  it("bhv misc 175 credential header names are recognised regardless of letter case", () => {
+    const names = Array.from(SENSITIVE_HEADER_NAMES, (name) =>
+      name.toLowerCase(),
+    );
+    expect(names).toContain("authorization");
+    expect(names).not.toContain("content-type");
+  });
+
+  it("bhv misc 183 closing a client whose credentials hold nothing that needs releasing succeeds", async () => {
+    await expect(new DefaultApiClient().close()).resolves.toBeUndefined();
+  });
+
+  it("bhv misc 188 a client reports itself as closed only after close has been called on it", async () => {
+    const client = new DefaultApiClient();
+    expect((client as unknown as { closed: boolean }).closed).toBe(false);
+    await client.close();
+    expect((client as unknown as { closed: boolean }).closed).toBe(true);
   });
 });

@@ -233,6 +233,20 @@ func TestBhvAuthbasic019_SchemeAuthenticator_PetStoreBasicAuthenticator_EmitsThe
 		t.Errorf("expected the base Basic header %q, got %q", want, got)
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_PetStoreBasicAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
+
+	if _, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_PetStoreBasicAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
+
+	_, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
+	requireMissingCredential(t, err, schemePetStoreBasicAuthenticatorVariables[0])
+}
 
 var schemeAdminBasicAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD"}
 
@@ -342,6 +356,20 @@ func TestBhvLanggo123_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVa
 			})
 		}
 	}
+}
+func TestBhvMisc196_SchemeAuthenticator_AdminBasicAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
+
+	if _, err := auth.NewAdminBasicAuthenticator(schemeHost, "", ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_AdminBasicAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
+
+	_, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")
+	requireMissingCredential(t, err, schemeAdminBasicAuthenticatorVariables[0])
 }
 
 var schemePetStoreBearerAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"}
@@ -499,6 +527,20 @@ func TestBhvAuth004_BhvLanggo125_SchemeAuthenticator_PetStoreBearerAuthenticator
 		t.Error("expected no authenticator")
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_PetStoreBearerAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
+
+	if _, err := auth.NewPetStoreBearerAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_PetStoreBearerAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
+
+	_, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemePetStoreBearerAuthenticatorVariables[0])
+}
 
 var schemeServiceTokenAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"}
 
@@ -655,6 +697,20 @@ func TestBhvLanggo125_SchemeAuthenticator_ServiceTokenAuthenticator_WithProvider
 		t.Error("expected no authenticator")
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_ServiceTokenAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
+
+	if _, err := auth.NewServiceTokenAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_ServiceTokenAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
+
+	_, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemeServiceTokenAuthenticatorVariables[0])
+}
 
 var schemeApiKeyHeaderAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"}
 
@@ -810,6 +866,20 @@ func TestBhvLanggo123_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingA
 		}
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_ApiKeyHeaderAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
+
+	if _, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_ApiKeyHeaderAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
+
+	_, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemeApiKeyHeaderAuthenticatorVariables[0])
+}
 
 var schemeInternalApiKeyAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"}
 
@@ -933,6 +1003,20 @@ func TestBhvLanggo123_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamin
 			})
 		}
 	}
+}
+func TestBhvMisc196_SchemeAuthenticator_InternalApiKeyAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
+
+	if _, err := auth.NewInternalApiKeyAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_InternalApiKeyAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
+
+	_, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemeInternalApiKeyAuthenticatorVariables[0])
 }
 
 var schemeApiKeyQueryAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"}
@@ -1058,6 +1142,20 @@ func TestBhvLanggo123_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAV
 		}
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_ApiKeyQueryAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
+
+	if _, err := auth.NewApiKeyQueryAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_ApiKeyQueryAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
+
+	_, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemeApiKeyQueryAuthenticatorVariables[0])
+}
 
 var schemeSessionCookieAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"}
 
@@ -1182,6 +1280,20 @@ func TestBhvLanggo123_SchemeAuthenticator_SessionCookieAuthenticator_FailsNaming
 		}
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_SessionCookieAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
+
+	if _, err := auth.NewSessionCookieAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_SessionCookieAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
+
+	_, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemeSessionCookieAuthenticatorVariables[0])
+}
 
 var schemeMachineAuthClientCredentialsAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET"}
 
@@ -1291,6 +1403,20 @@ func TestBhvLanggo123_SchemeAuthenticator_MachineAuthClientCredentialsAuthentica
 			})
 		}
 	}
+}
+func TestBhvMisc196_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
+
+	if _, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
+
+	_, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
+	requireMissingCredential(t, err, schemeMachineAuthClientCredentialsAuthenticatorVariables[0])
 }
 
 var schemeLegacyAuthPasswordAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"}
@@ -1402,6 +1528,20 @@ func TestBhvLanggo123_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsN
 		}
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
+
+	if _, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
+
+	_, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
+	requireMissingCredential(t, err, schemeLegacyAuthPasswordAuthenticatorVariables[0])
+}
 
 var schemeUserAuthAuthorizationCodeAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"}
 
@@ -1511,6 +1651,20 @@ func TestBhvLanggo123_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator
 			})
 		}
 	}
+}
+func TestBhvMisc196_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
+
+	if _, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
+
+	_, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
+	requireMissingCredential(t, err, schemeUserAuthAuthorizationCodeAuthenticatorVariables[0])
 }
 
 var schemeBrowserAuthImplicitAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"}
@@ -1622,6 +1776,20 @@ func TestBhvLanggo123_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_Fails
 		}
 	}
 }
+func TestBhvMisc196_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
+
+	if _, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
+
+	_, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
+	requireMissingCredential(t, err, schemeBrowserAuthImplicitAuthenticatorVariables[0])
+}
 
 var schemeSsoAuthAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI"}
 
@@ -1731,4 +1899,18 @@ func TestBhvLanggo123_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVaria
 			})
 		}
 	}
+}
+func TestBhvMisc196_SchemeAuthenticator_SsoAuthAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
+
+	if _, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", ""); err == nil {
+		t.Error("expected an error when no token is passed or set in the environment")
+	}
+}
+
+func TestBhvMisc205_SchemeAuthenticator_SsoAuthAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
+
+	_, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+	requireMissingCredential(t, err, schemeSsoAuthAuthenticatorVariables[0])
 }

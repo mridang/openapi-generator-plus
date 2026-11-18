@@ -485,4 +485,123 @@ public class ServerConfigurationTest
             }
         }
     }
+
+    [Fact]
+    public void BhvMisc139ACollectionPassedInIsCopiedAndTheConfigurationCannotChangeIt()
+    {
+        var source = new Dictionary<string, ServerVariable>
+        {
+            ["region"] = new ServerVariable("eu", null, []),
+        };
+        var server = new ServerConfiguration("https://{region}.example.com", null, source);
+        source["zone"] = new ServerVariable("us", null, []);
+        Assert.False(server.Variables.ContainsKey("zone"));
+        Assert.Throws<NotSupportedException>(() =>
+            ((IDictionary<string, ServerVariable>)(object)server.Variables)["zone"] =
+                new ServerVariable("us", null, [])
+        );
+    }
+
+    [Fact]
+    public void BhvMisc154TheVariablesMapReturnedByTheAccessorCannotBeEdited()
+    {
+        var server = new ServerConfiguration(
+            "https://{region}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["region"] = new ServerVariable("eu", null, []),
+            }
+        );
+        Assert.Throws<NotSupportedException>(() =>
+            ((IDictionary<string, ServerVariable>)(object)server.Variables)["region"] =
+                new ServerVariable("us", null, [])
+        );
+        Assert.Equal("https://eu.example.com", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc155AnUnsetEnumVariableWhoseDefaultIsNotAllowedIsRefusedNamingIt()
+    {
+        var server = new ServerConfiguration(
+            "https://{region}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["region"] = new ServerVariable("apac", null, ["eu", "us"]),
+            }
+        );
+        var ex = Assert.Throws<ArgumentException>(() => server.GetUrl());
+        Assert.Contains("'region'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("Allowed values: [eu, us]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvMisc156TheListOfAllServersKeepsTheDeclaredOrder()
+    {
+        Assert.Same(Servers.Server0, Servers.All[0]);
+        Assert.Same(Servers.Server1, Servers.All[1]);
+        Assert.Same(Servers.Server2, Servers.All[2]);
+    }
+
+    [Fact]
+    public void BhvMisc157ExplicitVariableValuesAreResolvedIntoTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.api.example.com/v{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("prod", null, []),
+                ["version"] = new ServerVariable("2", null, []),
+            }
+        );
+
+        Assert.Equal(
+            "https://staging.api.example.com/v5",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "staging", ["version"] = "5" })
+        );
+    }
+
+    [Fact]
+    public void BhvMisc158AServerWithAFixedUrlReportsExactlyThatUrl()
+    {
+        var server = new ServerConfiguration("https://fixed.example.com/v1/items");
+
+        Assert.Equal("https://fixed.example.com/v1/items", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvServers029APlaceholderFromADefaultStaysLiteralInTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.api.example.com/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("{version}"),
+                ["version"] = new ServerVariable("v2"),
+            }
+        );
+
+        Assert.Equal("https://{version}.api.example.com/v2", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvServers030AValueOutsideTheDeclaredEnumIsRejectedWithAnError()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "canary" })
+        );
+        Assert.Contains("'canary'", ex.Message, StringComparison.Ordinal);
+    }
 }

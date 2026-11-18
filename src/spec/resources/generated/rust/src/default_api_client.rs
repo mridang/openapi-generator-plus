@@ -279,14 +279,34 @@ impl ApiClient for DefaultApiClient {
                     let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
                     let serialized = serialize_multipart_body(fields, &boundary)
                         .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-                    /* Force the multipart Content-Type (with the boundary we
-                     * generated) onto the outgoing request; if the caller set
-                     * a Content-Type it would not contain our boundary, so the
-                     * server could not parse the body. */
+                    /* Keep a declared multipart subtype (multipart/mixed, ...) and
+                     * fall back to form-data when the declared value is not a
+                     * plain multipart token. The boundary we generated is always
+                     * appended, so the server can parse the body. */
+                    let subtype = merged
+                        .iter()
+                        .find(|(k, _)| k.eq_ignore_ascii_case("Content-Type"))
+                        .map(|(_, v)| {
+                            v.split(';')
+                                .next()
+                                .unwrap_or("")
+                                .trim()
+                                .to_ascii_lowercase()
+                        })
+                        .filter(|t| {
+                            t.strip_prefix("multipart/").is_some_and(|sub| {
+                                !sub.is_empty()
+                                    && sub.chars().all(|c| {
+                                        c.is_ascii_alphanumeric() || "!#$&^_.+-".contains(c)
+                                    })
+                            })
+                        })
+                        .unwrap_or_else(|| "multipart/form-data".to_string());
+                    remove_header(&mut merged, "Content-Type");
                     insert_header(
                         &mut merged,
                         "Content-Type".to_string(),
-                        format!("multipart/form-data; boundary={}", boundary),
+                        format!("{}; boundary={}", subtype, boundary),
                     );
                     Some(serialized)
                 }
@@ -1132,6 +1152,7 @@ fn is_text_content_type(content_type: &str) -> bool {
  * `tests/default_api_client_unit_test.rs`. */
 #[cfg(test)]
 mod tests {
+    use super::*;
     use super::{
         build_filename_directive, collect_headers, decode_text_body, is_credential_header,
         is_https_to_http_body_replay, mime_for_filename, non_http_redirect_message, parse_charset,
@@ -1239,6 +1260,41 @@ mod tests {
                 );
             }
         }
+    }
+
+    /* A 301 from HTTPS to plain HTTP that keeps a PUT would replay the body in cleartext, so it is refused. */
+    #[test]
+    fn test_bhv_misc_124_a_301_from_https_to_http_that_keeps_a_body_is_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(
+            301,
+            "PUT",
+            Some(&https),
+            &http,
+            true
+        ));
+    }
+
+    /* A 307 that stays on one scheme, or upgrades HTTP to HTTPS, never sends the body in cleartext. */
+    #[test]
+    fn test_bhv_misc_125_a_307_that_stays_on_one_scheme_or_upgrades_is_not_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(!is_https_to_http_body_replay(
+            307,
+            "POST",
+            Some(&https),
+            &https,
+            true
+        ));
+        assert!(!is_https_to_http_body_replay(
+            307,
+            "POST",
+            Some(&http),
+            &https,
+            true
+        ));
     }
 
     /* A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused:
@@ -2187,6 +2243,56 @@ mod tests {
             names.contains(&"x-internal-key"),
             "expected spec apiKey header 'x-internal-key' in {:?}",
             names
+        );
+    }
+    #[test]
+    fn test_bhv_misc_095_invalid_bytes_in_a_charset_body_decode_to_replacement_characters() {
+        assert_eq!(
+            decode_text_body(&[b'a', 0xFF, b'b'], "text/plain; charset=utf-8"),
+            "a\u{FFFD}b"
+        );
+    }
+
+    #[test]
+    fn test_bhv_misc_096_a_text_part_carries_only_its_content_disposition() {
+        let body = serialize_multipart_body(
+            &[("note".to_string(), MultipartValue::Text("hi".to_string()))],
+            "B",
+        )
+        .expect("serialize");
+        let text = String::from_utf8(body).expect("utf8");
+        assert!(
+            text.contains("Content-Disposition: form-data; name=\"note\"\r\n\r\nhi\r\n"),
+            "got: {}",
+            text
+        );
+        assert!(!text.contains("Content-Type"), "got: {}", text);
+        assert!(!text.contains("Content-Transfer-Encoding"), "got: {}", text);
+    }
+
+    #[test]
+    fn test_bhv_misc_097_each_element_of_an_array_field_is_its_own_part_in_order() {
+        let items = MultipartValue::List(vec![
+            MultipartValue::Text("a".to_string()),
+            MultipartValue::Text("b".to_string()),
+        ]);
+        let body = serialize_multipart_body(&[("tag".to_string(), items)], "B").expect("serialize");
+        let text = String::from_utf8(body).expect("utf8");
+        assert_eq!(text.matches("name=\"tag\"").count(), 2, "got: {}", text);
+        let first = text.find("\r\n\r\na\r\n").expect("first part");
+        let second = text.find("\r\n\r\nb\r\n").expect("second part");
+        assert!(first < second, "got: {}", text);
+    }
+
+    #[test]
+    fn test_bhv_misc_099_a_multipart_filename_is_one_canonical_content_directive() {
+        assert_eq!(
+            build_filename_directive("report.txt"),
+            "filename=\"report.txt\""
+        );
+        assert_eq!(
+            build_filename_directive("r\u{e9}sum\u{e9}.pdf"),
+            "filename=\"r_sum_.pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"
         );
     }
 }

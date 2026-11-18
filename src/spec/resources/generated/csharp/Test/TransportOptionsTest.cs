@@ -679,4 +679,25 @@ public class TransportOptionsTest
         );
         Assert.Null(TransportOptions.Builder().Build().Proxy);
     }
+
+    [Fact]
+    public void BhvMisc186AReadyMadeConnectionWithACaBundleIsRefusedWhenBuilt()
+    {
+        var builder = TransportOptions
+            .Builder()
+            .HttpClient(new HttpClient())
+            .CaCertPath("/tmp/ca.pem");
+
+        _ = Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void BhvOptions068ASocksProxySchemeFailsAtConstructionWithTheDocumentedMessage()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("socks5://proxy.example.com:1080").Build()
+        );
+
+        Assert.Contains("must use http or https scheme", ex.Message, StringComparison.Ordinal);
+    }
 }
