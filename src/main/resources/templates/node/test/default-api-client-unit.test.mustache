@@ -1567,6 +1567,28 @@ describe('redirect responses release their body', () => {
     expect(cancelled).toEqual(['first', 'second']);
   });
 
+  it('bhv transport 064 the intermediate response of a refused HTTPS to HTTP redirect is released', async () => {
+    const cancelled: string[] = [];
+    global.fetch = (async (): Promise<Response> => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('moved'));
+        },
+        cancel() {
+          cancelled.push('downgrade');
+        },
+      });
+      return new Response(body, { status: 307, headers: { Location: 'http://evil.example/steal' } });
+    }) as typeof fetch;
+
+    const client = new DefaultApiClient(TransportOptions.builder().followRedirects(true).build());
+    await client
+      .sendRequest('POST', 'https://secure.example/token', { 'Content-Type': 'text/plain' }, 'grant=refused')
+      .catch((e: unknown) => e);
+
+    expect(cancelled).toEqual(['downgrade']);
+  });
+
   it('bhv redirects 014 cancels the body of a redirect it refuses to follow', async () => {
     const cancelled: string[] = [];
     global.fetch = (async (): Promise<Response> =>
@@ -2108,6 +2130,30 @@ describe('injected fetch (TransportOptions.fetch)', () => {
     await client.close();
   });
 
+  it('bhv redirects 037 a redirect to the explicit default port of the same origin keeps the Authorization header', async () => {
+    const calls: Array<Record<string, unknown>> = [];
+    const customFetch = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
+      calls.push((init ?? {}) as Record<string, unknown>);
+      if (calls.length === 1) {
+        return new Response(null, { status: 302, headers: { Location: 'http://api.example.com:80/landing' } });
+      }
+      return new Response('{"ok":true}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(TransportOptions.builder().fetch(customFetch).followRedirects(true).build());
+    const response = await client.sendRequest(
+      'GET',
+      'http://api.example.com/start',
+      { Authorization: 'Bearer secret' },
+      null,
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+    const landed = calls[1]!['headers'] as Record<string, string>;
+    const authorization = Object.entries(landed).find(([k]) => k.toLowerCase() === 'authorization');
+    expect(authorization?.[1]).toBe('Bearer secret');
+    await client.close();
+  });
+
   it('does not touch the supplied fetch when the client is closed', async () => {
     let called = 0;
     const customFetch = (async (): Promise<Response> => {
@@ -2122,7 +2168,7 @@ describe('injected fetch (TransportOptions.fetch)', () => {
 });
 
 describe('SendRequestOptions.signal', () => {
-  it('rejects with the AbortError, not a timeout, when the signal fires', async () => {
+  it('bhv transport 060 cancelling an in-flight call aborts the request without reporting a timeout', async () => {
     const customFetch = ((_input: string | URL | Request, init?: RequestInit): Promise<Response> =>
       new Promise<Response>((_resolve, reject) => {
         if (init?.signal?.aborted) {
@@ -2255,13 +2301,44 @@ describe('proxy URL credentials route through the proxy', () => {
   });
 });
 
+describe('proxy that requires credentials', () => {
+  it('bhv transport 063 a proxy that requires credentials answers 407 when none are sent', async () => {
+    const seen: Array<string | undefined> = [];
+    /* undici tunnels through the proxy with CONNECT, so a proxy that wants credentials answers the CONNECT with 407 and no Proxy-Authorization header is ever sent. */
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(405);
+      res.end();
+    });
+    proxy.on('connect', (req, clientSocket) => {
+      seen.push(req.headers['proxy-authorization']);
+      clientSocket.end(
+        'HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm="proxy"\r\nContent-Length: 0\r\n\r\n',
+      );
+    });
+    await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve));
+    const port = (proxy.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().proxy(`http://127.0.0.1:${port}`).maxRetries(0).build(),
+    );
+    try {
+      await expect(client.sendRequest('GET', `${baseUrl}/echo`, {}, null)).rejects.toBeInstanceOf(NetworkError);
+      expect(seen).toHaveLength(1);
+      expect(seen[0]).toBeUndefined();
+    } finally {
+      await client.close();
+      proxy.closeAllConnections();
+      await new Promise<void>(resolve => proxy.close(() => resolve()));
+    }
+  });
+});
+
 describe('caller-supplied upload handles are left untouched', () => {
   const originalFetch = global.fetch;
   afterEach(() => {
     global.fetch = originalFetch;
   });
 
-  it('a Blob sent as a multipart part or as the whole body is still readable afterwards', async () => {
+  it('bhv transport 061 a caller-supplied Blob sent as a multipart part or as the whole body is still readable afterwards', async () => {
     global.fetch = (async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
     const client = new DefaultApiClient();
     const part = new Blob(['part-bytes']);
@@ -2520,7 +2597,7 @@ describe('automatic retries (TransportOptions.maxRetries)', () => {
     expect(calls).toHaveLength(1);
   });
 
-  it('does not retry a timeout', async () => {
+  it('bhv retries 042 does not retry a timeout', async () => {
     const timeout = Object.assign(new Error('timed out'), { name: 'TimeoutError' });
 
     const error = await send(clientPlaying([timeout])).catch((e: unknown) => e);

@@ -266,7 +266,7 @@ describe('BaseApi config default Accept', () => {
     expect(client.capturedHeaders['Accept']).toBe('application/xml');
   });
 
-  test('a default header in another case replaces the negotiated one, never sits beside it', async () => {
+  test('bhv headers 030 a default header in another case replaces the negotiated one, never sits beside it', async () => {
     const client = new CapturingApiClient();
     const config = new Configuration({
       baseUrl: 'http://localhost',

@@ -119,6 +119,35 @@ describe('Composed Schema', () => {
     expect(serialized).toContain('2.5');
   });
 
+  test('bhv unions 030 a subtype whose discriminator key is absent is filled with the mapping default', () => {
+    const food = ObjectSerializer.deserialize({ weightKg: 2.5 }, DryFood);
+    expect(food).toBeInstanceOf(DryFood);
+    expect(food!.foodType).toBe('dry');
+  });
+
+  test('bhv unions 032 a oneOf wrapper built from a variant holds that variant and serializes it with its discriminator', () => {
+    const food = new PetFood(new DryFood({ weightKg: 2.5 }));
+    expect(food.isDryFood()).toBe(true);
+    const wire = JSON.parse(ObjectSerializer.serialize(food.getActualInstance())) as Record<string, unknown>;
+    expect(wire).toMatchObject({ foodType: 'dry', weightKg: 2.5 });
+  });
+
+  test('bhv unions 033 an unknown, missing or empty discriminator fails with the SDK serialization error', () => {
+    const payloads: Array<Record<string, unknown>> = [
+      { foodType: 'raw', calories: 300 },
+      { weightKg: 2.5 },
+      { foodType: '', weightKg: 2.5 },
+    ];
+    for (const data of payloads) {
+      expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+    }
+  });
+
+  test('bhv unions 035 a discriminator value not listed in the mapping fails to deserialize', () => {
+    const data = { foodType: 'DRY', weightKg: 2.5 };
+    expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
+  });
+
   // -- anyOf without discriminator: PetTreatment --
 
   test('anyOf: PetTreatment is a constructable class', () => {
@@ -338,7 +367,7 @@ describe('Composed Schema', () => {
     expect(a.equals(null)).toBe(false);
   });
 
-  test('oneOf: wrappers compare by value', () => {
+  test('bhv unions 029 oneOf: wrappers compare by value', () => {
     const a = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
     const b = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
     const other = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 3 }, PetFood)!;
@@ -346,7 +375,7 @@ describe('Composed Schema', () => {
     expect(a.equals(b)).toBe(true);
     expect(a.equals(other)).toBe(false);
   });
-  test('oneOf: a wrapper tells which variant it holds and hands it back', () => {
+  test('bhv unions 034 oneOf: a wrapper typed accessor returns the held variant and nothing for the other', () => {
     const food = ObjectSerializer.deserialize({ foodType: 'dry', weightKg: 2.5 }, PetFood)!;
 
     expect(food.isDryFood()).toBe(true);
