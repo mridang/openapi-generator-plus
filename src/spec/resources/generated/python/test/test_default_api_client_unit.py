@@ -472,6 +472,17 @@ class TestCharsetDecoding:
         assert _charset_from_content_type("") is None
         assert _charset_from_content_type('text/plain; charset="utf-8"') == "utf-8"
 
+    def test_bhv_serialization_055_charset_name_ignores_case_and_spacing_and_never_matches_a_suffix(
+        self,
+    ) -> None:
+        assert (
+            _charset_from_content_type("text/plain; Charset = ISO-8859-1")
+            == "ISO-8859-1"
+        )
+        assert _charset_from_content_type('text/plain;  CHARSET="utf-8"') == "utf-8"
+        assert _charset_from_content_type("text/plain; xcharset=ISO-8859-1") is None
+        assert _charset_from_content_type("text/plain; foo.charset=ISO-8859-1") is None
+
     def test_bhv_serializationwire_032_decodes_iso_8859_1_response(self) -> None:
         decoded = _decode_with_charset(b"\xe9", "text/plain; charset=ISO-8859-1")
         assert decoded == "é"
@@ -713,6 +724,23 @@ class TestMultipartContentType:
         assert b'filename="file"' in body
         assert b"Content-Type: application/octet-stream" in body
 
+    def test_bhv_serialization_060_a_model_sent_as_a_multipart_part_declares_application_json(
+        self,
+    ) -> None:
+        from pydantic import BaseModel
+
+        class MultipartNote(BaseModel):
+            title: str
+
+        body = DefaultApiClient()._build_multipart_body(
+            {"note": MultipartNote(title="hello")}, "boundary"
+        )
+        assert (
+            b"--boundary\r\n"
+            b'Content-Disposition: form-data; name="note"\r\n'
+            b"Content-Type: application/json\r\n\r\n"
+        ) in body
+
     def test_bhv_serializationwire_048_multipart_scalar_parts_use_the_wire_text_form(
         self,
     ) -> None:
@@ -813,12 +841,20 @@ class TestMultipartBinaryPreservation:
         with pytest.raises(TypeError):
             client._build_multipart_body({"upload": ("file.bin", "hello")}, "boundary")
 
-    def test_high_byte_binary_content_is_preserved(self) -> None:
+    def test_bhv_serialization_059_a_raw_binary_part_is_a_file_part_carrying_exactly_its_bytes(
+        self,
+    ) -> None:
         client = DefaultApiClient()
         payload = bytes(range(256))
         body = client._build_multipart_body({"upload": payload}, "boundary")
-        # The payload must appear verbatim in the body
-        assert payload in body
+        # The payload must appear verbatim, as the whole content of a file part
+        assert body == (
+            b"--boundary\r\n"
+            b'Content-Disposition: form-data; name="upload"; filename="upload"\r\n'
+            b"Content-Type: application/octet-stream\r\n\r\n"
+            + payload
+            + b"\r\n--boundary--\r\n"
+        )
 
     def test_bhv_serializationwire_038_pdf_extension_sets_application_pdf_content_type(
         self,
@@ -2359,6 +2395,12 @@ class _EncodingHandler(BaseHTTPRequestHandler):
             compressor = zlib.compressobj(wbits=-15)
             body = compressor.compress(payload) + compressor.flush()
             encoding = "deflate"
+        elif self.path == "/truncated-gzip":
+            body = gzip.compress(payload)[:-8]
+            encoding = "gzip"
+        elif self.path == "/brotli":
+            body = payload
+            encoding = "br"
         else:
             body = self.headers.get("Accept-Encoding", "").encode()
             encoding = "identity"
@@ -2423,6 +2465,38 @@ class TestResponseContentEncoding:
         assert response.status_code == 200
         assert response.body == "gzip, deflate, br, zstd"
         assert response.headers["content-encoding"] == "identity"
+
+    def test_bhv_transport_073_a_truncated_compressed_stream_raises_the_api_error_not_raw_bytes(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException, NetworkException
+
+        with pytest.raises(ApiException) as excinfo:
+            DefaultApiClient().send_request(
+                "GET", f"{self.base_url}/truncated-gzip", {}, None
+            )
+
+        assert type(excinfo.value) is ApiException
+        assert not isinstance(excinfo.value, NetworkException)
+        assert excinfo.value.status_code == 200
+        assert str(excinfo.value.message).startswith(
+            "Failed to decompress gzip response body: "
+        )
+
+    def test_bhv_transport_074_a_codec_whose_library_is_missing_raises_instead_of_returning_encoded_bytes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import petstore_client.default_api_client as client_module
+        from petstore_client.errors import ApiException
+
+        monkeypatch.setattr(client_module, "_brotli", None)
+
+        with pytest.raises(ApiException) as excinfo:
+            DefaultApiClient().send_request("GET", f"{self.base_url}/brotli", {}, None)
+
+        assert type(excinfo.value) is ApiException
+        assert excinfo.value.status_code == 200
+        assert "Unsupported Content-Encoding 'br'" in str(excinfo.value.message)
 
     def test_bhv_serializationwire_029_advertises_every_supported_codec_by_default(
         self,
@@ -2632,6 +2706,20 @@ class TestRetryPolicy:
 
 
 class TestTransportBehaviours:
+    def test_bhv_transport_067_a_successful_response_with_no_body_is_a_success_with_an_empty_body(
+        self,
+    ) -> None:
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(200, {})
+
+        client = DefaultApiClient(pool_manager=_Pool())
+
+        response = client.send_request("GET", "https://example.com/x", {}, None)
+
+        assert response.status_code == 200
+        assert response.body == ""
+
     def test_bhv_errors_077_a_url_in_diagnostics_keeps_its_origin_and_path_and_drops_the_query(
         self,
     ) -> None:
@@ -2711,6 +2799,29 @@ class TestRelativeRedirectTargets:
 
 
 class TestDeadlineAndCancellationClassification:
+    def test_bhv_transport_071_one_configured_timeout_is_the_budget_for_connect_and_read_alike(
+        self,
+    ) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.timeout: Any = None
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.timeout = kwargs["timeout"]
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        client = DefaultApiClient(
+            TransportOptions.builder().timeout(2000).build(), pool_manager=pool
+        )
+
+        client.send_request("GET", "https://example.com/x", {}, None)
+
+        # One urllib3 Timeout carries the configured budget as its overall
+        # total and as the connect phase, so neither phase outlives it.
+        assert pool.timeout.total == 2.0
+        assert pool.timeout.connect_timeout == 2.0
+
     def test_bhv_transport_068_a_call_with_an_already_cancelled_handle_sends_nothing(
         self,
     ) -> None:

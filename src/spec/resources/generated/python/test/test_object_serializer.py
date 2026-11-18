@@ -1237,6 +1237,17 @@ class TestDeserialize:
         assert preserved.label is None
         assert preserved.retries == 7
 
+    def test_bhv_serialization_066_a_present_nullable_value_decodes_as_given_and_a_null_only_where_nullable(
+        self,
+    ) -> None:
+
+        assert (
+            ObjectSerializer().deserialize('{"label":"blue"}', "Defaults").label
+            == "blue"
+        )
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"username": null, "id": 7}', "Account")
+
     def test_bhv_serializationobject_068_deserializes_self_referential_model(
         self,
     ) -> None:
@@ -2085,6 +2096,13 @@ class TestByteModelFieldHoldsRawBytes:
     def test_copying_with_raw_bytes_keeps_them(self) -> None:
         vault = self._vault()().model_copy(update={"seal": b"hello world"})
         assert vault.seal == b"hello world"
+
+    def test_bhv_serialization_062_a_base64_string_decodes_to_the_raw_bytes_it_encodes(
+        self,
+    ) -> None:
+        vault = ObjectSerializer().deserialize('{"seal":"AP8QQg=="}', "BinaryVault")
+        assert vault.seal == self.RAW
+        assert ObjectSerializer().deserialize('"AP8QQg=="', bytes) == self.RAW
 
     def test_copying_the_decoded_value_is_stable(self) -> None:
         vault = ObjectSerializer().deserialize('{"seal":"dGVzdA=="}', "BinaryVault")
