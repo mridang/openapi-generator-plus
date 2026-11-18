@@ -959,4 +959,24 @@ public class StoreApiTest
             api.SearchStoreAsync(new SearchStoreOptions { Timeout = 0 })
         );
     }
+
+    [Fact]
+    public async Task BhvMisc013AnOperationWithNoParametersRunsWithNoArgument()
+    {
+        var mockApi = NewStoreApiForMock(200, "application/json", "{\"sold\":1}");
+
+        Dictionary<string, int> result = await mockApi.GetInventoryAsync();
+
+        Assert.Equal(1, result["sold"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc014ALiteralNullSuccessBodyRaisesTheApiErrorAndReturnsNoValue()
+    {
+        var mockApi = NewStoreApiForMock(200, "application/json", "null");
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ApiException>(() =>
+            mockApi.GetInventoryAsync()
+        );
+    }
 }

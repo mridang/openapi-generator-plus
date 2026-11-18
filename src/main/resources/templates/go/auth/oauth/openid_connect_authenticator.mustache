@@ -260,7 +260,7 @@ func (a *OpenIdConnectAuthenticator) discover(ctx context.Context) (*OAuth2Autho
 		TokenEndpoint         string `json:"token_endpoint"`
 	}
 	if err := json.Unmarshal([]byte(resp.Body), &discovery); err != nil {
-		return nil, errors_pkg.NewSerializationError("oidc discovery document is not valid JSON", err)
+		return nil, errors_pkg.NewSerializationError("oidc discovery document is not valid JSON", nil)
 	}
 
 	/* A discovery document missing authorization_endpoint or token_endpoint

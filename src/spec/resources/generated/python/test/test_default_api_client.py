@@ -156,6 +156,32 @@ class TestProxyWithCredentials:
         assert response.status_code == 200
         assert '"method"' in response.body
 
+    def test_bhv_misc_031_a_proxy_credential_is_sent_exactly_when_the_proxy_url_has_user_info(
+        self,
+    ) -> None:
+        with_credentials = (
+            TransportOptions.builder()
+            .proxy("http://alice:s3cret@127.0.0.1:3128")
+            .build()
+        )
+        without_credentials = (
+            TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
+        )
+        sent = {
+            k.lower(): v
+            for k, v in _proxy_manager(
+                DefaultApiClient(with_credentials)
+            ).proxy_headers.items()
+        }
+        omitted = {
+            k.lower(): v
+            for k, v in _proxy_manager(
+                DefaultApiClient(without_credentials)
+            ).proxy_headers.items()
+        }
+        assert sent.get("proxy-authorization") == "Basic YWxpY2U6czNjcmV0"
+        assert "proxy-authorization" not in omitted
+
     def test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
@@ -1234,6 +1260,25 @@ class TestTlsVerificationEnforced:
 
         assert response.status_code == 200
         assert '"method"' in response.body
+
+
+class TestDefaultTrustStore:
+    def test_bhv_misc_038_with_no_ca_certificate_server_certificates_use_the_platform_trust_store(
+        self, chasm_https_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+        assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
+
+
+class TestCallerClientAndTransport:
+    def test_bhv_misc_034_a_caller_http_client_with_a_caller_transport_is_refused_at_build(
+        self,
+    ) -> None:
+        transport = TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
+        with pytest.raises(ValueError):
+            DefaultApiClient(transport, pool_manager=urllib3.PoolManager())
 
 
 class TestCancellation:

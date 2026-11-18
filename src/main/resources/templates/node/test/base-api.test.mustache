@@ -2386,3 +2386,69 @@ describe('BaseApi call hook', () => {
     ]);
   });
 });
+
+describe('BaseApi misc behaviours', () => {
+  test('bhv misc 014 a null success body for an operation that must return a body raises an ApiError', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = 'null';
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    const error = await testApi
+      .callForResult('GET', '/items', {}, {}, null, ['application/json'], 'application/json', (json: unknown) => json)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+  });
+
+  test('bhv misc 019 a request target in an error is reduced to its path', async () => {
+    const client = new RecordingApiClient();
+    client.statusCode = 404;
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'https://api.example.test/v1' }));
+    const error = await testApi
+      .callForResult('GET', '/items/7', { page: '2' }, {}, null, ['application/json'], 'application/json', null)
+      .catch((e: unknown) => e);
+    expect((error as ApiError).requestPath).toBe('/v1/items/7');
+  });
+
+  test('bhv misc 024 a transport failure keeps the underlying error reachable as its cause', async () => {
+    const testApi = new TestableApi(
+      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+      new Configuration({ baseUrl: 'http://127.0.0.1:1' }));
+    const error = await testApi
+      .callForResult('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(NetworkError);
+    expect((error as Error).cause).toBeDefined();
+  });
+
+  test('bhv misc 025 a typed call fails when the server answers with a client error status', async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 404;
+    client.responseBody = '{}';
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(
+      testApi.call('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  test('bhv misc 027 a transport failure without a response is a network or timeout error that keeps its cause', async () => {
+    const testApi = new TestableApi(
+      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+      new Configuration({ baseUrl: 'http://127.0.0.1:1' }));
+    const error = await testApi
+      .callForResult('GET', '/items', {}, {}, null, ['application/json'], 'application/json', null)
+      .catch((e: unknown) => e);
+    expect([NetworkError, NetworkTimeoutError].some((kind) => error instanceof kind)).toBe(true);
+    expect((error as Error).cause).toBeDefined();
+  });
+
+  test('bhv misc 029 a caller abort surfaces the caller AbortError and is never wrapped in an SDK error', async () => {
+    const controller = new AbortController();
+    const testApi = new TestableApi(new DefaultApiClient(), Configuration.defaultConfiguration());
+    const pending = testApi
+      .callForResult('GET', `${chasmUrl}/test/slow`, {}, {}, null, ['application/json'], 'application/json', null, undefined, { signal: controller.signal })
+      .catch((e: unknown) => e);
+    setTimeout(() => controller.abort(), 100);
+    const error = await pending;
+    expect((error as Error).name).toBe('AbortError');
+    expect(error).not.toBeInstanceOf(ApiError);
+  }, 15000);
+});
