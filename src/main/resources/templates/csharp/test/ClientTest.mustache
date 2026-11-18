@@ -996,4 +996,30 @@ public sealed class ClientTest : IDisposable
         Assert.NotNull(typeof({{packageName}}.Auth{{#namespaceSuffix}}.{{namespaceSuffix}}{{/namespaceSuffix}}.{{className}}));
 {{/clientSchemes}}
     }
+
+    [Fact]
+    public void BhvMisc183ClosingAClientWhoseCredentialHoldsNothingToReleaseSucceeds()
+    {
+        var client = new {{clientClassName}}(new BearerAuthenticator("http://authenticator.invalid", "tok"));
+
+        Assert.Null(Record.Exception(() => client.Dispose()));
+    }
+
+    [Fact]
+    public async Task BhvMisc187AClientBuiltWithoutHostOrTokenTakesBothFromTheEnvironment()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        {{clientClassName}}? client = null;
+        WithEnvironment("http://env.example.test", "env-value", () =>
+            client = {{clientClassName}}.FromEnvironment(transportOptions: transport));
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-value", handler.Authorization);
+        Assert.Equal("env.example.test", handler.RequestUri?.Host);
+    }
+
 }

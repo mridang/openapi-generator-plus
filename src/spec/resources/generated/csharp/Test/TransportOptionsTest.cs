@@ -679,4 +679,15 @@ public class TransportOptionsTest
         );
         Assert.Null(TransportOptions.Builder().Build().Proxy);
     }
+
+    [Fact]
+    public void BhvMisc186AReadyMadeConnectionWithACaBundleIsRefusedWhenBuilt()
+    {
+        var builder = TransportOptions
+            .Builder()
+            .HttpClient(new HttpClient())
+            .CaCertPath("/tmp/ca.pem");
+
+        _ = Assert.Throws<ArgumentException>(() => builder.Build());
+    }
 }

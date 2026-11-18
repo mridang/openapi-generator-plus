@@ -2796,6 +2796,25 @@ class TestRedirectHopsAndStatuses:
         assert len(pool.calls) == 2
         assert pool.calls[1][1] == "https://example.com/upgraded"
 
+    def test_bhv_misc_124_a_301_https_to_http_redirect_refuses_the_body_replay(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException
+
+        pool = _ScriptedPool((301, "http://example.com/plain"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"a":1}',
+            )
+        assert excinfo.value.status_code == 301
+        assert len(pool.calls) == 1
+
     def test_bhv_misc_126_a_head_request_redirected_by_303_is_followed_as_head(
         self,
     ) -> None:
