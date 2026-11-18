@@ -40,7 +40,7 @@ class SkillsTest {
   }
 
   @Test
-  void errorHandlingExampleEndsWithTheApiExceptionArm() throws IOException {
+  void bhvLangjava047ErrorHandlingExampleEndsWithTheApiExceptionArm() throws IOException {
     String section = section("## Error Handling", "## Configuration");
     int example = section.indexOf("```java");
     assertTrue(example >= 0, "expected a java example in the Error Handling section");
@@ -61,7 +61,7 @@ class SkillsTest {
   }
 
   @Test
-  void configurationHasTheSharedSubsectionsInTheSharedOrder() throws IOException {
+  void bhvLangjava048ConfigurationHasTheSharedSubsectionsInTheSharedOrder() throws IOException {
     String skills = skills();
     int position = -1;
     for (String heading :
@@ -80,7 +80,7 @@ class SkillsTest {
   }
 
   @Test
-  void documentsTheEnvironmentVariableOfEveryCredential() throws IOException {
+  void bhvLangjava049DocumentsTheEnvironmentVariableOfEveryCredential() throws IOException {
     String skills = skills();
     String[] rows = {
       "| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |",

@@ -2009,4 +2009,7 @@ langjava043 | Without per-call settings a call uses the plain send path with no 
 langjava044 | A response body with no charset is decoded as UTF-8.
 langjava045 | An unknown response charset falls back to UTF-8 decoding.
 langjava046 | An optional array query parameter is serialized in the style its specification declares.
+langjava047 | The error handling example in the skill ends with the API exception arm.
+langjava048 | The configuration section of the skill has the shared subsections in the shared order.
+langjava049 | The skill documents the environment variable of every credential.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
