@@ -441,6 +441,23 @@ void main() {
       expect(auth.toString(), isNot(contains('abc123')));
       expect('$auth', isNot(contains('abc123')));
     });
+
+    test('bhv auth 018 a rejected secret never appears in the error message', () {
+      const secret = 'sk-live-abc\r\ninjected';
+
+      try {
+        ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          location: ApiKeyLocation.header,
+          apiKey: secret,
+        );
+        fail('expected the key to be refused');
+      } on ArgumentError catch (e) {
+        expect('${e.message}', isNot(contains('sk-live-abc')));
+        expect('$e', isNot(contains('sk-live-abc')));
+      }
+    });
   });
 }
 {{/generateTests}}

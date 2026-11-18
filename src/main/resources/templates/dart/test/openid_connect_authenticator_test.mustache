@@ -630,6 +630,18 @@ void main() {
       expect(uri.queryParameters['scope'], equals('openid'));
       expect(uri.queryParameters['code_challenge_method'], equals('S256'));
     });
+
+    test('bhv auth 029 after the cached discovery document expires, later calls use the endpoints of the newly fetched document', () async {
+      final moved = document.replaceFirst('/authorize"', '/authorize-v2"');
+      final client = _FakeApiClient();
+      client.enqueue(document, headers: {'Cache-Control': 'max-age=0'});
+      client.enqueue(moved, headers: {'Cache-Control': 'max-age=0'});
+      final auth = _createAuthenticator();
+      auth.setApiClient(client);
+
+      expect(await auth.buildAuthorizationUrl(), startsWith('https://auth.example.com/authorize?'));
+      expect(await auth.buildAuthorizationUrl(), startsWith('https://auth.example.com/authorize-v2?'));
+    });
   });
 }
 {{/generateTests}}

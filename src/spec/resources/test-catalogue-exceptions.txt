@@ -209,3 +209,13 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+dart | transport068 | Dart has no per-call cancellation handle (package:http offers none, README Per-call cancellation, S7), so a call cannot carry an already-cancelled signal; a call on a closed client raises StateError before any request
+dart | transport069 | Dart has no per-call cancellation handle (package:http offers none, README Per-call cancellation, S7), so no cancel signal or context values reach the transport request
+dart | transport075 | Dart advertises only gzip and deflate (Forced divergence, Content-Encoding set) and dart:io has no zstd codec, so no zstd body is decoded
+dart | auth013 | Dart has no per-call cancellation handle (package:http offers none, README Per-call cancellation, S7), so cancelling a call cannot stop the token request it started; the deadline is the bound
+dart | auth015 | Dart's synchronous authHeaders throws StateError on every token-based flow rather than returning headers without an Authorization entry (F290); the refusal is pinned by bhv auth 001
+dart | auth027 | Dart has no per-call cancellation handle (S7), so a cancelled token refresh cannot be raised to the caller; the deadline error is rethrown by the same path
+dart | models014 | Dart model fields are final and the compiler rejects reassignment, so no runtime test can observe a reassigned property
+dart | options063 | Dart per-call options fields are final and the compiler rejects reassignment, so no runtime test can observe a changed field
+dart | serialization051 | Dart has no reflection, so the absence of a public unknown-key method cannot be observed at run time; the strict path is covered through deserialize
+dart | lifecycle040 | Dart has no scoped-disposal statement, and its standard disposal hook is close(), which bhv lifecycle 036 covers

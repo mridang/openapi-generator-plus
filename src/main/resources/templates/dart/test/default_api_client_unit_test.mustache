@@ -1427,7 +1427,7 @@ void main() {
       );
     });
 
-    test('throws ArgumentError for a header value with CR/LF', () async {
+    test('bhv headers 031 throws ArgumentError for a header value with CR/LF', () async {
       final client = DefaultApiClient();
       await expectLater(
         client.sendRequest(
@@ -3358,6 +3358,136 @@ void main() {
 
       expect(failure, isA<NetworkException>());
       expect('$failure', isNot(contains('secretvalue')));
+    });
+
+    test('bhv redirects 038 a 307 redirect that keeps the method sends the original body and its Content-Type to the new location', () async {
+      final calls = <http.BaseRequest>[];
+      final mock = MockClient((request) async {
+        calls.add(request);
+        if (calls.length == 1) {
+          return http.Response('', 307, headers: {'location': 'http://example.com/next'});
+        }
+        return http.Response('ok', 200);
+      });
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+      await client.sendRequest('POST', 'http://example.com/start',
+          {'content-type': 'application/json'}, utf8.encode('{"a":1}'));
+
+      expect(calls, hasLength(2));
+      expect(calls[1].method, equals('POST'));
+      expect((calls[1] as http.Request).body, equals('{"a":1}'));
+      expect(calls[1].headers['content-type'], startsWith('application/json'));
+    });
+
+    test('bhv redirects 039 a bodyless request is followed across a redirect from HTTPS to plain HTTP that keeps its method', () async {
+      final calls = <http.BaseRequest>[];
+      final mock = MockClient((request) async {
+        calls.add(request);
+        if (calls.length == 1) {
+          return http.Response('', 307, headers: {'location': 'http://example.com/plain'});
+        }
+        return http.Response('ok', 200);
+      });
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+      final response = await client.sendRequest(
+          'GET', 'https://example.com/secure', {}, null);
+
+      expect(response.body, equals('ok'));
+      expect(calls[1].method, equals('GET'));
+    });
+
+    test('bhv redirects 040 a 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused', () async {
+      for (final status in [301, 302, 303]) {
+        final calls = <http.BaseRequest>[];
+        final mock = MockClient((request) async {
+          calls.add(request);
+          if (calls.length == 1) {
+            return http.Response('', status, headers: {'location': 'http://example.com/plain'});
+          }
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+        final response = await client.sendRequest(
+            'GET', 'https://example.com/secure', {}, null);
+
+        expect(response.body, equals('ok'), reason: 'status $status');
+      }
+    });
+
+    test('bhv redirects 041 a redirect that turns a POST into a GET sends the follow-up with no Content-Length or Content-Type', () async {
+      final calls = <http.BaseRequest>[];
+      final mock = MockClient((request) async {
+        calls.add(request);
+        if (calls.length == 1) {
+          return http.Response('', 302, headers: {'location': 'http://example.com/next'});
+        }
+        return http.Response('ok', 200);
+      });
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+      await client.sendRequest('POST', 'http://example.com/start',
+          {'content-type': 'application/json'}, utf8.encode('{"a":1}'));
+
+      expect(calls[1].method, equals('GET'));
+      expect(calls[1].headers.containsKey('content-length'), isFalse);
+      expect(calls[1].headers.containsKey('content-type'), isFalse);
+    });
+
+    test('bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero', () async {
+      final calls = <http.BaseRequest>[];
+      final mock = MockClient((request) async {
+        calls.add(request);
+        if (calls.length == 1) {
+          return http.Response('', 307, headers: {'location': 'http://example.com/next'});
+        }
+        return http.Response('ok', 200);
+      });
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+      await client.sendRequest('POST', 'http://example.com/start', {}, null);
+
+      expect(calls[1].method, equals('POST'));
+      expect(calls[1].headers['content-length'], equals('0'));
+    });
+
+    test('bhv redirects 043 a relative Location is resolved against the URL of the request that received the redirect', () async {
+      final calls = <http.BaseRequest>[];
+      final mock = MockClient((request) async {
+        calls.add(request);
+        if (calls.length == 1) {
+          return http.Response('', 302, headers: {'location': '../next'});
+        }
+        return http.Response('ok', 200);
+      });
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+      await client.sendRequest('GET', 'http://example.com/a/b/start', {}, null);
+
+      expect(calls[1].url.toString(), equals('http://example.com/a/next'));
+    });
+
+    test('bhv serialization 055 the charset named in a response content type is honoured, matched by parameter name ignoring letter case', () async {
+      final mock = MockClient((_) async => http.Response.bytes(
+            [0xE9],
+            200,
+            headers: {'content-type': 'text/plain; CHARSET=windows-1252'},
+          ));
+      final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build());
+
+      final response = await client.sendRequest(
+          'GET', 'http://example.com/text', {}, null);
+
+      expect(response.body, equals('é'));
     });
   });
 }

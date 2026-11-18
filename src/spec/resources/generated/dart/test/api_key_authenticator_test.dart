@@ -58,31 +58,34 @@ void main() {
       },
     );
 
-    test('no key anywhere, or an empty variable, fails at construction', () {
-      for (final environment in <Map<String, String>>[
-        const {},
-        {ApiKeyAuthenticator.defaultEnvironmentVariable: ''},
-      ]) {
-        expect(
-          () => ApiKeyAuthenticator(
-            host: '/api/v3',
-            keyParamName: 'X-Api-Key',
-            location: ApiKeyLocation.header,
-            environment: environment,
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains(ApiKeyAuthenticator.defaultEnvironmentVariable),
+    test(
+      'bhv auth 004 no key anywhere, or an empty variable, fails at construction',
+      () {
+        for (final environment in <Map<String, String>>[
+          const {},
+          {ApiKeyAuthenticator.defaultEnvironmentVariable: ''},
+        ]) {
+          expect(
+            () => ApiKeyAuthenticator(
+              host: '/api/v3',
+              keyParamName: 'X-Api-Key',
+              location: ApiKeyLocation.header,
+              environment: environment,
             ),
-          ),
-        );
-      }
-    });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(ApiKeyAuthenticator.defaultEnvironmentVariable),
+              ),
+            ),
+          );
+        }
+      },
+    );
 
     test(
-      'the provider is asked on every request and a key with it is refused',
+      'bhv auth 005 the provider is asked on every request and a key with it is refused',
       () {
         var calls = 0;
         final auth = ApiKeyAuthenticator(
@@ -107,7 +110,7 @@ void main() {
       },
     );
 
-    test('valid header key is exposed in auth headers', () {
+    test('bhv auth 006 valid header key is exposed in auth headers', () {
       final auth = ApiKeyAuthenticator(
         host: '/api/v3',
         keyParamName: 'X-Api-Key',
@@ -578,6 +581,26 @@ void main() {
 
         expect(auth.toString(), isNot(contains('abc123')));
         expect('$auth', isNot(contains('abc123')));
+      },
+    );
+
+    test(
+      'bhv auth 018 a rejected secret never appears in the error message',
+      () {
+        const secret = 'sk-live-abc\r\ninjected';
+
+        try {
+          ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            location: ApiKeyLocation.header,
+            apiKey: secret,
+          );
+          fail('expected the key to be refused');
+        } on ArgumentError catch (e) {
+          expect('${e.message}', isNot(contains('sk-live-abc')));
+          expect('$e', isNot(contains('sk-live-abc')));
+        }
       },
     );
   });

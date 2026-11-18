@@ -299,6 +299,19 @@ void main() {
         expect(repr, isNot(contains(secret)));
       });
     });
+
+    test('bhv auth 024 each credential field takes its passed value or else its own environment variable', () {
+      final auth = BasicAuthenticator(
+        host: 'https://api.example.com',
+        username: 'passed-user',
+        environment: {BasicAuthenticator.defaultPasswordVariable: 'env-password'},
+      );
+
+      final header = auth.authHeaders()['Authorization'];
+      expect(header, startsWith('Basic '));
+      expect(utf8.decode(base64Decode(header!.substring('Basic '.length))),
+          equals('passed-user:env-password'));
+    });
   });
 }
 {{/generateTests}}

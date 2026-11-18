@@ -114,15 +114,18 @@ void main() {
       },
     );
 
-    test('a named environment variable is read instead of the default', () {
-      final auth = BearerAuthenticator(
-        host: '/api/v3',
-        environmentVariable: 'OTHER_TOKEN',
-        environment: {'OTHER_TOKEN': 'other'},
-      );
+    test(
+      'bhv auth 007 a named environment variable is read instead of the default',
+      () {
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          environmentVariable: 'OTHER_TOKEN',
+          environment: {'OTHER_TOKEN': 'other'},
+        );
 
-      expect(auth.authHeaders()['Authorization'], equals('Bearer other'));
-    });
+        expect(auth.authHeaders()['Authorization'], equals('Bearer other'));
+      },
+    );
 
     test('bhv authbearer 019 an empty environment value counts as unset', () {
       expect(
@@ -192,7 +195,7 @@ void main() {
     });
 
     test(
-      'an asynchronous provider works through authHeadersAsync only',
+      'bhv auth 001 an asynchronous provider works through authHeadersAsync only',
       () async {
         final auth = BearerAuthenticator(
           host: '/api/v3',
@@ -1054,4 +1057,162 @@ void main() {
       );
     });
   });
+
+  test(
+    'bhv auth 003 an empty environment variable counts as no value, so the next source is used',
+    () {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'fixed',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer fixed'));
+    },
+  );
+
+  test(
+    'an unset environment variable and no other source fails at construction',
+    () {
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', environment: const {}),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  test(
+    'bhv auth 012 each rejected credential raises an error whose message says why',
+    () {
+      expect(
+        () => BearerAuthenticator(host: '/api/v3', token: ''),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            isNotEmpty,
+          ),
+        ),
+      );
+    },
+  );
+
+  test(
+    'bhv auth 016 every string form of an authenticator masks its secret and names its own type',
+    () {
+      final auth = BearerAuthenticator(host: '/api/v3', token: 'secretvalue');
+
+      expect('$auth', isNot(contains('secretvalue')));
+      expect(auth.toString(), contains('BearerAuthenticator'));
+    },
+  );
+
+  test(
+    'bhv auth 022 an explicit argument is used first, then the environment, then the provider',
+    () {
+      final explicit = BearerAuthenticator(
+        host: '/api/v3',
+        token: 'explicit',
+        environment: {
+          BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
+        },
+        tokenProvider: () => 'from-provider',
+      );
+      final fromEnv = BearerAuthenticator(
+        host: '/api/v3',
+        environment: {
+          BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
+        },
+        tokenProvider: () => 'from-provider',
+      );
+      final fromProvider = BearerAuthenticator(
+        host: '/api/v3',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        tokenProvider: () => 'from-provider',
+      );
+
+      expect(
+        explicit.authHeaders()['Authorization'],
+        equals('Bearer explicit'),
+      );
+      expect(fromEnv.authHeaders()['Authorization'], equals('Bearer from-env'));
+      expect(
+        fromProvider.authHeaders()['Authorization'],
+        equals('Bearer from-provider'),
+      );
+    },
+  );
+
+  test(
+    'bhv auth 023 an explicitly passed empty credential is refused and is not replaced by the environment value',
+    () {
+      expect(
+        () => BearerAuthenticator(
+          host: '/api/v3',
+          token: '',
+          environment: {
+            BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
+          },
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  test(
+    'bhv auth 030 concurrent reads of the token never observe a value that was not set',
+    () async {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        tokenProvider: () async => 'tok',
+      );
+
+      final headers = await Future.wait(
+        List.generate(50, (_) => auth.authHeadersAsync()),
+      );
+      for (final header in headers) {
+        expect(header['Authorization'], equals('Bearer tok'));
+      }
+    },
+  );
+
+  test(
+    'bhv misc 001 replacing the token while other callers read the headers gives each read one complete token',
+    () async {
+      var turn = 0;
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        tokenProvider: () async => 'tok${turn++ % 2}',
+      );
+
+      final headers = await Future.wait(
+        List.generate(40, (_) => auth.authHeadersAsync()),
+      );
+      for (final header in headers) {
+        expect([
+          'Bearer tok0',
+          'Bearer tok1',
+        ], contains(header['Authorization']));
+      }
+    },
+  );
+
+  test(
+    'bhv config 025 an empty token environment value counts as unset, so construction fails naming the missing variable',
+    () {
+      expect(
+        () => BearerAuthenticator(
+          host: '/api/v3',
+          environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => '${e.message}',
+            'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable),
+          ),
+        ),
+      );
+    },
+  );
 }
