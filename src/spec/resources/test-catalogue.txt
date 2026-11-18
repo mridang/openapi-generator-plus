@@ -1977,3 +1977,5 @@ langpython034 | A basic authenticator compares by identity, so two instances wit
 langpython035 | Rejects empty token.
 langpython036 | Token is not leaked in repr.
 langpython037 | A refused password is named as the fault.
+langpython038 | Rejects ascii whitespace only token as empty.
+langpython039 | A bearer authenticator compares by identity, so two instances with equal tokens are unequal and hash apart.
