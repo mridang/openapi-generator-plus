@@ -228,7 +228,16 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a negative maxRedirects is rejected and zero is accepted")
+        @DisplayName("bhvOptions047 a negative timeout is rejected at configuration")
+        fun negativeTimeoutIsRejectedAtConfiguration() {
+            val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+                TransportOptions.builder().timeout(-1L)
+            }
+            assertEquals("Invalid timeout: must be a positive number of milliseconds (got -1)", ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvOptions045 a negative maxRedirects is rejected and zero is accepted")
         fun negativeMaxRedirectsIsRejected() {
             val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
                 TransportOptions.builder().maxRedirects(-1)
@@ -275,7 +284,7 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("a proxy URL with a scheme other than http or https is rejected with its message")
+        @DisplayName("bhvOptions051 a proxy URL with a scheme other than http or https is rejected with its message")
         fun nonHttpProxySchemeIsRejected() {
             for (proxy in listOf("ftp://proxy:21", "socks5://proxy:1080")) {
                 val ex = assertThrowsExactly(IllegalArgumentException::class.java) {

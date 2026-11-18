@@ -147,3 +147,4 @@ go | operations132 | A nil Options struct is one operation-level guard that name
 go | options046 | Go builds TransportOptions only through NewTransportOptionsBuilder, its fields are unexported and there is no direct constructor, so the non-http proxy scheme is rejected at Build (bhv options 024 and 051)
 java | authscheme008 | The SsoAuth scheme is openIdConnect, for which the Java generator emits no per-scheme wrapper (only OpenIdConnectAuthenticator, built from a discovery URL), so no environment variable is read or named
 kotlin | lifecycle030 | The scheme constructor takes the base URL as its required first argument (F857), so no scheme credential can supply it; the default authenticator supplies it through the authenticator constructor
+kotlin | options046 | TransportOptions has a private constructor, so a caller cannot build one directly and the scheme check runs only in the builder, where the refusal is pinned by bhv options 051

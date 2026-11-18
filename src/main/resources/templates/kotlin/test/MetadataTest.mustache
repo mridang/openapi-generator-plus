@@ -330,4 +330,23 @@ class MetadataTest {
                 .toList()
         assertEquals(emptyList<String>(), offenders)
     }
+
+    @Test
+    @DisplayName("bhvSkills001 the skills guide names the root error and the error types that are siblings of the API error")
+    fun bhvSkills001ErrorHandlingNamesTheRootAndItsSiblings() {
+        val section = java.io.File("SKILLS.md").readText().substringAfter("## Error Handling", "").substringBefore("## Configuration")
+        assertTrue(section.contains("`OpenAPIException` (root)"), "the error section must name the root, got: $section")
+        assertTrue(section.contains("`SerializationException`"), "the error section must name SerializationException")
+        assertTrue(section.contains("`OAuth2ServerException`"), "the error section must name OAuth2ServerException")
+        assertTrue(section.contains("`OAuth2TokenException`"), "the error section must name OAuth2TokenException")
+    }
+
+    @Test
+    @DisplayName("bhvSkills002 the skills guide documents the retries in its configuration section")
+    fun bhvSkills002ConfigurationDocumentsTheRetries() {
+        val section = java.io.File("SKILLS.md").readText().substringAfter("## Configuration", "").substringBefore("## API Methods")
+        assertTrue(section.contains("### Retries"), "the configuration section must have a Retries subsection")
+        assertTrue(section.contains("maxRetries(n)"), "the Retries subsection must name the maxRetries option")
+        assertTrue(section.contains("`Retry-After`"), "the Retries subsection must name the Retry-After header")
+    }
 }
