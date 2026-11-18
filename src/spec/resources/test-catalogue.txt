@@ -2227,3 +2227,5 @@ langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
 langnode090 | The synchronous header getter throws rather than returning unauthenticated headers
 langnode091 | setAccessToken rejects a token containing a forbidden character
+langnode092 | The token request is form-encoded and asks for JSON
+langnode093 | A token_type value is accepted

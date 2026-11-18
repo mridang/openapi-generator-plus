@@ -878,7 +878,7 @@ describe("OAuth2TokenManager", () => {
       { grant_type: "password", username: "user", password: "pass" },
     ],
   ])(
-    "the %s token request is form-encoded and asks for JSON",
+    "bhv langnode 092 the %s token request is form-encoded and asks for JSON",
     async (_grant, params) => {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",
@@ -1379,7 +1379,7 @@ describe("OAuth2TokenManager", () => {
   });
 
   test.each([["bearer"], ["Bearer"], ["BEARER"]])(
-    "token_type %p is accepted",
+    "bhv langnode 093 token_type %p is accepted",
     async (tokenType) => {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",

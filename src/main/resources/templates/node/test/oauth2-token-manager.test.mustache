@@ -677,7 +677,7 @@ describe('OAuth2TokenManager', () => {
     ['authorization_code', { grant_type: 'authorization_code', code: 'abc' }],
     ['client_credentials', { grant_type: 'client_credentials' }],
     ['password', { grant_type: 'password', username: 'user', password: 'pass' }]
-  ])('the %s token request is form-encoded and asks for JSON', async (_grant, params) => {
+  ])('bhv langnode 092 the %s token request is form-encoded and asks for JSON', async (_grant, params) => {
     mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
 
     await tokenManager.getAccessToken('https://auth.example.com/token', params);
@@ -1022,7 +1022,7 @@ describe('OAuth2TokenManager', () => {
     ).toBe('no-type');
   });
 
-  test.each([['bearer'], ['Bearer'], ['BEARER']])('token_type %p is accepted', async (tokenType) => {
+  test.each([['bearer'], ['Bearer'], ['BEARER']])('bhv langnode 093 token_type %p is accepted', async (tokenType) => {
     mockClient.responseBody = JSON.stringify({ access_token: 'tok', token_type: tokenType });
 
     expect(
