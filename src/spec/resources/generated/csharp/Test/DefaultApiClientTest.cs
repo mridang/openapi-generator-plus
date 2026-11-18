@@ -184,6 +184,22 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvMisc038WithNoCaCertConfiguredServerCertificatesAreCheckedAgainstTheSystemTrustStore()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var ex = await Assert.ThrowsAsync<NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
     public async Task BhvTransport017MakesHttpsRequestWithCustomCaCert()
     {
         // Test runs inside the dotnet container where /work is the project mount;
@@ -544,6 +560,20 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public void BhvMisc031AProxyCredentialIsSentExactlyWhenTheProxyUrlHasUserInfo()
+    {
+        var withUserInfo = new DefaultApiClient(
+            TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build()
+        );
+        var withoutUserInfo = new DefaultApiClient(
+            TransportOptions.Builder().Proxy("http://127.0.0.1:3128").Build()
+        );
+
+        Assert.Equal("Basic dXNlcjpwYXNz", withUserInfo.ProxyAuthorizationHeader);
+        Assert.Null(withoutUserInfo.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
     public async Task BhvTransport016MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
         var transport = TransportOptions
@@ -633,6 +663,28 @@ public class DefaultApiClientTest
 
     [Fact]
     public async Task BhvTransport060CancellingTheCallTokenAbortsTheSlowEndpoint()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+        Assert.False(
+            typeof(OpenAPIException).IsInstanceOfType(ex),
+            "cancellation must not be rewrapped as an SDK error"
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc029ACallerCancellationSurfacesAsTheCallersOwnCancellation()
     {
         var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
@@ -804,6 +856,22 @@ public class DefaultApiClientTest
     {
         var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://127.0.0.1:1/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task BhvMisc027ATransportFailureWithNoResponseIsANetworkErrorKeepingItsCause()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var ex = await Assert.ThrowsAnyAsync<NetworkException>(() =>
             client.SendRequestAsync(
                 "GET",
                 new Uri("http://127.0.0.1:1/test/echo"),
