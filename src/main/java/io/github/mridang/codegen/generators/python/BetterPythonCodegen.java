@@ -1709,6 +1709,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
     protected String generateOptionsFileContent(
             CodegenOperation op, List<CodegenParameter> optionsParams, String className) {
         final TreeSet<String> importSet = new TreeSet<>();
+        final Map<String, String> typeImports = getPropertyTypeImportMap();
         importSet.add("from dataclasses import dataclass");
         // The per-call timeout, headers and retry budget are Optional, so every
         // Options class needs the Optional import even when it carries no
@@ -1728,7 +1729,12 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                 if (p.dataType.startsWith("Dict[") && !typingNames.contains("Dict")) {
                     typingNames.add("Dict");
                 }
-                addTypeImport(importSet, p.dataType);
+                /* The package-qualified aliases (ProtobufDuration, JsonNumber, Ipv4Address) live
+                 * in the per-run map, not in the static one. */
+                final String imp = typeImports.get(p.dataType);
+                if (imp != null) {
+                    importSet.add(imp);
+                }
             }
         }
         // Add model type imports for non-primitive types referenced by parameters

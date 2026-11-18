@@ -1397,13 +1397,15 @@ defmodule {{moduleName}}.ObjectSerializer do
     {start, length} = longest_zero_run(groups)
 
     if length < 2 do
-      groups |> Enum.map(&Integer.to_string(&1, 16)) |> Enum.join(":") |> String.downcase()
+      groups |> Enum.map_join(":", &hex_group/1) |> String.downcase()
     else
-      left = groups |> Enum.take(start) |> Enum.map(&Integer.to_string(&1, 16)) |> Enum.join(":")
-      right = groups |> Enum.drop(start + length) |> Enum.map(&Integer.to_string(&1, 16)) |> Enum.join(":")
+      left = groups |> Enum.take(start) |> Enum.map_join(":", &hex_group/1)
+      right = groups |> Enum.drop(start + length) |> Enum.map_join(":", &hex_group/1)
       String.downcase(left <> "::" <> right)
     end
   end
+
+  defp hex_group(group), do: Integer.to_string(group, 16)
 
   defp longest_zero_run(groups) do
     groups

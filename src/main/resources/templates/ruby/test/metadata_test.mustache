@@ -126,7 +126,8 @@ describe 'Department', 'value equality' do
     _(first.eql?(build.call('Bob'))).must_equal(false)
     _(first).wont_equal({{moduleName}}::Models::Employee.new(name: 'Ops'))
     _(first).wont_equal(nil)
-    _(first == nil).must_equal(false)
+    nothing = [].first
+    _(first == nothing).must_equal(false)
   end
 end
 
