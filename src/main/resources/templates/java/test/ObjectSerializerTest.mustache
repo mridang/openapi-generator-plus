@@ -2965,7 +2965,7 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeys() throws Exception {
         {{modelPackage}}.Metadata metadata =
-                serializer.deserialize("{\"zeta\":1}", {{modelPackage}}.Metadata.class);
+                decode("{\"zeta\":1}", {{modelPackage}}.Metadata.class);
         assertTrue(serializer.serialize(metadata).contains("\"zeta\":1"));
     }
 
@@ -2976,7 +2976,7 @@ class ObjectSerializerTest {
 
     @Test
     void bhvSerialization070JsonNullDecodesToNullForAnOptionalNullableField() throws Exception {
-        {{modelPackage}}.EdgeCases edge = serializer.deserialize(
+        {{modelPackage}}.EdgeCases edge = decode(
                 "{\"permissionsNote\":null}", {{modelPackage}}.EdgeCases.class);
         assertNull(edge.permissionsNote);
     }
@@ -2985,38 +2985,38 @@ class ObjectSerializerTest {
     void bhvSerialization071NestingBeyondTheAllowedDepthIsRefusedBeforeParsing() {
         String deep = "[".repeat(5000) + "]".repeat(5000);
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize(deep, Object.class));
+                () -> decode(deep, Object.class));
     }
 
     @Test
     void bhvSerialization072UndeclaredKeysAreSkippedWhateverTheirShape() throws Exception {
         String json = "{\"unknownScalar\":1,\"unknownObject\":{\"inner\":[1,2]},\"unknownText\":\"x\"}";
-        assertNotNull(serializer.deserialize(json, {{modelPackage}}.EdgeCases.class));
+        assertNotNull(decode(json, {{modelPackage}}.EdgeCases.class));
     }
 
     @Test
     void bhvSerialization073MissingRequiredFieldFailsNamingTheField() {
         SerializationException ex = assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("{\"id\":1}", {{modelPackage}}.Pet.class));
-        assertTrue(ex.getMessage().contains("name"), ex.getMessage());
+                () -> decode("{\"id\":1}", {{modelPackage}}.Pet.class));
+        assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains("name"), ex.getMessage());
     }
 
     @Test
     void bhvSerialization074NestedArraysSerializeBackToTheSameShape() throws Exception {
-        Integer[][] nested = serializer.deserialize("[[1,2],[3]]", Integer[][].class);
+        Integer[][] nested = decode("[[1,2],[3]]", Integer[][].class);
         assertEquals("[[1,2],[3]]", serializer.serialize(nested));
     }
 
     @Test
     void bhvSerialization075EnumDecodesFromItsWireCasingToTheMember() throws Exception {
         assertEquals({{modelPackage}}.Color.RED,
-                serializer.deserialize("\"red\"", {{modelPackage}}.Color.class));
+                decode("\"red\"", {{modelPackage}}.Color.class));
     }
 
     @Test
     void bhvSerialization076UnionValueMatchingNoCandidateRaisesASerializationError() {
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("{\"unmatched\":true}", {{modelPackage}}.Shape.class));
+                () -> decode("{\"unmatched\":true}", {{modelPackage}}.Shape.class));
     }
 
     @Test
@@ -3050,7 +3050,7 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization081QuotedNumberIsNeverCoercedToANumber() {
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("\"5\"", Integer.class));
+                () -> decode("\"5\"", Integer.class));
     }
 
     @Test
@@ -3067,7 +3067,7 @@ class ObjectSerializerTest {
 
     @Test
     void bhvSerialization069OutOfBoundValuesForConstrainedKeywordsDecodeAndAreKept() throws Exception {
-        {{modelPackage}}.Order order = serializer.deserialize(
+        {{modelPackage}}.Order order = decode(
                 "{\"quantity\":500}", {{modelPackage}}.Order.class);
         assertEquals(Integer.valueOf(500), order.quantity);
     }
@@ -3075,16 +3075,16 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization082MissingDiscriminatorFailsNamingTheKey() {
         SerializationException ex = assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("{}", {{modelPackage}}.Shape.class));
-        assertTrue(ex.getMessage().contains("shapeType"), ex.getMessage());
+                () -> decode("{}", {{modelPackage}}.Shape.class));
+        assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains("shapeType"), ex.getMessage());
     }
 
     @Test
     void bhvSerialization083SerializationErrorIsTheLibraryErrorTypeWithAMessage() {
         SerializationException ex = assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("{", {{modelPackage}}.Pet.class));
+                () -> decode("{", {{modelPackage}}.Pet.class));
         assertInstanceOf({{errorPrefix}}Exception.class, ex);
-        assertFalse(ex.getMessage() == null || ex.getMessage().isBlank());
+        assertFalse(java.util.Objects.requireNonNull(ex.getMessage()).isBlank());
     }
 
     @Test
@@ -3096,7 +3096,7 @@ class ObjectSerializerTest {
 
     @Test
     void bhvSerialization085DateTimeFieldDecodesFromItsIso8601String() throws Exception {
-        {{modelPackage}}.EdgeCases edge = serializer.deserialize(
+        {{modelPackage}}.EdgeCases edge = decode(
                 "{\"expiresAt\":\"2024-01-01T10:00:00Z\"}", {{modelPackage}}.EdgeCases.class);
         assertEquals(OffsetDateTime.parse("2024-01-01T10:00:00Z"), edge.expiresAt);
     }
@@ -3123,21 +3123,21 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization089Base64StringDecodesIntoAByteValue() throws Exception {
         assertTrue(Arrays.equals(new byte[] {0x68, 0x69},
-                serializer.deserialize("\"aGk=\"", byte[].class)));
+                decode("\"aGk=\"", byte[].class)));
     }
 
     @Test
     void bhvSerialization090MalformedBase64IsRejectedIncludingInsideArraysAndMaps() {
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("\"aGk\"", byte[].class));
+                () -> decode("\"aGk\"", byte[].class));
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("[\"aG k=\"]", byte[][].class));
+                () -> decode("[\"aG k=\"]", byte[][].class));
     }
 
     @Test
     void bhvSerialization091BytesWithTheHighBitSetRoundTrip() throws Exception {
         byte[] bytes = {(byte) 0xFB, (byte) 0xFF, 0x00, (byte) 0x80};
-        byte[] decoded = serializer.deserialize(serializer.serialize(bytes), byte[].class);
+        byte[] decoded = decode(serializer.serialize(bytes), byte[].class);
         assertTrue(Arrays.equals(bytes, decoded));
     }
 
@@ -3145,7 +3145,7 @@ class ObjectSerializerTest {
     void bhvSerialization092TimeOfDayRoundTripsThroughItsStringForm() throws Exception {
         java.time.LocalTime time = java.time.LocalTime.of(9, 5, 3, 500_000_000);
         String text = ObjectSerializer.stringify(time);
-        assertEquals(time, serializer.deserialize("\"" + text + "\"", java.time.LocalTime.class));
+        assertEquals(time, decode("\"" + text + "\"", java.time.LocalTime.class));
     }
 
     @Test
@@ -3165,18 +3165,21 @@ class ObjectSerializerTest {
 
     @Test
     void bhvSerialization095ValueOnTheWireReplacesTheSchemaDefault() throws Exception {
-        assertEquals(Integer.valueOf(9), serializer.deserialize("{\"retries\":9}", {{modelPackage}}.Defaults.class).retries);
-        assertNull(serializer.deserialize("{\"retries\":null}", {{modelPackage}}.Defaults.class).retries);
+        {{modelPackage}}.Defaults wired = decode("{\"retries\":9}", {{modelPackage}}.Defaults.class);
+        assertEquals(Integer.valueOf(9), wired.retries);
+        {{modelPackage}}.Defaults explicitNull = decode("{\"retries\":null}", {{modelPackage}}.Defaults.class);
+        assertNull(explicitNull.retries);
     }
 
     @Test
     void bhvSerialization096AbsentFieldDecodesToItsDeclaredDefault() throws Exception {
-        assertEquals(Integer.valueOf(3), serializer.deserialize("{}", {{modelPackage}}.Defaults.class).retries);
+        {{modelPackage}}.Defaults absent = decode("{}", {{modelPackage}}.Defaults.class);
+        assertEquals(Integer.valueOf(3), absent.retries);
     }
 
     @Test
     void bhvSerialization097EnumFieldWithADefaultIsWrittenWithThatDefault() throws Exception {
-        String text = serializer.serialize(serializer.deserialize("{}", {{modelPackage}}.Defaults.class));
+        String text = serializer.serialize(decode("{}", {{modelPackage}}.Defaults.class));
         assertTrue(text.contains("\"retries\":3"), text);
         assertTrue(text.contains("\"mode\":\"low\""), text);
     }
@@ -3184,13 +3187,13 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization099StrictModelRejectsAnUndeclaredKeyWhereAPlainModelDiscardsIt() throws Exception {
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("{\"undeclared\":1}", {{modelPackage}}.StrictTag.class));
-        assertNotNull(serializer.deserialize("{\"undeclared\":1}", {{modelPackage}}.EdgeCases.class));
+                () -> decode("{\"undeclared\":1}", {{modelPackage}}.StrictTag.class));
+        assertNotNull(decode("{\"undeclared\":1}", {{modelPackage}}.EdgeCases.class));
     }
 
     @Test
     void bhvSerialization100EveryDeclaredFieldOfAValidPayloadDecodes() throws Exception {
-        {{modelPackage}}.Pet pet = serializer.deserialize(
+        {{modelPackage}}.Pet pet = decode(
                 "{\"id\":7,\"name\":\"rex\",\"photoUrls\":[\"u\"],\"status\":\"available\"}",
                 {{modelPackage}}.Pet.class);
         assertEquals(Long.valueOf(7L), pet.id);
@@ -3201,40 +3204,40 @@ class ObjectSerializerTest {
 
     @Test
     void bhvSerialization101IntegerBackedEnumIsWrittenAsANumberAndBack() throws Exception {
-        {{modelPackage}}.Priority priority = serializer.deserialize("2", {{modelPackage}}.Priority.class);
+        {{modelPackage}}.Priority priority = decode("2", {{modelPackage}}.Priority.class);
         assertEquals(2, priority.getValue());
         assertEquals("2", serializer.serialize(priority));
     }
 
     @Test
     void bhvSerialization102NonUtcOffsetIsKeptAndZTimestampDecodesToTheSameInstant() throws Exception {
-        OffsetDateTime shifted = serializer.deserialize("\"2024-01-01T10:00:00+05:30\"", OffsetDateTime.class);
+        OffsetDateTime shifted = decode("\"2024-01-01T10:00:00+05:30\"", OffsetDateTime.class);
         assertEquals(ZoneOffset.ofHoursMinutes(5, 30), shifted.getOffset());
-        OffsetDateTime zulu = serializer.deserialize("\"2024-01-01T04:30:00Z\"", OffsetDateTime.class);
+        OffsetDateTime zulu = decode("\"2024-01-01T04:30:00Z\"", OffsetDateTime.class);
         assertEquals(shifted.toInstant(), zulu.toInstant());
     }
 
     @Test
     void bhvSerialization103MalformedJsonIsRejectedWithADescriptiveMessage() {
         SerializationException ex = assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("{\"name\":", {{modelPackage}}.Pet.class));
-        assertFalse(ex.getMessage() == null || ex.getMessage().isBlank());
+                () -> decode("{\"name\":", {{modelPackage}}.Pet.class));
+        assertFalse(java.util.Objects.requireNonNull(ex.getMessage()).isBlank());
     }
 
     @Test
     void bhvSerialization104UuidIsWrittenLowercaseAndReadBackLowercase() throws Exception {
         UUID upper = UUID.fromString("0F8FAD5B-D9CB-469F-A165-8C2A9F3E4B7D");
         assertEquals("0f8fad5b-d9cb-469f-a165-8c2a9f3e4b7d", ObjectSerializer.stringify(upper));
-        UUID decoded = serializer.deserialize("\"0F8FAD5B-D9CB-469F-A165-8C2A9F3E4B7D\"", UUID.class);
+        UUID decoded = decode("\"0F8FAD5B-D9CB-469F-A165-8C2A9F3E4B7D\"", UUID.class);
         assertEquals("0f8fad5b-d9cb-469f-a165-8c2a9f3e4b7d", decoded.toString());
     }
 
     @Test
     void bhvSerialization105EnumValueOutsideTheMembersOrInWrongCaseIsRejected() {
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("\"RED\"", {{modelPackage}}.Color.class));
+                () -> decode("\"RED\"", {{modelPackage}}.Color.class));
         assertThrowsExactly(SerializationException.class,
-                () -> serializer.deserialize("\"purple\"", {{modelPackage}}.Color.class));
+                () -> decode("\"purple\"", {{modelPackage}}.Color.class));
     }
 
     @Test
@@ -3248,5 +3251,9 @@ class ObjectSerializerTest {
         String json = serializer.serialize(edge);
         assertFalse(json.contains("permissionsNote"), json);
         assertFalse(json.contains("\"slug\""), json);
+    }
+
+    private <T> T decode(String json, Class<T> type) {
+        return java.util.Objects.requireNonNull(serializer.deserialize(json, type));
     }
 }
