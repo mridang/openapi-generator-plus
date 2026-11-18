@@ -478,6 +478,12 @@ php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no 
 php | misc035 | PHP has no abort signal to pass to a call, so an already aborted call cannot exist
 ||||||| 3e71877dc
 ||||||| 42ed26df5
+||||||| 9034ca740
+kotlin | misc030 | sendRequest takes no per-call deadline and a caller's deadline is a coroutine withTimeout (pinned by langkotlin026), so a deadline already past cannot be handed to a call
+kotlin | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
+kotlin | misc044 | a declared gzip body that is not gzip raises ApiException (transport030), so the plain body is never returned
+||||||| 3e71877dc
+||||||| f5c1c903c
 ||||||| e2e15be44
 go | misc135 | Go has no client-level cancellation handle: cancellation is the context.Context each call takes, so the ConfigurationBuilder has no field to store one
 ||||||| 9c583bf17

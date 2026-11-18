@@ -589,6 +589,42 @@ class TransportOptionsTest {
         fun bhvLifecycle041SuppliedClientWithSdkSettingsConflicts() = httpClientConflictsWithSdkTransportSettings()
 
         @Test
+        @DisplayName("bhvMisc034 a caller HTTP client combined with a caller transport is refused when the client is built")
+        fun bhvMisc034CallerHttpClientWithCallerTransportIsRefusedAtBuild() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            try {
+                assertThrows(IllegalArgumentException::class.java) {
+                    TransportOptions
+                        .builder()
+                        .httpClient(custom)
+                        .proxy("http://127.0.0.1:3128")
+                        .build()
+                }
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc042 a custom httpClient with verifySsl disabled is refused when the options are built, naming the setting")
+        fun bhvMisc042CustomHttpClientWithVerificationDisabledIsRefusedNamingTheSetting() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            try {
+                val ex =
+                    assertThrows(IllegalArgumentException::class.java) {
+                        TransportOptions
+                            .builder()
+                            .httpClient(custom)
+                            .verifySsl(false)
+                            .build()
+                    }
+                assertTrue(ex.message!!.contains("verifySsl=false"), ex.message)
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
         @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")
         fun httpClientConflictsWithSdkTransportSettings() {
             val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }

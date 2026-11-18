@@ -615,4 +615,27 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
             client.lastBody,
         )
     }
+
+    @Test
+    @DisplayName("bhvMisc028 a transport failure during the code exchange reaches the caller unchanged")
+    fun bhvMisc028TransportFailureDuringTheCodeExchangeIsRethrownUnchanged() {
+        val cause = java.io.IOException("connection reset")
+        val auth = createAuthenticator()
+        auth.setApiClient(
+            object : ApiClient {
+                override suspend fun sendRequest(
+                    method: String,
+                    url: String,
+                    headers: Map<String, String>,
+                    body: Any?,
+                    noRedirect: Boolean,
+                ): ApiHttpResponse = throw cause
+            },
+        )
+        val thrown =
+            assertThrowsExactly(java.io.IOException::class.java) {
+                runBlocking { auth.exchangeCode("auth-code-xyz") }
+            }
+        assertSame(cause, thrown)
+    }
 }
