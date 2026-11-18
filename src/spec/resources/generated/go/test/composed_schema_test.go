@@ -249,7 +249,7 @@ func TestBhvUnions038_ComposedSchema_PetFood_DiscriminatorKeyMatchesCaseSensitiv
 	t.Parallel()
 	var food models.PetFood
 	err := json.Unmarshal([]byte(`{"FOODTYPE":"dry","weightKg":2.5}`), &food)
-	if err == nil || err.Error() != `unknown discriminator value "" for PetFood` {
+	if err == nil || err.Error() != `missing discriminator property "foodType" for PetFood` {
 		t.Fatalf("expected the mis-cased discriminator key to be ignored, got %v", err)
 	}
 }
