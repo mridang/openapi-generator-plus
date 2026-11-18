@@ -2593,8 +2593,8 @@ langnode172 | An uppercase UUID is written in lowercase in the path
 langnode173 | Each style with each explode setting serializes as defined
 langnode174 | A value that is not a YYYY-MM-DD date is refused
 langphp066 | A server variable exposes its default value.
-langcsharp063 | A scheme authenticator with a missing credential fails at construction and names the variable
-langcsharp064 | A scheme authenticator given a token provider uses it over the environment variable
+langcsharp063 | A scheme authenticator with a missing credential fails at construction and names the variable | multi
+langcsharp064 | A scheme authenticator given a token provider uses it over the environment variable | multi
 langphp067 | Non-ASCII text in a serialized string is written literally and never as unicode escapes.
 langphp068 | A hook that returns no observer is skipped while the other hooks still finish.
 langphp069 | The chain returns no observer when no hook returns one.

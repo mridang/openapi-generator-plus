@@ -19,14 +19,14 @@ public class OpenIdConnectAuthenticatorTest
     {
         private readonly Queue<ApiHttpResponse> _responses = new();
 
-        public void Enqueue(string body, int statusCode = 200)
+        internal void Enqueue(string body, int statusCode = 200)
         {
             _responses.Enqueue(
                 new ApiHttpResponse(statusCode, body, new Dictionary<string, string>())
             );
         }
 
-        public void EnqueueWithCacheControl(string body, string cacheControl)
+        internal void EnqueueWithCacheControl(string body, string cacheControl)
         {
             _responses.Enqueue(
                 new ApiHttpResponse(
@@ -915,7 +915,7 @@ public class OpenIdConnectAuthenticatorTest
 
         public int GetRequestCount { get; private set; }
 
-        public void Enqueue(string body, int statusCode = 200)
+        internal void Enqueue(string body, int statusCode = 200)
         {
             _responses.Enqueue(
                 new ApiHttpResponse(statusCode, body, new Dictionary<string, string>())
