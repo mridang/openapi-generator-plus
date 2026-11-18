@@ -38,6 +38,16 @@ func (o *Freeform) Equal(other *Freeform) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Freeform) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Freeform{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
 func (o Freeform) WithLabel(value string) Freeform {
 	o.Label = &value

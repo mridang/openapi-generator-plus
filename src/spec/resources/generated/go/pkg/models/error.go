@@ -37,6 +37,16 @@ func (o *Error) Equal(other *Error) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Error) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Error{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
 func (o Error) WithCode(value int32) Error {
 	o.Code = &value

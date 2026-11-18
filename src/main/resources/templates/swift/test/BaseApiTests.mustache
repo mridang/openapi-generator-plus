@@ -2688,4 +2688,33 @@ private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
         requests += 1
         return ApiHttpResponse(statusCode: 401, body: "{}", headers: [:])
     }
+
+    /* A cookie value the caller has already percent-encoded is written as given, with no second encoding. */
+    @Test func testBhvMisc123APercentEncodedCookieValueIsSentAsGiven() throws {
+        #expect(try BaseApi.cookieHeaderValue(["api_key": "a%20b"]) == "api_key=a%20b")
+    }
+
+    /* A 401 response is replayed once even with retries turned off, when the authenticator can supply fresh credentials. */
+    @Test func testBhvMisc159A401IsReplayedOnceWithRetriesOff() async throws {
+        let client = ScriptedApiClient(statuses: [401, 200])
+        let auth = RotatingAuth()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+        _ = try await api.getPetById(petId: 1)
+
+        #expect(auth.invalidations == 1)
+        #expect(client.seenAuthorization.count == 2)
+    }
+
+    /* A required cookie parameter is sent in the Cookie header with its value. */
+    @Test func testBhvMisc176ARequiredCookieParameterIsSentWithItsValue() throws {
+        #expect(try BaseApi.cookieHeaderValue(["session": "abc"]) == "session=abc")
+    }
+
+    /* An auth cookie made only of legal cookie octets is sent exactly as given. */
+    @Test func testBhvMisc192AnAuthCookieOfLegalOctetsIsSentExactlyAsGiven() throws {
+        let value = "a1!#$%&'()*+-./:<=>?@[]^_`{|}~"
+        #expect(try BaseApi.cookieHeaderValue(["auth": value]) == "auth=" + value)
+    }
 }

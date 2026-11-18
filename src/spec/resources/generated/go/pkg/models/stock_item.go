@@ -40,6 +40,16 @@ func (o *StockItem) Equal(other *StockItem) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o StockItem) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "StockItem{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithPriority returns a copy of the model with Priority replaced; the receiver is unchanged.
 func (o StockItem) WithPriority(value Priority) StockItem {
 	o.Priority = value

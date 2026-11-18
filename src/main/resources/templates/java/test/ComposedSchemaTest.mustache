@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import {{invokerPackage}}.errors.SerializationException;
@@ -720,5 +721,54 @@ class ComposedSchemaTest {
             assertThat(restored.name).isEqualTo(original.name);
             assertThat(restored.ownerName).isEqualTo(original.ownerName);
         }
+    }
+
+    @Test
+    @DisplayName("bhvMisc291 a payload matching several variants decodes to the first declared one")
+    void bhvMisc291APayloadMatchingSeveralVariantsDecodesToTheFirstDeclaredOne() {
+        {{modelPackage}}.PetTreatment result = serializer.deserialize(
+                "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}",
+                {{modelPackage}}.PetTreatment.class);
+
+        assertTrue(result.getActualInstance() instanceof {{modelPackage}}.Medication);
+    }
+
+    @Test
+    @DisplayName("bhvMisc293 resolving an anyOf value skips candidates that do not match")
+    void bhvMisc293ResolvingAnyOfValueSkipsCandidatesThatDoNotMatch() {
+        {{modelPackage}}.PetTreatment result = serializer.deserialize(
+                "{\"procedureName\":\"Spay\",\"durationMinutes\":45}", {{modelPackage}}.PetTreatment.class);
+
+        assertTrue(result.getActualInstance() instanceof {{modelPackage}}.Surgery);
+    }
+
+    @Test
+    @DisplayName("bhvMisc292 a union wrapper serializes its bare payload and reads it back")
+    void bhvMisc292AUnionWrapperSerializesItsBarePayloadAndReadsItBack() {
+        SetPetAvatarThumbnailRequest req = Objects.requireNonNull(
+                serializer.deserialize("\"aGk=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+
+        assertEquals("\"aGk=\"", serializer.serialize(req));
+        assertEquals("\"aGk=\"", serializer.serialize(
+                Objects.requireNonNull(serializer.deserialize(serializer.serialize(req), ONE_OF_NO_DISCRIMINATOR_TYPE))));
+    }
+
+    @Test
+    @DisplayName("bhvMisc295 a oneOf with a byte-string variant round-trips through base64")
+    void bhvMisc295AOneOfWithAByteStringVariantRoundTripsThroughBase64() {
+        SetPetAvatarThumbnailRequest req = Objects.requireNonNull(
+                serializer.deserialize("\"aGk=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+
+        assertTrue(req.getActualInstance() instanceof byte[]);
+        assertEquals("\"aGk=\"", serializer.serialize(req));
+    }
+
+    @Test
+    @DisplayName("bhvMisc294 a subtype payload without its discriminator decodes as the mapped variant")
+    void bhvMisc294ASubtypePayloadWithoutItsDiscriminatorDecodesAsTheMappedVariant() {
+        Object food = serializer.deserialize("{\"weightKg\":2.5}", {{modelPackage}}.PetFood.class);
+
+        assertTrue(food instanceof {{modelPackage}}.DryFood);
+        assertEquals(2.5, (({{modelPackage}}.DryFood) food).weightKg);
     }
 }

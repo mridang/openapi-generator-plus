@@ -1111,4 +1111,41 @@ class ApiExceptionTest {
     assertEquals(ApiException.class, ApiException.fromResponse(399, Map.of(), null).getClass());
     assertEquals(ApiException.class, ApiException.fromResponse(600, Map.of(), null).getClass());
   }
+
+  @Test
+  @DisplayName("bhvMisc280 a truncated body states how many bytes were left out")
+  void bhvMisc280ATruncatedBodyStatesHowManyBytesWereLeftOut() {
+    ApiException ex = new ApiException(502, "bad gateway", Map.of(), "a".repeat(3000));
+
+    assertTrue(ex.getMessage().contains("1976 more bytes"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("bhvMisc281 headers from the response are copied onto the error")
+  void bhvMisc281HeadersFromTheResponseAreCopiedOntoTheError() {
+    ApiException ex = ApiException.fromResponse(503, Map.of("retry-after", "5"), "{}");
+
+    assertEquals("5", ex.getResponseHeaders().get("retry-after"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc284 a generated call raises the typed error for each listed status")
+  void bhvMisc284AGeneratedCallRaisesTheTypedErrorForEachListedStatus() {
+    assertTrue(
+        ApiException.fromResponse(400, java.util.Map.of(), "") instanceof BadRequestException);
+    assertTrue(ApiException.fromResponse(409, java.util.Map.of(), "") instanceof ConflictException);
+    assertTrue(ApiException.fromResponse(404, java.util.Map.of(), "") instanceof NotFoundException);
+    assertTrue(
+        ApiException.fromResponse(500, java.util.Map.of(), "")
+            instanceof InternalServerErrorException);
+  }
+
+  @Test
+  @DisplayName("bhvMisc286 an OAuth error message names its status and its error code")
+  void bhvMisc286AnOAuthErrorMessageNamesItsStatusAndErrorCode() {
+    OAuth2ServerException err = new OAuth2ServerException(401, "invalid_client", null, null, "{}");
+
+    assertTrue(err.getMessage().contains("401"), err.getMessage());
+    assertTrue(err.getMessage().contains("invalid_client"), err.getMessage());
+  }
 }
