@@ -19,6 +19,7 @@ import com.example.petstore.api.options.GetDepartmentOptions;
 import com.example.petstore.api.options.GetGroupedCategoriesOptions;
 import com.example.petstore.api.options.GetInventoryOptions;
 import com.example.petstore.api.options.GetMatrixOptions;
+import com.example.petstore.api.options.GetNativeValuesOptions;
 import com.example.petstore.api.options.GetOrderByIdOptions;
 import com.example.petstore.api.options.GetOrderByTrackingIdOptions;
 import com.example.petstore.api.options.GetStockItemOptions;
@@ -35,6 +36,7 @@ import com.example.petstore.models.Account;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
+import com.example.petstore.models.NativeValues;
 import com.example.petstore.models.Order;
 import com.example.petstore.models.ReserveStockResponse;
 import com.example.petstore.models.StockItem;
@@ -72,6 +74,9 @@ public class StoreApi extends BaseApi {
 
   private static final java.lang.reflect.Type getMatrixTypeRef =
       new TypeReference<List<List<Integer>>>() {}.getType();
+
+  private static final java.lang.reflect.Type getNativeValuesTypeRef =
+      new TypeReference<NativeValues>() {}.getType();
 
   private static final java.lang.reflect.Type getOrderByIdTypeRef =
       new TypeReference<Order>() {}.getType();
@@ -794,6 +799,111 @@ public class StoreApi extends BaseApi {
         new String[] {"application/json"},
         "application/json",
         getMatrixTypeRef,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null);
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  public NativeValues getNativeValues() {
+    return getNativeValues(null);
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<NativeValues> getNativeValuesWithHttpInfo() {
+    return getNativeValuesWithHttpInfo(null);
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  public NativeValues getNativeValues(@Nullable GetNativeValuesOptions options) {
+    return requireBody(getNativeValuesWithHttpInfo(options), "getNativeValues");
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code NativeValues}
+   * @throws ApiException if fails to make API call
+   */
+  public ApiResult<NativeValues> getNativeValuesWithHttpInfo(
+      @Nullable GetNativeValuesOptions options) {
+    String path = "/store/native-values";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.address4() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "address4",
+          ValueSerializer.serializeStyled(
+              "address4", options.address4(), "query", "String", null, "form", true),
+          false);
+    }
+    if (options != null && options.wait() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "wait",
+          ValueSerializer.serializeStyled(
+              "wait", options.wait(), "query", "Duration", null, "form", true),
+          false);
+    }
+    if (options != null && options.amount() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "amount",
+          ValueSerializer.serializeStyled(
+              "amount", options.amount(), "query", "BigDecimal", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    if (options != null && options.xAddress6() != null) {
+      headerParams.put(
+          "X-Address6",
+          (String)
+              ValueSerializer.serializeStyled(
+                  "X-Address6", options.xAddress6(), "header", "String", null, "simple", false));
+    }
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "getNativeValues",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getNativeValuesTypeRef,
         NO_AUTH,
         callTimeout,
         callMaxRetries,

@@ -15,6 +15,7 @@ import '../models/account.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
+import '../models/native_values.dart';
 import '../models/order.dart';
 import '../models/reserve_stock_response.dart';
 import '../models/stock_item.dart';
@@ -30,6 +31,7 @@ import 'options/get_department_options.dart';
 import 'options/get_grouped_categories_options.dart';
 import 'options/get_inventory_options.dart';
 import 'options/get_matrix_options.dart';
+import 'options/get_native_values_options.dart';
 import 'options/get_order_by_id_options.dart';
 import 'options/get_order_by_tracking_id_options.dart';
 import 'options/get_stock_item_options.dart';
@@ -538,6 +540,106 @@ class StoreApi extends BaseApi {
                 (e) => deserializeArray(e, (e) => readInt32(e)),
               )
               as List<List<int>>,
+    );
+  }
+
+  /// Reads values of the formats the SDKs type natively.
+  /// `options` options for query, header, form, and cookie parameters
+  Future<NativeValues> getNativeValues(GetNativeValuesOptions? options) async {
+    final result = await getNativeValuesWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as NativeValues` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for getNativeValues but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getNativeValues operation and returns the full API result.
+  Future<ApiResult<NativeValues>> getNativeValuesWithHttpInfo(
+    GetNativeValuesOptions? options,
+  ) async {
+    var path = '/store/native-values';
+
+    final queryParams = <String, Object?>{};
+    if (options != null && options.address4 != null) {
+      queryParams['address4'] = maybeAllowReserved(
+        serializeStyled(
+          'address4',
+          options.address4,
+          'query',
+          'String',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.wait != null) {
+      queryParams['wait'] = maybeAllowReserved(
+        serializeStyled(
+          'wait',
+          options.wait,
+          'query',
+          'Duration',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+    if (options != null && options.amount != null) {
+      queryParams['amount'] = maybeAllowReserved(
+        serializeStyled(
+          'amount',
+          options.amount,
+          'query',
+          'double',
+          '',
+          'form',
+          true,
+        ),
+        false,
+      );
+    }
+
+    final headerParams = <String, String>{};
+    if (options != null && options.xAddress6 != null) {
+      headerParams['X-Address6'] =
+          '${serializeStyled('X-Address6', options.xAddress6, 'header', 'String', '', 'simple', false)}';
+    }
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<NativeValues>(
+      method: 'GET',
+      operation: 'StoreApi.getNativeValues',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'NativeValues',
+      auth: noAuth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, NativeValues.fromJson) as NativeValues,
     );
   }
 

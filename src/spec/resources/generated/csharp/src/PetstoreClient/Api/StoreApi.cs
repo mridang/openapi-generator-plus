@@ -33,6 +33,8 @@ public class StoreApi : BaseApi
 
     private static readonly string[] GetMatrixAccepts = ["application/json"];
 
+    private static readonly string[] GetNativeValuesAccepts = ["application/json"];
+
     private static readonly string[] GetOrderByIdAccepts = ["application/json"];
 
     private static readonly string[] GetOrderByTrackingIdAccepts = ["application/json"];
@@ -736,6 +738,141 @@ public class StoreApi : BaseApi
                 NoAuth.Instance,
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetMatrix",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads values of the formats the SDKs type natively.
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[NativeValues]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<NativeValues> GetNativeValuesAsync(
+        GetNativeValuesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<NativeValues>> task = GetNativeValuesWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<NativeValues> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetNativeValues but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Reads values of the formats the SDKs type natively. (with HTTP info)
+    /// </summary>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<NativeValues>> GetNativeValuesWithHttpInfoAsync(
+        GetNativeValuesOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/native-values";
+
+        Dictionary<string, object?> queryParams = [];
+        if (options != null && options.Address4 != null)
+        {
+            queryParams["address4"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "address4",
+                    options.Address4,
+                    "query",
+                    "string",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.Wait != null)
+        {
+            queryParams["wait"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "wait",
+                    options.Wait,
+                    "query",
+                    "TimeSpan",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        if (options != null && options.Amount != null)
+        {
+            queryParams["amount"] = ValueSerializer.MaybeAllowReserved(
+                ValueSerializer.SerializeStyled(
+                    "amount",
+                    options.Amount,
+                    "query",
+                    "decimal",
+                    null,
+                    "form",
+                    true
+                ),
+                false
+            );
+        }
+        Dictionary<string, string> headerParams = [];
+        if (options != null && options.XAddress6 != null)
+        {
+            headerParams["X-Address6"] = (string)
+                ValueSerializer.SerializeStyled(
+                    "X-Address6",
+                    options.XAddress6,
+                    "header",
+                    "string",
+                    null,
+                    "simple",
+                    false
+                )!;
+        }
+
+        return await InvokeApiForResultAsync<NativeValues>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetNativeValuesAccepts,
+                "application/json",
+                typeof(NativeValues),
+                NoAuth.Instance,
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetNativeValues",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

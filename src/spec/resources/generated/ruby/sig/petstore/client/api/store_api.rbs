@@ -18,6 +18,8 @@ module Petstore::Client
       def get_inventory_with_http_info: (?Options::GetInventoryOptions? options) -> ::Petstore::Client::ApiResult[Hash[String, Integer]]
       def get_matrix: (?Options::GetMatrixOptions? options) -> Array[Array[Integer]]
       def get_matrix_with_http_info: (?Options::GetMatrixOptions? options) -> ::Petstore::Client::ApiResult[Array[Array[Integer]]]
+      def get_native_values: (?Options::GetNativeValuesOptions? options) -> Models::NativeValues
+      def get_native_values_with_http_info: (?Options::GetNativeValuesOptions? options) -> ::Petstore::Client::ApiResult[Models::NativeValues]
       def get_order_by_id: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> Models::Order
       def get_order_by_id_with_http_info: (Integer order_id, ?Options::GetOrderByIdOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
       def get_order_by_tracking_id: (String tracking_id, ?Options::GetOrderByTrackingIdOptions? options) -> Models::Order

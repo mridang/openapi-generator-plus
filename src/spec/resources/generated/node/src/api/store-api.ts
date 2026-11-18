@@ -21,6 +21,7 @@ import {
   Category,
   Defaults,
   Department,
+  NativeValues,
   Order,
   ReserveStockResponse,
   StockItem,
@@ -30,6 +31,7 @@ import {
   ReservationReceipt,
 } from "../models/index.js";
 import type { GetBySwatchOptions } from "./options/get-by-swatch-options.js";
+import type { GetNativeValuesOptions } from "./options/get-native-values-options.js";
 import type { GetStockItemOptions } from "./options/get-stock-item-options.js";
 import type { SearchStoreOptions } from "./options/search-store-options.js";
 
@@ -557,6 +559,122 @@ export class StoreApi extends BaseApi {
       false,
       "model",
       "getMatrix",
+      requestOptions,
+    );
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively.
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.address4  (optional)
+   * @param options.wait  (optional)
+   * @param options.amount  (optional)
+   * @param options.xAddress6  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return NativeValues
+   * @throws {ApiError} if fails to make API call
+   */
+  async getNativeValues(
+    options?: GetNativeValuesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<NativeValues> {
+    const getNativeValuesResult = await this.getNativeValuesWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getNativeValuesResult.data == null) {
+      throw new ApiError(
+        getNativeValuesResult.statusCode,
+        "Expected a response body for getNativeValues but received none",
+        getNativeValuesResult.headers,
+        getNativeValuesResult.rawBody,
+        null,
+      );
+    }
+    return getNativeValuesResult.data as NativeValues;
+  }
+
+  /**
+   * Reads values of the formats the SDKs type natively. (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async getNativeValuesWithHttpInfo(
+    options?: GetNativeValuesOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<NativeValues>> {
+    const path = `/store/native-values`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.address4 != null) {
+      queryParams["address4"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "address4",
+          options.address4,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.wait != null) {
+      queryParams["wait"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "wait",
+          options.wait,
+          "query",
+          "Temporal.Duration",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.amount != null) {
+      queryParams["amount"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "amount",
+          options.amount,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    if (options?.xAddress6 != null) {
+      headerParams["X-Address6"] = ValueSerializer.serializeStyled(
+        "X-Address6",
+        options.xAddress6,
+        "header",
+        "string",
+        null,
+        "simple",
+        false,
+      ) as string;
+    }
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, NativeValues)!,
+      NO_AUTH,
+      false,
+      "model",
+      "getNativeValues",
       requestOptions,
     );
   }

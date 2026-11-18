@@ -74,6 +74,8 @@ mod get_inventory_options;
 pub use get_inventory_options::*;
 mod get_matrix_options;
 pub use get_matrix_options::*;
+mod get_native_values_options;
+pub use get_native_values_options::*;
 mod get_order_by_id_options;
 pub use get_order_by_id_options::*;
 mod get_order_by_tracking_id_options;

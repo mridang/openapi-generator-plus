@@ -28,6 +28,7 @@ use PetstoreClient\Api\Options\GetDepartmentOptions;
 use PetstoreClient\Api\Options\GetGroupedCategoriesOptions;
 use PetstoreClient\Api\Options\GetInventoryOptions;
 use PetstoreClient\Api\Options\GetMatrixOptions;
+use PetstoreClient\Api\Options\GetNativeValuesOptions;
 use PetstoreClient\Api\Options\GetOrderByIdOptions;
 use PetstoreClient\Api\Options\GetOrderByTrackingIdOptions;
 use PetstoreClient\Api\Options\GetStockItemOptions;
@@ -631,6 +632,120 @@ class StoreApi extends BaseApi
             ['application/json'],
             'application/json',
             '\Ds\Vector<\Ds\Vector<int>>',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+        );
+        return $result;
+    }
+
+    /**
+     * Reads values of the formats the SDKs type natively.
+     * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getNativeValues(?GetNativeValuesOptions $options = null): \PetstoreClient\Models\NativeValues
+    {
+        $apiResult = $this->getNativeValuesWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for getNativeValues but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\NativeValues $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\NativeValues>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getNativeValuesWithHttpInfo(?GetNativeValuesOptions $options = null): ApiResult
+    {
+        $path = '/store/native-values';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->address4 !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'address4', ValueSerializer::serializeStyled(
+                'address4',
+                $options->address4,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->wait instanceof \DateInterval) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'wait', ValueSerializer::serializeStyled(
+                'wait',
+                $options->wait,
+                'query',
+                '\DateInterval',
+                null,
+                'form',
+                true,
+            ));
+        }
+        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->amount !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'amount', ValueSerializer::serializeStyled(
+                'amount',
+                $options->amount,
+                'query',
+                'float',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        if ($options instanceof \PetstoreClient\Api\Options\GetNativeValuesOptions && $options->xAddress6 !== null) {
+            /** @var string $headerValue */
+            $headerValue = ValueSerializer::serializeStyled(
+                'X-Address6',
+                $options->xAddress6,
+                'header',
+                'string',
+                null,
+                'simple',
+                false,
+            );
+            $headerParams['X-Address6'] = $headerValue;
+        }
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\NativeValues> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\NativeValues::class,
             /* security:[] — explicitly unauthenticated; pass the NoAuth
              * sentinel so BaseApi suppresses the client credential instead
              * of falling back to it. */

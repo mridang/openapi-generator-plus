@@ -58,6 +58,7 @@ from .get_grouped_categories_options import (
 )
 from .get_inventory_options import GetInventoryOptions as GetInventoryOptions
 from .get_matrix_options import GetMatrixOptions as GetMatrixOptions
+from .get_native_values_options import GetNativeValuesOptions as GetNativeValuesOptions
 from .get_order_by_id_options import GetOrderByIdOptions as GetOrderByIdOptions
 from .get_order_by_tracking_id_options import (
     GetOrderByTrackingIdOptions as GetOrderByTrackingIdOptions,

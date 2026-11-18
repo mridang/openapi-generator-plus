@@ -678,6 +678,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "get_native_values",
+            "GetNativeValuesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "get_order_by_id",
             "GetOrderByIdOptions",
             True,
