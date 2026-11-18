@@ -448,6 +448,11 @@ kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPh
 ||||||| e6c85ecf4
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
 swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
+swift | misc030 | the SDK takes only a relative timeout per call and has no absolute deadline argument, so a deadline cannot already have passed when a call starts
+swift | misc033 | the test certificates are one CA and one server leaf, so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
+swift | misc038 | the Swift suite starts no TLS listener of its own and its unit tests stub the transport, so there is no server certificate for the platform trust store to refuse
+swift | misc044 | contradicts transport030: a Content-Encoding of gzip that does not match its body is an ApiError, pinned by testBhvTransport030, so a gzip header without the gzip signature cannot also be returned as the plain body
+swift | misc047 | a union wrapper holds only a declared variant and is built only from one, so a value that is not a variant cannot be constructed; an empty union is nil (testBhvUnions042), so the compile-time guarantee covers both cases
 ||||||| 68cea441c
 ||||||| f49b9353e
 csharp | misc007 | the generated code checks no path parameter for nil, and the options null check runs first, so the error names options and never the path parameter
