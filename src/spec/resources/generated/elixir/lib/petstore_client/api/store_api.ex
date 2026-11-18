@@ -172,7 +172,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Account",
       auth,
-      call,
+      Keyword.put(call, :operation, {"createAccount", "/store/account"}),
       %{}
     )
   end
@@ -301,7 +301,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       nil,
       auth,
-      call,
+      Keyword.put(call, :operation, {"deleteOrder", "/store/order/{orderId}"}),
       %{}
     )
   end
@@ -483,7 +483,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Category",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getBySwatch", "/store/by-swatch/{pathSwatch}"}),
       %{}
     )
   end
@@ -586,7 +586,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Defaults",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getDefaults", "/store/defaults"}),
       %{}
     )
   end
@@ -689,7 +689,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Department",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getDepartment", "/store/department"}),
       %{}
     )
   end
@@ -800,7 +800,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[%{String.t() => Category}]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getGroupedCategories", "/store/grouped-categories"}),
       %{}
     )
   end
@@ -903,7 +903,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "%{String.t() => integer()}",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getInventory", "/store/inventory"}),
       %{}
     )
   end
@@ -1006,7 +1006,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[[integer()]]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getMatrix", "/store/matrix"}),
       %{}
     )
   end
@@ -1151,7 +1151,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Order",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getOrderById", "/store/order/{orderId}"}),
       %{}
     )
   end
@@ -1294,7 +1294,11 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Order",
       auth,
-      call,
+      Keyword.put(
+        call,
+        :operation,
+        {"getOrderByTrackingId", "/store/order/by-tracking/{trackingId}"}
+      ),
       %{}
     )
   end
@@ -1420,7 +1424,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "StockItem",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getStockItem", "/store/stock-item"}),
       %{}
     )
   end
@@ -1523,7 +1527,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Swatch",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getSwatch", "/store/swatch"}),
       %{}
     )
   end
@@ -1634,7 +1638,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[%{String.t() => Swatch}]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getSwatchGroups", "/store/swatch-groups"}),
       %{}
     )
   end
@@ -1745,7 +1749,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[%{String.t() => DateTime.t()}]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getTimestampGroups", "/store/timestamp-groups"}),
       %{}
     )
   end
@@ -1848,7 +1852,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "TreeNode",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getTree", "/store/tree"}),
       %{}
     )
   end
@@ -1970,7 +1974,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "Order",
       auth,
-      call,
+      Keyword.put(call, :operation, {"placeOrder", "/store/order"}),
       %{}
     )
   end
@@ -2082,7 +2086,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       {"ReserveStockResponse", [{"200", "Reservation"}, {"201", "ReservationReceipt"}]},
       auth,
-      call,
+      Keyword.put(call, :operation, {"reserveStock", "/store/reservation"}),
       %{}
     )
   end
@@ -2249,7 +2253,7 @@ defmodule PetstoreClient.Api.StoreApi do
       "application/json",
       "[Order]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"searchStore", "/store/search"}),
       %{}
     )
   end

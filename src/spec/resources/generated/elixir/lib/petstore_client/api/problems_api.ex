@@ -194,7 +194,7 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getFallback", "/fallbacks/{fallbackId}"}),
       %{
         "default" => PetstoreClient.Errors.UnexpectedFailureError
       }
@@ -341,7 +341,7 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getMember", "/members/{memberId}"}),
       %{
         "404" => PetstoreClient.Errors.MemberNotFoundError
       }
@@ -488,7 +488,7 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getProject", "/projects/{projectId}"}),
       %{
         "404" => PetstoreClient.Errors.ProjectNotFoundError
       }
@@ -635,7 +635,7 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getRange", "/ranges/{rangeId}"}),
       %{
         "4XX" => PetstoreClient.Errors.RejectedRequestError
       }
@@ -782,7 +782,7 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getUpstream", "/upstreams/{upstreamId}"}),
       %{
         "5XX" => PetstoreClient.Errors.UpstreamFailureError
       }
@@ -931,7 +931,7 @@ defmodule PetstoreClient.Api.ProblemsApi do
       "application/json",
       "Result",
       auth,
-      call,
+      Keyword.put(call, :operation, {"takeLock", "/locks/{lockId}"}),
       %{
         "409" => PetstoreClient.Errors.StateConflictError,
         "423" => PetstoreClient.Errors.StateConflictError

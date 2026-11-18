@@ -1986,4 +1986,51 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     Agent.stop(name)
   end
+
+  defmodule HookSpy do
+    @behaviour PetstoreClient.CallHook
+
+    @impl true
+    def start(_info, headers), do: {headers, nil}
+
+    @impl true
+    def start(info, headers, pid) do
+      send(pid, {:call_info, info})
+      {headers, pid}
+    end
+
+    @impl true
+    def finish(pid, outcome), do: send(pid, {:call_outcome, outcome})
+  end
+
+  test "both variants of a generated operation call the hook once, with the spec operation id and path" do
+    {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
+
+    config =
+      PetstoreClient.Configuration.new(
+        base_url: "http://localhost:4010",
+        call_hook: {HookSpy, self()}
+      )
+
+    api = PetstoreClient.Api.PetApi.new(StubResponseApiClient, config)
+    options = %PetstoreClient.Api.Options.FindPetsByStatusOptions{status: "available"}
+
+    assert {:ok, []} = PetstoreClient.Api.PetApi.find_pets_by_status(api, options)
+    assert_received {:call_info, info}
+    assert info.operation_id == "findPetsByStatus"
+    assert info.url_template == "/pet/findByStatus"
+    assert info.method == "GET"
+    assert info.url == "http://localhost:4010/pet/findByStatus"
+    assert_received {:call_outcome, %{status_code: 200}}
+    refute_received {:call_info, _}
+    refute_received {:call_outcome, _}
+
+    assert {:ok, %PetstoreClient.ApiResult{}} =
+             PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(api, options)
+
+    assert_received {:call_info, %{operation_id: "findPetsByStatus"}}
+    assert_received {:call_outcome, %{status_code: 200}}
+    refute_received {:call_info, _}
+    Agent.stop(name)
+  end
 end

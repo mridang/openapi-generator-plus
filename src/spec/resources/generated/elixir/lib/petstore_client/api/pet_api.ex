@@ -397,7 +397,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"addPet", "/pet"}),
       %{}
     )
   end
@@ -554,7 +554,7 @@ defmodule PetstoreClient.Api.PetApi do
       "multipart/form-data",
       "[Photo]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"addPetPhotos", "/pet/{petId}/photos"}),
       %{}
     )
   end
@@ -708,7 +708,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "PetTreatment",
       auth,
-      call,
+      Keyword.put(call, :operation, {"addPetTreatment", "/pet/{petId}/treatment"}),
       %{}
     )
   end
@@ -871,7 +871,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       nil,
       auth,
-      call,
+      Keyword.put(call, :operation, {"deletePet", "/pet/{petId}"}),
       %{}
     )
   end
@@ -1047,7 +1047,11 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call,
+      Keyword.put(
+        call,
+        :operation,
+        {"downloadPetDocument", "/pet/{petId}/documents/{documentId}"}
+      ),
       %{}
     )
   end
@@ -1183,7 +1187,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "[Pet]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"findPetsBornOn", "/pet/born-on/{bornOn}"}),
       %{}
     )
   end
@@ -1412,7 +1416,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "[Pet]",
       auth,
-      call,
+      Keyword.put(call, :operation, {"findPetsByStatus", "/pet/findByStatus"}),
       %{}
     )
   end
@@ -1574,7 +1578,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getExternalPetInfo", "/pet/{petId}/external"}),
       %{}
     )
   end
@@ -1736,7 +1740,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getMultiServerPetInfo", "/pet/{petId}/multi"}),
       %{}
     )
   end
@@ -1881,7 +1885,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetAvatar", "/pet/{petId}/avatar"}),
       %{}
     )
   end
@@ -2031,7 +2035,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetAvatarThumbnail", "/pet/{petId}/avatar/thumbnail"}),
       %{}
     )
   end
@@ -2212,7 +2216,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetById", "/pet/{petId}"}),
       %{}
     )
   end
@@ -2405,7 +2409,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetByName", "/pet/byName/{name}"}),
       %{}
     )
   end
@@ -2550,7 +2554,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "PetPassport",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetPassport", "/pet/{petId}/passport"}),
       %{}
     )
   end
@@ -2726,7 +2730,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetPhoto", "/pet/{petId}/photos/{photoId}"}),
       %{}
     )
   end
@@ -2960,7 +2964,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "String.t()",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetSummary", "/pet/{petId}/summary/{asOf}"}),
       %{}
     )
   end
@@ -3343,7 +3347,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getPetTag", "/pet/{petId}/tag/{tagName}"}),
       %{}
     )
   end
@@ -3500,7 +3504,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"getStagingPetInfo", "/pet/{petId}/staging"}),
       %{}
     )
   end
@@ -3662,7 +3666,7 @@ defmodule PetstoreClient.Api.PetApi do
       content_type,
       nil,
       auth,
-      call,
+      Keyword.put(call, :operation, {"setPetAvatar", "/pet/{petId}/avatar"}),
       %{}
     )
   end
@@ -3829,7 +3833,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       nil,
       auth,
-      call,
+      Keyword.put(call, :operation, {"setPetAvatarThumbnail", "/pet/{petId}/avatar/thumbnail"}),
       %{}
     )
   end
@@ -4000,7 +4004,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/x-www-form-urlencoded",
       "ApiResponse",
       auth,
-      call,
+      Keyword.put(call, :operation, {"setPetPreferences", "/pet/{petId}/preferences"}),
       %{}
     )
   end
@@ -4154,7 +4158,7 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call,
+      Keyword.put(call, :operation, {"updatePet", "/pet/{petId}"}),
       %{}
     )
   end
@@ -4305,7 +4309,7 @@ defmodule PetstoreClient.Api.PetApi do
       "multipart/form-data",
       "ApiResponse",
       auth,
-      call,
+      Keyword.put(call, :operation, {"uploadPetCertificate", "/pet/{petId}/certificate"}),
       %{}
     )
   end
@@ -4525,7 +4529,7 @@ defmodule PetstoreClient.Api.PetApi do
       content_type,
       "ApiResponse",
       auth,
-      call,
+      Keyword.put(call, :operation, {"uploadPetDocument", "/pet/{petId}/documents"}),
       %{}
     )
   end

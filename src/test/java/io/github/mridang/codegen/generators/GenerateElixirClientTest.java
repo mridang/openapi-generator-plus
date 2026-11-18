@@ -203,7 +203,7 @@ class GenerateElixirClientTest {
     assertThat(client)
         .contains("{:pet_store_basic, \"petStoreBasic\"}")
         .contains("{:machine_auth, \"machineAuth\"}")
-        .contains("def new(authenticator, transport_options \\\\ nil, schemes \\\\ [])")
+        .contains("def new(authenticator, transport_options \\\\ nil, schemes \\\\ [], opts \\\\ [])")
         .contains("Keyword.validate!(schemes, Keyword.keys(@schemes))");
     final String petApi =
         Files.readString(OUTPUT_DIR.resolve("lib/petstore_client/api/pet_api.ex"));

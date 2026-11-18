@@ -327,6 +327,28 @@ authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("https://api.example
 
 There is no cancellation argument. The SDK uses the platform's own mechanism: stop the process that is making the call, or set `timeout` on `TransportOptions`, which ends the call with `NetworkTimeoutError`.
 
+### Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the request is sent and observe the status or the error afterwards, and without a hook set the call does nothing extra.
+
+A hook is a module that implements the `{{moduleName}}.CallHook` behaviour, or `{module, opts}`. `start(info, headers)` returns the headers to send and a state, or `nil`. `info` is a `CallInfo` (`operation_id`, `method`, `url_template`, `url`, `server_address`), `headers` is the final request header map and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish(state, outcome)` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain([first, second])` runs several hooks in order.
+
+```elixir
+defmodule TenantHook do
+  @behaviour {{moduleName}}.CallHook
+
+  @impl true
+  def start(_info, headers), do: {Map.put(headers, "X-Tenant", "a"), nil}
+
+  @impl true
+  def finish(_state, _outcome), do: :ok
+end
+
+client = {{moduleName}}.{{clientClassName}}.with_token("{{{basePath}}}", "token", nil, call_hook: TenantHook)
+```
+
+For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.
+
 ### Closing the client
 
 `{{moduleName}}.{{clientClassName}}.close/1` closes the client and is idempotent. A call already in flight finishes, and a call that starts after it raises `RuntimeError` ("ApiClient has been closed and can no longer send requests"). The processes the SDK started (OAuth2 token managers, OpenID Connect discovery) are stopped when the last call in flight is over, or at once when none is. A transport you supply through `req_options` is never closed by the SDK.

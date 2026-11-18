@@ -529,7 +529,7 @@ defmodule {{moduleName}}.Api.{{classname}} do
       {{#consumes.1}}content_type{{/consumes.1}}{{^consumes.1}}"{{vendorExtensions.op.effectiveConsumes}}"{{/consumes.1}},
       {{#vendorExtensions.op.hasMultiple2xx}}{"{{{returnType}}}", [{{#vendorExtensions.op.successResponses}}{"{{statusCode}}", "{{{returnType}}}"}{{^isLast}}, {{/isLast}}{{/vendorExtensions.op.successResponses}}]}{{/vendorExtensions.op.hasMultiple2xx}}{{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}"{{{.}}}"{{/returnType}}{{^returnType}}nil{{/returnType}}{{/vendorExtensions.op.hasMultiple2xx}},
       auth,
-      call,
+      Keyword.put(call, :operation, {"{{#lambda.elixirString}}{{#operationIdOriginal}}{{{.}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.elixirString}}", "{{#lambda.elixirString}}{{{path}}}{{/lambda.elixirString}}"}),
       {{#vendorExtensions.op.hasErrorSchemaResponses}}
       %{
 {{#vendorExtensions.op.errorSchemaResponses}}

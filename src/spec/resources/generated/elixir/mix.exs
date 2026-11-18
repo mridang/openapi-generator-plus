@@ -94,7 +94,11 @@ defmodule PetstoreClient.MixProject do
       # The trace-context tests start the OpenTelemetry SDK themselves, with
       # a processor that exports finished spans to the test process.
       {:opentelemetry_api, "~> 1.4", only: :test},
-      {:opentelemetry, "~> 1.5", only: :test, runtime: false}
+      {:opentelemetry, "~> 1.5", only: :test, runtime: false},
+      # The call hook recipe test records metrics through the experimental
+      # metrics API and its SDK, which it starts itself.
+      {:opentelemetry_api_experimental, "~> 0.5", only: :test},
+      {:opentelemetry_experimental, "~> 0.5", only: :test, runtime: false}
     ]
   end
 end
