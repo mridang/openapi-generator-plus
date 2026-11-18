@@ -183,7 +183,7 @@ void main() {
     });
 
     test(
-      'the synchronous authHeaders raises instead of returning no credentials',
+      'bhv langdart 076 the synchronous authHeaders raises instead of returning no credentials',
       () {
         expect(
           () => _createAuthenticator().authHeaders(),
@@ -331,7 +331,7 @@ void main() {
       );
     });
 
-    test('refuses a cleartext authorization_endpoint', () async {
+    test('bhv langdart 077 refuses a cleartext authorization_endpoint', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"http://auth.example.com/authorize",'
