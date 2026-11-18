@@ -4163,4 +4163,199 @@ class DefaultApiClientUnitTest {
             }
         }
     }
+
+    @Nested
+    @DisplayName("retry rules and replay")
+    inner class RetryRulesAndReplay {
+        @Test
+        @DisplayName("bhvMisc160 an error that is not a network failure is never retried")
+        fun bhvMisc160HttpErrorIsNeverRetried() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    respond("", HttpStatusCode.BadRequest)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            runBlocking {
+                apiClient.sendRequest("GET", "http://localhost/bad", emptyMap(), null)
+            }
+            assertEquals(1, attempts)
+        }
+
+        @Test
+        @DisplayName("bhvMisc161 a dropped connection sends a non-idempotent request once, and QUERY is retried as idempotent")
+        fun bhvMisc161DroppedConnectionRetriesOnlyIdempotentRequests() {
+            for (method in listOf("POST", "PATCH")) {
+                var attempts = 0
+                val engine =
+                    MockEngine { _ ->
+                        attempts++
+                        throw java.io.IOException("connection reset")
+                    }
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                    runBlocking {
+                        apiClient.sendRequest(method, "http://localhost/write", emptyMap(), "{}")
+                    }
+                }
+                assertEquals(1, attempts, method)
+            }
+            var queryAttempts = 0
+            val queryEngine =
+                MockEngine { _ ->
+                    queryAttempts++
+                    throw java.io.IOException("connection reset")
+                }
+            assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                runBlocking {
+                    DefaultApiClient(HttpClient(queryEngine) { followRedirects = false })
+                        .sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
+                }
+            }
+            assertTrue(queryAttempts > 1, "QUERY attempts: $queryAttempts")
+        }
+
+        @Test
+        @DisplayName("bhvMisc162 a dropped connection sends an idempotent request again exactly once")
+        fun bhvMisc162IdempotentRequestIsSentAgainOnce() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    if (attempts == 1) throw java.io.IOException("connection reset")
+                    respond("ok", HttpStatusCode.OK)
+                }
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response =
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("GET", "http://localhost/read", emptyMap(), null)
+            }
+            assertEquals(2, attempts)
+            assertEquals(200, response!!.statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvMisc163 a text body is replayed unchanged on retry")
+        fun bhvMisc163TextBodyIsReplayedOnRetry() {
+            val bodies = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    bodies.add(String(request.body.toByteArray()))
+                    if (bodies.size == 1) respond("", HttpStatusCode.ServiceUnavailable) else respond("ok", HttpStatusCode.OK)
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("POST", "http://localhost/write", emptyMap(), "payload")
+            }
+            assertEquals(listOf("payload", "payload"), bodies)
+        }
+
+        @Test
+        @DisplayName("bhvMisc165 a request body is replayed across a redirect that keeps the same plain-text scheme")
+        fun bhvMisc165BodyReplayedAcrossSameSchemeRedirect() {
+            val bodies = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    bodies.add(String(request.body.toByteArray()))
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.TemporaryRedirect, headersOf("Location", "http://localhost/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("POST", "http://localhost/start", emptyMap(), "payload")
+            }
+            assertEquals(listOf("payload", "payload"), bodies)
+        }
+
+        @Test
+        @DisplayName("bhvMisc167 a retryable status is attempted up to the retry limit")
+        fun bhvMisc167RetryableStatusStopsAtTheLimit() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    respond("", HttpStatusCode.ServiceUnavailable)
+                }
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("GET", "http://localhost/busy", emptyMap(), null)
+                }
+            }
+            assertEquals(3, attempts)
+        }
+
+        @Test
+        @DisplayName("bhvMisc168 a failing request with no retry setting is sent three times, with pauses between attempts")
+        fun bhvMisc168DefaultRetriesPauseBetweenAttempts() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    respond("", HttpStatusCode.ServiceUnavailable)
+                }
+            val started = System.nanoTime()
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("GET", "http://localhost/busy", emptyMap(), null)
+                }
+            }
+            val elapsedMillis = (System.nanoTime() - started) / 1_000_000L
+            assertEquals(3, attempts)
+            assertTrue(elapsedMillis >= 1000L, "elapsed: $elapsedMillis")
+        }
+
+        @Test
+        @DisplayName("bhvMisc169 the retry pause starts at half a second, doubles and never exceeds eight seconds")
+        fun bhvMisc169BackoffDoublesToACeiling() {
+            assertEquals(500L, RetryPolicy.delayMillis(0, null, 0.0))
+            assertEquals(1000L, RetryPolicy.delayMillis(1, null, 0.0))
+            assertEquals(8000L, RetryPolicy.delayMillis(10, null, 0.0))
+        }
+
+        @Test
+        @DisplayName("bhvMisc170 a TLS or certificate failure is reported as a network error on the first attempt and never retried")
+        fun bhvMisc170TlsFailureIsNotRetried() {
+            var attempts = 0
+            val engine =
+                MockEngine { _ ->
+                    attempts++
+                    throw javax.net.ssl.SSLHandshakeException("certificate unknown")
+                }
+            assertThrows(com.example.petstore.errors.NetworkException::class.java) {
+                runBlocking {
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("GET", "https://localhost/secure", emptyMap(), null)
+                }
+            }
+            assertEquals(1, attempts)
+        }
+
+        @Test
+        @DisplayName("bhvMisc174 a header value refused for a line break is never repeated in the error")
+        fun bhvMisc174RefusedHeaderValueIsNotEchoed() {
+            val ex =
+                assertThrows(Exception::class.java) {
+                    runBlocking {
+                        DefaultApiClient(mockClient())
+                            .sendRequest("GET", "http://localhost/x", mapOf("X-Bad" to "line\r\nsecret-value"), null)
+                    }
+                }
+            assertFalse(ex.message.orEmpty().contains("secret-value"), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvMisc175 credential-bearing header names are recognised regardless of case")
+        fun bhvMisc175CredentialHeaderNamesIgnoreCase() {
+            assertTrue(DefaultApiClient.isSensitiveHeader("AUTHORIZATION"))
+            assertTrue(DefaultApiClient.isSensitiveHeader("x-api-KEY"))
+            assertFalse(DefaultApiClient.isSensitiveHeader("Accept"))
+        }
+    }
 }

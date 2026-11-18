@@ -1935,6 +1935,22 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 239 an operation query parameter is serialized when no authenticator is configured',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'status': 'available'},
+        );
+
+        expect(client.capturedUrl, contains('status=available'));
+      },
+    );
+
     test('bhv misc 238 serializes number query params', () async {
       final client = _CapturingApiClient();
       final api = _RecordingApi(client);

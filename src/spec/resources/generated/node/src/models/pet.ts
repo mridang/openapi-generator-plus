@@ -139,6 +139,17 @@ export class Pet {
         Object.entries(data ?? {}).filter(([key]) => key !== "__proto__"),
       ),
     );
+    if (Array.isArray(this.photoUrls)) {
+      this.photoUrls = Object.freeze([
+        ...this.photoUrls,
+      ]) as typeof this.photoUrls;
+    }
+    if (Array.isArray(this.tags)) {
+      this.tags = Object.freeze([...this.tags]) as typeof this.tags;
+    }
+    if (Array.isArray(this.location)) {
+      this.location = Object.freeze([...this.location]) as typeof this.location;
+    }
   }
 
   /**

@@ -1280,6 +1280,21 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "bhv misc 219 an operation with several servers sends its request to the server chosen for that call" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    assert {:ok, _result} =
+             PetstoreClient.Api.PetApi.get_multi_server_pet_info(
+               api,
+               5,
+               nil,
+               server: PetstoreClient.Api.GetMultiServerPetInfoServer.Primary
+             )
+
+    assert StubResponseApiClient.captured(name).url ==
+             "https://primary.example.com/v1/pet/5/multi"
+  end
+
   test "bhv operations 085 get_multi_server_pet_info reaches whichever of its servers is passed" do
     {name, api} = stub_pet_api(@sample_pet)
 

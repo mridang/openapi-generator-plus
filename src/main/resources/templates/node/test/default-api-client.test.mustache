@@ -8,6 +8,7 @@ import { OAuth2TokenManager } from '../src/auth/oauth/oauth2-token-manager{{impo
 import { OAuth2TokenError } from '../src/errors/oauth2-token-error{{importFileExtension}}';
 import * as dns from 'node:dns/promises';
 import * as zlib from 'node:zlib';
+import { Readable } from 'node:stream';
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as os from 'node:os';
@@ -1045,3 +1046,86 @@ describe('DefaultApiClient redirect misc behaviours', () => {
     expect(calls).toHaveLength(1);
   });
 });
+
+describe('DefaultApiClient retry misc behaviours', () => {
+  const url = 'https://api.example.com/items';
+
+  /** A transport that answers each attempt with the next step: a status code, or an error it throws. */
+  function scripted(steps: Array<number | Error>): { fetch: typeof fetch; methods: string[] } {
+    const methods: string[] = [];
+    const fn = (async (_input: unknown, init?: RequestInit) => {
+      methods.push(String(init?.method ?? 'GET'));
+      const step = steps[Math.min(methods.length - 1, steps.length - 1)]!;
+      if (step instanceof Error) throw step;
+      return new Response(step === 200 ? '{}' : '', {
+        status: step,
+        headers: { 'content-type': 'application/json' }
+      });
+    }) as unknown as typeof fetch;
+    return { fetch: fn, methods };
+  }
+
+  /** The TypeError fetch rejects with when the connection drops before any response. */
+  function connectionDropped(): TypeError {
+    return new TypeError('fetch failed', {
+      cause: Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' })
+    });
+  }
+
+  function clientFor(fetchFn: typeof fetch): DefaultApiClient {
+    return new DefaultApiClient(TransportOptions.builder().fetch(fetchFn).build());
+  }
+
+  test('bhvMisc160 an error that is not a network failure is never retried', async () => {
+    const transport = scripted([new Error('boom'), 200]);
+    const error = await clientFor(transport.fetch).sendRequest('GET', url, {}, null).catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test.each(['POST', 'PATCH'])('bhvMisc161 a %s whose connection drops is sent exactly once', async (method) => {
+    const transport = scripted([connectionDropped(), 200]);
+    await expect(clientFor(transport.fetch).sendRequest(method, url, {}, null)).rejects.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test('bhvMisc161 a QUERY whose connection drops is treated as idempotent and sent again', async () => {
+    const transport = scripted([connectionDropped(), 200]);
+    const response = await clientFor(transport.fetch).sendRequest('QUERY', url, {}, '{}');
+    expect(response.statusCode).toBe(200);
+    expect(transport.methods).toEqual(['QUERY', 'QUERY']);
+  });
+
+  test('bhvMisc163 a one-shot stream body is not replayed on a retryable status', async () => {
+    const transport = scripted([503, 200]);
+    const stream = Readable.from(['payload']);
+    await clientFor(transport.fetch).sendRequest('POST', url, {}, stream as unknown as Record<string, unknown>).catch(() => undefined);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test('bhvMisc163 a text body is replayed on a retryable status', async () => {
+    const transport = scripted([503, 200]);
+    const response = await clientFor(transport.fetch).sendRequest('POST', url, {}, 'payload');
+    expect(response.statusCode).toBe(200);
+    expect(transport.methods).toHaveLength(2);
+  });
+
+  test('bhvMisc170 a TLS certificate failure is a network error on the first attempt and is not retried', async () => {
+    const tlsFailure = new TypeError('fetch failed', {
+      cause: Object.assign(new Error('unable to verify the first certificate'), { code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' })
+    });
+    const transport = scripted([tlsFailure, 200]);
+    await expect(clientFor(transport.fetch).sendRequest('GET', url, {}, null)).rejects.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test('bhvMisc186 a value that is not a fetch function is refused when the options are built', () => {
+    expect(() => TransportOptions.builder().fetch('not a function' as unknown as typeof fetch).build()).toThrow(TypeError);
+  });
+
+  test('bhvMisc186 a ready-made fetch combined with a CA bundle is refused when the options are built', () => {
+    const transport = scripted([200]);
+    expect(() => TransportOptions.builder().fetch(transport.fetch).caCertPath('/path/to/ca.pem').build()).toThrow(TypeError);
+  });
+});
+
