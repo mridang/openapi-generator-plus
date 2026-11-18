@@ -2744,4 +2744,39 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _({{moduleName}}::ObjectSerializer.to_cookie_value('a%20b')).must_equal 'a%20b'
   end
 
+
+  it 'bhv_misc_137 an enum lists its declared values and refuses a value that is not one of them' do
+    _({{moduleName}}::Models::TestStatusEnumValidate::VALUES).must_equal %w[placed approved delivered]
+    _(proc {
+      {{moduleName}}::Models::TestStatusEnumValidate.validate!('banana')
+    }).must_raise ArgumentError
+  end
+
+  it 'bhv_misc_138 an enum member converted to text yields its wire value' do
+    _({{moduleName}}::Models::TestStatusEnumValidate::PLACED.to_s).must_equal 'placed'
+  end
+
+  it 'bhv_misc_140 deserializing a model without a required property fails with an error that names it' do
+    error = nil
+    begin
+      {{moduleName}}::ObjectSerializer.deserialize('{"owner":"ann"}', 'Metadata')
+    rescue {{moduleName}}::Errors::SerializationError => e
+      error = e
+    end
+    _(error).wont_be_nil
+    _(error.message).must_include 'createdAt'
+  end
+
+  it 'bhv_misc_141 a model built without a value for a property with a schema default holds that default' do
+    model = {{moduleName}}::Models::TestDefaultsModel.new({})
+    _(model.retries).must_equal 3
+    _(model.mode).must_equal 'medium'
+  end
+
+  it 'bhv_misc_142 additional properties are returned unchanged by key and hold exactly the stored entries' do
+    meta = {{moduleName}}::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x","owner":"ann"}', 'Metadata')
+    _(meta.additional_properties['note']).must_equal 'x'
+    _(meta.additional_properties.keys).must_equal %w[note owner]
+  end
+
 end

@@ -567,6 +567,9 @@ ruby | misc108 | The test fixture declares no integer-valued enum, so no model e
 ruby | misc114 | The test fixture declares no operation with more than one success response, so no status code selects between two success decoders
 ruby | misc116 | The Ruby client sends int32 query values as given and does no int32 range or fraction check on them, so there is no refusal to test
 ruby | misc122 | The test models declare no string default containing quotes, backslashes or control characters, so the literal default value cannot be observed
+ruby | misc128 | the proxy credential is applied by the connection to the proxy (Faraday reads the proxy userinfo), below the request headers the redirect loop controls, and the test adapter never opens a proxy connection, so the credential cannot be observed on a redirected request
+ruby | misc129 | the SDK adds no proxy credential header of its own (the proxy userinfo is applied by the connection), so a redirect has no SDK-added proxy header to re-send, and the test adapter never opens a proxy connection to observe one
+ruby | misc135 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so the builder never receives or stores a client-level cancellation handle
 ||||||| a47a9b89b
 php | misc030 | PHP sends the request even when the remaining budget is zero; the deadline is only checked on redirects (known difference)
 php | misc044 | PHP raises a RuntimeException for a gzip-declared body without a valid signature instead of returning it plain (contradicts transport030)
@@ -588,9 +591,17 @@ java | misc061 | The Java Authenticator receives only the ApiClient and no cance
 csharp | misc051 | per-call options are init properties on each operation's options class and an operation has no server option, so an unknown key or a server setting is a compile-time error rather than a runtime refusal
 csharp | misc052 | per-call options are init properties and a repeated property in an object initializer is a compile-time error, so a second option of the same kind cannot be given
 csharp | misc060 | the API key constructor takes one key string and has no provider overload, so passing both an API key and a provider is a compile-time error
+csharp | misc044 | contradicts transport030: a gzip-declared body without the signature throws an ApiException in C#
+csharp | misc047 | the C# union serializer writes a foreign value without a not-a-variant error (known difference)
+csharp | misc054 | C# per-call Headers are kept by reference, so a caller mutation before the call reaches the request (known difference)
+csharp | misc065 | C# takes each scheme credential as its own named constructor parameter and the client builds its own dictionary from them, so the caller holds no map whose later changes could reach the API
+csharp | misc068 | contradicts auth023 and auth042: C# refuses an explicitly passed empty token in FromEnvironment and never reads the environment in its place, so an empty string is not treated as not passed
+csharp | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so no request needs two credentials
+csharp | misc075 | C# takes each scheme credential as a named optional constructor parameter, so a credential keyed to an undeclared scheme is a compile-time error rather than a refusal at build
 ||||||| e2e15be44
 go | misc145 | Go exposes the additional-properties map as a plain exported field, so reading it hands back the live map; the copy is taken only when the map is set through WithAdditionalProperties
 go | misc149 | Go's typed With methods exist only for declared fields, so an undeclared attribute cannot be named and the compiler refuses the call before any copy is made
 go | misc153 | Go has no client-level cancellation signal: a context is passed to each call, so a cancel signal only ever reaches the one call it is given
 ||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
+go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged

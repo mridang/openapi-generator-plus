@@ -2599,4 +2599,36 @@ public class BaseApiTest
         Assert.Equal(token, auth.Received);
         Assert.Equal("Bearer probe", client.CapturedHeaders["Authorization"]);
     }
+
+    [Fact]
+    public async Task BhvMisc064AnOperationThatDeclaresNoSecurityNeverSendsTheClientCredential()
+    {
+        var client = new CapturingApiClient();
+        var clientAuth = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Client-Auth", "client-level-token" } });
+        var api = new TestableApi(client, "http://localhost", clientAuth);
+
+        await api.CallAsync<JsonNode>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/json"], "application/json", NoAuth.Instance);
+
+        Assert.False(client.CapturedHeaders.ContainsKey("X-Client-Auth"));
+    }
+
+    [Fact]
+    public async Task BhvMisc081AStringResultFromABase64TransportBodyIsDecoded()
+    {
+        var client = new BinaryResponseApiClient { ContentType = "application/pdf", Body = "aGVsbG8=" };
+        var testApi = new TestableApi(client, "http://localhost");
+
+        var result = await testApi.CallAsync<string>(
+            "GET", "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null, ["application/pdf"], "application/json");
+
+        Assert.Equal("hello", result);
+    }
 }

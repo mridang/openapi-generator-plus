@@ -969,6 +969,11 @@ class TestObjectValuedParameters:
         assert ValueSerializer.query_entries("c", "v") == {"c": "v"}
         assert ValueSerializer.query_entries("c", None) == {}
 
+    def test_bhv_misc_107_a_scalar_form_query_parameter_keeps_its_own_name_and_value(
+        self,
+    ) -> None:
+        assert ValueSerializer.query_entries("filter", "x") == {"filter": "x"}
+
     def test_bhv_lang_python_208_a_nested_object_leaf_is_a_serialization_error(
         self,
     ) -> None:

@@ -1301,4 +1301,64 @@ public sealed class ClientTest : IDisposable
             );
         }
     }
+
+    [Fact]
+    public async Task BhvMisc063APerSchemeWrapperSendsItsTokenRequestToTheTokenUrlItsSchemeDeclares()
+    {
+        var transport = new ScriptedApiClient();
+        transport.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new MachineAuthClientCredentialsAuthenticator(Host, "cid", "csecret");
+        auth.SetApiClient(transport);
+
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
+    }
+
+    [Fact]
+    public void BhvMisc071ACredentialThatNeedsHttpReceivesTheClientsOwnTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var probe = new TransportProbeAuthenticator();
+        using var client = new Client(probe, transport);
+
+        Assert.IsType<DefaultApiClient>(probe.Injected);
+    }
+
+    [Fact]
+    public void BhvMisc072EachApiGroupHoldsTheSchemeCredentialTheClientWasBuilt()
+    {
+        var held = new PetStoreBearerAuthenticator("http://localhost", "bearer-token");
+        using var client = new Client("http://localhost", petStoreBearer: held);
+        BaseApi[] groups = [client.Pet, client.Problems, client.Store];
+        var schemeField = typeof(BaseApi).GetField(
+            "_schemeAuthenticators",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
+        )!;
+
+        foreach (BaseApi group in groups)
+        {
+            var schemes = (IReadOnlyDictionary<string, IAuthenticator>)schemeField.GetValue(group)!;
+            Assert.Equal(new IAuthenticator[] { held }, schemes.Values);
+        }
+    }
+
+    [Fact]
+    public void BhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme()
+    {
+        Assert.NotNull(typeof(PetstoreClient.Auth.PetStoreBasicAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.AdminBasicAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.PetStoreBearerAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ServiceTokenAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ApiKeyHeaderAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.InternalApiKeyAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ApiKeyQueryAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.SessionCookieAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator));
+    }
 }

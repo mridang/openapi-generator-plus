@@ -1028,4 +1028,18 @@ public class StoreApiTest
         );
         Assert.Null(client.MaxRetries);
     }
+
+    [Fact]
+    public async Task BhvMisc080A200BodyIsRefusedWhenItOnlyFitsTheSchemaOf201()
+    {
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}"
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.ReserveStockAsync()
+        );
+    }
 }
