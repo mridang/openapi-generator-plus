@@ -200,6 +200,32 @@ describe('OpenIdConnectAuthenticator', () => {
   });
 
   describe('PKCE and token renewal', () => {
+    test('bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce', async () => {
+      mockClient.responses = [discoveryResponse(), discoveryResponse()];
+      const query = new URL(await authenticator.buildAuthorizationUrl()).searchParams;
+      expect(query.get('code_challenge')).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(query.get('code_challenge_method')).toBe('S256');
+      expect(query.has('nonce')).toBe(false);
+    });
+
+    test('bhvMisc076 a call after a dropped code exchange reuses the discovered configuration and sees the code as not yet exchanged', async () => {
+      mockClient.responses = [
+        discoveryResponse('max-age=3600'),
+        { statusCode: 500, body: '', headers: {} },
+        tokenResponse('tok1')
+      ];
+      await authenticator.buildAuthorizationUrl();
+      await expect(authenticator.exchangeCode('my-auth-code')).rejects.toThrow();
+      expect(mockClient.callCount).toBe(2);
+
+      await authenticator.buildAuthorizationUrl();
+      expect(mockClient.callCount).toBe(2);
+
+      mockClient.responses = [tokenResponse('tok2')];
+      await authenticator.exchangeCode('my-auth-code');
+      expect(mockClient.callCount).toBe(3);
+    });
+
     const discoveryResponse = (cacheControl = 'max-age=0'): ApiHttpResponse => ({
       statusCode: 200,
       body: JSON.stringify({
@@ -733,5 +759,28 @@ describe('OpenIdConnectAuthenticator', () => {
     expect(JSON.parse(JSON.stringify(authenticator))).toEqual(
       { host: 'https://api.example.com', clientId: 'my-client-id', clientSecret: '***' }
     );
+  });
+});
+
+describe('OpenIdConnectAuthenticator discovery document', () => {
+  it('bhv misc 070 a discovery document that is not an object keeps no cause and does not repeat its body', async () => {
+    const client = new MockApiClient();
+    client.responses = [
+      { statusCode: 200, body: '["discovery-body-secret"]', headers: { 'content-type': 'application/json' } }
+    ];
+    const auth = new OpenIdConnectAuthenticator(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my-client-id',
+      'my-client-secret'
+    );
+    auth.setApiClient(client);
+
+    const error = await auth.buildAuthorizationUrl().catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(SerializationError);
+    expect((error as Error).message).toBe('OIDC discovery document is not a JSON object');
+    expect((error as Error).cause).toBeUndefined();
+    expect((error as Error).message).not.toContain('discovery-body-secret');
   });
 });

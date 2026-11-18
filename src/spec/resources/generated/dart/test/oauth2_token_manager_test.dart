@@ -139,6 +139,23 @@ void main() {
       },
     );
 
+    test('bhv misc 059 a non-finite lifetime is not cached', () async {
+      for (final value in ['"NaN"', '"Inf"', '"-Inf"']) {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":$value}');
+        client.enqueue('{"access_token":"tok2","expires_in":3600}');
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+        final params = {'grant_type': 'client_credentials'};
+        const tokenUrl = 'https://auth.example.com/token';
+
+        await manager.getAccessToken(tokenUrl, params);
+        await manager.getAccessToken(tokenUrl, params);
+
+        expect(client.urls, hasLength(2), reason: 'expires_in $value');
+      }
+    });
+
     test('bhv authoauthtwotokenmgr 021 refetches token when expired', () async {
       final client = _FakeApiClient();
       client.enqueue('{"access_token":"tok1","expires_in":0}');
@@ -1237,6 +1254,35 @@ void main() {
 
         expect([first, second, third], equals(['tok1', 'tok2', 'tok2']));
         expect(client.requestCount, equals(2));
+      },
+    );
+
+    test(
+      'bhv misc 069 a token response with a bad access token or a non-object body is refused naming the problem',
+      () async {
+        final cases = {
+          '{"access_token":42}': 'access_token',
+          '{"access_token":["x"]}': 'access_token',
+          '{"access_token":""}': 'access_token',
+          '["x"]': 'JSON object',
+        };
+        for (final entry in cases.entries) {
+          final client = _FakeApiClient();
+          client.enqueue(entry.key);
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
+
+          await expectLater(
+            manager.getAccessToken(tokenUrl, original),
+            throwsA(
+              isA<OAuth2TokenException>().having(
+                (e) => '$e',
+                'message',
+                contains(entry.value),
+              ),
+            ),
+          );
+        }
       },
     );
 

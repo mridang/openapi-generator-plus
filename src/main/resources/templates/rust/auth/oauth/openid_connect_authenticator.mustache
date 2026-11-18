@@ -231,6 +231,13 @@ impl OpenIdConnectAuthenticator {
             )) as Box<dyn std::error::Error + Send + Sync>
         })?;
 
+        if !parsed.is_object() {
+            return Err(Box::new(SerializationError::new(
+                "OIDC discovery document is not a JSON object".to_string(),
+                None,
+            )) as Box<dyn std::error::Error + Send + Sync>);
+        }
+
         let endpoint = |name: &str| -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
             parsed
                 .get(name)

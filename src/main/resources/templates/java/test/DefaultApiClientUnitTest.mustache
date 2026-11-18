@@ -323,6 +323,28 @@ class DefaultApiClientUnitTest {
           }
         });
     server.createContext(
+        "/content-encoding-zero-gzip",
+        exchange -> {
+          byte[] body = gzipBytes("0");
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
+        "/content-encoding-blank-gzip",
+        exchange -> {
+          byte[] body = gzipBytes("");
+          exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+          exchange.getResponseHeaders().add("Content-Type", "text/plain");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.createContext(
         "/content-encoding-deflate",
         exchange -> {
           // HTTP "deflate" is the zlib format (RFC 1950), not raw DEFLATE.
@@ -597,6 +619,14 @@ class DefaultApiClientUnitTest {
     DefaultApiClient reuse =
         new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
     assertEquals(200, reuse.sendRequest("GET", baseUrl + "/echo", Map.of(), null).statusCode());
+  }
+
+  private static byte[] gzipBytes(String text) throws IOException {
+    java.io.ByteArrayOutputStream compressed = new java.io.ByteArrayOutputStream();
+    try (java.util.zip.GZIPOutputStream gzip = new java.util.zip.GZIPOutputStream(compressed)) {
+      gzip.write(text.getBytes(StandardCharsets.UTF_8));
+    }
+    return compressed.toByteArray();
   }
 
   private static String echoed(String method, String body) {
@@ -1180,6 +1210,171 @@ class DefaultApiClientUnitTest {
     ApiHttpResponse response = client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
     assertEquals(204, response.statusCode());
     assertEquals("", response.body());
+  }
+
+  @Test
+  void bhvMisc029ACallerInterruptSurfacesAsCancellationNeverAnSdkError() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client = new DefaultApiClient();
+      Thread.currentThread().interrupt();
+      try {
+        assertThrowsExactly(
+            java.util.concurrent.CancellationException.class,
+            () -> client.sendRequest("GET", url, Map.of(), null));
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Test
+  void bhvMisc031AProxyCredentialIsSentExactlyWhenTheProxyUrlHasUserInfo() throws Exception {
+    DefaultApiClient withCredentials =
+        new DefaultApiClient(
+            TransportOptions.builder().proxy("http://alice:s3cret@127.0.0.1:3128").build());
+    DefaultApiClient withoutCredentials =
+        new DefaultApiClient(TransportOptions.builder().proxy("http://127.0.0.1:3128").build());
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    assertEquals(
+        "Basic "
+            + Base64.getEncoder()
+                .encodeToString("alice:s3cret".getBytes(StandardCharsets.UTF_8)),
+        field.get(withCredentials));
+    assertNull(field.get(withoutCredentials));
+  }
+
+  @Test
+  void bhvMisc032TheRawResponseExposesStatusBodyAndHeadersUnderPublicNames() throws Exception {
+    ApiHttpResponse response =
+        new DefaultApiClient().sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertTrue(response.body().contains("\"method\":\"GET\""), response.body());
+    assertTrue(
+        response.headers().keySet().stream().anyMatch(k -> k.equalsIgnoreCase("X-Test-Header")),
+        "headers: " + response.headers());
+  }
+
+  @Test
+  void bhvMisc034ACallerHttpClientWithACallerTransportIsRefusedWhenBuilt() {
+    java.net.http.HttpClient caller = java.net.http.HttpClient.newHttpClient();
+    assertThrowsExactly(
+        IllegalArgumentException.class,
+        () ->
+            TransportOptions.builder()
+                .httpClient(caller)
+                .proxy("http://127.0.0.1:3128")
+                .build());
+  }
+
+  @Test
+  void bhvMisc035AnAlreadyCancelledCallIsACancellationNotATimeout() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(5000).maxRetries(0).build());
+      Thread.currentThread().interrupt();
+      try {
+        assertThrowsExactly(
+            java.util.concurrent.CancellationException.class,
+            () -> client.sendRequest("GET", url, Map.of(), null));
+      } finally {
+        Thread.interrupted();
+      }
+    }
+  }
+
+  @Test
+  void bhvMisc036ACallersBodyPartIsNotClosedByAFailedRequest() throws Exception {
+    String url;
+    try (java.net.ServerSocket probe = new java.net.ServerSocket(0)) {
+      url = "http://127.0.0.1:" + probe.getLocalPort() + "/gone";
+    }
+    java.util.concurrent.atomic.AtomicBoolean closed =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    java.io.InputStream part =
+        new java.io.ByteArrayInputStream("content".getBytes(StandardCharsets.UTF_8)) {
+          @Override
+          public void close() {
+            closed.set(true);
+          }
+        };
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    assertThrowsExactly(
+        {{invokerPackage}}.errors.NetworkException.class,
+        () -> client.sendRequest("POST", url, Map.of(), Map.of("file", part)));
+    assertFalse(closed.get(), "a failed request must not close the caller's body part");
+  }
+
+  @Test
+  void bhvMisc037AnUndecodedBodyKeepsItsContentLengthHeader() throws Exception {
+    ApiHttpResponse response =
+        new DefaultApiClient().sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    String length =
+        response.headers().entrySet().stream()
+            .filter(e -> e.getKey().equalsIgnoreCase("Content-Length"))
+            .findFirst()
+            .map(Map.Entry::getValue)
+            .orElse(null);
+    assertEquals(
+        String.valueOf(response.body().getBytes(StandardCharsets.UTF_8).length), length);
+  }
+
+  @Test
+  void bhvMisc039AWellFormedGzipStreamOfZeroOrBlankContentIsReturnedAsThatContent()
+      throws Exception {
+    DefaultApiClient client = new DefaultApiClient();
+    assertEquals(
+        "0",
+        client.sendRequest("GET", baseUrl + "/content-encoding-zero-gzip", Map.of(), null).body());
+    assertEquals(
+        "",
+        client.sendRequest("GET", baseUrl + "/content-encoding-blank-gzip", Map.of(), null).body());
+  }
+
+  @Test
+  void bhvMisc040ResponseHeaderNamesAreReturnedInLowerCase() throws Exception {
+    ApiHttpResponse response =
+        new DefaultApiClient().sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    assertFalse(response.headers().isEmpty());
+    for (String name : response.headers().keySet()) {
+      assertEquals(name.toLowerCase(java.util.Locale.ROOT), name);
+    }
+  }
+
+  @Test
+  void bhvMisc041ARequestWithANonStandardMethodIsSentWithItsBodyIntact() throws Exception {
+    ApiHttpResponse response =
+        new DefaultApiClient()
+            .sendRequest(
+                "PROPFIND",
+                baseUrl + "/echo",
+                Map.of("Content-Type", "application/json"),
+                "{\"key\":\"value\"}");
+    assertTrue(response.body().contains("\"method\":\"PROPFIND\""), response.body());
+    assertTrue(response.body().contains("{\\\"key\\\":\\\"value\\\"}"), response.body());
+  }
+
+  @Test
+  void bhvMisc042ACallerHttpClientWithVerificationDisabledIsRefusedNamingTheSetting() {
+    java.net.http.HttpClient caller = java.net.http.HttpClient.newHttpClient();
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().httpClient(caller).verifySsl(false).build());
+    assertTrue(ex.getMessage().contains("verifySsl"), ex.getMessage());
+  }
+
+  @Test
+  void bhvMisc043AnExplicitlyClearedUserAgentIsOmittedFromTheRequest() throws Exception {
+    RecordingHttpClient recorder = new RecordingHttpClient();
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(recorder).userAgent(null).build());
+    client.sendRequest("GET", baseUrl + "/echo", Map.of(), null);
+    assertTrue(recorder.requests.get(0).headers().firstValue("User-Agent").isEmpty());
   }
 
   @Test

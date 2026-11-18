@@ -13,6 +13,8 @@ import {
   ServerVariable,
 } from "../src/server-configuration.js";
 import type { Authenticator } from "../src/auth/authenticator.js";
+import { NO_AUTH } from "../src/auth/authenticator.js";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { ApiError } from "../src/errors/api-error.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { ServerError } from "../src/errors/server-error.js";
@@ -2930,6 +2932,17 @@ describe("BaseApi per-call request options", () => {
     expect(client.sendOptions?.timeout).toBeUndefined();
   });
 
+  test("bhv misc 050 per-call headers are added to the client default headers, which still apply", async () => {
+    const client = new RecordingApiClient();
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { "X-Client": "kept" },
+    });
+    await send(client, { headers: { "X-Per-Call": "yes" } }, config);
+    expect(client.headers["X-Per-Call"]).toBe("yes");
+    expect(client.headers["X-Client"]).toBe("kept");
+  });
+
   test("bhv options 056 a per-call timeout of zero or less, or a negative retry count, is refused before any request is sent", async () => {
     const client = new RecordingApiClient();
     await expect(send(client, { timeout: 0 })).rejects.toThrow(
@@ -3857,4 +3870,91 @@ describe("BaseApi misc behaviours", () => {
     expect((error as Error).name).toBe("AbortError");
     expect(error).not.toBeInstanceOf(ApiError);
   }, 15000);
+});
+
+describe("BaseApi per-call credentials and context", () => {
+  it("bhv misc 064 an operation that declares no security never sends the client credential", async () => {
+    const client = new CapturingApiClient();
+    const clientAuth = new TestAuthenticator({
+      "X-Client-Auth": "client-level-token",
+    });
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      clientAuth,
+    );
+
+    await api.call(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      NO_AUTH,
+    );
+
+    expect(client.capturedHeaders["X-Client-Auth"]).toBeUndefined();
+  });
+
+  it("bhv misc 061 an authenticator asked during a call sees the caller context", async () => {
+    const marker = new AsyncLocalStorage<string>();
+    const seen: Array<string | undefined> = [];
+    class ContextAuth extends TestAuthenticator {
+      override async getAuthHeadersAsync(): Promise<Record<string, string>> {
+        seen.push(marker.getStore());
+        return { "X-Context": "from-context" };
+      }
+    }
+    const client = new CapturingApiClient();
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+      new ContextAuth(),
+    );
+
+    await marker.run("caller-marker", () =>
+      api.call(
+        "GET",
+        "/test/echo",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        null,
+      ),
+    );
+
+    expect(seen).toContain("caller-marker");
+    expect(client.capturedHeaders["X-Context"]).toBe("from-context");
+  });
+
+  it("bhv misc 054 per-call headers are a read-only copy that later changes to the caller map do not reach", async () => {
+    const client = new CapturingApiClient();
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const headers: Record<string, string> = { "X-Late": "first" };
+
+    const pending = api.callForResult(
+      "GET",
+      "/test/echo",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+      undefined,
+      { headers },
+    );
+    headers["X-Late"] = "second";
+    await pending;
+
+    expect(client.capturedHeaders["X-Late"]).toBe("first");
+  });
 });

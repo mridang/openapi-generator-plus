@@ -3049,4 +3049,74 @@ defmodule PetstoreClient.ObjectSerializerTest do
     assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "T03:04:05"
     assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "+02:00"
   end
+
+  describe "bhv misc wire behaviours" do
+    test "bhv misc 081 a base64 body under a binary type is decoded before it is returned" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type(Base.encode64("hello"), "ByteArray") ==
+               "hello"
+    end
+
+    test "bhv misc 085 a non-canonical UUID is refused with a serialization error" do
+      assert_raise PetstoreClient.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.convert_to_type(
+          "{550e8400-e29b-41d4-a716-446655440000}",
+          "UUID"
+        )
+      end
+    end
+
+    test "bhv misc 086 a container element holding JSON text is not decoded a second time" do
+      assert PetstoreClient.ObjectSerializer.deserialize("{\"a\":1}", "String") == "{\"a\":1}"
+    end
+
+    test "bhv misc 089 a date-time inside a list is written in canonical form" do
+      json = PetstoreClient.ObjectSerializer.serialize([~U[2024-01-01 12:30:45Z]])
+      assert Jason.decode!(json) == ["2024-01-01T12:30:45Z"]
+    end
+
+    test "bhv misc 093 additional properties with numeric names are written as object members" do
+      json = PetstoreClient.ObjectSerializer.serialize(%{"42" => "x", "name" => "a"})
+      assert Jason.decode!(json) == %{"42" => "x", "name" => "a"}
+    end
+
+    test "bhv misc 094 a free-form object is written with its members unchanged" do
+      value = %{"a" => %{"b" => [1, "x", nil]}}
+      assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(value)) == value
+    end
+
+    test "bhv misc 090 a duration field of a record writes its fractional seconds in the wire form" do
+      ttl = Duration.new!(second: 1, microsecond: {500_000, 6})
+      json = PetstoreClient.ObjectSerializer.serialize(%{"ttl" => ttl})
+      assert Jason.decode!(json)["ttl"] == "1.500000s"
+    end
+  end
+
+  describe "misc parity" do
+    test "bhv misc 102 a binary value keeps exactly the bytes it was given" do
+      assert PetstoreClient.ObjectSerializer.sanitize_for_serialization(<<0, 255, 16>>) ==
+               <<0, 255, 16>>
+    end
+
+    test "bhv misc 104 a string declared with the email format decodes to a plain string without validation" do
+      assert PetstoreClient.ObjectSerializer.deserialize("\"not an email\"", "String") ==
+               "not an email"
+    end
+
+    test "bhv misc 106 a null element in an array body keeps its position when serialized" do
+      assert PetstoreClient.ObjectSerializer.serialize([nil, "a"]) == ~s([null,"a"])
+    end
+
+    test "bhv misc 107 a scalar query parameter is emitted as its string value" do
+      assert PetstoreClient.ObjectSerializer.to_query_value(3) == "3"
+    end
+
+    test "bhv misc 111 a collection of unique strings is written in code point order" do
+      assert PetstoreClient.ObjectSerializer.sanitize_for_serialization(MapSet.new(["b", "a"])) ==
+               ["a", "b"]
+    end
+
+    test "bhv misc 115 serializing a bare string value yields a quoted JSON string" do
+      assert PetstoreClient.ObjectSerializer.serialize("abc") == ~s("abc")
+    end
+  end
 end

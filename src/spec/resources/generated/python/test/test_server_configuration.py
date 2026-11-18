@@ -273,3 +273,48 @@ class TestHostileGlobalServer:
 
         assert server.get_url() == "https://o'neil.example.com/api"
         assert server.get_url({"tenant": "a&b"}) == "https://a&b.example.com/api"
+
+
+class TestServerVariableOrderAndResolution:
+    def test_bhv_misc_154_editing_the_variables_map_does_not_change_the_configuration(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{region}.example.com",
+            variables={"region": ServerVariable(default_value="eu")},
+        )
+        with pytest.raises(TypeError):
+            config.variables["region"] = ServerVariable(default_value="us")
+        assert config.get_url() == "https://eu.example.com"
+
+    def test_bhv_misc_155_an_unset_enum_variable_with_a_disallowed_default_is_refused_naming_it(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{region}.example.com",
+            variables={
+                "region": ServerVariable(default_value="apac", enum_values=("eu", "us"))
+            },
+        )
+        with pytest.raises(ValueError, match="'region'"):
+            config.get_url()
+
+    def test_bhv_misc_156_the_list_of_all_servers_keeps_the_declared_order(
+        self,
+    ) -> None:
+        import petstore_client.servers as servers
+
+        for index, server in enumerate(ALL):
+            assert server is getattr(servers, f"SERVER_{index}")
+
+    def test_bhv_misc_157_explicit_variable_values_are_resolved_into_the_url(
+        self,
+    ) -> None:
+        config = ServerConfiguration(
+            url_template="https://{env}.api.example.com/v{version}",
+            variables={
+                "env": ServerVariable(default_value="prod"),
+                "version": ServerVariable(default_value="2"),
+            },
+        )
+        assert config.get_url() == "https://prod.api.example.com/v2"

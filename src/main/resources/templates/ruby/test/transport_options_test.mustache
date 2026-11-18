@@ -509,4 +509,11 @@ describe {{moduleName}}::TransportOptions, 'builder entry point and printable fo
     _({{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
     _({{moduleName}}::TransportOptions.builder.build.proxy).must_be_nil
   end
+
+  it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do
+    _(proc {
+      {{moduleName}}::TransportOptions.builder.timeout(0).build
+    }).must_raise ArgumentError
+  end
+
 end

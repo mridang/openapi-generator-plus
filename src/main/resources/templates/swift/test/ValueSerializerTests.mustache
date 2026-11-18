@@ -7,6 +7,19 @@ import Testing
 
     // MARK: - SerializeValue by location
 
+    private enum WireStatus: String {
+        case onHold = "on-hold"
+    }
+
+    /* An enum is sent as its wire value in every parameter location. */
+    @Test func testBhvMisc082AnEnumIsSentAsItsWireValue() {
+        for location in ["path", "query", "header"] {
+            let result = ValueSerializer.serializeValue(
+                WireStatus.onHold, location: location, schemaType: "string", collectionFormat: "")
+            #expect(result as? String == "on-hold")
+        }
+    }
+
     @Test func testBhvSerializationparam062SerializeValuePathNull() {
         let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")

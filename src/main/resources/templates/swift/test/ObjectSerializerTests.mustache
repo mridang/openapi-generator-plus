@@ -1867,6 +1867,17 @@ import Testing
 
     // MARK: - setPetAvatarThumbnail byte oneOf round-trips through base64
 
+    /* An array of byte payloads serializes as a list of base64 text items. */
+    @Test func testBhvMisc049AnArrayVariantWritesTheListAsBase64TextItems() throws {
+        let p0 = Data([0xAA, 0xBB])
+        let p1 = Data([0x00, 0xFF, 0x10])
+        let arrayJson = "[\"\(p0.base64EncodedString())\",\"\(p1.base64EncodedString())\"]"
+        let array = try ObjectSerializer.deserialize(arrayJson, as: SetPetAvatarThumbnailRequest.self)
+        let wire = try ObjectSerializer.serialize(array!)
+        #expect(wire.contains("\"\(p0.base64EncodedString())\"") && wire.contains("\"\(p1.base64EncodedString())\""),
+            "array payloads must be written as base64 text items, got: \(wire)")
+    }
+
     // SetPetAvatarThumbnailRequest is a oneOf of [ a scalar `format: byte`
     // value, an array of `format: byte` values ]. `format: byte` means the
     // value travels on the wire as a base64 STRING — NOT a JSON int-array

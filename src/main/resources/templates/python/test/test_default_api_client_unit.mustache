@@ -557,6 +557,9 @@ class TestCharsetDecoding:
         assert _decode_with_charset("café".encode("utf-8"), "text/plain; charset=no-such-charset") == "café"
         assert _decode_with_charset(b"\x00h\x00i", "text/plain; charset=utf-16") == "hi"
 
+    def test_bhv_misc_095_invalid_bytes_in_the_declared_charset_decode_as_replacement_characters(self) -> None:
+        assert _decode_with_charset(b"a\xffb\xfe", "text/plain; charset=utf-8") == "a\ufffdb\ufffd"
+
     def test_bhv_lang_python_061_extracts_charset_parameter(self) -> None:
         assert _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
         assert _charset_from_content_type("text/plain") is None
@@ -661,6 +664,25 @@ class TestMultipartFilenameSanitization:
         assert ascii_fallback == "_.png"
         assert rfc5987 == "UTF-8''%F0%9F%98%80.png"
 
+    def test_bhv_misc_096_a_text_part_carries_only_its_content_disposition(self) -> None:
+        body = DefaultApiClient()._build_multipart_body({'title': 'hello'}, 'boundary')
+        assert b'--boundary\r\nContent-Disposition: form-data; name="title"\r\n\r\nhello\r\n' in body
+        assert b'Content-Transfer-Encoding' not in body
+
+    def test_bhv_misc_097_each_array_element_is_its_own_part_in_order(self) -> None:
+        body = DefaultApiClient()._build_multipart_body({'tags': ['a', 'b'], 'name': 'x'}, 'boundary')
+        assert body.count(b'name="tags"') == 2
+        assert body.index(b'\r\n\r\na\r\n') < body.index(b'\r\n\r\nb\r\n')
+        assert body.count(b'name="name"') == 1
+
+    def test_bhv_misc_098_a_caller_supplied_stream_is_read_and_never_closed_by_the_sdk(self) -> None:
+        import io
+
+        stream = io.BytesIO(b"hello")
+        stream.name = "a.txt"
+        DefaultApiClient()._build_multipart_body({'upload': stream}, 'boundary')
+        assert not stream.closed
+
     def test_bhv_serialization_057_multipart_body_rejects_filename_injection(self) -> None:
         import io
         client = DefaultApiClient()
@@ -696,6 +718,25 @@ class TestMultipartFilenameSanitization:
         assert b"world" in body
         assert not bare.closed
         assert not named.closed
+
+    def test_bhv_misc_099_a_non_ascii_filename_has_one_fallback_and_an_extended_form(self) -> None:
+        import io
+        file_like = io.BytesIO(b"x")
+        file_like.name = "résumé.pdf"
+        body = DefaultApiClient()._build_multipart_body({"upload": file_like}, "boundary")
+        assert body.count(b"filename=") == 1
+        assert b"filename*=UTF-8''r%C3%A9sum%C3%A9.pdf" in body
+
+    def test_bhv_misc_101_a_multipart_source_that_cannot_be_read_fails_the_call(self) -> None:
+        class UnreadableSource:
+            name = "a.txt"
+
+            def read(self, *args: object) -> bytes:
+                raise OSError("source gone")
+
+        with pytest.raises(Exception):
+            DefaultApiClient()._build_multipart_body({"upload": UnreadableSource()}, "boundary")
+
 
 class TestMultipartFieldNameUtf8:
     """multipart-field-name-ascii-fold: a non-ASCII field NAME must reach the
@@ -2326,6 +2367,119 @@ class TestRedirectCookieAndAuthorizationOnSameOrigin:
         assert followed["cookie"] == "session=abc123"
 
 
+class _ScriptedPool:
+    """Pool double that answers each call from a script, then 200."""
+
+    def __init__(self, *script: Any) -> None:
+        self.script = list(script)
+        self.calls: list[Any] = []
+
+    def request(self, method: str, url: str, **kwargs: Any) -> Any:
+        self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+        if self.script:
+            status, location = self.script.pop(0)
+            return _FakeResp(status, {"location": location} if location else {})
+        return _FakeResp(200, {})
+
+
+class TestRedirectHopsAndStatuses:
+    """Per-hop redirect rules: the redirect status set, the body rule for an
+    upgrade, the method kept on a HEAD 303, and credentials across a return."""
+
+    def test_bhv_misc_125_a_307_redirect_that_upgrades_to_https_keeps_the_body(self) -> None:
+        pool = _ScriptedPool((307, "https://example.com/upgraded"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request(
+            "POST", "http://example.com/secure", {"Content-Type": "application/json"}, '{"a":1}'
+        )
+        assert len(pool.calls) == 2
+        assert pool.calls[1][1] == "https://example.com/upgraded"
+
+    def test_bhv_misc_124_a_301_https_to_http_redirect_refuses_the_body_replay(self) -> None:
+        from {{packageName}}.errors import ApiException
+
+        pool = _ScriptedPool((301, "http://example.com/plain"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request(
+                "POST", "https://example.com/secure", {"Content-Type": "application/json"}, '{"a":1}'
+            )
+        assert excinfo.value.status_code == 301
+        assert len(pool.calls) == 1
+
+    def test_bhv_misc_126_a_head_request_redirected_by_303_is_followed_as_head(self) -> None:
+        pool = _ScriptedPool((303, "https://example.com/elsewhere"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("HEAD", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 2
+        assert pool.calls[1][0] == "HEAD"
+
+    @pytest.mark.parametrize("status", [300, 305])
+    def test_bhv_misc_133_a_300_or_305_with_a_location_is_returned_unfollowed(self, status: int) -> None:
+        pool = _ScriptedPool((status, "https://example.com/elsewhere"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 1
+        assert response.status == status
+
+    def test_bhv_misc_130_a_credential_removed_by_a_cross_origin_hop_is_not_restored_on_return(self) -> None:
+        pool = _ScriptedPool((302, "https://other.example.com/hop"), (302, "https://example.com/back"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("GET", "https://example.com/start", {"Authorization": "Bearer secret"}, None)
+        assert len(pool.calls) == 3
+        assert pool.calls[1][2].get("Authorization") is None
+        assert {k.lower() for k in pool.calls[2][2]}.isdisjoint({"authorization"})
+
+    def test_bhv_misc_131_a_supplied_session_follows_redirects_under_the_sdk_rules(self) -> None:
+        pool = _ScriptedPool((302, "https://example.com/landing"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        response = client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 2
+        assert response.status == 200
+
+    def test_bhv_misc_132_a_per_call_header_with_a_credential_word_is_dropped_on_cross_origin_redirect(self) -> None:
+        pool = _ScriptedPool((302, "https://other.example.com/end"))
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        client.send_request("GET", "https://example.com/start", {"X-Call-Token": "abc"}, None)
+        assert pool.calls[0][2].get("X-Call-Token") == "abc"
+        assert {k.lower() for k in pool.calls[1][2]}.isdisjoint({"x-call-token"})
+
+    def test_bhv_misc_128_a_cross_origin_redirect_keeps_the_proxy_credential_on_the_shared_transport(self) -> None:
+        client = DefaultApiClient(
+            TransportOptions.builder().proxy("http://user:pass@proxy.example.com:3128").follow_redirects(True).build()
+        )
+        scripted = _ScriptedPool((302, "https://other.example.com/hop"))
+        client._pool_manager.request = scripted.request
+        client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(scripted.calls) == 2
+        assert client._pool_manager.proxy_headers["proxy-authorization"] == "Basic dXNlcjpwYXNz"
+
+    def test_bhv_misc_129_a_proxy_credential_the_sdk_adds_is_not_resent_on_a_cross_origin_hop(self) -> None:
+        client = DefaultApiClient(
+            TransportOptions.builder().proxy("http://user:pass@proxy.example.com:3128").follow_redirects(True).build()
+        )
+        scripted = _ScriptedPool((302, "https://other.example.com/hop"))
+        client._pool_manager.request = scripted.request
+        client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(scripted.calls) == 2
+        assert {k.lower() for k in scripted.calls[1][2]}.isdisjoint({"proxy-authorization"})
+
+
+
 class TestGarbageCaCertPath:
     def test_bhv_errors_039_unparseable_ca_file_raises_value_error_naming_the_path(
         self, tmp_path: Any
@@ -2757,3 +2911,14 @@ class TestDeadlineAndCancellationClassification:
             DefaultApiClient(pool_manager=_Pool()).send_request('GET', 'https://example.com/x', {}, None)
 
         assert not isinstance(excinfo.value, NetworkTimeoutException)
+
+
+class TestCancelSignalAlreadyAborted:
+    def test_bhv_misc_152_a_call_whose_handle_is_already_cancelled_raises(self) -> None:
+        from {{packageName}}.default_api_client import RequestHandle
+
+        handle = RequestHandle()
+        handle.cancel()
+        client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=_ScriptedPool())
+        with pytest.raises(RuntimeError, match='cancelled'):
+            client.send_request('GET', 'https://example.com/start', {}, None, handle=handle)

@@ -5410,4 +5410,66 @@ public sealed class MultipartShadeConverter
         MultipartShade value,
         System.Text.Json.JsonSerializerOptions options
     ) => writer.WriteStringValue("red");
+
+    [Theory]
+    [InlineData("authorization")]
+    [InlineData("COOKIE")]
+    public void BhvMisc175CredentialHeaderNamesMatchInAnyLetterCase(string name)
+    {
+        Assert.Contains(name, DefaultApiClient.SensitiveHeaderNames);
+        Assert.DoesNotContain("X-Trace", DefaultApiClient.SensitiveHeaderNames);
+    }
+
+    [Fact]
+    public async Task BhvMisc177ADefaultContentTypeInAnyCaseIsNotSentWithoutABody()
+    {
+        HttpRequestMessage? seen = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            seen = req;
+            await Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().DefaultHeader("content-type", "application/json").Build()
+        );
+
+        _ = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/items"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.NotNull(seen);
+        Assert.Null(seen!.Content);
+        Assert.False(seen.Headers.Contains("Content-Type"));
+    }
+
+    [Fact]
+    public async Task BhvMisc184CloseReturnsWithoutWaitingForARunningRequestAndDoesNotCancelIt()
+    {
+        var entered = new TaskCompletionSource<bool>();
+        var release = new TaskCompletionSource<bool>();
+        var handler = new CapturingHandler(async req =>
+        {
+            _ = entered.TrySetResult(true);
+            _ = await release.Task;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null
+        );
+        _ = await entered.Task;
+        client.Dispose();
+        Assert.False(pending.IsCompleted);
+
+        _ = release.TrySetResult(true);
+        var response = await pending;
+        Assert.Equal(200, response.StatusCode);
+    }
 }

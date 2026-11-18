@@ -516,6 +516,15 @@ class StoreApiTest {
   }
 
   @Test
+  void bhvMisc048ASuccessStatusNoRowNamesDecodesAsTheUnionReturnType() throws Exception {
+    String both =
+        "{\"reservationId\":1,\"quantity\":2,\"receiptCode\":\"rcpt-1\","
+            + "\"expiresAt\":\"2030-01-01T00:00:00Z\"}";
+
+    assertThat(newStoreApiForMock(202, "application/json", both).reserveStock()).isNotNull();
+  }
+
+  @Test
   void bhvOperations126PlaceOrderWithoutAnArgumentSendsNoBody() throws Exception {
     Object[] capturedBody = new Object[] {"unset"};
     ApiClient recording =
@@ -692,5 +701,54 @@ class StoreApiTest {
             com.example.petstore.errors.NetworkException.class,
             com.example.petstore.errors.NetworkTimeoutException.class)
         .hasCauseNotNull();
+  }
+
+  @Test
+  void bhvMisc082GetBySwatchCarriesTheEnumWireValueInPathQueryAndHeader() throws Exception {
+    // A named enum ($ref) parameter must ride the wire as its value
+    // ("red"), never as the language's enum constant name ("RED").
+    String[] capturedUrl = new String[1];
+    Map<String, String> capturedHeaders = new java.util.HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          capturedHeaders.putAll(headers);
+          return new ApiHttpResponse(
+              200, "{\"id\":1,\"name\":\"x\"}", Map.of("Content-Type", "application/json"));
+        };
+    StoreApi mockedApi =
+        new StoreApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.getBySwatch(
+        Swatch.RED,
+        new GetBySwatchOptions().querySwatch(Swatch.GREEN).preferredSwatch(Swatch.BLUE));
+
+    assertThat(capturedUrl[0]).isEqualTo("http://localhost/store/by-swatch/red?querySwatch=green");
+    assertThat(capturedHeaders).containsEntry("Preferred-Swatch", "blue");
+  }
+
+  @Test
+  void bhvMisc079Status201DecodesItsOwnReceiptSchema() throws Exception {
+    com.example.petstore.models.ReserveStockResponse created =
+        newStoreApiForMock(
+                201,
+                "application/json",
+                "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}")
+            .reserveStock();
+
+    assertThat(created.getActualInstance())
+        .isInstanceOf(com.example.petstore.models.ReservationReceipt.class);
+  }
+
+  @Test
+  void bhvMisc080A200BodyIsRefusedWhenItOnlyFitsTheReceiptSchema() throws Exception {
+    StoreApi mockApi =
+        newStoreApiForMock(
+            200,
+            "application/json",
+            "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}");
+
+    assertThatThrownBy(mockApi::reserveStock)
+        .isInstanceOf(com.example.petstore.errors.SerializationException.class);
   }
 }

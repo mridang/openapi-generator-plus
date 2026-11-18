@@ -615,4 +615,13 @@ public class TransportOptionsTest
         Assert.Equal("http://proxy.example.com:8080", TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build().Proxy);
         Assert.Null(TransportOptions.Builder().Build().Proxy);
     }
+
+    [Fact]
+    public void BhvMisc186AReadyMadeConnectionWithACaBundleIsRefusedWhenBuilt()
+    {
+        var builder = TransportOptions.Builder().HttpClient(new HttpClient()).CaCertPath("/tmp/ca.pem");
+
+        _ = Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
 }

@@ -372,6 +372,54 @@ void main() {
     );
 
     test(
+      'bhv misc 070 a discovery document that is not a JSON object keeps no cause and does not repeat the body',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('["leaked-body"]');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'OIDC discovery document is not a JSON object',
+                )
+                .having((e) => e.cause, 'cause', isNull)
+                .having(
+                  (e) => e.toString(),
+                  'text',
+                  isNot(contains('leaked-body')),
+                ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 078 the authorization url carries an S256 challenge and omits any nonce',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final query = Uri.parse(
+          await auth.buildAuthorizationUrl(),
+        ).queryParameters;
+
+        expect(query['code_challenge_method'], equals('S256'));
+        expect(query.containsKey('nonce'), isFalse);
+      },
+    );
+
+    test(
       'bhv authoidc 016 throws SerializationException when the discovery document is not JSON',
       () async {
         final client = _FakeApiClient();

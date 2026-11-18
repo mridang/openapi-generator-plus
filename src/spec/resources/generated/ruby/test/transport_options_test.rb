@@ -509,4 +509,10 @@ describe Petstore::Client::TransportOptions, 'builder entry point and printable 
     _(Petstore::Client::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
     _(Petstore::Client::TransportOptions.builder.build.proxy).must_be_nil
   end
+
+  it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do
+    _(proc {
+      Petstore::Client::TransportOptions.builder.timeout(0).build
+    }).must_raise ArgumentError
+  end
 end
