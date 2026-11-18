@@ -2135,6 +2135,9 @@ langrust081 | A declared error schema decodes into its own error below the statu
 langrust082 | The explicit token is the one sent, never one read from the environment
 langrust083 | A token provider is called for every request, not once at construction
 langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
+langcsharp049 | The field holding the exchanged token can be read safely across threads
+langcsharp050 | The configured authorization endpoint is kept verbatim in the authorization url
+||||||| 6c36124f1
 langnode007 | A key location rejects a value with a carriage return, line feed or NUL
 langnode008 | A key location rejects an empty or whitespace-only key with a fixed message
 langnode009 | An operation called without an options object still applies the per-call settings
@@ -2158,6 +2161,10 @@ langnode026 | Without per-call options the transport defaults apply
 langnode027 | A request is never replayed for a scheme that has no replay support
 langnode028 | A form-urlencoded body rejects a lone surrogate with a URI error
 langnode029 | A scheme name never resolves to an Object.prototype member
+langcsharp051 | A chain of hooks that observe nothing returns no observer
+langcsharp052 | An error from a later hook reaches the caller and finishes the observers already started
+langcsharp053 | A call hook chain refuses a null hook list
+||||||| 838c12901
 langnode030 | A token provider may return a promise
 langnode031 | A token provider is used in place of the environment variable
 langnode032 | A synchronous token provider also serves the synchronous header getter
@@ -2178,3 +2185,15 @@ langnode046 | The generated README lists the features that are not generated
 langnode047 | The generated docs cancel through the per-call signal only
 langnode048 | The generated docs show how to stub the transport with a canned fetch
 langnode049 | An empty API key is rejected at construction
+langnode050 | A discriminated oneOf variant with a wrong-typed field is rejected
+langnode051 | An anyOf composite is a constructable class
+langnode052 | An anyOf variant with a wrong-typed field is rejected
+langnode053 | The signal is undefined by default
+langnode054 | The printable form of a configuration omits the signal
+langnode055 | The call hook is undefined by default
+langnode056 | The builder stores the call hook
+langnode057 | The printable form of a configuration omits the call hook
+langnode058 | A credential falls back to the environment when no value is passed
+langnode059 | A missing credential error names the variable when nothing supplies the value
+langnode060 | An OAuth2 credential from the environment with a line break is refused
+langnode061 | An OAuth2 credential from the environment without a line break is accepted
