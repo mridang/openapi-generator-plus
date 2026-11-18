@@ -2137,3 +2137,4 @@ langpython192 | The environment supplies the username and password.
 langpython193 | The environment supplies the key.
 langpython194 | Variables are read only.
 langpython195 | All is an immutable tuple.
+langpython196 | Repr keeps other default header values.
