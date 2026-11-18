@@ -1616,7 +1616,7 @@ func TestBhvAuthintegration009_BaseApi_Auth_NilPerCallFallsBackToClientLevelAuth
 
 // ── #6 Per-status error structs via errors.As ──
 
-func TestBaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
+func TestBhvErrors058_BaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
 	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil, {{packageName}}.Credentials{})
@@ -1630,7 +1630,7 @@ func TestBaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	}
 }
 
-func TestBaseApi_ErrorsAs_NotFoundErrorMatches(t *testing.T) {
+func TestBhvErrors060_BaseApi_ErrorsAs_NotFoundErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
 	api := {{packageName}}.NewPetApi({{packageName}}.NewDefaultApiClient(nil), config, nil, {{packageName}}.Credentials{})
@@ -2437,7 +2437,7 @@ func TestBaseApi_StatusErrorNamesTheSubstitutedPath(t *testing.T) {
 	}
 }
 
-func TestBaseApi_NetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
+func TestBhvErrors057_BaseApi_NetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
 	t.Parallel()
 	client := &failingApiClient{err: apierrors.NewNetworkError("connection refused", nil)}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()

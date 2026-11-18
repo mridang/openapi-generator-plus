@@ -635,6 +635,137 @@ func TestBhvErrors049_ApiError_OAuth2ServerErrorNamesTheStatusAndTheErrorCode(t 
 	}
 }
 
+// TestBhvAuthoauthtwotokenmgr047 pins the OAuth2 server error that carries no error
+// code: its message names the status and the raw body.
+func TestBhvAuthoauthtwotokenmgr047_OAuth2ServerError_WithoutACodeNamesTheStatusAndTheRawBody(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewOAuth2ServerError(502, "", "", "", "<html>bad gateway</html>")
+
+	if got, want := err.Error(), "Token request failed with status 502: <html>bad gateway</html>"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// TestBhvErrors061 pins that a bad request error is every level of the hierarchy
+// at once: a client error, an API error and the branded root.
+func TestBhvErrors061_ApiError_BadRequestIsAClientErrorAnApiErrorAndAnOpenAPIError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(400, nil, "")
+
+	var client *apierrors.ClientError
+	if !errors.As(err, &client) {
+		t.Errorf("expected %T to match *ClientError", err)
+	}
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Errorf("expected %T to match *ApiError", err)
+	}
+	var root apierrors.{{errorPrefix}}Error
+	if !errors.As(err, &root) {
+		t.Errorf("expected %T to satisfy {{errorPrefix}}Error", err)
+	}
+}
+
+// TestBhvErrors064 pins that an empty message renders the default text, with or
+// without a status, exactly as a missing message does.
+func TestBhvErrors064_ApiError_AnEmptyMessageRendersTheDefaultText(t *testing.T) {
+	t.Parallel()
+	const defaultText = "Error message: the server returns an error"
+
+	if got := apierrors.NewApiError(0, "", "", nil, nil, nil).Error(); got != defaultText {
+		t.Errorf("expected the default text for an empty message, got %q", got)
+	}
+	if got, want := apierrors.NewApiError(500, "", "", nil, nil, nil).Error(), defaultText+"\nHTTP status code: 500"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}
+
+// TestBhvErrors065 pins the 1 KiB cap on the body shown in an error text, and that
+// the bytes left out are counted in the text while the full body is kept.
+func TestBhvErrors065_ApiError_ErrorCutsALongBodyAtOneKibAndCountsTheBytesLeftOut(t *testing.T) {
+	t.Parallel()
+	long := strings.Repeat("a", 3000)
+	err := apierrors.NewApiError(502, "bad gateway", long, nil, nil, nil)
+
+	if got, want := err.Error(), "bad gateway\nHTTP status code: 502\nResponse body: "+strings.Repeat("a", 1024)+"... (1976 more bytes)"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+	if err.ResponseBody() != long {
+		t.Error("the full body must stay on ResponseBody")
+	}
+}
+
+// TestBhvErrors059 pins that a 403 response is the forbidden error.
+func TestBhvErrors059_ApiError_ForbiddenStatusMapsToTheForbiddenError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(403, nil, "")
+
+	var target *apierrors.ForbiddenError
+	if !errors.As(err, &target) {
+		t.Errorf("expected *ForbiddenError for status 403, got %T", err)
+	}
+}
+
+// TestBhvErrors066 pins that a 429 response is the too-many-requests error and is a
+// client error.
+func TestBhvErrors066_ApiError_TooManyRequestsStatusIsAClientError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(429, nil, "")
+
+	var target *apierrors.TooManyRequestsError
+	if !errors.As(err, &target) {
+		t.Errorf("expected *TooManyRequestsError for status 429, got %T", err)
+	}
+	var client *apierrors.ClientError
+	if !errors.As(err, &client) {
+		t.Errorf("expected %T to match *ClientError", err)
+	}
+}
+
+// TestBhvErrors067 pins that a 409 response is the conflict error.
+func TestBhvErrors067_ApiError_ConflictStatusMapsToTheConflictError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(409, nil, "")
+
+	var target *apierrors.ConflictError
+	if !errors.As(err, &target) {
+		t.Errorf("expected *ConflictError for status 409, got %T", err)
+	}
+}
+
+// TestBhvErrors068 pins that a 422 response is the unprocessable entity error.
+func TestBhvErrors068_ApiError_UnprocessableStatusMapsToTheUnprocessableEntityError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(422, nil, "")
+
+	var target *apierrors.UnprocessableEntityError
+	if !errors.As(err, &target) {
+		t.Errorf("expected *UnprocessableEntityError for status 422, got %T", err)
+	}
+}
+
+// TestBhvErrors069 pins that a 500 response is the internal server error.
+func TestBhvErrors069_ApiError_InternalServerStatusMapsToTheInternalServerError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(500, nil, "")
+
+	var target *apierrors.InternalServerError
+	if !errors.As(err, &target) {
+		t.Errorf("expected *InternalServerError for status 500, got %T", err)
+	}
+}
+
+// TestBhvErrors070 pins that a 502 response is a server error.
+func TestBhvErrors070_ApiError_BadGatewayStatusIsAServerError(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(502, nil, "")
+
+	var target *apierrors.ServerError
+	if !errors.As(err, &target) {
+		t.Errorf("expected *ServerError for status 502, got %T", err)
+	}
+}
+
 // TestApiError_SerializationError_Satisfies{{errorPrefix}}ErrorAndKeepsCause confirms
 // *SerializationError is declared beside the rest of the hierarchy, satisfies
 // the brand, is re-exported by the main package and keeps its cause.

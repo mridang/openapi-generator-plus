@@ -1626,7 +1626,7 @@ func TestBhvAuthintegration009_BaseApi_Auth_NilPerCallFallsBackToClientLevelAuth
 
 // ── #6 Per-status error structs via errors.As ──
 
-func TestBaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
+func TestBhvErrors058_BaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/400").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
@@ -1640,7 +1640,7 @@ func TestBaseApi_ErrorsAs_BadRequestErrorMatches(t *testing.T) {
 	}
 }
 
-func TestBaseApi_ErrorsAs_NotFoundErrorMatches(t *testing.T) {
+func TestBhvErrors060_BaseApi_ErrorsAs_NotFoundErrorMatches(t *testing.T) {
 	t.Parallel()
 	config := petstore.NewConfigurationBuilder().BaseURL(chasmHTTPURL + "/test/status/404").Build()
 	api := petstore.NewPetApi(petstore.NewDefaultApiClient(nil), config, nil, petstore.Credentials{})
@@ -2447,7 +2447,7 @@ func TestBaseApi_StatusErrorNamesTheSubstitutedPath(t *testing.T) {
 	}
 }
 
-func TestBaseApi_NetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
+func TestBhvErrors057_BaseApi_NetworkErrorCarriesTheRequestMethodAndPath(t *testing.T) {
 	t.Parallel()
 	client := &failingApiClient{err: apierrors.NewNetworkError("connection refused", nil)}
 	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()

@@ -1772,6 +1772,32 @@ func TestBhvLifecycle008_DefaultApiClient_ClosedClientRejectsFurtherRequests(t *
 	}
 }
 
+// TestBhvLifecycle035 pins that a request issued after Close fails with the one
+// closed-client error and that the caller's transport never sees the request.
+func TestBhvLifecycle035_DefaultApiClient_RequestAfterCloseNeverReachesTheTransport(t *testing.T) {
+	t.Parallel()
+	doer := &recordingDoer{}
+	transport, err := NewTransportOptionsBuilder().HttpClient(doer).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if err := client.Close(); err != nil {
+		t.Fatalf("unexpected error from Close: %v", err)
+	}
+
+	_, err = client.SendRequest("GET", "http://example.invalid/items", map[string]string{}, nil)
+	if !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed, got %v", err)
+	}
+	if want := "API client has been closed and can no longer send requests"; err == nil || err.Error() != want {
+		t.Errorf("expected the canonical message %q, got %v", want, err)
+	}
+	if len(doer.requests) != 0 {
+		t.Errorf("expected the transport to see no request, got %d", len(doer.requests))
+	}
+}
+
 // closeCountingDoer is a caller-supplied doer that also has a Close method, so a
 // test can see whether the SDK ever closes a transport it does not own.
 type closeCountingDoer struct {
