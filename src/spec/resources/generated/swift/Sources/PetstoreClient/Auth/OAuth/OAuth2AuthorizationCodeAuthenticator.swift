@@ -171,17 +171,21 @@ public class OAuth2AuthorizationCodeAuthenticator: BaseAuthenticator, HttpAwareA
       "client_secret": clientSecret,
       "redirect_uri": redirectURI,
     ]
-    if let verifier = pkceLock.withLock({ () -> String? in
-      let current = pkceVerifier
-      pkceVerifier = nil
-      return current
-    }) {
+    /* The verifier is spent only by a successful exchange: a failed attempt
+     * leaves it in place so the retry still proves the challenge. */
+    let verifier = pkceLock.withLock { pkceVerifier }
+    if let verifier = verifier {
       params["code_verifier"] = verifier
     }
     /* Always POST the authorization_code grant and replace the session:
      * never a cached token or the stored refresh token. A failed exchange
      * keeps the previous session. */
     try await tokenManager.exchange(tokenURL: tokenURL, params: params)
+    pkceLock.withLock {
+      if pkceVerifier == verifier {
+        pkceVerifier = nil
+      }
+    }
   }
 
   /// Returns the Bearer authentication header with a valid access token,

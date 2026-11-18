@@ -288,6 +288,19 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ))
   }
 
+  /* An authenticator with no token, no environment value and a nil provider is refused at construction. */
+  @Test func testBhvAuth004NoTokenNoEnvironmentAndANilProviderIsRefused() {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try self.environmentClient(
+        host: "https://explicit.example.com", token: nil, tokenProvider: nil, environment: [:])
+    }
+    #expect(
+      error
+        == ConfigurationError.invalidArgument(
+          "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
+        ))
+  }
+
   @Test func testBhvConfig025AnEmptyEnvironmentValueCountsAsUnset() {
     #expect(
       throws: ConfigurationError.invalidArgument(

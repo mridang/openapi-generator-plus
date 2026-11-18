@@ -1053,6 +1053,61 @@ import Testing
     #expect(client.callCount == 1)
   }
 
+  /* A refresh the transport cancels is rethrown to the caller, and the original grant is not run as a fallback. */
+  @Test func testBhvAuth027CancelledRefreshIsRethrownWithoutTheFallbackGrant() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    let tokenURL = "https://auth.example.com/token"
+
+    _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+    client.failure = CancellationError()
+    await #expect(throws: CancellationError.self) {
+      _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+    }
+
+    #expect(client.requests.count == 2)
+    #expect(formFields(client.requests[1].body)["grant_type"] == "refresh_token")
+  }
+
+  /* A malformed optional field is dropped, a valid error code is kept, and a non-string error is not taken as a code. */
+  @Test func testBhvErrors082MalformedOptionalFieldsAreDroppedAndANonStringCodeIsIgnored()
+    async throws
+  {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(
+        body: "{\"error\":\"invalid_grant\",\"error_description\":7,\"error_uri\":\"not a uri\"}",
+        statusCode: 400))
+    client.responses.append(makeResponse(body: "{\"error\":[\"invalid_grant\"]}", statusCode: 400))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    let tokenURL = "https://auth.example.com/token"
+
+    let kept = try #require(await serverError(manager, tokenURL: tokenURL))
+    #expect(kept.code == "invalid_grant")
+    #expect(kept.description == nil)
+    #expect(kept.uri == nil)
+
+    let unkept = try #require(await serverError(manager, tokenURL: tokenURL))
+    #expect(unkept.code == nil)
+  }
+
+  private func serverError(_ manager: OAuth2TokenManager, tokenURL: String) async
+    -> OAuth2ServerError?
+  {
+    do {
+      _ = try await manager.getAccessToken(tokenURL: tokenURL, params: authorizationCodeGrant)
+      return nil
+    } catch let error as OAuth2ServerError {
+      return error
+    } catch {
+      return nil
+    }
+  }
+
   /* F863: a token_type other than Bearer (any case) is refused; an absent or
      null one is accepted. */
   @Test(arguments: ["DPoP", "mac", "N_A", "\"\"", "7"])
