@@ -216,8 +216,13 @@ class TransportOptionsBuilder {
   /// Set the maximum number of redirects to follow.
   ///
   /// Pass the maximum redirect hops, or null for the client default. A value
-  /// of 0 means zero redirects.
+  /// of 0 means zero redirects. Throws [ArgumentError] if the value is negative.
   TransportOptionsBuilder maxRedirects(int? val) {
+    if (val != null && val < 0) {
+      throw ArgumentError(
+        'Invalid maxRedirects: must not be negative (got $val)',
+      );
+    }
     _maxRedirects = val;
     return this;
   }
