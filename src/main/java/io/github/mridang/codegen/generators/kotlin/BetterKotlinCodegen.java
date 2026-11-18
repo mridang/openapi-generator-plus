@@ -88,7 +88,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         typeMapping.put("time", "LocalTime");
         typeMapping.put("duration", "Duration");
         typeMapping.put("UUID", "Uuid");
-        typeMapping.put("URI", "Url");
+        typeMapping.put("URI", "URI");
         typeMapping.put("BigDecimal", "BigDecimal");
 
         importMapping.put("List", "kotlin.collections.List");
@@ -103,7 +103,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         importMapping.put("Duration", "java.time.Duration");
         importMapping.put("BigDecimal", "java.math.BigDecimal");
         importMapping.put("Uuid", "kotlin.uuid.Uuid");
-        importMapping.put("Url", "io.ktor.http.Url");
+        importMapping.put("URI", "java.net.URI");
 
         languageSpecificPrimitives =
                 new HashSet<>(
@@ -1594,9 +1594,22 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
         final CodegenProperty property =
                 super.fromProperty(name, p, required, schemaIsFromAdditionalProperties);
         if (property != null && property.dataType != null) {
-            property.dataType = annotateAnyAsContextual(property.dataType);
+            property.dataType = annotateContextualElements(annotateAnyAsContextual(property.dataType));
         }
         return property;
+    }
+
+    /**
+     * Annotates the element type of a container ({@code List<Duration>},
+     * {@code Map<String, Duration>}) with {@code @Contextual} when it is one of the types the
+     * SDK serializes through a contextual serializer; without the annotation the compiler
+     * plugin cannot find a serializer for the element. A scalar property is annotated by the
+     * model template instead. Idempotent.
+     */
+    private static String annotateContextualElements(String dataType) {
+        return dataType.replaceAll(
+                "(?<=[<,] ?)(Duration|OffsetDateTime|LocalDate|LocalTime|BigDecimal|Uuid|URI)(?=[>,])",
+                "@Contextual $1");
     }
 
     /**

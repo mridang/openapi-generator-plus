@@ -2476,4 +2476,114 @@ class ObjectSerializerTest {
             assertTrue(parsed.message!!.startsWith("Failed to deserialize JSON: "), parsed.message)
         }
     }
+
+    @Nested
+    @DisplayName("NativeValueFormatTests")
+    inner class NativeValueFormatTests {
+
+        private fun decode(json: String) = serializer.deserialize<{{modelPackage}}.NativeValues>(json)!!
+
+        @Test
+        @DisplayName("bhvSerializationobject403 a duration field is the native java.time.Duration")
+        fun durationIsTheNativeType() {
+            val wait: java.time.Duration? = decode("{\"wait\":\"3600s\"}").wait
+            assertEquals(java.time.Duration.ofHours(1), wait)
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject404 a duration keeps every nanosecond the type holds and writes the shortest form")
+        fun durationKeepsEveryNanosecond() {
+            val decoded = decode("{\"wait\":\"-1.123456789s\"}")
+            assertEquals(java.time.Duration.ofSeconds(-1, -123456789), decoded.wait)
+            assertEquals("{\"wait\":\"-1.123456789s\"}", serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject405 an ipv4 field keeps the address text unchanged")
+        fun ipv4TextRoundTrips() {
+            assertEquals("{\"address4\":\"192.0.2.1\"}", serializer.serialize(decode("{\"address4\":\"192.0.2.1\"}")))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject406 an ipv6 field keeps the address text unchanged")
+        fun ipv6TextRoundTrips() {
+            for (text in listOf("2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1")) {
+                assertEquals("{\"address6\":\"$text\"}", serializer.serialize(decode("{\"address6\":\"$text\"}")))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject408 every absolute URI of the corpus round-trips byte for byte")
+        fun uriCorpusRoundTrips() {
+            val corpus =
+                listOf(
+                    "https://example.com",
+                    "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+                    "mailto:a@b.c",
+                    "urn:isbn:0451450523",
+                    "https://example.com?",
+                    "https://example.com/%7euser",
+                    "https://[2001:db8::1]:8443/",
+                )
+            for (text in corpus) {
+                val json = "{\"homepage\":\"$text\"}"
+                assertEquals(json, serializer.serialize(decode(json)), text)
+            }
+            val homepage: java.net.URI? = decode("{\"homepage\":\"https://example.com\"}").homepage
+            assertEquals("https://example.com", homepage.toString())
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject409 hostname and email values are kept as given")
+        fun hostnameAndEmailAreKept() {
+            val json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}"
+            assertEquals(json, serializer.serialize(decode(json)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject410 a number keeps every digit and is written in plain notation")
+        fun numberKeepsEveryDigit() {
+            val json = "{\"amount\":12.345678901234567890123}"
+            val decoded = decode(json)
+            assertEquals(java.math.BigDecimal("12.345678901234567890123"), decoded.amount)
+            assertEquals(json, serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject411 a string decimal is a BigDecimal written as a JSON string and rejects a number")
+        fun stringDecimalIsAJsonString() {
+            val decoded = decode("{\"ledger\":\"12.50\"}")
+            assertEquals(java.math.BigDecimal("12.50"), decoded.ledger)
+            assertEquals("{\"ledger\":\"12.50\"}", serializer.serialize(decoded))
+            assertThrowsExactly(SerializationException::class.java) { decode("{\"ledger\":12.50}") }
+        }
+
+        @Test
+        @DisplayName("bhvSerializationobject412 a forty digit number is exact and never rounded")
+        fun fortyDigitNumberIsExact() {
+            val digits = "1234567890123456789012345678901234567890"
+            val decoded = decode("{\"amount\":$digits}")
+            assertEquals(java.math.BigDecimal(digits), decoded.amount)
+            assertEquals("{\"amount\":$digits}", serializer.serialize(decoded))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam104 a duration parameter is written in the protobuf form")
+        fun durationParameter() {
+            assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam105 an address parameter is its text unchanged")
+        fun addressParameterIsUnchanged() {
+            assertEquals("2001:db8::1", serializer.stringify("2001:db8::1"))
+        }
+
+        @Test
+        @DisplayName("bhvSerializationparam106 a decimal parameter is written in plain notation")
+        fun decimalParameterIsPlain() {
+            assertEquals("12.345678901234567890123", serializer.stringify(java.math.BigDecimal("12.345678901234567890123")))
+            assertEquals("1000", serializer.stringify(java.math.BigDecimal("1E+3")))
+        }
+    }
 }
