@@ -380,6 +380,37 @@ void main() {
       expect(resp.body, isNotEmpty);
     });
 
+    test(
+      'bhv misc 065 scheme credentials are copied when the API is built',
+      () async {
+        final schemes = <String, Authenticator>{
+          'petStoreBearer': _BaseApiAuth(
+            headers: {'Authorization': 'Bearer first'},
+          ),
+        };
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = PetApi(
+          apiClient: client,
+          config: ConfigurationBuilder()
+              .baseUrl('https://api.example.com')
+              .build(),
+          schemeAuthenticators: schemes,
+        );
+        schemes['petStoreBearer'] = _BaseApiAuth(
+          headers: {'Authorization': 'Bearer second'},
+        );
+
+        try {
+          await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
+        } catch (_) {}
+
+        expect(
+          client.sentHeaders.single['Authorization'],
+          equals('Bearer first'),
+        );
+      },
+    );
+
     test('bhv authintegration 010 forwards auth headers', () async {
       final auth = _BaseApiAuth(
         headers: {'Authorization': 'Bearer test-token'},
@@ -4089,6 +4120,79 @@ void main() {
     );
 
     test(
+      'bhv misc 050 per-call options override the options object and an unset option falls through to it',
+      () async {
+        final overridden = _ScriptedApiClient([
+          _reply(503),
+          _reply(503),
+          _reply(200),
+        ], maxRetries: 0);
+        final response = await _RecordingApi(
+          overridden,
+        ).invokeApi(method: 'GET', path: '/x', maxRetries: 2);
+        expect(response.statusCode, equals(200));
+
+        final inherited = _ScriptedApiClient([
+          _reply(503),
+          _reply(200),
+        ], maxRetries: 1);
+        final second = await _RecordingApi(
+          inherited,
+        ).invokeApi(method: 'GET', path: '/x');
+        expect(second.statusCode, equals(200));
+        expect(inherited.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 053 a per-call retry budget of zero sends one request',
+      () async {
+        final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', maxRetries: 0),
+          throwsA(isA<ServerException>()),
+        );
+        expect(client.sentHeaders, hasLength(1));
+      },
+    );
+
+    test(
+      'bhv misc 054 per-call headers are a copy that later changes do not reach',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final headers = <String, String>{'X-Per-Call': 'first'};
+
+        final pending = _RecordingApi(
+          client,
+        ).invokeApi(method: 'GET', path: '/x', callHeaders: headers);
+        headers['X-Per-Call'] = 'changed';
+        await pending;
+
+        expect(client.sentHeaders.single['X-Per-Call'], equals('first'));
+      },
+    );
+
+    test(
+      'bhv misc 055 a per-call timeout or retry count that is not valid is refused',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', timeout: 0),
+          throwsA(isA<ArgumentError>()),
+        );
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', maxRetries: -1),
+          throwsA(isA<ArgumentError>()),
+        );
+        expect(client.sentHeaders, isEmpty);
+      },
+    );
+
+    test(
       'bhv retries 014 maxRetries 0 turns retries off for this call',
       () async {
         final client = _ScriptedApiClient([_reply(503), _reply(200)]);
@@ -4488,6 +4592,34 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 064 an operation that declares no security never sends the client default credential',
+      () async {
+        String? sent;
+        final transport = MockClient((request) async {
+          sent = request.headers['authorization'];
+          return http.Response(
+            '{"available":1}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final client = Client(
+          petStoreBearer: BearerAuthenticator(
+            host: 'http://api.test',
+            token: 'b-token',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(transport)
+              .build(),
+        );
+
+        await client.store.getInventory(null);
+
+        expect(sent, isNull);
+      },
+    );
+
     test('bhv lifecycle 026 a client with no credential at all is refused', () {
       expect(() => Client(), throwsArgumentError);
     });
@@ -4526,6 +4658,20 @@ void main() {
         final result = await storeApi(client).reserveStock(null);
 
         expect(result.actualInstance, isA<Reservation>());
+      },
+    );
+
+    test(
+      'bhv misc 048 a success status no response row declares decodes as the union return type',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(202, '{"reservationId":7,"quantity":2}'),
+        ]);
+
+        final result = await storeApi(client).reserveStock(null);
+
+        expect(result, isA<ReserveStockResponse>());
+        expect(result.actualInstance, isNotNull);
       },
     );
 
@@ -5189,6 +5335,45 @@ void main() {
         );
 
         expect(auth.injected, same(client));
+      },
+    );
+
+    test(
+      'bhv misc 072 each API group holds the default credential and the scheme credentials it was built with',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedAuth;
+        server.listen((request) {
+          receivedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: _BaseApiAuth(
+              headers: {'Authorization': 'Bearer default'},
+            ),
+            schemeAuthenticators: {
+              'adminBasic': _BaseApiAuth(
+                headers: {'Authorization': 'Bearer scheme'},
+              ),
+            },
+          );
+
+          await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}), null);
+          expect(receivedAuth, equals('Bearer default'));
+        } finally {
+          await server.close();
+        }
       },
     );
 

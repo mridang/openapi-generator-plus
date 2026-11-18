@@ -352,3 +352,20 @@ func TestBhvMisc017_BearerAuthenticator_ARejectionNeverEchoesTheValue(t *testing
 		t.Errorf("expected a refusal that does not echo the value, got %v", err)
 	}
 }
+
+func TestBhvMisc174_BearerAuthenticator_ARefusedProviderTokenIsNeverEchoedInTheError(t *testing.T) {
+	t.Parallel()
+	a, err := auth.NewBearerAuthenticatorWithProvider("https://api.example.com", func(context.Context) (string, error) {
+		return "bad\r\nX-Injected: yes", nil
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	_, err = a.AuthHeadersOrError()
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Fatalf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if strings.Contains(err.Error(), "Injected") {
+		t.Errorf("expected the refused token kept out of the error, got %q", err.Error())
+	}
+}

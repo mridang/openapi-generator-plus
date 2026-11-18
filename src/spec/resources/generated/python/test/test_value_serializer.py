@@ -969,6 +969,11 @@ class TestObjectValuedParameters:
         assert ValueSerializer.query_entries("c", "v") == {"c": "v"}
         assert ValueSerializer.query_entries("c", None) == {}
 
+    def test_bhv_misc_107_a_scalar_form_query_parameter_keeps_its_own_name_and_value(
+        self,
+    ) -> None:
+        assert ValueSerializer.query_entries("filter", "x") == {"filter": "x"}
+
     def test_bhv_lang_python_208_a_nested_object_leaf_is_a_serialization_error(
         self,
     ) -> None:
@@ -1031,6 +1036,19 @@ class TestObjectValuedParameters:
 
 
 class TestValueSerializerBehaviours:
+    def test_bhv_misc_084_a_set_optional_scalar_is_sent_in_every_location(self) -> None:
+        assert str(ValueSerializer.serialize(7, "path", "integer")) == "7"
+        assert str(ValueSerializer.serialize(7, "header", "integer")) == "7"
+        assert str(ValueSerializer.serialize(7, "cookie", "integer")) == "7"
+        assert str(ValueSerializer.serialize(7, "query", "integer")) == "7"
+
+    def test_bhv_misc_086_an_element_holding_json_text_is_not_decoded_again(
+        self,
+    ) -> None:
+        assert '{"a":1}' in str(
+            ValueSerializer.serialize(['{"a":1}'], "query", "array")
+        )
+
     def test_bhv_serialization_008_a_content_parameter_is_encoded_once_for_its_location(
         self,
     ) -> None:

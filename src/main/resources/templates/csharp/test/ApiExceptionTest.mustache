@@ -130,6 +130,33 @@ public class ApiExceptionTest
         Assert.StartsWith("API returned status code 404 for GET /items/7", ex.ToString(), StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void BhvMisc024ATransportFailureKeepsTheUnderlyingErrorAsItsCause()
+    {
+        var transportError = new InvalidOperationException("connection reset");
+        var ex = new NetworkTimeoutException("timed out", transportError);
+
+        Assert.Same(transportError, ex.InnerException);
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvMisc025ATypedCallFailsWhenTheServerAnswersWithAClientErrorStatus()
+    {
+        var ex = ApiException.FromResponse(401, new Dictionary<string, string>(), "{\"code\":7}");
+
+        Assert.IsType<UnauthorizedException>(ex);
+        Assert.Equal(401, ex.StatusCode);
+    }
+
+    [Fact]
+    public void BhvMisc026ConfigurationMistakesAreNotApiErrors()
+    {
+        var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().MaxRetries(-1));
+
+        Assert.IsNotAssignableFrom<ApiException>(ex);
+    }
+
     [Theory]
     [InlineData(400)]
     [InlineData(401)]
@@ -1037,4 +1064,53 @@ public class ApiExceptionTest
             "Token request failed with status 400: invalid_grant",
             new OAuth2ServerException(400, "invalid_grant", null, null, "{}").Message);
     }
+
+    [Fact]
+    public void BhvMisc015ATypedErrorBodyThatIsValidJsonButNotAnObjectIsRefused()
+    {
+        var ex = ApiException.FromResponse(400, new Dictionary<string, string>(), "[1,2]");
+
+        Assert.Throws<SerializationException>(() => ex.GetTypedErrorBody<Category>());
+    }
+    [Fact]
+    public void BhvMisc016ABodyLongerThanTheCapRendersTheCapAndCountsTheRest()
+    {
+        var ex = new ApiException(502, "bad gateway", null, new string('b', 2000));
+
+        Assert.Equal(
+            "bad gateway\nHTTP status code: 502\nResponse body: "
+                + new string('b', 1024)
+                + "... (976 more bytes)",
+            ex.ToString());
+    }
+    [Theory]
+    [InlineData("GET", null)]
+    [InlineData(null, "/items/7")]
+    public void BhvMisc020TheRequestLineIsShownOnlyWhenBothPartsAreKnown(string? method, string? path)
+    {
+        var ex = ApiException.FromResponse(500, new Dictionary<string, string>(), null, method, path);
+
+        Assert.Equal("API returned status code 500", ex.Message);
+    }
+    [Fact]
+    public void BhvMisc022AServerErrorIsTheRootTypeAndKeepsTheApiErrorItWraps()
+    {
+        var cause = new ApiException(502, "upstream failed", null, "");
+        var ex = new ServerException(502, "boom", cause);
+
+        Assert.IsAssignableFrom<{{errorPrefix}}Exception>(ex);
+        Assert.Same(cause, ex.InnerException);
+    }
+    [Theory]
+    [InlineData(507, typeof(ServerException))]
+    [InlineData(599, typeof(ServerException))]
+    [InlineData(302, typeof(ApiException))]
+    [InlineData(600, typeof(ApiException))]
+    public void BhvMisc023AnUnlistedStatusBecomesTheGenericServerOrOtherError(int status, Type expected)
+    {
+        var ex = ApiException.FromResponse(status, new Dictionary<string, string>(), null);
+
+        Assert.Equal(expected, ex.GetType());
+    }
+
 }

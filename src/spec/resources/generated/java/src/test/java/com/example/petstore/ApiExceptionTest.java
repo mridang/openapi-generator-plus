@@ -1057,4 +1057,58 @@ class ApiExceptionTest {
   void bhvErrors097AnUnrecognisedClientStatusIsTheGenericClientError() {
     assertEquals(ClientException.class, ApiException.fromResponse(499, Map.of(), "{}").getClass());
   }
+
+  @Test
+  void bhvMisc015ATypedErrorBodyOfTheWrongJsonShapeIsRefused() {
+    ApiException err = ApiException.fromResponse(400, Map.of(), "[1,2]");
+    assertThrows(
+        SerializationException.class,
+        () -> err.getTypedErrorBody(com.example.petstore.models.Category.class));
+  }
+
+  @Test
+  void bhvMisc016RenderedBodyShowsAtMostAFixedNumberOfBytesAndCountsTheRest() {
+    ApiException err = new ApiException(502, "bad gateway", Map.of(), "a".repeat(3000), null);
+    assertTrue(err.toString().contains("more bytes"));
+    assertTrue(err.toString().length() < 1500);
+  }
+
+  @Test
+  void bhvMisc018NonJsonTokenErrorExposesStatusNoCodeAndTheRawBody() {
+    OAuth2ServerException err =
+        new OAuth2ServerException(500, null, null, null, "upstream exploded");
+    assertEquals(500, err.getStatusCode());
+    assertNull(err.getCode());
+    assertEquals("upstream exploded", err.getRawBody());
+  }
+
+  @Test
+  void bhvMisc019ARequestTargetInAnErrorIsReducedToItsPath() {
+    ApiException err =
+        ApiException.fromResponse(
+            "GET", "https://host.example:8443/v2/items?x=1#frag", 404, Map.of(), "");
+    assertEquals("/v2/items", err.getRequestPath());
+    assertFalse(err.toString().contains("host.example"));
+    assertFalse(err.toString().contains("x=1"));
+  }
+
+  @Test
+  void bhvMisc020ARequestLineIsShownOnlyWhenTheMethodAndPathAreBothKnown() {
+    ApiException err = ApiException.fromResponse(null, "/items", 500, Map.of(), "x");
+    assertFalse(err.toString().contains("Request:"));
+  }
+
+  @Test
+  void bhvMisc022AServerErrorIsAnSdkRootErrorAndAnApiError() {
+    ApiException err = ApiException.fromResponse(503, Map.of(), "{}");
+    assertInstanceOf(ServerException.class, err);
+    assertInstanceOf(OpenAPIException.class, err);
+  }
+
+  @Test
+  void bhvMisc023AnUnmappedStatusFallsBackToTheGenericServerOrOtherError() {
+    assertEquals(ServerException.class, ApiException.fromResponse(520, Map.of(), null).getClass());
+    assertEquals(ApiException.class, ApiException.fromResponse(399, Map.of(), null).getClass());
+    assertEquals(ApiException.class, ApiException.fromResponse(600, Map.of(), null).getClass());
+  }
 }

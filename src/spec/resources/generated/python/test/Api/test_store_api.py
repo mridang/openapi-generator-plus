@@ -562,6 +562,20 @@ class TestStoreApiFixtureOperations:
         assert isinstance(result.actual_instance, ReservationReceipt)
         assert result.actual_instance.receipt_code == "R-1"
 
+    async def test_bhv_misc_114_a_success_response_is_decoded_for_the_status_actually_received(
+        self,
+    ) -> None:
+        api, _ = _create_mock_server(
+            201,
+            "application/json",
+            '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+        )
+
+        result = await api.reserve_stock()
+
+        assert isinstance(result.actual_instance, ReservationReceipt)
+        assert result.actual_instance.receipt_code == "R-1"
+
     async def test_bhv_operations_122_get_by_swatch_sends_the_enum_wire_value_in_path_query_and_header(
         self,
     ) -> None:

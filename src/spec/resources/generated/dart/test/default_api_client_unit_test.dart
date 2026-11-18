@@ -4661,4 +4661,240 @@ void main() {
       },
     );
   });
+  group('Transport contract', () {
+    test(
+      'bhv misc 029 a caller timeout surfaces as the callers own TimeoutException, not an SDK error',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {});
+        addTearDown(() => server.close(force: true));
+        final client = DefaultApiClient();
+
+        await expectLater(
+          client
+              .sendRequest(
+                'GET',
+                'http://localhost:${server.port}/hang',
+                {},
+                null,
+              )
+              .timeout(const Duration(milliseconds: 50)),
+          throwsA(isA<TimeoutException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 032 the raw response exposes its status code, body and headers under public names',
+      () async {
+        final mock = MockClient(
+          (request) async =>
+              http.Response('raw-body', 201, headers: {'x-raw': 'yes'}),
+        );
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        final response = await client.sendRequest(
+          'GET',
+          'http://example.com/raw',
+          {},
+          null,
+        );
+
+        expect(response.statusCode, equals(201));
+        expect(response.body, equals('raw-body'));
+        expect(response.headers['x-raw'], equals('yes'));
+      },
+    );
+
+    test(
+      'bhv misc 036 a caller body part stays readable after the request it was sent with fails',
+      () async {
+        final mock = MockClient((request) async {
+          throw http.ClientException('connection refused');
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(mock)
+              .maxRetries(0)
+              .build(),
+        );
+        final payload = Uint8List.fromList(utf8.encode('payload'));
+
+        await expectLater(
+          client.sendRequest('POST', 'http://example.com/upload', {}, {
+            'file': payload,
+          }),
+          throwsA(isA<ApiException>()),
+        );
+        expect(utf8.decode(payload), equals('payload'));
+      },
+    );
+
+    test(
+      'bhv misc 037 a response body that is not decoded keeps its Content-Length header',
+      () async {
+        final mock = MockClient(
+          (request) async =>
+              http.Response('ok', 200, headers: {'content-length': '2'}),
+        );
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        final response = await client.sendRequest(
+          'GET',
+          'http://example.com/data',
+          {},
+          null,
+        );
+
+        expect(response.headers['content-length'], equals('2'));
+      },
+    );
+
+    test(
+      'bhv misc 038 with no CA certificate configured, server certificates are verified against the platform trust store',
+      () async {
+        final certDir = 'test/fixtures/certs';
+        final tlsContext = SecurityContext()
+          ..useCertificateChain('$certDir/server.pem')
+          ..usePrivateKey('$certDir/server-key.pem');
+        final source = await HttpServer.bindSecure(
+          InternetAddress.loopbackIPv4,
+          0,
+          tlsContext,
+        );
+        addTearDown(() => source.close(force: true));
+        source.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..write('ok')
+            ..close();
+        });
+        final client = DefaultApiClient();
+
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            'https://localhost:${source.port}/echo',
+            {},
+            null,
+          ),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              equals(0),
+            ),
+          ),
+        );
+      },
+    );
+
+    for (final text in <String>['', '0']) {
+      test(
+        'bhv misc 039 a gzip stream that decodes to ${text.isEmpty ? 'an empty string' : 'zero'} is returned as that content',
+        () async {
+          final mock = MockClient(
+            (request) async => http.Response.bytes(
+              gzip.encode(utf8.encode(text)),
+              200,
+              headers: {'content-encoding': 'gzip'},
+            ),
+          );
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder()
+                .httpClient(mock)
+                .build(),
+          );
+
+          final response = await client.sendRequest(
+            'GET',
+            'http://example.com/data',
+            {},
+            null,
+          );
+
+          expect(response.body, equals(text));
+        },
+      );
+    }
+
+    test(
+      'bhv misc 040 response header names are returned in lower case',
+      () async {
+        final mock = MockClient(
+          (request) async =>
+              http.Response('ok', 200, headers: {'X-Mixed-Case': 'v'}),
+        );
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        final response = await client.sendRequest(
+          'GET',
+          'http://example.com/names',
+          {},
+          null,
+        );
+
+        expect(response.headers['x-mixed-case'], equals('v'));
+        expect(
+          response.headers.keys.where((k) => k != k.toLowerCase()),
+          isEmpty,
+        );
+      },
+    );
+
+    test(
+      'bhv misc 041 a request with an HTTP method outside the standard set is sent with its body intact',
+      () async {
+        http.Request? seen;
+        final mock = MockClient((request) async {
+          seen = request as http.Request;
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().httpClient(mock).build(),
+        );
+
+        await client.sendRequest(
+          'PROPFIND',
+          'http://example.com/items',
+          {},
+          'payload',
+        );
+
+        expect(seen?.method, equals('PROPFIND'));
+        expect(seen?.body, equals('payload'));
+      },
+    );
+
+    test(
+      'bhv misc 043 a user agent that is explicitly cleared is omitted from the request',
+      () async {
+        http.BaseRequest? seen;
+        final mock = MockClient((request) async {
+          seen = request;
+          return http.Response('ok', 200);
+        });
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(mock)
+              .userAgent(null)
+              .build(),
+        );
+
+        await client.sendRequest('GET', 'http://example.com/a', {}, null);
+
+        expect(seen, isNotNull);
+        expect(
+          seen!.headers.keys.map((k) => k.toLowerCase()),
+          isNot(contains('user-agent')),
+        );
+      },
+    );
+  });
 }

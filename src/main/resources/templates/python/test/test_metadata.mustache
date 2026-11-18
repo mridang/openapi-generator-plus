@@ -45,6 +45,13 @@ class TestMetadataTypedAdditionalProperties:
         data = json.loads(serialized)
         assert data.get('createdAt') is not None
 
+    def test_bhv_misc_093_numeric_additional_property_names_are_written_as_object_members(self) -> None:
+        metadata = ObjectSerializer().deserialize('{"404":"missing","7":"seven"}', 'Metadata')
+        assert metadata is not None
+        data = json.loads(ObjectSerializer().serialize(metadata))
+        assert data['404'] == 'missing'
+        assert data['7'] == 'seven'
+
     def test_bhv_models_009_additional_properties_are_a_string_keyed_map_of_the_value_type(self) -> None:
         metadata = ObjectSerializer().deserialize('{"customField":"hello"}', 'Metadata')
         assert metadata is not None
@@ -411,6 +418,13 @@ class TestOptionsPerCallSettings:
     def test_bhv_misc_053_a_retry_budget_below_zero_or_not_a_whole_number_is_rejected(self, max_retries: Any) -> None:
         with pytest.raises(ValueError, match='max_retries'):
             self._options()(max_retries=max_retries)
+
+    @pytest.mark.parametrize('timeout, max_retries', [(0, None), (None, -1)])
+    def test_bhv_misc_055_a_per_call_timeout_or_retry_count_that_is_not_valid_is_refused(
+        self, timeout: Any, max_retries: Any,
+    ) -> None:
+        with pytest.raises(ValueError):
+            self._options()(timeout=timeout, max_retries=max_retries)
 
     def test_bhv_lang_python_100_zero_retries_is_allowed(self) -> None:
         assert self._options()(max_retries=0).max_retries == 0

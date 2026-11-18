@@ -32,6 +32,12 @@ def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
 
 class TestOAuth2AuthorizationCodeAuthenticator:
 
+    def test_bhv_misc_077_a_generated_pkce_challenge_is_43_characters_and_differs_per_call(self) -> None:
+        first = parse_qs(urlparse(_create_authenticator().build_authorization_url()).query)['code_challenge'][0]
+        second = parse_qs(urlparse(_create_authenticator().build_authorization_url()).query)['code_challenge'][0]
+        assert len(first) == 43
+        assert first != second
+
     def test_bhv_authoauthtwoauthcode_006_builds_authorization_url_with_required_params(self) -> None:
         auth = _create_authenticator()
 
@@ -219,6 +225,22 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
+    def test_bhv_misc_058_the_endpoint_and_redirect_uri_reach_the_url_as_configured(self) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host='https://api.example.com',
+            client_id='my_client_id',
+            client_secret='my_secret',
+            authorization_url='https://Auth.Example.com:443/authorize',
+            token_url='https://auth.example.com/token',
+            redirect_uri='https://App.Example.com:443/Callback',
+            scopes=['read', 'write'],
+        )
+
+        url = _without_pkce(auth.build_authorization_url())
+
+        assert url.startswith('https://Auth.Example.com:443/authorize?')
+        assert '&redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2FCallback&' in url
+
     def test_bhv_auth_048_authorize_url_is_exact_and_the_code_exchange_goes_to_the_token_url(self) -> None:
         url = _create_authenticator().build_authorization_url()
 
@@ -512,6 +534,17 @@ class TestUserAuthWrapper:
         assert first[0][1] == "https://auth.example.com/oauth/token"
         assert second[0][1] == "https://auth.example.com/oauth/refresh"
 
+
+    def test_bhv_misc_062_the_authorization_url_carries_the_declared_scopes(self) -> None:
+        from {{packageName}}.auth.oauth.user_auth_authorization_code_authenticator import (
+            UserAuthAuthorizationCodeAuthenticator,
+        )
+
+        auth = UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+
+        assert "&scope=pets%3Aread%20pets%3Awrite" in _without_pkce(auth.build_authorization_url())
 
 class TestAuthorizationCodeRedactedRepr:
     def test_bhv_authoauthtwoauthcode_025_repr_lists_the_non_secret_fields_and_masks_the_secret(self) -> None:

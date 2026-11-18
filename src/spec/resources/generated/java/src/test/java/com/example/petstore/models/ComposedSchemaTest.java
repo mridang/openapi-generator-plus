@@ -109,6 +109,56 @@ class ComposedSchemaTest {
     }
 
     @Test
+    void bhvMisc049AChoiceWithAListOfBinaryValuesWritesTheListAsBase64Text() {
+      byte[] first = new byte[] {0x01, 0x02, 0x03, 0x04};
+      SetPetAvatarThumbnailRequest request =
+          new SetPetAvatarThumbnailRequest(java.util.List.of(first));
+
+      String serialized = serializer.serialize(request);
+
+      assertThat(serialized).isEqualTo("[\"AQIDBA==\"]");
+      assertThat(serialized).doesNotContain("[1,2,3,4]");
+    }
+
+    @Test
+    void bhvMisc045APayloadFailingAVariantSchemaIsNotAcceptedAsThatVariant() {
+      for (String json :
+          java.util.List.of(
+              "{\"foodType\":3,\"weightKg\":2.5}",
+              "{\"FoodType\":\"dry\",\"weightKg\":2.5}",
+              "{\"foodType\":\"fish\",\"weightKg\":2.5}",
+              "{\"foodType\":\"dry\"}")) {
+        assertThrows(
+            SerializationException.class, () -> serializer.deserialize(json, PET_FOOD_TYPE));
+      }
+    }
+
+    @Test
+    void bhvMisc046UnionsWithEqualContentAreEqualAndHashEqually() {
+      com.example.petstore.models.Medication aspirin =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.Medication otherAspirin =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.Medication ibuprofen =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"ibuprofen\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.PetTreatment first =
+          com.example.petstore.models.PetTreatment.ofMedication(aspirin);
+      com.example.petstore.models.PetTreatment second =
+          com.example.petstore.models.PetTreatment.ofMedication(otherAspirin);
+      com.example.petstore.models.PetTreatment other =
+          com.example.petstore.models.PetTreatment.ofMedication(ibuprofen);
+      assertThat(second).isEqualTo(first);
+      assertThat(second.hashCode()).isEqualTo(first.hashCode());
+      assertThat(other).isNotEqualTo(first);
+    }
+
+    @Test
     void bhvUnions038UndecodableUnionBodyRaisesTheSerializationError() {
       assertThrows(
           SerializationException.class, () -> serializer.deserialize("[1, 2]", PET_TREATMENT_TYPE));

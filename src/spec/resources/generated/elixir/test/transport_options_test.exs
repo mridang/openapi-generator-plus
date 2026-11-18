@@ -11,6 +11,10 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.ca_cert_path == nil
   end
 
+  test "bhv misc 051 an option the transport cannot apply is refused rather than ignored" do
+    assert_raise KeyError, fn -> PetstoreClient.TransportOptions.new(no_such_option: 1) end
+  end
+
   test "bhv options 052 a proxy URL carrying credentials is accepted" do
     credentials = "user:" <> "pass"
     proxy = "http://" <> credentials <> "@proxy.example.com:8080"
@@ -510,6 +514,12 @@ defmodule PetstoreClient.TransportOptionsTest do
 
   test "bhv lifecycle 041 req_options finch conflicts with verify_ssl false" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
+    end
+  end
+
+  test "bhv misc 042 a supplied connection with verification turned off is refused and the error names verify_ssl" do
+    assert_raise ArgumentError, ~r/verify_ssl/, fn ->
       PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
     end
   end

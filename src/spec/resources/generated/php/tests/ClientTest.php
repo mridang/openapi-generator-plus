@@ -693,3 +693,12 @@ test('bhv lifecycle 041 a supplied http client with sdk proxy or tls settings is
     'ca bundle' => [TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
     'tls verification off' => [TransportOptions::builder()->verifySsl(false)->build()],
 ]);
+
+test('bhv misc 042 disabled verification on a supplied client is refused and the error names verifySsl', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->verifySsl(false)->build();
+
+    expect(fn () => Client::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'verifySsl');
+});

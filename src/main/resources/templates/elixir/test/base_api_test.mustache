@@ -804,6 +804,16 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     refute Map.has_key?(unauthenticated["headers"], "x-who")
   end
 
+  test "bhv misc 064 an operation that declares no security never sends the client's default credential", %{state: state} do
+    default = %TestAuthenticator{host_url: "", headers: %{"X-Who" => "default"}}
+    api = Map.merge(state, %{authenticator: default, scheme_authenticators: %{}})
+
+    assert {:ok, reply} =
+             {{moduleName}}.Api.BaseApi.invoke_api(api, :get, "/test/echo", %{}, %{}, nil, ["application/json"], "application/json", "Object", {{moduleName}}.Api.BaseApi.no_auth())
+
+    refute Map.has_key?(reply["headers"], "x-who")
+  end
+
   # Nil body handling
 
   test "bhv serializationobject 183 handles nil body", %{state: state} do
@@ -2534,6 +2544,37 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
     [request] = attempts()
     assert Req.Request.get_header(request, "x-other") == []
+  end
+
+  test "bhv misc 050 per-call options override the options object and an unset one falls through" do
+    options = %{timeout: 5000, max_retries: 4, headers: %{"X-Client" => "kept"}}
+    settings = {{moduleName}}.Api.BaseApi.call_settings(options, timeout: 1000, max_retries: nil)
+
+    assert settings[:timeout] == 1000
+    assert settings[:max_retries] == 4
+    assert settings[:headers] == %{"X-Client" => "kept"}
+  end
+
+  test "bhv misc 052 when the same per-call option is given twice the last one takes effect" do
+    settings = {{moduleName}}.Api.BaseApi.call_settings(nil, timeout: 1000, timeout: 2000)
+
+    assert settings[:timeout] == 2000
+  end
+
+  test "bhv misc 053 a per-call retry budget of zero is accepted and a negative or non-whole one is refused" do
+    assert {{moduleName}}.Api.BaseApi.call_settings(nil, max_retries: 0) == [max_retries: 0]
+
+    for bad <- [-1, 1.5] do
+      assert_raise ArgumentError, ~r/Invalid max_retries/, fn ->
+        {{moduleName}}.Api.BaseApi.call_settings(nil, max_retries: bad)
+      end
+    end
+  end
+
+  test "bhv misc 055 a per-call timeout, retry count or header set that is not valid is refused with an argument error" do
+    for opts <- [[timeout: -1], [max_retries: "x"], [headers: 5]] do
+      assert_raise ArgumentError, fn -> {{moduleName}}.Api.BaseApi.call_settings(nil, opts) end
+    end
   end
 
   test "bhv options 053 per-call timeout, retry limit and headers take effect on that one call only" do

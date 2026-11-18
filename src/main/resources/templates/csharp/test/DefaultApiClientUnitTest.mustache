@@ -69,6 +69,48 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc032TheRawResponseExposesItsStatusCodeBodyAndHeadersUnderPublicNames()
+    {
+        var httpClient = CreateMockHttpClient(
+            HttpStatusCode.Created, "raw-body", new Dictionary<string, string> { { "X-Raw", "yes" } });
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/raw"), new Dictionary<string, string>(), null);
+
+        Assert.Equal(201, response.StatusCode);
+        Assert.Equal("raw-body", response.Body);
+        Assert.Equal("yes", response.Headers["x-raw"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc037AResponseBodyThatIsNotDecodedKeepsItsContentLengthHeader()
+    {
+        var httpClient = CreateMockHttpClient(
+            HttpStatusCode.OK, "hello", new Dictionary<string, string> { { "Content-Length", "5" } });
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/length"), new Dictionary<string, string>(), null);
+
+        Assert.Equal("5", response.Headers["content-length"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc040ResponseHeaderNamesAreReturnedInLowerCase()
+    {
+        var httpClient = CreateMockHttpClient(
+            HttpStatusCode.OK, "ok", new Dictionary<string, string> { { "X-Mixed-Case", "v" } });
+        var client = new DefaultApiClient(httpClient);
+
+        var response = await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/names"), new Dictionary<string, string>(), null);
+
+        Assert.Equal("v", response.Headers["x-mixed-case"]);
+        Assert.DoesNotContain(response.Headers.Keys, key => key != key.ToLowerInvariant());
+    }
+
+    [Fact]
     public async Task BhvTransport050ReturnsNon2xxStatusCode()
     {
         var httpClient = CreateMockHttpClient(HttpStatusCode.NotFound, "not found");
@@ -243,6 +285,46 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc041ARequestWithANonStandardMethodIsSentWithItsBodyIntact()
+    {
+        string? method = null;
+        string? sent = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            method = req.Method.Method;
+            sent = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        await client.SendRequestAsync(
+            "PROPFIND",
+            new Uri("http://example.com/echo"),
+            new Dictionary<string, string> { { "Content-Type", "application/json" } },
+            "{\"key\":\"value\"}");
+
+        Assert.Equal("PROPFIND", method);
+        Assert.Equal("{\"key\":\"value\"}", sent);
+    }
+
+    [Fact]
+    public async Task BhvMisc043AnExplicitlyClearedUserAgentIsOmittedFromTheRequest()
+    {
+        bool present = true;
+        var handler = new CapturingHandler(req =>
+        {
+            present = req.Headers.Contains("User-Agent");
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().UserAgent(null).Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET", new Uri("http://example.com/test"), new Dictionary<string, string>(), null);
+
+        Assert.False(present);
+    }
+
+    [Fact]
     public void BhvTransport046ProxyAuthorizationHeaderIsNullWhenNoProxyIsConfigured()
     {
         var client = new DefaultApiClient();
@@ -335,6 +417,20 @@ public class DefaultApiClientUnitTest
         await client.SendRequestAsync("GET", new Uri("http://example.com/test"),
             new Dictionary<string, string>(), null);
         Assert.Equal("gzip, deflate, br", acceptEncoding);
+    }
+
+    [Fact]
+    public async Task BhvMisc039AWellFormedGzipStreamWithEmptyOrZeroContentIsReturnedAsThatContent()
+    {
+        var zeroHandler = new EncodedBodyHandler(HttpStatusCode.OK, GzipBytes("0"), "gzip", "text/plain");
+        var zero = await new DefaultApiClient(new HttpClient(zeroHandler)).SendRequestAsync(
+            "GET", new Uri("http://example.com/zero-gzip"), new Dictionary<string, string>(), null);
+        Assert.Equal("0", zero.Body);
+
+        var emptyHandler = new EncodedBodyHandler(HttpStatusCode.OK, GzipBytes(""), "gzip", "text/plain");
+        var empty = await new DefaultApiClient(new HttpClient(emptyHandler)).SendRequestAsync(
+            "GET", new Uri("http://example.com/blank-gzip"), new Dictionary<string, string>(), null);
+        Assert.Equal("", empty.Body);
     }
 
     [Fact]
@@ -880,6 +976,23 @@ public class DefaultApiClientUnitTest
             "POST", new Uri("http://example.com/upload"),
             new Dictionary<string, string>(),
             new Dictionary<string, object> { { "file", partStream } });
+        Assert.True(partStream.CanRead);
+    }
+
+    [Fact]
+    public async Task BhvMisc036ACallerBodyPartStaysOpenAfterTheRequestFails()
+    {
+        var handler = new CapturingHandler(req => throw new HttpRequestException("connection refused"));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        using var partStream = new MemoryStream(new byte[] { 4, 5, 6 });
+        await Assert.ThrowsAsync<NetworkException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("http://example.com/upload"),
+                new Dictionary<string, string>(),
+                new Dictionary<string, object> { { "file", partStream } }));
+
         Assert.True(partStream.CanRead);
     }
 
@@ -3703,6 +3816,17 @@ public class DefaultApiClientUnitTest
             response.Content.Headers.TryAddWithoutValidation("Content-Type", _contentType);
             return Task.FromResult(response);
         }
+    }
+
+    private static byte[] GzipBytes(string text)
+    {
+        using var compressed = new MemoryStream();
+        using (var gzip = new System.IO.Compression.GZipStream(
+            compressed, System.IO.Compression.CompressionLevel.Optimal, leaveOpen: true))
+        {
+            gzip.Write(Encoding.UTF8.GetBytes(text));
+        }
+        return compressed.ToArray();
     }
 
     private static HttpClient CreateMockHttpClient(

@@ -14,6 +14,17 @@ describe('SchemeAuthenticators', () => {
     expect(Object.getPrototypeOf(cls)).toBe(base);
   });
 
+  it('bhv misc 073 a wrapper class exists for every declared scheme', () => {
+    const wrappers: unknown[] = [
+{{#perSchemeAuthEntries}}
+      {{className}},
+{{/perSchemeAuthEntries}}
+    ];
+    for (const wrapper of wrappers) {
+      expect(typeof wrapper).toBe('function');
+    }
+  });
+
   const environmentSchemes: Array<[string, new (host: string, ...credentials: string[]) => unknown, string[]]> = [
 {{#perSchemeAuthEntries}}
 {{#envVars}}
