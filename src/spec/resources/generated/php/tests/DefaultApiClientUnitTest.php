@@ -2441,3 +2441,18 @@ test('bhv lifecycle 008 a closed client rejects further requests', function (): 
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
         ->toThrow(\LogicException::class);
 });
+
+test('bhv errors 057 a network failure error carries the request method and the path without its query', function (): void {
+    $refused = static function (): never {
+        throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($refused));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/items?token=secret', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\PetstoreClient\Errors\NetworkException $e) {
+        expect($e->getRequestMethod())->toBe('GET');
+        expect($e->getRequestPath())->toBe('/items');
+    }
+});

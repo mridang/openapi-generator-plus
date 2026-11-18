@@ -798,3 +798,21 @@ test('bhv authoauthtwotokenmgr 022 refresh grant carries the refresh token and t
     expect($client->capturedRequests[1]['body'])
         ->toBe('grant_type=refresh_token&refresh_token=old_refresh&client_id=cid&client_secret=sec');
 });
+
+test('bhv authoauthtwotokenmgr 047 an oauth2 server error without an error code names the status and the raw body', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(502, '<html>bad gateway</html>', ['Content-Type' => 'text/html']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->statusCode)->toBe(502);
+        expect($error->errorCode)->toBeNull();
+        expect($error->rawBody)->toBe('<html>bad gateway</html>');
+        expect($error->getMessage())->toBe('Token request failed with status 502: <html>bad gateway</html>');
+    }
+});

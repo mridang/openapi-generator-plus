@@ -403,3 +403,85 @@ test('bhv errors 036 the error carries the method and the path without the query
     expect($ex->getRequestMethod())->toBe('POST');
     expect($ex->getRequestPath())->toBe('/items');
 });
+
+test('bhv errors 058 a 400 response maps to the bad request error', function (): void {
+    $ex = ApiException::fromResponse(400, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\BadRequestException::class);
+    expect($ex->getStatusCode())->toBe(400);
+});
+
+test('bhv errors 059 a 403 response maps to the forbidden error', function (): void {
+    $ex = ApiException::fromResponse(403, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ForbiddenException::class);
+    expect($ex->getStatusCode())->toBe(403);
+});
+
+test('bhv errors 060 a 404 response maps to the not found error', function (): void {
+    $ex = ApiException::fromResponse(404, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\NotFoundException::class);
+    expect($ex->getStatusCode())->toBe(404);
+});
+
+test('bhv errors 061 a bad request error is a client error, an api error and the sdk root error', function (): void {
+    $ex = new \PetstoreClient\Errors\BadRequestException('bad input');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+    expect($ex)->toBeInstanceOf(ApiException::class);
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+});
+
+test('bhv errors 064 an empty message renders the default text, like a missing one', function (): void {
+    $default = 'Error message: the server returns an error';
+
+    expect((string) new ApiException(0, ''))->toBe($default);
+    expect((string) new ApiException())->toBe($default);
+    expect((string) new ApiException(500, ''))->toBe($default . "\nHTTP status code: 500");
+});
+
+test('bhv errors 065 the error text cuts a long response body at 1 KiB and counts the bytes left out', function (): void {
+    $ex = new ApiException(502, 'bad gateway', null, str_repeat('a', 3000));
+
+    expect((string) $ex)->toBe(
+        "bad gateway\nHTTP status code: 502\nResponse body: " . str_repeat('a', 1024) . '... (1976 more bytes)'
+    );
+    expect($ex->getResponseBody())->toBe(str_repeat('a', 3000));
+});
+
+test('bhv errors 066 a 429 response maps to the too many requests error that is a client error', function (): void {
+    $ex = ApiException::fromResponse(429, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\TooManyRequestsException::class);
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+    expect($ex->getStatusCode())->toBe(429);
+});
+
+test('bhv errors 067 a 409 response maps to the conflict error', function (): void {
+    $ex = ApiException::fromResponse(409, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ConflictException::class);
+    expect($ex->getStatusCode())->toBe(409);
+});
+
+test('bhv errors 068 a 422 response maps to the unprocessable entity error', function (): void {
+    $ex = ApiException::fromResponse(422, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\UnprocessableEntityException::class);
+    expect($ex->getStatusCode())->toBe(422);
+});
+
+test('bhv errors 069 a 500 response maps to the internal server error', function (): void {
+    $ex = ApiException::fromResponse(500, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\InternalServerErrorException::class);
+    expect($ex->getStatusCode())->toBe(500);
+});
+
+test('bhv errors 070 a 502 response maps to the server error', function (): void {
+    $ex = ApiException::fromResponse(502, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect($ex->getStatusCode())->toBe(502);
+});
