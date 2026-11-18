@@ -25,14 +25,14 @@ describe('Composed Schema', () => {
     expect(instance).toBeInstanceOf(WetFood);
   });
 
-  test('oneOf: a discriminated variant missing its required field is rejected', () => {
+  test('bhv misc 045 oneOf: a discriminated variant missing its required field is rejected', () => {
     const data = { foodType: 'dry' };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
       /^Failed to deserialize JSON: weightKg is required$/,
     );
   });
 
-  test('oneOf: a discriminated variant with a wrong-typed field is rejected', () => {
+  test('bhv langnode 050 oneOf: a discriminated variant with a wrong-typed field is rejected', () => {
     const data = { foodType: 'dry', weightKg: 'heavy' };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
       /^Failed to deserialize JSON: weightKg must be a number, got string$/,
@@ -91,7 +91,7 @@ describe('Composed Schema', () => {
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(SerializationError);
   });
 
-  test('oneOf: missing discriminator error names the property', () => {
+  test('bhv serialization 082 oneOf: missing discriminator error names the property', () => {
     const data = { weightKg: 2.5 };
     try {
       ObjectSerializer.deserialize(data, PetFood);
@@ -203,7 +203,7 @@ describe('Composed Schema', () => {
 
   // -- anyOf without discriminator: PetTreatment --
 
-  test('anyOf: PetTreatment is a constructable class', () => {
+  test('bhv langnode 051 anyOf: PetTreatment is a constructable class', () => {
     // PetTreatment must be a class (not just a type alias) to support runtime deserialization
     expect(typeof PetTreatment).toBe('function');
   });
@@ -234,7 +234,7 @@ describe('Composed Schema', () => {
     expect(() => ObjectSerializer.deserialize(data, PetTreatment)).toThrow(SerializationError);
   });
 
-  test('anyOf: PetTreatment rejects a type-invalid variant field', () => {
+  test('bhv langnode 052 anyOf: PetTreatment rejects a type-invalid variant field', () => {
     // oneof-nondiscriminator-type-invalid-silent: a non-discriminated variant
     // was matched purely structurally via plainToInstance + a hasValues check,
     // without re-running the variant model's constructor type-assertions. A
@@ -481,7 +481,7 @@ describe('Composed Schema', () => {
     }
   });
 
-  test('anyOf: a composite tells which variants matched and hands each back', () => {
+  test('bhv unions 046 anyOf: a composite tells which variants matched and hands each back', () => {
     const both = ObjectSerializer.deserialize({ drugName: 'Amoxicillin', procedureName: 'Spay' }, PetTreatment)!;
     const only = ObjectSerializer.deserialize({ drugName: 'Amoxicillin' }, PetTreatment)!;
 

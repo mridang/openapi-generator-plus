@@ -2099,3 +2099,16 @@ langnode049 | An empty API key is rejected at construction
 langcsharp054 | A rendered error body is capped in length and names how many characters were hidden
 langcsharp055 | A declared error schema exception subclasses its status class and holds an absent typed body
 langcsharp056 | The response factory that cannot be used directly is not part of the public surface
+||||||| 05b0daab7
+langnode050 | A discriminated oneOf variant with a wrong-typed field is rejected
+langnode051 | An anyOf composite is a constructable class
+langnode052 | An anyOf variant with a wrong-typed field is rejected
+langnode053 | The signal is undefined by default
+langnode054 | The printable form of a configuration omits the signal
+langnode055 | The call hook is undefined by default
+langnode056 | The builder stores the call hook
+langnode057 | The printable form of a configuration omits the call hook
+langnode058 | A credential falls back to the environment when no value is passed
+langnode059 | A missing credential error names the variable when nothing supplies the value
+langnode060 | An OAuth2 credential from the environment with a line break is refused
+langnode061 | An OAuth2 credential from the environment without a line break is accepted
