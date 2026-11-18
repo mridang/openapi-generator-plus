@@ -2714,4 +2714,80 @@ defmodule PetstoreClient.Api.PetApiTest do
     refute_received {:call_info, _}
     Agent.stop(name)
   end
+
+  test "bhv misc 003 an all-optional operation runs with no arguments and sends no omitted parameter" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert {:ok, _} = PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(api)
+    refute String.contains?(PathCapturingApiClient.captured_url(name), "status")
+    Agent.stop(name)
+  end
+
+  test "bhv misc 004 an operation with required fields and no options object raises naming the first missing field" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'session' when calling PetApi\.get_pet_summary/,
+                 fn ->
+                   PetstoreClient.Api.PetApi.get_pet_summary_with_http_info(
+                     api,
+                     5,
+                     ~D[2024-01-02],
+                     nil
+                   )
+                 end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv misc 005 a bare null body for a list operation raises an API error" do
+    api = new_pet_api_for_mock(200, "application/json", "null")
+
+    assert {:error, %PetstoreClient.Errors.ApiError{}} =
+             PetstoreClient.Api.PetApi.find_pets_by_status(api)
+  end
+
+  test "bhv misc 006 a bare null response through the http info variant gives no data and keeps the raw body" do
+    api = new_pet_api_for_mock(200, "application/json", "null")
+
+    assert {:ok, %PetstoreClient.ApiResult{data: nil, raw_body: "null"}} =
+             PetstoreClient.Api.PetApi.find_pets_by_status_with_http_info(api)
+  end
+
+  test "bhv misc 007 a missing required path parameter and options object names the path parameter and sends nothing" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'pet_id' when calling PetApi\.get_pet_summary/,
+                 fn ->
+                   PetstoreClient.Api.PetApi.get_pet_summary_with_http_info(
+                     api,
+                     nil,
+                     ~D[2024-01-02],
+                     nil
+                   )
+                 end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv misc 008 a supplied required cookie parameter is sent in the Cookie header" do
+    {:ok, name} = SummaryApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(SummaryApiClient, config)
+
+    options = %PetstoreClient.Api.Options.GetPetSummaryOptions{session: "abc"}
+    assert {:ok, _} = PetstoreClient.Api.PetApi.get_pet_summary(api, 7, ~D[2024-01-05], options)
+
+    assert SummaryApiClient.captured(name).headers["Cookie"] == "session=abc"
+    Agent.stop(name)
+  end
 end

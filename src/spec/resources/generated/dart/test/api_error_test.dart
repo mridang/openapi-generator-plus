@@ -1223,4 +1223,159 @@ void main() {
       },
     );
   });
+  group('ApiException contract', () {
+    test(
+      'bhv errors 085 a carriage return, line feed or control character in a body is escaped',
+      () {
+        const err = ApiException(
+          statusCode: 500,
+          message: 'boom',
+          responseBody: 'a\r\nb',
+        );
+
+        expect(
+          err.toString(),
+          equals('boom\nHTTP status code: 500\nResponse body: a\\x0D\\x0Ab'),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 086 keeps a body of exactly 1 KiB whole and the full body stays on the error',
+      () {
+        final body = 'a' * 1024;
+        final err = ApiException(
+          statusCode: 500,
+          message: 'boom',
+          responseBody: body,
+        );
+
+        expect(
+          err.toString(),
+          equals('boom\nHTTP status code: 500\nResponse body: $body'),
+        );
+        expect(err.responseBody, equals(body));
+      },
+    );
+
+    test(
+      'bhv errors 087 authentication and challenge headers are masked in the rendered message',
+      () {
+        const err = ApiException(
+          statusCode: 401,
+          message: 'denied',
+          responseHeaders: {
+            'Authorization': 'Bearer abc',
+            'WWW-Authenticate': 'Basic realm=x',
+          },
+          responseBody: '',
+        );
+
+        expect(err.toString(), isNot(contains('Bearer abc')));
+        expect(err.toString(), isNot(contains('realm=x')));
+      },
+    );
+
+    test(
+      'bhv errors 088 leaves out absent or empty sections and still renders the present ones',
+      () {
+        const err = ApiException(
+          statusCode: 500,
+          message: 'down',
+          responseHeaders: {},
+          responseBody: '',
+        );
+
+        expect(err.toString(), equals('down\nHTTP status code: 500'));
+      },
+    );
+
+    test(
+      'bhv errors 089 an error with no message renders the default text',
+      () {
+        const err = ApiException(statusCode: 0, message: '');
+        const bad = BadRequestException();
+
+        expect(
+          err.toString(),
+          equals('Error message: the server returns an error'),
+        );
+        expect(
+          bad.toString(),
+          equals('Error message: the server returns an error'),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 090 keeps absent response headers and body as null when no response arrived',
+      () {
+        final err = ApiException.fromResponse(0, null, null);
+
+        expect(err.responseHeaders, isNull);
+        expect(err.responseBody, isNull);
+      },
+    );
+
+    test(
+      'bhv errors 091 the message names the method and path of a request that got no response',
+      () {
+        final err = ApiException.fromResponse(
+          0,
+          null,
+          null,
+          requestMethod: 'GET',
+          requestPath: '/items/7',
+        );
+
+        expect(
+          err.toString().split('\n').first,
+          equals('GET /items/7 returned status code 0'),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 093 an error from a response exposes the decoded body beside the raw body',
+      () {
+        const raw = '\u{FEFF}{"code": 7}';
+        final err = ApiException.fromResponse(400, const {}, raw);
+
+        expect(err.errorBody, equals({'code': 7}));
+        expect(err.responseBody, equals(raw));
+      },
+    );
+
+    test(
+      'bhv errors 095 a typed 4xx error is matched by its status-class family',
+      () {
+        final err = ApiException.fromResponse(404, const {}, null);
+
+        expect(err, isA<ClientException>());
+        expect(err, isA<NotFoundException>());
+      },
+    );
+
+    test(
+      'bhv errors 096 a status outside every class range falls back to the base error',
+      () {
+        for (final status in [399, 600]) {
+          final err = ApiException.fromResponse(status, const {}, null);
+
+          expect(err.runtimeType, equals(ApiException), reason: '$status');
+          expect(err, isNot(isA<ClientException>()), reason: '$status');
+          expect(err, isNot(isA<ServerException>()), reason: '$status');
+        }
+      },
+    );
+
+    test(
+      'bhv errors 097 an unrecognised 4xx status raises the generic client error',
+      () {
+        final err = ApiException.fromResponse(499, const {}, null);
+
+        expect(err.runtimeType, equals(ClientException));
+      },
+    );
+  });
 }

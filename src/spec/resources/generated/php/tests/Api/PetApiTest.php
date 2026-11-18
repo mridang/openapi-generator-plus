@@ -1944,3 +1944,24 @@ test('bhv operations 159 a call that returns a value raises a typed api error wh
 
     expect(fn (): mixed => $api->getPetById(1))->toThrow(ApiException::class);
 });
+
+test('bhv misc 004 an options object missing a required field raises an argument error naming that field', function (): void {
+    expect(fn () => new GetPetSummaryOptions(timeout: 1000))
+        ->toThrow(\ArgumentCountError::class, '$session');
+});
+
+test('bhv misc 005 a bare null body for a list operation raises an api error', function (): void {
+    $api = newPetApiForMock(200, 'application/json', 'null');
+
+    expect(fn () => $api->findPetsByStatus(new FindPetsByStatusOptions('available')))
+        ->toThrow(ApiException::class);
+});
+
+test('bhv misc 006 a bare null response read with http info gives no data and keeps the raw body', function (): void {
+    $api = newPetApiForMock(200, 'application/json', 'null');
+
+    $result = $api->getPetPassportWithHttpInfo(1);
+
+    expect($result->data)->toBeNull();
+    expect($result->rawBody)->toBe('null');
+});

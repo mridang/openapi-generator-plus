@@ -658,3 +658,31 @@ test('bhv auth 021 a request with no client or operation credential is sent with
 
     expect($client->capturedHeaders)->not->toHaveKey('Authorization');
 });
+
+test('bhv misc 003 an all optional operation runs with no arguments and sends no omitted parameter', function (): void {
+    /** @var \ArrayObject<string, mixed> $captured */
+    $captured = new \ArrayObject(['url' => '']);
+
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
+        /** @param \ArrayObject<string, mixed> $captured */
+        public function __construct(private \ArrayObject $captured)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(string $method, string $url, array $headers, mixed $body, bool $noRedirect = false, bool $noDefaultHeaders = false): \PetstoreClient\ApiHttpResponse
+        {
+            $this->captured['url'] = $url;
+
+            return new \PetstoreClient\ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $api = new StoreApi(apiClient: $client, config: Configuration::builder()->baseUrl('http://localhost:9999')->build());
+
+    $api->getInventory();
+
+    expect($captured['url'])->not->toContain('?');
+});
