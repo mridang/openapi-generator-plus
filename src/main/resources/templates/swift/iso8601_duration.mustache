@@ -37,6 +37,10 @@ public func parseProtobufDuration(_ input: String) throws -> TimeInterval {
     guard let secs = Double(secsStr) else {
         throw SerializationError(message: "invalid protobuf duration: \(input)")
     }
+    /* The protobuf-JSON range is +-315 576 000 000 seconds, bound included. */
+    guard secs < 315_576_000_000 || (secs == 315_576_000_000 && nanos == 0) else {
+        throw SerializationError(message: "protobuf duration out of range: \(input)")
+    }
     let total = secs + nanos / 1_000_000_000
     return negative ? -total : total
 }

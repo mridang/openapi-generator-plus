@@ -134,7 +134,7 @@ import Testing
         #expect(result == "hello")
     }
 
-    @Test func testToHeaderValueStringSlice() {
+    @Test func testBhvSerializationobject210ToHeaderValueStringSlice() {
         let result = ObjectSerializer.toHeaderValue(["a", "b", "c"])
         #expect(result == "a,b,c")
     }
@@ -315,7 +315,7 @@ import Testing
         #expect(ObjectSerializer.stringify(42) == "42")
     }
 
-    @Test func testStringifyInt64() {
+    @Test func testBhvSerializationobject211StringifyInt64() {
         #expect(ObjectSerializer.stringify(Int64(9999999999)) == "9999999999")
     }
 
@@ -360,6 +360,13 @@ import Testing
     @Test func testBhvSerializationobject179WholeSecondDateTimeHasAFixedThreeDigitFraction() {
         let date = Date(timeIntervalSince1970: 0)
         #expect(ObjectSerializer.stringify(date) == "1970-01-01T00:00:00.000+00:00")
+    }
+
+    @Test func testBhvSerializationobject199SubsecondsArePreservedInASerializedDateTime() {
+        let date = Date(timeIntervalSince1970: 1705315800.123)
+        let result = ObjectSerializer.stringify(date)
+        #expect(result == "2024-01-15T10:50:00.123+00:00",
+            "the millisecond fraction must be kept, got: \(result)")
     }
 
     @Test func testStringifyNil() {
@@ -585,6 +592,15 @@ import Testing
     }
 
     @Test func testNilFieldsOmittedOnSerialize() throws {
+        // Category encodes optional fields with encodeIfPresent, so a field
+        // left nil must be dropped from the payload rather than emitted as null.
+        let category = {{packageName}}.Category(id: nil, name: "Dogs")
+        let json = try ObjectSerializer.serialize(category)
+        #expect(!json.contains("\"id\""), "nil id must be omitted, got: \(json)")
+        #expect(json.contains("\"name\":\"Dogs\""), "name should be present, got: \(json)")
+    }
+
+    @Test func testBhvSerializationobject202NilFieldsOmittedOnSerialize() throws {
         // Category encodes optional fields with encodeIfPresent, so a field
         // left nil must be dropped from the payload rather than emitted as null.
         let category = {{packageName}}.Category(id: nil, name: "Dogs")
@@ -885,6 +901,13 @@ import Testing
         #expect(first != BinaryVault(seal: first.seal, shards: first.shards, labels: ["k": Data([9])]))
     }
 
+    /* A differing map key makes two otherwise identical models unequal. */
+    @Test func testBhvSerializationobject206DifferingMapKeyMakesTwoModelsUnequal() {
+        let left = BinaryVault(seal: Data([1, 2, 3]), labels: ["first": Data([7, 8])])
+        let right = BinaryVault(seal: Data([1, 2, 3]), labels: ["second": Data([7, 8])])
+        #expect(left != right)
+    }
+
     /* A nickname longer than its declared maxLength still decodes and survives a round trip. */
     @Test func testBhvSerializationobject010NicknameBeyondMaxLengthRoundTrips() throws {
         let json = "{\"name\":\"Fido\",\"photoUrls\":[],\"nickname\":\"ZZZZZZZZZZ\"}"
@@ -997,7 +1020,7 @@ import Testing
 
     /* The rendered text of a serialization failure is the fixed sentence, a
      * colon, and what the encoder or decoder said. */
-    @Test func testSerializeFailureTextCarriesTheEncoderDetail() {
+    @Test func testBhvSerializationobject200SerializeFailureTextCarriesTheEncoderDetail() {
         let error = #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.serialize(Double.nan)
         }
@@ -1269,6 +1292,17 @@ import Testing
         }
     }
 
+    /* A protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected. */
+    @Test func testBhvSerializationobject223ProtobufDurationAcceptsTheBoundAndRejectsOnePastIt() throws {
+        #expect(try ObjectSerializer.decodeDuration("315576000000s") == 315576000000)
+        #expect(try ObjectSerializer.decodeDuration("-315576000000s") == -315576000000)
+        for literal in ["315576000001s", "-315576000001s", "315576000000.000000001s"] {
+            #expect(throws: SerializationError.self) {
+                _ = try ObjectSerializer.decodeDuration(literal)
+            }
+        }
+    }
+
     @Test func testBhvSerializationobject112DurationParseWholeSeconds() throws {
         let value = try ObjectSerializer.decodeDuration("5400s")
         #expect(value == 5_400)
@@ -1368,6 +1402,13 @@ import Testing
         let json = "{\"at\":\"14:30:00\"}"
         let decoded = try ObjectSerializer.deserialize(json, as: Holder.self)
         #expect(decoded?.at == "14:30:00")
+    }
+
+    /* A time value keeps its milliseconds when it is written. */
+    @Test func testBhvSerializationobject219TimeKeepsItsMillisecondsWhenWritten() throws {
+        let json = "{\"cutoff\":\"10:30:00.123\"}"
+        let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
+        #expect(try ObjectSerializer.serialize(value) == json)
     }
 
     // MARK: - oneOf/anyOf no-match
@@ -1569,6 +1610,12 @@ import Testing
             "the JSON number 2 must decode to Priority.number2")
     }
 
+    @Test func testBhvSerializationobject193IntegerEnumRejectsAnUnknownNumber() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"priority\":99}", as: StockItem.self)
+        }
+    }
+
     @Test func testBhvSerializationobject176IntegerEnumRoundTripPreservesMember() throws {
         let original = StockItem(priority: .number3)
         let json = try ObjectSerializer.serialize(original)
@@ -1590,7 +1637,7 @@ import Testing
             "wire casing 'Available' must be preserved, got: \(json)")
     }
 
-    @Test func testNonLowercaseStringEnumSerializesHyphenatedWireCasing() throws {
+    @Test func testBhvSerializationobject194NonLowercaseStringEnumSerializesHyphenatedWireCasing() throws {
         let item = StockItem(priority: .number1, availability: .onHold)
         let json = try ObjectSerializer.serialize(item)
         #expect(json.contains("\"availability\":\"on-hold\""),
@@ -1613,6 +1660,32 @@ import Testing
         }
     }
 
+    /* Hostile enum member wire strings are kept exactly through serialize and decode. */
+    @Test func testBhvSerializationobject208HostileEnumWireStringsAreKeptExactly() throws {
+        enum Hostile: String, Codable, CaseIterable {
+            case oclock = "o'clock"
+            case backslash = "a\\b"
+            case dollar = "$eq"
+            case interpolation = "#{x}"
+        }
+        for member in Hostile.allCases {
+            let quoted = try ObjectSerializer.serialize(member.rawValue)
+            #expect(try ObjectSerializer.serialize(member) == quoted,
+                "the wire string must be written exactly, got: \(quoted)")
+            #expect(try ObjectSerializer.deserialize(quoted, as: Hostile.self) == member)
+        }
+    }
+
+    /* A model copy replaces the given fields and leaves the original unchanged. */
+    @Test func testBhvSerializationobject209ModelCopyReplacesTheGivenFieldsAndLeavesTheOriginal() {
+        let original = StockItem(priority: .number1, availability: .available)
+        let sold: Availability? = .sold
+        let copied = original.copy(availability: .some(sold))
+        #expect(copied.availability == .sold)
+        #expect(copied.priority == .number1)
+        #expect(original.availability == .available)
+    }
+
     // MARK: - a default next to the $ref of an enum (StockItem.availability)
 
     /* StockItem.availability is a $ref to Availability with `default: on-hold` written
@@ -1631,7 +1704,7 @@ import Testing
         #expect(item?.availability == .onHold)
     }
 
-    @Test func testSiblingDefaultIsReplacedByAGivenValue() throws {
+    @Test func testBhvSerializationobject196SiblingDefaultIsReplacedByAGivenValue() throws {
         #expect(StockItem(priority: .number1, availability: .sold).availability == .sold)
         let item = try ObjectSerializer.deserialize(
             "{\"priority\":1,\"availability\":\"Sold\"}", as: StockItem.self)
@@ -1643,6 +1716,12 @@ import Testing
             "{\"priority\":1,\"availability\":null}", as: StockItem.self)
         #expect(item != nil)
         #expect(item?.availability == nil)
+    }
+
+    /* A content cookie value is the serializer JSON, percent encoded keeping only the unreserved set literal. */
+    @Test func testBhvSerializationobject224ContentCookieValueIsJsonPercentEncodedKeepingTheUnreservedSet() throws {
+        let json = try ObjectSerializer.serialize(["a": "b c"])
+        #expect(ValueSerializer.encodeCookieValue(json) == "%7B%22a%22%3A%22b%20c%22%7D")
     }
 
     // MARK: - format:byte round-trips through base64 (scalar + array)
@@ -1781,6 +1860,24 @@ import Testing
             "array byte variant must round-trip both payloads' bytes through base64")
     }
 
+    /* Each element of an array of byte values decodes from base64 to its raw bytes. */
+    @Test func testBhvSerializationobject221DeserializeDecodesEachBase64ElementToRawBytes() throws {
+        struct Scans: Codable, Equatable { let scans: [Data] }
+        let json = "{\"scans\":[\"\(Data([1, 2]).base64EncodedString())\",\"\(Data([254, 255]).base64EncodedString())\"]}"
+        let decoded = try #require(try ObjectSerializer.deserialize(json, as: Scans.self))
+        #expect(decoded.scans == [Data([1, 2]), Data([254, 255])])
+    }
+
+    /* Each element of an array of byte values is encoded to base64 in the wire array. */
+    @Test func testBhvSerializationobject222SerializeEncodesEachElementToBase64() throws {
+        struct Scans: Codable { let scans: [Data] }
+        let json = try ObjectSerializer.serialize(Scans(scans: [Data([1, 2]), Data([254, 255])]))
+        #expect(json.contains("\"\(Data([1, 2]).base64EncodedString())\""),
+            "the first element must be base64 in the array, got: \(json)")
+        #expect(json.contains("\"\(Data([254, 255]).base64EncodedString())\""),
+            "the second element must be base64 in the array, got: \(json)")
+    }
+
     // MARK: - double field deserializes from an INTEGRAL JSON value
 
     // PhotoMetadataLocation.lat/lng are `Double?`. A JSON payload that supplies
@@ -1817,6 +1914,14 @@ import Testing
             "additional properties must NOT be nested under a wrapper key, got: \(reserialized)")
     }
 
+    @Test func testBhvSerializationobject205ExtraKeySurvivesADeserializeSerializeRoundTrip() throws {
+        let first = try #require(try ObjectSerializer.deserialize("{\"extra\":\"kept\"}", as: Metadata.self))
+        let written = try ObjectSerializer.serialize(first)
+        let second = try #require(try ObjectSerializer.deserialize(written, as: Metadata.self))
+        #expect(second.additionalProperties["extra"]?.value as? String == "kept",
+            "the extra key must survive the round trip, got: \(written)")
+    }
+
     // MARK: - nested container (array-of-array<int>) deep round-trip
 
     // StockItem.matrix is `[[Int]]?` — a nested container. It must deep-decode
@@ -1850,7 +1955,7 @@ import Testing
             "sub-0.0001s duration must round-trip, got: \(out) -> \(parsed)")
     }
 
-    @Test func testDurationFormatNegativeSubTenThousandthNoScientificNotation() throws {
+    @Test func testBhvSerializationobject212DurationFormatNegativeSubTenThousandthNoScientificNotation() throws {
         let out = try ObjectSerializer.encodeDuration(-0.00005)
         #expect(out.hasPrefix("-"), "negative magnitude must keep its sign, got: \(out)")
         #expect(!out.lowercased().contains("e"),
@@ -1967,7 +2072,7 @@ import Testing
     //   the empty-body path already covered by testDeserializeEmptyDataReturnsNil.
     // - serialize(nil): serialize requires an Encodable value, so a bare null
     //   argument is not representable; a nil model field is omitted via
-    //   encodeIfPresent (see testNilFieldsOmittedOnSerialize).
+    //   encodeIfPresent (see testBhvSerializationobject202NilFieldsOmittedOnSerialize).
 
     // A format:byte model field (PetPassport.thumbnail) carrying a bad-alphabet
     // base64 string is rejected: JSONDecoder's Data base64 decode fails rather
@@ -1979,6 +2084,14 @@ import Testing
         }
     }
 
+    /* A byte field rejects every base64 spelling that is not padded standard base64. */
+    @Test(arguments: ["\"dGVzdA\"", "\"dGVz dA==\"", "\"dGVz\\ndA==\"", "\"-_8=\"", "\"!!!!\""])
+    func testBhvSerializationobject207NonStandardBase64IsRejected(encoded: String) {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"seal\":\(encoded)}", as: BinaryVault.self)
+        }
+    }
+
     // MARK: - Required and nullable property
 
     /* A required nullable property accepts an explicit null and keeps it. */
@@ -1986,6 +2099,11 @@ import Testing
         let decoded = try ObjectSerializer.deserialize("{\"note\":null}", as: RequiredNullable.self)
         #expect(decoded != nil)
         #expect(decoded?.note == nil)
+    }
+
+    /* A required nullable property that has a value is written as given. */
+    @Test func testBhvSerializationobject218RequiredNullableWritesAGivenValue() throws {
+        #expect(try ObjectSerializer.serialize(RequiredNullable(note: "n")) == "{\"note\":\"n\"}")
     }
 
     /* A required nullable property with the key absent is an error. */
