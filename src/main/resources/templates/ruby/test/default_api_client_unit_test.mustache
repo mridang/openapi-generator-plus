@@ -526,7 +526,7 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'leaves a caller-supplied upload stream open' do
+  it 'bhv_transport_061 leaves a caller-supplied stream open after the request body is sent' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/upload') { [200, {}, '{}'] }
     end
@@ -1512,10 +1512,42 @@ describe 'DefaultApiClientUnit' do
     _(err.message).must_include '/nonexistent/ca.pem'
   end
 
+  # A self-signed CA certificate for the trust-store tests below.
+  def self_signed_ca(name)
+    key = OpenSSL::PKey::RSA.new(2048)
+    ca = OpenSSL::X509::Certificate.new
+    ca.version = 2
+    ca.serial = rand(1..(2**31))
+    ca.subject = ca.issuer = OpenSSL::X509::Name.parse("/CN=#{name}")
+    ca.public_key = key.public_key
+    ca.not_before = Time.now - 60
+    ca.not_after = Time.now + 3600
+    factory = OpenSSL::X509::ExtensionFactory.new
+    factory.subject_certificate = ca
+    factory.issuer_certificate = ca
+    ca.add_extension(factory.create_extension('basicConstraints', 'CA:TRUE', true))
+    ca.sign(key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+    ca
+  end
+
+  it 'bhv_transport_066 a CA bundle file trusts every certificate it contains' do
+    cas = [self_signed_ca('bundle-one'), self_signed_ca('bundle-two')]
+    file = Tempfile.new(['bundle', '.pem'])
+    file.write(cas.map(&:to_pem).join)
+    file.close
+
+    transport = {{moduleName}}::TransportOptions.builder.ca_cert_path(file.path).build
+    ssl = {{moduleName}}::DefaultApiClient.new(transport).send(:build_connection).ssl
+    _(ssl.ca_file).must_equal file.path
+    store = OpenSSL::X509::Store.new
+    store.add_file(ssl.ca_file)
+    cas.each { |ca| _(store.verify(ca)).must_equal true }
+  end
+
   # A configured CA pins trust to that CA alone: the connection gets an empty
   # certificate store, because faraday-net_http would otherwise seed an unset
   # one with the system roots and accept public CAs as well.
-  it 'trusts only the configured CA, not the system roots' do
+  it 'bhv_transport_065 a configured CA bundle replaces the system trust store instead of adding to it' do
     key = OpenSSL::PKey::RSA.new(2048)
     ca = OpenSSL::X509::Certificate.new
     ca.version = 2
@@ -1860,6 +1892,12 @@ describe 'DefaultApiClientUnit' do
       _(followed['cookie']).must_equal 'session=abc'
       _(followed['x-trace']).must_equal 'keep'
     end
+  end
+
+  it 'bhv_redirects_037 keeps Authorization on a redirect to the explicit default port of the same origin' do
+    followed = headers_followed_to('http://origin.test/start', 'http://origin.test:80/landing')
+    _(followed).wont_be_nil
+    _(followed['authorization']).must_equal 'Bearer secret'
   end
 
   [
@@ -2235,6 +2273,14 @@ describe 'DefaultApiClientUnit' do
 
     _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
     _(envs.length).must_equal 1
+  end
+
+  it 'bhv_retries_042 does not retry a timeout' do
+    outcome, envs, delays = run_retry_probe { raise Faraday::TimeoutError, 'timed out' }
+
+    _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkTimeoutError
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
   end
 
   it 'bhv_retries_003 does not send a multipart body twice' do

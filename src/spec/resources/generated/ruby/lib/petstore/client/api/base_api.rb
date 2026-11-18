@@ -150,7 +150,7 @@ module Petstore::Client
         headers = {}
         headers['Accept'] = selected['Accept'] if selected['Accept']
         headers['Content-Type'] = selected['Content-Type'] if selected['Content-Type']
-        headers.merge!(@config.default_headers)
+        merge_call_headers(headers, @config.default_headers)
         headers.merge!(header_params)
         merge_call_headers(headers, request_options.headers) if request_options&.headers
         request_headers = authenticated_headers(headers, effective_auth)

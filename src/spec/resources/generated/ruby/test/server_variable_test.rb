@@ -39,7 +39,7 @@ describe Petstore::Client::ServerVariable do
     _(var.enum_values).wont_include 'dev'
   end
 
-  it 'is immutable and freezes its enum values' do
+  it 'bhv_servers_024 freezes its enum values so they cannot be mutated' do
     var = Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
     _(var).must_be :frozen?
     _(var.enum_values).must_be :frozen?
