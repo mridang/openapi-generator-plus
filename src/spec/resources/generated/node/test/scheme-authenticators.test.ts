@@ -87,7 +87,7 @@ describe("SchemeAuthenticators", () => {
     ],
     ["SsoAuthAuthenticator", SsoAuthAuthenticator, OpenIdConnectAuthenticator],
   ])(
-    "%s is exported from the package entry point and extends its base",
+    "bhv langnode 100 %s is exported from the package entry point and extends its base",
     (_name, cls, base) => {
       expect(typeof cls).toBe("function");
       expect(Object.getPrototypeOf(cls)).toBe(base);
@@ -240,7 +240,7 @@ describe("SchemeAuthenticators", () => {
       );
     });
 
-    it(`${name} fails when it is built and a variable is unset`, () => {
+    it(`bhv langnode 099 ${name} fails when it is built and a variable is unset`, () => {
       withVariables(
         variables,
         variables.map(() => undefined),

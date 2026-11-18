@@ -39,7 +39,7 @@ afterAll(async () => {
 });
 
 describe('Web (portable) transport', () => {
-  it('performs a plain request via global fetch', async () => {
+  it('bhv langnode 102 performs a plain request via global fetch', async () => {
     const client = new WebApiClient();
     const response = await client.sendRequest(
       'POST',
@@ -76,7 +76,7 @@ describe('Web (portable) transport', () => {
     expect(() => new WebApiClient(transport)).toThrow(TypeError);
   });
 
-  it('still honours plain requests when maxRedirects is set (cap lives in the base, not a dispatcher)', async () => {
+  it('bhv langnode 103 still honours plain requests when maxRedirects is set (cap lives in the base, not a dispatcher)', async () => {
     const transport = TransportOptions.builder().maxRedirects(3).build();
     const client = new WebApiClient(transport);
     const response = await client.sendRequest('GET', `${baseUrl}/echo`, {}, null);
