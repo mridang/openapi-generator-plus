@@ -313,5 +313,37 @@ defmodule {{moduleName}}.ServerConfigurationTest do
     end
   end
 
+
+  describe "misc parity five" do
+    test "bhv misc 154 editing the variables map read from a server configuration does not change the configuration" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "prod"}}
+      }
+
+      edited = Map.put(config.variables, "env", %ServerVariable{default_value: "dev"})
+      assert edited["env"].default_value == "dev"
+      assert config.variables["env"].default_value == "prod"
+    end
+
+    test "bhv misc 157 a server built with explicit variable values resolves those values into its URL" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com/v{version}",
+        variables: %{
+          "env" => %ServerVariable{default_value: "prod"},
+          "version" => %ServerVariable{default_value: "2"}
+        }
+      }
+
+      assert ServerConfiguration.url(config, %{"env" => "dev", "version" => "3"}) == "https://dev.api.example.com/v3"
+    end
+
+    test "bhv misc 158 a server built with a fixed URL reports exactly that URL, unchanged" do
+      config = %ServerConfiguration{url_template: "https://api.example.com/v1"}
+
+      assert ServerConfiguration.url(config) == "https://api.example.com/v1"
+    end
+  end
+
 end
 {{/generateTests}}

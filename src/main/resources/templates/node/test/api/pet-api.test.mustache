@@ -452,6 +452,17 @@ describe('PetApi', () => {
     }
   });
 
+  it.each([
+    [404, NotFoundError],
+    [500, InternalServerError],
+  ])('bhv misc 212 a %i response from a call raises the matching error class through the API layer', async (status, errorClass) => {
+    const { api: mockApi, close } = await createMockServer(status, 'application/json', '{"message":"failed"}');
+    try {
+      await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(errorClass);
+    } finally {
+      close();
+    }
+  });
   test('bhv operations 038 error handling server error throws InternalServerError', async () => {
     const { api: mockApi, close } = await createMockServer(500, 'application/json', '{"message":"Internal server error"}');
     try {
@@ -743,6 +754,15 @@ describe('PetApi form-urlencoded body serialization', () => {
     }
   });
 
+  test('bhv misc 210 a date-time form field is percent-escaped for its colons and plus sign', async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      await api.setPetPreferences(1, { nickname: 'good boy', renewalDate: '2024-01-01T13:45:30+02:00' });
+      expect(getCapture().body).toContain('renewalDate=2024-01-01T13%3A45%3A30%2B02%3A00');
+    } finally {
+      close();
+    }
+  });
   // #3 — spaces in a form-body value are encoded as '+', not %20, the
   // canonical application/x-www-form-urlencoded encoding.
   test('bhv serializationwire 055 a space in a form value encodes as plus', async () => {
@@ -1599,6 +1619,40 @@ describe('PetApi against a recording client', () => {
     },
   );
 
+  test('bhv misc 192 deletePet sends a cookie value made only of cookie octets exactly as given', async () => {
+    const octets = Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) => String.fromCharCode(0x21 + i)).filter(
+      (c) => !['"', ',', ';', '\\'].includes(c),
+    );
+    const value = octets.join('');
+
+    await recordingApi.deletePet(1, { apiKey: value });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.headers['Cookie']).toBe(`api_key=${value}`);
+  });
+
+  it.each([
+    ['text/plain', 'ok'],
+    ['application/json', '42'],
+  ])('bhv misc 209 a void operation ignores a %s success body and returns no data', async (contentType, body) => {
+    const textClient: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        return { statusCode: 200, body, headers: { 'content-type': contentType } };
+      },
+    };
+    const textApi = new PetApi(textClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
+
+    await expect(textApi.deletePet(1)).resolves.toBeUndefined();
+  });
+
+  test('bhv misc 213 an optional array query parameter is sent in its declared style, never bracketed or comma-joined', async () => {
+    await recordingApi.getPetTag(5, 'cute', { colors: ['blue', 'black'] });
+
+    const url = recorded[recorded.length - 1]!.url;
+    expect(url).toContain('colors=blue%7Cblack');
+    expect(url).not.toContain('colors%5B');
+    expect(url).not.toContain('blue%2Cblack');
+  });
   test.each(['a b', 'a;b', 'a,b', 'a"b', 'a\\b', 'café', 'a\tb'])(
     'bhv langnode 015 deletePet refuses the cookie value %p before sending',
     async (value) => {

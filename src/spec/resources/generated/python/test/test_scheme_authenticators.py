@@ -286,6 +286,18 @@ API_KEY_SCHEMES = [
 
 @pytest.mark.parametrize("module,name,variables", BEARER_SCHEMES)
 class TestBearerSchemeAuthenticator:
+    def test_bhv_misc_196_a_scheme_wrapper_with_no_token_from_argument_or_environment_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _clear(monkeypatch, variables)
+
+        with pytest.raises(ValueError, match=variables[0][1]):
+            _scheme_class(module, name)(HOST)
+
     def test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,

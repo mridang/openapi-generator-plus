@@ -2434,6 +2434,15 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert result == bytes
   end
 
+  test "bhv serialization 119 a response is decoded with its declared charset label and falls back to UTF-8 without one" do
+    assert PetstoreClient.DefaultApiClient.decode_text_body(
+             <<0xE9>>,
+             "text/plain; charset=ISO-8859-1"
+           ) == "é"
+
+    assert PetstoreClient.DefaultApiClient.decode_text_body("é", "text/plain") == "é"
+  end
+
   # WAVE F: a BOM-less utf-16 response body must decode as big-endian per
   # RFC 2781. The bytes 00 50 00 65 00 74 are "Pet" in UTF-16BE; the same
   # bytes read little-endian would be a different (CJK) string, so decoding
@@ -3665,6 +3674,24 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert String.contains?(serialized, "Content-Type: image/png"),
            "Expected image/png for .png file, got: #{serialized}"
+  end
+
+  test "bhv serialization 120 a multipart file part takes its Content-Type from its extension and falls back to octet-stream" do
+    pdf =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        %{"file" => {:file, "report.pdf", <<1, 2, 3>>}},
+        "BOUNDARY"
+      )
+
+    assert String.contains?(pdf, "Content-Type: application/pdf")
+
+    bare =
+      PetstoreClient.DefaultApiClient.build_multipart_body(
+        %{"file" => {:file, "README", <<1, 2, 3>>}},
+        "BOUNDARY"
+      )
+
+    assert String.contains?(bare, "Content-Type: application/octet-stream")
   end
 
   test "bhv serializationwire 039 a file with a dotted name and a png extension is image/png" do
@@ -5133,5 +5160,91 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{} = error} = get_thing(state)
     assert error.request_method == "GET"
     assert error.request_path == "/things"
+  end
+
+  test "bhv misc 159 a 401 is replayed once even when retries are off, when the authenticator can supply fresh credentials" do
+    client =
+      ScriptedApiClient.new(
+        token_answer(fn
+          "Bearer tok1" -> 401
+          _ -> 200
+        end)
+      )
+
+    assert {:ok, _} = put_thing(oauth_state(client), nil, "application/json")
+    assert length(api_requests(client)) == 2
+  end
+
+  test "bhv misc 160 an error that is not a network failure is never retried" do
+    state = retry_state([400, 200], max_retries: 2)
+
+    assert {:error, %PetstoreClient.Errors.BadRequestError{status_code: 400}} = get_thing(state)
+    assert length(attempts()) == 1
+  end
+
+  test "bhv misc 162 an idempotent request whose connection drops before any response is sent again exactly once" do
+    state = retry_state([{:transport_error, :closed}, 200], max_retries: 2)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 163 a request body holding a one-shot stream is not replayed on retry" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, 200])
+    body = Stream.repeatedly(fn -> "payload" end) |> Stream.take(1)
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             put_thing(state, body, "application/octet-stream")
+
+    assert length(attempts()) == 1
+  end
+
+  test "bhv misc 164 a retry whose wait fits within the remaining timeout budget is sent" do
+    state = retry_state([{503, [{"retry-after", "0"}]}, 200], timeout: 5000)
+
+    assert {:ok, _} = get_thing(state)
+    assert length(attempts()) == 2
+  end
+
+  test "bhv misc 167 an operation that keeps receiving a retryable status is attempted up to the retry limit and then raises it" do
+    state = retry_state([{503, [{"retry-after", "0"}]}])
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{status_code: 503}} =
+             get_thing(state)
+
+    assert length(attempts()) == 3
+  end
+
+  test "bhv misc 168 with no retry setting a failing request pauses half a second and then one second between attempts" do
+    assert PetstoreClient.TransportOptions.new().max_retries == 2
+    assert PetstoreClient.Api.BaseApi.backoff_delay(1, 0.0) == 500
+    assert PetstoreClient.Api.BaseApi.backoff_delay(2, 0.0) == 1000
+  end
+
+  test "bhv misc 169 the pause between retries starts at half a second, doubles on each attempt and never exceeds eight seconds" do
+    assert PetstoreClient.Api.BaseApi.backoff_delay(1, 0.0) == 500
+    assert PetstoreClient.Api.BaseApi.backoff_delay(2, 0.0) == 1000
+    assert PetstoreClient.Api.BaseApi.backoff_delay(10, 0.0) == 8000
+  end
+
+  test "bhv misc 171 a per-call max_retries larger than the transport limit applies to that call and allows more attempts" do
+    state = retry_state([{500, [{"retry-after", "0"}]}], max_retries: 1)
+
+    assert {:error, _} = get_thing_with(state, max_retries: 3)
+    assert length(attempts()) == 4
+  end
+
+  test "bhv misc 172 a request to a token endpoint is sent once and is not retried when the server answers 503" do
+    client =
+      ScriptedApiClient.new(fn url, _headers, _requests ->
+        if String.ends_with?(url, "/token") do
+          %PetstoreClient.ApiHttpResponse{status_code: 503, headers: %{}, body: ""}
+        else
+          %PetstoreClient.ApiHttpResponse{status_code: 200, headers: %{}, body: ""}
+        end
+      end)
+
+    assert {:error, _} = put_thing(oauth_state(client), nil, "application/json")
+    assert length(token_requests(client)) == 1
   end
 end

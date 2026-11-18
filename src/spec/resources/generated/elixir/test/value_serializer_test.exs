@@ -6,6 +6,33 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
     end
 
+    test "bhv serialization 108 a parameter with no declared style uses the default style for its location" do
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "id",
+               ["a", "b"],
+               :path,
+               "array",
+               nil,
+               nil,
+               false
+             ) ==
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "id",
+                 ["a", "b"],
+                 :path,
+                 "array",
+                 nil,
+                 "simple",
+                 false
+               )
+    end
+
+    test "bhv serialization 110 an absent value is sent as nil in the query location and as an empty value elsewhere" do
+      assert PetstoreClient.ValueSerializer.serialize(nil, :query, "string") == nil
+      assert PetstoreClient.ValueSerializer.serialize(nil, :header, "string") == ""
+      assert PetstoreClient.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
     test "bhv serializationparam 100 string returns URL-encoded value" do
       assert PetstoreClient.ValueSerializer.serialize("hello", :path, "string") == "hello"
     end

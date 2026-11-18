@@ -156,6 +156,25 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     });
   });
 
+  test("bhv misc 198 a new grant without expires_in clears the expiry of the previous token", async () => {
+    const sendSpy = jest.spyOn(mockClient, "sendRequest");
+    mockClient.responseBody = JSON.stringify({
+      access_token: "expiring-cc-token",
+      expires_in: 0,
+    });
+    expect(await authenticator.getAuthHeadersAsync()).toEqual({
+      Authorization: "Bearer expiring-cc-token",
+    });
+
+    mockClient.responseBody = JSON.stringify({ access_token: "open-cc-token" });
+    expect(await authenticator.getAuthHeadersAsync()).toEqual({
+      Authorization: "Bearer open-cc-token",
+    });
+    expect(await authenticator.getAuthHeadersAsync()).toEqual({
+      Authorization: "Bearer open-cc-token",
+    });
+    expect(sendSpy).toHaveBeenCalledTimes(2);
+  });
   test("bhv authoauthtwoclientcred 003 caches token across calls", async () => {
     // The token manager caches the access token until expiry, so two
     // consecutive header requests reuse the same token and issue only a

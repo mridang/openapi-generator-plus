@@ -530,6 +530,7 @@ elixir | misc103 | Elixir decodes every model leniently and has no strict-mode o
 elixir | misc116 | Elixir generated models do not enforce declared integer minimum and maximum bounds, so an out-of-range integer decodes like any other integer
 elixir | misc135 | Elixir has no cancellation handle or signal option on the client or its configuration: a call is cancelled by ending the calling process, so the builder stores no signal
 elixir | misc152 | Elixir has no cancel signal for a call: a call is cancelled by ending the calling process, so no call can be given an already-aborted signal to reject with
+elixir | misc153 | Elixir has no cancel signal for a call or the client: a call is cancelled by ending the calling process, so no signal set anywhere reaches the in-flight request as a value
 rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
 rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
 rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check
@@ -646,6 +647,12 @@ node | misc074 | BaseApi resolves one credential, the first listed scheme the cl
 node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
 node | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire 018), so a base64 body under a binary content type is returned as that text and never decoded to a string
 node | misc091 | settled decision S3 and bhv serialization 069: schema constraints such as pattern, length and range are not enforced by the client, so refusing a value that breaks one would contradict it
+csharp | serialization129 | TimeSpan stores 100-nanosecond ticks, so a duration with nanosecond precision cannot be held by the model
+||||||| 669862760
+node | misc211 | the node fixture has no operation that sends a query parameter as JSON content, so a date-time inside one has no wire form to keep (bhv serialization covers date-time query values)
+node | misc214 | the node fixture has no query parameter with a content media type, so no query value can fail to serialize as content; object-valued query parameters use the deepObject or form styles
+||||||| e3b1f22a2
+||||||| 537627306
 rust | misc101 | Rust multipart parts are byte buffers read before the call is made, so no part can fail to read while the request is sent and the call has no source to fail on
 ||||||| 1e358825c
 node | misc131 | The node client has no caller-supplied session object: every request goes through fetch with the SDK transport options, so no session can bypass the redirect rules.
@@ -662,5 +669,14 @@ dart | misc100 | Dart always builds a Map body as multipart/form-data through pa
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
 dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
 dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
+kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
+kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
+||||||| 3033dba2f
+node | misc149 | TypeScript rejects an undeclared property in the typed constructor argument at compile time, so no copy can carry one through the typed API.
+node | misc156 | The node generator emits no list of every server, so there is no declared order of all servers to keep; each operation exposes only its own server configuration.
+||||||| 45a6f404b
+java | misc135 | Java has no client-level cancellation handle to store: cancellation is the calling thread's interruption, so the configuration builder takes no cancel signal
+||||||| 72eb7d52b
 go | misc231 | Go model fields are statically typed, so a model built in code cannot hold a wrong-typed value for a declared property; the wrong-type check runs only when decoding
 go | misc215 | an input object with no declared fields has no declared defaults to fill, so there is no observable default-filling behaviour to test for it
+java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur

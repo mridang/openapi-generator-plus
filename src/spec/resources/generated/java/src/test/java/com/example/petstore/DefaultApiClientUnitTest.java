@@ -4183,4 +4183,203 @@ class DefaultApiClientUnitTest {
     assertTrue(
         thrown.getCause() instanceof IllegalArgumentException, String.valueOf(thrown.getCause()));
   }
+
+  @Test
+  void bhvMisc124A301HttpsToHttpRedirectRefusesTheBodyReplay() {
+    RecordingHttpClient transport = redirectingOnceTo(301, "http://api.example.invalid/plain");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    assertThrows(
+        com.example.petstore.errors.ApiException.class,
+        () ->
+            client.sendRequest(
+                "POST",
+                "https://api.example.invalid/start",
+                Map.of("Content-Type", "application/json"),
+                "{\"a\":1}"));
+    assertEquals(1, transport.requests.size());
+  }
+
+  @Test
+  void bhvMisc125A307RedirectThatUpgradesToHttpsIsNotRefusedAsABodyReplay() {
+    RecordingHttpClient transport = redirectingOnceTo(307, "https://api.example.invalid/upgraded");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest(
+            "POST",
+            "http://api.example.invalid/start",
+            Map.of("Content-Type", "application/json"),
+            "{\"a\":1}");
+    assertEquals(200, response.statusCode());
+    assertEquals("POST", transport.requests.get(1).method());
+  }
+
+  @Test
+  void bhvMisc126AHeadRequestRedirectedBy303IsFollowedAsHead() {
+    RecordingHttpClient transport = redirectingOnceTo(303, "https://api.example.invalid/elsewhere");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("HEAD", "https://api.example.invalid/start", Map.of(), null);
+    assertEquals(2, transport.requests.size());
+    assertEquals("HEAD", transport.requests.get(1).method());
+  }
+
+  @Test
+  void bhvMisc128ACrossOriginRedirectKeepsTheProxyCredentialOnTheSharedTransport()
+      throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(302, "https://other.example.invalid/hop");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .proxy("http://user:pass@proxy.example.com:3128")
+                .httpClient(transport)
+                .followRedirects(true)
+                .build());
+    client.sendRequest("GET", "https://api.example.invalid/start", Map.of(), null);
+    assertEquals(2, transport.requests.size());
+    Field field = DefaultApiClient.class.getDeclaredField("proxyAuthHeader");
+    field.setAccessible(true);
+    assertEquals("Basic dXNlcjpwYXNz", field.get(client));
+  }
+
+  @Test
+  void bhvMisc129AProxyCredentialTheSdkAddsIsNotResentOnACrossOriginHop() {
+    RecordingHttpClient transport = redirectingOnceTo(302, "https://other.example.invalid/hop");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .proxy("http://user:pass@proxy.example.com:3128")
+                .httpClient(transport)
+                .followRedirects(true)
+                .build());
+    client.sendRequest("GET", "https://api.example.invalid/start", Map.of(), null);
+    assertEquals(2, transport.requests.size());
+    assertTrue(transport.requests.get(1).headers().firstValue("Proxy-Authorization").isEmpty());
+  }
+
+  @Test
+  void bhvMisc130ACredentialRemovedByACrossOriginHopIsNotRestoredOnReturn() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder =
+        request -> {
+          String path = request.uri().getPath();
+          if (path.equals("/start")) {
+            return RecordingHttpClient.redirect(302, "https://other.example.invalid/hop", request);
+          }
+          if (path.equals("/hop")) {
+            return RecordingHttpClient.redirect(302, "https://api.example.invalid/back", request);
+          }
+          return RecordingHttpClient.redirect(200, null, request);
+        };
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest(
+        "GET", "https://api.example.invalid/start", Map.of("Authorization", "Bearer secret"), null);
+    assertEquals(3, transport.requests.size());
+    assertTrue(transport.requests.get(1).headers().firstValue("Authorization").isEmpty());
+    assertTrue(transport.requests.get(2).headers().firstValue("Authorization").isEmpty());
+  }
+
+  @Test
+  void bhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() {
+    RecordingHttpClient transport = redirectingOnceTo(302, "https://api.example.invalid/landing");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest("GET", "https://api.example.invalid/start", Map.of(), null);
+    assertEquals(2, transport.requests.size());
+    assertEquals(200, response.statusCode());
+  }
+
+  @Test
+  void bhvMisc132APerCallHeaderWithACredentialWordIsDroppedOnACrossOriginRedirect() {
+    RecordingHttpClient transport = redirectingOnceTo(302, "https://other.example.invalid/end");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest(
+        "GET", "https://api.example.invalid/start", Map.of("X-Call-Token", "abc"), null);
+    assertEquals(
+        java.util.Optional.of("abc"),
+        transport.requests.get(0).headers().firstValue("X-Call-Token"));
+    assertTrue(transport.requests.get(1).headers().firstValue("X-Call-Token").isEmpty());
+  }
+
+  @Test
+  void bhvMisc133A300Or305WithALocationIsReturnedUnfollowed() {
+    for (int status : new int[] {300, 305}) {
+      RecordingHttpClient transport =
+          redirectingOnceTo(status, "https://api.example.invalid/elsewhere");
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+      ApiHttpResponse response =
+          client.sendRequest("GET", "https://api.example.invalid/start", Map.of(), null);
+      assertEquals(1, transport.requests.size());
+      assertEquals(status, response.statusCode());
+    }
+  }
+
+  @Test
+  void bhvMisc152ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing() throws Exception {
+    java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer server = HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/";
+      Thread.currentThread().interrupt();
+      try {
+        assertThrowsExactly(
+            java.util.concurrent.CancellationException.class,
+            () -> client.sendRequest("GET", url, Map.of(), null));
+      } finally {
+        Thread.interrupted();
+      }
+    } finally {
+      server.stop(0);
+    }
+    assertEquals(0, hits.get());
+  }
+
+  @Test
+  void bhvMisc153ACancelSignalCancelsTheSameInFlightRequest() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client = new DefaultApiClient();
+      java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread caller =
+          new Thread(
+              () -> {
+                try {
+                  client.sendRequest("GET", url, Map.of(), null);
+                } catch (Throwable thrown) {
+                  failure.set(thrown);
+                }
+              });
+      caller.start();
+      Thread.sleep(300);
+      caller.interrupt();
+      caller.join(5000);
+      assertFalse(caller.isAlive(), "the cancelled call must return promptly");
+      assertTrue(
+          failure.get() instanceof java.util.concurrent.CancellationException,
+          String.valueOf(failure.get()));
+    }
+  }
 }
