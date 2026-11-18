@@ -788,7 +788,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
     }
   });
 
-  test("bhv operations 138 an error response is thrown as the exception class specific to its status through the typed routes", async () => {
+  test("an error response on a typed route is thrown as the exception class specific to its status, not the generic client error", async () => {
     for (const status of [400, 404, 422, 500]) {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
