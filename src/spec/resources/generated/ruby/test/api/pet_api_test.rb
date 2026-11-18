@@ -1787,6 +1787,13 @@ describe Petstore::Client::Api::PetApi do
       client.url
     end
 
+    it 'bhv_operations_160 a call to an external-variant operation is sent to the URL of the generated server variant' do
+      url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
+        api.get_external_pet_info(7, server: server)
+      end
+      _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
+    end
+
     it 'bhv_operations_083 sends the single-server operation to its fixed URL' do
       url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
         api.get_external_pet_info(7, server: server)
