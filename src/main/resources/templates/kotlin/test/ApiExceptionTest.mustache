@@ -703,6 +703,7 @@ class ApiExceptionTest {
         }
     }
 
+    @Test
     @DisplayName("bhvErrors201 an error is retryable exactly for the statuses the client retries")
     fun anErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
         for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {

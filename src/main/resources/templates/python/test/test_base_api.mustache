@@ -1288,6 +1288,16 @@ class TestContentTypeDeserialization:
                             ['text/plain'], 'application/json', 'Pet')
 
     async def test_bhv_errors_054_unexpected_content_type_names_the_operation(self) -> None:
+        client = PlainTextApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(SerializationException) as excinfo:
+            await stub.call('GET', '/test/echo', {}, {}, None,
+                            ['text/plain'], 'application/json', 'Pet',
+                            operation_name='get_pet_by_id')
+        assert excinfo.value.message == (
+            "Unexpected response Content-Type 'text/plain' for StubApi.get_pet_by_id: expected a JSON body"
+        )
 
     async def test_bhv_errors_205_a_decode_failure_carries_the_response_and_the_request(self) -> None:
         client = MalformedJsonApiClient()
