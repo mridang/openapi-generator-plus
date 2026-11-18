@@ -4518,4 +4518,23 @@ class ObjectSerializerTest {
             .putAdditionalProperty("b", "3")
             .build());
   }
+
+  @Test
+  @DisplayName("bhvMisc214 an unserializable query content value raises a serialization error")
+  void bhvMisc214AnUnserializableQueryContentValueRaisesASerializationError() {
+    Map<String, Object> cyclic = new java.util.HashMap<>();
+    cyclic.put("self", cyclic);
+    assertThrows(SerializationException.class, () -> serializer.serialize(cyclic));
+  }
+
+  @Test
+  @DisplayName("bhvMisc215 an input object with no fields is filled with its declared defaults")
+  void bhvMisc215AnEmptyObjectIsFilledWithItsDeclaredDefaults() {
+    com.example.petstore.models.Order order =
+        serializer.deserialize(
+            "{}",
+            new com.fasterxml.jackson.core.type.TypeReference<
+                com.example.petstore.models.Order>() {}.getType());
+    assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order.status);
+  }
 }

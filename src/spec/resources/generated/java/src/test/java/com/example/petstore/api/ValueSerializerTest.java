@@ -1230,4 +1230,19 @@ class ValueSerializerTest {
         "a%20b",
         ValueSerializer.serializeStyled("sid", "a%20b", "cookie", "string", null, "form", true));
   }
+
+  @Test
+  @DisplayName("bhvMisc213 an optional array query parameter is joined in its declared style")
+  void bhvMisc213AnOptionalArrayQueryParameterIsJoinedInItsDeclaredStyle() {
+    assertEquals(
+        "blue|black",
+        ValueSerializer.serializeStyled(
+            "colors",
+            Arrays.asList("blue", "black"),
+            "query",
+            "array",
+            null,
+            "pipeDelimited",
+            false));
+  }
 }
