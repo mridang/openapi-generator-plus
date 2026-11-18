@@ -1977,4 +1977,5 @@ langkotlin032 | Every development dependency the generated tests use is declared
 langkotlin033 | Generated sources contain no HTML character entities
 langkotlin034 | A generated OAuth2 client credentials wrapper prefers its argument to its variable
 langkotlin035 | A generated OAuth2 password wrapper reads every credential from its own variable
+langkotlin036 | A non-finite expires_in value leaves the token stale
 langkotlin054 | A password grant wrapper whose refresh is rejected falls back to the original grant
