@@ -144,6 +144,24 @@ class TestExceptionDispatch:
         assert exc_info.value.response_body is not None
         assert len(exc_info.value.response_body) > 0
 
+    @pytest.mark.parametrize('status', [400, 401, 403, 404, 409, 422, 429, 500, 502])
+    async def test_bhv_misc_264_each_listed_error_status_raises_the_api_error_with_that_code(self, status: int) -> None:
+        client = _ScriptedApiClient(_json(status, '{}'))
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+
+        with pytest.raises(ApiException) as exc_info:
+            await api.call('GET', '/items', {}, {}, None, ['application/json'], 'application/json', None)
+
+        assert exc_info.value.status_code == status
+
+    async def test_bhv_misc_274_a_non_2xx_response_is_returned_to_the_caller_with_its_status(self) -> None:
+        client = _ScriptedApiClient(_json(404, '{}'))
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+
+        result = await api.call_result('GET', '/items', {}, {}, None, ['application/json'], 'application/json', None)
+
+        assert result.status_code == 404
+
 
 class TestErrorBodyParsing:
 
@@ -273,6 +291,31 @@ class TestCallerCancellation:
             assert not isinstance(exc_info.value, ApiException)
         finally:
             client.release.set()
+
+    async def test_bhv_misc_262_cancelling_the_call_surfaces_the_cancelled_error_unwrapped(self) -> None:
+        client = _BlockingApiClient()
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+        try:
+            task = asyncio.ensure_future(
+                api.call('GET', '/items', {}, {}, None, ['application/json'], 'application/json', None))
+            await asyncio.sleep(0.05)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+        finally:
+            client.release.set()
+
+    async def test_bhv_misc_263_a_per_call_timeout_longer_than_the_client_timeout_lets_a_slow_response_complete(self) -> None:
+        client = _BlockingApiClient()
+        api = StubApi(api_client=client, config=Configuration(base_url='https://example.test'))
+        threading.Timer(0.2, client.release.set).start()
+
+        result = await api.call_result(
+            'GET', '/items', {}, {}, None, ['application/json'], 'application/json', None,
+            request_options=FindPetsByStatusOptions(timeout=5000),
+        )
+
+        assert result.status_code == 200
 
 
 class _ScriptedApiClient(ApiClient):
