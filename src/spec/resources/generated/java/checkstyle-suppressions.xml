@@ -40,7 +40,7 @@
   <!-- A generated API file is operation-major: each operation's overloads and
        its private *Internal helper form one block, as in every other SDK.
        Grouping by method name instead would interleave unrelated operations. -->
-  <suppress checks="OverloadMethodsDeclarationOrder" files="[\\/]api[\\/][^\\/]*Api\.java$"/>
+  <suppress checks="OverloadMethodsDeclarationOrder" files="[\\/]api[\\/][^\\/]*Api(Interface)?\.java$"/>
 
   <!-- A generated request body declares its parts (path, query params, header
        params, auth) in one fixed order, whether or not a given operation uses
