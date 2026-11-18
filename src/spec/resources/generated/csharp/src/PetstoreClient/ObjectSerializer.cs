@@ -9,6 +9,7 @@
 using System.Collections;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using PetstoreClient.Errors;
 
@@ -71,6 +72,7 @@ internal partial class ObjectSerializer
         {
             value = wrapper.ActualInstance;
         }
+        value = WithSortedKeys(value);
         try
         {
             return JsonSerializer.Serialize(value, _options);
@@ -571,6 +573,30 @@ internal partial class ObjectSerializer
                 object other => other,
                 null => null,
             };
+    }
+
+    /// <summary>
+    /// Returns a plain map (any non-JSON-tree <see cref="IDictionary"/>, at any
+    /// depth) as a <see cref="SortedDictionary{TKey,TValue}"/> keyed by ordinal
+    /// comparison, so its keys are written in ascending order. Models and other
+    /// values are returned unchanged and keep their declared property order.
+    /// </summary>
+    private static object? WithSortedKeys(object? value)
+    {
+        if (value is not IDictionary dictionary || value is JsonNode)
+        {
+            return value;
+        }
+        SortedDictionary<string, object?> sorted = new(StringComparer.Ordinal);
+        foreach (DictionaryEntry entry in dictionary)
+        {
+            if (entry.Key is not string key)
+            {
+                return value;
+            }
+            sorted.Add(key, WithSortedKeys(entry.Value));
+        }
+        return sorted;
     }
 
     private static Dictionary<string, TValue> WithoutDeclaredKeys<TValue>(

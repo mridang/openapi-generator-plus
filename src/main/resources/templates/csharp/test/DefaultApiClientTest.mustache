@@ -190,7 +190,7 @@ public class DefaultApiClientTest
         var bundlePath = Path.GetTempFileName();
         try
         {
-            await File.WriteAllTextAsync(bundlePath, unrelated.ExportCertificatePem() + caPem, TestContext.Current.CancellationToken);
+            await File.WriteAllTextAsync(bundlePath, unrelated.ExportCertificatePem().TrimEnd() + "\n" + caPem.TrimStart(), TestContext.Current.CancellationToken);
             var transport = TransportOptions.Builder()
                 .VerifySsl(true)
                 .CaCertPath(bundlePath)

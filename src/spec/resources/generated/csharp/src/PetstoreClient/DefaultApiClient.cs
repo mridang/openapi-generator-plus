@@ -227,7 +227,11 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             X509Certificate2Collection caCerts = [];
             try
             {
-                caCerts.ImportFromPemFile(transportOptions.CaCertPath);
+                /* Read the bundle as text and normalise CRLF to LF before parsing:
+                 * a bundle written on Windows (or by keytool) must load the same
+                 * as an LF one, and ImportFromPemFile does not accept CRLF. */
+                string caPem = System.IO.File.ReadAllText(transportOptions.CaCertPath);
+                caCerts.ImportFromPem(caPem.Replace("\r\n", "\n", StringComparison.Ordinal));
             }
             catch (Exception ex) when (ex is System.IO.IOException or UnauthorizedAccessException)
             {

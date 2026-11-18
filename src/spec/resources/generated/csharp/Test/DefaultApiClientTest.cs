@@ -214,7 +214,7 @@ public class DefaultApiClientTest
         {
             await File.WriteAllTextAsync(
                 bundlePath,
-                unrelated.ExportCertificatePem() + caPem,
+                unrelated.ExportCertificatePem().TrimEnd() + "\n" + caPem.TrimStart(),
                 TestContext.Current.CancellationToken
             );
             var transport = TransportOptions

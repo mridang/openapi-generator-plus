@@ -133,8 +133,13 @@ public partial class OpenIdConnectAuthenticator
            The request goes to the identity provider, not to the API, so it is
            sent as a no-redirect request: the transport default headers (an
            API Authorization or key header) stay off it, like the token POST. */
+        IApiClient apiClient =
+            _apiClient
+            ?? throw new InvalidOperationException(
+                "ApiClient has not been injected. Call SetApiClient() before discovery."
+            );
         Dictionary<string, string> headers = new() { ["Accept"] = "application/json" };
-        ApiHttpResponse response = await _apiClient
+        ApiHttpResponse response = await apiClient
             .SendRequestAsync("GET", _openIdConnectUrl, headers, null, true)
             .ConfigureAwait(false);
 
