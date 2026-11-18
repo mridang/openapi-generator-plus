@@ -1292,6 +1292,13 @@ describe("ValueSerializer", () => {
       );
     });
 
+    test("bhv serializationobject 224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal", () => {
+      const json = JSON.stringify({ k: "a b~*é" });
+      expect(ValueSerializer.encodeQueryComponent(json)).toBe(
+        "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
+      );
+    });
+
     test("bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal", () => {
       expect(ValueSerializer.encodeQueryComponent("AZaz09-._~")).toBe(
         "AZaz09-._~",

@@ -24,6 +24,8 @@ const NANOS_PER_SECOND = 1_000_000_000n;
  * `"-1.5s"`).
  */
 const PROTO_DURATION_PATTERN = /^-?\d+(\.\d{1,9})?s$/;
+/** google.protobuf.Duration bound, in whole seconds (the magnitude, either sign). */
+const PROTO_DURATION_MAX_SECONDS = 315576000000;
 
 /**
  * Whether a value is a Temporal object of the given kind (or of any kind when
@@ -122,6 +124,16 @@ export function durationFromProtoJson(value: string): Temporal.Duration {
   const [secPart, fracPart = ""] = body.split(".");
   const seconds = Number(secPart);
   const nanoseconds = Number(fracPart.padEnd(9, "0").slice(0, 9));
+  /* google.protobuf.Duration is bounded at +-315,576,000,000 seconds: the bound itself is
+   * accepted and anything past it (including a fraction beyond the bound) is rejected. */
+  if (
+    seconds > PROTO_DURATION_MAX_SECONDS ||
+    (seconds === PROTO_DURATION_MAX_SECONDS && nanoseconds > 0)
+  ) {
+    throw new SerializationError(
+      `Invalid protobuf-JSON duration ${JSON.stringify(value)}: value is out of range.`,
+    );
+  }
   try {
     return Temporal.Duration.from({
       seconds: negative ? -seconds : seconds,
