@@ -1599,7 +1599,8 @@ fn test_bhv_errors_093_a_bom_prefixed_body_is_decoded_and_the_raw_body_kept() {
     let raw = "\u{feff}{\"a\":1}";
     let err = ApiError::new(400, "bad".to_string(), None, Some(raw.to_string()));
     let body = err.error_body().expect("a BOM-prefixed body must parse");
-    assert_eq!(body["a"], serde_json::json!(1));
+    let parsed: serde_json::Value = serde_json::from_str(&body.to_json_string().unwrap()).unwrap();
+    assert_eq!(parsed["a"], serde_json::json!(1));
     assert_eq!(Some(raw), err.response_body());
 }
 

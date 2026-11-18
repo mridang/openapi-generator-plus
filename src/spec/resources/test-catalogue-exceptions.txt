@@ -432,3 +432,8 @@ csharp | misc283 | C# has no package root module to re-export from: the error ty
 rust | misc004 | Rust operations take required parameters as positional arguments, so omitting one is refused by the compiler and no run-time argument error naming the field exists
 ||||||| 92a9dd837
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+rust | misc083 | Rust builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
+rust | misc085 | the trackingId parameter is typed uuid::Uuid, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder
+rust | misc088 | Rust's number is f64 and documented lossy (serializationobject002), so the decimal places a value was written with are not kept and the exact-decimal writing this promise needs is not the Rust contract
+rust | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
+rust | misc098 | Rust multipart parts hold owned bytes (MultipartValue::Bytes(Vec<u8>)) and take no caller-supplied stream, so there is no stream the SDK could read into the body or leave open

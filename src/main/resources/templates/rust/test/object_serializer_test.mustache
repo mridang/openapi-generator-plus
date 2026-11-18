@@ -1291,3 +1291,72 @@ fn test_bhv_serializationobject_080_protobuf_durations_accept_the_full_range_and
     assert!(proto_duration::parse("315576000001s").is_err());
 }
 
+
+#[test]
+fn test_bhv_misc_087_a_decimal_field_in_a_loose_body_is_a_bare_json_number() {
+    use {{packageName}}::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(1.5);
+    let json = serde_json::to_string(&pet).expect("serialize");
+    assert!(json.contains(r#""weightKg":1.5"#), "got: {}", json);
+    assert!(!json.contains(r#""weightKg":"1.5""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_misc_089_a_date_time_is_canonical_inside_a_list() {
+    use {{packageName}}::date_time::DateTime;
+
+    let at = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45Z").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&vec![at]).expect("serialize"),
+        "[\"2024-01-01T12:30:45.000+00:00\"]"
+    );
+}
+
+#[test]
+fn test_bhv_misc_090_a_record_duration_writes_its_fraction_in_the_wire_form() {
+    use {{packageName}}::models::EdgeCases;
+    use chrono::TimeDelta as Duration;
+
+    let edge = EdgeCases {
+        retry_after: Some(Duration::milliseconds(1500)),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&edge).expect("serialize");
+    assert!(json.contains(r#""retryAfter":"1.500s""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_misc_092_properties_are_matched_only_by_their_wire_name() {
+    use {{packageName}}::models::EdgeCases;
+
+    let edge: EdgeCases = serde_json::from_str(r#"{"retry_after":"5s"}"#).expect("decode");
+    assert!(edge.retry_after.is_none());
+}
+
+#[test]
+fn test_bhv_misc_093_additional_properties_with_numeric_names_are_object_members() {
+    use {{packageName}}::json_value::JsonValue;
+    use {{packageName}}::models::Freeform;
+
+    let mut freeform = Freeform::default();
+    freeform
+        .additional_properties
+        .insert("404".to_string(), JsonValue::new(serde_json::json!(true)));
+    let json = serde_json::to_string(&freeform).expect("serialize");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"404": true}));
+}
+
+#[test]
+fn test_bhv_misc_094_a_free_form_json_object_is_written_with_its_members_unchanged() {
+    use {{packageName}}::json_value::JsonValue;
+
+    let value = JsonValue::new(serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"}));
+    let json = serde_json::to_string(&value).expect("serialize");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"}));
+}
