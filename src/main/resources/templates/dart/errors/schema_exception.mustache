@@ -5,7 +5,6 @@ import 'api_exception.dart';
 {{^parentIsApi}}
 import '{{parentFilename}}.dart';
 {{/parentIsApi}}
-import 'serialization_exception.dart';
 
 /// Exception for a response whose body is a [{{schemaName}}], declared under HTTP
 /// {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}.
