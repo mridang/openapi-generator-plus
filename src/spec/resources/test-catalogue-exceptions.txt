@@ -579,3 +579,7 @@ csharp | misc178 | the C# client builds every multipart body as MultipartFormDat
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 csharp | misc188 | the C# client exposes no public closed state to read, so the only observable effect of closing it is the transport release already pinned by the lifecycle tests
+node | misc074 | BaseApi resolves one credential, the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
+node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
+node | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire 018), so a base64 body under a binary content type is returned as that text and never decoded to a string
+node | misc091 | settled decision S3 and bhv serialization 069: schema constraints such as pattern, length and range are not enforced by the client, so refusing a value that breaks one would contradict it
