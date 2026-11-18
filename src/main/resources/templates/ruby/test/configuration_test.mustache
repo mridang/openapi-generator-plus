@@ -179,6 +179,26 @@ describe {{moduleName}}::Configuration do
     _({{moduleName}}::Configuration).wont_respond_to(:default=)
   end
 
+  it 'bhv_misc_276 the default configuration and the default builder both use the base URL from the spec' do
+    _({{moduleName}}::Configuration.default_configuration.base_url).must_equal('{{{basePath}}}')
+    _({{moduleName}}::Configuration.builder.build.base_url).must_equal('{{{basePath}}}')
+  end
+
+  it 'bhv_misc_277 each call to the default configuration returns a distinct configuration object' do
+    first = {{moduleName}}::Configuration.default_configuration
+    second = {{moduleName}}::Configuration.default_configuration
+
+    _(first).wont_be_same_as(second)
+  end
+
+  it 'bhv_misc_279 changing a copy of the returned headers does not change the configuration' do
+    config = {{moduleName}}::Configuration.builder.default_header('X-Trace', 'trace-1').build
+    copy = config.default_headers.dup
+    copy['X-New'] = 'x'
+
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1' })
+  end
+
   it 'bhv_config_018 a default and a built configuration use the base URL from the spec' do
     _({{moduleName}}::Configuration.default_configuration.base_url).must_equal('{{{basePath}}}')
     _({{moduleName}}::Configuration.builder.build.base_url).must_equal('{{{basePath}}}')

@@ -2759,4 +2759,69 @@ import Testing
     let data: [String: Any] = ["b": [1, "x"], "a": ["c": true]]
     #expect(try ObjectSerializer.serialize(data) == "{\"a\":{\"c\":true},\"b\":[1,\"x\"]}")
   }
+
+  /* A binary field keeps exactly the bytes it was given, through construction and copying. */
+  @Test func testBhvMisc102ABinaryFieldKeepsExactlyItsBytesThroughCopy() {
+    let bytes = Data("hello world".utf8)
+    #expect(BinaryVault(seal: bytes).copy().seal == bytes)
+  }
+
+  /* Rejecting undeclared keys on one strict model leaves a plain model accepting and ignoring them. */
+  @Test func testBhvMisc103RejectingExtraKeysOnOneModelLeavesAnotherAccepting() throws {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.deserialize(Data("{\"rogue\":\"x\"}".utf8), as: StrictTag.self)
+    }
+    #expect(
+      try ObjectSerializer.deserialize(Data("{\"rogue\":\"x\"}".utf8), as: Metadata.self) != nil)
+  }
+
+  /* Copying a model never validates the values it is given. */
+  @Test func testBhvMisc105CopyingAModelNeverValidatesTheValuesGiven() {
+    #expect(Order().copy(quantity: 500).quantity == 500)
+  }
+
+  /* A null element in an array keeps its position when the array is serialized. */
+  @Test func testBhvMisc106ANullArrayElementKeepsItsPosition() throws {
+    #expect(try ObjectSerializer.serialize([1, nil, 2] as [Int?]) == "[1,null,2]")
+  }
+
+  /* A model built with an integer enum member keeps that member's wire value. */
+  @Test func testBhvMisc108AModelBuiltWithAnIntegerEnumMemberKeepsItsWireValue() throws {
+    #expect(try ObjectSerializer.serialize(Subscription(rank: .low)).contains("\"rank\":1"))
+  }
+
+  /* A nested object is validated with the same rules that apply to the outer object at decode. */
+  @Test func testBhvMisc109ANestedObjectIsValidatedAtDecode() {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.deserialize(
+        Data("{\"lastError\":{\"code\":\"three\"}}".utf8), as: EdgeCases.self)
+    }
+  }
+
+  /* A bare string is written as a quoted JSON string. */
+  @Test func testBhvMisc115ABareStringIsAQuotedJsonString() throws {
+    #expect(try ObjectSerializer.serialize("hello") == "\"hello\"")
+  }
+
+  /* An absent value is written as the JSON literal null. */
+  @Test func testBhvMisc117AnAbsentValueWritesTheNullLiteral() throws {
+    #expect(try ObjectSerializer.serialize(Optional<Int>.none as Any) == "null")
+  }
+
+  /* When a payload has a name and a differently cased duplicate, the exact-case value is decoded. */
+  @Test func testBhvMisc118TheExactCaseValueIsTheOneDecoded() throws {
+    let category = try #require(
+      try ObjectSerializer.deserialize(
+        Data("{\"NAME\":\"Other\",\"name\":\"Exact\"}".utf8), as: Category.self))
+    #expect(category.name == "Exact")
+  }
+
+  /* A repeated element of a unique array keeps one copy of each value. */
+  @Test func testBhvMisc112ARepeatedElementOfAUniqueArrayKeepsOneCopy() throws {
+    struct UniqueTags: Decodable { let values: Set<String> }
+    let decoded = try #require(
+      try ObjectSerializer.deserialize(
+        Data("{\"values\":[\"a\",\"a\",\"b\"]}".utf8), as: UniqueTags.self))
+    #expect(decoded.values == ["a", "b"])
+  }
 }

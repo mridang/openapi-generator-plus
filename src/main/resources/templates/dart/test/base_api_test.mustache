@@ -2576,6 +2576,30 @@ void main() {
       }
     });
 
+    test('bhv misc 095 a response body with bytes invalid in its charset decodes each bad byte to U+FFFD', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.set('content-type', 'text/plain; charset=utf-8')
+          ..add([0x61, 0xFF, 0x62, 0xFE])
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        final resp = await client.sendRequest(
+          'GET',
+          'http://localhost:${server.port}/api/test',
+          {},
+          null,
+        );
+        expect(resp.body, equals('a\uFFFDb\uFFFD'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv serializationwire 034 defaults to UTF-8 when no charset is specified', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

@@ -1835,3 +1835,31 @@ func TestBhvMisc069_OAuth2TokenManager_AnUnusableTokenResponseIsRefusedWithAProb
 		}
 	}
 }
+
+func TestBhvMisc198_OAuth2TokenManager_GrantWithoutExpiresInClearsThePreviousExpiry(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"a1","expires_in":60}`, statusCode: 200},
+		{body: `{"access_token":"a2"}`, statusCode: 200},
+		{body: `{"access_token":"a3"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+	params := map[string]string{"grant_type": "client_credentials"}
+
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on the first grant: %v", err)
+	}
+	manager.InvalidateAccessToken()
+	if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+		t.Fatalf("unexpected error on the second grant: %v", err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := manager.GetAccessToken("https://auth.example.com/token", params); err != nil {
+			t.Fatalf("unexpected error on reuse %d: %v", i+1, err)
+		}
+	}
+	if got := client.requestCount(); got != 2 {
+		t.Errorf("expected the grant without expires_in to be cached, got %d requests", got)
+	}
+}
