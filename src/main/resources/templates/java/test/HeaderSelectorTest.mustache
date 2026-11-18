@@ -273,6 +273,17 @@ class HeaderSelectorTest {
         }
 
         @Test
+        @DisplayName("bhvHeaders029 the Accept header is omitted when every entry is blank")
+        void bhvHeaders029TheAcceptHeaderIsOmittedWhenEveryEntryIsBlank() {
+            Map<String, String> headers = headerSelector.selectHeaders(
+                new String[]{"", "   ", null},
+                "application/json",
+                false
+            );
+            assertFalse(headers.containsKey("Accept"));
+        }
+
+        @Test
         @DisplayName("bhvHeaders005 should not set Accept header when accepts null")
         void bhvHeaders005ShouldNotSetAcceptHeaderWhenAcceptsNull() {
             Map<String, String> headers = headerSelector.selectHeaders(

@@ -1729,6 +1729,17 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvErrors057NetworkFailureCarriesTheRequestMethodAndPath() {
+    DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+    com.example.petstore.errors.NetworkException ex =
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkException.class,
+            () -> client.sendRequest("GET", baseUrl + "/truncated-body", Map.of(), null));
+    assertEquals("GET", ex.getRequestMethod());
+    assertEquals("/truncated-body", ex.getRequestPath());
+  }
+
+  @Test
   void bhvErrors040MalformedRequestUrlRaisesIllegalArgumentException() {
     DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
     assertThrowsExactly(
@@ -2983,6 +2994,39 @@ class DefaultApiClientUnitTest {
     client.close();
 
     assertTrue(client.isTransportReleased());
+  }
+
+  @Test
+  void bhvLifecycle035RequestAfterCloseFailsWithTheClosedErrorAndNeverReachesTheWire()
+      throws Exception {
+    java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer counting = HttpServer.create(new InetSocketAddress(0), 0);
+    counting.createContext(
+        "/items",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    counting.start();
+    try {
+      DefaultApiClient client = new DefaultApiClient();
+      client.close();
+      IllegalStateException ex =
+          assertThrowsExactly(
+              IllegalStateException.class,
+              () ->
+                  client.sendRequest(
+                      "GET",
+                      "http://localhost:" + counting.getAddress().getPort() + "/items",
+                      Map.of(),
+                      null));
+      assertEquals("ApiClient has been closed and can no longer send requests", ex.getMessage());
+      assertEquals(0, hits.get());
+    } finally {
+      counting.stop(0);
+    }
   }
 
   @Test

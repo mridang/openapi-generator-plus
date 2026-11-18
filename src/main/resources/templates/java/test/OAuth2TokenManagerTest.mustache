@@ -689,6 +689,22 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    void bhvAuthOauthTwoTokenMgr047AServerErrorWithoutAnErrorCodeNamesTheStatusAndTheRawBody() {
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(fakeClient(502, "<html>bad gateway</html>"));
+
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+
+        OAuth2ServerException ex = assertThrowsExactly(
+                OAuth2ServerException.class, () ->
+                        manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(
+                "Token request failed with status 502: <html>bad gateway</html>", ex.getMessage());
+        assertEquals("<html>bad gateway</html>", ex.getRawBody());
+    }
+
+    @Test
     void bhvAuthOauthTwoTokenMgr001MalformedTokenResponseRaisesOAuth2TokenException() {
         // A 2xx answer whose body is not JSON is unusable: OAuth2TokenException,
         // never a raw parser exception or a wrapping RuntimeException.

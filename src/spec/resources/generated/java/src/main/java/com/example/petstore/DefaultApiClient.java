@@ -778,10 +778,10 @@ public final class DefaultApiClient implements ApiClient {
     } catch (HttpTimeoutException e) {
       /* Covers HttpConnectTimeoutException too: the request timed out
        * before a response arrived. */
-      throw new NetworkTimeoutException(e.toString(), e);
+      throw new NetworkTimeoutException(e.toString(), e, method, url);
     } catch (IOException e) {
       /* Connection refused, DNS, TLS handshake, reset: no HTTP response. */
-      throw new NetworkException(e.toString(), e);
+      throw new NetworkException(e.toString(), e, method, url);
     } catch (InterruptedException e) {
       /* Thread interruption is Java's cancellation signal, not an API
        * failure: restore the interrupt flag and surface it as the
