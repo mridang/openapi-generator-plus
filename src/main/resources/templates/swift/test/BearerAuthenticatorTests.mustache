@@ -216,6 +216,12 @@ import Testing
         }
     }
 
+    @Test func testBhvAuthbearer028ATokenWithCrlfIsRejectedAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "abc\r\nX-Forwarded: yes")
+        }
+    }
+
     @Test func testBhvAuthbearer012RejectsCrLfAtConstruction() {
         #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
             _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\r\nInjected: yes")

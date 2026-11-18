@@ -173,6 +173,23 @@ import Testing
     #expect(err.responseBody == body)
   }
 
+  /* An empty message renders the same default text as a missing one. */
+  @Test func testBhvErrors064AnEmptyMessageRendersTheDefaultTextLikeAMissingOne() {
+    let empty = ApiError(statusCode: 500, message: "")
+    let missing = ApiError(statusCode: 500)
+    #expect(empty.errorDescription == missing.errorDescription)
+    #expect(empty.errorDescription?.hasPrefix("Error message: the server returns an error") == true)
+  }
+
+  /* The rendered body keeps 1 KiB and says how many bytes it left out. */
+  @Test func testBhvErrors065TheErrorTextCutsALongBodyAtOneKibAndCountsTheBytesLeftOut() {
+    let body = String(repeating: "a", count: 1500)
+    let err = ApiError(statusCode: 500, message: "boom", responseBody: body)
+    #expect(
+      ApiError.renderedBody(body) == String(repeating: "a", count: 1024) + "... (476 more bytes)")
+    #expect(err.responseBody == body)
+  }
+
   @Test func testANewlineInTheBodyIsShownEscaped() {
     let err = ApiError(statusCode: 500, message: "boom", responseBody: "one\r\ntwo")
     #expect(err.errorDescription == "boom\nHTTP status code: 500\nResponse body: one\\x0D\\x0Atwo")
@@ -276,6 +293,63 @@ import Testing
     #expect(err.message == "gone")
     #expect(err.responseBody == "{}")
     #expect(err.responseHeaders == ["a": "b"])
+  }
+
+  @Test func testBhvErrors058A400ResponseMapsToTheBadRequestError() {
+    let err = ApiError.fromResponse(statusCode: 400, headers: [:], body: "")
+    #expect(err is BadRequestError)
+    #expect(err.statusCode == 400)
+  }
+
+  @Test func testBhvErrors059A403ResponseMapsToTheForbiddenError() {
+    let err = ApiError.fromResponse(statusCode: 403, headers: [:], body: "")
+    #expect(err is ForbiddenError)
+    #expect(err.statusCode == 403)
+  }
+
+  @Test func testBhvErrors060A404ResponseMapsToTheNotFoundError() {
+    let err = ApiError.fromResponse(statusCode: 404, headers: [:], body: "")
+    #expect(err is NotFoundError)
+    #expect(err.statusCode == 404)
+  }
+
+  @Test func testBhvErrors061ABadRequestErrorIsAClientErrorAndAnApiError() {
+    let err: any Error = BadRequestError(message: "bad")
+    #expect(err is ClientError)
+    #expect(err is ApiError)
+    #expect(err is OpenAPIError)
+  }
+
+  @Test func testBhvErrors066A429ResponseMapsToTheTooManyRequestsErrorAClientError() {
+    let err = ApiError.fromResponse(statusCode: 429, headers: [:], body: "")
+    #expect(err is TooManyRequestsError)
+    #expect(err is ClientError)
+    #expect(err.statusCode == 429)
+  }
+
+  @Test func testBhvErrors067A409ResponseMapsToTheConflictError() {
+    let err = ApiError.fromResponse(statusCode: 409, headers: [:], body: "")
+    #expect(err is ConflictError)
+    #expect(err.statusCode == 409)
+  }
+
+  @Test func testBhvErrors068A422ResponseMapsToTheUnprocessableEntityError() {
+    let err = ApiError.fromResponse(statusCode: 422, headers: [:], body: "")
+    #expect(err is UnprocessableEntityError)
+    #expect(err.statusCode == 422)
+  }
+
+  @Test func testBhvErrors069A500ResponseMapsToTheInternalServerError() {
+    let err = ApiError.fromResponse(statusCode: 500, headers: [:], body: "")
+    #expect(err is InternalServerError)
+    #expect(err.statusCode == 500)
+  }
+
+  @Test func testBhvErrors070A502ResponseMapsToTheServerErrorNotTheInternalOne() {
+    let err = ApiError.fromResponse(statusCode: 502, headers: [:], body: "")
+    #expect(err is ServerError)
+    #expect(!(err is InternalServerError))
+    #expect(err.statusCode == 502)
   }
 
   @Test func testBhvErrors018TypedErrorConformsToApiErrorAndOpenAPIError() {

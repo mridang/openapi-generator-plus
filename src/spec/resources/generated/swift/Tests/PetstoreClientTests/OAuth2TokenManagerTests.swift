@@ -1139,6 +1139,31 @@ import Testing
     }
   }
 
+  /* A non-2xx answer with no OAuth2 error code carries the raw body. */
+  @Test func testBhvAuthoauthtwotokenmgr047WithoutAnErrorCodeTheServerErrorCarriesTheRawBody() async
+  {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "<html>bad gateway</html>", statusCode: 502))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+
+    do {
+      _ = try await manager.getAccessToken(
+        tokenURL: "https://auth.example.com/token",
+        params: ["grant_type": "client_credentials"]
+      )
+      Issue.record("Expected OAuth2ServerError when token request fails")
+    } catch let error as OAuth2ServerError {
+      #expect(error.statusCode == 502)
+      #expect(error.code == nil)
+      #expect(error.rawBody == "<html>bad gateway</html>")
+      #expect(
+        error.errorDescription == "Token request failed with status 502: <html>bad gateway</html>")
+    } catch {
+      Issue.record("expected OAuth2ServerError, got \(error)")
+    }
+  }
+
   /// Counts requests and hands out tok1, tok2, ... so the single-flight
   /// refetch test can assert how many round-trips actually occurred.
   private final class NumberingMockApiClient: ApiClient, @unchecked Sendable {

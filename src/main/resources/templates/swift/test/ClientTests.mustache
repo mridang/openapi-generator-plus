@@ -56,6 +56,23 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
     }
 
+    /* A request after close fails before any task is created on the caller's session. */
+    @Test func testBhvLifecycle035ARequestAfterCloseFailsWithoutReachingTheTransport() async throws {
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try {{clientClassName}}(authenticator: authenticator, transportOptions: transport)
+        client.close()
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await client.store.getInventory()
+        }
+        #expect(error == ConfigurationError.invalidState("ApiClient has been closed and can no longer send requests"))
+        let tasks: [URLSessionTask] = await withCheckedContinuation { continuation in
+            session.getAllTasks { continuation.resume(returning: $0) }
+        }
+        #expect(tasks.isEmpty)
+    }
+
     /* Closing the client never invalidates a session the caller supplied. */
     @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
         let probe = InvalidationProbe()
@@ -207,7 +224,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
     }
 
-    @Test func testExplicitArgumentsWinOverTheEnvironment() async throws {
+    @Test func testBhvLifecycle028ExplicitArgumentsWinOverTheEnvironment() async throws {
         let client = try environmentClient(
             host: "https://explicit.example.com", token: "explicit-token",
             environment: [
@@ -220,6 +237,42 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
 
     @Test func testBhvAuthbearer019AnEmptyEnvironmentValueCountsAsUnset() {
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
+        ) {
+            _ = try self.environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        }
+        #expect(throws: ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
+        ) {
+            _ = try self.environmentClient(environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
+            ])
+        }
+    }
+
+    @Test func testBhvLifecycle032ATokenPassedToTheClientBeatsTheEnvironmentToken() async throws {
+        let client = try environmentClient(
+            token: "explicit-token",
+            environment: [
+                "{{envVarPrefix}}_HOST": "https://env.example.com",
+                "{{envVarPrefix}}_TOKEN": "env-token",
+            ])
+        let auth = try #require(firstApiAuthenticator(of: client))
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+
+    @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+        }
+        #expect(error == ConfigurationError.invalidArgument(
+            "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable"))
+    }
+
+    @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
         #expect(throws: ConfigurationError.invalidArgument(
             "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         ) {
