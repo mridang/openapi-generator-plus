@@ -943,16 +943,27 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     private final List<Map<String, Object>> perSchemeAuthEntries = new ArrayList<>();
 
     /**
-     * The behaviour token of the empty-variable failure test for the schemes the test catalogue
-     * names (authscheme003 to authscheme008); every other scheme keeps an unnumbered test name.
+     * The behaviour token of the empty-variable failure test, one per scheme class: the catalogue
+     * ids authscheme003 to authscheme016. A scheme the table does not name keeps an unnumbered
+     * test name. Each scheme gets exactly one such test, so no two tests share a name.
      */
-    private static final java.util.Map<String, String> EMPTY_VARIABLE_BHV = java.util.Map.of(
-            "PetStoreBasicAuthenticator", "BhvAuthscheme003",
-            "AdminBasicAuthenticator", "BhvAuthscheme004",
-            "ApiKeyHeaderAuthenticator", "BhvAuthscheme005",
-            "ApiKeyQueryAuthenticator", "BhvAuthscheme006",
-            "SessionCookieAuthenticator", "BhvAuthscheme007",
-            "SsoAuthAuthenticator", "BhvAuthscheme008");
+    private static final java.util.Map<String, String> EMPTY_VARIABLE_BHV =
+            java.util.Map.ofEntries(
+                    java.util.Map.entry("PetStoreBasicAuthenticator", "BhvAuthscheme003"),
+                    java.util.Map.entry("AdminBasicAuthenticator", "BhvAuthscheme004"),
+                    java.util.Map.entry("ApiKeyHeaderAuthenticator", "BhvAuthscheme005"),
+                    java.util.Map.entry("ApiKeyQueryAuthenticator", "BhvAuthscheme006"),
+                    java.util.Map.entry("SessionCookieAuthenticator", "BhvAuthscheme007"),
+                    java.util.Map.entry("SsoAuthAuthenticator", "BhvAuthscheme008"),
+                    java.util.Map.entry("PetStoreBearerAuthenticator", "BhvAuthscheme010"),
+                    java.util.Map.entry("ServiceTokenAuthenticator", "BhvAuthscheme011"),
+                    java.util.Map.entry("InternalApiKeyAuthenticator", "BhvAuthscheme012"),
+                    java.util.Map.entry(
+                            "MachineAuthClientCredentialsAuthenticator", "BhvAuthscheme013"),
+                    java.util.Map.entry("LegacyAuthPasswordAuthenticator", "BhvAuthscheme014"),
+                    java.util.Map.entry(
+                            "UserAuthAuthorizationCodeAuthenticator", "BhvAuthscheme015"),
+                    java.util.Map.entry("BrowserAuthImplicitAuthenticator", "BhvAuthscheme016"));
 
     /** {@inheritDoc} */
     @Override

@@ -459,6 +459,29 @@ import Testing
     }
   }
 
+  /* The error names the operation, never the HTTP verb, whatever the media type. */
+  @Test func testBhvErrors054AnUnexpectedContentTypeErrorNamesTheOperationNotTheHTTPVerb()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "%PDF-1.4"
+    mockClient.responseHeaders = ["Content-Type": "application/pdf"]
+
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    do {
+      _ = try await api.getPetByIdWithHTTPInfo(petId: 1)
+      Issue.record("expected a SerializationError")
+    } catch let error as SerializationError {
+      #expect(
+        error.message
+          == "Unexpected response Content-Type 'application/pdf' for PetApi.getPetById: expected a JSON body"
+      )
+    }
+  }
+
   @Test func testIsTextContentType() {
     #expect(BaseApi.isTextContentType("text/plain; charset=utf-8"))
     #expect(BaseApi.isTextContentType("application/xml"))
