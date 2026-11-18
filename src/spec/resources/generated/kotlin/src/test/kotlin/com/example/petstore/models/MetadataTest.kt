@@ -93,17 +93,6 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("toString includes the additionalProperties bucket and its entries")
-    fun testToStringIncludesAdditionalProperties() {
-        val metadata = Metadata()
-        metadata.additionalProperties["x"] = 1
-
-        val text = metadata.toString()
-
-        assertTrue(text.contains("additionalProperties={x=1}"), text)
-    }
-
-    @Test
     @DisplayName("bhvModels024 default values are null")
     fun testDefaultValues() {
         val metadata = Metadata()

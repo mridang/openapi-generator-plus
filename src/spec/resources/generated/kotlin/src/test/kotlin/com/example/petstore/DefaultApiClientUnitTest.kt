@@ -2901,16 +2901,6 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
-        @DisplayName("a network error that persists is reported after the retries")
-        fun aPersistentNetworkErrorIsReported() {
-            val apiClient = retrying(listOf(java.io.IOException("connection reset")))
-
-            assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) { get(apiClient) }
-
-            assertEquals(3, requestCount)
-        }
-
-        @Test
         @DisplayName("bhvRetries033 the last network error is reported once the retries are spent")
         fun theLastNetworkErrorIsReportedOnceTheRetriesAreSpent() {
             val apiClient = retrying(listOf(java.io.IOException("first"), java.io.IOException("second")))

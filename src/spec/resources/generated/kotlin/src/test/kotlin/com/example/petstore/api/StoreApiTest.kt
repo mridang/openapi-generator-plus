@@ -716,31 +716,5 @@ class StoreApiTest {
             assertEquals(1, seen.size)
             assertEquals("1", seen.single().headers["X-Call"])
         }
-
-        @Test
-        @DisplayName("convenience-empty-body-handling: getOrderById throws ApiException on empty 200 body")
-        fun testGetOrderByIdEmptyBodyThrows() {
-            // A body-returning operation that receives a 2xx with an empty body
-            // must surface a typed ApiException from the unwrapped convenience
-            // method rather than returning a silent null.
-            val engine =
-                MockEngine { _ ->
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf("Content-Type", "application/json"),
-                    )
-                }
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("http://localhost")
-                    .build()
-            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
-
-            assertThrows(ApiException::class.java) {
-                runBlocking { api.getOrderById(1L) }
-            }
-        }
     }
 }

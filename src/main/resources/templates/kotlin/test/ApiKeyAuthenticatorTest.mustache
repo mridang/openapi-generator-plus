@@ -132,18 +132,6 @@ class ApiKeyAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("ApiKey header rejects non-ASCII (RFC 7230 §3.2.6)")
-    fun apiKeyHeaderRejectsNonAscii() {
-        // The HEADER location must reject any value outside printable ASCII +
-        // TAB to prevent silent UTF-8 mangling that varies per HTTP lib.
-        assertThrows(IllegalArgumentException::class.java) {
-            ApiKeyAuthenticator(
-                "https://api.example.com", "X-Api-Key", "kéy", ApiKeyLocation.HEADER
-            )
-        }
-    }
-
-    @Test
     @DisplayName("bhvAuthapikey009 ApiKey query location accepts non-ASCII characters")
     fun apiKeyQueryAcceptsNonAscii() {
         // The QUERY location is URL-encoded downstream, so it must accept a

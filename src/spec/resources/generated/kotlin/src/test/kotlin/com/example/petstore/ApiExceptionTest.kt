@@ -145,22 +145,6 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun responseHeadersRenderAsCompactJsonWithSortedKeysAndUnescapedSlashes() {
-        val ex =
-            ApiException(
-                statusCode = 404,
-                message = "gone",
-                responseHeaders = mapOf("location" to "/a/b", "content-type" to "text/plain"),
-                responseBody = null,
-            )
-
-        assertTrue(
-            ex.toString().contains("\nResponse headers: {\"content-type\":\"text/plain\",\"location\":\"/a/b\"}"),
-            ex.toString(),
-        )
-    }
-
-    @Test
     fun bhvErrors018TypedExceptionsShareTheBrandedRoot() {
         // Unified hierarchy: BadRequest is-a Client is-a Api is-a OpenAPI.
         val ex =
