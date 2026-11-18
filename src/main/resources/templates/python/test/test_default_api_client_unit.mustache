@@ -417,6 +417,16 @@ class TestDefaultApiClientUnit:
         assert str(uuid.UUID(request_id)) == request_id
         assert uuid.UUID(request_id).version == 4
 
+    def test_bhv_transport_089_a_content_encoding_that_does_not_match_the_body_raises_the_api_error(
+        self,
+    ) -> None:
+        from {{packageName}}.errors import ApiException
+
+        client = DefaultApiClient()
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", f"{self.base_url}/bad-gzip", {}, None)
+        assert type(excinfo.value) is ApiException
+
     def test_bhv_transport_030_content_encoding_gzip_lie_with_plaintext_body_surfaces_api_exception(
         self,
     ) -> None:
@@ -447,6 +457,11 @@ class TestDefaultApiClientUnit:
 
 class TestCharsetDecoding:
     """Verify response body decoding honors the Content-Type charset."""
+
+    def test_bhv_serialization_119_the_declared_charset_is_used_and_an_unknown_one_falls_back_to_utf8(self) -> None:
+        assert _decode_with_charset("café".encode("latin-1"), "text/plain; charset=ISO-8859-1") == "café"
+        assert _decode_with_charset("café".encode("utf-8"), "text/plain; charset=no-such-charset") == "café"
+        assert _decode_with_charset(b"\x00h\x00i", "text/plain; charset=utf-16") == "hi"
 
     def test_extracts_charset_parameter(self) -> None:
         assert _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
@@ -642,6 +657,32 @@ class TestMultipartContentType:
         file_like.name = "file.png"
         body = client._build_multipart_body({"upload": file_like}, "boundary")
         assert b"Content-Type: image/png" in body
+
+    def test_bhv_transport_091_a_caller_supplied_upload_stream_is_left_open_after_the_send(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"data")
+        file_like.name = "file.bin"
+        client._build_multipart_body({"upload": file_like}, "boundary")
+        assert not file_like.closed
+
+    def test_bhv_serialization_120_an_unknown_extension_gives_a_multipart_file_octet_stream(self) -> None:
+        import io
+        client = DefaultApiClient()
+        file_like = io.BytesIO(b"data")
+        file_like.name = "file.xyzzy"
+        body = client._build_multipart_body({"upload": file_like}, "boundary")
+        assert b"Content-Type: application/octet-stream" in body
+
+    def test_bhv_serialization_127_a_primitive_multipart_part_is_plain_text_in_canonical_form(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"count": 3}, "boundary")
+        assert b"\r\n\r\n3\r\n" in body
+
+    def test_bhv_serialization_126_a_non_ascii_multipart_field_name_is_utf8_in_the_part_header(self) -> None:
+        client = DefaultApiClient()
+        body = client._build_multipart_body({"nom\u00e9": b"x"}, "boundary")
+        assert 'name="nom\u00e9"'.encode("utf-8") in body
 
     def test_bhv_serializationwire_056_multipart_body_uses_octet_stream_for_bytes_without_filename(self) -> None:
         client = DefaultApiClient()
@@ -917,7 +958,7 @@ class TestBodyReplayOnTlsDowngrade:
     body over plaintext. The existing Authorization-strip guard covers the
     credential header path; this guard covers the body itself."""
 
-    def test_307_downgrade_with_body_raises(self) -> None:
+    def test_bhv_retries_051_307_downgrade_with_body_raises(self) -> None:
         from {{packageName}}.errors import ApiException
 
         class _Pool:
@@ -1219,7 +1260,7 @@ class TestRedirectRefusals:
             "x-request-id": "r1",
         }
 
-    def test_an_exhausted_budget_is_refused_with_the_canonical_message(self) -> None:
+    def test_bhv_redirects_046_an_exhausted_budget_is_refused_with_the_canonical_message(self) -> None:
         from {{packageName}}.errors import ApiException
 
         hop = {"Location": "https://example.com/next"}
@@ -1328,12 +1369,12 @@ class TestHeaderMergeIsCaseInsensitive:
         sent = self._send({"accept-encoding": "identity"})
         assert [k for k in sent if k.lower() == "accept-encoding"] == ["accept-encoding"]
 
-    def test_a_lower_case_content_type_is_dropped_on_a_bodyless_request(self) -> None:
+    def test_bhv_operations_163_a_lower_case_content_type_is_dropped_on_a_bodyless_request(self) -> None:
         sent = self._send({"content-type": "application/json"})
         assert not any(k.lower() == "content-type" for k in sent)
 
     @pytest.mark.parametrize("make", [bytearray, memoryview])
-    def test_a_byte_like_body_is_sent_verbatim(self, make: Any) -> None:
+    def test_bhv_operations_157_a_byte_like_body_is_sent_verbatim(self, make: Any) -> None:
         sent = self._send({"Content-Type": "image/png"}, make(b"\x89PNG"), "PUT")
         assert self.body == b"\x89PNG"
         assert sent["Content-Type"] == "image/png"
@@ -1342,6 +1383,24 @@ class TestHeaderMergeIsCaseInsensitive:
 class TestAuthRequestsOmitTheCallersDefaultHeaders:
     """A no_redirect request is the OAuth2 token POST: the transport's default
     headers are meant for the API and never reach the identity provider."""
+
+    def test_bhv_redirects_056_an_opted_out_request_sends_no_default_header_and_the_next_one_does(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.sent: list[dict[str, str]] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.sent.append(dict(kwargs.get("headers") or {}))
+                return _FakeResp(200, {})
+
+        pool = _Pool()
+        options = TransportOptions.builder().default_header("X-Default", "d").build()
+        client = DefaultApiClient(options, pool_manager=pool)
+        client.send_request("POST", "https://example.com/token", {}, "a=b", no_redirect=True)
+        client.send_request("GET", "https://example.com/x", {}, None)
+
+        assert "X-Default" not in pool.sent[0]
+        assert pool.sent[1]["X-Default"] == "d"
 
     def _send(self, no_redirect: bool) -> dict[str, str]:
         class _Pool:
@@ -1697,6 +1756,16 @@ class TestNetworkErrors:
     """A request that gets no HTTP response raises NetworkException, and one
     that times out raises NetworkTimeoutException, both with status 0."""
 
+    def test_bhv_transport_087_a_connection_that_cannot_be_established_raises_the_network_error(self) -> None:
+        import socket
+        from {{packageName}}.errors import NetworkException
+
+        with socket.socket() as probe:
+            probe.bind(("127.0.0.1", 0))
+            port = probe.getsockname()[1]
+        with pytest.raises(NetworkException):
+            DefaultApiClient().send_request("GET", f"http://127.0.0.1:{port}/x", {}, None)
+
     def test_bhv_transport_032_connection_refused_raises_network_exception(self) -> None:
         import socket
         from {{packageName}}.errors import ApiException, NetworkException, NetworkTimeoutException
@@ -1722,6 +1791,21 @@ class TestNetworkErrors:
         with pytest.raises(ValueError) as excinfo:
             client.send_request("GET", "http://[bad", {}, None)
         assert not isinstance(excinfo.value, {{errorPrefix}}Exception)
+
+    def test_bhv_transport_086_a_request_past_its_timeout_raises_the_network_timeout_error(self) -> None:
+        import urllib3
+        import urllib3.exceptions
+        from {{packageName}}.errors import NetworkTimeoutException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                no_pool: Any = None
+                raise urllib3.exceptions.MaxRetryError(
+                    no_pool, url, urllib3.exceptions.ReadTimeoutError(no_pool, url, "read timed out")
+                )
+
+        with pytest.raises(NetworkTimeoutException):
+            DefaultApiClient(pool_manager=_Pool()).send_request("GET", "https://example.test/x", {}, None)
 
     def test_bhv_transport_058_read_timeout_raises_network_timeout_exception(self) -> None:
         import urllib3
@@ -1805,6 +1889,12 @@ class TestCaCertPathFailsFast:
         assert type(excinfo.value) is ValueError
         assert not isinstance(excinfo.value, {{errorPrefix}}Exception)
 
+
+    def test_bhv_lifecycle_041_a_caller_pool_manager_combined_with_an_sdk_proxy_is_refused(self) -> None:
+        transport = TransportOptions.builder().proxy('http://proxy.example.com:3128').build()
+
+        with pytest.raises(ValueError, match='owns the proxy and TLS settings'):
+            DefaultApiClient(transport, pool_manager=urllib3.PoolManager())
 
     def test_bhv_transport_048_nonexistent_ca_cert_path_raises_even_when_verify_ssl_is_false(self) -> None:
         transport = (
@@ -2283,7 +2373,7 @@ class TestInjectedPoolManager:
     def teardown_class(cls) -> None:
         cls.server.shutdown()
 
-    def test_the_supplied_pool_manager_receives_the_request(self) -> None:
+    def test_bhv_transport_092_the_supplied_pool_manager_receives_the_request(self) -> None:
         pool = _RecordingPool()
         client = DefaultApiClient(pool_manager=pool)
 

@@ -113,7 +113,7 @@ class TestApiErrorShape:
         assert isinstance(err, Exception)
         assert str(err) != ""
 
-    def test_none_message_renders_the_default_text(self) -> None:
+    def test_bhv_errors_089_none_message_renders_the_default_text(self) -> None:
         err = ApiException(status_code=0, message=None)
 
         assert str(err) == "Error message: the server returns an error"
@@ -177,6 +177,14 @@ class TestExceptionHierarchy:
 
         for error_type, status in pinned:
             assert error_type().status_code == status
+
+    def test_bhv_errors_095_a_typed_4xx_error_is_found_by_its_status_family(
+        self,
+    ) -> None:
+        err = NotFoundException(message="gone")
+
+        assert isinstance(err, ClientException)
+        assert ClientException in type(err).__mro__
 
     def test_bhv_errors_061_a_bad_request_error_is_a_client_error_an_api_error_and_an_openapi_error(
         self,
@@ -391,6 +399,15 @@ class TestFromResponse:
         assert type(err) is ServerException
         assert err.status_code == 507
 
+    def test_bhv_errors_096_a_status_outside_every_class_range_falls_back_to_the_base_error(
+        self,
+    ) -> None:
+        for status in (399, 600):
+            err = ApiException.from_response(status, {}, None)
+            assert type(err) is ApiException
+            assert not isinstance(err, ClientException)
+            assert not isinstance(err, ServerException)
+
     def test_bhv_errors_056_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
         # base ApiException, never ServerException.
@@ -410,7 +427,7 @@ class TestFromResponse:
         assert err.response_body == "<html>oops</html>"
         assert err.error_body is None
 
-    def test_keeps_absent_response_headers_as_none(self) -> None:
+    def test_bhv_errors_090_keeps_absent_response_headers_as_none(self) -> None:
         # None means no response arrived at all and is never coerced to an
         # empty dict, which would claim a response with no headers.
         err = ApiException.from_response(0, None, None)
@@ -529,6 +546,15 @@ class TestApiErrorRendering:
             '\nResponse headers: {"location":"https://example.com/a","x-a":"1","x-b":"2"}'
         )
 
+    def test_bhv_errors_088_absent_sections_are_left_out_and_present_ones_are_kept(
+        self,
+    ) -> None:
+        err = ApiException(
+            status_code=500, message="down", response_headers={}, response_body=""
+        )
+
+        assert str(err) == "down\nHTTP status code: 500"
+
     def test_bhv_errors_022_omits_empty_headers_and_an_empty_body(self) -> None:
         err = ApiException(
             status_code=502,
@@ -560,11 +586,16 @@ class TestApiErrorRendering:
         )
         assert err.response_body == "a" * 3000
 
-    def test_keeps_a_body_of_exactly_1_kib_whole(self) -> None:
+    def test_bhv_errors_086_keeps_a_body_of_exactly_1_kib_whole(self) -> None:
         err = ApiException(status_code=500, message="boom", response_body="a" * 1024)
 
         assert str(err).endswith("a" * 1024)
         assert "more bytes" not in str(err)
+
+    def test_bhv_errors_085_a_line_break_in_the_body_renders_escaped(self) -> None:
+        err = ApiException(status_code=500, message="boom", response_body="a\r\nb")
+
+        assert str(err) == "boom\nHTTP status code: 500\nResponse body: a\\r\\nb"
 
     def test_bhv_errors_001_escapes_control_characters_in_the_rendered_body(
         self,
@@ -578,6 +609,22 @@ class TestApiErrorRendering:
             == "boom\nHTTP status code: 500\nResponse body: a\\r\\nb\\tc\\x01\\x7F"
         )
         assert err.response_body == "a\r\nb\tc\x01\x7f"
+
+    def test_bhv_errors_087_credential_and_challenge_headers_are_masked_in_the_message(
+        self,
+    ) -> None:
+        err = ApiException(
+            status_code=401,
+            message="denied",
+            response_headers={
+                "Authorization": "Bearer abc",
+                "WWW-Authenticate": "Basic realm=x",
+            },
+            response_body="",
+        )
+
+        assert "Bearer abc" not in str(err)
+        assert "realm=x" not in str(err)
 
     def test_bhv_errors_023_masks_credential_headers_in_the_rendered_headers(
         self,
@@ -796,6 +843,13 @@ class TestRequestContext:
         assert err.request_path is None
         assert str(err) == "boom\nHTTP status code: 500"
 
+    def test_bhv_errors_091_the_message_names_the_method_and_path_of_a_request_with_no_response(
+        self,
+    ) -> None:
+        err = ApiException.from_response(404, {}, "missing", "GET", "/items/7")
+
+        assert "Request: GET /items/7" in str(err)
+
     def test_bhv_errors_011_the_message_names_the_request_before_the_status(
         self,
     ) -> None:
@@ -825,7 +879,9 @@ class TestFromResponseBodyShapes:
         assert err.error_body == "just a string"
         assert err.response_body == '"just a string"'
 
-    def test_a_bom_prefixed_body_is_parsed_into_an_error_body(self) -> None:
+    def test_bhv_errors_093_a_bom_prefixed_body_is_parsed_into_an_error_body(
+        self,
+    ) -> None:
         body = '﻿{"a":1}'
 
         err = ApiException.from_response(400, {}, body)

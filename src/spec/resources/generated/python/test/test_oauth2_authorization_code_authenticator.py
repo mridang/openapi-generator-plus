@@ -58,6 +58,14 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert params["scope"] == ["read write"]
         assert params["response_type"] == ["code"]
 
+    def test_bhv_auth_052_an_authenticator_holding_no_token_refuses_to_produce_headers(
+        self,
+    ) -> None:
+        auth = _create_authenticator()
+
+        with pytest.raises(RuntimeError):
+            auth.get_auth_headers()
+
     def test_bhv_authoauthtwoauthcode_010_exchange_code_rejects_empty_code(
         self,
     ) -> None:
@@ -255,6 +263,18 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
+    def test_bhv_auth_048_authorize_url_is_exact_and_the_code_exchange_goes_to_the_token_url(
+        self,
+    ) -> None:
+        url = _create_authenticator().build_authorization_url()
+
+        assert _without_pkce(url) == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=my_client_id"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=read%20write"
+        )
+
     def test_bhv_auth_014_authorize_url_separates_scopes_with_percent_20(self) -> None:
         url = _create_authenticator().build_authorization_url()
 

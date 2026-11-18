@@ -45,6 +45,7 @@ from petstore_client.api.options.upload_pet_document_options import (
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
+from petstore_client.api_client import ApiClient
 from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
@@ -552,6 +553,12 @@ class TestPetApi:
     ) -> None:
         captured = await _capture_get(lambda api: api.get_pet_tag(7, "cute"))
         assert captured["path"].startswith("/pet/;petId=7/tag/.cute")
+
+    async def test_bhv_operations_165_a_path_parameter_uses_the_declared_matrix_and_label_styles(
+        self,
+    ) -> None:
+        captured = await _capture_get(lambda api: api.get_pet_tag(9, "nice"))
+        assert captured["path"].startswith("/pet/;petId=9/tag/.nice")
 
     async def test_bhv_operations_044_find_pets_by_status_sends_a_deep_object_filter_in_key_order(
         self,
@@ -1292,6 +1299,40 @@ class TestPetApiErrorHandling:
                 "Fido", GetPetByNameOptions(category="", x_correlation_id="r")
             )
 
+    async def test_bhv_operations_164_a_missing_required_parameter_raises_and_sends_no_request(
+        self,
+    ) -> None:
+        class _Capturing(ApiClient):
+            captured_url = ""
+
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict,
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                self.captured_url = url
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="{}",
+                    headers={"content-type": "application/json"},
+                )
+
+        client = _Capturing()
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        with pytest.raises(
+            ValueError, match="Missing the required parameter 'category'"
+        ):
+            await api.get_pet_by_name(
+                "Fido", GetPetByNameOptions(category=None, x_correlation_id="r")
+            )
+        assert client.captured_url == ""
+
     async def test_bhv_operations_125_get_pet_by_name_raises_when_the_required_query_param_is_none(
         self,
     ) -> None:
@@ -1323,7 +1364,9 @@ class TestPetApiErrorHandling:
         )
         assert result is not None
 
-    async def test_add_pet_scheme_credential_wins_over_the_default_header(self) -> None:
+    async def test_bhv_auth_045_add_pet_scheme_credential_wins_over_the_default_header(
+        self,
+    ) -> None:
         # add_pet accepts the petStoreBearer scheme. The default header carries
         # one token; the credential the API holds for that scheme carries a
         # different one and must win on the wire.
@@ -1364,7 +1407,9 @@ class TestPetApiErrorHandling:
 
         assert captured.get("Authorization") == "Bearer scheme-token"
 
-    async def test_apikey_authenticator_is_applied_to_secured_request(self) -> None:
+    async def test_bhv_auth_043_apikey_authenticator_is_applied_to_secured_request(
+        self,
+    ) -> None:
         # WAVE A1 AUTH-APPLIED: a configured apiKey authenticator must actually
         # reach the wire on a secured operation. add_pet accepts the apiKeyHeader
         # scheme (X-API-Key). Construct an ApiKeyAuthenticator, hand it over as
@@ -1616,7 +1661,9 @@ class TestPetApiErrorHandling:
             ":param as_of: Summary date, sent as a matrix-style path segment (required)"
         ]
 
-    async def test_inherited_security_op_applies_client_authenticator(self) -> None:
+    async def test_bhv_auth_046_inherited_security_op_applies_client_authenticator(
+        self,
+    ) -> None:
         # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its
         # own, so it inherits the global requirement. This generator strips the
         # inherited auth methods off such an operation, so the api method passes

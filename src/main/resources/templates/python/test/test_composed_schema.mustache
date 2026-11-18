@@ -35,6 +35,11 @@ class TestOneOfPetFood:
         assert result.actual_instance is not None
         assert isinstance(result.actual_instance, WetFood)
 
+    def test_bhv_serialization_082_a_missing_discriminator_fails_with_an_error_naming_it(self) -> None:
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().deserialize('{"weightKg":2.5}', 'PetFood')
+        assert 'discriminator' in str(exc_info.value)
+
     def test_bhv_unions_015_missing_discriminator_raises(self) -> None:
         """Gap AU: missing discriminator field must raise, not silently wrap."""
         json_str = '{"weightKg":2.5}'
@@ -197,6 +202,10 @@ class TestAnyOfPetTreatment:
         assert first == second
         assert hash(first) == hash(second)
         assert first != other
+
+    def test_bhv_serialization_076_a_union_value_matching_no_candidate_raises(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"unrelatedKey":"value"}', 'PetTreatment')
 
     def test_bhv_unions_007_no_matching_variant_raises(self) -> None:
         """oneof-nondiscriminator-no-match-silent: a payload matching neither

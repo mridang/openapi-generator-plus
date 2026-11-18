@@ -381,3 +381,5 @@ csharp | auth038 | settled credential order F862: the environment variable is re
 csharp | auth039 | settled credential order F862: the environment variable is read before the token provider
 php | auth038 | settled credential order F862: the environment variable is read before the token provider
 php | lifecycle044 | PHP runs one request at a time in one process, so a close() cannot race a request that is still in flight
+python | retries045 | python has no streamed request body: the SDK materialises a body as a dict, bytes, bytearray, memoryview or str before the call, so a replay after a 401 never has a stream to exhaust
+python | serialization129 | python datetime.timedelta stores microseconds at most, so a nanosecond-precision duration cannot be represented; the duration test pins the refusal of a nanosecond argument instead

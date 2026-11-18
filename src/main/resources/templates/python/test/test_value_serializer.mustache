@@ -6,6 +6,25 @@ from {{packageName}}.value_serializer import AllowReservedValue, ValueSerializer
 
 
 class TestValueSerializerPath:
+    def test_bhv_serialization_109_a_path_value_is_percent_encoded_exactly_once(self) -> None:
+        assert ValueSerializer.serialize('a%b', 'path', 'string') == 'a%25b'
+
+    def test_bhv_serialization_110_an_absent_path_value_is_empty_and_an_absent_query_value_is_none(self) -> None:
+        assert ValueSerializer.serialize(None, 'path', 'string') == ''
+        assert ValueSerializer.serialize(None, 'query', 'string') is None
+
+    def test_bhv_serialization_111_only_unreserved_characters_stay_literal_and_others_are_utf8_encoded(self) -> None:
+        assert ValueSerializer.serialize('a~b-._z \u00e9', 'path', 'string') == 'a~b-._z%20%C3%A9'
+
+    def test_bhv_serialization_108_a_path_value_without_a_style_matches_the_simple_style(self) -> None:
+        assert ValueSerializer.serialize('hello world', 'path', 'string') == 'hello%20world'
+
+    def test_bhv_serialization_118_a_date_time_query_value_keeps_its_time_and_offset(self) -> None:
+        moment = datetime.datetime(2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc)
+        rendered = ValueSerializer.serialize(moment, 'query', 'string')
+        assert 'T13:45:30' in rendered
+        assert rendered.endswith(('+00:00', 'Z'))
+
     def test_bhv_serializationparam_062_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'path', 'string') == ''
 
@@ -250,7 +269,7 @@ class TestNullStyleFallback:
     def test_bhv_serializationparam_035_empty_style_falls_back(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, '', False) == '5'
 
-    def test_bhv_serializationparam_109_an_unknown_style_falls_back_to_plain_value(self) -> None:
+    def test_bhv_serialization_109_an_unknown_style_falls_back_to_plain_value(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'query', 'string', None, 'unknownStyle', False) == '5'
 
 
@@ -260,7 +279,7 @@ class TestDeepObjectSerialization:
         assert result['filter[color]'] == 'blue'
         assert result['filter[size]'] == 'large'
 
-    def test_bhv_serializationparam_111_each_model_property_is_written_under_its_name_key(self) -> None:
+    def test_bhv_serialization_111_each_model_property_is_written_under_its_name_key(self) -> None:
         from {{packageName}}.models.category import Category
 
         result = ValueSerializer.serialize_deep_object('filter', Category(id=3, name='Dogs'))
@@ -408,7 +427,7 @@ class TestValueSerializerFormatDatePath:
         assert isinstance(rendered, str)
         assert rendered.startswith('2024-01-15T13:45:30')
 
-    def test_bhv_serializationparam_110_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
+    def test_bhv_serialization_110_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
         moment = datetime.datetime(2024, 1, 1, 10, 30, 45, tzinfo=datetime.timezone.utc)
         assert ValueSerializer.serialize(moment, 'query', 'date') == '2024-01-01'
         assert ValueSerializer.serialize_styled('d', moment, 'query', 'date', None, 'form', True) == '2024-01-01'
@@ -484,7 +503,7 @@ class TestEncodeContent:
     def test_path_value_is_fully_percent_encoded(self) -> None:
         assert ValueSerializer.encode_content('p', '{"a":"b/c"}', 'path') == '%7B%22a%22%3A%22b%2Fc%22%7D'
 
-    def test_bhv_serializationparam_118_cookie_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_serialization_118_cookie_value_is_fully_percent_encoded(self) -> None:
         assert ValueSerializer.encode_content('c', '{"a":1}', 'cookie') == '%7B%22a%22%3A1%7D'
 
     def test_bhv_serializationparam_104_cookie_value_keeps_only_the_unreserved_set_literal(self) -> None:
@@ -547,7 +566,7 @@ class TestObjectValuedParameters:
         assert ValueSerializer.query_entries('c', 'v') == {'c': 'v'}
         assert ValueSerializer.query_entries('c', None) == {}
 
-    def test_bhv_serializationparam_108_a_nested_object_leaf_is_a_serialization_error(self) -> None:
+    def test_bhv_serialization_108_a_nested_object_leaf_is_a_serialization_error(self) -> None:
         from {{packageName}}.errors import SerializationException
 
         with pytest.raises(SerializationException):

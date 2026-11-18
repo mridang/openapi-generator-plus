@@ -394,6 +394,28 @@ def _json(status: int, body: str, **headers: str) -> ApiHttpResponse:
 class TestPerCallOptions:
     """F827: the Options object of one call overrides the timeout, the headers and the retry budget."""
 
+    async def test_bhv_operations_158_a_header_given_on_one_call_is_sent_with_that_call(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(_json(200, "{}"))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        await api.call_result(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            request_options=FindPetsByStatusOptions(headers={"X-Call-Id": "abc"}),
+        )
+
+        assert client.sent[0]["X-Call-Id"] == "abc"
+
     async def test_bhv_operations_001_per_call_headers_replace_a_configured_default_header_of_the_same_name(
         self,
     ) -> None:
@@ -726,6 +748,25 @@ class TestExceptionHierarchy:
 
 
 class TestSuccessDeserialization:
+    async def test_bhv_operations_159_an_empty_success_body_for_a_value_return_raises_a_typed_error(
+        self,
+    ) -> None:
+        stub = StubApi(
+            api_client=_ScriptedApiClient(_json(200, "")),
+            config=Configuration(base_url="https://example.test"),
+        )
+        with pytest.raises(SerializationException):
+            await stub.call(
+                "GET",
+                "/items",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                "Tag",
+            )
+
     async def test_bhv_serializationwire_004_deserializes_json_response(
         self, api: Any
     ) -> None:
@@ -1469,6 +1510,24 @@ class TestSecurityNoneAuthSuppression:
             f"security:[] op must not send an api-key query param, got: {client.captured_url}"
         )
 
+    async def test_bhv_auth_044_an_operation_with_no_security_sends_no_credential(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        client_auth = StubAuthenticator(
+            headers={"Authorization": "Bearer client-token"}
+        )
+        api = StoreApi(
+            api_client=client,
+            config=Configuration(base_url="http://localhost"),
+            authenticator=client_auth,
+        )
+        try:
+            await api.get_inventory()
+        except Exception:
+            pass  # Response deserialization may fail; we only inspect the request
+        assert "Authorization" not in client.captured_headers
+
     async def test_bhv_authintegration_012_inherited_security_op_applies_client_credential(
         self,
     ) -> None:
@@ -1549,6 +1608,19 @@ class TestSchemeCredentials:
 
         await api.delete_pet(1)
         assert client.captured_headers["Authorization"] == "Basic a"
+
+    async def test_bhv_auth_047_several_listed_schemes_use_the_first_held_and_none_held_sends_no_scheme_credential(
+        self,
+    ) -> None:
+        client = JsonReplyApiClient(_PET_REPLY)
+        await self._api(
+            client, scheme_authenticators={"petStoreBearer": self._token("Bearer b")}
+        ).add_pet(self._pet())
+        assert client.captured_headers["Authorization"] == "Bearer b"
+
+        bare = JsonReplyApiClient(_PET_REPLY)
+        await self._api(bare, scheme_authenticators={}).add_pet(self._pet())
+        assert "Authorization" not in bare.captured_headers
 
     async def test_bhv_authintegration_014_the_first_scheme_the_operation_lists_wins(
         self,
@@ -1714,7 +1786,9 @@ class _GatedPool:
 class TestCloseFinishesCallsInFlight:
     """F1078: a call that started before close() runs to its end, retries included."""
 
-    async def test_a_call_that_retries_after_close_still_finishes(self) -> None:
+    async def test_bhv_lifecycle_044_a_call_that_retries_after_close_still_finishes(
+        self,
+    ) -> None:
         pool = _GatedPool(
             [
                 _GatedResponse(503, {"retry-after": "0"}, b""),
@@ -1756,6 +1830,44 @@ class TestCloseFinishesCallsInFlight:
 
 
 class TestBodySerialization:
+    async def test_bhv_serialization_122_a_form_array_repeats_its_key_in_order(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"tags": ["a", "b"], "id": 1},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert client.captured_body == "tags=a&tags=b&id=1"
+
+    async def test_bhv_serialization_125_form_values_percent_encode_a_plus_sign(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"q": "a+b c"},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert client.captured_body == "q=a%2Bb+c"
+
     async def test_bhv_serializationwire_022_serializes_json_body(
         self, api: Any
     ) -> None:
@@ -2150,6 +2262,34 @@ class VendorJsonApiClient(CapturingApiClient):
 
 
 class TestContentTypeDeserialization:
+    async def test_bhv_operations_161_a_text_plain_body_is_returned_raw_even_when_it_looks_like_base64(
+        self,
+    ) -> None:
+        class _Base64LookingText(CapturingApiClient):
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict[str, str],
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                super().send_request(method, url, headers, body)
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="aGVsbG8=",
+                    headers={"Content-Type": "text/plain"},
+                )
+
+        stub = StubApi(
+            api_client=_Base64LookingText(),
+            config=Configuration(base_url="http://localhost"),
+        )
+        result = await stub.call(
+            "GET", "/test/echo", {}, {}, None, ["text/plain"], "application/json", "str"
+        )
+        assert result == "aGVsbG8="
+
     async def test_bhv_serializationwire_025_skips_deserialization_for_non_json_content_type(
         self,
     ) -> None:
@@ -2330,7 +2470,7 @@ class TestDateOnlyParamsSerializeWithoutTime:
         assert "bornAfter=2024-01-01T" not in client.captured_url, client.captured_url
         assert client.captured_headers["Report-Date"] == "2024-01-01"
 
-    async def test_form_date_param_emits_date_only(self) -> None:
+    async def test_bhv_operations_162_form_date_param_emits_date_only(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
         api = PetApi(api_client=client, config=config)
@@ -2970,7 +3110,7 @@ class TestOperationCookieParam:
 
 
 class TestOperationServerVariants:
-    def test_fixed_url_variant(self) -> None:
+    def test_bhv_operations_160_fixed_url_variant(self) -> None:
         from petstore_client.api.pet_api import GetExternalPetInfoServerServer0
 
         assert (
@@ -3000,6 +3140,14 @@ class TestOperationServerVariants:
         )
 
         assert server.get_url() == expected
+
+    def test_bhv_servers_030_a_value_not_in_the_declared_enum_is_rejected_with_an_error(
+        self,
+    ) -> None:
+        from petstore_client.api.pet_api import GetStagingPetInfoServerEnvironment
+
+        with pytest.raises(ValueError, match="'canary' is not a valid"):
+            GetStagingPetInfoServerEnvironment("canary")
 
     def test_bhv_servers_020_a_value_outside_the_variable_enum_is_rejected(
         self,
@@ -3197,6 +3345,25 @@ _OK: Reply = (200, {}, "{}")
 
 
 class TestAutomaticRetries:
+    async def test_bhv_retries_048_a_default_client_retries_a_503_and_returns_the_later_success(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), _OK)
+
+        result = await _get(_retry_api(server))
+
+        assert result is not None
+        assert len(server.requests) == 2
+
+    async def test_bhv_retries_047_a_wait_that_would_overrun_the_caller_timeout_is_not_taken(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, {"Retry-After": "30"}, "{}"), _OK)
+
+        with pytest.raises(ApiException):
+            await _get(_retry_api(server, timeout=2))
+        assert len(server.requests) == 1
+
     @pytest.mark.parametrize("status", [408, 409, 429, 500, 502, 503, 504, 599])
     async def test_a_retryable_status_is_sent_again(
         self, scripted: Any, status: int
@@ -3239,7 +3406,9 @@ class TestAutomaticRetries:
         assert excinfo.value.status_code == 503
         assert len(server.requests) == 3
 
-    async def test_max_retries_sets_the_number_of_retries(self, scripted: Any) -> None:
+    async def test_bhv_retries_049_max_retries_sets_the_number_of_retries(
+        self, scripted: Any
+    ) -> None:
         server = scripted((503, _SOON, "{}"))
 
         with pytest.raises(ServerException):
@@ -3277,7 +3446,9 @@ class TestAutomaticRetries:
         assert time.monotonic() - started >= 0.9
         assert len(server.requests) == 2
 
-    async def test_retry_after_as_an_http_date_is_honoured(self, scripted: Any) -> None:
+    async def test_bhv_retries_050_retry_after_as_an_http_date_is_honoured(
+        self, scripted: Any
+    ) -> None:
         when = formatdate(time.time() + 2, usegmt=True)
         server = scripted((503, {"Retry-After": when}, "{}"), _OK)
         started = time.monotonic()

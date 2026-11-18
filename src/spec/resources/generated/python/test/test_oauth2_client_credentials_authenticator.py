@@ -18,7 +18,7 @@ from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import (
     OAuth2ClientCredentialsAuthenticator,
 )
 from petstore_client.api_http_response import ApiHttpResponse
-from petstore_client.errors import OAuth2ServerException
+from petstore_client.errors import ApiException, OAuth2ServerException
 
 
 def _create_authenticator() -> OAuth2ClientCredentialsAuthenticator:
@@ -137,6 +137,24 @@ class TestOAuth2ClientCredentialsAuthenticator:
             auth.get_auth_headers()
         assert exc_info.value.status_code == 401
 
+    def test_bhv_auth_054_a_non_success_token_response_is_an_oauth2_server_error_naming_status_and_body(
+        self,
+    ) -> None:
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=400,
+            body=json.dumps({"error": "invalid_client"}),
+            headers={"content-type": "application/json"},
+        )
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(OAuth2ServerException) as exc_info:
+            auth.get_auth_headers()
+        assert "status 400" in str(exc_info.value)
+        assert "invalid_client" in str(exc_info.value)
+        assert not isinstance(exc_info.value, ApiException)
+
     def test_bhv_authoauthtwoclientcred_003_caches_token_across_calls(self) -> None:
         # The token manager caches the access token until expiry, so two
         # consecutive header requests reuse the same token and issue only a
@@ -229,7 +247,7 @@ def _reply_token() -> ApiHttpResponse:
 
 
 class TestClientCredentialsWireEncoding:
-    def test_body_separates_scopes_with_a_plus(self) -> None:
+    def test_bhv_auth_050_body_separates_scopes_with_a_plus(self) -> None:
         auth, mock_client = _create_authenticator_with_mock()
 
         auth.get_auth_headers()
