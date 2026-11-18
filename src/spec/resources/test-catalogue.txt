@@ -2014,3 +2014,4 @@ langswift069 | A server variable stores its default value
 langswift070 | A server variable with an enum default resolves to that default
 langswift071 | A caller-supplied session is kept by the transport options
 langswift072 | An empty proxy string clears a proxy set earlier
+langswift073 | Object fields are keyed by their wire names, sorted, and nulls are skipped
