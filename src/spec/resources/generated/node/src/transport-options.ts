@@ -67,6 +67,9 @@ function assertFetchCompatible(options: {
   if (options.fetch == null) {
     return;
   }
+  if (typeof options.fetch !== "function") {
+    throw new TypeError("The HTTP connection must be a fetch function.");
+  }
   const conflicts: string[] = [];
   if (options.proxy != null) {
     conflicts.push("proxy");
