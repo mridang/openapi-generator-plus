@@ -817,3 +817,29 @@ async fn test_bhv_transport_068_a_call_dropped_before_it_runs_sends_no_request()
 
     assert!(client.url.lock().unwrap().is_empty(), "no request may be sent for a call that never ran");
 }
+
+/* A 200 answer to reserveStock is checked against the 200 schema only, so a body that fits only
+ * the 201 receipt is refused with a SerializationError. */
+#[tokio::test]
+async fn test_bhv_operations_154_a_body_that_fits_only_another_status_schema_is_refused() {
+    let err = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect_err("a 200 body that matches only the 201 schema must be refused");
+    assert!(err.downcast_ref::<SerializationError>().is_some(), "got: {}", err);
+}
+
+/* The status code picks the variant, not the shape of the body: a 201 body that fits only the 200
+ * reservation is refused with a SerializationError. */
+#[tokio::test]
+async fn test_bhv_unions_036_the_status_selects_the_variant_and_a_body_that_does_not_fit_it_is_refused() {
+    let err = new_store_api_for_mock(201, "application/json", r#"{"reservationId":31,"quantity":4}"#)
+        .reserve_stock(None)
+        .await
+        .expect_err("a 201 body that matches only the 200 schema must be refused");
+    assert!(err.downcast_ref::<SerializationError>().is_some(), "got: {}", err);
+}

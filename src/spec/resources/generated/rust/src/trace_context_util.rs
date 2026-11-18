@@ -171,6 +171,8 @@ mod tests {
     #[cfg(feature = "opentelemetry")]
     mod with_active_span {
         use super::inject_trace_context;
+        use opentelemetry::propagation::text_map_propagator::FieldIter;
+        use opentelemetry::propagation::{Extractor, Injector, TextMapPropagator};
         use opentelemetry::trace::{
             SpanContext, SpanId, TraceContextExt, TraceFlags, TraceId, TraceState, Tracer,
             TracerProvider as _,
@@ -180,6 +182,9 @@ mod tests {
         use opentelemetry_sdk::trace::{InMemorySpanExporter, Sampler, SdkTracerProvider};
         use std::collections::HashMap;
 
+        /* The propagator is process-wide, so every test that installs one holds this lock. */
+        static PROPAGATOR_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
         /// Installs the W3C propagator and a tracer provider that exports to
         /// memory, starts a span under `parent`, and injects the headers while
         /// that span is current. Returns the headers, the span's context and
@@ -188,6 +193,7 @@ mod tests {
             sampler: Sampler,
             parent: Context,
         ) -> (HashMap<String, String>, SpanContext, usize) {
+            let _serial = PROPAGATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
             opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
             let exporter = InMemorySpanExporter::default();
             let provider = SdkTracerProvider::builder()
@@ -269,6 +275,46 @@ mod tests {
                 unsampled.get("traceparent"),
                 Some(&traceparent(&unsampled_context, "00"))
             );
+        }
+
+        /// A propagator the caller registers globally is the one that injects the headers,
+        /// and the headers already on the request are kept.
+        #[derive(Debug)]
+        struct MarkerPropagator {
+            fields: Vec<String>,
+        }
+
+        impl TextMapPropagator for MarkerPropagator {
+            fn inject_context(&self, _cx: &opentelemetry::Context, injector: &mut dyn Injector) {
+                injector.set("x-marker", "caller".to_string());
+            }
+
+            fn extract_with_context(
+                &self,
+                cx: &opentelemetry::Context,
+                _extractor: &dyn Extractor,
+            ) -> opentelemetry::Context {
+                cx.clone()
+            }
+
+            fn fields(&self) -> FieldIter<'_> {
+                FieldIter::new(&self.fields)
+            }
+        }
+
+        #[test]
+        fn test_bhv_misc_002_the_registered_propagator_injects_and_existing_headers_are_kept() {
+            let _serial = PROPAGATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+            opentelemetry::global::set_text_map_propagator(MarkerPropagator {
+                fields: vec!["x-marker".to_string()],
+            });
+            let mut headers = HashMap::new();
+            headers.insert("X-Keep".to_string(), "1".to_string());
+
+            inject_trace_context(&mut headers);
+
+            assert_eq!(Some("caller"), headers.get("x-marker").map(String::as_str));
+            assert_eq!(Some("1"), headers.get("X-Keep").map(String::as_str));
         }
     }
 }
