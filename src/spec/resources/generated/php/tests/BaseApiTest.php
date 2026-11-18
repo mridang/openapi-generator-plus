@@ -2602,3 +2602,60 @@ test('bhv operations 161 a text plain response is returned as the raw text even 
     );
     expect($result)->toBe('aGVsbG8=');
 });
+
+test('bhv misc 053 a per call retry budget of zero is accepted', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    $api->deletePet(7, new DeletePetOptions(maxRetries: 0));
+
+    expect($client->capturedUrl)->toBe('http://localhost/pet/7');
+});
+
+test('bhv misc 053 a negative per call retry budget is refused before any request is sent', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+
+    expect(function () use ($api): void {
+        $api->deletePet(7, new DeletePetOptions(maxRetries: -1));
+    })->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv misc 053 a non whole per call retry budget is refused by its type', function (): void {
+    expect(fn () => new DeletePetOptions(maxRetries: 1.5))->toThrow(\TypeError::class);
+});
+
+test('bhv misc 054 per call headers are a copy that later changes to the caller map do not reach', function (): void {
+    $client = new CapturingApiClient();
+    $api = new PetApi($client, new Configuration('http://localhost'));
+    $headers = ['X-Trace' => 'before'];
+    $options = new DeletePetOptions(headers: $headers);
+    $headers['X-Trace'] = 'after';
+
+    $api->deletePet(7, $options);
+
+    $captured = array_change_key_case($client->capturedHeaders, CASE_LOWER);
+    expect($captured['x-trace'] ?? null)->toBe('before');
+});
+
+test('bhv misc 064 an operation that declares no security never sends the client default credential', function (): void {
+    $client = new CapturingApiClient();
+    $api = new StoreApi($client, new Configuration('http://localhost'), new TestAuthenticator(headers: ['X-Default' => 'default']));
+    try {
+        $api->getInventoryWithHttpInfo();
+    } catch (\Exception) {
+        // Response deserialization may fail; we only care about the captured request
+    }
+    expect($client->capturedHeaders)->not->toHaveKey('X-Default');
+});
+
+test('bhv misc 065 scheme credentials are copied when the api is built', function (): void {
+    $schemes = ['bearer' => new TestAuthenticator(headers: ['Authorization' => 'Bearer first'])];
+    [$api, $client] = newSchemeApi($schemes);
+    $schemes['bearer'] = new TestAuthenticator(headers: ['Authorization' => 'Bearer second']);
+
+    $api->callWithRequirements(['application/json'], [['bearer']]);
+
+    expect($client->capturedHeaders['Authorization'] ?? null)->toBe('Bearer first');
+});

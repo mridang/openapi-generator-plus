@@ -633,3 +633,84 @@ func TestBhvMisc142_Model_AdditionalPropertiesReadBackUnchangedAndHoldExactlyThe
 		t.Errorf("expected exactly the stored entries back, got %v", item.AdditionalProperties)
 	}
 }
+
+func TestBhvMisc143_Model_AdditionalPropertiesMapSurvivesCopyAndEquality(t *testing.T) {
+	t.Parallel()
+	item := models.Metadata{}.WithAdditionalProperties(map[string]string{"owner": "team-a", "tier": "gold"})
+	copied := item.WithAdditionalProperties(item.AdditionalProperties)
+	if len(copied.AdditionalProperties) != 2 || copied.AdditionalProperties["owner"] != "team-a" || copied.AdditionalProperties["tier"] != "gold" {
+		t.Errorf("expected the copy to keep the entries, got %v", copied.AdditionalProperties)
+	}
+	if !item.Equal(&copied) {
+		t.Error("expected the copy to compare equal to the original")
+	}
+}
+
+func TestBhvMisc144_Model_ValidationRefusesAStringForANumericField(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":"1"}`), &item); err == nil {
+		t.Error("expected a string given for a numeric field to be refused")
+	}
+}
+
+func TestBhvMisc146_Model_CopyWithNoChangesIsANewEqualInstance(t *testing.T) {
+	t.Parallel()
+	original := models.NewStockItem(models.PriorityNumber1)
+	copied := *original
+	if &copied == original || !original.Equal(&copied) {
+		t.Error("expected a new instance equal to the original")
+	}
+}
+
+func TestBhvMisc147_Model_CopyOfANestedObjectHoldsTheSameObject(t *testing.T) {
+	t.Parallel()
+	parent := models.TreeNode{}.WithValue("root").WithChild(models.TreeNode{}.WithValue("leaf"))
+	copied := parent.WithValue("copied")
+	if copied.Child != parent.Child {
+		t.Error("expected the copy to hold the same nested object as the original")
+	}
+}
+
+func TestBhvMisc148_Model_CopyWithChangesSerializesLikeTheChangesBuiltFresh(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilitySold)
+	copied := item.WithAvailability(models.AvailabilityOnHold)
+	got, err := json.Marshal(&copied)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want, err := json.Marshal(models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilityOnHold))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("expected %s, got %s", want, got)
+	}
+}
+
+func TestBhvMisc150_Model_EqualFieldValuesCompareEqualAndDifferentOnesUnequal(t *testing.T) {
+	t.Parallel()
+	first := models.NewStockItem(models.PriorityNumber1)
+	same := models.NewStockItem(models.PriorityNumber1)
+	other := models.NewStockItem(models.PriorityNumber2)
+	if !first.Equal(same) {
+		t.Error("expected models with equal values to compare equal")
+	}
+	if first.Equal(other) {
+		t.Error("expected models with different values to compare unequal")
+	}
+}
+
+func TestBhvMisc151_Model_AMapFieldComparesEveryEntry(t *testing.T) {
+	t.Parallel()
+	first := models.Metadata{}.WithAdditionalProperties(map[string]string{"a": "1", "b": "2"})
+	same := models.Metadata{}.WithAdditionalProperties(map[string]string{"a": "1", "b": "2"})
+	differs := models.Metadata{}.WithAdditionalProperties(map[string]string{"a": "1", "b": "3"})
+	if !first.Equal(&same) {
+		t.Error("expected maps with the same entries to compare equal")
+	}
+	if first.Equal(&differs) {
+		t.Error("expected maps with a differing entry to compare unequal")
+	}
+}

@@ -3761,3 +3761,29 @@ func TestBhvHooks021_BaseApi_TheUrlGivenToTheHookNeverCarriesTheQueryStringOrThe
 		t.Errorf("expected the url without query string and fragment, got %q", got)
 	}
 }
+
+func TestBhvMisc159_BaseApi_A401IsReplayedOnceWithRetriesTurnedOff(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	if _, err := client.Pet.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("expected the replayed request to succeed, got %v", err)
+	}
+	if got := srv.apiHits.Load(); got != 2 {
+		t.Errorf("expected the request sent twice, got %d", got)
+	}
+}
+
+func TestBhvMisc160_BaseApi_ANonNetworkErrorIsNeverRetried(t *testing.T) {
+	t.Parallel()
+	srv := newScriptedServer(t, scriptedReply{status: 400, retryAfter: "0"})
+	api := retryApi(t, srv, func(b *petstore.TransportOptionsBuilder) { b.MaxRetries(3) }, nil)
+
+	if err := addPetCall(api); err == nil {
+		t.Error("expected an error")
+	}
+	if got := srv.hits.Load(); got != 1 {
+		t.Errorf("expected one request, got %d", got)
+	}
+}

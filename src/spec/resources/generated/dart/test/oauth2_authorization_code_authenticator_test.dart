@@ -62,6 +62,30 @@ OAuth2AuthorizationCodeAuthenticator _createAuthenticator() {
 void main() {
   group('OAuth2AuthorizationCodeAuthenticator', () {
     test(
+      'bhv misc 058 the authorization endpoint and redirect URI reach the URL exactly as configured',
+      () {
+        final url = _createAuthenticator().buildAuthorizationUrl();
+
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+        expect(
+          url,
+          contains(
+            'redirect_uri=${Uri.encodeQueryComponent('https://app.example.com/callback')}',
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 062 the authorization URL carries the scopes the security scheme declares',
+      () {
+        final url = _createAuthenticator().buildAuthorizationUrl();
+
+        expect(url, contains('scope=read%20write'));
+      },
+    );
+
+    test(
       'bhv authoauthtwoauthcode 006 builds authorization URL with required params',
       () {
         final auth = _createAuthenticator();
