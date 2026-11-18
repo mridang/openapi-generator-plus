@@ -1245,14 +1245,14 @@ mod tests {
     /* F861: a query-parameter API key must not reach a redirect refusal
      * message, so the query and fragment are dropped from the URLs it names. */
     #[test]
-    fn test_redacted_url_drops_the_query_and_fragment() {
+    fn test_bhv_errors_077_redacted_url_drops_the_query_and_fragment() {
         let url = reqwest::Url::parse("https://api.example.com/items?api_key=SECRET&x=1#frag")
             .expect("valid url");
         assert_eq!("https://api.example.com/items", redacted_url(&url));
     }
 
     #[tokio::test]
-    async fn test_transport_error_does_not_carry_the_request_url() {
+    async fn test_bhv_errors_078_transport_error_does_not_carry_the_request_url() {
         let err = reqwest::Client::new()
             .get("http://127.0.0.1:1/items?api_key=SECRET")
             .send()

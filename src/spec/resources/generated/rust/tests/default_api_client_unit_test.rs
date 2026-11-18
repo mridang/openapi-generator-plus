@@ -151,7 +151,8 @@ fn start_redirect_server(status: u16) -> (String, std::sync::mpsc::Receiver<Stri
 }
 
 #[tokio::test]
-async fn test_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers() {
+async fn test_bhv_redirects_041_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers()
+{
     for status in [301u16, 302, 303] {
         let (base_url, head) = start_redirect_server(status);
         let transport = TransportOptionsBuilder::new()
@@ -274,7 +275,8 @@ async fn test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get() 
 }
 
 #[tokio::test]
-async fn test_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length() {
+async fn test_bhv_redirects_042_redirect_preserving_a_bodyless_post_keeps_the_zero_content_length()
+{
     let (base_url, head) = start_redirect_server(307);
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)
@@ -572,7 +574,7 @@ async fn test_bhv_transport_041_default_api_client_injects_custom_user_agent() {
 }
 
 #[tokio::test]
-async fn test_default_api_client_succeeds_without_transport_options() {
+async fn test_bhv_transport_082_default_api_client_succeeds_without_transport_options() {
     let base_url = start_echo_server();
 
     let client = DefaultApiClient::new(None);

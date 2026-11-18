@@ -227,7 +227,7 @@ fn test_bhv_lifecycle_013_client_with_token_names_the_missing_host_and_token() {
 }
 
 #[test]
-fn test_client_with_token_treats_an_empty_variable_as_unset() {
+fn test_bhv_config_025_client_with_token_treats_an_empty_variable_as_unset() {
     with_environment(Some(""), Some("env-token"), || {
         let text = invalid_argument_text(Client::with_token(None, None, None));
         assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);

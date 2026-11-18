@@ -380,7 +380,7 @@ fn nested_array(depth: usize) -> String {
 }
 
 #[test]
-fn test_api_error_body_nested_beyond_serde_default_limit_still_parses() {
+fn test_bhv_errors_073_api_error_body_nested_beyond_serde_default_limit_still_parses() {
     // serde_json stops at ~128 levels; the shared cap is 1000, as on the
     // success path.
     let err = ApiError::new(400, "bad".to_string(), None, Some(nested_array(500)));

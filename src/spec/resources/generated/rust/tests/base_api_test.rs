@@ -182,7 +182,7 @@ async fn test_bhv_errors_034_base_api_parses_json_error_body() {
 // -- Empty 200 response --
 
 #[tokio::test]
-async fn test_base_api_handles_empty_200_response() {
+async fn test_bhv_transport_067_base_api_handles_empty_200_response() {
     let client = DefaultApiClient::new(None);
     let headers = HashMap::new();
     let resp = client
@@ -691,7 +691,7 @@ async fn test_bhv_errors_037_base_api_auth_code_not_exchanged_fails_the_call() {
 }
 
 #[tokio::test]
-async fn test_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
+async fn test_bhv_auth_021_base_api_op_auth_none_with_no_client_authenticator_still_sends() {
     /* Passing None for both the op auth and the client authenticator is
      * permitted for endpoints that don't strictly require credentials. */
     let client = Arc::new(CapturingApiClient::new());

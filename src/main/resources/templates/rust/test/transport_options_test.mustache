@@ -61,7 +61,7 @@ fn test_transport_options_user_agent_set_value_is_applied() {
 }
 
 #[test]
-fn test_transport_options_user_agent_opt_some_and_none() {
+fn test_bhv_options_061_transport_options_user_agent_opt_some_and_none() {
     let some = TransportOptionsBuilder::new().user_agent_opt(Some("UA/1.0")).build().expect("valid transport options");
     assert_eq!(some.user_agent(), Some("UA/1.0"));
 
@@ -508,7 +508,7 @@ fn test_bhv_options_037_transport_options_no_timeout_is_expressible() {
 
 /// `TransportOptions::builder()` is the static entry point every SDK exposes.
 #[test]
-fn test_transport_options_builder_entry_point() {
+fn test_bhv_options_060_transport_options_builder_entry_point() {
     let opts = TransportOptions::builder().timeout(Some(2500)).build().expect("valid transport options");
     assert_eq!(opts.timeout(), Some(2500));
     assert!(opts.verify_ssl(), "expected the same defaults as TransportOptionsBuilder::new()");

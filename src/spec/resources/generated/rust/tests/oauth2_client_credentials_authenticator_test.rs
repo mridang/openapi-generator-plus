@@ -223,7 +223,7 @@ async fn test_bhv_authoauthtwoclientcred_015_token_fetch_error_is_surfaced_not_s
 /// map (interface conformance), confirming both the error path and the
 /// collapse path exist.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_auth_headers_collapses_error_to_empty_map() {
+async fn test_bhv_auth_015_auth_headers_collapses_error_to_empty_map() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(r#"{"error":"invalid_client"}"#, 401);
 
@@ -378,7 +378,7 @@ async fn test_bhv_authoauthtwoclientcred_009_scheme_wrapper_sends_the_scopes_dec
 }
 
 #[test]
-fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_secret() {
+fn test_bhv_auth_016_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_secret() {
     let auth = MachineAuthClientCredentialsAuthenticator::new(
         "https://api.example.com",
         Some("id"),
