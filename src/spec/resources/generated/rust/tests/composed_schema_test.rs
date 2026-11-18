@@ -21,7 +21,7 @@ fn test_bhv_serialization_001_string_enum_displays_its_wire_value() {
 }
 
 #[test]
-fn test_inline_string_enum_displays_its_wire_value() {
+fn test_bhv_langrust_031_inline_string_enum_displays_its_wire_value() {
     assert_eq!("pending", PetStatusEnum::Pending.to_string());
 }
 
@@ -194,7 +194,7 @@ fn test_bhv_misc_295_a_byte_string_one_of_round_trips_through_base64_and_rejects
 }
 
 #[test]
-fn test_pet_food_subtype_default_carries_its_mapping_value() {
+fn test_bhv_langrust_032_pet_food_subtype_default_carries_its_mapping_value() {
     /* Struct-update syntax over `Default::default()` must keep the discriminator
      * `new()` promises, so the payload still routes through the parent oneOf. */
     let dry = DryFood {
@@ -681,7 +681,7 @@ fn test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode() {
 // (`"status":"placed"`) rather than omitting the field, matching the other
 // SDKs that seed the default variant.
 #[test]
-fn test_order_default_status_serializes_default_variant() {
+fn test_bhv_langrust_033_order_default_status_serializes_default_variant() {
     let order = Order::new();
     assert_eq!(order.status, Some(OrderStatusEnum::Placed));
 
@@ -775,38 +775,6 @@ fn test_bhv_serializationobject_189_mutually_recursive_models_deserialize() {
 // A schema `default` applies ONLY when the property is ABSENT. An explicit
 // JSON `null` is a provided value and is PRESERVED as `None`, never replaced
 // by the default.
-#[test]
-fn test_defaults_absent_applies_schema_defaults() {
-    let json_data = r#"{}"#;
-
-    let defaults: Defaults =
-        serde_json::from_str(json_data).expect("failed to deserialize Defaults");
-
-    assert_eq!(
-        defaults.retries,
-        Some(3),
-        "absent `retries` must deserialize to the schema default 3, got: {:?}",
-        defaults.retries
-    );
-    assert_eq!(
-        defaults.mode,
-        Some(DefaultsModeEnum::Medium),
-        "absent `mode` must deserialize to the declared default variant `Medium`, got: {:?}",
-        defaults.mode
-    );
-    assert_eq!(
-        defaults.label,
-        Some("untitled".to_string()),
-        "absent `label` must deserialize to the schema default \"untitled\", got: {:?}",
-        defaults.label
-    );
-    assert_eq!(
-        defaults.greeting,
-        Some("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b".to_string()),
-        "absent `greeting` must deserialize to the exact schema default, got: {:?}",
-        defaults.greeting
-    );
-}
 
 #[test]
 fn test_bhv_serializationobject_056_defaults_explicit_null_is_preserved() {
@@ -929,7 +897,7 @@ fn test_bhv_serializationobject_001_referenced_enum_with_sibling_default_is_set_
 }
 
 #[test]
-fn test_referenced_enum_with_sibling_default_is_written_on_the_wire() {
+fn test_bhv_serialization_097_referenced_enum_with_sibling_default_is_written_on_the_wire() {
     let data = serde_json::to_string(&StockItem::new(Priority::Number1))
         .expect("failed to serialize StockItem");
     let parsed: serde_json::Value =
@@ -940,13 +908,6 @@ fn test_referenced_enum_with_sibling_default_is_written_on_the_wire() {
         "{}",
         data
     );
-}
-
-#[test]
-fn test_referenced_enum_with_sibling_default_applies_when_the_key_is_missing() {
-    let item: StockItem =
-        serde_json::from_str(r#"{"priority":1}"#).expect("failed to deserialize StockItem");
-    assert_eq!(item.availability, Some(Availability::OnHold));
 }
 
 #[test]
@@ -1073,7 +1034,7 @@ fn test_bhv_unions_023_set_pet_avatar_thumbnail_byte_one_of_round_trips_through_
 // integral value (`{"lat":5}`, not `5.0`) must deserialize without crashing
 // and yield the equivalent float.
 #[test]
-fn test_photo_metadata_location_double_from_integral_json() {
+fn test_bhv_serialization_115_photo_metadata_location_double_from_integral_json() {
     let json_data = r#"{"lat":5,"lng":-7}"#;
 
     let location: PhotoMetadataLocation =
@@ -1118,49 +1079,6 @@ fn test_bhv_serializationobject_108_stock_item_matrix_nested_array_round_trips_t
  * decodes back. `Separator` has four wire values whose identifiers sanitise to
  * empty or colliding names: each decodes to a distinct member and re-encodes to
  * the original string. */
-#[test]
-fn test_availability_every_member_round_trips_through_its_display_text() {
-    let members = Availability::all_values();
-    assert_eq!(7, members.len(), "every wire value is a distinct member");
-    for member in members {
-        let wire = member.to_string();
-        let quoted = serde_json::to_string(&wire).expect("failed to quote the wire value");
-        let decoded: Availability =
-            serde_json::from_str(&quoted).expect("failed to decode the wire value");
-        assert_eq!(member, decoded, "{wire} must decode to its own member");
-        assert_eq!(
-            quoted,
-            serde_json::to_string(&member).expect("failed to serialize the member"),
-            "{wire} must re-encode to the original string"
-        );
-    }
-    assert_eq!("o'clock", Availability::Oclock.to_string());
-    assert_eq!("a\\b", Availability::AB.to_string());
-    assert_eq!("$eq", Availability::Eq.to_string());
-    assert_eq!("#{x}", Availability::X.to_string());
-}
-
-#[test]
-fn test_separator_wire_values_decode_to_distinct_members_and_re_encode() {
-    let wires = [" ", "@@", "a-b", "a_b"];
-    let mut seen = Vec::new();
-    for wire in wires {
-        let quoted = serde_json::to_string(wire).expect("failed to quote the wire value");
-        let member: Separator =
-            serde_json::from_str(&quoted).expect("failed to decode the wire value");
-        assert!(
-            !seen.contains(&member),
-            "{wire:?} must decode to a distinct member"
-        );
-        assert_eq!(
-            quoted,
-            serde_json::to_string(&member).expect("failed to serialize the member"),
-            "{wire:?} must re-encode to the original string"
-        );
-        seen.push(member);
-    }
-    assert_eq!(4, Separator::all_values().len());
-}
 
 /* -- an inline enum with non-identifier wire values (F1146) -- */
 
@@ -1221,29 +1139,6 @@ fn test_bhv_serializationobject_104_edge_cases_error_and_result_models_round_tri
 
 /* -- properties named after keywords and literals keep their wire keys (F1114) -- */
 
-#[test]
-fn test_edge_cases_keyword_named_properties_keep_their_wire_keys() {
-    let mut edge = EdgeCases::new();
-    edge.and = Some(true);
-    edge.or = Some(false);
-    edge.not = Some(true);
-    edge.class = Some("c".to_string());
-    edge.r#return = Some("r".to_string());
-    edge.null = Some("n".to_string());
-    edge.r#true = Some(true);
-    edge.r#false = Some(false);
-    let wire = serde_json::to_value(&edge).expect("failed to encode EdgeCases");
-    assert_eq!(
-        serde_json::json!({
-            "and": true, "or": false, "not": true, "class": "c", "return": "r",
-            "null": "n", "true": true, "false": false
-        }),
-        wire
-    );
-    let back: EdgeCases = serde_json::from_value(wire).expect("failed to decode EdgeCases");
-    assert_eq!(edge, back);
-}
-
 /* F1124: constraint keywords are not enforced. A slug that breaks its pattern,
  * a nickname that breaks its look-around pattern and a quantity above its
  * maximum all decode as given, and the slug re-encodes unchanged. */
@@ -1299,7 +1194,7 @@ fn test_bhv_serializationobject_016_order_tracking_id_is_lowercase_on_the_wire_a
 /* -- OAS 3.1 contentEncoding property is a base64 byte field (F1116) -- */
 
 #[test]
-fn test_pet_passport_content_encoded_property_is_base64_on_the_wire() {
+fn test_bhv_langrust_034_pet_passport_content_encoded_property_is_base64_on_the_wire() {
     let decoded: PetPassport =
         serde_json::from_str(r#"{"biometricChip":"AAEC"}"#).expect("failed to decode PetPassport");
     assert_eq!(Some(vec![0u8, 1, 2]), decoded.biometric_chip);

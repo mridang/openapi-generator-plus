@@ -198,7 +198,7 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
         end
       end
 
-      test "a credential found nowhere raises and names its variable" do
+      test "bhv langelixir 044 a credential found nowhere raises and names its variable" do
         for {arg, env} <- @vars do
           Enum.each(@vars, fn {other, other_env} ->
             System.put_env(other_env, "from-env-" <> other)

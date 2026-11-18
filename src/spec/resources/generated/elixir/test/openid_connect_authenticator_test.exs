@@ -269,7 +269,7 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
     # set_api_client returns a copy for the client to hold; the caller's own
     # struct must still reach the injected ApiClient, and an exchange done on it
     # must ready the client's copy.
-    test "exchange_code on the caller's copy readies the client's copy" do
+    test "bhv langelixir 014 exchange_code on the caller's copy readies the client's copy" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

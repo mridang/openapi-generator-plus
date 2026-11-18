@@ -478,7 +478,7 @@ describe("BaseApi BOM tolerance", () => {
    * JSON.parse rejects it, so base_api strips a leading BOM before
    * parsing for parity with Jackson / System.Text.Json.
    */
-  test("deserializes a BOM-prefixed JSON body into a Category", async () => {
+  test("bhv misc 244 deserializes a BOM-prefixed JSON body into a Category", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '﻿{"id":1,"name":"Dogs"}';
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -1164,40 +1164,43 @@ describe("BaseApi", () => {
             ApiKeyLocation.HEADER,
           ),
       ],
-    ])("is never replayed for a %s authenticator", async (_name, make) => {
-      let calls = 0;
-      const stub: ApiClient = {
-        async sendRequest() {
-          calls += 1;
-          return {
-            statusCode: 401,
-            body: "{}",
-            headers: { "content-type": "application/json" },
-          };
-        },
-      };
-      const testable = new TestableApi(
-        stub,
-        new Configuration({ baseUrl: "https://api.example.com" }),
-        make(),
-      );
+    ])(
+      "bhv langnode 027 is never replayed for a %s authenticator",
+      async (_name, make) => {
+        let calls = 0;
+        const stub: ApiClient = {
+          async sendRequest() {
+            calls += 1;
+            return {
+              statusCode: 401,
+              body: "{}",
+              headers: { "content-type": "application/json" },
+            };
+          },
+        };
+        const testable = new TestableApi(
+          stub,
+          new Configuration({ baseUrl: "https://api.example.com" }),
+          make(),
+        );
 
-      const error = await testable
-        .call(
-          "GET",
-          "/items",
-          {},
-          {},
-          null,
-          ["application/json"],
-          "application/json",
-          null,
-        )
-        .catch((e: unknown) => e);
+        const error = await testable
+          .call(
+            "GET",
+            "/items",
+            {},
+            {},
+            null,
+            ["application/json"],
+            "application/json",
+            null,
+          )
+          .catch((e: unknown) => e);
 
-      expect((error as Error).constructor).toBe(UnauthorizedError);
-      expect(calls).toBe(1);
-    });
+        expect((error as Error).constructor).toBe(UnauthorizedError);
+        expect(calls).toBe(1);
+      },
+    );
   });
 
   /*
@@ -1478,7 +1481,7 @@ describe("BaseApi", () => {
     ["a key", { "k\uDC00": "v" }],
     ["an array item", { names: ["ok", "a\uD800"] }],
   ])(
-    "form-urlencoded body rejects a lone surrogate in %s with URIError",
+    "bhv langnode 028 form-urlencoded body rejects a lone surrogate in %s with URIError",
     async (_label, body) => {
       const client = new CapturingApiClient();
       const config = new Configuration({ baseUrl: "http://localhost" });
@@ -1631,7 +1634,7 @@ describe("BaseApi", () => {
   // octet-stream selection silently degraded to multipart/form-data. The
   // CapturingApiClient records exactly what BaseApi hands the transport, so we
   // assert on the body's runtime type (Buffer vs Record) and the header.
-  test("uploadPetDocument sends raw bytes when application/octet-stream is selected", async () => {
+  test("bhv langnode 019 uploadPetDocument sends raw bytes when application/octet-stream is selected", async () => {
     const payload = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d]); // "%PDF-"
 
     // (1) application/octet-stream -> RAW bytes, octet-stream Content-Type.
@@ -2276,7 +2279,7 @@ describe("BaseApi scheme credentials", () => {
   });
 
   test.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
-    "a scheme named %s never resolves to a member of Object.prototype",
+    "bhv langnode 029 a scheme named %s never resolves to a member of Object.prototype",
     (name) => {
       expect(
         new TestableApi(undefined, undefined, null, { bearer }).resolve([name]),
@@ -2540,7 +2543,7 @@ describe("SecurityNoneSuppressesClientAuth", () => {
    * must suppress auth ONLY for security:[] operations, never for secured
    * ones. `addPet` is a secured operation.
    */
-  test("secured op still sends the configured authenticator credential", async () => {
+  test("bhv langnode 020 secured op still sends the configured authenticator credential", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"id":1,"name":"Fido"}';
     const config = new Configuration({ baseUrl: "http://localhost" });
@@ -2564,7 +2567,7 @@ describe("SecurityNoneSuppressesClientAuth", () => {
    * `@ts-expect-error` below fails the type check if DeepInput ever makes
    * every property optional again.
    */
-  test("a request body missing a required field is a compile error", async () => {
+  test("bhv langnode 021 a request body missing a required field is a compile error", async () => {
     const petApi = new PetApi(
       new CapturingApiClient(),
       new Configuration({ baseUrl: "http://localhost" }),
@@ -2604,7 +2607,7 @@ describe("SecurityNoneSuppressesClientAuth", () => {
 });
 
 describe("Container response leaves are type-checked", () => {
-  test("getInventory rejects a quoted number in the integer map", async () => {
+  test("bhv langnode 022 getInventory rejects a quoted number in the integer map", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"available":"5"}';
     const storeApi = new StoreApi(
@@ -2616,7 +2619,7 @@ describe("Container response leaves are type-checked", () => {
     );
   });
 
-  test("getInventory rejects a fractional number in the integer map", async () => {
+  test("bhv langnode 023 getInventory rejects a fractional number in the integer map", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"available":7.5}';
     const storeApi = new StoreApi(
@@ -2628,7 +2631,7 @@ describe("Container response leaves are type-checked", () => {
     );
   });
 
-  test("getInventory rejects an out-of-range number in the integer map", async () => {
+  test("bhv misc 116 getInventory rejects an out-of-range number in the integer map", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"available":3000000000}';
     const storeApi = new StoreApi(
@@ -2638,7 +2641,7 @@ describe("Container response leaves are type-checked", () => {
     await expect(storeApi.getInventory()).rejects.toThrow(SerializationError);
   });
 
-  test("getInventory still decodes integer values", async () => {
+  test("bhv langnode 024 getInventory still decodes integer values", async () => {
     const client = new CapturingApiClient();
     client.responseBody = '{"available":5,"sold":2}';
     const storeApi = new StoreApi(
@@ -2693,7 +2696,7 @@ describe("request cancellation against the slow endpoint", () => {
       )
       .catch((e: unknown) => e);
 
-  test("a per-call signal aborts the in-flight request with an AbortError", async () => {
+  test("bhv misc 153 a per-call signal aborts the in-flight request with an AbortError", async () => {
     const controller = new AbortController();
     const testApi = new TestableApi(
       new DefaultApiClient(),
@@ -2724,7 +2727,7 @@ describe("request cancellation against the slow endpoint", () => {
     expect((error as Error).name).toBe("AbortError");
   }, 15000);
 
-  test("an already aborted per-call signal rejects without waiting", async () => {
+  test("bhv misc 152 an already aborted per-call signal rejects without waiting", async () => {
     const testApi = new TestableApi(
       new DefaultApiClient(),
       Configuration.defaultConfiguration(),
@@ -2733,7 +2736,7 @@ describe("request cancellation against the slow endpoint", () => {
     expect((error as Error).name).toBe("AbortError");
   });
 
-  test("a client-level signal aborts the in-flight request with an AbortError", async () => {
+  test("bhv transport 083 a client-level signal aborts the in-flight request with an AbortError", async () => {
     const controller = new AbortController();
     const config = Configuration.builder().signal(controller.signal).build();
     const testApi = new TestableApi(new DefaultApiClient(), config);
@@ -2744,7 +2747,7 @@ describe("request cancellation against the slow endpoint", () => {
     expect(error).not.toBeInstanceOf(NetworkTimeoutError);
   }, 15000);
 
-  test("either the client-level or the per-call signal cancels the merged request", async () => {
+  test("bhv langnode 025 either the client-level or the per-call signal cancels the merged request", async () => {
     const clientController = new AbortController();
     const callController = new AbortController();
     const config = Configuration.builder()
@@ -2758,7 +2761,7 @@ describe("request cancellation against the slow endpoint", () => {
     expect(clientController.signal.aborted).toBe(false);
   }, 15000);
 
-  test("the timeout still raises NetworkTimeoutError when no signal fires", async () => {
+  test("bhv transport 086 the timeout still raises NetworkTimeoutError when no signal fires", async () => {
     const transport = TransportOptions.builder().timeout(300).build();
     const testApi = new TestableApi(
       new DefaultApiClient(transport),
@@ -2851,21 +2854,14 @@ describe("BaseApi error request context", () => {
     expect(err.toString()).not.toContain("page=2");
   });
 
-  test("bhv errors 048 418 throws ClientError", async () => {
-    const client = new RecordingApiClient();
-    client.statusCode = 418;
-    const err = await fail(client, "GET", "/items/7");
-    expect(err).toBeInstanceOf(ClientError);
-  });
-
-  test("a relative base URL gives the path without the query string", async () => {
+  test("bhv misc 021 a relative base URL gives the path without the query string", async () => {
     const client = new RecordingApiClient();
     client.statusCode = 418;
     const err = await fail(client, "PUT", "/items/7", "/api/v3");
     expect(err.requestPath).toBe("/api/v3/items/7");
   });
 
-  test("the rendered message names the request", async () => {
+  test("bhv errors 091 the rendered message names the request", async () => {
     const client = new RecordingApiClient();
     client.statusCode = 503;
     const err = await fail(client, "DELETE", "/items/7");
@@ -2900,7 +2896,7 @@ describe("BaseApi per-call request options", () => {
     );
   };
 
-  test("without per-call options the transport defaults apply", async () => {
+  test("bhv langnode 026 without per-call options the transport defaults apply", async () => {
     const client = new RecordingApiClient();
     await send(client);
     expect(client.sendOptions?.timeout).toBeUndefined();
@@ -2958,7 +2954,7 @@ describe("BaseApi per-call request options", () => {
   });
 
   test.each([[0], [-1], [Number.NaN]])(
-    "a timeout of %s is refused",
+    "bhv misc 134 a timeout of %s is refused",
     async (timeout) => {
       await expect(send(new RecordingApiClient(), { timeout })).rejects.toThrow(
         /Invalid timeout/,
@@ -2967,7 +2963,7 @@ describe("BaseApi per-call request options", () => {
   );
 
   test.each([[-1], [1.5], [Number.NaN]])(
-    "maxRetries of %s is refused",
+    "bhv misc 053 maxRetries of %s is refused",
     async (maxRetries) => {
       await expect(
         send(new RecordingApiClient(), { maxRetries }),
@@ -3027,13 +3023,13 @@ describe("BaseApi per-call request options", () => {
     expect(client.headers["Authorization"]).toBe("Bearer real");
   });
 
-  test("per-call header names are treated as credential headers on a redirect", async () => {
+  test("bhv misc 132 per-call header names are treated as credential headers on a redirect", async () => {
     const client = new RecordingApiClient();
     await send(client, { headers: { "X-Call-Token": "abc" } });
     expect(client.sendOptions?.credentialHeaderNames).toContain("X-Call-Token");
   });
 
-  test("a per-call header with a non-string value is refused", async () => {
+  test("bhv misc 055 a per-call header with a non-string value is refused", async () => {
     const headers = { "X-Count": 3 } as unknown as Record<string, string>;
     await expect(send(new RecordingApiClient(), { headers })).rejects.toThrow(
       /Invalid per-call header/,

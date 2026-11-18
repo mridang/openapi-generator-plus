@@ -42,7 +42,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
-    test "raises SerializationError for an array body instead of an Access error" do
+    test "bhv langelixir 003 raises SerializationError for an array body instead of an Access error" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize("[1,2]", "PetFood")

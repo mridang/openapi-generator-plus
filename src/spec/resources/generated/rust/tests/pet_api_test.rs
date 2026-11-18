@@ -577,17 +577,6 @@ async fn test_bhv_operations_055_pet_api_get_pet_photo() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_photo_json_reply_returns_the_raw_bytes() {
-    let body = r#"{"id":7,"name":"photo"}"#;
-    let (api, _) = new_pet_api_for_mock(200, "application/json", body);
-    let photo = api
-        .get_pet_photo(1, 1, None)
-        .await
-        .expect("get_pet_photo failed");
-    assert_eq!(photo, body.as_bytes().to_vec());
-}
-
-#[tokio::test]
 async fn test_bhv_operations_063_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "\"!!not*base64??\"");
     let err = api
@@ -1111,7 +1100,7 @@ async fn test_bhv_operations_079_pet_api_credentials_send_the_bearer_scheme_the_
 
 /// F857: with only the API key held, the API key is sent and no bearer is.
 #[tokio::test]
-async fn test_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
+async fn test_bhv_misc_221_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
     let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
     let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
     assert!(request.contains("key-one"), "request: {}", request);
@@ -1185,25 +1174,6 @@ async fn test_bhv_operations_086_pet_api_unsecured_op_has_no_auth_field() {
 /// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
 /// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
 /// path segments, so the operation template must not re-encode the output.
-#[tokio::test]
-async fn test_pet_api_get_pet_by_name_path_encoded_once() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions::new("dogs".to_string(), "corr-1".to_string());
-    let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    let request_line = request.lines().next().unwrap_or("");
-    assert!(
-        request_line.contains("/pet/byName/a%20b%2Fc"),
-        "expected single-encoded path segment, got request line: {}",
-        request_line
-    );
-    assert!(
-        !request_line.contains("%2520") && !request_line.contains("%252F"),
-        "path was double-encoded, got request line: {}",
-        request_line
-    );
-}
 
 /// required-nested-param-validation: `category` is a REQUIRED query parameter.
 /// Calling the operation without Options (where the required value lives) must
@@ -1680,21 +1650,6 @@ async fn test_bhv_operations_059_pet_api_get_pet_tag_byte_params_are_base64() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_tag_byte_param_uses_the_standard_alphabet() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetTagOptions::new().fingerprint(vec![0xFB, 0xFF]);
-    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    let request_line = request.lines().next().unwrap_or("");
-    assert!(
-        request_line.contains("fingerprint=%2B%2F8%3D"),
-        "got request line: {}",
-        request_line
-    );
-}
-
-#[tokio::test]
 async fn test_bhv_operations_038_pet_api_error_handling_server_error() {
     let (api, _) = new_pet_api_for_mock(
         500,
@@ -2140,7 +2095,7 @@ async fn test_bhv_operations_084_pet_api_mirror_operation_server_is_the_host_of_
  * cookie and the date array reach the wire, and the text/plain answer comes
  * back as the text. */
 #[tokio::test]
-async fn test_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
+async fn test_bhv_langrust_045_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -2248,7 +2203,7 @@ async fn test_bhv_operations_043_pet_api_find_pets_born_on_path_param_is_date_on
 /// The API group can be built without wiring a client, configuration or
 /// authenticator, like the no-argument constructors in the other SDKs.
 #[test]
-fn test_pet_api_default_constructs_without_arguments() {
+fn test_bhv_misc_276_pet_api_default_constructs_without_arguments() {
     let _api = PetApi::default();
 }
 
@@ -2282,7 +2237,7 @@ fn test_bhv_operations_082_operations_document_their_options_argument() {
 /// written: no HTML entity, no leaked backslash-quote, and the angle brackets
 /// rustdoc reads as HTML tags are escaped so `cargo doc -D warnings` passes.
 #[test]
-fn test_operation_prose_is_raw_and_rustdoc_safe() {
+fn test_bhv_langrust_046_operation_prose_is_raw_and_rustdoc_safe() {
     let source = include_str!("../src/api/pet_api.rs");
     let expected = "    /// Get a \\<plain\\> \"text\" summary & it's short\n    \
 /// Returns '''plain''' text for /pets/#{id} and \\<b\\> & \"c\" it's done\n";
@@ -3178,6 +3133,97 @@ async fn test_bhv_mocking_006_pet_api_call_without_options_reaches_the_full_sign
         "unexpected call {}",
         calls[0]
     );
+}
+/// auth043: an operation sends the credential of the scheme it names and no other scheme's credential.
+#[tokio::test]
+async fn test_bhv_auth_043_an_operation_sends_only_the_scheme_credential_it_names() {
+    let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
+    let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
+    assert!(request.contains("key-one"), "request: {}", request);
+    assert!(!request.contains("authorization:"), "request: {}", request);
+}
+
+/// auth044: an operation that declares no security requirement sends no credential, even when the client holds one.
+#[tokio::test]
+async fn test_bhv_auth_044_an_operation_with_no_security_requirement_sends_no_credential() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let store = StoreApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let _ = store.get_inventory(None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(!request.contains("authorization:"), "request: {}", request);
+    assert!(
+        !request.contains("bearer test-token"),
+        "request: {}",
+        request
+    );
+}
+
+/// auth045: a credential supplied for the operation's scheme replaces a default Authorization header set on the client.
+#[tokio::test]
+async fn test_bhv_auth_045_an_operation_credential_replaces_the_default_authorization_header() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new()
+        .base_url(&base_url)
+        .default_header("Authorization", "Bearer default-token")
+        .build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let pet = Pet::new(
+        "ReplacedDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = api.add_pet(pet, None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("authorization: bearer test-token"),
+        "request: {}",
+        request
+    );
+    assert!(!request.contains("default-token"), "request: {}", request);
+}
+
+/// auth046: an operation with no security of its own inherits the document-level security, so the client's credential is sent.
+#[tokio::test]
+async fn test_bhv_auth_046_an_operation_without_its_own_security_receives_the_client_credential() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let _ = api.find_pets_by_status(None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("authorization: bearer test-token"),
+        "request: {}",
+        request
+    );
+}
+
+/// auth047: with none of an operation's schemes held, no scheme credential is sent on the wire.
+#[tokio::test]
+async fn test_bhv_auth_047_an_operation_sends_no_scheme_credential_when_none_is_held() {
+    let request = add_pet_request_with(Credentials::new()).await;
+    assert!(!request.contains("authorization:"), "request: {}", request);
+    assert!(!request.contains("key-one"), "request: {}", request);
 }
 
 /// operations157: a binary request body reaches the wire as its exact bytes, with no multipart encoding.

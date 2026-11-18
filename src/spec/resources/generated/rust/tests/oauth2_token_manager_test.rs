@@ -816,7 +816,7 @@ async fn test_bhv_authoauthtwotokenmgr_005_expires_in_huge_number_is_clamped_not
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_huge_string_is_clamped_not_a_panic() {
+async fn test_bhv_langrust_041_expires_in_huge_string_is_clamped_not_a_panic() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"huge-str","expires_in":"99999999999999999999"}"#,
@@ -1180,7 +1180,7 @@ async fn test_bhv_authoauthtwotokenmgr_019_invalidate_triggers_single_refetch_un
 /// `Send` and `Sync` follow from the fields, so the type needs no `unsafe impl`
 /// that would assert them regardless of what the fields hold.
 #[test]
-fn test_oauth2_token_manager_is_send_and_sync_without_unsafe_impls() {
+fn test_bhv_langrust_042_oauth2_token_manager_is_send_and_sync_without_unsafe_impls() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<OAuth2TokenManager>();
 

@@ -55,7 +55,7 @@ func TestBhvErrors027_BaseApi_RequestPathOf_CutsTheQueryAndTakesThePathOfAnAbsol
 	}
 }
 
-func TestBaseApi_AttachRequestContext_IsKeptOnceAndIgnoresOtherErrors(t *testing.T) {
+func TestBhvLanggo019_BaseApi_AttachRequestContext_IsKeptOnceAndIgnoresOtherErrors(t *testing.T) {
 	t.Parallel()
 	failure := pkgerrors.FromResponse(404, nil, "")
 	attachRequestContext(failure, "GET", "/first?x=1")

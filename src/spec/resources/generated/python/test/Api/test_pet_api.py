@@ -1651,7 +1651,9 @@ class TestPetApiErrorHandling:
     @pytest.mark.parametrize(
         "method", [PetApi.get_pet_summary, PetApi.get_pet_summary_with_http_info]
     )
-    def test_operation_prose_reaches_the_docstring_verbatim(self, method: Any) -> None:
+    def test_bhv_lang_python_001_operation_prose_reaches_the_docstring_verbatim(
+        self, method: Any
+    ) -> None:
         import inspect
 
         doc = inspect.getdoc(method)
@@ -1665,7 +1667,9 @@ class TestPetApiErrorHandling:
     @pytest.mark.parametrize(
         "method", [PetApi.get_pet_summary, PetApi.get_pet_summary_with_http_info]
     )
-    def test_path_parameter_doc_carries_the_required_label(self, method: Any) -> None:
+    def test_bhv_lang_python_002_path_parameter_doc_carries_the_required_label(
+        self, method: Any
+    ) -> None:
         import inspect
 
         doc = inspect.getdoc(method)

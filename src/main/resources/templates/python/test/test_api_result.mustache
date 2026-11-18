@@ -63,7 +63,7 @@ class TestApiResult:
         with pytest.raises(TypeError):
             cast(Any, result.headers)['X-New'] = '1'
 
-    def test_is_frozen(self) -> None:
+    def test_bhv_lang_python_008_is_frozen(self) -> None:
         # ApiResult is an immutable @dataclass(frozen=True); attribute
         # assignment must raise.
         result: ApiResult[None] = ApiResult(

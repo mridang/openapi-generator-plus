@@ -66,7 +66,7 @@ describe("Client", () => {
     expect(client).toBeDefined();
   });
 
-  test("construct with authenticator, default transport and a client-level signal", () => {
+  test("bhv langnode 037 construct with authenticator, default transport and a client-level signal", () => {
     const controller = new AbortController();
 
     const client = new Client(authenticator, undefined, {
@@ -86,7 +86,7 @@ describe("Client", () => {
     ).toBeDefined();
   });
 
-  test("the client options hand the call hook to the API objects", async () => {
+  test("bhv langnode 038 the client options hand the call hook to the API objects", async () => {
     const stub = (async () =>
       new Response('{"id":1,"name":"x","photoUrls":[]}', {
         status: 200,
@@ -338,7 +338,7 @@ describe("Client", () => {
       };
     }
 
-    test("an operation uses the credential of the scheme its spec names", async () => {
+    test("bhv langnode 039 an operation uses the credential of the scheme its spec names", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -576,7 +576,7 @@ describe("Client", () => {
       };
     }
 
-    test("a request already running finishes after close()", async () => {
+    test("bhv langnode 040 a request already running finishes after close()", async () => {
       const { transport, started, release } = gatedFetch();
       const client = new Client(closable, transport);
 
@@ -608,7 +608,7 @@ describe("Client", () => {
       await expect(client.close()).resolves.toBeUndefined();
     });
 
-    test("close() does not wait for a request that is still running", async () => {
+    test("bhv misc 184 close() does not wait for a request that is still running", async () => {
       const { transport, started, release } = gatedFetch();
       const client = new Client(closable, transport);
       const pending = client.pet.getPetById(1);
@@ -781,7 +781,7 @@ describe("scheme authenticators the spec declares", () => {
       { SESSION_ID: "k-1" },
     ],
   ])(
-    "%s emits its key in the declared location only",
+    "bhv misc 057 %s emits its key in the declared location only",
     (_name, auth, location, expected) => {
       expect(auth.getAuthHeaders()).toEqual(
         location === "header" ? expected : {},
@@ -804,9 +804,12 @@ describe("scheme authenticators the spec declares", () => {
     ["InternalApiKeyAuthenticator", InternalApiKeyAuthenticator],
     ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator],
     ["SessionCookieAuthenticator", SessionCookieAuthenticator],
-  ])("%s rejects an empty key at construction", (_name, Wrapper) => {
-    expect(() => new Wrapper(host, "")).toThrow(TypeError);
-  });
+  ])(
+    "bhv langnode 049 %s rejects an empty key at construction",
+    (_name, Wrapper) => {
+      expect(() => new Wrapper(host, "")).toThrow(TypeError);
+    },
+  );
 
   test("bhv authbasic 019 the generated Basic wrappers emit the same Basic header as the base authenticator", () => {
     const base = new BasicAuthenticator(
@@ -1055,14 +1058,14 @@ describe("generated documentation", () => {
     ),
   ];
 
-  test("SKILLS imports every symbol from the published package, never from a source path", () => {
+  test("bhv langnode 041 SKILLS imports every symbol from the published package, never from a source path", () => {
     expect(imports.length).toBeGreaterThan(0);
     expect(new Set(imports.map((m) => m[3]))).toEqual(
       new Set(["petstore-client"]),
     );
   });
 
-  test("SKILLS imports only values the package entry point exports", () => {
+  test("bhv langnode 042 SKILLS imports only values the package entry point exports", () => {
     const exported = new Set(Object.keys(entryPoint));
     const missing: string[] = [];
     for (const [, typeOnly, names] of imports) {
@@ -1078,7 +1081,7 @@ describe("generated documentation", () => {
     expect(missing).toEqual([]);
   });
 
-  test("SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm", () => {
+  test("bhv langnode 043 SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm", () => {
     const call = /const result = await client\.(\w+)\.(\w+)\((.*)\);/.exec(
       skills,
     );
@@ -1113,7 +1116,7 @@ describe("generated documentation", () => {
     );
   });
 
-  test("README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client", () => {
+  test("bhv langnode 044 README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1131,7 +1134,7 @@ describe("generated documentation", () => {
     expect(readme).not.toContain("no cancellation API");
   });
 
-  test("README opens with a quick start that installs the package by name and catches ApiError", () => {
+  test("bhv langnode 045 README opens with a quick start that installs the package by name and catches ApiError", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1143,7 +1146,7 @@ describe("generated documentation", () => {
     expect(readme).toContain("[SKILLS.md](SKILLS.md)");
   });
 
-  test("README lists the features that are not generated", () => {
+  test("bhv langnode 046 README lists the features that are not generated", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1154,7 +1157,7 @@ describe("generated documentation", () => {
     expect(readme).toContain("### Mutual TLS");
   });
 
-  test("README and SKILLS cancel through the per-call signal, never a Configuration signal", () => {
+  test("bhv langnode 047 README and SKILLS cancel through the per-call signal, never a Configuration signal", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1166,7 +1169,7 @@ describe("generated documentation", () => {
     expect(readme).toContain("{ signal: controller.signal }");
   });
 
-  test("SKILLS Testing shows how to stub the transport with a canned fetch", () => {
+  test("bhv langnode 048 SKILLS Testing shows how to stub the transport with a canned fetch", () => {
     expect(skills).toContain("TransportOptions.builder().fetch(stub).build()");
   });
 

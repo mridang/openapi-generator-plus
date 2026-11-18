@@ -260,7 +260,7 @@ func TestBhvHeaders010_HeaderSelector_SelectHeadersFiltersOutEmptyEntries(t *tes
 	}
 }
 
-func TestHeaderSelector_IsTextMIME(t *testing.T) {
+func TestBhvLanggo036_HeaderSelector_IsTextMIME(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 
@@ -287,7 +287,7 @@ func TestHeaderSelector_IsTextMIME(t *testing.T) {
 	}
 }
 
-func TestHeaderSelector_MediaTypeStripsParametersAndLowercases(t *testing.T) {
+func TestBhvLanggo037_HeaderSelector_MediaTypeStripsParametersAndLowercases(t *testing.T) {
 	t.Parallel()
 	hs := newHeaderSelector()
 

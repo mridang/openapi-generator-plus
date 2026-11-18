@@ -1942,19 +1942,19 @@ unions044 | Each variant of a union has a typed constructor or factory and a typ
 unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
 unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
 unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
-langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
-langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
-langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.
-langjava004 | The https-to-http body refusal applies only to a downgrade; same-scheme and upgrading redirects are not refused.
-langjava005 | A non-ASCII multipart filename gets an RFC 5987 filename star that percent-encodes all but unreserved characters.
-langjava006 | An interrupted caller thread surfaces as a cancellation exception, never as an SDK error.
-langjava007 | Only idempotent methods, including QUERY, are replayable on a dropped connection; POST and PATCH are not.
-langjava008 | A POST whose connection drops before any response is sent once and raises a network error.
-langjava009 | A GET whose connection drops before any response is replayed exactly once before a network error is raised.
-langjava010 | A connection closed after the headers raises a network exception that keeps the original cause.
-langjava011 | A zstd body whose decoder library is missing raises an error naming the unavailable library, never the encoded bytes.
-langjava012 | A corrupt zstd body raises a decoding error that does not blame a missing library.
-langjava013 | A request sent without default headers carries only the headers the caller passed for that request.
+langphp001 | An object without a string form is stringified through its fallback rather than failing.
+langphp002 | A forward slash in a serialized string is written without escaping.
+langphp003 | A string leaf inside a container keeps its text and is never parsed as JSON again.
+langphp004 | An anyOf value that matches no variant raises an error.
+langphp005 | A decoded property keeps the value received on the wire rather than the schema default.
+langphp006 | A byte model exposes only its encoded form and no raw bytes accessor.
+langphp007 | Numeric additional properties beside named fields stay members of the same object.
+langphp008 | A date-time body sent as a JSON string literal is unwrapped to its value.
+langphp009 | A composed model container leaf given as JSON text is rejected and never parsed.
+langphp010 | A model container leaf given as JSON text is rejected and never parsed.
+langphp011 | A model container leaf given as an object deserializes into the model.
+langphp012 | A byte field rejects base64 that is not strict RFC 4648 text.
+langphp013 | A byte list element rejects base64 that is not strict RFC 4648 text.
 ||||||| cef6fbad1
 langcsharp001 | Constructing a model with an unknown enum value keeps that value without throwing
 langcsharp002 | Malformed JSON raises the library serialization error and no native parser error escapes
@@ -2027,3 +2027,137 @@ langjava061 | A failed first token exchange leaves no session behind and is not 
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
 langjava063 | A 3xx response with an unusable or missing Location is returned to the caller untouched.
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
+||||||| d4a0dc587
+langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
+langnode002 | An error constructor accepts an optional cause
+langnode003 | Reading an error's message property returns the rendered text
+langnode004 | An error's message is null when no message was given
+langnode005 | A status maps to its exception class and keeps the response context
+langnode006 | A fallback error built from a response records the request it answers
+langrust001 | A body that is already serialized JSON text is sent without being serialized a second time
+langrust002 | Inserting a header replaces an existing header whose name differs only in letter case
+langrust003 | A date-time accepts every accepted ISO-8601 variant on input while only the canonical form is written
+langrust004 | Date-time values convert to and from the standard date library type without losing the instant
+langrust005 | Every scalar kind is written in its single canonical wire form in headers, paths, queries and bodies
+langrust006 | A date-time path parameter is written as its canonical string
+langrust007 | Credential-bearing headers are recognised by name so their values are redacted from logs
+langrust008 | Image file extensions map to their standard media types
+langrust009 | Document file extensions map to their standard media types
+langrust010 | A charset parameter is read from a content-type value, including quoted values
+langrust011 | A map whose values are byte arrays is written with its keys in ascending order
+langrust012 | An optional map of byte arrays is written with its keys in ascending order when present
+langrust013 | A map of byte arrays round-trips to content-equal values
+langrust014 | Deep-object query pairs follow model declaration order and map keys sort ascending
+langrust015 | A JSON object decodes into a map of its values
+langrust016 | Taking the data out of a result consumes the result and returns the payload
+langrust017 | A 400 response is dispatched to the bad request error kind
+langrust018 | A 401 response is dispatched to the unauthorized error kind
+langrust019 | A 403 response is dispatched to the forbidden error kind
+langrust020 | A 404 response is dispatched to the not found error kind
+langrust021 | A 422 response is dispatched to the unprocessable entity error kind
+langrust022 | Query parameters are serialized into the request URL in the declared style
+langrust023 | A 409 response maps to the conflict error kind
+langrust024 | A 429 response maps to the too many requests error kind
+langrust025 | An unlisted 4xx status maps to the generic client error kind
+langrust026 | An unlisted 5xx status maps to the generic server error kind
+langrust027 | A status outside the error ranges maps to the other error kind
+langrust028 | Network error kinds report status zero
+langrust029 | Typed error wrappers expose their payload only through accessors
+langrust030 | All retry attempts of one call share a single deadline
+langrust031 | A string enum displays its wire value
+langrust032 | A subtype's default discriminator value is its mapped value
+langrust033 | A variant with a default value serializes with that default
+langrust034 | A content-encoded property is written as base64 on the wire
+langrust035 | A client built around a caller-supplied transport sends its requests through that transport
+langrust036 | Reserved characters in an allow-reserved query value stay literal on the wire
+langrust037 | A redirect to a non-HTTP scheme is reported as an error carrying the status
+langrust038 | A model decodes from its JSON object form
+langrust039 | Generated source contains no line comments
+langrust040 | The authorization code scheme wrapper sends each grant to its declared URL
+langrust041 | An oversized expires_in string is clamped rather than overflowing
+langrust042 | The OAuth2 token manager is safe to share across threads
+langrust043 | A cancelled code exchange keeps the discovered delegate for later calls
+langrust044 | The OpenID Connect authenticator is safe to share across threads
+langrust045 | A text plain reply is returned as text
+langrust046 | Operation documentation text is emitted without escaping
+langrust047 | The skills guide documents every server
+langrust048 | Accessors return the state the value was constructed with
+langrust049 | A group constructs with no arguments
+langrust050 | Operations without a body do not mention a content type selector
+langrust051 | Parameter description text keeps its backtick markup
+langrust052 | The creation lock is released when the guarded work panics
+langrust053 | The creation lock is released when the guarded work returns
+langrust054 | A panic payload is reported whether it is a string or an owned string
+langrust055 | A user agent set on the transport options is applied to requests
+langrust056 | A CA certificate block with invalid base64 is rejected
+langrust057 | A CA certificate block with invalid DER content is rejected
+langrust058 | A CA certificate block that is not an X.509 certificate is rejected
+langrust059 | A CA certificate block without an end line is rejected
+langrust060 | The client reports its retry budget to each call
+langrust061 | An API error exposes the parsed error body of the response
+langrust062 | An API error reports its kind as the open API error variant
+langrust063 | A server error is an API error and chains to it
+langrust064 | An unauthorized error is an API error and chains to it
+langrust065 | A forbidden error is an API error and chains to it
+langrust066 | A not found error is an API error and chains to it
+langrust067 | A conflict error is an API error and chains to it
+langrust068 | An unprocessable entity error is an API error and chains to it
+langrust069 | Heterogeneous errors collect as API error trait objects
+langrust070 | An OAuth2 authorization code error is a plain error
+langrust071 | Network errors are API errors
+langrust072 | OAuth2 token and server errors are API errors
+langrust073 | The package root exports the whole error tree
+langrust074 | Status error wrappers display the wrapped API error
+langrust075 | Network error wrappers display the wrapped API error
+langrust076 | The skills error handling example has the common catch arms
+langrust077 | Generic error wrappers refuse a status that does not belong to them
+langrust078 | Boxed error helpers resolve every HTTP wrapper to its API error
+langrust079 | Boxed error helpers return nothing for other errors
+langrust080 | A boxed error kind can be matched
+langrust081 | A declared error schema decodes into its own error below the status error
+langrust082 | The explicit token is the one sent, never one read from the environment
+langrust083 | A token provider is called for every request, not once at construction
+langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
+langnode007 | A key location rejects a value with a carriage return, line feed or NUL
+langnode008 | A key location rejects an empty or whitespace-only key with a fixed message
+langnode009 | An operation called without an options object still applies the per-call settings
+langnode010 | A server variant documents itself with the operation's server description
+langnode011 | A parameter description keeps quotes, angle brackets and ampersands unescaped
+langnode012 | No generated doc comment carries an HTML entity
+langnode013 | An operation's options argument is documented
+langnode014 | A path value containing replacement patterns is inserted literally
+langnode015 | A cookie value that cannot be sent is refused before the request goes out
+langnode016 | A set parameter is expanded like an array in a query
+langnode017 | A matrix parameter element of the wrong type is rejected
+langnode018 | An inventory parameter element of the wrong type is rejected
+langnode019 | Binary request content is sent as raw bytes under the octet-stream media type
+langnode020 | An operation that requires security still sends the configured credential
+langnode021 | A request body missing a required field does not compile
+langnode022 | A quoted number in an integer map is rejected
+langnode023 | A fractional number in an integer map is rejected
+langnode024 | Integer map values still decode as integers
+langnode025 | Either the client-level or the per-call signal cancels the merged request
+langnode026 | Without per-call options the transport defaults apply
+langnode027 | A request is never replayed for a scheme that has no replay support
+langnode028 | A form-urlencoded body rejects a lone surrogate with a URI error
+langnode029 | A scheme name never resolves to an Object.prototype member
+langnode030 | A token provider may return a promise
+langnode031 | A token provider is used in place of the environment variable
+langnode032 | A synchronous token provider also serves the synchronous header getter
+langnode033 | An asynchronous token provider is refused by the synchronous header getter
+langnode034 | Every hook sees the same headers, so a later hook sees an earlier hook's edit
+langnode035 | A failing observer does not stop the other observers
+langnode036 | An error thrown by start propagates unchanged
+langnode037 | A client built with an authenticator, default transport and a client-level signal works
+langnode038 | The client options hand the call hook to every API object
+langnode039 | An operation uses the credential of the scheme its spec names
+langnode040 | A request already running finishes after close
+langnode041 | Generated usage notes import every symbol from the published package
+langnode042 | Generated usage notes import only values the entry point exports
+langnode043 | Generated usage notes show error handling with real arguments
+langnode044 | The generated README documents schema constraints, uniqueItems order and cancellation
+langnode045 | The generated README opens with a quick start that installs the package by name
+langnode046 | The generated README lists the features that are not generated
+langnode047 | The generated docs cancel through the per-call signal only
+langnode048 | The generated docs show how to stub the transport with a canned fetch
+langnode049 | An empty API key is rejected at construction

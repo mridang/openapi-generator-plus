@@ -54,7 +54,7 @@ func TestBhvModels010_Metadata_DeclaredPropertyWinsOverCollidingExtra(t *testing
 	}
 }
 
-func TestMetadata_DeserializeFromJSON(t *testing.T) {
+func TestBhvLanggo052_Metadata_DeserializeFromJSON(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
 
@@ -238,7 +238,7 @@ func TestBhvModels029_Freeform_FreeFormAdditionalPropertiesKeepAnyValue(t *testi
 	}
 }
 
-func TestMetadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
+func TestBhvLanggo053_Metadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
 	if err := json.Unmarshal([]byte(`{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
@@ -259,7 +259,7 @@ func TestMetadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testin
 	}
 }
 
-func TestMetadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
+func TestBhvLanggo054_Metadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
 	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-01T00:00:00.000+00:00","CREATEDAT":"2030-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {

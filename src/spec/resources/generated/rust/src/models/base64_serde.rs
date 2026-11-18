@@ -200,13 +200,13 @@ mod tests {
     /* A map of byte arrays is written in ascending key order, so the body
      * bytes are the same in every process. */
     #[test]
-    fn test_map_of_byte_arrays_is_written_in_ascending_key_order() {
+    fn test_bhv_langrust_011_map_of_byte_arrays_is_written_in_ascending_key_order() {
         let json = serde_json::to_string(&Bare { blobs: blobs() }).expect("serializes");
         assert_eq!(expected(), json);
     }
 
     #[test]
-    fn test_optional_map_of_byte_arrays_is_written_in_ascending_key_order() {
+    fn test_bhv_langrust_012_optional_map_of_byte_arrays_is_written_in_ascending_key_order() {
         let json = serde_json::to_string(&Optional {
             blobs: Some(blobs()),
         })
@@ -217,7 +217,7 @@ mod tests {
     }
 
     #[test]
-    fn test_map_of_byte_arrays_round_trips_by_content() {
+    fn test_bhv_langrust_013_map_of_byte_arrays_round_trips_by_content() {
         let json = serde_json::to_string(&Bare { blobs: blobs() }).expect("serializes");
         let back: Bare = serde_json::from_str(&json).expect("deserializes");
         assert_eq!(blobs(), back.blobs);
