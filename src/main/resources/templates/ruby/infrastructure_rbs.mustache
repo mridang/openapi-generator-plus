@@ -301,7 +301,7 @@
     def self.encode_item: (untyped value, Symbol location) -> String
     def self.object_fields: (untyped) -> Hash[untyped, untyped]?
     def self.serialize_object: (String, Hash[untyped, untyped], Symbol, String?, bool) -> String
-    def self.object_field_text: (untyped) -> String
+    def self.object_field_text: (untyped, untyped) -> String
   end
 
   class ObjectSerializer

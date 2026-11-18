@@ -136,7 +136,7 @@ describe 'DefaultApiClientUnit' do
     _(sent_query('z=1&a=2&m=3')).must_equal 'z=1&a=2&m=3'
   end
 
-  it 'keeps allowReserved characters literal' do
+  it 'bhv_serializationparam_122 keeps allowReserved characters literal' do
     _(sent_query('revision=v1.0/beta:rc1&at=a@b,c;d')).must_equal 'revision=v1.0/beta:rc1&at=a@b,c;d'
   end
 
@@ -499,6 +499,12 @@ describe 'DefaultApiClientUnit' do
     assert_raises(ArgumentError) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
+  end
+
+  it 'bhv_serializationwire_061 backslash-escapes an embedded quote in a multipart filename' do
+    client = Petstore::Client::DefaultApiClient.new
+    directive = client.send(:build_content_disposition, 'file', 'a"b.txt')
+    _(directive).must_include('filename="a\\"b.txt"')
   end
 
   it 'bhv_serializationwire_042 backslash-escapes quotes and backslashes in multipart filename' do
