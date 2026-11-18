@@ -10,6 +10,7 @@ use {{invokerPackage}}\Auth\ApiKeyLocation;
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 use {{invokerPackage}}\Psr18ApiClient;
 use {{invokerPackage}}\TransportOptions;
+use {{invokerPackage}}\Test\RecordingCallHook;
 use {{invokerPackage}}\Test\StubPsr18Client;
 use Nyholm\Psr7\Factory\Psr17Factory;
 
@@ -339,4 +340,28 @@ test('a supplied psr18 client conflicts with sdk proxy and tls settings', functi
 test('bhv lifecycle 016 with token fails when the token is empty', function (): void {
     expect(fn () => {{clientClassName}}::withToken('{{{basePath}}}', ''))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+test('a call hook given to the client is handed to every api group', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new {{clientClassName}}($this->authenticator, null, null, callHook: $hook);
+
+    $configs = [];
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    $configs[] = (new \ReflectionClass(\{{apiPackage}}\{{classname}}::class))
+        ->getProperty('config')
+        ->getValue($client->{{clientPropertyName}});
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+    foreach ($configs as $config) {
+        expect($config)->toBeInstanceOf(\{{invokerPackage}}\Configuration::class);
+        if ($config instanceof \{{invokerPackage}}\Configuration) {
+            expect($config->getCallHook())->toBe($hook);
+        }
+    }
+    expect($configs)->not->toBe([]);
 });

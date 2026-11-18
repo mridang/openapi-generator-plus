@@ -1,0 +1,307 @@
+<?php
+
+declare(strict_types=1);
+
+use {{invokerPackage}}\CallInfo;
+use {{invokerPackage}}\CallOutcome;
+use {{invokerPackage}}\Errors\NetworkException;
+use {{invokerPackage}}\Errors\NetworkTimeoutException;
+use {{invokerPackage}}\Errors\NotFoundException;
+use {{invokerPackage}}\Errors\SerializationException;
+use {{invokerPackage}}\OpenTelemetryCallHook;
+use {{invokerPackage}}\Test\HookTelemetry;
+use OpenTelemetry\API\Instrumentation\Configurator;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\SDK\Trace\SpanDataInterface;
+use OpenTelemetry\SDK\Trace\SpanExporter\InMemoryExporter as SpanMemoryExporter;
+
+/**
+ * Runs one call through the hook: start, then finish with $outcome, and returns the exported spans.
+ *
+ * @param array<string, string> $headers
+ * @return list<SpanDataInterface>
+ */
+function hookTelemetryRun(
+    OpenTelemetryCallHook $hook,
+    CallOutcome $outcome,
+    array &$headers = [],
+    ?SpanMemoryExporter $spans = null,
+): array {
+    $observer = $hook->start(hookTelemetryInfo(), $headers);
+    expect($observer)->not->toBeNull();
+    $observer?->finish($outcome);
+
+    /** @var list<SpanDataInterface> $exported */
+    $exported = $spans === null ? [] : array_values($spans->getSpans());
+
+    return $exported;
+}
+
+function hookTelemetryInfo(): CallInfo
+{
+    return new CallInfo(
+        'findThings',
+        'GET',
+        '/things/{id}',
+        'https://api.example.com/things/7',
+        'api.example.com'
+    );
+}
+
+test('bhv telemetry 001 the span is named with the spec operation id and has kind client', function (): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(200, [], null),
+        $headers,
+        $spans
+    );
+
+    expect($exported)->toHaveCount(1);
+    expect($exported[0]->getName())->toBe('findThings');
+    expect($exported[0]->getKind())->toBe(SpanKind::KIND_CLIENT);
+});
+
+test('bhv telemetry 002 a 2xx sets the request attributes and leaves the span status unset', function (): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(204, [], null),
+        $headers,
+        $spans
+    );
+
+    expect($exported[0]->getAttributes()->toArray())->toBe([
+        'http.request.method' => 'GET',
+        'url.template' => '/things/{id}',
+        'server.address' => 'api.example.com',
+        'http.response.status_code' => 204,
+    ]);
+    expect($exported[0]->getStatus()->getCode())->toBe('Unset');
+});
+
+test('bhv telemetry 003 a 4xx or 5xx sets error type to the status code and marks the span as an error', function (int $status): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome($status, [], new NotFoundException('missing')),
+        $headers,
+        $spans
+    );
+
+    $attributes = $exported[0]->getAttributes()->toArray();
+    expect($attributes['error.type'])->toBe((string) $status);
+    expect($attributes['http.response.status_code'])->toBe($status);
+    expect($exported[0]->getStatus()->getCode())->toBe('Error');
+})->with([404, 500]);
+
+test('bhv telemetry 004 error type is a fixed token for each kind of failure', function (\Throwable $error, string $token): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(0, null, $error),
+        $headers,
+        $spans
+    );
+
+    expect($exported[0]->getAttributes()->toArray()['error.type'])->toBe($token);
+    expect($exported[0]->getStatus()->getCode())->toBe('Error');
+})->with([
+    'timeout' => [new NetworkTimeoutException('timed out'), 'timeout'],
+    'network' => [new NetworkException('refused'), 'network_error'],
+    'decode' => [new SerializationException('bad body'), 'serialization_error'],
+    'other' => [new \RuntimeException('boom'), '_OTHER'],
+]);
+
+test('bhv telemetry 005 a call with no response sets no response status code', function (): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(0, null, new NetworkException('refused')),
+        $headers,
+        $spans
+    );
+
+    expect($exported[0]->getAttributes()->toArray())->not->toHaveKey('http.response.status_code');
+});
+
+test('bhv telemetry 006 the span is a child of the active span and the traceparent names the client span', function (): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $scope = Configurator::create()
+        ->withTracerProvider($tracer)
+        ->withMeterProvider($meter)
+        ->withPropagator(TraceContextPropagator::getInstance())
+        ->activate();
+    try {
+        $parent = $tracer->getTracer('parent')->spanBuilder('caller')->startSpan();
+        $parentScope = $parent->activate();
+        $headers = ['traceparent' => '00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01', 'X-Keep' => 'k'];
+        try {
+            $exported = hookTelemetryRun(
+                OpenTelemetryCallHook::create(),
+                new CallOutcome(200, [], null),
+                $headers,
+                $spans
+            );
+        } finally {
+            $parentScope->detach();
+            $parent->end();
+        }
+    } finally {
+        $scope->detach();
+    }
+
+    expect($exported)->toHaveCount(1);
+    $client = $exported[0];
+    expect($client->getParentSpanId())->toBe($parent->getContext()->getSpanId());
+    expect($client->getTraceId())->toBe($parent->getContext()->getTraceId());
+    $names = array_map(static fn (string $name): string => strtolower($name), array_keys($headers));
+    expect(array_count_values($names)['traceparent'])->toBe(1);
+    $flags = sprintf('%02x', $client->getContext()->getTraceFlags());
+    expect($headers['traceparent'])->toBe('00-' . $client->getTraceId() . '-' . $client->getSpanId() . '-' . $flags);
+    expect($headers['X-Keep'])->toBe('k');
+});
+
+test('bhv telemetry 008 the request count is incremented once per call with the attributes of the span', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(200, [], null),
+        $headers,
+        $spans
+    );
+
+    $count = HookTelemetry::metrics($reader, $metrics)['http.client.request.count'];
+    $point = HookTelemetry::number($count);
+    expect($count->unit)->toBe('{request}');
+    expect($point->value)->toEqual(1);
+    expect($point->attributes->toArray())->toBe($exported[0]->getAttributes()->toArray());
+});
+
+test('bhv telemetry 009 the duration histogram records one value in seconds with the attributes of the span', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(200, [], null),
+        $headers,
+        $spans
+    );
+
+    $duration = HookTelemetry::metrics($reader, $metrics)['http.client.request.duration'];
+    $point = HookTelemetry::histogram($duration);
+    expect($duration->unit)->toBe('s');
+    expect($point->count)->toBe(1);
+    expect($point->sum)->toBeGreaterThanOrEqual(0);
+    expect($point->sum)->toBeLessThan(5);
+    expect($point->attributes->toArray())->toBe($exported[0]->getAttributes()->toArray());
+});
+
+test('bhv telemetry 010 the instrumentation scope is the package name and the sdk version', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    $headers = [];
+
+    $exported = hookTelemetryRun(
+        OpenTelemetryCallHook::create($tracer, $meter),
+        new CallOutcome(200, [], null),
+        $headers,
+        $spans
+    );
+
+    expect($exported[0]->getInstrumentationScope()->getName())->toBe('{{composerPackageName}}');
+    expect($exported[0]->getInstrumentationScope()->getVersion())->toBe('{{packageVersion}}');
+    $recorded = HookTelemetry::metrics($reader, $metrics);
+    expect($recorded)->not->toBe([]);
+    foreach ($recorded as $metric) {
+        expect($metric->instrumentationScope->getName())->toBe('{{composerPackageName}}');
+        expect($metric->instrumentationScope->getVersion())->toBe('{{packageVersion}}');
+    }
+});
+
+test('bhv telemetry 011 a provider handed to the adapter is used instead of the global one', function (): void {
+    [$globalTracer, $globalSpans, $globalMeter, $globalReader, $globalMetrics] = HookTelemetry::providers();
+    [$ownTracer, $ownSpans, $ownMeter, $ownReader, $ownMetrics] = HookTelemetry::providers();
+    $scope = Configurator::create()
+        ->withTracerProvider($globalTracer)
+        ->withMeterProvider($globalMeter)
+        ->activate();
+    try {
+        $headers = [];
+        hookTelemetryRun(
+            OpenTelemetryCallHook::create($ownTracer, $ownMeter),
+            new CallOutcome(200, [], null),
+            $headers
+        );
+    } finally {
+        $scope->detach();
+    }
+
+    expect($ownSpans->getSpans())->toHaveCount(1);
+    expect($globalSpans->getSpans())->toHaveCount(0);
+    expect(HookTelemetry::metrics($ownReader, $ownMetrics))->toHaveKey('http.client.request.count');
+    expect(HookTelemetry::metrics($globalReader, $globalMetrics))->toBe([]);
+});
+
+test('bhv telemetry 012 with no provider configured the adapter does nothing and the call is unchanged', function (): void {
+    $headers = ['X-Keep' => 'k'];
+    $hook = OpenTelemetryCallHook::create();
+
+    $observer = $hook->start(hookTelemetryInfo(), $headers);
+    $observer?->finish(new CallOutcome(200, [], null));
+
+    expect($headers)->toBe(['X-Keep' => 'k']);
+});
+
+test('bhv telemetry 013 the span ends exactly once, also for a call that failed', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    $headers = [];
+    $observer = OpenTelemetryCallHook::create($tracer, $meter)->start(hookTelemetryInfo(), $headers);
+    expect($observer)->not->toBeNull();
+
+    $observer?->finish(new CallOutcome(0, null, new NetworkException('refused')));
+    $observer?->finish(new CallOutcome(0, null, new NetworkException('refused')));
+
+    $exported = array_values($spans->getSpans());
+    expect($exported)->toHaveCount(1);
+    expect($exported[0]->hasEnded())->toBeTrue();
+    $point = HookTelemetry::number(HookTelemetry::metrics($reader, $metrics)['http.client.request.count']);
+    expect($point->value)->toEqual(1);
+});
+
+test('bhv telemetry 014 no attribute carries a query string, a header value or a credential', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    $headers = ['Authorization' => 'Bearer s3cret-token', 'X-Api-Key' => 's3cret-key'];
+    $observer = OpenTelemetryCallHook::create($tracer, $meter)->start(hookTelemetryInfo(), $headers);
+    $observer?->finish(new CallOutcome(200, ['authorization' => 'Bearer s3cret-token'], null));
+
+    $span = array_values($spans->getSpans())[0];
+    $attributeSets = [$span->getAttributes()->toArray()];
+    foreach (HookTelemetry::metrics($reader, $metrics) as $metric) {
+        $attributeSets[] = HookTelemetry::point($metric)->attributes->toArray();
+    }
+    foreach ($attributeSets as $attributes) {
+        expect(array_keys($attributes))->toBe([
+            'http.request.method',
+            'url.template',
+            'server.address',
+            'http.response.status_code',
+        ]);
+        foreach ($attributes as $value) {
+            expect((string) $value)->not->toContain('s3cret')->not->toContain('?');
+        }
+    }
+});

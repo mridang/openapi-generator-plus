@@ -8,6 +8,8 @@
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
 {{/vendorExtensions.op.hasOptionsParam}}
+            operationId: '{{#lambda.phpSingleQuoted}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.phpSingleQuoted}}',
+            urlTemplate: '{{#lambda.phpSingleQuoted}}{{{path}}}{{/lambda.phpSingleQuoted}}',
             securityRequirements: {{{vendorExtensions.phpSecurityRequirements}}},
 {{#vendorExtensions.op.hasErrorSchemaResponses}}
             errorSchemas: [

@@ -120,6 +120,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['apiKeyHeader'], ['petStoreBearer']],
+            operationId: 'addPet',
+            urlTemplate: '/pet',
         );
         return $result;
     }
@@ -212,6 +214,8 @@ class PetApi extends BaseApi
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'addPetPhotos',
+            urlTemplate: '/pet/{petId}/photos',
         );
         return $result;
     }
@@ -298,6 +302,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petstore_auth']],
+            operationId: 'addPetTreatment',
+            urlTemplate: '/pet/{petId}/treatment',
         );
         return $result;
     }
@@ -389,6 +395,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['adminBasic'], ['machineAuth']],
+            operationId: 'deletePet',
+            urlTemplate: '/pet/{petId}',
         );
         return $result;
     }
@@ -497,6 +505,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'downloadPetDocument',
+            urlTemplate: '/pet/{petId}/documents/{documentId}',
         );
         return $result;
     }
@@ -586,6 +596,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'findPetsBornOn',
+            urlTemplate: '/pet/born-on/{bornOn}',
         );
         return $result;
     }
@@ -704,6 +716,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'findPetsByStatus',
+            urlTemplate: '/pet/findByStatus',
         );
         return $result;
     }
@@ -796,6 +810,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getExternalPetInfo',
+            urlTemplate: '/pet/{petId}/external',
         );
         return $result;
     }
@@ -888,6 +904,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getMultiServerPetInfo',
+            urlTemplate: '/pet/{petId}/multi',
         );
         return $result;
     }
@@ -977,6 +995,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetAvatar',
+            urlTemplate: '/pet/{petId}/avatar',
         );
         return $result;
     }
@@ -1066,6 +1086,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetAvatarThumbnail',
+            urlTemplate: '/pet/{petId}/avatar/thumbnail',
         );
         return $result;
     }
@@ -1169,6 +1191,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetById',
+            urlTemplate: '/pet/{petId}',
         );
         return $result;
     }
@@ -1279,6 +1303,8 @@ class PetApi extends BaseApi
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetByName',
+            urlTemplate: '/pet/byName/{name}',
         );
         return $result;
     }
@@ -1368,6 +1394,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetPassport',
+            urlTemplate: '/pet/{petId}/passport',
         );
         return $result;
     }
@@ -1476,6 +1504,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetPhoto',
+            urlTemplate: '/pet/{petId}/photos/{photoId}',
         );
         return $result;
     }
@@ -1615,6 +1645,8 @@ class PetApi extends BaseApi
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetSummary',
+            urlTemplate: '/pet/{petId}/summary/{asOf}',
         );
         return $result;
     }
@@ -1826,6 +1858,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getPetTag',
+            urlTemplate: '/pet/{petId}/tag/{tagName}',
         );
         return $result;
     }
@@ -1918,6 +1952,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'getStagingPetInfo',
+            urlTemplate: '/pet/{petId}/staging',
         );
         return $result;
     }
@@ -2004,6 +2040,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'setPetAvatar',
+            urlTemplate: '/pet/{petId}/avatar',
         );
         return $result;
     }
@@ -2077,6 +2115,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'setPetAvatarThumbnail',
+            urlTemplate: '/pet/{petId}/avatar/thumbnail',
         );
         return $result;
     }
@@ -2182,6 +2222,8 @@ class PetApi extends BaseApi
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'setPetPreferences',
+            urlTemplate: '/pet/{petId}/preferences',
         );
         return $result;
     }
@@ -2276,6 +2318,8 @@ class PetApi extends BaseApi
             headers: $options?->headers,
             maxRetries: $options?->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'updatePet',
+            urlTemplate: '/pet/{petId}',
         );
         return $result;
     }
@@ -2366,6 +2410,8 @@ class PetApi extends BaseApi
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'uploadPetCertificate',
+            urlTemplate: '/pet/{petId}/certificate',
         );
         return $result;
     }
@@ -2486,6 +2532,8 @@ class PetApi extends BaseApi
             headers: $options->headers,
             maxRetries: $options->maxRetries,
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'uploadPetDocument',
+            urlTemplate: '/pet/{petId}/documents',
         );
         return $result;
     }

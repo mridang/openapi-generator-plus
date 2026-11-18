@@ -27,6 +27,9 @@ final class ConfigurationBuilder
     /** @var array<string, string> Default headers to include in every API request. */
     private array $defaultHeaders = [];
 
+    /** @var CallHook|null Hook called once around every operation call. */
+    private ?CallHook $callHook = null;
+
     /**
      * Set the base URL for all API requests.
      *
@@ -65,6 +68,21 @@ final class ConfigurationBuilder
     }
 
     /**
+     * Set the hook called once around every operation call. It can edit the
+     * request headers before the send and observe the status or the error
+     * afterwards; see {@see CallHook}. Use {@see CallHookChain::chain()} to
+     * run several. By default there is none and a call is unchanged.
+     *
+     * @param CallHook|null $callHook the hook, or null for none
+     * @return self this builder
+     */
+    public function callHook(?CallHook $callHook): self
+    {
+        $this->callHook = $callHook;
+        return $this;
+    }
+
+    /**
      * Set the base URL by resolving a server configuration with optional variable overrides.
      *
      * Enum validation is performed by {@see ServerConfiguration::getUrl()}.
@@ -90,6 +108,7 @@ final class ConfigurationBuilder
         return new Configuration(
             baseUrl: $this->baseUrl,
             defaultHeaders: $this->defaultHeaders,
+            callHook: $this->callHook,
         );
     }
 }

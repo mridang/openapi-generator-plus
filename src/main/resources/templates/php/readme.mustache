@@ -122,6 +122,52 @@ Models are immutable: every property is `readonly`, and each has a `withX()` met
 
 The SDK sends `Accept-Encoding` for the encodings it can decode and decompresses the body before it reaches you: `gzip` and `deflate` always, `br` with `ext-brotli` and `zstd` with `ext-zstd`. A response in an encoding whose extension is missing fails with a clear error instead of returning compressed bytes.
 
+### Hooks and telemetry
+
+One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
+
+```php
+use {{invokerPackage}}\CallHook;
+use {{invokerPackage}}\CallInfo;
+use {{invokerPackage}}\CallObserver;
+use {{invokerPackage}}\CallOutcome;
+use {{invokerPackage}}\{{clientClassName}};
+
+final class TimingHook implements CallHook
+{
+    public function start(CallInfo $info, array &$headers): ?CallObserver
+    {
+        $headers['X-Caller'] = 'billing';
+        $started = hrtime(true);
+
+        return new class ($info, $started) implements CallObserver {
+            public function __construct(private CallInfo $info, private int|float $started)
+            {
+            }
+
+            public function finish(CallOutcome $outcome): void
+            {
+                printf("%s %d %.1f ms\n", $this->info->operationId, $outcome->statusCode, (hrtime(true) - $this->started) / 1e6);
+            }
+        };
+    }
+}
+
+$client = {{clientClassName}}::withToken('https://api.example.com', 'your-token', callHook: new TimingHook());
+```
+
+`start($info, $headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `$info` carries `operationId` (as written in the spec), `method`, `urlTemplate`, `url` (without query string and fragment) and `serverAddress`. It returns the observer to call when the call ends, or `null`. `finish($outcome)` runs exactly once on every way the call can end, with `statusCode` (`0` when no response arrived), the lower-cased response `headers` (`null` when no response arrived) and the `error` the caller receives (`null` on success). An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `CallHookChain::chain($first, $second)`: they start in the order given and finish in the reverse order. `start` and `finish` run inline and must not block.
+
+`OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `open-telemetry/api` to your `composer.json` (the SDK itself does not need it) and configure the OpenTelemetry SDK in your application, then pass `OpenTelemetryCallHook::create()` for the global providers or `OpenTelemetryCallHook::create($tracerProvider, $meterProvider)` for your own. A PHP process runs one request at a time, so a metric only reaches a backend when your application flushes its meter provider.
+
+```php
+use {{invokerPackage}}\OpenTelemetryCallHook;
+
+$client = {{clientClassName}}::withToken('https://api.example.com', 'your-token', callHook: OpenTelemetryCallHook::create());
+```
+
+The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.
+
 ### Logging
 
 The SDK does not log. To log requests and responses, wrap your own PSR-18 client with a logging decorator (PSR-3) and pass it as described under Custom HTTP client.

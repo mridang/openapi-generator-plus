@@ -14,6 +14,11 @@ use PetstoreClient\Auth\BearerAuthenticator;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Errors\ApiException;
+use PetstoreClient\Errors\NetworkException;
+use PetstoreClient\Errors\NetworkTimeoutException;
+use PetstoreClient\Errors\SerializationException;
+use PetstoreClient\CallHook;
+use PetstoreClient\OpenTelemetryCallHook;
 use PetstoreClient\Errors\ClientException;
 use PetstoreClient\Errors\ServerException;
 use PetstoreClient\Errors\BadRequestException;
@@ -1841,4 +1846,428 @@ test('bhv errors 027 an absolute url in the path bypasses the client base url', 
     $api->call('GET', 'https://other.example.com/v1/items', [], [], null, ['application/json'], null, null);
 
     expect($client->capturedUrl)->toBe('https://other.example.com/v1/items');
+});
+
+/**
+ * A pet API over a scripted transport and a configuration that carries $hook.
+ */
+function hookedPetApi(ScriptedApiClient $client, ?CallHook $hook, ?Authenticator $auth = null): PetApi
+{
+    $config = Configuration::builder()->baseUrl('http://localhost:8080')->callHook($hook)->build();
+
+    return new PetApi($client, $config, $auth);
+}
+
+/**
+ * A transport that answers each request with the next status of $statuses (200 once they are
+ * used up) and records the headers of every request, by lower-cased name.
+ *
+ * @param list<int> $statuses
+ * @param \ArrayObject<int, array<string, string>> $seen
+ */
+function hookedTransportApi(array $statuses, \ArrayObject $seen, Configuration $config, ?Authenticator $auth = null): TestableApi
+{
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($statuses, $seen): \Symfony\Component\HttpClient\Response\MockResponse {
+            $headers = [];
+            /** @var array<int, string> $lines */
+            $lines = $options['headers'] ?? [];
+            foreach ($lines as $line) {
+                $position = strpos($line, ':');
+                if ($position === false) {
+                    continue;
+                }
+                $headers[strtolower(substr($line, 0, $position))] = trim(substr($line, $position + 1));
+            }
+            $index = count($seen);
+            $seen[] = $headers;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $statuses[$index] ?? 200, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+
+    return new TestableApi(new StubbedDefaultApiClient($mock), $config, $auth);
+}
+
+test('bhv hooks 001 without a hook set a call sends the same headers and returns the same result as before', function (): void {
+    $plain = new ScriptedApiClient();
+    $observing = new ScriptedApiClient();
+    $hook = new RecordingCallHook();
+    $auth = new TestAuthenticator(['Authorization' => 'Bearer abc']);
+
+    hookedPetApi($plain, null, $auth)->deletePet(7);
+    hookedPetApi($observing, $hook, $auth)->deletePet(7);
+
+    expect(Configuration::builder()->build()->getCallHook())->toBeNull();
+    expect($plain->requests)->toHaveCount(1);
+    expect($plain->requests[0]['headers'])->toBe($observing->requests[0]['headers']);
+    expect($plain->requests[0]['headers']['Authorization'])->toBe('Bearer abc');
+});
+
+test('bhv hooks 002 start is called once per call with the spec operation id, the method, the url template and the url', function (): void {
+    $client = new ScriptedApiClient();
+    $hook = new RecordingCallHook();
+
+    hookedPetApi($client, $hook)->deletePet(7);
+
+    expect($hook->infos)->toHaveCount(1);
+    $info = $hook->infos[0];
+    expect($info->operationId)->toBe('deletePet');
+    expect($info->method)->toBe('DELETE');
+    expect($info->urlTemplate)->toBe('/pet/{petId}');
+    expect($info->url)->toBe('http://localhost:8080/pet/7');
+    expect($info->serverAddress)->toBe('localhost');
+});
+
+test('bhv hooks 003 server address is the host without port and without the brackets of an IPv6 literal', function (string $base, string $host): void {
+    $hook = new RecordingCallHook();
+    $config = new Configuration($base, [], $hook);
+    $api = new TestableApi(new ScriptedApiClient(), $config);
+
+    $api->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($hook->infos[0]->serverAddress)->toBe($host);
+    expect($hook->infos[0]->url)->toBe($base . '/things');
+})->with([
+    'ipv6 literal' => ['http://[::1]:8080', '::1'],
+    'upper case host and port' => ['https://API.Example.COM:8443', 'api.example.com'],
+    'plain host' => ['http://example.org', 'example.org'],
+]);
+
+test('bhv hooks 004 a header the hook sets reaches the server', function (): void {
+    $client = new ScriptedApiClient();
+    $hook = new RecordingCallHook(edit: static fn (array $headers): array => $headers + ['X-Hook' => 'yes']);
+
+    hookedPetApi($client, $hook)->deletePet(7);
+
+    expect($client->requests[0]['headers']['X-Hook'])->toBe('yes');
+});
+
+test('bhv hooks 005 start sees the final header set and can replace one', function (): void {
+    $client = new ScriptedApiClient();
+    $hook = new RecordingCallHook(edit: static function (array $headers): array {
+        $headers['Authorization'] = 'Bearer replaced';
+
+        return $headers;
+    });
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost:8080')
+        ->defaultHeader('X-Default', 'd')
+        ->callHook($hook)
+        ->build();
+    $api = new PetApi($client, $config, new TestAuthenticator(['Authorization' => 'Bearer original']));
+
+    $api->deletePet(7);
+
+    expect($hook->headersSeen[0]['Authorization'])->toBe('Bearer original');
+    expect($hook->headersSeen[0]['X-Default'])->toBe('d');
+    expect($client->requests[0]['headers']['Authorization'])->toBe('Bearer replaced');
+    expect($client->requests[0]['headers']['X-Default'])->toBe('d');
+});
+
+test('bhv hooks 006 a header the hook sets is on every send of the call, retries and the replay after a 401 included', function (): void {
+    $hook = new RecordingCallHook(edit: static fn (array $headers): array => $headers + ['X-Hook' => 'yes']);
+    /** @var \ArrayObject<int, array<string, string>> $seen */
+    $seen = new \ArrayObject();
+    $retried = hookedTransportApi([503, 503, 200], $seen, new Configuration('http://localhost', [], $hook));
+
+    $retried->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($seen)->toHaveCount(3);
+    foreach ($seen as $headers) {
+        expect($headers['x-hook'] ?? null)->toBe('yes');
+    }
+
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $replayed = new TestableApi($client, new Configuration('http://localhost', [], $hook), $auth);
+
+    $replayed->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+    expect($apiCalls[0]['headers']['X-Hook'])->toBe('yes');
+    expect($apiCalls[1]['headers']['X-Hook'])->toBe('yes');
+});
+
+test('bhv hooks 007 the fresh authentication headers of a replay still replace a hook header of the same name', function (): void {
+    $hook = new RecordingCallHook(edit: static function (array $headers): array {
+        $headers['Authorization'] = 'Bearer from-hook';
+
+        return $headers;
+    });
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost', [], $hook), $auth);
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+    expect($apiCalls[0]['headers']['Authorization'])->toBe('Bearer from-hook');
+    expect($apiCalls[1]['headers']['Authorization'])->toBe('Bearer t2');
+});
+
+test('bhv hooks 008 a call that is retried by the transport calls start once and finish once', function (): void {
+    $hook = new RecordingCallHook();
+    /** @var \ArrayObject<int, array<string, string>> $seen */
+    $seen = new \ArrayObject();
+    $api = hookedTransportApi([503, 503, 200], $seen, new Configuration('http://localhost', [], $hook));
+
+    $api->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($seen)->toHaveCount(3);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+    expect($hook->outcomes[0]->statusCode)->toBe(200);
+});
+
+test('bhv hooks 009 the plain and the WithHttpInfo variant of an operation call the hook once each', function (): void {
+    $hook = new RecordingCallHook();
+    $api = hookedPetApi(new ScriptedApiClient(), $hook);
+
+    $api->deletePet(7);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+
+    $api->deletePetWithHttpInfo(7);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook', 'start:hook', 'finish:hook']);
+});
+
+test('bhv hooks 010 a hook set on the client still fires when the caller supplied the transport', function (): void {
+    $hook = new RecordingCallHook();
+    $transport = new ScriptedApiClient();
+    $client = new \PetstoreClient\Client(
+        new BearerAuthenticator('http://localhost:8080', 'test-token'),
+        null,
+        $transport,
+        callHook: $hook
+    );
+
+    $client->pet->deletePet(7);
+
+    expect($transport->requests)->toHaveCount(1);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+    expect($hook->infos[0]->operationId)->toBe('deletePet');
+});
+
+test('bhv hooks 011 finish gets the status, the lower-cased response headers and no error on a 2xx', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient([
+        new ApiHttpResponse(200, '', ['Content-Type' => 'application/json', 'X-Request-Id' => 'r1']),
+    ]);
+
+    hookedPetApi($client, $hook)->deletePet(7);
+
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(200);
+    expect($outcome->headers)->toBe(['content-type' => 'application/json', 'x-request-id' => 'r1']);
+    expect($outcome->error)->toBeNull();
+});
+
+test('bhv hooks 012 finish gets the status, the headers and the same typed error the caller receives on a non-2xx', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, '{}', ['X-Request-Id' => 'r2'])]);
+    $caught = null;
+
+    try {
+        hookedPetApi($client, $hook)->deletePet(7);
+    } catch (ApiException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(NotFoundException::class);
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(404);
+    expect($outcome->headers)->toBe(['x-request-id' => 'r2']);
+    expect($outcome->error)->toBe($caught);
+});
+
+test('bhv hooks 013 finish gets status 0, null headers and the network error when no response arrived', function (): void {
+    $hook = new RecordingCallHook();
+    $failure = new NetworkException('connection refused');
+    $caught = null;
+
+    try {
+        hookedPetApi(new ScriptedApiClient([$failure]), $hook)->deletePet(7);
+    } catch (NetworkException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($failure);
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(0);
+    expect($outcome->headers)->toBeNull();
+    expect($outcome->error)->toBe($failure);
+});
+
+test('bhv hooks 014 finish gets the timeout error when the end-to-end budget is exhausted', function (): void {
+    $hook = new RecordingCallHook();
+    $timeout = new NetworkTimeoutException('timed out');
+
+    expect(function () use ($timeout, $hook): void {
+        hookedPetApi(new ScriptedApiClient([$timeout]), $hook)->deletePet(7);
+    })->toThrow(NetworkTimeoutException::class);
+
+    expect($hook->outcomes[0]->error)->toBe($timeout);
+    expect($hook->outcomes[0]->statusCode)->toBe(0);
+});
+
+test('bhv hooks 016 finish gets the decode error with the status that arrived when the response cannot be decoded', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient([
+        new ApiHttpResponse(200, '[1, 2', ['Content-Type' => 'application/json', 'x-request-id' => 'r1']),
+    ]);
+    $api = new TestableApi($client, new Configuration('http://localhost', [], $hook));
+    $caught = null;
+
+    try {
+        $api->call('GET', '/items', [], [], null, ['application/json'], null, Category::class);
+    } catch (SerializationException $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBeInstanceOf(SerializationException::class);
+    $outcome = $hook->outcomes[0];
+    expect($outcome->statusCode)->toBe(200);
+    expect($outcome->headers)->toBe(['content-type' => 'application/json', 'x-request-id' => 'r1']);
+    expect($outcome->error)->toBe($caught);
+});
+
+test('bhv hooks 017 finish is called when the request body cannot be encoded and nothing is sent', function (): void {
+    $hook = new RecordingCallHook();
+    $client = new ScriptedApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost', [], $hook));
+
+    expect(fn (): mixed => $api->callOperation(
+        'createThing',
+        '/things',
+        'POST',
+        '/things',
+        body: ['nested' => ['not' => 'scalar']],
+        contentType: 'application/x-www-form-urlencoded'
+    ))->toThrow(SerializationException::class);
+
+    expect($client->requests)->toBe([]);
+    expect($hook->events)->toBe(['start:hook', 'finish:hook']);
+    expect($hook->outcomes[0]->statusCode)->toBe(0);
+    expect($hook->outcomes[0]->headers)->toBeNull();
+    expect($hook->outcomes[0]->error)->toBeInstanceOf(SerializationException::class);
+});
+
+test('bhv hooks 018 an error thrown by start reaches the caller unchanged, nothing is sent and finish is not called', function (): void {
+    $refusal = new \DomainException('refused by the hook');
+    $hook = new RecordingCallHook(failOnStart: $refusal);
+    $client = new ScriptedApiClient();
+    $caught = null;
+
+    try {
+        hookedPetApi($client, $hook)->deletePet(7);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($refusal);
+    expect($client->requests)->toBe([]);
+    expect($hook->outcomes)->toBe([]);
+});
+
+test('bhv hooks 019 an error thrown by finish is swallowed and the caller still gets its result or its own error', function (): void {
+    $hook = new RecordingCallHook(failOnFinish: new \RuntimeException('observer broke'));
+
+    hookedPetApi(new ScriptedApiClient(), $hook)->deletePet(7);
+    $result = hookedPetApi(new ScriptedApiClient(), $hook)->deletePetWithHttpInfo(7);
+    expect($result->statusCode)->toBe(200);
+
+    expect(function () use ($hook): void {
+        hookedPetApi(new ScriptedApiClient([new ApiHttpResponse(404, '{}', [])]), $hook)->deletePet(7);
+    })->toThrow(NotFoundException::class);
+    expect(count($hook->outcomes))->toBe(3);
+});
+
+test('bhv hooks 021 the url given to the hook never carries the query string or the fragment', function (): void {
+    $hook = new RecordingCallHook();
+    $api = new TestableApi(new ScriptedApiClient(), new Configuration('http://localhost', [], $hook));
+
+    $api->callOperation('listThings', '/things', 'GET', '/things#frag', queryParams: ['a' => '1', 'token' => 'secret']);
+    $api->callOperation('listThings', '/things', 'GET', '/things?b=2');
+
+    expect($hook->infos[0]->url)->toBe('http://localhost/things');
+    expect($hook->infos[1]->url)->toBe('http://localhost/things');
+});
+
+test('bhv telemetry 006 the traceparent sent names the client span as the parent', function (): void {
+    [$tracer, $spans, $meter] = HookTelemetry::providers();
+    $scope = \OpenTelemetry\API\Instrumentation\Configurator::create()
+        ->withTracerProvider($tracer)
+        ->withMeterProvider($meter)
+        ->withPropagator(\OpenTelemetry\API\Trace\Propagation\TraceContextPropagator::getInstance())
+        ->activate();
+    $client = new ScriptedApiClient();
+    try {
+        $parent = $tracer->getTracer('parent')->spanBuilder('caller')->startSpan();
+        $parentScope = $parent->activate();
+        try {
+            hookedPetApi($client, OpenTelemetryCallHook::create())->deletePet(7);
+        } finally {
+            $parentScope->detach();
+            $parent->end();
+        }
+    } finally {
+        $scope->detach();
+    }
+
+    $exported = array_values($spans->getSpans());
+    $sent = array_change_key_case($client->requests[0]['headers']);
+    expect($exported)->toHaveCount(2);
+    expect($exported[0]->getName())->toBe('deletePet');
+    expect($exported[0]->getParentSpanId())->toBe($parent->getContext()->getSpanId());
+    $flags = sprintf('%02x', $exported[0]->getContext()->getTraceFlags());
+    expect($sent['traceparent'] ?? null)->toBe(
+        '00-' . $exported[0]->getTraceId() . '-' . $exported[0]->getSpanId() . '-' . $flags
+    );
+    expect(count(array_filter(
+        array_keys($client->requests[0]['headers']),
+        static fn (string $name): bool => strtolower($name) === 'traceparent'
+    )))->toBe(1);
+});
+
+test('bhv telemetry 007 a call retried by the transport records one span and one count', function (): void {
+    [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
+    /** @var \ArrayObject<int, array<string, string>> $seen */
+    $seen = new \ArrayObject();
+    $hook = OpenTelemetryCallHook::create($tracer, $meter);
+    $api = hookedTransportApi([503, 503, 200], $seen, new Configuration('http://localhost', [], $hook));
+
+    $api->callOperation('listThings', '/things', 'GET', '/things');
+
+    expect($seen)->toHaveCount(3);
+    expect($spans->getSpans())->toHaveCount(1);
+    $count = HookTelemetry::number(HookTelemetry::metrics($reader, $metrics)['http.client.request.count']);
+    expect($count->value)->toEqual(1);
 });
