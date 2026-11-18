@@ -701,3 +701,4 @@ dart | misc214 | Dart query values are stringified by toString for any object th
 
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
 node | retries045 | node has no streamed request body: sendRequest accepts only a string, Buffer, record or null, all held in memory, so a 401 replay never has a stream to consume
+node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
