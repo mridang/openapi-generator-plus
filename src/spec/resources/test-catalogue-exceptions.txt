@@ -439,6 +439,12 @@ go | misc103 | Go decodes every model leniently and has no strict-mode option, s
 go | misc105 | Go models have no validation step at construction or copy, so copying a model cannot validate its values; there is no validator to run
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+rust | misc083 | Rust builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
+rust | misc085 | the trackingId parameter is typed uuid::Uuid, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder
+rust | misc088 | Rust's number is f64 and documented lossy (serializationobject002), so the decimal places a value was written with are not kept and the exact-decimal writing this promise needs is not the Rust contract
+rust | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
+rust | misc098 | Rust multipart parts hold owned bytes (MultipartValue::Bytes(Vec<u8>)) and take no caller-supplied stream, so there is no stream the SDK could read into the body or leave open
+||||||| ed0ae8cea
 elixir | misc083 | Elixir takes query parameters as a keyword list that the SDK encodes itself, so there is no raw query text input whose repeated keys or existing percent-encodings could be kept as written
 elixir | misc087 | Elixir has no decimal type: a decimal field is a binary float, so it cannot be written with its exact digits in plain notation (see serializationobject410)
 elixir | misc088 | Elixir decodes a decimal into a binary float, so it cannot keep the number of decimal places it was written with (see serializationobject410)
@@ -537,6 +543,8 @@ python | misc052 | Python passes per-call options as keyword arguments, so givin
 python | misc056 | the Python proxy setter takes None to clear a proxy and rejects an empty string as a URL with no scheme (TransportOptions builder raises ValueError), so an empty string cannot clear a proxy
 python | misc065 | Python takes each scheme credential as its own keyword argument and copies them into a dict inside the constructor, so no caller-owned map exists that could change after the API is built
 python | misc074 | Python sends one credential per operation, the first configured scheme its requirement lists (BaseApi._scheme_authenticator), so an alternative that names two schemes sends only one
+csharp | misc135 | the C# client has no client-level cancellation handle: cancellation is a CancellationToken passed to each call, and ConfigurationBuilder has no setter for one
+||||||| 42ed26df5
 kotlin | misc051 | Kotlin builders and operation option classes are typed, so an option the builder does not know is a compile error rather than a refusal at runtime
 kotlin | misc052 | Kotlin named arguments can be passed only once per call, so a repeated per-call option cannot be written and there is no second value to resolve
 kotlin | misc056 | the Kotlin proxy setter takes null to clear a proxy and an empty string is not a URL with a scheme, so an empty string cannot clear a proxy
@@ -585,11 +593,21 @@ swift | misc074 | The petstore fixture has no operation whose security requireme
 swift | misc075 | The client takes one named credential per declared scheme, so a credential keyed to an undeclared scheme cannot be passed to it
 swift | misc081 | A binary response is returned as Data because an operation's return type comes from its spec, so no operation returns a String from a base64 binary body
 swift | misc083 | The Swift client has no entry point that takes a query as raw text: every query parameter is typed and percent-encoded one at a time by the generated operation
+swift | misc087 | Swift has no decimal value type that reaches the wire: a decimal schema value is a Double (documented in the readme), and a loose body cannot carry a Decimal through JSONSerialization
+swift | misc088 | A decimal schema value is stored as a Double (documented in the readme), which keeps no trailing decimal places, so there is no written places form to keep
+swift | misc091 | The Swift generator emits no schema constraint or pattern checks into its models, so decoding never checks a declared constraint
+swift | misc098 | The Swift multipart builder takes only Data, String and model values as parts, so a caller-supplied stream can never be a part; a caller body stream is covered by the transport tests
+swift | misc100 | The Swift client always sends multipart/form-data with its own boundary and ignores a declared multipart subtype, so the declared subtype is never kept
+swift | misc101 | Swift multipart parts are Data, String or model values already in memory, so a part source cannot fail to read at send time
+swift | misc110 | The Swift decoder reads a calendar-date field as a plain String and has no list-of-dates type whose elements are refused when they are not dates
+swift | misc111 | The Swift client writes uniqueItems collections in their natural order and never sorts them (documented in the readme)
+swift | misc113 | Swift models print through the default Mirror description of their stored properties, so the Python type-name string form does not exist to be replaced
+swift | misc114 | A Swift operation returns the single success type its spec declares, so there is no per-status decoder to choose from the status code received
+swift | misc116 | The Swift generator emits no minimum or maximum checks into its models, so an integer field's declared bounds are never enforced at decode
 ||||||| 80c094f97
 java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
 java | misc075 | Java's client Builder takes one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists
-||||||| 80c094f97
 dart | misc074 | Dart sends one credential per operation, the first configured scheme its requirement lists (schemeAuthenticator), so an alternative that names two schemes applies a single credential and never both
 dart | misc075 | Dart's Client takes one named optional parameter per declared scheme, so a credential keyed to an undeclared scheme is a compile-time error rather than a refusal at build
 dart | misc081 | the petstore has no operation returning a format: byte string under a binary content type, so no base64 body reaches a string return
@@ -597,11 +615,19 @@ dart | misc085 | the trackingId field is typed UuidValue, which holds only a par
 dart | misc087 | Dart's number is a binary double with no decimal type, so a decimal field is written by double formatting and not as the exact decimal text this promise needs (serializationobject002)
 dart | misc088 | Dart's number is a binary double with no decimal type, so the decimal places a value was written with are not kept, as serializationobject002 records
 dart | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
-||||||| 80c094f97
 csharp | misc178 | the C# client builds every multipart body as MultipartFormDataContent, which always writes multipart/form-data, and ignores any content type a caller declares for a dictionary body, so no other declared multipart type can reach the transport
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 csharp | misc188 | the C# client exposes no public closed state to read, so the only observable effect of closing it is the transport release already pinned by the lifecycle tests
+go | misc185 | the Go OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
+||||||| d3821bb7c
+csharp | misc085 | uuid fields and parameters are typed System.Guid, so text that is not in canonical form cannot be passed to the call or built into a model
+csharp | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
+csharp | misc100 | The C# SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
+||||||| d3821bb7c
+java | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
+java | misc100 | The Java SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back
+||||||| a7408137c
 python | misc145 | python exposes additional_properties as the model's own dict field, so reading it hands back the stored dict rather than a copy
 python | misc149 | python copies a model with pydantic's model_copy, which does not refuse an undeclared key, so there is no refusal to observe
 python | misc153 | python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so a cancel set on the client cannot exist
@@ -612,3 +638,8 @@ node | misc074 | BaseApi resolves one credential, the first listed scheme the cl
 node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
 node | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire 018), so a base64 body under a binary content type is returned as that text and never decoded to a string
 node | misc091 | settled decision S3 and bhv serialization 069: schema constraints such as pattern, length and range are not enforced by the client, so refusing a value that breaks one would contradict it
+dart | misc098 | Dart multipart parts are Uint8List values already held in memory and the SDK accepts no caller stream as a part, so there is no stream to read or to leave open
+dart | misc100 | Dart always builds a Map body as multipart/form-data through package:http's MultipartRequest and takes no declared subtype or caller header to keep, so there is no declared subtype to keep or fall back from
+dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
+dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
+dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
