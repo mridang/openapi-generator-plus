@@ -514,6 +514,7 @@ elixir | misc060 | The bearer authenticator constructor takes one token and has 
 elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
 elixir | misc068 | Elixir reads the environment only for a nil credential; an empty string is passed on as the value and refused (a bearer token must be non-empty), so it never falls back to the environment
 elixir | misc074 | BaseApi.scheme_auth returns the one credential of the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
+elixir | misc262 | Elixir has no client-level cancellation to surface: a call is stopped only by its own process exiting (S7), and the SDK never receives or wraps a caller's cancellation (misc029)
 rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
 rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
 rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check
