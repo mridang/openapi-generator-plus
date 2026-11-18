@@ -3431,3 +3431,20 @@ async fn test_bhv_redirects_052_a_cross_origin_redirect_removes_every_credential
     assert!(followup.contains("x-trace:"), "non-sensitive X-Trace must survive: {}", calls[0]);
 }
 
+
+#[tokio::test]
+async fn test_bhv_misc_054_per_call_headers_are_copied_so_later_changes_do_not_reach_the_request() {
+    let (base_url, head) = start_head_capture_server();
+    let client = DefaultApiClient::new(None);
+    let mut headers = HashMap::new();
+    headers.insert("X-Trace".to_string(), "one".to_string());
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &headers, None)
+        .await
+        .expect("unexpected error");
+    headers.insert("X-Trace".to_string(), "two".to_string());
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(Some("one".to_string()), head_header(&head, "x-trace"), "{}", head);
+}

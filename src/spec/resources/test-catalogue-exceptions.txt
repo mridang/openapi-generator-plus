@@ -472,6 +472,10 @@ python | misc044 | a declared gzip body that is not gzip raises ApiException (tr
 python | misc051 | operation Options objects are typed, so an option the operation cannot apply is refused by Python as an unknown keyword at construction
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
+ruby | misc088 | A BigDecimal keeps every digit of the value it was read from but not the trailing zeros of its text, since they are not part of the number, so the written number of decimal places cannot be kept
+ruby | misc100 | The Ruby client sends a multipart body only when the body is a Hash, always as multipart/form-data with its own boundary, so no caller can declare another multipart subtype and there is no declared value to fall back from
+ruby | misc105 | The copy is built through the model constructor, so it validates its values exactly as building the model by hand does, and a copy never skips those checks
+||||||| 9c583bf17
 php | misc029 | PHP has no cancellation API, so a caller cancellation never reaches the SDK; timeouts are the only bound
 php | misc033 | libcurl and the TLS stack build the chain from the CA file, and the unit tests cannot run a live TLS handshake to check it
 php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no separate HTTP client option to combine with it
@@ -518,6 +522,24 @@ dart | misc033 | the suite ships a single server certificate with no root and in
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
 dart | misc044 | the Dart client raises on a body that declares gzip but fails to decode, as bhv transport 073 pins, so it never returns that body as plain content
 dart | misc047 | PetFood.toJson passes a value that is not one of its variants through unchanged instead of raising, so no serialization error names the union
+elixir | misc048 | The fixture has no operation whose declared response is a union, so no undeclared success status can decode as a union return type
+elixir | misc054 | Elixir maps are immutable, so a later change to the caller's variable cannot reach a call and there is no shared map to copy
+elixir | misc056 | Elixir transport options are a keyword list given once to TransportOptions.new/1, so there is no earlier proxy setting for an empty string to remove
+elixir | misc059 | JSON has no NaN or Infinity literal and Jason refuses them, so a non-finite token lifetime cannot reach the token cache
+elixir | misc060 | The bearer authenticator constructor takes one token and has no token provider argument, so both cannot be supplied together
+elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
+||||||| 48a69653b
+||||||| 334663d4c
+rust | misc047 | Rust unions are enums, so a value that is not one of the variants cannot be built and the compiler admits only variants when serializing, so no run-time error naming the union exists
+rust | misc050 | RequestOptions is a plain struct whose flags default to false, so an unset per-call flag cannot be told apart from an explicit false and cannot fall through to the transport options
+rust | misc051 | Rust builders expose only typed setters, so an option the builder does not have cannot be passed and the compiler rejects it before any run-time check
+rust | misc060 | Rust has no API key provider: a credential is a typed value passed in one place, so supplying both an API key and a provider cannot be expressed
+rust | misc061 | Rust has no cancellation parameter or context values on a call (S7), so the authenticator receives no caller cancellation or context to pass on, the same limit as misc029
+||||||| 1fb5cb0ce
+dart | misc051 | Dart rejects an unknown named option and a server setting on an operation without servers at compile time, since the generated options classes and constructors declare only their own fields, so no run-time refusal can be observed
+dart | misc052 | Dart rejects a repeated named argument at compile time and per-call options fields are final, so the same kind of option cannot be given twice at run time
+dart | misc061 | Dart has no per-call cancellation handle and no context-value channel (S7), so an authenticator receives no cancel signal or context values to pass on
+||||||| bf87ed1ad
 python | misc052 | Python passes per-call options as keyword arguments, so giving the same option twice is a syntax error rather than a runtime choice, and no list of options exists to resolve
 python | misc056 | the Python proxy setter takes None to clear a proxy and rejects an empty string as a URL with no scheme (TransportOptions builder raises ValueError), so an empty string cannot clear a proxy
 python | misc065 | Python takes each scheme credential as its own keyword argument and copies them into a dict inside the constructor, so no caller-owned map exists that could change after the API is built
@@ -525,3 +547,5 @@ python | misc074 | Python sends one credential per operation, the first configur
 go | misc145 | Go exposes the additional-properties map as a plain exported field, so reading it hands back the live map; the copy is taken only when the map is set through WithAdditionalProperties
 go | misc149 | Go's typed With methods exist only for declared fields, so an undeclared attribute cannot be named and the compiler refuses the call before any copy is made
 go | misc153 | Go has no client-level cancellation signal: a context is passed to each call, so a cancel signal only ever reaches the one call it is given
+||||||| 2c1a36607
+python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
