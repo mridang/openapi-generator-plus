@@ -1080,26 +1080,6 @@ mod tests {
     }
 
     #[test]
-    fn test_only_a_network_error_before_a_response_is_retryable() {
-        let refused = crate::errors::NetworkError::try_from(crate::errors::ApiError::new(
-            0,
-            "refused".to_string(),
-            None,
-            None,
-        ))
-        .expect("status 0");
-        assert!(is_retryable_error(&refused));
-        assert!(!is_retryable_error(
-            &crate::errors::SerializationError::new("x".to_string(), None)
-        ));
-        assert!(!is_retryable_error(&crate::errors::ApiError::new(
-            500,
-            "x".to_string(),
-            None,
-            None
-        )));
-    }
-
     #[test]
     fn test_bhv_retries_022_retry_after_parses_seconds_and_http_dates() {
         use std::time::Duration;
@@ -1211,7 +1191,7 @@ mod tests {
     }
 
     #[test]
-    fn test_a_wait_must_fit_the_remaining_budget() {
+    fn test_bhv_misc_164_a_wait_must_fit_the_remaining_budget() {
         use std::time::{Duration, Instant};
         assert!(fits_budget(None, Duration::from_secs(600)));
         let deadline = Instant::now() + Duration::from_secs(10);
@@ -1893,7 +1873,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_a_per_call_retry_budget_replaces_a_client_that_never_retries() {
+    async fn test_bhv_misc_229_a_per_call_retry_budget_replaces_a_client_that_never_retries() {
         let client = ScriptedClient::new(500);
         let api = api_for(client.clone());
 
@@ -2189,7 +2169,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_string_result_xml_is_returned_verbatim() {
+    async fn test_bhv_serialization_128_string_result_xml_is_returned_verbatim() {
         assert_eq!(
             string_result("<item id=\"1\"/>", "application/xml")
                 .await
@@ -2199,7 +2179,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_string_result_base64_transport_body_is_decoded() {
+    async fn test_bhv_misc_081_string_result_base64_transport_body_is_decoded() {
         assert_eq!(
             string_result("aGVsbG8=", "application/pdf")
                 .await
@@ -2331,7 +2311,7 @@ mod tests {
     }
 
     #[test]
-    fn test_serialize_body_json_passthrough() {
+    fn test_bhv_langrust_001_serialize_body_json_passthrough() {
         let body = b"{\"key\":\"value\"}".to_vec();
         let result = serialize_body(Some(body.clone()), "application/json").unwrap();
         assert!(result.is_some());

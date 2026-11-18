@@ -2218,3 +2218,7 @@ langcsharp042 | A cross-origin redirect drops any header whose name looks like a
 langcsharp043 | A 307 redirect replays a byte array body with its content type
 langcsharp044 | A 307 redirect replays a text body with a bare content type
 langruby090 | A password refused at construction for containing a NUL byte names the password in its error
+||||||| 647a3283e
+langcsharp045 | An operation with no parameters or security leaves transport settings unchanged
+langcsharp046 | An operation with no parameters or security has no auth field in its options
+langcsharp047 | A per-call timeout of zero is refused when the call is built
