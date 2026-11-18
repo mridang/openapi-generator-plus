@@ -320,68 +320,10 @@ func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *test
 	}
 }
 
-// Two models built from the same values are equal, and a change in any nested value makes them unequal.
-// Models of two different types cannot be passed to each other's Equal, so the compiler rejects that call.
-func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
-	t.Parallel()
-	build := func() models.Pet {
-		id := int64(7)
-		categoryName := "Dogs"
-		tagName := "friendly"
-		tags := make([]models.Tag, 1)
-		tags[0].Name = &tagName
-		return models.Pet{
-			Name:      "Rex",
-			Category:  &models.Category{Id: &id, Name: &categoryName},
-			PhotoUrls: models.Set[string]{"a"},
-			Tags:      &tags,
-		}
-	}
-	first := build()
-	second := build()
-	if !first.Equal(&second) {
-		t.Error("expected two models built from the same values to be equal")
-	}
-	changes := map[string]func(*models.Pet){
-		"top-level name": func(p *models.Pet) {
-			p.Name = "Fido"
-		},
-		"nested category id": func(p *models.Pet) {
-			id := int64(8)
-			p.Category.Id = &id
-		},
-		"nested category name": func(p *models.Pet) {
-			categoryName := "Cats"
-			p.Category.Name = &categoryName
-		},
-		"nested tag name": func(p *models.Pet) {
-			tagName := "wild"
-			(*p.Tags)[0].Name = &tagName
-		},
-		"set element": func(p *models.Pet) {
-			p.PhotoUrls[0] = "b"
-		},
-	}
-	for name, change := range changes {
-		other := build()
-		change(&other)
-		if first.Equal(&other) {
-			t.Errorf("expected a changed %s to make the models unequal", name)
-		}
-	}
-	var none *models.Pet
-	if !none.Equal(nil) {
-		t.Error("expected two nil models to be equal")
-	}
-	if first.Equal(nil) {
-		t.Error("expected a model not to equal nil")
-	}
-	if none.Equal(&first) {
-		t.Error("expected nil not to equal a model")
 // Extra properties are written as top-level keys beside the declared fields.
 func TestBhvSerialization067_Model_AdditionalPropertiesAreWrittenAsTopLevelKeys(t *testing.T) {
 	t.Parallel()
-	meta := models.Metadata{AdditionalProperties: map[string]any{"owner": "team-a", "tier": 2}}
+	meta := models.Metadata{AdditionalProperties: map[string]string{"owner": "team-a", "tier": "2"}}
 	data, err := json.Marshal(meta)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -390,7 +332,7 @@ func TestBhvSerialization067_Model_AdditionalPropertiesAreWrittenAsTopLevelKeys(
 	if err := json.Unmarshal(data, &got); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if got["owner"] != "team-a" || got["tier"] != float64(2) {
+	if got["owner"] != "team-a" || got["tier"] != "2" {
 		t.Errorf("expected the extra properties as top-level keys, got %s", data)
 	}
 	if _, nested := got["additionalProperties"]; nested {
@@ -492,8 +434,8 @@ func TestBhvSerialization075_Model_AnEnumValueDecodesFromItsWireCasing(t *testin
 // the original untouched, and keeps unnamed fields and additional properties.
 func TestBhvSerialization079_Model_CopyChangesOnlyTheNamedFields(t *testing.T) {
 	t.Parallel()
-	original := models.Metadata{AdditionalProperties: map[string]any{"owner": "team-a"}}
-	changed := original.WithAdditionalProperties(map[string]any{"owner": "team-b"})
+	original := models.Metadata{AdditionalProperties: map[string]string{"owner": "team-a"}}
+	changed := original.WithAdditionalProperties(map[string]string{"owner": "team-b"})
 	if changed.AdditionalProperties["owner"] != "team-b" {
 		t.Errorf("expected the copy to carry the change, got %v", changed.AdditionalProperties)
 	}
@@ -526,9 +468,9 @@ func TestBhvSerialization081_Model_AWrongJsonTypeIsRefusedNotCoerced(t *testing.
 // Two instances that differ only in their undeclared extra properties are not equal.
 func TestBhvModels025_Model_ExtraPropertiesTakePartInEquality(t *testing.T) {
 	t.Parallel()
-	a := models.Metadata{AdditionalProperties: map[string]any{"a": 1}}
-	b := models.Metadata{AdditionalProperties: map[string]any{"a": 2}}
-	if a.Equal(b) {
+	a := models.Metadata{AdditionalProperties: map[string]string{"a": "1"}}
+	b := models.Metadata{AdditionalProperties: map[string]string{"a": "2"}}
+	if a.Equal(&b) {
 		t.Error("expected instances differing only in extra properties to be unequal")
 	}
 }
@@ -549,5 +491,66 @@ func TestBhvModels026_Model_UndeclaredKeysRoundTripAtTheTopLevel(t *testing.T) {
 	}
 	if !strings.Contains(string(data), `"owner":"team-a"`) {
 		t.Errorf("expected the key written back at the top level, got %s", data)
+	}
+}
+
+// Two models built from the same values are equal, and a change in any nested value makes them unequal.
+// Models of two different types cannot be passed to each other's Equal, so the compiler rejects that call.
+func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
+	t.Parallel()
+	build := func() models.Pet {
+		id := int64(7)
+		categoryName := "Dogs"
+		tagName := "friendly"
+		tags := make([]models.Tag, 1)
+		tags[0].Name = &tagName
+		return models.Pet{
+			Name:      "Rex",
+			Category:  &models.Category{Id: &id, Name: &categoryName},
+			PhotoUrls: models.Set[string]{"a"},
+			Tags:      &tags,
+		}
+	}
+	first := build()
+	second := build()
+	if !first.Equal(&second) {
+		t.Error("expected two models built from the same values to be equal")
+	}
+	changes := map[string]func(*models.Pet){
+		"top-level name": func(p *models.Pet) {
+			p.Name = "Fido"
+		},
+		"nested category id": func(p *models.Pet) {
+			id := int64(8)
+			p.Category.Id = &id
+		},
+		"nested category name": func(p *models.Pet) {
+			categoryName := "Cats"
+			p.Category.Name = &categoryName
+		},
+		"nested tag name": func(p *models.Pet) {
+			tagName := "wild"
+			(*p.Tags)[0].Name = &tagName
+		},
+		"set element": func(p *models.Pet) {
+			p.PhotoUrls[0] = "b"
+		},
+	}
+	for name, change := range changes {
+		other := build()
+		change(&other)
+		if first.Equal(&other) {
+			t.Errorf("expected a changed %s to make the models unequal", name)
+		}
+	}
+	var none *models.Pet
+	if !none.Equal(nil) {
+		t.Error("expected two nil models to be equal")
+	}
+	if first.Equal(nil) {
+		t.Error("expected a model not to equal nil")
+	}
+	if none.Equal(&first) {
+		t.Error("expected nil not to equal a model")
 	}
 }

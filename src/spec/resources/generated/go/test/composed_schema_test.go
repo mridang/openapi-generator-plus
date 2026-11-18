@@ -974,7 +974,7 @@ func TestBhvUnions045_ComposedSchema_EqualBuildsCompareEqual(t *testing.T) {
 	t.Parallel()
 	a := models.NewMedicationPetTreatment(models.Medication{})
 	b := models.NewPetTreatment(models.Medication{})
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Errorf("expected the same data to compare equal, got %+v and %+v", a, b)
 	}
 }
@@ -1017,10 +1017,10 @@ func TestBhvMisc046_ComposedSchema_EqualContentComparesEqual(t *testing.T) {
 	a := models.NewMedicationPetTreatment(models.Medication{})
 	b := models.NewMedicationPetTreatment(models.Medication{})
 	c := models.NewSurgeryPetTreatment(models.Surgery{})
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Error("expected equal content to compare equal")
 	}
-	if a.Equal(c) {
+	if a.Equal(&c) {
 		t.Error("expected different content to compare unequal")
 	}
 }

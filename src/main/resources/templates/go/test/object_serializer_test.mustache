@@ -3,7 +3,6 @@ package {{packageName}}
 
 import (
 	"encoding/json"
-	"fmt"
 	"errors"
 	"math"
 	"net/netip"
@@ -17,6 +16,7 @@ import (
 
 	apierrors "{{packageName}}/pkg/errors"
 	"{{packageName}}/pkg/models"
+	"fmt"
 )
 
 // Compile-time proof that the *SerializationError re-exported by this (main)
@@ -4005,98 +4005,6 @@ func TestBhvSerialization025_ObjectSerializer_Deserialize_TypedLeavesDecodeToThe
 	}
 }
 
-func decodeNativeValues(t *testing.T, text string) (models.NativeValues, error) {
-	t.Helper()
-	var values models.NativeValues
-	err := deserialize([]byte(text), &values)
-	return values, err
-}
-
-func encodeNativeValues(t *testing.T, values models.NativeValues) string {
-	t.Helper()
-	out, err := serialize(values)
-	if err != nil {
-		t.Fatalf("serialize failed: %v", err)
-	}
-	return string(out)
-}
-
-func TestBhvSerializationobject403_ObjectSerializer_Deserialize_DurationFieldConvertsToTheNativeTimeDuration(t *testing.T) {
-	t.Parallel()
-	values, err := decodeNativeValues(t, `{"wait":"3600s"}`)
-	if err != nil {
-		t.Fatalf("deserialize failed: %v", err)
-	}
-	if got := time.Duration(*values.Wait); got != time.Hour {
-		t.Errorf("expected one hour, got %v", got)
-	}
-}
-
-func TestBhvSerializationobject404_ObjectSerializer_Deserialize_DurationKeepsEveryNanosecondAndWritesTheShortestForm(t *testing.T) {
-	t.Parallel()
-	values, err := decodeNativeValues(t, `{"wait":"-1.123456789s"}`)
-	if err != nil {
-		t.Fatalf("deserialize failed: %v", err)
-	}
-	if got, want := time.Duration(*values.Wait), -(time.Second + 123456789*time.Nanosecond); got != want {
-		t.Errorf("expected %v, got %v", want, got)
-	}
-	if got := encodeNativeValues(t, values); got != `{"wait":"-1.123456789s"}` {
-		t.Errorf("expected the shortest form, got %s", got)
-	}
-}
-
-func TestBhvSerializationobject405_ObjectSerializer_Deserialize_Ipv4FieldIsTheNativeAddressAndRoundTrips(t *testing.T) {
-	t.Parallel()
-	values, err := decodeNativeValues(t, `{"address4":"192.0.2.1"}`)
-	if err != nil {
-		t.Fatalf("deserialize failed: %v", err)
-	}
-	var address netip.Addr = *values.Address4
-	if address != netip.MustParseAddr("192.0.2.1") {
-		t.Errorf("unexpected address %v", address)
-	}
-	if got := encodeNativeValues(t, values); got != `{"address4":"192.0.2.1"}` {
-		t.Errorf("unexpected body %s", got)
-	}
-}
-
-func TestBhvSerializationobject406_ObjectSerializer_Serialize_Ipv6IsWrittenInTheCanonicalForm(t *testing.T) {
-	t.Parallel()
-	for given, want := range map[string]string{
-		"2001:0DB8:0:0:0:0:0:1": "2001:db8::1",
-		"2001:db8::1":           "2001:db8::1",
-		"::1":                   "::1",
-		"2001:db8:0:1:1:1:1:1":  "2001:db8:0:1:1:1:1:1",
-	} {
-		values, err := decodeNativeValues(t, `{"address6":"`+given+`"}`)
-		if err != nil {
-			t.Fatalf("deserialize %s failed: %v", given, err)
-		}
-		if got := encodeNativeValues(t, values); got != `{"address6":"`+want+`"}` {
-			t.Errorf("%s: expected %s, got %s", given, want, got)
-		}
-	}
-}
-
-func TestBhvSerializationobject407_ObjectSerializer_Deserialize_MalformedAddressFailsWithTheSerializationError(t *testing.T) {
-	t.Parallel()
-	for _, row := range [][2]string{
-		{"address4", "01.2.3.4"},
-		{"address4", "192.0.2.1/24"},
-		{"address4", " 192.0.2.1"},
-		{"address4", "[::1]"},
-		{"address4", "2001:db8::1"},
-		{"address6", "fe80::1%eth0"},
-		{"address6", "[::1]"},
-		{"address6", "2001:db8::/64"},
-		{"address6", " ::1"},
-		{"address6", "192.0.2.1"},
-	} {
-		_, err := decodeNativeValues(t, `{"`+row[0]+`":"`+row[1]+`"}`)
-		var serErr *SerializationError
-		if !errors.As(err, &serErr) {
-			t.Errorf("%s %q: expected a *SerializationError, got %T: %v", row[0], row[1], err, err)
 // JSON nested deeper than the allowed depth is refused with a fixed error before parsing begins.
 func TestBhvSerialization071_ObjectSerializer_DeepNestingIsRefusedWithTheFixedError(t *testing.T) {
 	t.Parallel()
@@ -4433,6 +4341,268 @@ func TestBhvSerialization105_ObjectSerializer_AnUndeclaredEnumValueIsRefused(t *
 	}
 }
 
+// A non-exploded array query parameter joins its values with commas.
+func TestBhvSerialization106_ObjectSerializer_ANonExplodedArrayJoinsWithCommas(t *testing.T) {
+	t.Parallel()
+	got := serializeStyled("ids", []string{"a", "b"}, "query", "array", "", "form", false)
+	if got != "a,b" {
+		t.Errorf("expected a,b, got %q", got)
+	}
+}
+
+// A body that is not well-formed JSON is rejected with an error message that describes the malformed document.
+func TestBhvSerialization103_ObjectSerializer_AMalformedBodyNamesTheDocumentProblem(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	err := deserialize([]byte(`{"priority":1,`), &item)
+	if err == nil || !strings.Contains(err.Error(), "failed to deserialize JSON") || !strings.Contains(err.Error(), "end of JSON input") {
+		t.Errorf("expected a message describing the malformed document, got %v", err)
+	}
+}
+
+// A strict model rejects a key it does not declare with an error, where a plain model discards it.
+func TestBhvSerialization099_ObjectSerializer_AStrictModelRejectsAnUndeclaredKey(t *testing.T) {
+	t.Parallel()
+	var tag models.StrictTag
+	if err := deserialize([]byte(`{"name":"x","extra":1}`), &tag); err == nil {
+		t.Errorf("expected the undeclared key refused by the strict model, got %+v", tag)
+	}
+}
+
+// A date-time with a non-UTC offset keeps its offset on the wire, and a Z timestamp decodes to the same instant.
+func TestBhvSerialization102_ObjectSerializer_ADateTimeKeepsItsOffset(t *testing.T) {
+	t.Parallel()
+	at := models.DateTime(time.Date(2026, 1, 2, 8, 34, 5, 0, time.FixedZone("ist", 5*3600+1800)))
+	data, err := serialize(models.EdgeCases{ExpiresAt: &at})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"expiresAt":"2026-01-02T08:34:05.000+05:30"`) {
+		t.Errorf("expected the offset kept on the wire, got %s", data)
+	}
+	var edge models.EdgeCases
+	if err := deserialize([]byte(`{"expiresAt":"2026-01-02T03:04:05Z"}`), &edge); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if edge.ExpiresAt == nil || !time.Time(*edge.ExpiresAt).Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
+		t.Errorf("expected the Z timestamp decoded to the same instant, got %v", edge.ExpiresAt)
+	}
+}
+
+// A password property is masked in the string and debug forms of a model, while the wire value is unaffected.
+func TestBhvSerialization112_ObjectSerializer_APasswordIsMaskedOnlyInPrintedForms(t *testing.T) {
+	t.Parallel()
+	password := "p@ss-word-value"
+	account := models.Account{Username: "user", Password: &password}
+	if rendered := fmt.Sprintf("%v %+v %#v", account, account, account); strings.Contains(rendered, password) {
+		t.Errorf("expected the password masked in printed forms, got %s", rendered)
+	}
+	data, err := serialize(account)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"password":"p@ss-word-value"`) {
+		t.Errorf("expected the wire value unaffected, got %s", data)
+	}
+}
+
+// Numeric values keep every digit when serialized, including long decimals and full 64-bit integers.
+func TestBhvSerialization114_ObjectSerializer_NumbersKeepEveryDigit(t *testing.T) {
+	t.Parallel()
+	id := int64(9223372036854775807)
+	ratio := 0.1234567890123
+	data, err := serialize(models.Order{Id: &id})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"id":9223372036854775807`) {
+		t.Errorf("expected the full 64-bit integer, got %s", data)
+	}
+	data, err = serialize(models.Defaults{Ratio: &ratio})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"ratio":0.1234567890123`) {
+		t.Errorf("expected every decimal digit kept, got %s", data)
+	}
+}
+
+// An integral JSON number decoded into a floating-point field becomes a float.
+func TestBhvSerialization115_ObjectSerializer_AnIntegralNumberBecomesAFloat(t *testing.T) {
+	t.Parallel()
+	var d models.Defaults
+	if err := deserialize([]byte(`{"ratio":2}`), &d); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if d.Ratio == nil || *d.Ratio != 2.0 {
+		t.Errorf("expected the float value 2, got %v", d.Ratio)
+	}
+}
+
+// A protobuf duration string decodes into a duration value as a standalone value.
+func TestBhvSerialization117_ObjectSerializer_AStandaloneDurationDecodes(t *testing.T) {
+	t.Parallel()
+	var d models.Duration
+	if err := deserialize([]byte(`"90s"`), &d); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if time.Duration(d) != 90*time.Second {
+		t.Errorf("expected 90s, got %v", d)
+	}
+}
+
+// A failed serialize reports its detail under the canonical serialize message prefix.
+func TestBhvSerialization130_ObjectSerializer_AFailedSerializeUsesTheCanonicalPrefix(t *testing.T) {
+	t.Parallel()
+	_, err := serialize(make(chan int))
+	if err == nil || !strings.HasPrefix(err.Error(), "failed to serialize object to JSON") {
+		t.Errorf("expected the canonical prefix, got %v", err)
+	}
+}
+
+// A property whose name is a language keyword keeps its exact wire key on serialize and deserialize.
+func TestBhvSerialization116_ObjectSerializer_AKeywordPropertyKeepsItsWireKey(t *testing.T) {
+	t.Parallel()
+	and := true
+	class := "economy"
+	data, err := serialize(models.EdgeCases{And: &and, Class: &class})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"and":true`) || !strings.Contains(string(data), `"class":"economy"`) {
+		t.Errorf("expected the exact wire keys, got %s", data)
+	}
+	var edge models.EdgeCases
+	if err := deserialize(data, &edge); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if edge.And == nil || !*edge.And || edge.Class == nil || *edge.Class != "economy" {
+		t.Errorf("expected the keyword properties decoded, got %+v", edge)
+	}
+}
+
+// A date-time is written in its canonical form whether it sits directly in a field or inside a list or map.
+func TestBhvMisc089_ObjectSerializer_ADateTimeIsCanonicalInAContainer(t *testing.T) {
+	t.Parallel()
+	at := models.DateTime(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
+	data, err := serialize(map[string][]models.DateTime{"times": {at}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"2026-01-02T03:04:05.000+00:00"`) {
+		t.Errorf("expected the canonical date-time inside the container, got %s", data)
+	}
+}
+
+// A duration field of a record writes its fractional seconds in the wire form.
+func TestBhvMisc090_ObjectSerializer_ARecordDurationWritesItsFraction(t *testing.T) {
+	t.Parallel()
+	d := models.Duration(1500 * time.Millisecond)
+	data, err := serialize(models.EdgeCases{RetryAfter: &d})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"retryAfter":"1.500s"`) {
+		t.Errorf("expected the fractional wire form, got %s", data)
+	}
+}
+
+func decodeNativeValues(t *testing.T, text string) (models.NativeValues, error) {
+	t.Helper()
+	var values models.NativeValues
+	err := deserialize([]byte(text), &values)
+	return values, err
+}
+
+func encodeNativeValues(t *testing.T, values models.NativeValues) string {
+	t.Helper()
+	out, err := serialize(values)
+	if err != nil {
+		t.Fatalf("serialize failed: %v", err)
+	}
+	return string(out)
+}
+
+func TestBhvSerializationobject403_ObjectSerializer_Deserialize_DurationFieldConvertsToTheNativeTimeDuration(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"wait":"3600s"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got := time.Duration(*values.Wait); got != time.Hour {
+		t.Errorf("expected one hour, got %v", got)
+	}
+}
+
+func TestBhvSerializationobject404_ObjectSerializer_Deserialize_DurationKeepsEveryNanosecondAndWritesTheShortestForm(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"wait":"-1.123456789s"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	if got, want := time.Duration(*values.Wait), -(time.Second + 123456789*time.Nanosecond); got != want {
+		t.Errorf("expected %v, got %v", want, got)
+	}
+	if got := encodeNativeValues(t, values); got != `{"wait":"-1.123456789s"}` {
+		t.Errorf("expected the shortest form, got %s", got)
+	}
+}
+
+func TestBhvSerializationobject405_ObjectSerializer_Deserialize_Ipv4FieldIsTheNativeAddressAndRoundTrips(t *testing.T) {
+	t.Parallel()
+	values, err := decodeNativeValues(t, `{"address4":"192.0.2.1"}`)
+	if err != nil {
+		t.Fatalf("deserialize failed: %v", err)
+	}
+	var address netip.Addr = *values.Address4
+	if address != netip.MustParseAddr("192.0.2.1") {
+		t.Errorf("unexpected address %v", address)
+	}
+	if got := encodeNativeValues(t, values); got != `{"address4":"192.0.2.1"}` {
+		t.Errorf("unexpected body %s", got)
+	}
+}
+
+func TestBhvSerializationobject406_ObjectSerializer_Serialize_Ipv6IsWrittenInTheCanonicalForm(t *testing.T) {
+	t.Parallel()
+	for given, want := range map[string]string{
+		"2001:0DB8:0:0:0:0:0:1": "2001:db8::1",
+		"2001:db8::1":           "2001:db8::1",
+		"::1":                   "::1",
+		"2001:db8:0:1:1:1:1:1":  "2001:db8:0:1:1:1:1:1",
+	} {
+		values, err := decodeNativeValues(t, `{"address6":"`+given+`"}`)
+		if err != nil {
+			t.Fatalf("deserialize %s failed: %v", given, err)
+		}
+		if got := encodeNativeValues(t, values); got != `{"address6":"`+want+`"}` {
+			t.Errorf("%s: expected %s, got %s", given, want, got)
+		}
+	}
+}
+
+func TestBhvSerializationobject407_ObjectSerializer_Deserialize_MalformedAddressFailsWithTheSerializationError(t *testing.T) {
+	t.Parallel()
+	for _, row := range [][2]string{
+		{"address4", "01.2.3.4"},
+		{"address4", "192.0.2.1/24"},
+		{"address4", " 192.0.2.1"},
+		{"address4", "[::1]"},
+		{"address4", "2001:db8::1"},
+		{"address6", "fe80::1%eth0"},
+		{"address6", "[::1]"},
+		{"address6", "2001:db8::/64"},
+		{"address6", " ::1"},
+		{"address6", "192.0.2.1"},
+	} {
+		_, err := decodeNativeValues(t, `{"`+row[0]+`":"`+row[1]+`"}`)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%s %q: expected a *SerializationError, got %T: %v", row[0], row[1], err, err)
+		}
+	}
+}
+
 func TestBhvSerializationobject408_ObjectSerializer_Serialize_EveryAbsoluteUriRoundTripsByteForByte(t *testing.T) {
 	t.Parallel()
 	for _, text := range []string{
@@ -4605,168 +4775,5 @@ func TestBhvEnums011_ObjectSerializer_AHostileDescriptionStaysAComment(t *testin
 	t.Parallel()
 	if !strings.Contains(enumModelSource(t, "tier"), "\t// The largest tier. Ends with */ and #{x} and $x.\n\tTierLarge ") {
 		t.Errorf("expected the hostile description as one line comment")
-// A non-exploded array query parameter joins its values with commas.
-func TestBhvSerialization106_ObjectSerializer_ANonExplodedArrayJoinsWithCommas(t *testing.T) {
-	t.Parallel()
-	got := serializeStyled("ids", []string{"a", "b"}, "query", "array", "", "form", false)
-	if got != "a,b" {
-		t.Errorf("expected a,b, got %q", got)
-	}
-}
-
-// A body that is not well-formed JSON is rejected with an error message that describes the malformed document.
-func TestBhvSerialization103_ObjectSerializer_AMalformedBodyNamesTheDocumentProblem(t *testing.T) {
-	t.Parallel()
-	var item models.StockItem
-	err := deserialize([]byte(`{"priority":1,`), &item)
-	if err == nil || !strings.Contains(err.Error(), "failed to deserialize JSON") || !strings.Contains(err.Error(), "end of JSON input") {
-		t.Errorf("expected a message describing the malformed document, got %v", err)
-	}
-}
-
-// A strict model rejects a key it does not declare with an error, where a plain model discards it.
-func TestBhvSerialization099_ObjectSerializer_AStrictModelRejectsAnUndeclaredKey(t *testing.T) {
-	t.Parallel()
-	var tag models.StrictTag
-	if err := deserialize([]byte(`{"name":"x","extra":1}`), &tag); err == nil {
-		t.Errorf("expected the undeclared key refused by the strict model, got %+v", tag)
-	}
-}
-
-// A date-time with a non-UTC offset keeps its offset on the wire, and a Z timestamp decodes to the same instant.
-func TestBhvSerialization102_ObjectSerializer_ADateTimeKeepsItsOffset(t *testing.T) {
-	t.Parallel()
-	at := models.DateTime(time.Date(2026, 1, 2, 8, 34, 5, 0, time.FixedZone("ist", 5*3600+1800)))
-	data, err := serialize(models.EdgeCases{ExpiresAt: &at})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"expiresAt":"2026-01-02T08:34:05.000+05:30"`) {
-		t.Errorf("expected the offset kept on the wire, got %s", data)
-	}
-	var edge models.EdgeCases
-	if err := deserialize([]byte(`{"expiresAt":"2026-01-02T03:04:05Z"}`), &edge); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if edge.ExpiresAt == nil || !time.Time(*edge.ExpiresAt).Equal(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)) {
-		t.Errorf("expected the Z timestamp decoded to the same instant, got %v", edge.ExpiresAt)
-	}
-}
-
-// A password property is masked in the string and debug forms of a model, while the wire value is unaffected.
-func TestBhvSerialization112_ObjectSerializer_APasswordIsMaskedOnlyInPrintedForms(t *testing.T) {
-	t.Parallel()
-	password := "p@ss-word-value"
-	account := models.Account{Username: "user", Password: &password}
-	if rendered := fmt.Sprintf("%v %+v %#v", account, account, account); strings.Contains(rendered, password) {
-		t.Errorf("expected the password masked in printed forms, got %s", rendered)
-	}
-	data, err := serialize(account)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"password":"p@ss-word-value"`) {
-		t.Errorf("expected the wire value unaffected, got %s", data)
-	}
-}
-
-// Numeric values keep every digit when serialized, including long decimals and full 64-bit integers.
-func TestBhvSerialization114_ObjectSerializer_NumbersKeepEveryDigit(t *testing.T) {
-	t.Parallel()
-	id := int64(9223372036854775807)
-	ratio := 0.1234567890123
-	data, err := serialize(models.Order{Id: &id})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"id":9223372036854775807`) {
-		t.Errorf("expected the full 64-bit integer, got %s", data)
-	}
-	data, err = serialize(models.Defaults{Ratio: &ratio})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"ratio":0.1234567890123`) {
-		t.Errorf("expected every decimal digit kept, got %s", data)
-	}
-}
-
-// An integral JSON number decoded into a floating-point field becomes a float.
-func TestBhvSerialization115_ObjectSerializer_AnIntegralNumberBecomesAFloat(t *testing.T) {
-	t.Parallel()
-	var d models.Defaults
-	if err := deserialize([]byte(`{"ratio":2}`), &d); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if d.Ratio == nil || *d.Ratio != 2.0 {
-		t.Errorf("expected the float value 2, got %v", d.Ratio)
-	}
-}
-
-// A protobuf duration string decodes into a duration value as a standalone value.
-func TestBhvSerialization117_ObjectSerializer_AStandaloneDurationDecodes(t *testing.T) {
-	t.Parallel()
-	var d models.Duration
-	if err := deserialize([]byte(`"90s"`), &d); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if time.Duration(d) != 90*time.Second {
-		t.Errorf("expected 90s, got %v", d)
-	}
-}
-
-// A failed serialize reports its detail under the canonical serialize message prefix.
-func TestBhvSerialization130_ObjectSerializer_AFailedSerializeUsesTheCanonicalPrefix(t *testing.T) {
-	t.Parallel()
-	_, err := serialize(make(chan int))
-	if err == nil || !strings.HasPrefix(err.Error(), "failed to serialize object to JSON") {
-		t.Errorf("expected the canonical prefix, got %v", err)
-	}
-}
-
-// A property whose name is a language keyword keeps its exact wire key on serialize and deserialize.
-func TestBhvSerialization116_ObjectSerializer_AKeywordPropertyKeepsItsWireKey(t *testing.T) {
-	t.Parallel()
-	and := true
-	class := "economy"
-	data, err := serialize(models.EdgeCases{And: &and, Class: &class})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"and":true`) || !strings.Contains(string(data), `"class":"economy"`) {
-		t.Errorf("expected the exact wire keys, got %s", data)
-	}
-	var edge models.EdgeCases
-	if err := deserialize(data, &edge); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if edge.And == nil || !*edge.And || edge.Class == nil || *edge.Class != "economy" {
-		t.Errorf("expected the keyword properties decoded, got %+v", edge)
-	}
-}
-
-// A date-time is written in its canonical form whether it sits directly in a field or inside a list or map.
-func TestBhvMisc089_ObjectSerializer_ADateTimeIsCanonicalInAContainer(t *testing.T) {
-	t.Parallel()
-	at := models.DateTime(time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC))
-	data, err := serialize(map[string][]models.DateTime{"times": {at}})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"2026-01-02T03:04:05.000+00:00"`) {
-		t.Errorf("expected the canonical date-time inside the container, got %s", data)
-	}
-}
-
-// A duration field of a record writes its fractional seconds in the wire form.
-func TestBhvMisc090_ObjectSerializer_ARecordDurationWritesItsFraction(t *testing.T) {
-	t.Parallel()
-	d := models.Duration(1500 * time.Millisecond)
-	data, err := serialize(models.EdgeCases{RetryAfter: &d})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"retryAfter":"1.500s"`) {
-		t.Errorf("expected the fractional wire form, got %s", data)
 	}
 }

@@ -3151,6 +3151,89 @@ func TestBhvRetries044_BaseApi_EveryRetryCarriesADifferentRequestId(t *testing.T
 
 // ── The call hook ──
 
+// The default client retries a 503 response over a real connection and returns the later success.
+func TestBhvRetries048_Client_RetriesA503AndReturnsTheLaterSuccess(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits.Add(1) == 1 {
+			w.WriteHeader(503)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("expected the retried call to succeed, got %v", err)
+	}
+	if got := hits.Load(); got != 2 {
+		t.Errorf("expected one retry after the 503, got %d requests", got)
+	}
+}
+
+// A Retry-After header given as an HTTP date is honoured: the request is retried no earlier than that date.
+func TestBhvRetries050_Client_ARetryAfterHttpDateIsHonoured(t *testing.T) {
+	t.Parallel()
+	retryAt := time.Now().Add(2 * time.Second).UTC().Truncate(time.Second)
+	var hits atomic.Int32
+	var secondAt time.Time
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if hits.Add(1) == 1 {
+			w.Header().Set("Retry-After", retryAt.Format(http.TimeFormat))
+			w.WriteHeader(503)
+			return
+		}
+		secondAt = time.Now()
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("expected the retried call to succeed, got %v", err)
+	}
+	if secondAt.Before(retryAt) {
+		t.Errorf("expected the retry no earlier than %s, got %s", retryAt, secondAt)
+	}
+}
+
+// All attempts and their waits stay within the caller's timeout, and a wait that would overrun it is not taken.
+func TestBhvRetries047_Client_WaitsNeverOverrunTheCallerTimeout(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Retry-After", "30")
+		w.WriteHeader(503)
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	start := time.Now()
+	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil, {{packageName}}.WithTimeout(2*time.Second))
+	if elapsed := time.Since(start); elapsed > 5*time.Second {
+		t.Errorf("expected the call to stay within its timeout, took %s", elapsed)
+	}
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode() != 503 {
+		t.Errorf("expected the last 503 returned instead of a long wait, got %T: %v", err, err)
+	}
+}
+
 // hookRecorder is a CallHook that records what it is given. It is also its own
 // observer.
 type hookRecorder struct {
@@ -3666,85 +3749,5 @@ func TestBhvHooks021_BaseApi_TheUrlGivenToTheHookNeverCarriesTheQueryStringOrThe
 	}
 	if got := hook.infos[0].URL; got != "https://api.example.com/base/pet/findByStatus" || strings.ContainsAny(got, "?#") {
 		t.Errorf("expected the url without query string and fragment, got %q", got)
-// The default client retries a 503 response over a real connection and returns the later success.
-func TestBhvRetries048_Client_RetriesA503AndReturnsTheLaterSuccess(t *testing.T) {
-	t.Parallel()
-	var hits atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if hits.Add(1) == 1 {
-			w.WriteHeader(503)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
-	}))
-	defer server.Close()
-	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = client.Close() }()
-
-	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
-		t.Fatalf("expected the retried call to succeed, got %v", err)
-	}
-	if got := hits.Load(); got != 2 {
-		t.Errorf("expected one retry after the 503, got %d requests", got)
-	}
-}
-
-// A Retry-After header given as an HTTP date is honoured: the request is retried no earlier than that date.
-func TestBhvRetries050_Client_ARetryAfterHttpDateIsHonoured(t *testing.T) {
-	t.Parallel()
-	retryAt := time.Now().Add(2 * time.Second).UTC().Truncate(time.Second)
-	var hits atomic.Int32
-	var secondAt time.Time
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if hits.Add(1) == 1 {
-			w.Header().Set("Retry-After", retryAt.Format(http.TimeFormat))
-			w.WriteHeader(503)
-			return
-		}
-		secondAt = time.Now()
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
-	}))
-	defer server.Close()
-	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = client.Close() }()
-
-	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil); err != nil {
-		t.Fatalf("expected the retried call to succeed, got %v", err)
-	}
-	if secondAt.Before(retryAt) {
-		t.Errorf("expected the retry no earlier than %s, got %s", retryAt, secondAt)
-	}
-}
-
-// All attempts and their waits stay within the caller's timeout, and a wait that would overrun it is not taken.
-func TestBhvRetries047_Client_WaitsNeverOverrunTheCallerTimeout(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Retry-After", "30")
-		w.WriteHeader(503)
-	}))
-	defer server.Close()
-	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = client.Close() }()
-
-	start := time.Now()
-	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil, {{packageName}}.WithTimeout(2*time.Second))
-	if elapsed := time.Since(start); elapsed > 5*time.Second {
-		t.Errorf("expected the call to stay within its timeout, took %s", elapsed)
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(err, &apiErr) || apiErr.StatusCode() != 503 {
-		t.Errorf("expected the last 503 returned instead of a long wait, got %T: %v", err, err)
 	}
 }
