@@ -2616,3 +2616,5 @@ langphp070 | Headers edited by one hook are handed on to the next hook.
 langcsharp065 | Cancelling the client-level token aborts a slow endpoint and reports the cancellation
 langcsharp066 | The builder sets the call hook and the default is none
 langcsharp067 | The string form of a configuration does not print the call hook
+langcsharp068 | A header-located key rejects control characters and non-ASCII text at construction
+langcsharp069 | A key placed in the query is not emitted as a header or cookie
