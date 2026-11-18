@@ -643,3 +643,26 @@ async fn test_bhv_auth_055_a_network_failure_during_a_token_request_reaches_the_
         err
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_063_scheme_wrapper_posts_the_token_request_to_the_declared_token_url() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+
+    let mut auth = MachineAuthClientCredentialsAuthenticator::new(
+        "https://api.example.com",
+        Some("id"),
+        Some("secret"),
+    )
+    .unwrap();
+    auth.as_http_aware_mut()
+        .expect("http aware")
+        .set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    assert_eq!(
+        client.last_url().as_deref(),
+        Some("https://auth.example.com/oauth/token")
+    );
+}

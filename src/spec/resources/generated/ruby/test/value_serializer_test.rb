@@ -785,4 +785,10 @@ describe Petstore::Client::ValueSerializer do
   it 'bhv_serializationparam_070 path encoding of null is empty for every schema type' do
     _(Petstore::Client::ValueSerializer.serialize(nil, :path, 'integer')).must_equal('')
   end
+
+  it 'bhv_misc_120 writes an object parameter as name and value pairs sorted by name, leaving out absent values' do
+    result = Petstore::Client::ValueSerializer.serialize_deep_object('filter', { 'b' => '2', 'a' => '1', 'gone' => nil })
+
+    _(result.keys).must_equal ['filter[a]', 'filter[b]']
+  end
 end

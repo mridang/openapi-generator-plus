@@ -4081,3 +4081,15 @@ describe("toBinary", () => {
     });
   });
 });
+
+describe("ObjectSerializer union variants", () => {
+  test("bhv misc 047 serializing a union that holds a value which is not one of its variants fails naming the union", () => {
+    const wrapped = new PetFood("kibble" as unknown as DryFood);
+    expect(() => ObjectSerializer.serialize(wrapped)).toThrow(
+      SerializationError,
+    );
+    expect(() => ObjectSerializer.serialize(wrapped)).toThrow(
+      "is not a variant of PetFood",
+    );
+  });
+});

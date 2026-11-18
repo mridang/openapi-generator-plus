@@ -171,6 +171,16 @@ defmodule {{moduleName}}.SchemeAuthenticatorTest do
     end
   end
 
+  test "bhv misc 073 the generated module exists for every security scheme the spec declares" do
+    for module <- [
+{{#perSchemeAuthEntries}}
+          {{{module}}}{{^-last}},{{/-last}}
+{{/perSchemeAuthEntries}}
+        ] do
+      assert Code.ensure_loaded?(module)
+    end
+  end
+
   test "bhv authscheme 003 a scheme authenticator fails at construction naming the variable when its environment variable is empty" do
     Enum.each(@schemes, fn {module, _vars} -> assert_empty_variables_are_named(module) end)
   end

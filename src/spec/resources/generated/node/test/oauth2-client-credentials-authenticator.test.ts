@@ -266,3 +266,25 @@ describe("OAuth2ClientCredentialsAuthenticator", () => {
     });
   });
 });
+
+describe("OAuth2ClientCredentialsAuthenticator token URL", () => {
+  it("bhv misc 063 the token request goes to the configured token URL", async () => {
+    const client = new MockApiClient();
+    client.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: 3600,
+    });
+    const auth = new OAuth2ClientCredentialsAuthenticator(
+      "https://api.example.com",
+      "cid",
+      "sec",
+      "https://auth.example.com/oauth/token",
+      ["read"],
+    );
+    auth.setApiClient(client);
+
+    await auth.getAuthHeadersAsync();
+
+    expect(client.lastUrl).toBe("https://auth.example.com/oauth/token");
+  });
+});

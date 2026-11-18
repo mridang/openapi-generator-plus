@@ -842,6 +842,33 @@ class TestMultipartFilenameSanitization:
         assert not bare.closed
         assert not named.closed
 
+    def test_bhv_misc_099_a_non_ascii_filename_has_one_fallback_and_an_extended_form(
+        self,
+    ) -> None:
+        import io
+
+        file_like = io.BytesIO(b"x")
+        file_like.name = "résumé.pdf"
+        body = DefaultApiClient()._build_multipart_body(
+            {"upload": file_like}, "boundary"
+        )
+        assert body.count(b"filename=") == 1
+        assert b"filename*=UTF-8''r%C3%A9sum%C3%A9.pdf" in body
+
+    def test_bhv_misc_101_a_multipart_source_that_cannot_be_read_fails_the_call(
+        self,
+    ) -> None:
+        class UnreadableSource:
+            name = "a.txt"
+
+            def read(self, *args: object) -> bytes:
+                raise OSError("source gone")
+
+        with pytest.raises(Exception):
+            DefaultApiClient()._build_multipart_body(
+                {"upload": UnreadableSource()}, "boundary"
+            )
+
 
 class TestMultipartFieldNameUtf8:
     """multipart-field-name-ascii-fold: a non-ASCII field NAME must reach the

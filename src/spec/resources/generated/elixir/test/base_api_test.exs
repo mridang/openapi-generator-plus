@@ -1324,6 +1324,28 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute Map.has_key?(unauthenticated["headers"], "x-who")
   end
 
+  test "bhv misc 064 an operation that declares no security never sends the client's default credential",
+       %{state: state} do
+    default = %TestAuthenticator{host_url: "", headers: %{"X-Who" => "default"}}
+    api = Map.merge(state, %{authenticator: default, scheme_authenticators: %{}})
+
+    assert {:ok, reply} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               api,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "Object",
+               PetstoreClient.Api.BaseApi.no_auth()
+             )
+
+    refute Map.has_key?(reply["headers"], "x-who")
+  end
+
   # Nil body handling
 
   test "bhv serializationobject 183 handles nil body", %{state: state} do
