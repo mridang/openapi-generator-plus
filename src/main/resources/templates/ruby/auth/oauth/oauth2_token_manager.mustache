@@ -200,7 +200,8 @@ module {{moduleName}}
           response = if client.is_a?(::{{moduleName}}::DefaultApiClient)
                        # The token endpoint belongs to the identity provider: the
                        # transport's default headers (meant for the API) stay off it.
-                       client.send_request(:post, token_url, headers, body, no_redirect: true, no_default_headers: true)
+                       client.send_request(:post, token_url, headers, body, no_redirect: true, no_default_headers: true,
+                                                                           max_retries: 0)
                      else
                        client.send_request(:post, token_url, headers, body, no_redirect: true)
                      end

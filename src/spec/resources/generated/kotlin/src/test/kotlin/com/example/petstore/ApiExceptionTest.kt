@@ -972,4 +972,37 @@ class ApiExceptionTest {
         assertEquals(400, ex.statusCode)
         assertNotNull(ex.cause)
     }
+
+    @Test
+    fun bhvMisc280TruncatedBodyStatesHowManyBytesWereLeftOut() =
+        runBlocking<Unit> {
+            val ex = ApiException.fromResponse(500, null, "a".repeat(5000))
+            assertTrue(Regex("""\(\d+ more bytes\)""").containsMatchIn(ex.toString()), ex.toString())
+        }
+
+    @Test
+    fun bhvMisc281ResponseHeadersAreCopiedOntoTheError() =
+        runBlocking<Unit> {
+            val ex = ApiException.fromResponse(500, mapOf("X-Trace" to "abc"), "{}")
+            assertEquals("abc", ex.responseHeaders!!["X-Trace"])
+        }
+
+    @Test
+    fun bhvMisc284TypedStatusRaisesItsTypedError() =
+        runBlocking<Unit> {
+            val expected =
+                listOf(
+                    400 to com.example.petstore.errors.BadRequestException::class.java,
+                    403 to com.example.petstore.errors.ForbiddenException::class.java,
+                    404 to com.example.petstore.errors.NotFoundException::class.java,
+                    409 to com.example.petstore.errors.ConflictException::class.java,
+                    422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
+                    429 to com.example.petstore.errors.TooManyRequestsException::class.java,
+                    500 to com.example.petstore.errors.InternalServerErrorException::class.java,
+                    502 to com.example.petstore.errors.BadGatewayException::class.java,
+                )
+            expected.forEach { (status, type) ->
+                assertInstanceOf(type, ApiException.fromResponse(status, null, null))
+            }
+        }
 }

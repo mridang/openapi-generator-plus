@@ -38,6 +38,16 @@ func (o *Employee) Equal(other *Employee) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Employee) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Employee{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithName returns a copy of the model with Name replaced; the receiver is unchanged.
 func (o Employee) WithName(value string) Employee {
 	o.Name = value

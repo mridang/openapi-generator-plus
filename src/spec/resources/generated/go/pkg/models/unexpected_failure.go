@@ -37,6 +37,16 @@ func (o *UnexpectedFailure) Equal(other *UnexpectedFailure) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o UnexpectedFailure) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "UnexpectedFailure{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
 func (o UnexpectedFailure) WithCode(value int32) UnexpectedFailure {
 	o.Code = &value

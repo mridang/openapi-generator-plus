@@ -1,1 +1,0 @@
-swift | misc260 | Server variable overrides are a [String: String] map, so a nil value for an enum variable cannot be passed; the compiler rules it out

@@ -1233,13 +1233,13 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void bhvRedirects040HttpsToHttpBodyReplayGuardIgnoredForNonBodyPreservingStatuses() {
+  void bhvRedirects040HttpsToHttpBodyReplayGuardIgnoredFor303() {
     java.net.URI original = java.net.URI.create("https://api.example.com/secret");
     java.net.URI target = java.net.URI.create("http://attacker.example/take");
-    // 301/302/303 either coerce to GET or historically drop the body, so the
-    // guard intentionally does not fire — the body is never replayed anyway.
-    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 301, true));
-    assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 302, true));
+    // 301/302 refuse a body that would be replayed over cleartext; 303 coerces to GET
+    // and carries no body, so the hop is followed.
+    assertTrue(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 301, true));
+    assertTrue(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 302, true));
     assertFalse(DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(original, target, 303, true));
   }
 
@@ -4404,8 +4404,7 @@ class DefaultApiClientUnitTest {
       try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
         java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
         String url = "http://127.0.0.1:" + silent.getLocalPort() + "/write";
-        DefaultApiClient client =
-            new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+        DefaultApiClient client = new DefaultApiClient();
         assertThrowsExactly(
             com.example.petstore.errors.NetworkException.class,
             () -> client.sendRequest(method, url, Map.of(), "payload"));
@@ -4415,8 +4414,7 @@ class DefaultApiClientUnitTest {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
       String url = "http://127.0.0.1:" + silent.getLocalPort() + "/query";
-      DefaultApiClient client =
-          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      DefaultApiClient client = new DefaultApiClient();
       assertThrowsExactly(
           com.example.petstore.errors.NetworkException.class,
           () -> client.sendRequest("QUERY", url, Map.of(), "payload"));
@@ -4676,5 +4674,19 @@ class DefaultApiClientUnitTest {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  @Test
+  void bhvMisc188AClientReportsItselfClosedOnlyAfterCloseIsCalled() {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(200, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(TransportOptions.builder().httpClient(transport).build());
+    assertEquals(
+        200, client.sendRequest("GET", "http://example.test/ping", Map.of(), null).statusCode());
+    client.close();
+    assertThrowsExactly(
+        IllegalStateException.class,
+        () -> client.sendRequest("GET", "http://example.test/ping", Map.of(), null));
   }
 }

@@ -38,6 +38,16 @@ func (o *StrictTag) Equal(other *StrictTag) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o StrictTag) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "StrictTag{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithId returns a copy of the model with Id replaced; the receiver is unchanged.
 func (o StrictTag) WithId(value int64) StrictTag {
 	o.Id = &value

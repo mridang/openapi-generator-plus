@@ -40,6 +40,16 @@ func (o *SetPetAvatarRequest) Equal(other *SetPetAvatarRequest) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o SetPetAvatarRequest) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "SetPetAvatarRequest{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithData returns a copy of the model with Data replaced; the receiver is unchanged.
 func (o SetPetAvatarRequest) WithData(value []byte) SetPetAvatarRequest {
 	o.Data = value

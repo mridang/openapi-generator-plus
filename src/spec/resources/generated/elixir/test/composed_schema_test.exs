@@ -20,6 +20,39 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert %PetstoreClient.Models.WetFood{} = result
     end
 
+    test "bhv unions 044 each variant has a typed factory and accessor that identify the variant the value was built from" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+
+      wrapped = PetstoreClient.Models.PetFood.from_dry_food(dry)
+
+      assert PetstoreClient.Models.PetFood.dry_food?(wrapped)
+      refute PetstoreClient.Models.PetFood.wet_food?(wrapped)
+    end
+
+    test "bhv unions 045 two union values built from the same data compare equal, decoded from JSON or built by a factory" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"foodType":"dry","weightKg":2.5}),
+          "PetFood"
+        )
+
+      assert PetstoreClient.Models.PetFood.from_dry_food(dry) == decoded
+    end
+
+    test "bhv unions 046 when a payload matches several anyOf variants the first matching variant keeps its value" do
+      candidates = [fn _ -> "first" end, fn _ -> "second" end, fn _ -> raise "no match" end]
+
+      assert {:ok, "first"} = PetstoreClient.ObjectSerializer.match_any_of(%{}, candidates)
+    end
+
+    test "bhv unions 047 a discriminator value that is empty raises an error instead of falling through to another variant" do
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"foodType":"","weightKg":1.0}), "PetFood")
+      end
+    end
+
     test "bhv unions 016 raises SerializationError for unknown discriminator value" do
       # Gap L: union deserialise with an unmapped discriminator now
       # raises instead of silently returning nil. Aligns Elixir with

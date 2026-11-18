@@ -39,6 +39,16 @@ func (o *Blobs) Equal(other *Blobs) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Blobs) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Blobs{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
 func (o Blobs) WithLabel(value string) Blobs {
 	o.Label = &value
