@@ -386,6 +386,26 @@ public class ComposedSchemaTest
             () => _serializer.Deserialize<SetPetAvatarThumbnailRequest>("{\"unexpected\":\"shape\"}"));
     }
 
+    [Fact]
+    public void BhvMisc291AUnionMatchingSeveralVariantsDecodesToTheFirstDeclaredVariant()
+    {
+        var record = _serializer.Deserialize<TreatmentRecord>("{\"drugName\":\"a\",\"procedureName\":\"b\"}")!;
+
+        Assert.IsType<Surgery>(record.ActualInstance);
+    }
+
+    [Fact]
+    public void BhvMisc292SerializingAUnionWrapperEmitsTheBareVariantPayloadOnly()
+    {
+        var json = _serializer.Serialize(new PetTreatment(new Medication { DrugName = "Amoxicillin", Dosage = "500mg" }));
+
+        Assert.Contains("\"drugName\":\"Amoxicillin\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("MatchedInstances", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("ActualInstance", json, StringComparison.Ordinal);
+        var back = _serializer.Deserialize<PetTreatment>(json)!;
+        Assert.Equal("Amoxicillin", ((Medication)back.ActualInstance!).DrugName);
+    }
+
     // -- oneOf without discriminator: SetPetAvatarThumbnailRequest --
 
     [Fact]

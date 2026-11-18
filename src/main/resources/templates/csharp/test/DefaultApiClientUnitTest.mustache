@@ -3516,6 +3516,31 @@ public class DefaultApiClientUnitTest
         return new HttpClient(handler);
     }
 
+    [Fact]
+    public void BhvMisc270AMissingCaCertificateFileIsRejectedEvenWithVerificationOff()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "misc270-" + Guid.NewGuid().ToString("N") + ".pem");
+        var transport = TransportOptions.Builder().VerifySsl(false).CaCertPath(path).Build();
+
+        var ex = Assert.Throws<ArgumentException>(() => new DefaultApiClient(transport));
+        Assert.Contains(path, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc285AnUnsupportedContentEncodingIsRefusedWithItsExactMessage()
+    {
+        var handler = new SequenceHandler(_ =>
+        {
+            var response = Respond(200, null);
+            response.Content.Headers.ContentEncoding.Add("zstd");
+            return response;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        var ex = await Assert.ThrowsAnyAsync<Exception>(() => SendGet(client));
+        Assert.Contains("Unsupported Content-Encoding 'zstd'", ex.ToString(), StringComparison.Ordinal);
+    }
+
     // ---- automatic retries (F823) ----
 
     private static Task<ApiHttpResponse> SendGet(

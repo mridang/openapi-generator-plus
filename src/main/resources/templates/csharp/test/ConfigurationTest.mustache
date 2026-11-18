@@ -8,6 +8,31 @@ namespace Test;
 public class ConfigurationTest
 {
     [Fact]
+    public void BhvMisc276TheDefaultConfigurationAndTheDefaultBuilderUseTheSpecBaseUrl()
+    {
+        Assert.Equal("{{{basePath}}}", Configuration.DefaultConfiguration().BaseUrl);
+        Assert.Equal("{{{basePath}}}", Configuration.Builder().Build().BaseUrl);
+    }
+
+    [Fact]
+    public void BhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject()
+    {
+        Assert.NotSame(Configuration.DefaultConfiguration(), Configuration.DefaultConfiguration());
+    }
+
+    [Fact]
+    public void BhvMisc279ChangingACopyOfTheDefaultHeadersDoesNotChangeTheConfiguration()
+    {
+        var config = Configuration.Builder().DefaultHeader("X-Trace", "abc").Build();
+
+        var copy = new Dictionary<string, string>(config.DefaultHeaders);
+        copy["X-Other"] = "changed";
+
+        Assert.False(config.DefaultHeaders.ContainsKey("X-Other"));
+        Assert.Single(config.DefaultHeaders);
+    }
+
+    [Fact]
     public void BhvConfig018DefaultConstructorUsesSpecBaseUrl()
     {
         var config = new Configuration();

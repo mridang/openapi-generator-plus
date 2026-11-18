@@ -1995,6 +1995,35 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc287AWireKeyNamedAdditionalPropertiesIsKeptAsAnUndeclaredExtra()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"additional_properties\":\"x\"}");
+            Assert.Equal("x", meta!.AdditionalProperties!["additional_properties"].ToString());
+        }
+
+        [Fact]
+        public void BhvMisc288ASnakeCaseInputKeyAtTheTopLevelIsCapturedAsAnUndeclaredExtra()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"region_code\":\"emea\"}");
+            Assert.Equal("emea", meta!.AdditionalProperties!["region_code"].ToString());
+        }
+
+        [Fact]
+        public void BhvMisc289ASnakeCaseInputKeyInsideAListElementIsCapturedAsAnUndeclaredExtra()
+        {
+            var items = _serializer.Deserialize<List<Metadata>>("[{\"region_code\":\"emea\"}]");
+            Assert.Equal("emea", items![0].AdditionalProperties!["region_code"].ToString());
+        }
+
+        [Fact]
+        public void BhvMisc290AnUndeclaredKeyWithADictionaryValueSurvivesAFullRoundTrip()
+        {
+            var meta = _serializer.Deserialize<Metadata>("{\"labels\":{\"a\":\"b\"}}");
+            var back = _serializer.Deserialize<Metadata>(_serializer.Serialize(meta));
+            Assert.Contains("\"a\":\"b\"", _serializer.Serialize(back), StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void BhvSerializationobject020CapturedExtraKeyReserializesAtTopLevelNotNested()
         {
             var meta = _serializer.Deserialize<Metadata>("{\"region\":\"emea\",\"tier\":\"gold\"}");

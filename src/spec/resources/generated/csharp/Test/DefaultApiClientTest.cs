@@ -62,6 +62,32 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvMisc269ASelfSignedEndpointIsReachedWithVerificationOffAndRejectedWithItOn()
+    {
+        var accepted = await new DefaultApiClient(
+            TransportOptions.Builder().VerifySsl(false).MaxRetries(0).Build()
+        ).SendRequestAsync(
+            "GET",
+            new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        Assert.Equal(200, accepted.StatusCode);
+
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            new DefaultApiClient(
+                TransportOptions.Builder().VerifySsl(true).MaxRetries(0).Build()
+            ).SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+        Assert.Equal(0, ex.StatusCode);
+    }
+
+    [Fact]
     public async Task BhvTransport062WithVerifySslFalseACertificateThatDoesNotNameTheAddressIsAccepted()
     {
         /* Reach the mock server by an IP address, which its certificate does not
@@ -240,7 +266,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CustomCaCertStillRejectsHostnameMismatch()
+    public async Task BhvMisc268CustomCaCertStillRejectsHostnameMismatch()
     {
         /* The mock certificate is issued by the pinned CA but names no IP
            address, so reaching the server by its IP must fail the host name
@@ -441,6 +467,45 @@ public class DefaultApiClientTest
         {
             HttpClient.DefaultProxy = original;
         }
+    }
+
+    [Fact]
+    public async Task BhvMisc271WithNoProxyConfiguredTheClientConnectsDirectlyDespiteAnAmbientProxy()
+    {
+        var original = HttpClient.DefaultProxy;
+        HttpClient.DefaultProxy = new System.Net.WebProxy("http://127.0.0.1:1");
+        try
+        {
+            var client = new DefaultApiClient(TransportOptions.Builder().Build());
+            var response = await client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            );
+
+            Assert.Equal(200, response.StatusCode);
+        }
+        finally
+        {
+            HttpClient.DefaultProxy = original;
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc272CredentialsInTheProxyUrlAreAcceptedByAnAuthenticatingProxy()
+    {
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().Proxy(_fixture.AuthProxyUrl).Build()
+        );
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.InternalHttpUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
     }
 
     // Gap AK: userinfo embedded in the proxy URL must be base64-encoded
@@ -645,6 +710,85 @@ public class DefaultApiClientTest
     }
 
     // -- X-Request-ID injection --
+
+    [Fact]
+    public async Task BhvMisc273TheRequestIdHeaderIsSentWhenEnabledAndOmittedWhenDisabled()
+    {
+        var enabled = new DefaultApiClient(
+            TransportOptions.Builder().InjectRequestId(true).Build()
+        );
+        var withId = await enabled.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        var idHeaders = JsonDocument.Parse(withId.Body).RootElement.GetProperty("headers");
+        Assert.Matches(
+            @"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            idHeaders.GetProperty("x-request-id").GetString()!
+        );
+
+        var disabled = new DefaultApiClient(
+            TransportOptions.Builder().InjectRequestId(false).Build()
+        );
+        var withoutId = await disabled.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+        var plainHeaders = JsonDocument.Parse(withoutId.Body).RootElement.GetProperty("headers");
+        Assert.False(plainHeaders.TryGetProperty("x-request-id", out _));
+    }
+
+    [Fact]
+    public async Task BhvMisc274ANon2xxResponseIsReturnedWithItsStatusCodeIntact()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/status/404"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(404, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvMisc275TheRequestIsSentWithTheIntendedMethodAndTheResponseIsReturned()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var response = await client.SendRequestAsync(
+            "PUT",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(
+            "PUT",
+            JsonDocument.Parse(response.Body).RootElement.GetProperty("method").GetString()
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc282ANetworkFailureKeepsTheTransportErrorAsItsCause()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://127.0.0.1:1/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.NotNull(ex.InnerException);
+    }
 
     [Fact]
     public async Task BhvTransport013InjectsRequestIdHeader()

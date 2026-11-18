@@ -341,6 +341,34 @@ public class BaseApiTest
 
     [Theory]
     [MemberData(nameof(StatusToException))]
+    public async Task BhvMisc284ATypedErrorIsRaisedForEachListedStatus(int status, Type expectedType)
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api().CallAsync<object>(
+                "GET", $"/test/status/{status}",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.IsType(expectedType, ex);
+    }
+
+    [Fact]
+    public async Task BhvMisc281HeadersFromAReceivedResponseAreCopiedOntoItsError()
+    {
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
+            Api().CallAsync<object>(
+                "GET", "/test/status/404",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null, ["application/json"], "application/json"));
+
+        Assert.NotNull(ex.ResponseHeaders);
+        Assert.Contains("content-type", ex.ResponseHeaders!.Keys);
+    }
+
+    [Theory]
+    [MemberData(nameof(StatusToException))]
     public async Task BhvErrors037ThrowsCorrectException(int status, Type expectedType)
     {
         try

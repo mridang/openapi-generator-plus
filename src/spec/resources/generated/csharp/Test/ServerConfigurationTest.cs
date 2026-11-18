@@ -17,6 +17,22 @@ public class ServerConfigurationTest
     private static readonly string[] ExpectedHostileValues = ["o'neil", "a&b"];
 
     [Fact]
+    public void BhvMisc278AServerUrlTemplateWithNoOverridesResolvesToTheDefaultOfEachVariable()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("staging", null, ["staging", "api"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        Assert.Equal("https://staging.example.com/api/v3", server.GetUrl());
+    }
+
+    [Fact]
     public void BhvServers010GetUrlSubstitutesDefaultValues()
     {
         var server = new ServerConfiguration(
