@@ -211,3 +211,9 @@ test('bhv servers 025 changing the variables map after building the configuratio
     expect(array_keys($server->variables))->toBe(['env']);
     expect($server->getUrl())->toBe('https://api.example.com');
 });
+
+test('bhv servers 028 a generated server and its variables cannot be changed after creation', function (): void {
+    expect(fn (): mixed => Servers::all()[2]->urlTemplate = 'https://evil.example.com')->toThrow(\Error::class);
+    expect(fn (): mixed => Servers::all()[2]->variables['tenant'] = new ServerVariable(defaultValue: 'x'))
+        ->toThrow(\Error::class);
+});

@@ -52,3 +52,19 @@ test('bhv servers 024 the enum values cannot be mutated', function (): void {
 
     expect(fn (): mixed => $variable->enumValues[] = 'v4')->toThrow(\Error::class);
 });
+
+test('bhv servers 026 changing the allowed values list after building leaves them unchanged', function (): void {
+    $values = ['v2', 'v3'];
+    $variable = new ServerVariable(defaultValue: 'v3', enumValues: $values);
+
+    $values[] = 'v9';
+
+    expect($variable->enumValues)->toBe(['v2', 'v3']);
+});
+
+test('bhv servers 027 two variables with the same default, description and values are equal', function (): void {
+    $first = new ServerVariable(defaultValue: 'v3', description: 'API version', enumValues: ['v2', 'v3']);
+    $second = new ServerVariable(defaultValue: 'v3', description: 'API version', enumValues: ['v2', 'v3']);
+
+    expect($first == $second)->toBeTrue();
+});
