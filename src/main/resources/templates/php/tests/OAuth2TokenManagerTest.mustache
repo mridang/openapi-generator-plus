@@ -1047,3 +1047,22 @@ test('bhv auth 057 a rejected refresh falls back to the original grant', functio
     expect($token)->toBe('fresh-token');
     expect($client->capturedRequests[2]['body'])->toContain('grant_type=password');
 });
+
+test('bhv misc 059 a token whose lifetime is not finite is not cached', function (string $body): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, $body, ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('inf2', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('inf1');
+    expect($second)->toBe('inf2');
+    expect($client->capturedRequests)->toHaveCount(2);
+})->with([
+    'overflowing lifetime' => ['{"access_token":"inf1","expires_in":1e999}'],
+    'negative overflowing lifetime' => ['{"access_token":"inf1","expires_in":-1e999}'],
+]);
