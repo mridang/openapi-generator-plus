@@ -1910,7 +1910,8 @@ class ObjectSerializerTest {
       assertEquals("l", com.example.petstore.models.Tier.LARGE.getValue());
       assertEquals(
           com.example.petstore.models.Tier.MEDIUM,
-          decode("{\"tier\":\"m\"}", com.example.petstore.models.Subscription.class).tier);
+          decode("{\"rank\":1,\"tier\":\"m\"}", com.example.petstore.models.Subscription.class)
+              .tier);
     }
 
     @Test

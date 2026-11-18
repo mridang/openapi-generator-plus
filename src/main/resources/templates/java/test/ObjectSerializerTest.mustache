@@ -1694,7 +1694,7 @@ class ObjectSerializerTest {
             assertEquals("m", {{modelPackage}}.Tier.MEDIUM.getValue());
             assertEquals("l", {{modelPackage}}.Tier.LARGE.getValue());
             assertEquals({{modelPackage}}.Tier.MEDIUM,
-                    decode("{\"tier\":\"m\"}", {{modelPackage}}.Subscription.class).tier);
+                    decode("{\"rank\":1,\"tier\":\"m\"}", {{modelPackage}}.Subscription.class).tier);
         }
 
         @Test
