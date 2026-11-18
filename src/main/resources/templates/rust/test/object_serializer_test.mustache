@@ -941,7 +941,7 @@ fn test_bhv_serialization_052_undeclared_keys_are_kept_as_additional_properties_
     use {{packageName}}::models::*;
     let items: Vec<Metadata> = serde_json::from_str(r#"[{"extra":"kept"}]"#).expect("decodes");
     assert_eq!(
-        items[0].additional_properties.get("extra").and_then(|v| v.as_str()),
+        items[0].additional_properties.get("extra").map(String::as_str),
         Some("kept")
     );
 }

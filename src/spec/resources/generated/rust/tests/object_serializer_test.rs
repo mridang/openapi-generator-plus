@@ -1073,7 +1073,7 @@ fn test_bhv_serialization_052_undeclared_keys_are_kept_as_additional_properties_
         items[0]
             .additional_properties
             .get("extra")
-            .and_then(|v| v.as_str()),
+            .map(String::as_str),
         Some("kept")
     );
 }
