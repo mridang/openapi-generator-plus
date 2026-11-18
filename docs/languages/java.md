@@ -92,6 +92,7 @@ HTTP is the JDK's own `java.net.http.HttpClient`, so there is no HTTP library to
 - **Raw responses.** Every operation has a `...WithHttpInfo` variant returning `ApiResult<T>`.
 - **Custom transport.** `TransportOptions.builder().httpClient(client)` sends requests through your own `java.net.http.HttpClient`; combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
 - **GraalVM.** The SDK ships reflection metadata for every model, so it works in a `native-image` build; the optional brotli and zstd decoders do not.
+- With `generateExamples` on, the project ships `src/examples/java/<package>/examples/Quickstart.java`, a `main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_ACCESS_TOKEN`, calls the example operation in a try-with-resources block and closes the client. The pom adds `src/examples/java` as a test source root, so `make examples` (`mvn test-compile`) builds it with Error Prone and NullAway, Checkstyle and Spotless cover it, and it never ships in the jar; `make examples-run` runs it with `mvn exec:java`.
 
 ## Known limits
 

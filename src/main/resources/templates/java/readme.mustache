@@ -33,14 +33,10 @@ Add the dependency to your `pom.xml`:
 
 ## Usage
 
-```java
+```java statements
 import {{invokerPackage}}.{{clientClassName}};
-{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}import {{modelPackage}}.{{{dataType}}};
-{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
-try ({{clientClassName}} client = {{clientClassName}}.withToken("https://api.example.com", "your-token")) {
-    var result = client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
-}
+{{>usage_statements}}
 ```
 
 The client is `AutoCloseable`: close it (or use try-with-resources) to release
@@ -129,14 +125,7 @@ from the client, as described next.
 `{{clientClassName}}.builder(host)` takes one optional credential per security scheme,
 named after the scheme, so a client can hold several at once:
 
-```java
-var client = {{clientClassName}}.builder("https://api.example.com")
-{{#clientSchemes}}
-    .{{methodName}}(...)
-{{/clientSchemes}}
-    .transportOptions(transportOptions)
-    .build();
-```
+{{>credentials_per_scheme}}
 
 Each operation uses the credential of the first scheme in its own security list that
 the client holds. When it holds none of them, the operation falls back to the single

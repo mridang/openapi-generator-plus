@@ -33,12 +33,14 @@ Add the dependency to your `pom.xml`:
 
 ## Usage
 
-```java
+```java statements
 import com.example.petstore.Client;
-import com.example.petstore.models.Pet;
 
-try (Client client = Client.withToken("https://api.example.com", "your-token")) {
-    var result = client.pet.addPet(new Pet());
+String host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL");
+String token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN");
+try (Client client = Client.withToken(host, token)) {
+    var result = client.store.getDefaults();
+    System.out.println(result);
 }
 ```
 
@@ -127,23 +129,57 @@ from the client, as described next.
 `Client.builder(host)` takes one optional credential per security scheme,
 named after the scheme, so a client can hold several at once:
 
-```java
-var client = Client.builder("https://api.example.com")
-    .petStoreBasic(...)
-    .adminBasic(...)
-    .petStoreBearer(...)
-    .serviceToken(...)
-    .apiKeyHeader(...)
-    .internalApiKey(...)
-    .apiKeyQuery(...)
-    .sessionCookie(...)
-    .machineAuth(...)
-    .legacyAuth(...)
-    .userAuth(...)
-    .browserAuth(...)
-    .ssoAuth(...)
-    .transportOptions(transportOptions)
-    .build();
+```java file
+import com.example.petstore.Client;
+import com.example.petstore.TransportOptions;
+import com.example.petstore.auth.PetStoreBasicAuthenticator;
+import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.PetStoreBearerAuthenticator;
+import com.example.petstore.auth.ServiceTokenAuthenticator;
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
+import com.example.petstore.auth.InternalApiKeyAuthenticator;
+import com.example.petstore.auth.ApiKeyQueryAuthenticator;
+import com.example.petstore.auth.SessionCookieAuthenticator;
+import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
+import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
+import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
+import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
+
+class Credentials {
+    static Client build(
+            PetStoreBasicAuthenticator petStoreBasic,
+            AdminBasicAuthenticator adminBasic,
+            PetStoreBearerAuthenticator petStoreBearer,
+            ServiceTokenAuthenticator serviceToken,
+            ApiKeyHeaderAuthenticator apiKeyHeader,
+            InternalApiKeyAuthenticator internalApiKey,
+            ApiKeyQueryAuthenticator apiKeyQuery,
+            SessionCookieAuthenticator sessionCookie,
+            MachineAuthClientCredentialsAuthenticator machineAuth,
+            LegacyAuthPasswordAuthenticator legacyAuth,
+            UserAuthAuthorizationCodeAuthenticator userAuth,
+            BrowserAuthImplicitAuthenticator browserAuth,
+            SsoAuthAuthenticator ssoAuth,
+            TransportOptions transportOptions) {
+        return Client.builder("https://api.example.com")
+            .petStoreBasic(petStoreBasic)
+            .adminBasic(adminBasic)
+            .petStoreBearer(petStoreBearer)
+            .serviceToken(serviceToken)
+            .apiKeyHeader(apiKeyHeader)
+            .internalApiKey(internalApiKey)
+            .apiKeyQuery(apiKeyQuery)
+            .sessionCookie(sessionCookie)
+            .machineAuth(machineAuth)
+            .legacyAuth(legacyAuth)
+            .userAuth(userAuth)
+            .browserAuth(browserAuth)
+            .ssoAuth(ssoAuth)
+            .transportOptions(transportOptions)
+            .build();
+    }
+}
 ```
 
 Each operation uses the credential of the first scheme in its own security list that

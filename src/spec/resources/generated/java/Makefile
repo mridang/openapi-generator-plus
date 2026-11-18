@@ -1,4 +1,4 @@
-.PHONY: build test lint format analyze docs clean upgrade checkstyle
+.PHONY: build test lint format analyze docs examples examples-run clean upgrade checkstyle
 
 build:
 	mvn compile -q -B
@@ -23,6 +23,13 @@ upgrade:
 
 docs:
 	mvn javadoc:javadoc -q -B -DfailOnWarnings=true -Ddoclint=all -DreportOutputDirectory=.out -DdestDir=docs
+
+# src/examples/java is a test source root, so test-compile builds every file under examples.
+examples:
+	mvn test-compile -q -B
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN=placeholder mvn exec:java -q -B
 
 clean:
 	mvn clean -q -B
