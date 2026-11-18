@@ -798,7 +798,7 @@ test('bhv transport 025 verify ssl true rejects a server certificate the system 
         });
 });
 
-test('a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
+test('bhv langphp 064 a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 
     $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
