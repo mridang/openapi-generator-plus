@@ -200,6 +200,12 @@ public static class ObjectSerializerTest
         {
             Assert.Equal("false", ObjectSerializer.ToPathValue(false));
         }
+
+        [Fact]
+        public void BhvMisc232AStringPathParameterPercentEncodesSlashesInExplicitSimpleStyle()
+        {
+            Assert.Equal("a%2Fb", ObjectSerializer.ToPathValue("a/b"));
+        }
     }
 
     public class ToQueryValueTests
@@ -294,6 +300,37 @@ public static class ObjectSerializerTest
         {
             var values = new List<string> { "a", "b", "c" };
             Assert.Equal("a b c", ObjectSerializer.ToQueryValue(values, "ssv"));
+        }
+
+        [Fact]
+        public void BhvMisc236ADateOnlyValueIsWrittenAsIsoDateInQueryHeaderAndPathLocations()
+        {
+            var date = new DateOnly(2024, 1, 15);
+
+            Assert.Equal("2024-01-15", ObjectSerializer.ToQueryValue(date, null));
+            Assert.Equal("2024-01-15", ObjectSerializer.ToHeaderValue(date));
+            Assert.Equal("2024-01-15", ObjectSerializer.ToPathValue(date));
+        }
+
+        [Fact]
+        public void BhvMisc238ANumberQueryParameterIsSentAsAPlainNumber()
+        {
+            Assert.Equal("42", ObjectSerializer.ToQueryValue(42, null));
+            Assert.Equal("2.5", ObjectSerializer.ToQueryValue(2.5, null));
+        }
+
+        [Fact]
+        public void BhvMisc241ATimeOfDayQueryValueIsSentWithoutMilliseconds()
+        {
+            Assert.Equal("10:30:15", ObjectSerializer.ToQueryValue(new TimeOnly(10, 30, 15, 999), null));
+        }
+
+        [Fact]
+        public void BhvMisc250AnArrayItemContainingACommaKeepsTheLiteralComma()
+        {
+            var items = new List<string> { "a,b", "c" };
+
+            Assert.Equal(new List<string> { "a,b", "c" }, ObjectSerializer.ToQueryValue(items, "multi"));
         }
     }
 
@@ -404,6 +441,16 @@ public static class ObjectSerializerTest
         public void BhvSerializationobject040ConvertsIntegerToString()
         {
             Assert.Equal("42", ObjectSerializer.ToCookieValue(42));
+        }
+
+        [Fact]
+        public void BhvMisc233ACookieCarryingAJsonModelIsFullyPercentEncoded()
+        {
+            var cookie = ObjectSerializer.ToCookieValue(new Freeform { Label = "a.b:c" });
+
+            Assert.DoesNotContain(":", cookie, StringComparison.Ordinal);
+            Assert.DoesNotContain(".", cookie, StringComparison.Ordinal);
+            Assert.Contains("%3A", cookie, StringComparison.Ordinal);
         }
     }
 
@@ -921,6 +968,20 @@ public static class ObjectSerializerTest
         {
             Assert.Null(_serializer.Deserialize<EdgeCases>("{\"freeFormAny\":null}")!.FreeFormAny);
         }
+
+        [Fact]
+        public void BhvMisc234AModelInAListKeepsItsAdditionalPropertiesThroughARoundTrip()
+        {
+            var serializer = new ObjectSerializer();
+            var original = new List<Freeform>
+            {
+                new() { Label = "x", AdditionalProperties = new() { ["extra"] = "y" } },
+            };
+
+            var restored = serializer.Deserialize<List<Freeform>>(serializer.Serialize(original));
+
+            Assert.Equal("y", restored!.Single().AdditionalProperties["extra"].ToString());
+        }
     }
 
     {{! Divergence #10 — required-field strictness on deserialize. }}
@@ -1118,6 +1179,17 @@ public static class ObjectSerializerTest
             Assert.Equal(0.25f, fromEmpty.Scale);
             Assert.Equal(2.0, fromEmpty.Weight);
             Assert.Equal(9000000000L, fromEmpty.Ceiling);
+        }
+
+        [Fact]
+        public void BhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged()
+        {
+            var serializer = new ObjectSerializer();
+            foreach (var member in Enum.GetValues<Separator>())
+            {
+                var wire = serializer.Serialize(member);
+                Assert.Equal(member, serializer.Deserialize<Separator>(wire));
+            }
         }
     }
 
@@ -1553,6 +1625,18 @@ public static class ObjectSerializerTest
         {
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<TimeSpan>("\"315576000001s\""));
         }
+
+        [Fact]
+        public void BhvMisc235ADurationWithFractionalSecondsKeepsItsFractionWhenSerialized()
+        {
+            Assert.Equal("1.5s", ObjectSerializer.Format(TimeSpan.FromMilliseconds(1500)));
+        }
+
+        [Fact]
+        public void BhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed()
+        {
+            Assert.Equal("1.1s", ObjectSerializer.Format(TimeSpan.FromMilliseconds(1100)));
+        }
     }
 
     {{! Gap K — a subtype constructed without the discriminator must still emit }}
@@ -1665,6 +1749,22 @@ public static class ObjectSerializerTest
         public void BhvSerializationobject103MalformedUuidFailsToDeserialize(string json)
         {
             Assert.Throws<SerializationException>(() => _serializer.Deserialize<GuidHolder>(json));
+        }
+
+        [Fact]
+        public void BhvMisc247AUuidWithWrongSegmentLengthsIsRejected()
+        {
+            Assert.Throws<SerializationException>(() =>
+                new ObjectSerializer().Deserialize<Guid>("\"123456789-1234-1234-1234-123456789012\""));
+        }
+
+        [Fact]
+        public void BhvMisc242AReadOnlyPropertyIsNotSentAndAWriteOnlyPropertyIsNotReturned()
+        {
+            var json = new ObjectSerializer().Serialize(new Account { Id = 5, Username = "u", Password = "p" });
+
+            Assert.DoesNotContain("\"id\"", json, StringComparison.Ordinal);
+            Assert.Contains("\"password\"", json, StringComparison.Ordinal);
         }
     }
 

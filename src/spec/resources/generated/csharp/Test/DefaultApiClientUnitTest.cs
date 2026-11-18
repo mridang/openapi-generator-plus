@@ -5011,6 +5011,115 @@ public class DefaultApiClientUnitTest
         }
     }
 
+    [Fact]
+    public async Task BhvMisc237AnIso88591ErrorBodyDecodesToUtf8TextInTheError()
+    {
+        var handler = new RawByteHandler(
+            HttpStatusCode.BadRequest,
+            new byte[] { 0x63, 0x61, 0x66, 0xE9 },
+            "text/plain; charset=iso-8859-1"
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Contains("café", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc239AnOperationQueryParameterIsSentWhenNoAuthenticatorIsConfigured()
+    {
+        HttpRequestMessage? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req;
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/items?limit=5"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal("http://origin.example.com/items?limit=5", sent!.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task BhvMisc240AMultipartFileContentIsEchoedBackInTheRequestBody()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            Assert.NotNull(req.Content);
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var formData = new Dictionary<string, object>
+        {
+            { "file", new byte[] { 0x41, 0x42, 0x43 } },
+        };
+
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            formData
+        );
+
+        Assert.NotNull(wireText);
+        Assert.Contains("ABC", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc265ARedirectToANonHttpSchemeIsAnApiErrorWithTheRedirectStatus()
+    {
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.Redirect,
+            location: new Uri("ftp://example.com/file")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.Equal(302, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvOperations161ATextPlainResponseIsReturnedRawEvenWhenItLooksLikeBase64()
+    {
+        var client = new DefaultApiClient(
+            CreateMockHttpClient(
+                HttpStatusCode.OK,
+                "aGk=",
+                new Dictionary<string, string> { ["Content-Type"] = "text/plain" }
+            )
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal("aGk=", response.Body);
+    }
+
     private static byte[] GzipBytes(string text)
     {
         using var compressed = new MemoryStream();
