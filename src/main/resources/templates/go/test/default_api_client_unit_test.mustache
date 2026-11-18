@@ -1013,7 +1013,7 @@ func TestBhvSerializationwire050_DefaultApiClientUnit_ValidateMultipartFilenameR
 
 // Gap W2: multipart field names containing CR/LF/NUL must be rejected to
 // prevent Content-Disposition header injection.
-func TestDefaultApiClientUnit_ValidateMultipartFieldNameRejectsCRLF(t *testing.T) {
+func TestBhvLanggo032_DefaultApiClientUnit_ValidateMultipartFieldNameRejectsCRLF(t *testing.T) {
 	t.Parallel()
 	for _, bad := range []string{"a\rb", "a\nb", "a\r\nInjected: yes", "a\x00b"} {
 		if err := validateMultipartFieldName(bad); err == nil {
@@ -1064,7 +1064,7 @@ func TestBhvRetries017_DefaultApiClientUnit_RefusesBodyReplayOnHttpsToHttpDowngr
 // the outbound request must also drop the Content-Length header so it
 // reflects the now-empty body. Stale Content-Length on a GET trips some
 // origins / proxies and is undefined per RFC 7231 §3.3.2.
-func TestDefaultApiClientUnit_Drops303ContentLengthOnCoercedGet(t *testing.T) {
+func TestBhvLanggo033_DefaultApiClientUnit_Drops303ContentLengthOnCoercedGet(t *testing.T) {
 	t.Parallel()
 	var sawContentLengthOnGet string
 	var sawMethodOnFollowup string
@@ -1108,7 +1108,7 @@ func TestDefaultApiClientUnit_Drops303ContentLengthOnCoercedGet(t *testing.T) {
 // A 301 / 302 / 303 demotes a POST to a bodyless GET. net/http re-copies the
 // original request's headers onto each hop, so the follow-up must have the
 // entity headers stripped, or it would send a Content-Type with no body.
-func TestDefaultApiClientUnit_DemotedGetDropsEntityHeaders(t *testing.T) {
+func TestBhvLanggo034_DefaultApiClientUnit_DemotedGetDropsEntityHeaders(t *testing.T) {
 	t.Parallel()
 	for _, status := range []int{301, 302, 303} {
 		status := status
@@ -2040,7 +2040,7 @@ func TestBhvSerializationwire056_DefaultApiClientUnit_MimeTypeForFilenameFallsBa
 // buildHTTPClient sets the standard idle and handshake timeouts, so idle sockets
 // expire and a stalled TLS handshake cannot hang forever, while the proxy stays
 // opt-in.
-func TestDefaultApiClientUnit_BuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testing.T) {
+func TestBhvLanggo035_DefaultApiClientUnit_BuildHTTPClient_TransportHasStandardTimeoutsAndNoImplicitProxy(t *testing.T) {
 	t.Parallel()
 	opts, err := NewTransportOptionsBuilder().Build()
 	if err != nil {

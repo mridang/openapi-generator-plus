@@ -26,7 +26,7 @@ import (
  * that the description stays in the same doc comment. hasDeprecatedParagraph is
  * shared with pet_api_test.go. */
 
-func TestModel_DeprecatedSchemaCarriesADeprecatedParagraph(t *testing.T) {
+func TestBhvLanggo055_Model_DeprecatedSchemaCarriesADeprecatedParagraph(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/models/tag.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
@@ -80,7 +80,7 @@ func TestBhvSerializationobject227_Model_ExternalDocsDescriptionKeepsTheSpecPros
 	t.Fatalf("no type declared in %s", path)
 }
 
-func TestModel_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t *testing.T) {
+func TestBhvLanggo056_Model_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/models/pet.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
@@ -110,7 +110,7 @@ func TestModel_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t
 
 /* The allowed values of an enum are public: a caller can list them and ask a
  * value whether it is one of them. */
-func TestModel_EnumsExposeTheirAllowedValues(t *testing.T) {
+func TestBhvLanggo057_Model_EnumsExposeTheirAllowedValues(t *testing.T) {
 	t.Parallel()
 	inline := models.AllDefaultsModeEnumValues()
 	if len(inline) != 3 || inline[0] != models.DefaultsModeEnumLow || inline[2] != models.DefaultsModeEnumHigh {
@@ -157,7 +157,7 @@ func TestBhvSerializationobject050_Model_ASiblingDefaultNextToARefFillsAnAbsentK
 	}
 }
 
-func TestModel_AValueSentNextToASiblingDefaultWinsOnDecode(t *testing.T) {
+func TestBhvLanggo058_Model_AValueSentNextToASiblingDefaultWinsOnDecode(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
 	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"Sold"}`), &item); err != nil {

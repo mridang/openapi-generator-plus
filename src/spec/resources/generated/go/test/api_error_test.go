@@ -309,7 +309,7 @@ func TestBhvErrors021_ApiError_NilHeadersAndBodyMarkTransportNoResponse(t *testi
 	}
 }
 
-func TestApiError_ImplementsErrorInterface(t *testing.T) {
+func TestBhvLanggo009_ApiError_ImplementsErrorInterface(t *testing.T) {
 	t.Parallel()
 	var err error = apierrors.NewApiError(500, "boom", "", nil, nil, nil)
 
@@ -433,7 +433,7 @@ func TestBhvErrors014_ApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testi
 //
 //	err := apierrors.NewApiError(404, "x", "", nil, nil, nil)
 //	err.statusCode = 500 // cannot refer to unexported field 'statusCode'
-func TestApiError_FieldsAreImmutable(t *testing.T) {
+func TestBhvLanggo010_ApiError_FieldsAreImmutable(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(404, "not found", "body", map[string]string{"k": "v"}, "parsed", nil)
 
@@ -1384,7 +1384,7 @@ func TestBhvErrors204_ApiError_ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeaves
 	}
 }
 
-func TestApiError_UnexpectedFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_UnexpectedFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.NewUnexpectedFailureErrorFromResponse("GET", "/x?q=1", 400, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.UnexpectedFailureError)
@@ -1414,7 +1414,7 @@ func TestApiError_UnexpectedFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *t
 	}
 }
 
-func TestApiError_MemberNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_MemberNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.NewMemberNotFoundErrorFromResponse("GET", "/x?q=1", 404, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.MemberNotFoundError)
@@ -1444,7 +1444,7 @@ func TestApiError_MemberNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *test
 	}
 }
 
-func TestApiError_ProjectNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_ProjectNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.NewProjectNotFoundErrorFromResponse("GET", "/x?q=1", 404, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.ProjectNotFoundError)
@@ -1474,7 +1474,7 @@ func TestApiError_ProjectNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *tes
 	}
 }
 
-func TestApiError_RejectedRequestError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_RejectedRequestError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.NewRejectedRequestErrorFromResponse("GET", "/x?q=1", 400, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.RejectedRequestError)
@@ -1504,7 +1504,7 @@ func TestApiError_RejectedRequestError_IsTypedAndMatchesEveryLevelAboveIt(t *tes
 	}
 }
 
-func TestApiError_UpstreamFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_UpstreamFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.NewUpstreamFailureErrorFromResponse("GET", "/x?q=1", 500, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.UpstreamFailureError)
@@ -1534,7 +1534,7 @@ func TestApiError_UpstreamFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *tes
 	}
 }
 
-func TestApiError_StateConflictError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_StateConflictError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.NewStateConflictErrorFromResponse("GET", "/x?q=1", 409, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.StateConflictError)

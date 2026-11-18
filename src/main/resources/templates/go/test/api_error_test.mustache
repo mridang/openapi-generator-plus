@@ -298,7 +298,7 @@ func TestBhvErrors021_ApiError_NilHeadersAndBodyMarkTransportNoResponse(t *testi
 	}
 }
 
-func TestApiError_ImplementsErrorInterface(t *testing.T) {
+func TestBhvLanggo009_ApiError_ImplementsErrorInterface(t *testing.T) {
 	t.Parallel()
 	var err error = apierrors.NewApiError(500, "boom", "", nil, nil, nil)
 
@@ -422,7 +422,7 @@ func TestBhvErrors014_ApiError_GetTypedErrorBodyIgnoresExtraneousFields(t *testi
 //
 //	err := apierrors.NewApiError(404, "x", "", nil, nil, nil)
 //	err.statusCode = 500 // cannot refer to unexported field 'statusCode'
-func TestApiError_FieldsAreImmutable(t *testing.T) {
+func TestBhvLanggo010_ApiError_FieldsAreImmutable(t *testing.T) {
 	t.Parallel()
 	err := apierrors.NewApiError(404, "not found", "body", map[string]string{"k": "v"}, "parsed", nil)
 
@@ -1379,7 +1379,7 @@ func TestBhvErrors204_ApiError_ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeaves
 {{/errorSchemas}}
 
 {{#errorSchemas}}
-func TestApiError_{{{className}}}_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_{{{className}}}_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
 	got := apierrors.New{{{className}}}FromResponse("GET", "/x?q=1", {{sampleStatus}}, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
 	typed, ok := got.(*apierrors.{{{className}}})
