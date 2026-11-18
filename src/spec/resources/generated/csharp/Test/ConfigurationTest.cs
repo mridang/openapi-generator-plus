@@ -64,7 +64,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void TheBuilderSetsTheCallHookAndTheDefaultIsNone()
+    public void BhvLangcsharp066TheBuilderSetsTheCallHookAndTheDefaultIsNone()
     {
         var hook = new NoopHook();
 
@@ -74,7 +74,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void TheStringFormDoesNotPrintTheCallHook()
+    public void BhvLangcsharp067TheStringFormDoesNotPrintTheCallHook()
     {
         var config = Configuration.Builder().CallHook(new NoopHook()).Build();
 

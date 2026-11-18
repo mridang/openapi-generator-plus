@@ -416,7 +416,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlNullOverridesThrows()
+    public void BhvLangcsharp070GetUrlNullOverridesThrows()
     {
         var server = new ServerConfiguration(
             "https://api.example.com",

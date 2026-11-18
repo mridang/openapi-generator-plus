@@ -313,7 +313,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CustomCaCertAcceptsAServerThatSendsAnIntermediate()
+    public async Task BhvMisc033CustomCaCertAcceptsAServerThatSendsAnIntermediate()
     {
         /* The pinned file holds only the root. The server sends its leaf and
            the intermediate that links the leaf to that root, the usual shape of
@@ -654,7 +654,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CancellingTheClientTokenAbortsTheSlowEndpoint()
+    public async Task BhvLangcsharp065CancellingTheClientTokenAbortsTheSlowEndpoint()
     {
         using var clientSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         var client = new DefaultApiClient(

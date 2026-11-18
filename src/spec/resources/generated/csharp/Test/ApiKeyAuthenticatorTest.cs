@@ -53,7 +53,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void HeaderRejectsCrlfAndNonAscii()
+    public void BhvLangcsharp068HeaderRejectsCrlfAndNonAscii()
     {
         // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
         // ApiKeyAuthenticator's Header location must reject anything
@@ -290,7 +290,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void QueryKeyIsNotEmittedAsAHeaderOrCookie()
+    public void BhvLangcsharp069QueryKeyIsNotEmittedAsAHeaderOrCookie()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",

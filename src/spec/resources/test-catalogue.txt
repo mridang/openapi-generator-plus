@@ -3135,3 +3135,4 @@ langelixir090 | A credential held by a scheme is used in preference to the clien
 langelixir091 | A mis-cased enum value raises rather than matching case-insensitively.
 langelixir092 | A byte value survives a round trip through base64 encoding and decoding.
 langelixir093 | A UUID whose segments have the wrong lengths is rejected on decode.
+langcsharp070 | Null server variable overrides are refused when the url is built
