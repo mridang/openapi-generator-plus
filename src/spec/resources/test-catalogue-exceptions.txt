@@ -549,4 +549,13 @@ java | misc051 | Java per-call options are typed classes, so an unknown key or a
 java | misc060 | Java's ApiKeyAuthenticator takes no key provider, so an API key and a key provider cannot be supplied together; the bearer case is bhv auth 039
 java | misc061 | The Java Authenticator receives only the ApiClient and no cancellation or context value, so the caller's cancellation and context cannot reach it
 ||||||| 9034ca740
+||||||| f8f41c6e3
+csharp | misc051 | per-call options are init properties on each operation's options class and an operation has no server option, so an unknown key or a server setting is a compile-time error rather than a runtime refusal
+csharp | misc052 | per-call options are init properties and a repeated property in an object initializer is a compile-time error, so a second option of the same kind cannot be given
+csharp | misc060 | the API key constructor takes one key string and has no provider overload, so passing both an API key and a provider is a compile-time error
+||||||| e2e15be44
+go | misc145 | Go exposes the additional-properties map as a plain exported field, so reading it hands back the live map; the copy is taken only when the map is set through WithAdditionalProperties
+go | misc149 | Go's typed With methods exist only for declared fields, so an undeclared attribute cannot be named and the compiler refuses the call before any copy is made
+go | misc153 | Go has no client-level cancellation signal: a context is passed to each call, so a cancel signal only ever reaches the one call it is given
+||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead

@@ -1960,4 +1960,31 @@ public class OAuth2TokenManagerTest
         Assert.Null(ex.Code);
         Assert.Equal("<html>gateway</html>", ex.RawBody);
     }
+
+    [Theory]
+    [InlineData("\"NaN\"")]
+    [InlineData("\"Infinity\"")]
+    [InlineData("1e400")]
+    public async Task BhvMisc059ANonFiniteLifetimeIsNotCachedSoTheNextCallFetches(string expiresIn)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":" + expiresIn + "}");
+        client.Enqueue("{\"access_token\":\"tok2\",\"expires_in\":3600}");
+
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+        await manager.GetAccessTokenAsync(
+            TokenUrl,
+            ClientCredentialsGrant(),
+            cancellationToken: TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(2, client.CallCount);
+    }
 }
