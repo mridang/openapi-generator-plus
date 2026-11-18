@@ -359,6 +359,34 @@ async fn test_bhv_authoidc_016_malformed_discovery_document_raises_serialization
     );
 }
 
+/// A transport failure during the authorization code exchange reaches the caller
+/// as the same `NetworkError`, with its message intact.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_028_a_transport_failure_during_the_code_exchange_is_returned_unchanged() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    client.enqueue_error(Box::new(
+        NetworkError::try_from(ApiError::new(0, "connection reset".to_string(), None, None))
+            .expect("status 0"),
+    ));
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    let err = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("a failed exchange must fail");
+    let network = err
+        .downcast_ref::<NetworkError>()
+        .unwrap_or_else(|| panic!("expected NetworkError, got: {}", err));
+    assert_eq!(network.api_error().message(), "connection reset");
+}
+
 /// A discovery transport failure passes through as the `NetworkError` or
 /// `NetworkTimeoutError` it already is.
 #[tokio::test(flavor = "multi_thread")]

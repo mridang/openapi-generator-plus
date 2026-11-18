@@ -1140,4 +1140,36 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       end
     end
   end
+
+  test "bhv misc 028 a transport failure during the authorization code exchange reaches the caller unwrapped" do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+    :gen_tcp.close(listen_socket)
+
+    auth =
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/authorize",
+        "http://127.0.0.1:#{port}/token",
+        "https://app.example.com/callback",
+        ["read"]
+      )
+
+    auth =
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+        auth,
+        PetstoreClient.DefaultApiClient.new()
+      )
+
+    assert_raise PetstoreClient.Errors.NetworkError, fn ->
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "auth-code-xyz"
+      )
+    end
+  end
 end

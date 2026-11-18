@@ -4817,3 +4817,153 @@ func TestBhvMisc102_ObjectSerializer_ABinaryFieldKeepsExactlyTheBytesGiven(t *te
 		t.Errorf("expected the exact bytes through copying, got %x", *copied.Seal)
 	}
 }
+
+// A property of a nested model is checked with the rules of the outer model at decode.
+func TestBhvMisc109_ObjectSerializer_Deserialize_NestedObjectIsValidatedAtDecode(t *testing.T) {
+	t.Parallel()
+	var model models.EdgeCases
+	err := deserialize([]byte(`{"lastError":{"code":3000000000}}`), &model)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for an out-of-range nested code, got %T: %v", err, err)
+	}
+}
+
+// A list of dates is refused as a type error when any element is not a calendar date.
+func TestBhvMisc110_ObjectSerializer_Deserialize_ListWithANonDateElementIsRefused(t *testing.T) {
+	t.Parallel()
+	var dates []models.DateTime
+	err := deserialize([]byte(`["2024-01-01T00:00:00Z","not-a-date"]`), &dates)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected *SerializationError for a non-date element, got %T: %v", err, err)
+	}
+}
+
+// A set of strings is written in code point order, so astral characters follow the BMP.
+func TestBhvMisc111_ObjectSerializer_Serialize_SetStringsSortByCodePoint(t *testing.T) {
+	t.Parallel()
+	data, err := models.Set[string]{"\U0001F600", "\uFFFD", "z"}.MarshalJSON()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := "[\"z\",\"\uFFFD\",\"\U0001F600\"]"; string(data) != want {
+		t.Errorf("expected %s, got %s", want, string(data))
+	}
+}
+
+// Decoding a set keeps one copy of each repeated element.
+func TestBhvMisc112_ObjectSerializer_Deserialize_RepeatedSetElementsKeepOneCopy(t *testing.T) {
+	t.Parallel()
+	var set models.Set[string]
+	if err := deserialize([]byte(`["a","a","b"]`), &set); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := (models.Set[string]{"a", "b"}); !reflect.DeepEqual(set, want) {
+		t.Errorf("expected %v, got %v", want, set)
+	}
+}
+
+// A bare string is written as a quoted JSON string.
+func TestBhvMisc115_ObjectSerializer_Serialize_BareStringIsAQuotedJSONString(t *testing.T) {
+	t.Parallel()
+	data, err := serialize("hello")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `"hello"` {
+		t.Errorf("expected a quoted JSON string, got %s", string(data))
+	}
+}
+
+// An int32 field accepts its minimum and maximum and refuses overflow and fractions.
+func TestBhvMisc116_ObjectSerializer_Deserialize_Int32AcceptsItsBoundsAndRefusesTheRest(t *testing.T) {
+	t.Parallel()
+	for _, wire := range []string{"2147483647", "-2147483648"} {
+		var order models.Order
+		if err := deserialize([]byte(`{"quantity":`+wire+`}`), &order); err != nil {
+			t.Errorf("expected %s to decode, got %v", wire, err)
+		}
+	}
+	for _, wire := range []string{"2147483648", "-2147483649", "3000000000", "1.5", "1.0", "1e2"} {
+		var order models.Order
+		err := deserialize([]byte(`{"quantity":`+wire+`}`), &order)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("expected *SerializationError for %s, got %T: %v", wire, err, err)
+		}
+	}
+}
+
+// An absent value is written as the JSON literal null.
+func TestBhvMisc117_ObjectSerializer_Serialize_AbsentValueWritesNull(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "null" {
+		t.Errorf("expected null, got %s", string(data))
+	}
+}
+
+// When a payload carries a name and a differently cased duplicate, the exact-case value is decoded.
+func TestBhvMisc118_ObjectSerializer_Deserialize_ExactCaseValueIsDecoded(t *testing.T) {
+	t.Parallel()
+	var category models.Category
+	if err := deserialize([]byte(`{"NAME":"Other","name":"Exact"}`), &category); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if category.Name == nil || *category.Name != "Exact" {
+		t.Errorf("expected the exact-case value Exact, got %v", category.Name)
+	}
+}
+
+// Two keys that differ only by an escape sequence are one key, and the last value wins.
+func TestBhvMisc119_ObjectSerializer_Deserialize_EscapedKeyIsTheSameKeyLastWins(t *testing.T) {
+	t.Parallel()
+	var category models.Category
+	if err := deserialize([]byte(`{"name":"First","\u006eame":"Last"}`), &category); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if category.Name == nil || *category.Name != "Last" {
+		t.Errorf("expected the last value Last, got %v", category.Name)
+	}
+}
+
+// An object with no declared schema is written as a JSON object of its properties.
+func TestBhvMisc121_ObjectSerializer_Serialize_UndeclaredObjectWritesItsProperties(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(map[string]any{"b": "x", "a": 1})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if want := `{"a":1,"b":"x"}`; string(data) != want {
+		t.Errorf("expected %s, got %s", want, string(data))
+	}
+}
+
+// A string default is applied as the exact literal, quotes, backslashes, controls and template text included.
+func TestBhvMisc122_ObjectSerializer_Deserialize_StringDefaultIsTheExactLiteral(t *testing.T) {
+	t.Parallel()
+	var defaults models.Defaults
+	if err := deserialize([]byte("{}"), &defaults); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want := "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
+	if defaults.Greeting == nil || *defaults.Greeting != want {
+		t.Errorf("expected the exact default literal, got %v", defaults.Greeting)
+	}
+}
+
+// A valid integer enum member is written with its wire value.
+func TestBhvMisc108_ObjectSerializer_Serialize_IntegerEnumMemberKeepsItsWireValue(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(models.PriorityNumber1)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "1" {
+		t.Errorf("expected wire value 1, got %s", string(data))
+	}
+}
