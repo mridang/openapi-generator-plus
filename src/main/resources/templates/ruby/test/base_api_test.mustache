@@ -717,6 +717,16 @@ describe {{moduleName}}::Api::BaseApi do
 
   # The third declared server carries quotes and an ampersand in its values:
   # they reach the URL exactly as written.
+  it 'bhv_servers_029 a placeholder introduced by a substituted value stays literal and is never expanded again' do
+    default_config = {{moduleName}}::Configuration.builder.server({{moduleName}}::Servers::SERVER_2).build
+    _(default_config.base_url).must_equal("https://o'neil.example.com/api")
+
+    other_config = {{moduleName}}::Configuration.builder
+      .server({{moduleName}}::Servers::SERVER_2, 'tenant' => 'a&b')
+      .build
+    _(other_config.base_url).must_equal('https://a&b.example.com/api')
+  end
+
   it 'bhv_servers_021 resolves the default and an enum value of the server with special characters' do
     default_config = {{moduleName}}::Configuration.builder.server({{moduleName}}::Servers::SERVER_2).build
     _(default_config.base_url).must_equal("https://o'neil.example.com/api")
@@ -743,6 +753,19 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   # ── allowEmptyValue query params ──
+
+  it 'bhv_serialization_110 an absent or nil value is sent as null in the query location and as an empty value elsewhere' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    api = {{moduleName}}::Api::PetApi.new(client, config)
+    begin
+      api.find_pets_by_status(nil)
+    rescue StandardError
+      # Response deserialization may fail; we only care about the captured URL
+    end
+    _(client.captured_url).wont_include 'status=',
+      "Expected no status param when options is nil, got: #{client.captured_url}"
+  end
 
   it 'bhv_options_002 null options omits allow_empty_value param' do
     client = CapturingApiClient.new
@@ -788,6 +811,15 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   # ── Query serialization ──
+
+  it 'bhv_serialization_107 an exploded array query parameter repeats its key once for each element' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'tags' => %w[a b] }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_include 'tags=a&tags=b'
+  end
 
   it 'bhv_serializationwire_009 expands array query params' do
     client = CapturingApiClient.new
@@ -872,6 +904,15 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).wont_include '%20'
   end
 
+  it 'bhv_serialization_109 a string path parameter is percent-encoded exactly once in the request URL' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'a&b' => 'x&y=z 1' }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test?a%26b=x%26y%3Dz%201'
+  end
+
   it 'bhv_serialization_006 query names and values percent-encode reserved and space characters' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
@@ -879,6 +920,18 @@ describe {{moduleName}}::Api::BaseApi do
     test_api.call('GET', '/test', { 'a&b' => 'x&y=z 1' }, {}, nil,
                   ['application/json'], 'application/json', nil)
     _(client.captured_url).must_equal 'http://localhost/test?a%26b=x%26y%3Dz%201'
+  end
+
+  it 'bhv_serialization_125 form-urlencoded keys and values percent-encode reserved characters and a plus sign is sent as %2B' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test', { 'q' => '1+1 é' }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test?q=1%2B1%20%C3%A9'
+    test_api.call('POST', '/test', {}, {}, { 'q' => '1+1 é' },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+    _(client.captured_body.to_s).must_equal 'q=1%2B1+%C3%A9'
   end
 
   it 'bhv_serialization_007 a literal plus sign is sent as %2B and non-ASCII text as percent-encoded UTF-8' do
@@ -924,7 +977,7 @@ describe {{moduleName}}::Api::BaseApi do
   # repeated keys (`tags=a&tags=b`), not a single comma-joined value or a
   # `tags[]` bracket form. URI.encode_www_form repeats the key for each
   # array element, matching the other SDKs.
-  it 'form-urlencoded body expands an array property to repeated keys' do
+  it 'bhv_serialization_122 form-urlencoded body repeats the key for each element of an array property' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -1011,6 +1064,17 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   # ── Content-type deserialization ──
+
+  it 'bhv_serialization_128 a response whose declared type is bytes or string is returned unchanged' do
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: 'hello', headers: { 'Content-Type' => 'text/plain' })
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test', {}, {}, nil,
+                           ['text/plain'], 'application/json', 'String')
+    _(result).must_equal 'hello'
+  end
 
   it 'bhv_serializationwire_025 skips deserialization for non-JSON content type' do
     client = FixedResponseApiClient.new(

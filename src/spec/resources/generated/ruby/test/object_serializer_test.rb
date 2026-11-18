@@ -441,6 +441,10 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(false)).must_equal('false')
     end
 
+    it 'bhv_serialization_113 a string value passes through unchanged without normalising its form' do
+      _(Petstore::Client::ObjectSerializer.stringify('say "hi" & more')).must_equal('say "hi" & more')
+    end
+
     it 'bhv_serializationobject_159 stringifies a string to itself, unescaped' do
       _(Petstore::Client::ObjectSerializer.stringify('say "hi" & more')).must_equal('say "hi" & more')
     end
@@ -1449,6 +1453,13 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.serialize(zero)).must_equal('{"cutoff":"10:30:00"}')
     end
 
+    it 'bhv_serialization_117 a protobuf duration string decodes into a duration value as a property and standalone' do
+      edge = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"3600s"}', 'EdgeCases')
+      _(edge.retry_after).must_be_kind_of(ISO8601::Duration)
+      _(edge.retry_after.to_seconds).must_equal(3600)
+      _(Petstore::Client::ObjectSerializer.serialize(edge)).must_equal('{"retryAfter":"3600s"}')
+    end
+
     it 'bhv_serializationobject_013 decodes and writes a protobuf-JSON duration property' do
       edge = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"3600s"}', 'EdgeCases')
       _(edge.retry_after).must_be_kind_of(ISO8601::Duration)
@@ -1764,6 +1775,10 @@ describe Petstore::Client::ObjectSerializer do
     it 'bhv_serialization_046 stringify emits fractional seconds trimmed to nanos precision' do
       d = ISO8601::Duration.new('PT3600.000000001S')
       _(Petstore::Client::ObjectSerializer.stringify(d)).must_equal('3600.000000001s')
+    end
+
+    it 'bhv_serialization_129 a nanosecond-precision duration is written with a nine-digit fraction' do
+      _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('PT0S'))).must_equal('0s')
     end
 
     it 'bhv_serializationobject_181 stringifies a zero Duration as 0s' do

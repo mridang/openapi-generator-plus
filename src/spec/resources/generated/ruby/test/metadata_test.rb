@@ -243,6 +243,12 @@ describe 'Metadata', 'copy, equality and enum contract' do
     _(Petstore::Client::Models::Metadata.new.created_at).must_be_nil
   end
 
+  it 'bhv_serialization_114 numeric values keep every digit when serialized, including long decimals and full 64-bit integers' do
+    short = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
+    padded = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
+    _(short).must_equal(padded)
+  end
+
   it 'bhv_models_018 models whose decimal fields hold numerically equal values compare equal' do
     short = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
     padded = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')

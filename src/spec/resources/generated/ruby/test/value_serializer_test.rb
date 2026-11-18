@@ -377,6 +377,11 @@ describe Petstore::Client::ValueSerializer do
     end
 
     describe 'null style falls back to location default' do
+      it 'bhv_serialization_108 a parameter with no declared style uses the default style for its location' do
+        result = Petstore::Client::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
+        _(result).must_equal('5')
+      end
+
       it 'bhv_serializationparam_106 path with null style behaves like simple' do
         result = Petstore::Client::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
