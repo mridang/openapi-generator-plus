@@ -133,3 +133,4 @@ php | retries028 | PHP has no per-call cancellation (S7), so there is no caller 
 swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035
 swift | transport059 | the proxy setter raises on Linux (testSettingProxyRaisesOnLinux), so a request through the authenticating proxy runs only in the Apple-platform stub suite, the same reason as options034
 csharp | authbearer026 | the bearer constructors take either a token or a token provider and never both, so passing both is a compile-time error
+csharp | options046 | the TransportOptions constructor is internal, so csharp callers reach it only through TransportOptions.Builder(), and proxy validation runs in Build() (S16); there is no public direct-construction path to reject

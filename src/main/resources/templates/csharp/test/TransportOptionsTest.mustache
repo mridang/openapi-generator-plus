@@ -174,7 +174,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void NegativeTimeoutThrowsException()
+    public void BhvOptions047NegativeTimeoutThrowsException()
     {
         Assert.Throws<ArgumentException>(() => TransportOptions.Builder().Timeout(-1));
     }
@@ -214,7 +214,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void RejectsANegativeMaxRedirectsAtConfiguration()
+    public void BhvOptions045RejectsANegativeMaxRedirectsAtConfiguration()
     {
         var ex = Assert.Throws<ArgumentException>(() => TransportOptions.Builder().MaxRedirects(-1));
         Assert.StartsWith(
@@ -222,6 +222,14 @@ public class TransportOptionsTest
             ex.Message,
             StringComparison.Ordinal);
         Assert.Equal(0, TransportOptions.Builder().MaxRedirects(0).Build().MaxRedirects);
+    }
+
+    [Fact]
+    public void BhvOptions051ProxyUrlWithANonHttpSchemeIsRejected()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("socks5://proxy.example.com:1080").Build());
+        Assert.Contains("must use http or https scheme", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]

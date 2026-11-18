@@ -276,7 +276,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
+    public void BhvSkills001SkillsGuideNamesTheRootErrorAndItsNonApiSiblings()
     {
         var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
 
@@ -284,6 +284,19 @@ public class MetadataTest
         Assert.Contains("SerializationException", skills, StringComparison.Ordinal);
         Assert.Contains("OAuth2ServerException", skills, StringComparison.Ordinal);
         Assert.Contains("OAuth2TokenException", skills, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvSkills002SkillsGuideDocumentsTheRetriesInItsConfigurationSection()
+    {
+        var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
+
+        var start = skills.IndexOf("\n## Configuration\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, "SKILLS.md has no Configuration section");
+        var end = skills.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
+        var section = end < 0 ? skills.Substring(start) : skills.Substring(start, end - start);
+
+        Assert.Contains("### Retries", section, StringComparison.Ordinal);
     }
 
     [Fact]

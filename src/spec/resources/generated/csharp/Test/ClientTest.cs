@@ -190,6 +190,55 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public async Task BhvOperations148AnOperationUsesTheFirstSchemeOfItsListThatTheClientHolds()
+    {
+        /* addPet lists apiKeyHeader before petStoreBearer. A client holding both
+           must send the api key and no bearer token. The stub answers 500 so the
+           call ends with an error after the request is recorded; the response
+           body is not what this test checks. */
+        using var handler = new SchemeRecordingHandler();
+        var transport = TransportOptions
+            .Builder()
+            .HttpMessageHandler(handler)
+            .MaxRetries(0)
+            .Build();
+        using var client = new Client(
+            "http://localhost",
+            petStoreBearer: new PetStoreBearerAuthenticator("http://localhost", "bearer-token"),
+            apiKeyHeader: new ApiKeyHeaderAuthenticator("http://localhost", "key-token"),
+            transportOptions: transport
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.InternalServerErrorException>(() =>
+            client.Pet.AddPetAsync(new PetstoreClient.Models.Pet { Name = "Fido", PhotoUrls = [] })
+        );
+
+        Assert.Equal("key-token", handler.ApiKey);
+        Assert.Null(handler.Authorization);
+    }
+
+    private sealed class SchemeRecordingHandler : HttpMessageHandler
+    {
+        public string? ApiKey { get; private set; }
+
+        public string? Authorization { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            ApiKey = request.Headers.TryGetValues("X-API-Key", out var keys)
+                ? keys.FirstOrDefault()
+                : null;
+            Authorization = request.Headers.Authorization?.ToString();
+            return Task.FromResult(
+                new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
+            );
+        }
+    }
+
+    [Fact]
     public async Task BhvLifecycle016AClientWithNoCredentialSendsNoAuthenticationHeader()
     {
         using var handler = new RecordingHandler();
