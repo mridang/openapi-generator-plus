@@ -194,7 +194,7 @@ async fn test_redirect_demoting_a_bodyless_post_to_get_drops_the_entity_headers(
 /* F839: on 301 and 302 only POST becomes GET; PUT, PATCH and DELETE keep their
  * method, and 303 turns everything except HEAD into GET. */
 #[tokio::test]
-async fn test_redirect_method_rewriting_follows_rfc_9110() {
+async fn test_bhv_redirects_029_redirect_method_rewriting_follows_rfc_9110() {
     let cases: [(u16, &str, &str); 9] = [
         (301, "PUT", "PUT"),
         (302, "PATCH", "PATCH"),
@@ -229,6 +229,44 @@ async fn test_redirect_method_rewriting_follows_rfc_9110() {
             head.starts_with(&format!("{} /next ", expected)),
             "status {} method {}: {}",
             status,
+            method,
+            head
+        );
+    }
+}
+
+/// RFC 9110 15.4.4: a 303 turns every method except HEAD into GET, whatever the
+/// method of the original request.
+#[tokio::test]
+async fn test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get() {
+    for (method, expected) in [
+        ("POST", "GET"),
+        ("PUT", "GET"),
+        ("PATCH", "GET"),
+        ("DELETE", "GET"),
+        ("HEAD", "HEAD"),
+    ] {
+        let (base_url, head) = start_redirect_server(303);
+        let transport = TransportOptionsBuilder::new()
+            .follow_redirects(true)
+            .build()
+            .expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+
+        client
+            .send_request(
+                method,
+                &format!("{}/start", base_url),
+                &HashMap::new(),
+                None,
+            )
+            .await
+            .expect("unexpected error");
+
+        let head = head.recv().expect("no follow-up request captured");
+        assert!(
+            head.starts_with(&format!("{} /next ", expected)),
+            "method {}: {}",
             method,
             head
         );
@@ -283,7 +321,8 @@ fn start_fixed_response_server(response: &'static str) -> String {
 /// D70: a 3xx without a usable Location is returned unchanged, even when the
 /// redirect budget is zero; "too many redirects" needs a Location to follow.
 #[tokio::test]
-async fn test_a_3xx_without_location_is_returned_unchanged_when_max_redirects_is_zero() {
+async fn test_bhv_redirects_031_a_3xx_without_location_is_returned_unchanged_when_max_redirects_is_zero(
+) {
     let base_url = start_fixed_response_server(
         "HTTP/1.1 302 Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
     );
@@ -1039,6 +1078,36 @@ async fn test_bhv_redirects_025_token_named_header_stripped_on_cross_origin_redi
     let followup = calls[0].to_lowercase();
     assert!(!followup.contains("x-tenant-token:"), "got: {}", calls[0]);
     assert!(followup.contains("x-trace:"), "got: {}", calls[0]);
+}
+/// A redirect to the same host on another port is a different origin, so the
+/// credentials are dropped on that hop.
+#[tokio::test]
+async fn test_bhv_redirects_033_a_redirect_to_a_different_port_drops_the_credentials() {
+    let (origin_url, dest_captured) = start_cross_origin_redirect_servers();
+
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let mut headers = HashMap::new();
+    headers.insert("Authorization".to_string(), "Bearer secret".to_string());
+    headers.insert("Cookie".to_string(), "session=abc".to_string());
+
+    let _ = client
+        .send_request("GET", &format!("{}/start", origin_url), &headers, None)
+        .await;
+
+    let calls = dest_captured.lock().unwrap();
+    assert_eq!(
+        1,
+        calls.len(),
+        "the other-port destination must receive exactly the follow-up request"
+    );
+    let followup = calls[0].to_lowercase();
+    assert!(!followup.contains("authorization:"), "got: {}", calls[0]);
+    assert!(!followup.contains("cookie:"), "got: {}", calls[0]);
 }
 
 /// Gap 3.1 (behavioural, spec-driven): a spec-declared apiKey-in-header name is

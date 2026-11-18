@@ -1969,7 +1969,7 @@ fn test_bhv_errors_058_api_error_kind_bad_request_variant() {
 }
 
 #[test]
-fn test_api_error_kind_unauthorized_variant() {
+fn test_bhv_errors_071_api_error_kind_unauthorized_variant() {
     let kind: petstore::ApiErrorKind = make_api_error(401).into();
     assert!(matches!(kind, petstore::ApiErrorKind::Unauthorized(_)));
 }
@@ -2697,7 +2697,7 @@ fn retrying_api_with(
 }
 
 #[tokio::test]
-async fn test_a_retryable_status_is_retried_until_the_call_succeeds() {
+async fn test_bhv_retries_038_a_503_is_sent_again_until_it_succeeds() {
     let client = ScriptedApiClient::new(
         vec![
             Scripted::Status(503, Some("0")),
@@ -2829,6 +2829,33 @@ async fn test_bhv_retries_005_a_retry_asks_the_authenticator_for_fresh_headers()
 
     assert_eq!(
         vec![Some("Bearer n0".to_string()), Some("Bearer n1".to_string())],
+        *client.authorizations.lock().unwrap()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_039_every_retry_carries_the_same_authentication_headers() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("0")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+    let auth = petstore::auth::BearerAuthenticator::new("http://localhost", "secret-token")
+        .expect("a valid token");
+
+    retrying_api_with(&client, Arc::new(auth))
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert_eq!(
+        vec![
+            Some("Bearer secret-token".to_string()),
+            Some("Bearer secret-token".to_string())
+        ],
         *client.authorizations.lock().unwrap()
     );
 }

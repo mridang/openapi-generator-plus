@@ -557,6 +557,15 @@ fn test_enum_direct_unknown_value_is_rejected() {
     );
 }
 
+#[test]
+fn test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode() {
+    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"teleported\"");
+    assert!(
+        result.is_err(),
+        "an unknown enum string must fail when it is decoded, never fall back to a variant"
+    );
+}
+
 // -- optional-enum-default-omitted (parity) --
 //
 // `Order.status` is an OPTIONAL enum field carrying a schema `default: placed`.
