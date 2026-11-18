@@ -2404,3 +2404,4 @@ langphp048 | A secret constructor parameter is marked sensitive so its value is 
 langphp049 | An explicit API key takes precedence over the environment variable and a key provider.
 langphp050 | The base authenticator class reads no environment variable. | multi
 langphp051 | The printable form of a bearer authenticator never shows its token.
+langphp052 | An operation with no security sends no API key even when one is configured.
