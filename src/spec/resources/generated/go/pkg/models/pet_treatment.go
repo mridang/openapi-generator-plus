@@ -148,7 +148,10 @@ func (o PetTreatment) ActualInstance() any {
 // Equal reports whether this PetTreatment is value-equal to other, comparing
 // the canonical JSON encodings so a union holding a slice variant compares
 // without the panic the built-in `==` raises on such values.
-func (o PetTreatment) Equal(other PetTreatment) bool {
+func (o *PetTreatment) Equal(other *PetTreatment) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
 	if errA != nil || errB != nil {

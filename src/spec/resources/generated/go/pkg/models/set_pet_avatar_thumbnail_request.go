@@ -106,7 +106,10 @@ func (o SetPetAvatarThumbnailRequest) ActualInstance() any {
 // Equal reports whether this SetPetAvatarThumbnailRequest is value-equal to other, comparing
 // the canonical JSON encodings so a union holding a slice variant compares
 // without the panic the built-in `==` raises on such values.
-func (o SetPetAvatarThumbnailRequest) Equal(other SetPetAvatarThumbnailRequest) bool {
+func (o *SetPetAvatarThumbnailRequest) Equal(other *SetPetAvatarThumbnailRequest) bool {
+	if o == nil || other == nil {
+		return o == other
+	}
 	a, errA := json.Marshal(o)
 	b, errB := json.Marshal(other)
 	if errA != nil || errB != nil {

@@ -212,3 +212,64 @@ func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *test
 		t.Errorf("expected the receiver to keep the real password, got %q", *account.Password)
 	}
 }
+
+// Two models built from the same values are equal, and a change in any nested value makes them unequal.
+// Models of two different types cannot be passed to each other's Equal, so the compiler rejects that call.
+func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
+	t.Parallel()
+	build := func() models.Pet {
+		id := int64(7)
+		categoryName := "Dogs"
+		tagName := "friendly"
+		tags := make([]models.Tag, 1)
+		tags[0].Name = &tagName
+		return models.Pet{
+			Name:      "Rex",
+			Category:  &models.Category{Id: &id, Name: &categoryName},
+			PhotoUrls: models.Set[string]{"a"},
+			Tags:      &tags,
+		}
+	}
+	first := build()
+	second := build()
+	if !first.Equal(&second) {
+		t.Error("expected two models built from the same values to be equal")
+	}
+	changes := map[string]func(*models.Pet){
+		"top-level name": func(p *models.Pet) {
+			p.Name = "Fido"
+		},
+		"nested category id": func(p *models.Pet) {
+			id := int64(8)
+			p.Category.Id = &id
+		},
+		"nested category name": func(p *models.Pet) {
+			categoryName := "Cats"
+			p.Category.Name = &categoryName
+		},
+		"nested tag name": func(p *models.Pet) {
+			tagName := "wild"
+			(*p.Tags)[0].Name = &tagName
+		},
+		"set element": func(p *models.Pet) {
+			p.PhotoUrls[0] = "b"
+		},
+	}
+	for name, change := range changes {
+		other := build()
+		change(&other)
+		if first.Equal(&other) {
+			t.Errorf("expected a changed %s to make the models unequal", name)
+		}
+	}
+	var none *models.Pet
+	if !none.Equal(nil) {
+		t.Error("expected two nil models to be equal")
+	}
+	if first.Equal(nil) {
+		t.Error("expected a model not to equal nil")
+	}
+	if none.Equal(&first) {
+		t.Error("expected nil not to equal a model")
+	}
+}

@@ -1852,7 +1852,7 @@ func TestObjectSerializer_ModelEqual_Identical(t *testing.T) {
 	id2 := int64(7)
 	name2 := "Fido"
 	b := models.Category{Id: &id2, Name: &name2}
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Errorf("expected equal Category values to compare equal")
 	}
 }
@@ -1863,7 +1863,7 @@ func TestObjectSerializer_ModelEqual_Different(t *testing.T) {
 	other := "Rex"
 	a := models.Category{Name: &name}
 	b := models.Category{Name: &other}
-	if a.Equal(b) {
+	if a.Equal(&b) {
 		t.Errorf("expected differing Category values to compare unequal")
 	}
 }
@@ -1874,11 +1874,11 @@ func TestBhvSerializationobject090_ObjectSerializer_ModelEqual_SliceBearingModel
 	t.Parallel()
 	a := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
 	b := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "b"}}
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Errorf("expected slice-bearing Pet values to compare equal via Equal()")
 	}
 	c := models.Pet{Name: "Rex", PhotoUrls: models.Set[string]{"a", "c"}}
-	if a.Equal(c) {
+	if a.Equal(&c) {
 		t.Errorf("expected Pets with differing PhotoUrls to compare unequal")
 	}
 }
@@ -1889,11 +1889,11 @@ func TestObjectSerializer_ModelEqual_MapBearingModel(t *testing.T) {
 	t.Parallel()
 	a := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
 	b := models.Metadata{AdditionalProperties: map[string]any{"k": "v"}}
-	if !a.Equal(b) {
+	if !a.Equal(&b) {
 		t.Errorf("expected map-bearing Metadata values to compare equal via Equal()")
 	}
 	c := models.Metadata{AdditionalProperties: map[string]any{"k": "w"}}
-	if a.Equal(c) {
+	if a.Equal(&c) {
 		t.Errorf("expected Metadata with differing AdditionalProperties to compare unequal")
 	}
 }
@@ -2436,7 +2436,8 @@ func TestBhvSerializationobject075_ObjectSerializer_BinaryVault_EqualityCompares
 		return models.BinaryVault{Seal: &sealBytes, Shards: &shards, Labels: &labels}
 	}
 	left := vaultOf("s", "a", "x")
-	if !left.Equal(vaultOf("s", "a", "x")) {
+	fresh := vaultOf("s", "a", "x")
+	if !left.Equal(&fresh) {
 		t.Error("expected vaults with equal bytes in fresh arrays to be equal")
 	}
 	for name, other := range map[string]models.BinaryVault{
@@ -2444,14 +2445,14 @@ func TestBhvSerializationobject075_ObjectSerializer_BinaryVault_EqualityCompares
 		"shard":  vaultOf("s", "b", "x"),
 		"labels": vaultOf("s", "a", "y"),
 	} {
-		if left.Equal(other) {
+		if left.Equal(&other) {
 			t.Errorf("expected a different %s to make the vaults unequal", name)
 		}
 	}
 	bytesA := []byte("a")
 	asList := models.BinaryVault{Shards: &[][]byte{bytesA}}
 	asMap := models.BinaryVault{Labels: &map[string][]byte{"0": bytesA}}
-	if asList.Equal(asMap) {
+	if asList.Equal(&asMap) {
 		t.Error("expected a list of byte arrays to differ from a map of them")
 	}
 }
@@ -2588,7 +2589,7 @@ func TestBhvSerializationobject104_ObjectSerializer_Error_SchemaNamedErrorKeepsI
 	}
 	code := int32(1)
 	message := "m"
-	if e.LastError == nil || !e.LastError.Equal(models.Error{Code: &code, Message: &message}) {
+	if e.LastError == nil || !e.LastError.Equal(&models.Error{Code: &code, Message: &message}) {
 		t.Fatalf("expected lastError to decode into models.Error, got %+v", e.LastError)
 	}
 	out, err := json.Marshal(e)
@@ -2836,7 +2837,7 @@ func TestBhvSerializationobject005_ObjectSerializer_BinaryVault_DifferingByteInA
 	t.Parallel()
 	left := models.BinaryVault{Labels: &map[string][]byte{"k": []byte("ab")}}
 	right := models.BinaryVault{Labels: &map[string][]byte{"k": []byte("ac")}}
-	if left.Equal(right) {
+	if left.Equal(&right) {
 		t.Error("expected a differing byte in a map value to make the vaults unequal")
 	}
 }
@@ -2862,7 +2863,7 @@ func TestBhvSerializationobject009_ObjectSerializer_BinaryVault_ListOfByteArrays
 	shard := []byte("a")
 	asList := models.BinaryVault{Shards: &[][]byte{shard}}
 	asMap := models.BinaryVault{Labels: &map[string][]byte{"0": shard}}
-	if asList.Equal(asMap) {
+	if asList.Equal(&asMap) {
 		t.Error("expected a list of byte arrays to differ from a map of them")
 	}
 }
