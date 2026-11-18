@@ -220,8 +220,8 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a security scheme's authenticator reads the variables of its own scheme")
-    fun schemeWrapperReadsItsOwnVariables() =
+    @DisplayName("bhvLangkotlin007 F862: a security scheme's authenticator reads the variables of its own scheme")
+    fun bhvLangkotlin007SchemeWrapperReadsItsOwnVariables() =
         runBlocking {
             val env =
                 mapOf(

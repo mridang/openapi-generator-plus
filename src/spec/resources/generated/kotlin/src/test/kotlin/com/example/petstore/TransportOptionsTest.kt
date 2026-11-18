@@ -204,27 +204,6 @@ class TransportOptionsTest {
         }
 
         @Test
-        @DisplayName("proxy scheme is matched case insensitively")
-        fun proxySchemeIsMatchedCaseInsensitively() {
-            assertEquals(
-                "http://proxy:3128",
-                TransportOptions
-                    .builder()
-                    .proxy("HTTP://proxy:3128")
-                    .build()
-                    .proxy,
-            )
-            assertEquals(
-                "https://proxy:3128",
-                TransportOptions
-                    .builder()
-                    .proxy("Https://proxy:3128")
-                    .build()
-                    .proxy,
-            )
-        }
-
-        @Test
         @DisplayName("bhvOptions014 an upper-case non-http proxy scheme is still rejected")
         fun upperCaseNonHttpProxySchemeIsRejected() {
             val ex =

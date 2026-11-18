@@ -131,7 +131,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun networkExceptionsCarryTheRequestToo() {
+    fun bhvErrors092NetworkExceptionsCarryTheRequestToo() {
         val cause = java.io.IOException("connection refused")
         val network =
             com.example.petstore.errors
@@ -189,7 +189,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun statusErrorConstructorsDefaultTheResponseContextToNull() {
+    fun bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
         val bad = BadRequestException()
         assertEquals(400, bad.statusCode)
         assertEquals("", bad.message)
@@ -414,7 +414,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderingOmitsTheStatusHeadersAndBodyThatAreAbsentOrEmpty() {
+    fun bhvErrors088RenderingOmitsTheStatusHeadersAndBodyThatAreAbsentOrEmpty() {
         assertEquals(
             "boom\nHTTP status code: 500",
             ApiException(500, "boom", emptyMap(), "").toString(),
@@ -459,7 +459,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderedBodyIsCappedAtOneKibibyteAndKeepsTheFullBodyOnTheException() {
+    fun bhvErrors086RenderedBodyIsCappedAtOneKibibyteAndKeepsTheFullBodyOnTheException() {
         val body = "x".repeat(1030)
 
         val ex = ApiException(500, "boom", emptyMap(), body)
@@ -692,16 +692,6 @@ class ApiExceptionTest {
         assertEquals(422, UnprocessableEntityException().statusCode)
         assertEquals(429, TooManyRequestsException().statusCode)
         assertEquals(500, InternalServerErrorException().statusCode)
-    }
-
-    @Test
-    @DisplayName("bhvErrors055 status error constructors default the response context to null")
-    fun bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
-        val ex = BadRequestException()
-        assertEquals(400, ex.statusCode)
-        assertNull(ex.responseHeaders)
-        assertNull(ex.responseBody)
-        assertNull(ex.errorBody)
     }
 
     @Test

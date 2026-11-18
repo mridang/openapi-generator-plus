@@ -582,8 +582,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F830: a failure with no response carries the request too")
-        fun transportFailureCarriesTheRequest() {
+        @DisplayName("bhvLangkotlin005 F830: a failure with no response carries the request too")
+        fun bhvLangkotlin005TransportFailureCarriesTheRequest() {
             val client =
                 object : CapturingApiClient() {
                     override suspend fun sendRequest(
@@ -1164,8 +1164,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("F857: the schemes are copied when the API is built")
-        fun schemesAreCopiedAtConstruction() {
+        @DisplayName("bhvMisc065 F857: the schemes are copied when the API is built")
+        fun bhvMisc065SchemesAreCopiedAtConstruction() {
             val held =
                 mutableMapOf<String, Authenticator>(
                     "a" to TestAuthenticator(mapOf("X" to "a"), emptyMap(), emptyMap()),
@@ -1642,8 +1642,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("form-urlencoded body percent-encodes reserved characters in keys and values")
-        fun formUrlencodedBodyEncodesReservedCharacters() {
+        @DisplayName("bhvSerialization125 form-urlencoded body percent-encodes reserved characters in keys and values")
+        fun bhvSerialization125FormUrlencodedBodyEncodesReservedCharacters() {
             val client = CapturingApiClient()
             val testApi = TestableApiWithClient(client, "http://localhost")
             runBlocking {
@@ -2223,8 +2223,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("void operation ignores a text/plain success body")
-        fun voidOperationIgnoresTextBody() {
+        @DisplayName("bhvMisc209 void operation ignores a text/plain success body")
+        fun bhvMisc209VoidOperationIgnoresTextBody() {
             val client =
                 object : CapturingApiClient() {
                     override suspend fun sendRequest(
@@ -2243,8 +2243,8 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("void operation ignores a non-object JSON success body")
-        fun voidOperationIgnoresNonObjectJsonBody() {
+        @DisplayName("bhvLangkotlin006 void operation ignores a non-object JSON success body")
+        fun bhvLangkotlin006VoidOperationIgnoresNonObjectJsonBody() {
             val client =
                 object : CapturingApiClient() {
                     override suspend fun sendRequest(

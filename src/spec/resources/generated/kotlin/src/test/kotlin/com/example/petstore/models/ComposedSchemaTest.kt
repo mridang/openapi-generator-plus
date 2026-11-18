@@ -229,8 +229,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("round-trips a wrapped variant back to the bare payload")
-        fun testWrapperSerializeRoundTrip() {
+        @DisplayName("bhvLangkotlin017 round-trips a wrapped variant back to the bare payload")
+        fun bhvLangkotlin017TestWrapperSerializeRoundTrip() {
             val original =
                 PetTreatment(
                     actualInstance = Medication(drugName = "Amoxicillin", dosage = "500mg"),
@@ -451,8 +451,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("missing required photoUrls array is rejected, not defaulted to empty")
-        fun missingRequiredPhotoUrlsThrows() {
+        @DisplayName("bhvLangkotlin018 missing required photoUrls array is rejected, not defaulted to empty")
+        fun bhvLangkotlin018MissingRequiredPhotoUrlsThrows() {
             val jsonString =
                 """{"name":"doggie","ownerName":"John","ownerEmail":"john@example.com"}"""
 
@@ -673,8 +673,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a union built by a factory equals one built from the same variant by the constructor")
-        fun testFactoryAndConstructorAgree() {
+        @DisplayName("bhvUnions044 a union built by a factory equals one built from the same variant by the constructor")
+        fun bhvUnions044TestFactoryAndConstructorAgree() {
             val reservation = Reservation(reservationId = 31L, quantity = 4)
 
             assertEquals(ReserveStockResponse(reservation), ReserveStockResponse.fromReservation(reservation))
@@ -696,8 +696,8 @@ class ComposedSchemaTest {
     @DisplayName("anyOf typed factories and accessors - PetTreatment")
     inner class PetTreatmentAccessorTests {
         @Test
-        @DisplayName("a factory wraps its variant and only its is accessor answers true")
-        fun testFactoryWrapsItsVariant() {
+        @DisplayName("bhvLangkotlin019 a factory wraps its variant and only its is accessor answers true")
+        fun bhvLangkotlin019TestFactoryWrapsItsVariant() {
             val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
             val union = PetTreatment.fromMedication(medication)
 
@@ -709,8 +709,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a payload that satisfies both variants answers true to both accessors")
-        fun testBothRetainedVariantsAreReachable() {
+        @DisplayName("bhvUnions046 a payload that satisfies both variants answers true to both accessors")
+        fun bhvUnions046TestBothRetainedVariantsAreReachable() {
             val union =
                 json.decodeFromString<PetTreatment>(
                     """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}""",
@@ -723,8 +723,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a union with no variant answers false and null to every accessor")
-        fun testEmptyUnionAnswersNothing() {
+        @DisplayName("bhvLangkotlin020 a union with no variant answers false and null to every accessor")
+        fun bhvLangkotlin020TestEmptyUnionAnswersNothing() {
             val union = PetTreatment()
 
             assertFalse(union.isMedication)
