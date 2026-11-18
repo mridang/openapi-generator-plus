@@ -394,6 +394,32 @@ describe('BaseApi', () => {
     expect(new URL(client.capturedUrl).searchParams.get('filter')).toBe('');
   });
 
+  test('bhv serialization 006 a query name or value with reserved or space characters cannot add a parameter', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { 'a&b=c': 'x&admin=1 y' }, {}, null,
+      ['application/json'], 'application/json', null);
+    const params = new URL(client.capturedUrl).searchParams;
+    expect([...params.keys()]).toEqual(['a&b=c']);
+    expect(params.get('a&b=c')).toBe('x&admin=1 y');
+  });
+
+  test('bhv serialization 011 query parameters are written in the order the caller gives them', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { zeta: '1', alpha: '2' }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/test/echo?zeta=1&alpha=2');
+  });
+
+  test('bhv serialization 014 a query parameter left unset produces no query entry', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('GET', '/test/echo', { filter: undefined }, {}, null,
+      ['application/json'], 'application/json', null);
+    expect(client.capturedUrl).toBe('http://localhost/test/echo');
+  });
+
   test('bhv serializationwire 016 includes empty value param in query string when value is empty string', async () => {
     const result = await api().call('GET', '/test/echo', { filter: '' }, {}, null,
       ['application/json'], 'application/json', null);
@@ -767,6 +793,34 @@ describe('BaseApi', () => {
       ['application/json'], 'application/x-www-form-urlencoded', null);
     expect(client.capturedBody).toBe('full+name=Ada+Lovelace');
     expect(client.capturedBody).not.toContain('%20');
+  });
+
+  test('bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII text as UTF-8 bytes', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('POST', '/test/echo', {}, {}, { q: 'a+bé' },
+      ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect(client.capturedBody).toBe('q=a%2Bb%C3%A9');
+  });
+
+  test('bhv serialization 009 a value that cannot be serialized raises SerializationError before any request', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(
+      testApi.call('POST', '/test/echo', {}, {}, { count: BigInt(1) },
+        ['application/json'], 'application/json', null),
+    ).rejects.toThrow(SerializationError);
+    expect(client.capturedUrl).toBe('');
+  });
+
+  test('bhv serialization 010 a body is sent with exactly the declared content type and no charset', async () => {
+    const client = new CapturingApiClient();
+    const testApi = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await testApi.call('POST', '/test/echo', {}, {}, 'hello',
+      ['application/json'], 'text/plain', null);
+    const contentType = Object.entries(client.capturedHeaders)
+      .find(([k]) => k.toLowerCase() === 'content-type')?.[1];
+    expect(contentType).toBe('text/plain');
   });
 
   test('bhv serializationwire 057 form-urlencoded body keeps ~ literal and escapes * ! \' ( )', async () => {
