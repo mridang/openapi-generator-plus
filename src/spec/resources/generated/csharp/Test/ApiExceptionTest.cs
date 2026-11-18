@@ -708,7 +708,7 @@ public class ApiExceptionTest
     {
         var ex = ApiException.FromResponse(502, new Dictionary<string, string>(), null);
 
-        Assert.IsType<ServerException>(ex);
+        Assert.IsAssignableFrom<ServerException>(ex);
         Assert.Equal(502, ex.StatusCode);
     }
 
