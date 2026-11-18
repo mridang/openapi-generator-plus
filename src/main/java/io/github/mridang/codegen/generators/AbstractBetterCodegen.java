@@ -1888,12 +1888,6 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return null;
         }
         final Schema values = (Schema) schema.getAdditionalProperties();
-        // The upstream map handling names the value type as the model's parent; the
-        // extras are a bucket, not inheritance, unless the schema really composes one.
-        if (built.parent != null && (schema.getAllOf() == null || schema.getAllOf().isEmpty())) {
-            built.parent = null;
-            built.parentSchema = null;
-        }
         final boolean typed = values.get$ref() != null
                 || values.getType() != null
                 || (values.getTypes() != null && !values.getTypes().isEmpty());
@@ -1919,6 +1913,11 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return;
         }
         final Schema values = (Schema) schema.getAdditionalProperties();
+        // The upstream map handling names the value type as the model's parent; the
+        // extras are a bucket, not inheritance, unless the schema really composes one.
+        if (built.parent != null && (schema.getAllOf() == null || schema.getAllOf().isEmpty())) {
+            built.parent = null;
+        }
         final CodegenProperty node = fromProperty("additionalPropertiesValue", values, false);
         // The node gets the language's per-property fix-ups (a byte or date-time type
         // alias, an import flag) exactly like a declared property.
@@ -6395,9 +6394,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     final TreeSet<String> fullImports = new TreeSet<>();
                     if (!typeImportMap.isEmpty()) {
                         final List<CodegenProperty> scanned = new ArrayList<>(model.allVars);
-                        if (model.vendorExtensions.get("additionalPropertiesValue")
-                                instanceof CodegenProperty bucket) {
-                            scanned.add(bucket);
+                        final Object bucket = model.vendorExtensions.get("additionalPropertiesValue");
+                        if (bucket instanceof CodegenProperty) {
+                            scanned.add((CodegenProperty) bucket);
                         }
                         for (final CodegenProperty prop : scanned) {
                             final String imp = typeImportMap.get(prop.dataType);

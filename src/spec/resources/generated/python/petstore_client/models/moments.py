@@ -146,4 +146,6 @@ class Moments(ApiModel):
         return hash_model(self)
 
 
+from petstore_client._types import OffsetDateTime
+
 Moments.model_rebuild(raise_errors=False)

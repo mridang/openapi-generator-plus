@@ -16,11 +16,11 @@ from pydantic import (
     model_validator,
 )
 from pydantic import StrictStr
-from petstore_client._types import hash_model
+from petstore_client._types import ApiModel, hash_model
 from typing import Any, Callable, Dict, Optional, Set
 
 
-class Roster(Category):
+class Roster(ApiModel):
     """
     Roster
     """

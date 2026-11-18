@@ -9,7 +9,7 @@ import { Category } from "./category.js";
 import { Expose } from "class-transformer";
 import { ObjectSerializer } from "../object-serializer.js";
 
-export class Roster extends Category {
+export class Roster {
   /**
    * 2.5 — Wire-serialization registry for `type: number` (no format)
    * fields. Such fields are carried as branded `Decimal` values,
@@ -112,7 +112,6 @@ export class Roster extends Category {
   }
 
   constructor(data?: Partial<Roster>) {
-    super(data);
     if (data) {
       this.#additionalPropertiesKey = Object.prototype.hasOwnProperty.call(
         data,
@@ -144,7 +143,6 @@ export class Roster extends Category {
    * @throws TypeError when the decoded value breaks the schema
    */
   __validate(): void {
-    super.__validate();
     if (this.label != null && typeof this.label !== "string") {
       throw new TypeError(`label must be a string, got ${typeof this.label}`);
     }
@@ -185,9 +183,6 @@ export class Roster extends Category {
       return true;
     }
     if (!(other instanceof Roster)) {
-      return false;
-    }
-    if (!super.equals(other)) {
       return false;
     }
     if (!Roster.__deepEquals(this.label, (other as Roster).label)) {

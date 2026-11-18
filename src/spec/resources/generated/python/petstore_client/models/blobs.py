@@ -146,4 +146,6 @@ class Blobs(ApiModel):
         return hash_model(self)
 
 
+from petstore_client._types import Base64Bytes
+
 Blobs.model_rebuild(raise_errors=False)
