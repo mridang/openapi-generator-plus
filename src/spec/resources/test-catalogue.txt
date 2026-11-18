@@ -1990,4 +1990,14 @@ langjava024 | A duration keeps all nine fractional digits when its nanoseconds n
 langjava025 | A duration drops the trailing zeros of its fractional seconds.
 langjava026 | A duration given a JSON array is refused with a serialization error.
 langjava027 | A structural dump of a container shows its elements by content, not by identity.
+langjava028 | Additional properties are written through the builder, and the built object has no setter for them.
+langjava029 | A builder adds, bulk-adds, removes and replaces additional properties.
+langjava030 | A builder seeded from an existing object copies it with one property changed and every other kept.
+langjava031 | Changing a builder after build leaves the object it built unchanged.
+langjava032 | A collection property is copied on construction and exposed as an unmodifiable view.
+langjava033 | A builder refuses to build without a required property and names it in the error.
+langjava034 | Rebuilding from an existing object changes one property and keeps every other property.
+langjava035 | A property with a default keeps that default until it is set.
+langjava036 | The license name and URL in the project manifest come from the same license choice.
+langjava037 | Every dependency a generated test imports is declared in the project manifest.
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
