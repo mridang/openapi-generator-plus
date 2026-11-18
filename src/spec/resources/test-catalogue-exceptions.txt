@@ -469,3 +469,6 @@ python | misc044 | a declared gzip body that is not gzip raises ApiException (tr
 python | misc051 | operation Options objects are typed, so an option the operation cannot apply is refused by Python as an unknown keyword at construction
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
+ruby | misc088 | A BigDecimal keeps every digit of the value it was read from but not the trailing zeros of its text, since they are not part of the number, so the written number of decimal places cannot be kept
+ruby | misc100 | The Ruby client sends a multipart body only when the body is a Hash, always as multipart/form-data with its own boundary, so no caller can declare another multipart subtype and there is no declared value to fall back from
+ruby | misc105 | The copy is built through the model constructor, so it validates its values exactly as building the model by hand does, and a copy never skips those checks
