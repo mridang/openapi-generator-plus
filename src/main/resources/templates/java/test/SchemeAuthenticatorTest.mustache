@@ -276,6 +276,14 @@ class SchemeAuthenticatorTest {
             assertEquals("Bearer first", auth.getAuthHeaders().get("Authorization"));
         }
 
+        void bhvAuthScheme011AnEmptyServiceTokenVariableIsUnsetAndNamesIt() {
+            Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "");
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new ServiceTokenAuthenticator(HOST, null, environment));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage())
+                    .contains("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN"), ex.getMessage());
+        }
+
         @Test
         void bhvAuthBearer006WrapperEmitsTheBearerHeaderAndMasksTheToken() {
             PetStoreBearerAuthenticator auth =
@@ -399,6 +407,15 @@ class SchemeAuthenticatorTest {
                     "The 'apiKey' credential of the 'apiKeyHeader' security scheme is required: "
                             + "pass it or set the " + API_KEY_VARIABLE + " environment variable",
                     ex.getMessage());
+        }
+
+        @Test
+        void bhvAuthScheme012AnEmptyInternalApiKeyVariableIsUnsetAndNamesIt() {
+            Map<String, String> environment = Map.of("{{envVarPrefix}}_INTERNAL_API_KEY_API_KEY", "");
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new InternalApiKeyAuthenticator("https://api.example.com", null, environment));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage())
+                    .contains("{{envVarPrefix}}_INTERNAL_API_KEY_API_KEY"), ex.getMessage());
         }
 
         @Test

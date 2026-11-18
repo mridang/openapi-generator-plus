@@ -11,6 +11,7 @@ package com.example.petstore.auth.oauth;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.ApiClient;
@@ -626,5 +627,26 @@ class OAuth2PasswordAuthenticatorTest {
     assertEquals(2, bodies.size());
     assertTrue(bodies.get(1).contains("grant_type=refresh_token"), bodies.get(1));
     assertTrue(bodies.get(1).contains("refresh_token=rt"), bodies.get(1));
+  }
+
+  @Test
+  void bhvAuthScheme014AnEmptyUsernameVariableIsUnsetAndNamesIt() {
+    Map<String, String> environment =
+        Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME", "");
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () ->
+                new LegacyAuthPasswordAuthenticator(
+                    "https://api.example.com",
+                    "my-client-id",
+                    "my-client-secret",
+                    null,
+                    "testpass",
+                    environment));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"),
+        ex.getMessage());
   }
 }

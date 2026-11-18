@@ -670,4 +670,24 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
     assertEquals("refresh_token", field(bodies.get(1), "grant_type"));
     assertEquals("rt", field(bodies.get(1), "refresh_token"));
   }
+
+  @Test
+  void bhvAuthScheme015AnEmptyClientSecretVariableIsUnsetAndNamesIt() {
+    Map<String, String> environment =
+        Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET", "");
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () ->
+                new UserAuthAuthorizationCodeAuthenticator(
+                    "https://api.example.com",
+                    "my-client-id",
+                    null,
+                    "https://app.example.com/callback",
+                    environment));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"),
+        ex.getMessage());
+  }
 }

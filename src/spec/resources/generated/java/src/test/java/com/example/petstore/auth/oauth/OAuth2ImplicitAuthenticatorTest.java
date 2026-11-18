@@ -196,4 +196,19 @@ class OAuth2ImplicitAuthenticatorTest {
         java.lang.reflect.Modifier.isVolatile(
             OAuth2ImplicitAuthenticator.class.getDeclaredField("accessToken").getModifiers()));
   }
+
+  @Test
+  void bhvAuthScheme016AnEmptyClientIdVariableIsUnsetAndNamesIt() {
+    Map<String, String> environment =
+        Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID", "");
+    IllegalArgumentException ex =
+        assertThrowsExactly(
+            IllegalArgumentException.class,
+            () ->
+                new BrowserAuthImplicitAuthenticator("https://api.example.com", null, environment));
+    assertTrue(
+        java.util.Objects.requireNonNull(ex.getMessage())
+            .contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
+        ex.getMessage());
+  }
 }
