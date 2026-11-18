@@ -1914,6 +1914,34 @@ void main() {
     /* T-D3: a Location header pointing at a non-http(s) scheme must be
      * refused with a typed ApiException, not silently returned as a 3xx. */
     test(
+      'bhv redirects 055 a redirect to a non-http(s) scheme is refused with an error',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 302
+            ..headers.set('Location', 'ftp://example.com/file')
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/start',
+              {},
+              null,
+            ),
+            throwsA(isA<ApiException>()),
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv redirects 020 throws ApiException on redirect to non-http(s) scheme',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3540,7 +3568,7 @@ void main() {
     });
 
     test(
-      'a Map multipart body is replayed intact across a 307 redirect',
+      'bhv retries 046 a Map multipart body is replayed intact across a 307 redirect',
       () async {
         var firstHits = 0;
         var secondHits = 0;

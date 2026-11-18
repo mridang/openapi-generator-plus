@@ -3765,7 +3765,78 @@ void main() {
     );
 
     test(
-      'the default client retries a 503 over the wire and then succeeds',
+      'bhv retries 049 the max retries setting allows that many retries after the first attempt, so n retries means n plus one requests',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 503
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().maxRetries(2).build(),
+          );
+          await expectLater(
+            client.sendRequest(
+              'GET',
+              'http://127.0.0.1:${server.port}/x',
+              {},
+              null,
+            ),
+            throwsA(isA<ServerException>()),
+          );
+          expect(requests, equals(3));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv retries 050 a Retry-After header given as an HTTP date is honoured and the request is retried',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          if (requests == 1) {
+            request.response
+              ..statusCode = 503
+              ..headers.set(
+                'Retry-After',
+                HttpDate.format(DateTime.now().toUtc()),
+              )
+              ..close();
+            return;
+          }
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final response = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/x',
+            {},
+            null,
+          );
+
+          expect(requests, equals(2));
+          expect(response.statusCode, equals(200));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv retries 048 the default client retries a 503 over the wire and then succeeds',
       () async {
         var requests = 0;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3796,7 +3867,7 @@ void main() {
     );
 
     test(
-      'over the wire the retries stay inside the end-to-end timeout',
+      'bhv retries 047 over the wire the retries stay inside the end-to-end timeout',
       () async {
         var requests = 0;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
