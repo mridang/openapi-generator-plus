@@ -73,7 +73,7 @@ describe {{moduleName}}::TransportOptions do
     end
   end
 
-  it 'shows max_retries in inspect' do
+  it 'bhv_options_064 shows max_retries in inspect' do
     _({{moduleName}}::TransportOptions.builder.max_retries(4).build.inspect).must_include 'max_retries=4'
   end
 
@@ -362,7 +362,7 @@ describe {{moduleName}}::TransportOptions do
       _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
     end
 
-    it 'rejects a connection combined with a proxy' do
+    it 'bhv_transport_078 rejects a connection combined with a proxy' do
       error = assert_raises(ArgumentError) do
         {{moduleName}}::TransportOptions.builder.connection(Faraday.new('http://localhost')).proxy('http://proxy:3128').build
       end
@@ -394,5 +394,55 @@ describe {{moduleName}}::TransportOptions do
       error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.connection(Object.new).build }
       _(error.message).must_include 'Faraday::Connection'
     end
+  end
+end
+
+describe {{moduleName}}::TransportOptions, 'builder entry point and printable form' do
+  parallelize_me!
+
+  it 'bhv_options_058 an injected connection is none unless supplied, and a supplied one is kept as the same instance' do
+    conn = Faraday.new('http://localhost')
+
+    _({{moduleName}}::TransportOptions.builder.build.connection).must_be_nil
+    _({{moduleName}}::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
+  end
+
+  it 'bhv_options_060 the builder entry point carries the values set on it' do
+    opts = {{moduleName}}::TransportOptions.builder.timeout(5_000).max_retries(4).build
+
+    _(opts.timeout).must_equal 5_000
+    _(opts.max_retries).must_equal 4
+  end
+
+  it 'bhv_options_061 a user agent set on the builder is kept as given' do
+    _({{moduleName}}::TransportOptions.builder.user_agent('acme-client/1.0').build.user_agent).must_equal 'acme-client/1.0'
+  end
+
+  it 'bhv_options_062 an options object reports the values it was built with and unset fields read back as nil' do
+    opts = {{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build
+
+    _(opts.proxy).must_equal 'http://proxy.example.com:8080'
+    _(opts.ca_cert_path).must_be_nil
+    _(opts.connection).must_be_nil
+  end
+
+  it 'bhv_options_065 the printable form of transport options never shows a proxy password' do
+    opts = {{moduleName}}::TransportOptions.builder
+                                           .proxy('http://user:hunter2@proxy.example.com:8080')
+                                           .build
+
+    _(opts.inspect).wont_include 'hunter2'
+    _(opts.to_s).wont_include 'hunter2'
+  end
+
+  it 'bhv_options_066 the printable form shows a proxy URL with no credentials exactly as configured' do
+    opts = {{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build
+
+    _(opts.inspect).must_include 'proxy="http://proxy.example.com:8080"'
+  end
+
+  it 'bhv_options_067 a valid proxy URL is kept and with no proxy the proxy is unset' do
+    _({{moduleName}}::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
+    _({{moduleName}}::TransportOptions.builder.build.proxy).must_be_nil
   end
 end

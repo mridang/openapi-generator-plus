@@ -704,7 +704,7 @@ describe Petstore::Client::DefaultApiClient do
       _(cookies.index('a=1')).must_be :<, cookies.index('b=2')
     end
 
-    it 'returns a 200 without a body as an empty body, not an error' do
+    it 'bhv_transport_067 returns a 200 without a body as an empty body, not an error' do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       response = Petstore::Client::DefaultApiClient.new.send_request(:GET, "#{chasm_url}/test/empty", {}, nil)
 

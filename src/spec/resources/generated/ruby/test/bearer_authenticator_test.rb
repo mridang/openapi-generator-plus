@@ -163,7 +163,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
     end
 
-    it 'prefers the environment variable to the token provider' do
+    it 'bhv_auth_022 prefers the environment variable to the token provider' do
       auth = Petstore::Client::Auth::BearerAuthenticator.new(
         'https://api.example.com', token_provider: -> { 'from-provider' }, env: { "#{prefix}_TOKEN" => 'from-env' }
       )
@@ -171,7 +171,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
     end
 
-    it 'asks the token provider for every request when neither a token nor the variable is set' do
+    it 'bhv_auth_005 asks the token provider for every request when neither a token nor the variable is set' do
       calls = 0
       provider = -> { "token-#{calls += 1}" }
       auth = Petstore::Client::Auth::BearerAuthenticator.new(
@@ -210,5 +210,15 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', token_provider: -> { "bad\ntoken" })
 
     _(-> { auth.auth_headers }).must_raise ArgumentError
+  end
+end
+
+describe 'BearerAuthenticator', 'token refusal at construction' do
+  parallelize_me!
+
+  it 'bhv_auth_009 refuses an access token that contains a carriage return or line feed' do
+    _(lambda {
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "xy\r\nz")
+    }).must_raise ArgumentError
   end
 end

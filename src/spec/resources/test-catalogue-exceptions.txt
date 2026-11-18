@@ -255,3 +255,9 @@ php | auth015 | PHP's header call raises the token error instead of returning he
 python | options058 | TransportOptions has no HTTP client field; a caller's HTTP client is the pool_manager argument of DefaultApiClient, which the client tests cover
 python | options059 | TransportOptions has no transport hook field, and the python client exposes no per-request hook to leave unset
 python | transport079 | urllib3 honours verify_ssl=False directly, so no client has to refuse it at construction because it cannot apply it
+ruby | serialization037 | Ruby maps a bare decimal number to Float (the README precision caveat), so digits beyond double precision cannot be kept; a BigDecimal would emit scientific or quoted text and break the unquoted wire form
+ruby | transport068 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a call cannot be handed an already-cancelled signal
+ruby | transport069 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancellation signal or context reaches a request
+ruby | auth013 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can cancel the token request it started
+ruby | auth027 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancelled refresh can be rethrown as a distinct case
+ruby | auth001 | The token exchange runs inside the synchronous auth_headers call and no credential needs an asynchronous step, so the refusal cannot occur

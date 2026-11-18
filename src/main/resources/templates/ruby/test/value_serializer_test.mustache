@@ -406,7 +406,7 @@ describe {{moduleName}}::ValueSerializer do
       _(result).must_equal({})
     end
 
-    it 'a model is expanded under its wire names, unset fields omitted' do
+    it 'bhv_serialization_017 a model is expanded under its wire names, unset fields omitted' do
       model = Class.new
       model.const_set(:ATTRIBUTE_MAP, { min_size: 'minSize', label: 'label', unset: 'unset' }.freeze)
       model.define_method(:min_size) { 3 }
@@ -646,7 +646,7 @@ describe {{moduleName}}::ValueSerializer do
   describe 'format:date parameter given a date-time' do
     require 'date'
 
-    it 'writes a DateTime as YYYY-MM-DD' do
+    it 'bhv_serialization_044 writes a DateTime as YYYY-MM-DD' do
       value = DateTime.new(2024, 1, 15, 23, 59, 30)
       result = {{moduleName}}::ValueSerializer.serialize_styled('born_on', value, :query, 'Date', nil, 'form', true)
       _(result).must_equal('2024-01-15')
@@ -712,7 +712,7 @@ describe {{moduleName}}::ValueSerializer do
       ['label', false] => '.breed,lab,min_age,3',
       ['label', true] => '.breed=lab.min_age=3'
     }.each do |(style, explode), expected|
-      it "renders an object in a path by #{style} explode=#{explode}" do
+      it "bhv_serialization_015 renders an object in a path by #{style} explode=#{explode}" do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode # steep:ignore ArgumentTypeMismatch
         )
@@ -726,7 +726,7 @@ describe {{moduleName}}::ValueSerializer do
         .must_raise({{moduleName}}::Errors::SerializationError)
     end
 
-    it 'flattens an object in a query by spaceDelimited and pipeDelimited style' do
+    it 'bhv_serialization_016 flattens an object in a query by spaceDelimited and pipeDelimited style' do
       fields = { 'breed' => 'lab', 'min_age' => 3 }
       space = {{moduleName}}::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'spaceDelimited', false)
       pipe = {{moduleName}}::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'pipeDelimited', false)

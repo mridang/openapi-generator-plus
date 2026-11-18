@@ -50,7 +50,7 @@ describe {{moduleName}}::Errors::ApiError do
     _(err.message).must_equal("missing\nHTTP status code: 404")
   end
 
-  it 'omits the headers and body sections when they are nil' do
+  it 'bhv_errors_074 omits the headers and body sections when they are nil' do
     err = {{moduleName}}::Errors::ApiError.new(
       status_code: 0, message: 'connection reset', response_headers: nil, response_body: nil
     )
@@ -131,7 +131,7 @@ describe {{moduleName}}::Errors::ApiError do
     _(err).must_be_kind_of({{apiErrorParent}})
   end
 
-  it 'chains a typed status error up through ClientError, ApiError and the branded base' do
+  it 'bhv_errors_080 chains a typed status error up through ClientError, ApiError and the branded base' do
     err = {{moduleName}}::Errors::BadRequestError.new(message: 'bad input')
 
     _(err).must_be_kind_of({{moduleName}}::Errors::ClientError)
@@ -149,7 +149,7 @@ describe {{moduleName}}::Errors::ApiError do
     _({{moduleName}}::Errors::NetworkError.new(message: 'refused').status_code).must_equal(0)
   end
 
-  it 'defaults status_code to 0 when no HTTP response was received' do
+  it 'bhv_errors_084 defaults status_code to 0 when no HTTP response was received' do
     _({{moduleName}}::Errors::ApiError.new('connection reset').status_code).must_equal(0)
   end
 

@@ -109,7 +109,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(client.last_body).wont_include 'code_verifier'
   end
 
-  it 'forgets the verifier once the code is exchanged' do
+  it 'bhv_auth_020 forgets the verifier once the code is exchanged' do
     client = FakeAuthCodeClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
     auth.api_client = client
 

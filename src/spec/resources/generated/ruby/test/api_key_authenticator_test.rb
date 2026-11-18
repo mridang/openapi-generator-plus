@@ -139,7 +139,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.inspect).must_include '***'
   end
 
-  it 'names the reason in each rejection' do
+  it 'bhv_auth_012 names the reason in each rejection' do
     location = Petstore::Client::Auth::ApiKeyLocation
     # @type var cases: Array[untyped]
     cases = [
@@ -214,7 +214,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(error.message).must_equal "Missing API key for 'X-Api-Key': pass it or set the environment variable #{prefix}_API_KEY"
   end
 
-  it 'reads the variable it is told to read, and no other' do
+  it 'bhv_auth_007 reads the variable it is told to read, and no other' do
     prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,

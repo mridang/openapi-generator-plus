@@ -329,7 +329,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(err.cause).must_be_nil
   end
 
-  it 'does not send the transport default headers to the token endpoint' do
+  it 'bhv_auth_010 does not send the transport default headers to the token endpoint' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/token') do |env|

@@ -275,7 +275,7 @@ describe 'Client' do
     _(error.message).must_equal 'At least one credential is required'
   end
 
-  it 'hands the shared transport to every credential that needs HTTP' do
+  it 'bhv_auth_025 hands the shared transport to every credential that needs HTTP' do
     default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
     credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
 
