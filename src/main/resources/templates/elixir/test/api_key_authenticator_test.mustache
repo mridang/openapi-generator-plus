@@ -309,6 +309,33 @@ defmodule {{moduleName}}.Auth.ApiKeyAuthenticatorTest do
       refute inspect(auth) =~ "super-secret-key"
       assert inspect(auth) =~ ~s(api_key: "***")
     end
+
+    test "bhv auth 006 an api key sent in a header is keyed by the header name the spec declares" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+      assert Map.keys(ApiKeyAuthenticator.auth_headers(auth)) == ["X-Api-Key"]
+
+      header = {{moduleName}}.Auth.ApiKeyHeaderAuthenticator.new("https://api.example.com", "abc123")
+      assert Map.keys(ApiKeyAuthenticator.auth_headers(header)) == ["X-API-Key"]
+    end
+
+    test "bhv auth 016 every string form of an api key authenticator masks the key and names its own type" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "super-secret-key", :header)
+
+      for form <- [inspect(auth), inspect(auth, pretty: true)] do
+        refute form =~ "super-secret-key"
+        assert form =~ "ApiKeyAuthenticator{"
+      end
+    end
+
+    test "bhv auth 023 an explicitly passed empty api key is refused and is not replaced by the environment value" do
+      name = "{{envVarPrefix}}_API_KEY"
+      System.put_env(name, "from-env")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/must not be empty/, fn ->
+        ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "", :header)
+      end
+    end
   end
 end
 {{/generateTests}}

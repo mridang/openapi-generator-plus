@@ -688,4 +688,26 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.ApiError.exception(message: "boom").status_code == 0
     end
   end
+
+  test "bhv errors 072 a typed view of an error body that starts with a byte order mark decodes like the body without it" do
+    bom = <<0xEF, 0xBB, 0xBF>> <> ~s({"id":42,"name":"Dogs"})
+    with_bom = PetstoreClient.Errors.ApiError.from_response(404, %{}, bom)
+
+    without_bom =
+      PetstoreClient.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
+
+    typed = PetstoreClient.Errors.ApiError.typed_error_body(with_bom, "Category")
+
+    assert typed == PetstoreClient.Errors.ApiError.typed_error_body(without_bom, "Category")
+    assert typed.id == 42
+  end
+
+  test "bhv errors 073 an error body nested within the depth limit is kept as structured data" do
+    depth = 200
+    body = String.duplicate(~s({"a":), depth) <> "1" <> String.duplicate("}", depth)
+    err = PetstoreClient.Errors.ApiError.from_response(500, %{}, body)
+
+    assert %PetstoreClient.Errors.InternalServerError{} = err
+    assert Enum.reduce(1..depth, err.error_body, fn _, acc -> acc["a"] end) == 1
+  end
 end

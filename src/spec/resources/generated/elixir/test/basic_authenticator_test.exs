@@ -191,5 +191,27 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert inspect(auth) =~ ~s(key_param_name: "X-Api-Key")
       assert inspect(auth) =~ "location: :header"
     end
+
+    test "bhv auth 024 each credential field takes its passed value or else its own environment variable" do
+      user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
+      pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
+      System.put_env(user, "env-user")
+      System.put_env(pass, "env-pass")
+
+      on_exit(fn ->
+        System.delete_env(user)
+        System.delete_env(pass)
+      end)
+
+      only_password = BasicAuthenticator.new("https://api.example.com", nil, "explicit-pass")
+
+      assert BasicAuthenticator.auth_headers(only_password)["Authorization"] ==
+               "Basic " <> Base.encode64("env-user:explicit-pass")
+
+      only_user = BasicAuthenticator.new("https://api.example.com", "alice", nil)
+
+      assert BasicAuthenticator.auth_headers(only_user)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:env-pass")
+    end
   end
 end

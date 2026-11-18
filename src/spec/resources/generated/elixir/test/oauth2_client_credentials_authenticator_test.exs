@@ -524,5 +524,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert shown =~ ~s(client_id: "my-client-id")
       assert shown =~ ~s(token_url: "https://auth.example.com/token")
     end
+
+    test "bhv auth 001 a synchronous header call whose token step has no client raises and returns no headers" do
+      auth = create_authenticator()
+
+      assert_raise RuntimeError, ~r/ApiClient has not been injected/, fn ->
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+      end
+    end
   end
 end

@@ -978,5 +978,67 @@ defmodule PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticatorTest do
 
       assert FakeApiClient.get_count(fake_client) == 1
     end
+
+    test "bhv auth 011 a discovery response without a usable max-age is cached for the default lifetime" do
+      for headers <- [%{}, %{"Cache-Control" => "no-cache"}, %{"Cache-Control" => "max-age=soon"}] do
+        discovery = %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: headers,
+          body:
+            Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
+              "authorization_endpoint" => "https://auth.example.com/authorize",
+              "token_endpoint" => "https://auth.example.com/token"
+            })
+        }
+
+        fake_client = FakeApiClient.new([discovery, discovery])
+
+        auth = create_authenticator()
+
+        auth =
+          PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+        assert FakeApiClient.get_count(fake_client) == 1,
+               "discovery refetched for #{inspect(headers)}"
+      end
+    end
+
+    test "bhv auth 029 after the cached discovery document expires, later calls use the endpoints of the newly fetched document" do
+      discovery = fn max_age, endpoint ->
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          headers: %{"Cache-Control" => "max-age=#{max_age}"},
+          body:
+            Jason.encode!(%{
+              "issuer" => "https://auth.example.com",
+              "authorization_endpoint" => endpoint,
+              "token_endpoint" => "https://auth.example.com/token"
+            })
+        }
+      end
+
+      fake_client =
+        FakeApiClient.new([
+          discovery.(1, "https://auth.example.com/authorize-v1"),
+          discovery.(3600, "https://auth.example.com/authorize-v2")
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(auth, fake_client)
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
+               "https://auth.example.com/authorize-v1?"
+
+      Process.sleep(1_100)
+
+      assert PetstoreClient.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth) =~
+               "https://auth.example.com/authorize-v2?"
+    end
   end
 end
