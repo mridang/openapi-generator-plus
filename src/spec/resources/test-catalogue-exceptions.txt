@@ -450,9 +450,7 @@ ruby | misc059 | JSON.parse rejects the NaN and Infinity literals by default, so
 ruby | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so there is no combined credential to send
 ||||||| e7bc17643
 go | misc113 | Go models have no generated string form, and fmt's default formatting prints the address of each pointer to a list, map or byte field, so the contents of those fields are never shown
-||||||| e7bc17643
 kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made
-||||||| 793a54cda
 ||||||| e6c85ecf4
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
 swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
@@ -478,6 +476,18 @@ kotlin | misc030 | sendRequest takes no per-call deadline and a caller's deadlin
 kotlin | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
 kotlin | misc044 | a declared gzip body that is not gzip raises ApiException (transport030), so the plain body is never returned
 ||||||| 3e71877dc
+||||||| f5c1c903c
+node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
+node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
+||||||| 9f854cdf4
+||||||| f5c1c903c
+java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
+java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
+java | misc044 | Java rejects a body declared as gzip that lacks the gzip signature with an ApiException (bhvTransport073), so it is never returned as the plain body
+||||||| 3e71877dc
+||||||| 376fc4ff0
+csharp | misc030 | C# has no request deadline: its timeout is a duration that starts when the call starts, so no call can begin already past its deadline
+||||||| 103ccb42b
 elixir | misc029 | The SDK has no cancellation argument (readme: a caller stops a call by terminating its process), so the SDK never sees a caller's cancellation and cannot wrap it in its error type
 elixir | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
