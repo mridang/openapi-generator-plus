@@ -2407,3 +2407,4 @@ langphp061 | An anyOf variant with only numeric additional properties serializes
 langphp062 | The composer manifest declares a valid package name.
 langphp063 | A result carries its payload, headers and status together.
 langphp064 | A configured CA certificate is the only trust anchor, so an unrelated CA rejects the server.
+langphp065 | A non-string error value is not taken as an error code.
