@@ -965,7 +965,7 @@ fn test_bhv_serialization_025_typed_leaves_nested_in_arrays_maps_and_models_deco
 #[test]
 fn test_bhv_serialization_020_a_field_left_unset_is_written_with_its_schema_default() {
     use petstore::models::*;
-    let value = serde_json::to_value(&Defaults::new()).expect("serializes");
+    let value = serde_json::to_value(Defaults::new()).expect("serializes");
     assert_eq!(value["retries"], serde_json::json!(3));
     assert_eq!(value["mode"], serde_json::json!("medium"));
 }
