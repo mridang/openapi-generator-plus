@@ -88,6 +88,31 @@ func TestApiResult_HoldsStructData(t *testing.T) {
 	}
 }
 
+func TestBhvResults004_ApiResult_ExposesTheDeserializedData(t *testing.T) {
+	t.Parallel()
+	data := "payload"
+
+	result := petstore.NewApiResult[string](200, &data, "", map[string]string{})
+
+	if result.Data == nil {
+		t.Fatal("expected the deserialized data to be exposed, got nil")
+	}
+	if *result.Data != "payload" {
+		t.Errorf("Data = %q, want %q", *result.Data, "payload")
+	}
+}
+
+func TestBhvResults005_ApiResult_ExposesTheRawResponseBody(t *testing.T) {
+	t.Parallel()
+	raw := `{"ok":true}`
+
+	result := petstore.NewApiResult[string](200, nil, raw, map[string]string{})
+
+	if result.RawBody != raw {
+		t.Errorf("RawBody = %q, want %q", result.RawBody, raw)
+	}
+}
+
 func TestBhvResults002_ApiResult_ExposesHeadersAsACopy(t *testing.T) {
 	t.Parallel()
 	headers := map[string]string{"Content-Type": "application/json"}

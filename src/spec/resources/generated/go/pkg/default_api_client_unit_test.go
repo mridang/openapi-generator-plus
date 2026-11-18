@@ -2042,7 +2042,7 @@ func TestBhvRedirects024_DefaultApiClientUnit_SameOriginRedirectKeepsCredentialH
 // redirect from https://host to https://host:443 must not be treated as
 // cross-origin and strip the credentials; a different scheme, host or
 // non-default port still is.
-func TestDefaultApiClientUnit_SameOrigin_TreatsAnExplicitDefaultPortAsTheSameOrigin(t *testing.T) {
+func TestBhvRedirects030_DefaultApiClientUnit_SameOrigin_TreatsAnExplicitDefaultPortAsTheSameOrigin(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string
@@ -2069,6 +2069,135 @@ func TestDefaultApiClientUnit_SameOrigin_TreatsAnExplicitDefaultPortAsTheSameOri
 	}
 	if sameOrigin(nil, nil) {
 		t.Error("expected a missing URL never to count as the same origin")
+	}
+}
+
+// followRedirectMethod answers the first request with the given redirect status
+// and a Location, and returns the method the followed request was sent with.
+func followRedirectMethod(t *testing.T, status int, method string) string {
+	t.Helper()
+	var followed string
+	mux := http.NewServeMux()
+	mux.HandleFunc("/start", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "/landed")
+		w.WriteHeader(status)
+	})
+	mux.HandleFunc("/landed", func(w http.ResponseWriter, r *http.Request) {
+		followed = r.Method
+		w.WriteHeader(200)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest(method, server.URL+"/start", map[string]string{}, []byte("payload")); err != nil {
+		t.Fatalf("%d %s: unexpected error: %v", status, method, err)
+	}
+	return followed
+}
+
+// A redirect rewrites the method only as RFC 9110 section 15.4 allows: a 301 or
+// 302 turns only a POST into a GET, a 303 turns every method but HEAD into a GET,
+// and a 307 or 308 keeps the method.
+func TestBhvRedirects029_DefaultApiClientUnit_RedirectRewritesTheMethodOnlyAsRFC9110Allows(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		status int
+		method string
+		want   string
+	}{
+		{301, "POST", "GET"}, {301, "PUT", "PUT"}, {301, "PATCH", "PATCH"}, {301, "DELETE", "DELETE"},
+		{302, "POST", "GET"}, {302, "PUT", "PUT"}, {302, "DELETE", "DELETE"},
+		{303, "POST", "GET"}, {303, "PUT", "GET"}, {303, "DELETE", "GET"}, {303, "HEAD", "HEAD"},
+		{307, "POST", "POST"}, {307, "PUT", "PUT"}, {308, "PATCH", "PATCH"}, {308, "DELETE", "DELETE"},
+	} {
+		if got := followRedirectMethod(t, tc.status, tc.method); got != tc.want {
+			t.Errorf("%d %s: expected the follow-up as %s, got %s", tc.status, tc.method, tc.want, got)
+		}
+	}
+}
+
+// A 303 turns every method except HEAD into a GET.
+func TestBhvRedirects036_DefaultApiClientUnit_A303TurnsEveryMethodExceptHeadIntoGet(t *testing.T) {
+	t.Parallel()
+	for method, want := range map[string]string{"POST": "GET", "PUT": "GET", "PATCH": "GET", "DELETE": "GET", "HEAD": "HEAD"} {
+		if got := followRedirectMethod(t, 303, method); got != want {
+			t.Errorf("303 %s: expected the follow-up as %s, got %s", method, want, got)
+		}
+	}
+}
+
+// A 3xx without a Location header is not a redirect to follow, so it is returned
+// unchanged even when the redirect budget is zero.
+func TestBhvRedirects031_DefaultApiClientUnit_A3xxWithoutLocationIsReturnedWhenTheBudgetIsZero(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(302)
+	}))
+	defer server.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).MaxRedirects(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/start", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the 302 to be returned, got %v", err)
+	}
+	if resp.StatusCode != 302 {
+		t.Errorf("expected status 302, got %d", resp.StatusCode)
+	}
+}
+
+// A redirect to another port is a different origin, so the Authorization header
+// is dropped before the followed request is sent.
+func TestBhvRedirects033_DefaultApiClientUnit_ARedirectToADifferentPortDropsTheAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+	var received string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received = r.Header.Get("Authorization")
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/followed")
+		w.WriteHeader(302)
+	}))
+	defer origin.Close()
+
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequest("GET", origin.URL+"/start", map[string]string{"Authorization": "Bearer secret"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if received != "" {
+		t.Errorf("expected the Authorization header dropped across ports, got %q", received)
+	}
+}
+
+// Origin comparison separates a different scheme, host or port.
+func TestBhvRedirects034_DefaultApiClientUnit_SameOrigin_SeparatesADifferentSchemeHostOrPort(t *testing.T) {
+	t.Parallel()
+	start, err := url.Parse("https://h.example.com/a")
+	if err != nil {
+		t.Fatalf("bad fixture URL: %v", err)
+	}
+	for _, other := range []string{"http://h.example.com/a", "https://other.example.com/a", "https://h.example.com:8443/a"} {
+		b, err := url.Parse(other)
+		if err != nil {
+			t.Fatalf("bad fixture URL %s: %v", other, err)
+		}
+		if sameOrigin(start, b) {
+			t.Errorf("sameOrigin(%s, %s) = true, want false", start, other)
+		}
 	}
 }
 
@@ -2541,6 +2670,224 @@ func TestBhvRetries027_DefaultApiClientUnit_RetryDelay_DoublesFromHalfASecondToE
 	}
 	if got := retryDelay(0, map[string]string{"retry-after": "9"}, now); got != 9*time.Second {
 		t.Errorf("expected Retry-After to replace the backoff, got %v", got)
+	}
+}
+
+// The jitter takes at most a quarter off the backoff: a delay never leaves
+// the range from three quarters of the backoff up to the backoff itself.
+func TestBhvRetries030_DefaultApiClientUnit_RetryDelay_JitterTakesAtMostAQuarterOff(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	const base = 2 * time.Second
+	for i := 0; i < 200; i++ {
+		got := retryDelay(2, nil, now)
+		if got > base || got < base*3/4 {
+			t.Fatalf("expected a delay in [%v, %v], got %v", base*3/4, base, got)
+		}
+	}
+}
+
+// The backoff starts at half a second, doubles up to 8 seconds and loses at
+// most a quarter to jitter.
+func TestBhvRetries041_DefaultApiClientUnit_RetryDelay_StartsAtHalfASecondAndDoublesToEightSeconds(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
+	for retries, base := range map[int]time.Duration{
+		0: 500 * time.Millisecond, 1: time.Second, 2: 2 * time.Second, 3: 4 * time.Second, 4: 8 * time.Second,
+	} {
+		for i := 0; i < 50; i++ {
+			got := retryDelay(retries, nil, now)
+			if got > base || got < base*3/4 {
+				t.Fatalf("retry %d: expected a delay in [%v, %v], got %v", retries, base*3/4, base, got)
+			}
+		}
+	}
+}
+
+// retryScriptReply is one answer of a retryScriptClient: a status with an
+// optional Retry-After header, or a transport error.
+type retryScriptReply struct {
+	status     int
+	retryAfter string
+	err        error
+}
+
+// retryScriptAttempt is what one attempt sent.
+type retryScriptAttempt struct {
+	headers map[string]string
+	body    any
+}
+
+// retryScriptClient answers each attempt with the next scripted reply (the last
+// one repeats) and records what every attempt sent. It retries like a client
+// built with maxRetries and no end-to-end timeout.
+type retryScriptClient struct {
+	maxRetries int
+	replies    []retryScriptReply
+	attempts   []retryScriptAttempt
+}
+
+func (c *retryScriptClient) retryPolicy() (int, time.Duration) { return c.maxRetries, 0 }
+
+func (c *retryScriptClient) SendRequest(method, url string, headers map[string]string, body any) (*ApiHttpResponse, error) {
+	return c.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (c *retryScriptClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *RequestOptions) (*ApiHttpResponse, error) {
+	sent := make(map[string]string, len(headers))
+	for name, value := range headers {
+		sent[name] = value
+	}
+	c.attempts = append(c.attempts, retryScriptAttempt{headers: sent, body: body})
+	reply := c.replies[min(len(c.attempts), len(c.replies))-1]
+	if reply.err != nil {
+		return nil, reply.err
+	}
+	resp := &ApiHttpResponse{StatusCode: reply.status, Body: "{}", Headers: map[string]string{}}
+	if reply.retryAfter != "" {
+		resp.Headers["Retry-After"] = reply.retryAfter
+	}
+	return resp, nil
+}
+
+func (c *retryScriptClient) Close() error { return nil }
+
+// retryScriptAuth is an authenticator that sends the same header on every request.
+type retryScriptAuth struct{}
+
+func (retryScriptAuth) Host() string { return "" }
+func (retryScriptAuth) AuthHeaders() map[string]string {
+	return map[string]string{"Authorization": "Bearer token"}
+}
+func (retryScriptAuth) QueryParams() map[string]string  { return map[string]string{} }
+func (retryScriptAuth) CookieParams() map[string]string { return map[string]string{} }
+
+// retryScriptParams is a GET with no body that accepts JSON.
+func retryScriptParams() invokeApiParams {
+	return invokeApiParams{
+		method:      "GET",
+		path:        "/items/1",
+		accepts:     []string{"application/json"},
+		contentType: "application/json",
+	}
+}
+
+// retryScriptCall sends params through the base API on the scripted client and
+// returns the error of the call.
+func retryScriptCall(client *retryScriptClient, authenticator Authenticator, params invokeApiParams) error {
+	config := NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	_, err := newBaseApi(client, config, authenticator).invokeApi(params)
+	return err
+}
+
+// A 503 is sent again until it succeeds.
+func TestBhvRetries038_DefaultApiClientUnit_A503IsSentAgainUntilItSucceeds(t *testing.T) {
+	t.Parallel()
+	client := &retryScriptClient{maxRetries: 2, replies: []retryScriptReply{
+		{status: 503, retryAfter: "0"}, {status: 503, retryAfter: "0"}, {status: 200},
+	}}
+
+	if err := retryScriptCall(client, nil, retryScriptParams()); err != nil {
+		t.Fatalf("expected the third attempt to succeed, got %v", err)
+	}
+	if got := len(client.attempts); got != 3 {
+		t.Errorf("expected 3 attempts, got %d", got)
+	}
+}
+
+// Every retry is a fresh request, and it carries the authentication header again.
+func TestBhvRetries039_DefaultApiClientUnit_EveryRetryCarriesTheSameAuthenticationHeader(t *testing.T) {
+	t.Parallel()
+	client := &retryScriptClient{maxRetries: 1, replies: []retryScriptReply{
+		{status: 503, retryAfter: "0"}, {status: 200},
+	}}
+
+	if err := retryScriptCall(client, retryScriptAuth{}, retryScriptParams()); err != nil {
+		t.Fatalf("expected the retry to succeed, got %v", err)
+	}
+	if got := len(client.attempts); got != 2 {
+		t.Fatalf("expected 2 attempts, got %d", got)
+	}
+	for i, attempt := range client.attempts {
+		if got := attempt.headers["Authorization"]; got != "Bearer token" {
+			t.Errorf("attempt %d: expected the authentication header, got %q", i+1, got)
+		}
+	}
+}
+
+// A string body is sent again unchanged on every retry.
+func TestBhvRetries034_DefaultApiClientUnit_AStringBodyIsSentAgainUnchangedOnEveryRetry(t *testing.T) {
+	t.Parallel()
+	client := &retryScriptClient{maxRetries: 2, replies: []retryScriptReply{
+		{status: 503, retryAfter: "0"}, {status: 503, retryAfter: "0"}, {status: 200},
+	}}
+	params := retryScriptParams()
+	params.method = "POST"
+	params.contentType = "text/plain"
+	params.body = "payload"
+
+	if err := retryScriptCall(client, nil, params); err != nil {
+		t.Fatalf("expected the third attempt to succeed, got %v", err)
+	}
+	if got := len(client.attempts); got != 3 {
+		t.Fatalf("expected 3 attempts, got %d", got)
+	}
+	for i, attempt := range client.attempts {
+		if got, _ := attempt.body.([]byte); string(got) != "payload" {
+			t.Errorf("attempt %d: expected the body payload, got %q", i+1, got)
+		}
+	}
+}
+
+// A multipart body is a stream of file parts, so it is sent once and a 503 is
+// returned as it is.
+func TestBhvRetries032_DefaultApiClientUnit_AStreamBodyIsNeverRetried(t *testing.T) {
+	t.Parallel()
+	client := &retryScriptClient{maxRetries: 2, replies: []retryScriptReply{
+		{status: 503, retryAfter: "0"}, {status: 200},
+	}}
+	params := retryScriptParams()
+	params.method = "POST"
+	params.contentType = "multipart/form-data"
+	params.body = map[string]any{"field": "value"}
+	params.order = []string{"field"}
+
+	if err := retryScriptCall(client, nil, params); err == nil {
+		t.Fatal("expected the 503 to be returned, got nil")
+	}
+	if got := len(client.attempts); got != 1 {
+		t.Errorf("expected one attempt for a stream body, got %d", got)
+	}
+}
+
+// Once the retries are spent the last network error is returned.
+func TestBhvRetries033_DefaultApiClientUnit_TheLastNetworkErrorIsReportedOnceTheRetriesAreSpent(t *testing.T) {
+	t.Parallel()
+	client := &retryScriptClient{maxRetries: 1, replies: []retryScriptReply{
+		{err: pkgerrors.NewNetworkError("connection refused", errors.New("refused"))},
+	}}
+
+	err := retryScriptCall(client, nil, retryScriptParams())
+
+	var networkErr *pkgerrors.NetworkError
+	if !errors.As(err, &networkErr) {
+		t.Fatalf("expected the *NetworkError after the retries, got %T: %v", err, err)
+	}
+	if got := len(client.attempts); got != 2 {
+		t.Errorf("expected the attempt and one retry, got %d attempts", got)
+	}
+}
+
+// A 401 with no authenticator to renew surfaces as an *UnauthorizedError.
+func TestBhvErrors071_DefaultApiClientUnit_A401SurfacesAsAnUnauthorizedError(t *testing.T) {
+	t.Parallel()
+	client := &retryScriptClient{maxRetries: 0, replies: []retryScriptReply}
+
+	err := retryScriptCall(client, nil, retryScriptParams())
+
+	var unauthorized *pkgerrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
 	}
 }
 

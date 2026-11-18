@@ -352,9 +352,11 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		defer cancel()
 	}
 	invalidator, canReplay := effectiveAuth.(auth.AccessTokenInvalidator)
-	/* A multipart body is never replayed after a 401: its file parts are
-	 * streams that the first attempt may already have consumed. */
-	canReplay = canReplay && params.contentType != "multipart/form-data"
+	/* A multipart body is never replayed after a 401 and never retried after a
+	 * transient failure: its file parts are streams that the first attempt may
+	 * already have consumed, so it is sent once. */
+	streamBody := params.contentType == "multipart/form-data"
+	canReplay = canReplay && !streamBody
 	replayed := false
 	retries := 0
 	var lastFailure error
@@ -371,7 +373,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		response, err := b.apiClient.SendRequestWithOptions(params.method, attemptURL, headers, serializedBody, &RequestOptions{Context: ctx, Timeout: callTimeout})
 		if err != nil {
 			attachRequestContext(err, params.method, requestPath)
-			if retries < maxRetries && isRetryableTransportError(err) {
+			if !streamBody && retries < maxRetries && isRetryableTransportError(err) {
 				proceed, cancelErr := waitBeforeRetry(ctx, retries, nil)
 				if cancelErr != nil {
 					return nil, cancelErr
@@ -396,7 +398,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			lastFailure = failure
 			continue
 		}
-		if retries < maxRetries && isRetryableStatus(response.StatusCode) {
+		if !streamBody && retries < maxRetries && isRetryableStatus(response.StatusCode) {
 			proceed, cancelErr := waitBeforeRetry(ctx, retries, response.Headers)
 			if cancelErr != nil {
 				return nil, cancelErr
