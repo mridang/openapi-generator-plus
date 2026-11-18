@@ -1232,13 +1232,17 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
 
     /** The behaviour id that names a scheme's FailsNamingAVariableThatIsEmptyOrUnset test, or empty. */
     private static String failsNamingId(final String baseClass, final boolean secondBearer, final boolean secondApiKey) {
-        final Map<String, String> flows = new HashMap<>();
-        flows.put("OAuth2ClientCredentialsAuthenticator", "BhvAuthscheme013_");
-        flows.put("OAuth2PasswordAuthenticator", "BhvAuthscheme014_");
-        flows.put("OAuth2AuthorizationCodeAuthenticator", "BhvAuthscheme015_");
-        flows.put("OAuth2ImplicitAuthenticator", "BhvAuthscheme016_");
-        if (flows.containsKey(baseClass)) {
-            return flows.get(baseClass);
+        switch (baseClass) {
+            case "OAuth2ClientCredentialsAuthenticator":
+                return "BhvAuthscheme013_";
+            case "OAuth2PasswordAuthenticator":
+                return "BhvAuthscheme014_";
+            case "OAuth2AuthorizationCodeAuthenticator":
+                return "BhvAuthscheme015_";
+            case "OAuth2ImplicitAuthenticator":
+                return "BhvAuthscheme016_";
+            default:
+                break;
         }
         if (secondBearer) {
             return "BhvAuthscheme011_";
