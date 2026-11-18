@@ -1243,6 +1243,87 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManagerTest do
 
       assert err.message == "The token manager is stopped (the client was closed)"
     end
+
+    test "bhv auth 002 invalidating the access token before any exchange raises nothing and sends no request" do
+      counting_client = CountingApiClient.new()
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, counting_client)
+
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.invalidate_access_token(manager) == :ok
+      assert CountingApiClient.call_count(counting_client) == 0
+    end
+
+    test "bhv auth 010 the token request turns off the transport default headers" do
+      {:ok, opts_agent} = Agent.start_link(fn -> nil end)
+      client = NoRedirectCapturingClient.new(opts_agent)
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, client)
+
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        manager,
+        "https://auth.example.com/token",
+        %{"grant_type" => "client_credentials"}
+      )
+
+      captured = Agent.get(opts_agent, & &1)
+      assert Keyword.get(captured, :no_default_headers) == true
+    end
+
+    test "bhv auth 017 the form body writes a space as a plus and percent-encodes reserved punctuation" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{
+          status_code: 200,
+          body: Jason.encode!(%{"access_token" => "tok", "expires_in" => 3600})
+        }
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(
+        manager,
+        "https://auth.example.com/token",
+        %{"grant_type" => "client_credentials", "client_secret" => "a b*!'()~"}
+      )
+
+      assert FakeApiClient.last_body(fake_client) ==
+               "grant_type=client_credentials&client_secret=a+b%2A%21%27%28%29~"
+    end
+
+    test "bhv auth 028 a failed first exchange records no session and the manager still reports it unexchanged" do
+      fake_client = FakeApiClient.new([
+        %{{moduleName}}.ApiHttpResponse{status_code: 400, body: Jason.encode!(%{"error" => "invalid_grant"})}
+      ])
+
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      assert_raise {{moduleName}}.Errors.OAuth2ServerError, fn ->
+        {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchange(manager, "https://auth.example.com/token", %{"grant_type" => "authorization_code"})
+      end
+
+      refute {{moduleName}}.Auth.OAuth.OAuth2TokenManager.exchanged?(manager)
+      assert {{moduleName}}.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == nil
+    end
+
+    test "bhv auth 030 concurrent sets and reads of the token never observe a value that was not set" do
+      {:ok, manager} = {{moduleName}}.Auth.OAuth.OAuth2TokenManager.start_link()
+      tokens = for i <- 1..50, do: "tok-#{i}"
+
+      seen =
+        tokens
+        |> Enum.map(fn token ->
+          Task.async(fn ->
+            {{moduleName}}.Auth.OAuth.OAuth2TokenManager.set_access_token(manager, token)
+            {{moduleName}}.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, "https://auth.example.com/token", %{})
+          end)
+        end)
+        |> Enum.map(&Task.await(&1, 5_000))
+
+      assert Enum.all?(seen, &(&1 in tokens))
+    end
   end
 end
 {{/generateTests}}

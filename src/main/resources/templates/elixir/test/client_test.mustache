@@ -412,5 +412,20 @@ defmodule {{moduleName}}.ClientTest do
 {{/apis}}
 {{/apiInfo}}
   end
+  test "bhv auth 025 a credential that sends HTTP requests is given the client's transport when the client is built" do
+    authenticator =
+      {{moduleName}}.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "{{{basePath}}}",
+        "id",
+        "secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    client = {{moduleName}}.{{clientClassName}}.new(authenticator)
+
+    assert Agent.get(authenticator.token_manager, & &1.api_client) == client.api_client
+  end
+
 end
 {{/generateTests}}

@@ -429,4 +429,19 @@ defmodule PetstoreClient.ClientTest do
     assert client.pet != nil
     assert client.store != nil
   end
+
+  test "bhv auth 025 a credential that sends HTTP requests is given the client's transport when the client is built" do
+    authenticator =
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.new(
+        "/api/v3",
+        "id",
+        "secret",
+        "https://auth.example.com/token",
+        []
+      )
+
+    client = PetstoreClient.Client.new(authenticator)
+
+    assert Agent.get(authenticator.token_manager, & &1.api_client) == client.api_client
+  end
 end

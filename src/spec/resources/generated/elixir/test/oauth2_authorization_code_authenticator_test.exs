@@ -1009,5 +1009,29 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
       assert shown =~ ~s(authorization_url: "https://auth.example.com/authorize")
       assert shown =~ ~s(redirect_uri: "https://app.example.com/callback")
     end
+
+    test "bhv auth 008 the S256 challenge is the base64url SHA-256 of the RFC 7636 appendix B verifier, without padding" do
+      verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
+
+      assert Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false) ==
+               "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      challenge = PetstoreClient.Auth.OAuth.OAuth2TokenManager.begin_pkce(manager)
+      drawn = PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(manager)
+
+      assert challenge == Base.url_encode64(:crypto.hash(:sha256, drawn), padding: false)
+    end
+
+    test "bhv auth 014 the authorization URL encodes spaces between scopes as %20 and never as a plus sign" do
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          create_authenticator(),
+          "s"
+        )
+
+      assert url =~ "scope=read%20write"
+      refute url =~ "+"
+    end
   end
 end
