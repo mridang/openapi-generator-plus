@@ -40,6 +40,16 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         }
     }
 
+    @Test
+    @DisplayName("bhvMisc077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call")
+    fun bhvMisc077GeneratedPkceVerifierIs43UnreservedCharactersAndDiffersPerCall() {
+        val first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier()
+        val second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier()
+
+        assertTrue(Regex("[A-Za-z0-9_-]{43}").matches(first))
+        assertNotEquals(first, second)
+    }
+
     private fun createAuthenticator(): OAuth2AuthorizationCodeAuthenticator {
         return OAuth2AuthorizationCodeAuthenticator(
             host = "https://api.example.com",

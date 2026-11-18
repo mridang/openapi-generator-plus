@@ -2470,6 +2470,76 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv misc 255 separate query parameters encode a space as %20" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"q" => "a b"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+    assert String.ends_with?(url, "/test/echo?q=a%20b"), "Expected the space as %20, got: #{url}"
+  end
+
+  test "bhv misc 254 an unmarked query value percent-encodes reserved characters such as slash and colon" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"path" => "a/b:c"},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.ends_with?(url, "/test/echo?path=a%2Fb%3Ac"),
+           "Expected slash and colon encoded, got: #{url}"
+  end
+
+  test "bhv misc 253 an allowReserved query value still percent-encodes hash and bracket characters" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"tag" => {:allow_reserved, "a#b[c]"}},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.contains?(url, "tag=a%23b%5Bc%5D"),
+           "Expected hash and brackets percent-encoded, got: #{url}"
+  end
+
   test "bhv serialization 006 query parameter names and values percent-encode reserved and space characters so a value cannot add a parameter" do
     {:ok, name} = UrlCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
