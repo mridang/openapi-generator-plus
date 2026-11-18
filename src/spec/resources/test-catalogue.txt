@@ -1958,3 +1958,5 @@ langswift013 | A failing token provider fails the request with its own error rat
 langswift014 | A bearer authenticator built from a token provider does not show the token in its description
 langswift015 | A debugger dump of a basic authenticator does not reveal the password
 langswift016 | Basic credentials that cannot be encoded are rejected when the authenticator is constructed
+langswift017 | The configuration builder sets the call hook and passing nil clears it
+langswift018 | The string forms of a configuration do not reveal the call hook
