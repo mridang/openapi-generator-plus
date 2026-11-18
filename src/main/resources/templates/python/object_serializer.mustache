@@ -375,7 +375,14 @@ class ObjectSerializer:
                     except TypeError:
                         sanitized = items
                 elif isinstance(obj, dict):
-                    sanitized = {key: cls._sanitize_for_serialization(val, _visited) for key, val in obj.items()}
+                    # A map is written in ascending key order, so equal data always
+                    # produces identical bytes. Keys that cannot be ordered keep
+                    # their insertion order.
+                    try:
+                        entries = sorted(obj.items(), key=lambda entry: entry[0])
+                    except TypeError:
+                        entries = list(obj.items())
+                    sanitized = {key: cls._sanitize_for_serialization(val, _visited) for key, val in entries}
                 else:
                     sanitized = str(obj)
             finally:

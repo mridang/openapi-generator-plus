@@ -1037,6 +1037,80 @@ class TestFixtureModelsOnTheWire:
             ObjectSerializer().deserialize('{"phase":"in-stock"}', "EdgeCases")
 
 
+class TestWireNamesMapsAndFreeForm:
+    """Digit-leading wire names, map key order, undeclared keys on nested
+    values and free-form values keep their wire form."""
+
+    def test_bhv_serialization_050_a_property_named_with_a_leading_digit_uses_its_exact_wire_name(
+        self,
+    ) -> None:
+        import json
+        from petstore_client.models.edge_cases import EdgeCases
+
+        decoded = ObjectSerializer().deserialize('{"2fa":true}', "EdgeCases")
+        assert isinstance(decoded, EdgeCases)
+        assert decoded.n2fa is True
+        assert json.loads(ObjectSerializer().serialize(EdgeCases(n2fa=True))) == {
+            "2fa": True
+        }
+
+    def test_bhv_serialization_051_a_strict_model_exposes_no_public_strict_decoder(
+        self,
+    ) -> None:
+        from petstore_client.models.strict_tag import StrictTag
+
+        public = [
+            name
+            for name in dir(StrictTag) + dir(ObjectSerializer)
+            if not name.startswith("_")
+        ]
+        assert [name for name in public if "strict" in name.lower()] == []
+
+    def test_bhv_serialization_052_undeclared_keys_are_kept_on_each_element_of_a_list(
+        self,
+    ) -> None:
+        items = ObjectSerializer().deserialize(
+            '[{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}]', "List[Metadata]"
+        )
+        assert items[0].additional_properties == {"region": "eu"}
+
+    def test_undeclared_keys_are_kept_on_each_value_of_a_map(self) -> None:
+        values = ObjectSerializer().deserialize(
+            '{"a":{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}}',
+            "Dict[str, Metadata]",
+        )
+        assert values["a"].additional_properties == {"region": "eu"}
+
+    def test_bhv_serialization_053_undeclared_keys_of_a_nested_model_are_written_as_its_keys(
+        self,
+    ) -> None:
+        import json
+
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', "Metadata"
+        )
+        wire = json.loads(ObjectSerializer().serialize({"current": metadata}))
+        assert wire["current"]["region"] == "eu"
+        assert "createdAt" in wire["current"]
+
+    def test_bhv_serialization_054_a_free_form_string_stays_a_string(self) -> None:
+        decoded = ObjectSerializer().deserialize('{"freeFormAny":"7"}', "EdgeCases")
+        assert isinstance(decoded.free_form_any, str)
+        assert decoded.free_form_any == "7"
+
+    def test_a_free_form_null_stays_null(self) -> None:
+        decoded = ObjectSerializer().deserialize('{"freeFormAny":null}', "EdgeCases")
+        assert decoded.free_form_any is None
+
+    def test_bhv_serialization_012_map_keys_are_written_in_ascending_order(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer().serialize({"b": 1, "a": 2, "c": 3})
+            == '{"a":2,"b":1,"c":3}'
+        )
+
+
 class TestRequiredNullableOnTheWire:
     """S5: a property that is required and nullable must be present on decode,
     keeps an explicit null, and is written as null when unset."""
@@ -1540,6 +1614,22 @@ class TestTimeFormat:
         result = ObjectSerializer().serialize({"opens_at": t})
         assert "09:00:00" in result
 
+    def test_bhv_serialization_041_a_time_string_parses_into_a_time_with_those_fields(
+        self,
+    ) -> None:
+        parsed = ObjectSerializer()._deserialize("07:08:09", "datetime.time")
+        assert (parsed.hour, parsed.minute, parsed.second) == (7, 8, 9)
+
+    def test_bhv_serialization_043_a_time_of_day_is_written_as_a_partial_time_never_a_date_time(
+        self,
+    ) -> None:
+        value = datetime.time(9, 5, 3)
+        assert ObjectSerializer.stringify(value) == "09:05:03"
+        assert (
+            ObjectSerializer().serialize({"opens_at": value})
+            == '{"opens_at":"09:05:03"}'
+        )
+
     def test_bhv_serializationobject_064_deserialize_time_from_iso8601(self) -> None:
         result = ObjectSerializer()._deserialize("13:45:30", "datetime.time")
         assert result == datetime.time(13, 45, 30)
@@ -1615,6 +1705,48 @@ class TestDurationFormat:
         serialized = ObjectSerializer.stringify(original)
         parsed = ObjectSerializer()._deserialize(serialized, "datetime.timedelta")
         assert parsed == original
+
+    def test_bhv_serialization_046_fractional_seconds_use_the_shortest_three_six_or_nine_digit_group(
+        self,
+    ) -> None:
+        assert ObjectSerializer.stringify(datetime.timedelta(seconds=0.5)) == "0.500s"
+        assert (
+            ObjectSerializer.stringify(datetime.timedelta(milliseconds=1)) == "0.001s"
+        )
+        assert (
+            ObjectSerializer.stringify(datetime.timedelta(microseconds=123456))
+            == "0.123456s"
+        )
+        assert (
+            ObjectSerializer.stringify(datetime.timedelta(microseconds=1))
+            == "0.000001s"
+        )
+
+    def test_bhv_serialization_047_a_duration_at_the_64_bit_bound_round_trips_without_overflow(
+        self,
+    ) -> None:
+        bound = datetime.timedelta(seconds=315576000000)
+        assert ObjectSerializer.stringify(bound) == "315576000000s"
+        assert (
+            ObjectSerializer()._deserialize("315576000000s", "datetime.timedelta")
+            == bound
+        )
+
+    def test_bhv_serialization_048_a_duration_outside_a_model_is_its_protobuf_seconds_string(
+        self,
+    ) -> None:
+        value = datetime.timedelta(seconds=90)
+        assert ObjectSerializer.to_header_value(value) == "90s"
+        assert ObjectSerializer().serialize(value) == '"90s"'
+
+    @pytest.mark.parametrize(
+        "text,klass", [('"25:00:00"', datetime.time), ('"3600"', datetime.timedelta)]
+    )
+    def test_bhv_serialization_045_a_malformed_time_or_duration_raises_a_serialization_error(
+        self, text: str, klass: Any
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(text, klass)
 
     def test_bhv_serializationobject_184_iso8601_duration_is_rejected(self) -> None:
         # ISO-8601 durations are not valid protobuf-JSON and a protobuf-JSON
@@ -1830,7 +1962,9 @@ class TestEnumStringFormIsTheWireValue:
         assert str(Availability("on-hold")) == "on-hold"
         assert f"{Availability('Sold')}" == "Sold"
 
-    def test_an_integer_member_renders_as_its_number(self) -> None:
+    def test_bhv_serialization_001_an_integer_member_renders_as_its_declared_wire_value(
+        self,
+    ) -> None:
         from petstore_client.models.priority import Priority
 
         assert str(Priority(3)) == "3"
@@ -2053,9 +2187,11 @@ class TestDateTimeModelFieldRejectsNonStrings:
     read it as an epoch, a different instant than other SDKs, which reject it."""
 
     @pytest.mark.parametrize(
-        "value", ["1700000000", "1700000000000", "1.5", "true", "false"]
+        "value", ["1700000000", "1700000000000", "1.5", "true", "false", "[1700000000]"]
     )
-    def test_non_string_wire_value_is_rejected(self, value: str) -> None:
+    def test_bhv_serialization_030_a_non_string_date_time_wire_value_is_rejected(
+        self, value: str
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"shipDate":%s}' % value, "Order")
 

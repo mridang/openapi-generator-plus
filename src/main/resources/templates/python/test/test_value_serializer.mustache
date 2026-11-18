@@ -515,6 +515,12 @@ class TestObjectValuedParameters:
         result = ValueSerializer.serialize_styled('c', self._FIELDS, 'query', 'Obj', None, 'form', False)
         assert result == 'breed,lab,min_age,3'
 
+    def test_bhv_serialization_016_an_object_in_a_delimited_style_is_alternating_keys_and_values(self) -> None:
+        space = ValueSerializer.serialize_styled('c', self._FIELDS, 'query', 'Obj', None, 'spaceDelimited', False)
+        pipe = ValueSerializer.serialize_styled('c', self._FIELDS, 'query', 'Obj', None, 'pipeDelimited', False)
+        assert space == 'breed lab min_age 3'
+        assert pipe == 'breed|lab|min_age|3'
+
     def test_bhv_serializationparam_082_simple_header_unexploded_is_a_comma_list(self) -> None:
         result = ValueSerializer.serialize_styled('c', self._FIELDS, 'header', 'Obj', None, 'simple', False)
         assert result == 'breed,lab,min_age,3'
