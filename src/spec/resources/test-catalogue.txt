@@ -2488,3 +2488,10 @@ langnode164 | A value is refused
 langnode165 | A date leaf refuses a wrong-kind value
 langnode166 | An availability enum value round-trips through its member
 langnode167 | An enum wire value decodes to a member and re-encodes
+langnode168 | A null value returns undefined
+langnode169 | A malformed UUID is rejected
+langnode170 | stringifyDates refuses an element that is not a date
+langnode171 | A simple-style path value of the wrong kind is rejected
+langnode172 | An uppercase UUID is written in lowercase in the path
+langnode173 | Each style with each explode setting serializes as defined
+langnode174 | A value that is not a YYYY-MM-DD date is refused
