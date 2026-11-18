@@ -431,6 +431,11 @@ class DefaultApiClientUnitTest {
     /** When set, answers every send with this response instead of reaching the network. */
     @javax.annotation.Nullable private java.net.http.HttpResponse<byte[]> scripted;
 
+    /** When set, answers each send with this function of the request instead of the network. */
+    @javax.annotation.Nullable
+    private java.util.function.Function<java.net.http.HttpRequest, java.net.http.HttpResponse<byte[]>>
+        responder;
+
     @Override
     public java.util.Optional<java.net.CookieHandler> cookieHandler() {
       return delegate.cookieHandler();
@@ -483,17 +488,24 @@ class DefaultApiClientUnitTest {
         java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler)
         throws IOException, InterruptedException {
       requests.add(request);
+      if (responder != null) {
+        return (java.net.http.HttpResponse<T>) responder.apply(request);
+      }
       if (scripted != null) {
         return (java.net.http.HttpResponse<T>) scripted;
       }
       return delegate.send(request, responseBodyHandler);
     }
 
-    /** A redirect answer for {@code request}, pointing at {@code location}. */
+    /** An answer for {@code request} with {@code status}, a Location when {@code location} is set. */
     static java.net.http.HttpResponse<byte[]> redirect(
-        int status, String location, java.net.http.HttpRequest request) {
+        int status,
+        @javax.annotation.Nullable String location,
+        java.net.http.HttpRequest request) {
       java.net.http.HttpHeaders headers =
-          java.net.http.HttpHeaders.of(Map.of("location", List.of(location)), (name, value) -> true);
+          java.net.http.HttpHeaders.of(
+              location == null ? Map.of() : Map.of("location", List.of(location)),
+              (name, value) -> true);
       return new java.net.http.HttpResponse<byte[]>() {
         @Override
         public int statusCode() {
@@ -543,6 +555,10 @@ class DefaultApiClientUnitTest {
         java.net.http.HttpRequest request,
         java.net.http.HttpResponse.BodyHandler<T> responseBodyHandler) {
       requests.add(request);
+      if (responder != null) {
+        return java.util.concurrent.CompletableFuture.completedFuture(
+            (java.net.http.HttpResponse<T>) responder.apply(request));
+      }
       if (scripted != null) {
         return java.util.concurrent.CompletableFuture.completedFuture(
             (java.net.http.HttpResponse<T>) scripted);
@@ -607,7 +623,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirect303RewritesEveryMethodToGet() {
+  void bhvRedirects036Redirect303RewritesEveryMethodToGet() {
     for (String method : new String[] {"POST", "PUT", "PATCH", "DELETE"}) {
       assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect(method, 303));
     }
@@ -618,6 +634,93 @@ class DefaultApiClientUnitTest {
     for (int status : new int[] {307, 308}) {
       assertEquals(echoed("PUT", "payload"), methodAndBodyAfterRedirect("PUT", status));
     }
+  }
+
+  /** A transport that answers {@code /start} with a redirect and every other path with a bare 200. */
+  private static RecordingHttpClient redirectingOnceTo(int status, String location) {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder =
+        request ->
+            request.uri().getPath().equals("/start")
+                ? RecordingHttpClient.redirect(status, location, request)
+                : RecordingHttpClient.redirect(200, null, request);
+    return transport;
+  }
+
+  /** The Authorization header the second hop carries when {@code start} redirects to {@code location}. */
+  private static java.util.Optional<String> authorizationOnSecondHop(
+      String start, int status, String location) {
+    RecordingHttpClient transport = redirectingOnceTo(status, location);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("GET", start, Map.of("Authorization", "Bearer secret"), null);
+    assertEquals(2, transport.requests.size());
+    return transport.requests.get(1).headers().firstValue("Authorization");
+  }
+
+  @Test
+  void bhvRedirects029RedirectRewritesTheMethodOnlyAsRfc9110Allows() {
+    assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("POST", 301));
+    assertEquals(echoed("PUT", "payload"), methodAndBodyAfterRedirect("PUT", 301));
+    assertEquals(echoed("PATCH", "payload"), methodAndBodyAfterRedirect("PATCH", 301));
+    assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("POST", 302));
+    assertEquals(echoed("DELETE", "payload"), methodAndBodyAfterRedirect("DELETE", 302));
+    assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("POST", 303));
+    assertEquals(echoed("GET", ""), methodAndBodyAfterRedirect("DELETE", 303));
+    assertEquals(echoed("POST", "payload"), methodAndBodyAfterRedirect("POST", 307));
+    assertEquals(echoed("PATCH", "payload"), methodAndBodyAfterRedirect("PATCH", 308));
+    assertEquals(echoed("DELETE", "payload"), methodAndBodyAfterRedirect("DELETE", 308));
+    RecordingHttpClient transport = redirectingOnceTo(303, "https://api.example.invalid/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("HEAD", "https://api.example.invalid/start", Map.of(), null);
+    assertEquals("HEAD", transport.requests.get(1).method());
+  }
+
+  @Test
+  void bhvRedirects030ExplicitDefaultPortIsTheSameOriginAsTheImplicitOne() {
+    assertEquals(
+        java.util.Optional.of("Bearer secret"),
+        authorizationOnSecondHop(
+            "https://api.example.invalid/start", 307, "https://api.example.invalid:443/landed"));
+    assertEquals(
+        java.util.Optional.of("Bearer secret"),
+        authorizationOnSecondHop(
+            "http://api.example.invalid/start", 307, "http://api.example.invalid:80/landed"));
+  }
+
+  @Test
+  void bhvRedirects033RedirectToADifferentPortIsADifferentOriginAndDropsTheCredentials() {
+    assertEquals(
+        java.util.Optional.empty(),
+        authorizationOnSecondHop(
+            "https://api.example.invalid/start", 307, "https://api.example.invalid:8443/landed"));
+    assertEquals(
+        java.util.Optional.empty(),
+        authorizationOnSecondHop(
+            "https://api.example.invalid/start", 307, "https://api.example.invalid:80/landed"));
+    assertEquals(
+        java.util.Optional.empty(),
+        authorizationOnSecondHop(
+            "http://api.example.invalid/start", 307, "http://api.example.invalid:443/landed"));
+  }
+
+  @Test
+  void bhvRedirects034OriginComparisonSeparatesADifferentSchemeHostOrPort() {
+    assertEquals(
+        java.util.Optional.empty(),
+        authorizationOnSecondHop(
+            "https://api.example.invalid/start", 307, "http://api.example.invalid/landed"));
+    assertEquals(
+        java.util.Optional.empty(),
+        authorizationOnSecondHop(
+            "https://api.example.invalid/start", 307, "https://other.example.invalid/landed"));
+    assertEquals(
+        java.util.Optional.empty(),
+        authorizationOnSecondHop(
+            "https://api.example.invalid/start", 307, "https://api.example.invalid:8443/landed"));
   }
 
   @Test
@@ -1854,7 +1957,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void redirectWithoutLocationIsReturnedWhenTheBudgetIsZero() throws Exception {
+  void bhvRedirects031RedirectWithoutLocationIsReturnedWhenTheBudgetIsZero() throws Exception {
     // D70: "too many redirects" needs a Location to follow; a bare 3xx is returned.
     TransportOptions transport =
         TransportOptions.builder().followRedirects(true).maxRedirects(0).build();
@@ -2485,7 +2588,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void retriesAServerErrorByDefaultUntilItSucceeds() throws Exception {
+  void bhvRetries038RetriesAServerErrorByDefaultUntilItSucceeds() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted =
         scriptedServer(n -> n <= 2 ? new Reply(503, "0") : new Reply(200, ""), hits);
@@ -2617,6 +2720,27 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRetries030JitterTakesAtMostAQuarterOffTheDelay() {
+    assertEquals(500L, DefaultApiClient.backoffMillis(0, 0.0));
+    assertEquals(375L, DefaultApiClient.backoffMillis(0, 1.0));
+    assertEquals(8000L, DefaultApiClient.backoffMillis(9, 0.0));
+    assertEquals(6000L, DefaultApiClient.backoffMillis(9, 1.0));
+    long halfJitter = DefaultApiClient.backoffMillis(0, 0.5);
+    assertTrue(
+        halfJitter >= 375L && halfJitter <= 500L, "jitter stays within a quarter: " + halfJitter);
+  }
+
+  @Test
+  void bhvRetries041BackoffStartsAtHalfASecondAndDoublesToEightWithUpToAQuarterOffJitter() {
+    long[] bases = {500L, 1000L, 2000L, 4000L, 8000L, 8000L};
+    for (int retry = 0; retry < bases.length; retry++) {
+      assertEquals(bases[retry], DefaultApiClient.backoffMillis(retry, 0.0), "retry " + retry);
+      assertEquals(
+          bases[retry] * 3 / 4, DefaultApiClient.backoffMillis(retry, 1.0), "retry " + retry);
+    }
+  }
+
+  @Test
   void bhvRetries027BackoffDoublesFromHalfASecondToEightSecondsWithQuarterJitter() {
     assertEquals(500L, DefaultApiClient.backoffMillis(0, 0.0));
     assertEquals(1000L, DefaultApiClient.backoffMillis(1, 0.0));
@@ -2668,6 +2792,46 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
+  void bhvRetries033TheLastNetworkErrorIsReportedOnceTheRetriesAreSpent() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/resource";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(1).build());
+      {{invokerPackage}}.errors.NetworkException ex =
+          assertThrowsExactly(
+              {{invokerPackage}}.errors.NetworkException.class,
+              () -> client.sendRequest("POST", url, Map.of(), "payload"));
+      assertEquals(2, accepted.get(), "one retry, then the last network error is reported");
+      assertInstanceOf(java.io.IOException.class, ex.getCause());
+    }
+  }
+
+  @Test
+  void bhvRetries034AStringBodyIsSentAgainUnchangedOnEveryRetry() throws Exception {
+    List<String> bodies = new java.util.concurrent.CopyOnWriteArrayList<>();
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = HttpServer.create(new InetSocketAddress(0), 0);
+    scripted.createContext(
+        "/resource",
+        exchange -> {
+          bodies.add(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+          exchange.sendResponseHeaders(hits.incrementAndGet() == 1 ? 503 : 200, -1);
+          exchange.close();
+        });
+    scripted.start();
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest("POST", urlOf(scripted), Map.of(), "{\"a\":1}");
+      assertEquals(200, response.statusCode());
+      assertEquals(List.of("{\"a\":1}", "{\"a\":1}"), bodies);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
   void bhvRetries013NetworkErrorBeforeAnyResponseIsRetriedEvenForPost() throws Exception {
     try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
       java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
@@ -2682,7 +2846,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void streamBodyIsNeverRetried() throws Exception {
+  void bhvRetries032StreamBodyIsNeverRetried() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {
@@ -2716,7 +2880,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void eachRetryIsAFreshRequestCarryingTheSameAuthenticationHeaders() throws Exception {
+  void bhvRetries039EachRetryIsAFreshRequestCarryingTheSameAuthenticationHeaders() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted =
         scriptedServer(n -> n == 1 ? new Reply(500, "0") : new Reply(200, ""), hits);

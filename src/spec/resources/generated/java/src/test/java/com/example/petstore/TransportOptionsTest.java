@@ -527,6 +527,14 @@ class TransportOptionsTest {
   }
 
   @Test
+  @DisplayName("bhvOptions052 a proxy URL carrying credentials is accepted")
+  void bhvOptions052ProxyUrlCarryingCredentialsIsAccepted() {
+    TransportOptions opts =
+        TransportOptions.builder().proxy("http://user:pass@proxy.example.com:8080").build();
+    assertEquals("http://user:pass@proxy.example.com:8080", opts.getProxy());
+  }
+
+  @Test
   @DisplayName("bhvOptions034 setting proxy is supported on all platforms")
   void bhvOptions034SettingProxyIsSupportedOnAllPlatforms() {
     // Proxy configuration must not throw on any JVM platform.

@@ -94,8 +94,8 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("long returns string representation")
-    void longReturnsStringRepresentation() {
+    @DisplayName("bhvSerializationObject190 long returns string representation")
+    void bhvSerializationObject190LongReturnsStringRepresentation() {
       assertEquals("9007199254740993", ObjectSerializer.stringify(9007199254740993L));
     }
 
@@ -927,6 +927,30 @@ class ObjectSerializerTest {
                   "{\"status\":\"banana\"}",
                   new com.fasterxml.jackson.core.type.TypeReference<
                       com.example.petstore.models.Order>() {}.getType()));
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject191 an int64 above 2^53 keeps every digit when decoded")
+    void bhvSerializationObject191Int64AboveTwoToThe53KeepsEveryDigit() {
+      com.example.petstore.models.Order order =
+          serializer.deserialize(
+              "{\"id\":9007199254740993}", com.example.petstore.models.Order.class);
+      assertNotNull(order);
+      assertEquals(9007199254740993L, order.id);
+      assertTrue(serializer.serialize(order).contains("\"id\":9007199254740993"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerializationObject192 an unknown enum string fails at decode and names the value")
+    void bhvSerializationObject192UnknownEnumStringFailsAtDecode() {
+      SerializationException ex =
+          assertThrowsExactly(
+              SerializationException.class,
+              () ->
+                  serializer.deserialize(
+                      "{\"status\":\"teleported\"}", com.example.petstore.models.Order.class));
+      assertTrue(ex.toString().contains("teleported"), ex.toString());
     }
 
     @Test
