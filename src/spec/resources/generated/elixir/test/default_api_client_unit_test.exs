@@ -1988,7 +1988,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       assert PetstoreClient.ObjectSerializer.stringify(t) == "12:30:45"
     end
 
-    test "convert_to_type parses ISO-8601 to Time.t() under typespec key" do
+    test "bhv serialization 041 convert_to_type parses ISO-8601 to Time.t() under typespec key" do
       result = PetstoreClient.ObjectSerializer.convert_to_type("12:30:45", "Time.t()")
       assert %Time{} = result
       assert result.hour == 12 and result.minute == 30 and result.second == 45

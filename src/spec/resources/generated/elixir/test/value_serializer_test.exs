@@ -825,6 +825,29 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
+  describe "object-valued parameters refuse nested values" do
+    test "bhv serialization 018 a nested object or array inside an object-valued parameter is refused" do
+      for nested <- [%{"c" => 1}, [1, 2]] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ValueSerializer.object_pairs(%{"a" => nested})
+        end
+      end
+    end
+  end
+
+  describe "format:date parameter given a date-time" do
+    test "bhv serialization 044 a date-time given for a date parameter is written as its calendar date only" do
+      assert PetstoreClient.ValueSerializer.serialize(
+               ~U[2024-01-02 23:30:00Z],
+               :query,
+               "Date.t()"
+             ) == "2024-01-02"
+
+      assert PetstoreClient.ValueSerializer.serialize(~N[2024-01-02 10:30:00], :query, "Date.t()") ==
+               "2024-01-02"
+    end
+  end
+
   describe "serialize_deep_object/2" do
     test "bhv serializationparam 111 a deepObject parameter writes each property as name[key]" do
       result =
