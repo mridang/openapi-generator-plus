@@ -357,4 +357,23 @@ class ServerConfigurationTest {
 
     assertEquals("https://prod.example.com/v2", config.getUrl());
   }
+
+  @Test
+  @DisplayName(
+      "bhvMisc297 every variable in a multi-variable URL is replaced when the URL is built")
+  void bhvMisc297EveryVariableInAMultiVariableUrlIsReplacedWhenTheUrlIsBuilt() {
+    ServerConfiguration config =
+        new ServerConfiguration(
+            "https://{env}.{region}.example.com/v{version}",
+            null,
+            Map.of(
+                "env",
+                new ServerVariable("prod", null, List.of("prod")),
+                "region",
+                new ServerVariable("eu", null, List.of("eu", "us")),
+                "version",
+                new ServerVariable("3", null, List.of("3"))));
+
+    assertEquals("https://prod.us.example.com/v3", config.getUrl(Map.of("region", "us")));
+  }
 }

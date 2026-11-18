@@ -899,6 +899,18 @@ class DefaultApiClientUnitTest {
             }
             assertEquals(listOf<String?>(null, "api-only"), seen)
         }
+
+        @Test
+        @DisplayName("bhvMisc299 a caller header overrides the transport default header of the same name")
+        fun bhvMisc299CallerHeaderOverridesTransportDefault() {
+            var sent: String? = null
+            val client = mockClient(requestCapture = { req -> sent = req.headers["X-Trace"] })
+            val transport = TransportOptions.builder().defaultHeader("X-Trace", "transport").build()
+            runBlocking {
+                DefaultApiClient(client, transport).sendRequest("GET", "http://localhost/t", mapOf("X-Trace" to "caller"), null)
+            }
+            assertEquals("caller", sent)
+        }
     }
 
     @Nested
@@ -1449,6 +1461,33 @@ class DefaultApiClientUnitTest {
             assertNull(hopHeaders?.get("Api-Key"))
             assertNull(hopHeaders?.get("X-Tenant-Secret"))
             assertEquals("keep", hopHeaders?.get("X-Trace"))
+        }
+
+        @Test
+        @DisplayName(
+            "bhvMisc128 a cross-origin redirect never removes the proxy credential that the shared transport applies to every request",
+        )
+        fun bhvMisc128ACrossOriginRedirectKeepsTheProxyCredential() {
+            val hops = mutableListOf<io.ktor.http.Headers>()
+            val engine =
+                MockEngine { req ->
+                    hops.add(req.headers)
+                    if (hops.size == 1) {
+                        respond(content = "", status = HttpStatusCode.Found, headers = headersOf("Location", "https://other.test/hop"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+            val transport =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .proxy("http://user:pass@proxy.test:3128")
+                    .build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking { apiClient.sendRequest("GET", "https://api.test/start", emptyMap(), null) }
+            assertEquals(2, hops.size)
+            assertEquals("Basic dXNlcjpwYXNz", hops[1]["Proxy-Authorization"])
         }
 
         @Test
@@ -3545,6 +3584,27 @@ class DefaultApiClientUnitTest {
 
             assertEquals(listOf("{\"a\":1}", "{\"a\":1}"), seenBodies)
         }
+
+        @Test
+        @DisplayName("bhvMisc296 the default retry policy sends a failed request three times in total")
+        fun bhvMisc296DefaultRetriesSendThreeRequests() {
+            val apiClient = retrying(listOf(503, 503, 503))
+
+            assertThrows(ApiException::class.java) { get(apiClient) }
+
+            assertEquals(3, requestCount)
+        }
+
+        @Test
+        @DisplayName("bhvRetries047 a retry wait that would overrun the timeout budget is not taken")
+        fun bhvRetries047OverrunningWaitIsNotTaken() {
+            val apiClient = retrying(listOf(503, 200), retryAfter = "30", timeout = 1000L)
+
+            assertThrows(ApiException::class.java) { get(apiClient) }
+
+            assertEquals(1, requestCount)
+            assertTrue(sleeps.isEmpty(), "no wait may be taken: $sleeps")
+        }
     }
 
     @Nested
@@ -3778,6 +3838,20 @@ class DefaultApiClientUnitTest {
                     respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
                 }
             }
+
+        @Test
+        @DisplayName("bhvMisc131 a session the caller supplies still has the SDK's redirect rules applied to requests made through it")
+        fun bhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val apiClient =
+                DefaultApiClient(
+                    HttpClient(redirectThenOk(HttpStatusCode.Found, seen)),
+                    TransportOptions.builder().followRedirects(true).build(),
+                )
+            val response = runBlocking { apiClient.sendRequest("GET", "http://localhost/a", emptyMap(), null) }
+            assertEquals(2, seen.size)
+            assertEquals(200, response.statusCode)
+        }
 
         @Test
         @DisplayName("bhvRedirects038 a 307 redirect that keeps the method resends the original body and its content type")
@@ -4232,7 +4306,15 @@ class DefaultApiClientUnitTest {
                         attempts++
                         throw java.io.IOException("connection reset")
                     }
-                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                val apiClient =
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    )
                 assertThrows(com.example.petstore.errors.NetworkException::class.java) {
                     runBlocking {
                         apiClient.sendRequest(method, "http://localhost/write", emptyMap(), "{}")
@@ -4248,8 +4330,14 @@ class DefaultApiClientUnitTest {
                 }
             assertThrows(com.example.petstore.errors.NetworkException::class.java) {
                 runBlocking {
-                    DefaultApiClient(HttpClient(queryEngine) { followRedirects = false })
-                        .sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
+                    DefaultApiClient(
+                        HttpClient(queryEngine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
                 }
             }
             assertTrue(queryAttempts > 1, "QUERY attempts: $queryAttempts")
@@ -4268,8 +4356,14 @@ class DefaultApiClientUnitTest {
             var response: ApiHttpResponse? = null
             runBlocking {
                 response =
-                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
-                        .sendRequest("GET", "http://localhost/read", emptyMap(), null)
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("GET", "http://localhost/read", emptyMap(), null)
             }
             assertEquals(2, attempts)
             assertEquals(200, response!!.statusCode)
@@ -4369,8 +4463,14 @@ class DefaultApiClientUnitTest {
                 }
             assertThrows(com.example.petstore.errors.NetworkException::class.java) {
                 runBlocking {
-                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
-                        .sendRequest("GET", "https://localhost/secure", emptyMap(), null)
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("GET", "https://localhost/secure", emptyMap(), null)
                 }
             }
             assertEquals(1, attempts)
@@ -4452,5 +4552,25 @@ class DefaultApiClientUnitTest {
                     }
                 }
             assertEquals("Unsupported Content-Encoding 'made-up-codec'", ex.cause?.message)
+        }
+
+    @Test
+    fun bhvMisc298ConstructingWithAMalformedProxyUrlFailsWithInvalidProxyUrl() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrowsExactly(IllegalArgumentException::class.java) {
+                    DefaultApiClient(TransportOptions.builder().proxy("http://[::1").build())
+                }
+            assertTrue(ex.message!!.startsWith("Invalid proxy URL"), ex.message)
+        }
+
+    @Test
+    fun bhvRetries045StreamedBodyIsSentOnceAfterAnUnauthorizedResponse() =
+        runBlocking<Unit> {
+            var sent = 0
+            val client = mockClient(statusCode = HttpStatusCode.Unauthorized, requestCapture = { sent++ })
+            val response = DefaultApiClient(client).sendRequest("POST", "http://localhost/upload", emptyMap(), "payload")
+            assertEquals(401, response.statusCode)
+            assertEquals(1, sent)
         }
 }

@@ -4,6 +4,13 @@ package {{invokerPackage}}.auth.oauth
 
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.ApiHttpResponse
+import {{invokerPackage}}.DefaultApiClient
+import {{invokerPackage}}.TransportOptions
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.OAuth2ServerException
 import {{invokerPackage}}.errors.OAuth2TokenException
@@ -70,6 +77,24 @@ class OAuth2TokenManagerTest {
                 cancelled = true
             }
         }
+    }
+
+    @Test
+    @DisplayName("bhvMisc172 a token request is sent once and not retried when the server answers 503")
+    fun bhvMisc172TokenRequestIsNotRetriedOn503() {
+        var attempts = 0
+        val engine = MockEngine { _ ->
+            attempts++
+            respond("{\"error\":\"temporarily_unavailable\"}", HttpStatusCode.ServiceUnavailable, headersOf("Content-Type", "application/json"))
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(2).build())
+        assertThrows(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals(1, attempts)
     }
 
     @Test
@@ -1267,6 +1292,21 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvMisc172 a token request is sent once and is not retried, even when the server answers 503")
+    fun bhvMisc172ATokenRequestIsSentOnceEvenWhenTheServerAnswers503() {
+        val client = FakeApiClient()
+        client.enqueue("""{"error":"temporarily_unavailable"}""", statusCode = 503)
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        assertThrowsExactly(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals(1, client.bodies.size)
+    }
+
+    @Test
     @DisplayName("bhvAuth055 a network failure during a token request reaches the caller unchanged")
     fun bhvAuth055NetworkFailureReachesTheCallerUnchanged() {
         val manager = OAuth2TokenManager()
@@ -1344,5 +1384,14 @@ class OAuth2TokenManagerTest {
             assertEquals("second", runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }, raw)
             assertEquals(2, client.bodies.size, raw)
         }
+    }
+
+
+    @Test
+    fun bhvMisc286ServerErrorMessageNamesHttpStatusAndOauthCode() = runBlocking<Unit> {
+        val ex = oauth2ErrorFor("""{"error":"invalid_client"}""")
+        assertEquals(400, ex.statusCode)
+        assertEquals("invalid_client", ex.code)
+        assertTrue(ex.message!!.contains("400") && ex.message!!.contains("invalid_client"), ex.message)
     }
 }

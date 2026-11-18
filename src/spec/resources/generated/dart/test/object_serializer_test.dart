@@ -4624,6 +4624,22 @@ void main() {
         expect(restored.additionalProperties['nested'], equals({'a': 1}));
       },
     );
+
+    test(
+      'bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix',
+      () {
+        expect(
+          () => serialize(Object()),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              startsWith('Failed to serialize object to JSON'),
+            ),
+          ),
+        );
+      },
+    );
     test(
       'bhv serialization 067 extra properties are written as top-level keys beside the declared fields',
       () {

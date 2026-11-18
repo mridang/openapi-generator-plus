@@ -72,4 +72,17 @@ class ApiResultTest {
 
     assertThrows(UnsupportedOperationException.class, () -> result.headers().put("x-evil", "1"));
   }
+
+  @Test
+  @DisplayName("bhvResults007 a result returns the payload, the raw body and the headers together")
+  void bhvResults007AResultReturnsThePayloadTheRawBodyAndTheHeadersTogether() {
+    ApiResult<String> result =
+        new ApiResult<>(
+            200, "payload", "{\"a\":1}", java.util.Map.of("content-type", "application/json"));
+
+    assertEquals(200, result.statusCode());
+    assertEquals("payload", result.data());
+    assertEquals("{\"a\":1}", result.rawBody());
+    assertEquals("application/json", result.headers().get("content-type"));
+  }
 }
