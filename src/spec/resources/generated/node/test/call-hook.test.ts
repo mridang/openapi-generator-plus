@@ -50,7 +50,7 @@ describe("chain", () => {
     ]);
   });
 
-  test("every hook sees the same headers, so a later hook sees the edit of an earlier one", () => {
+  test("bhv langnode 034 every hook sees the same headers, so a later hook sees the edit of an earlier one", () => {
     const first: CallHook = {
       start: (_info, headers) => void (headers["X-Step"] = "one"),
     };
@@ -64,7 +64,7 @@ describe("chain", () => {
     expect(seen).toBe("one");
   });
 
-  test("a failing observer does not stop the others", () => {
+  test("bhv langnode 035 a failing observer does not stop the others", () => {
     const finished: string[] = [];
     const failing: CallHook = {
       start: () => ({
@@ -84,7 +84,7 @@ describe("chain", () => {
     expect(finished).toEqual(["recorded"]);
   });
 
-  test("an error thrown by start propagates unchanged", () => {
+  test("bhv langnode 036 an error thrown by start propagates unchanged", () => {
     const failure = new Error("refused");
     const refusing: CallHook = {
       start: () => {
