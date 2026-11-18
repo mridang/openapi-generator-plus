@@ -9,6 +9,7 @@ import { OAuth2TokenManager } from "../src/auth/oauth/oauth2-token-manager.js";
 import { OAuth2ServerError } from "../src/errors/oauth2-server-error.js";
 import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
 import { NetworkError } from "../src/errors/network-error.js";
+import { ApiError } from "../src/errors/api-error.js";
 import { OpenAPIError } from "../src/errors/open-api-error.js";
 import type { ApiClient, SendRequestOptions } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
@@ -71,6 +72,37 @@ describe("OAuth2TokenManager", () => {
     );
 
     expect(token).toBe("my-access-token");
+  });
+
+  test("bhvMisc172 a token request is sent once and not retried when the server answers 503", async () => {
+    mockClient.responseStatus = 503;
+    mockClient.responseBody = "{}";
+
+    await expect(
+      tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toThrow();
+
+    expect(mockClient.lastOptions?.maxRetries).toBe(0);
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test("bhvMisc185 stopping the token manager twice is a no-op and a later token request fails with a fixed ApiError", async () => {
+    tokenManager.stop();
+    tokenManager.stop();
+
+    const error = await tokenManager
+      .getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as Error).message).toBe(
+      "The token manager has been stopped.",
+    );
+    expect(mockClient.callCount).toBe(0);
   });
 
   test("bhv authoauthtwotokenmgr 028 stores refresh token", async () => {

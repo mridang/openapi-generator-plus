@@ -2492,3 +2492,26 @@ test('bhv misc 202 a text body without a declared content type goes out with the
     $api->call('POST', '/test/echo', [], [], 'hello', ['application/json'], '');
     expect($client->capturedHeaders['Content-Type'])->toBe('application/json');
 });
+test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, base64_encode("\x89PNG\r\n"), ['Content-Type' => 'image/png']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    $result = $testApi->call('GET', '/test/echo', [], [], null, ['image/png'], 'application/json', 'string');
+
+    expect($result)->toBe("\x89PNG\r\n");
+});

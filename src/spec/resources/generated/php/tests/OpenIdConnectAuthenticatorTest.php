@@ -966,3 +966,25 @@ test('bhv misc 201 a failed discovery request reports its path without the query
         expect($e->getRequestPath())->toBe('/.well-known/openid-configuration');
     }
 });
+test('bhv misc 076 a call after a dropped code exchange reuses the discovered configuration', function (): void {
+    $client = makeOpenIdConnectMockClientWithDiscovery();
+    $client->enqueueFailure(new \PetstoreClient\Errors\NetworkException('connection dropped', new \RuntimeException('dropped')));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 'tok', 'expires_in' => 3600]), ['Content-Type' => 'application/json']));
+    $authenticator = new OpenIdConnectAuthenticator(
+        'https://api.example.com',
+        'https://auth.example.com/.well-known/openid-configuration',
+        'my-client-id',
+        'my-client-secret',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    expect(fn () => $authenticator->exchangeCode('the-code'))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+    $authenticator->exchangeCode('the-code');
+
+    expect($client->capturedRequests)->toHaveCount(3);
+    expect($client->capturedRequests[2]['url'])->toBe('https://auth.example.com/token');
+    expect($authenticator->getAuthHeaders()['Authorization'] ?? null)->toBe('Bearer tok');
+});

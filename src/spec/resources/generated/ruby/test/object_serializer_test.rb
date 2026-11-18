@@ -2650,6 +2650,66 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
     _(again.additional_properties).must_equal('extra' => { 'k' => { 'n' => 1 } })
   end
 
+  it 'bhv_misc_234 a model in a list keeps its undeclared extras through serialize and deserialize' do
+    items = Petstore::Client::ObjectSerializer.deserialize('[{"createdAt":"2024-01-01T00:00:00Z","extra":"y"}]', 'Array<Metadata>')
+    again = Petstore::Client::ObjectSerializer.deserialize(Petstore::Client::ObjectSerializer.serialize(items), 'Array<Metadata>')
+
+    _(again.first.additional_properties).must_equal('extra' => 'y')
+  end
+
+  it 'bhv_misc_235 a duration with fractional seconds keeps its fraction when serialized' do
+    json = Petstore::Client::ObjectSerializer.serialize({ 'ttl' => ISO8601::Duration.new('PT1.5S') })
+
+    _(JSON.parse(json)['ttl']).must_equal('1.500s')
+  end
+
+  it 'bhv_misc_242 a read-only property is not sent on the wire' do
+    json = JSON.parse(Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Account.new(id: 7, username: 'u')))
+
+    _(json).wont_include 'id'
+  end
+
+  it 'bhv_misc_243 an absent optional array field decodes to nil, not to an empty list' do
+    values = Petstore::Client::ObjectSerializer.deserialize('{}', 'Petstore::Client::Models::NativeValues')
+
+    _(values.addresses).must_be_nil
+  end
+
+  it 'bhv_misc_244 a body with a leading byte-order mark decodes into the model' do
+    category = Petstore::Client::ObjectSerializer.deserialize('﻿{"id":1,"name":"Dogs"}', 'Category')
+
+    _(category).must_be_kind_of Petstore::Client::Models::Category
+    _(category.id).must_equal 1
+  end
+
+  it 'bhv_misc_245 a time of day in a plain object is serialized as a JSON string' do
+    json = JSON.parse(Petstore::Client::ObjectSerializer.serialize({ 'at' => Tod::TimeOfDay.new(10, 20, 30) }))
+
+    _(json).must_equal('at' => '10:20:30')
+  end
+
+  it 'bhv_misc_246 a negative whole-second protobuf duration string parses to a negative duration' do
+    edge = Petstore::Client::ObjectSerializer.deserialize('{"retryAfter":"-3s"}', 'EdgeCases')
+
+    _(edge.retry_after.to_seconds).must_equal(-3)
+  end
+
+  it 'bhv_misc_247 a UUID string with the wrong segment lengths raises SerializationError' do
+    _(proc {
+      Petstore::Client::ObjectSerializer.deserialize('{"identifier":"1234-5678-1234-5678-1234567890"}', 'TestFormatModel')
+    }).must_raise(Petstore::Client::Errors::SerializationError)
+  end
+
+  it 'bhv_misc_248 a duration with days is formatted as a seconds string' do
+    _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('P1D'))).must_equal('86400s')
+  end
+
+  it 'bhv_misc_249 a free-form object keeps its object and integer entries on a round trip' do
+    model = Petstore::Client::ObjectSerializer.deserialize('{"label":"x","nested":{"a":1},"count":2}', 'Object')
+
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(model))).must_equal('label' => 'x', 'nested' => { 'a' => 1 }, 'count' => 2)
+  end
+
   it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do
     items = Petstore::Client::ObjectSerializer.deserialize('[{"customField":"a"}]', 'Array<Metadata>')
 

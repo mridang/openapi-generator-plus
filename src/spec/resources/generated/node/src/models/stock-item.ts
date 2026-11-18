@@ -58,6 +58,9 @@ export class StockItem {
     if (this.availability === undefined) {
       this.availability = Availability.OnHold;
     }
+    if (Array.isArray(this.matrix)) {
+      this.matrix = Object.freeze([...this.matrix]) as typeof this.matrix;
+    }
   }
 
   /**
