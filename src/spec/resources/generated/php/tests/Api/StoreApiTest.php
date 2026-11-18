@@ -371,6 +371,13 @@ test('bhv operations 129 reserve stock decodes a 200 body as the existing reserv
     expect($union->asReservationReceipt())->toBeNull();
 });
 
+test('bhv unions 036 the status code selects the declared schema, so a 201 body of the 200 shape is refused', function (): void {
+    $api = newStoreApiForMock(201, 'application/json', '{"reservationId":31,"quantity":4}');
+
+    expect(fn () => $api->reserveStock())
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
 test('a multi 2xx result has a typed factory, test and accessor per variant', function (): void {
     $reservation = new Reservation(reservationId: 7, quantity: 2);
     $union = ReserveStockResponse::fromReservation($reservation);

@@ -160,6 +160,19 @@ test('bhv transport 020 AK: proxy url with userinfo carries credentials', functi
     expect($expected)->toBe('Basic dXNlcjpwYXNz');
 });
 
+test('bhv transport 076 percent-escapes in the proxy userinfo decode to the credentials and a literal plus stays a plus', function (): void {
+    $transport = TransportOptions::builder()
+        ->proxy('http://us%40er:p%2Bss+x@127.0.0.1:3128')
+        ->build();
+
+    $parts = parse_url((string) $transport->proxy);
+    expect($parts)->toBeArray();
+    $user = rawurldecode((string) ($parts['user'] ?? ''));
+    $pass = rawurldecode((string) ($parts['pass'] ?? ''));
+    expect($user)->toBe('us@er');
+    expect($pass)->toBe('p+ss+x');
+});
+
 // -- HTTP proxy with TLS --
 
 test('bhv transport 009 ignores ambient proxy environment variables when no proxy is configured', function (): void {

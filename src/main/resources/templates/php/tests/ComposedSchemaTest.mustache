@@ -408,3 +408,57 @@ test('bhv unions 029 one of wrappers have value equality', function (): void {
     expect($first == $second)->toBeTrue();
     expect($first == $other)->toBeFalse();
 });
+
+test('bhv unions 037 a union wrapper built from a variant holds that exact value and offers no setter', function (): void {
+    $dry = new DryFood(weightKg: 2.5);
+    $food = PetFood::fromDryFood($dry);
+
+    expect($food->getActualInstance())->toBe($dry);
+    expect(array_filter(get_class_methods($food), fn (string $method): bool => str_starts_with($method, 'set')))
+        ->toBe([]);
+});
+
+test('bhv unions 039 building a union wrapper from any value never validates it or throws', function (): void {
+    foreach ([null, 'not a variant', 42] as $value) {
+        $food = new PetFood($value);
+
+        expect($food->getActualInstance())->toBe($value);
+    }
+});
+
+test('bhv unions 040 a typed accessor returns the variant it holds and nothing for the other variants', function (): void {
+    $food = PetFood::build(['foodType' => 'wet', 'volumeMl' => 400]);
+
+    expect($food->asDryFood())->toBeNull();
+    expect($food->asWetFood())->toBeInstanceOf(WetFood::class);
+});
+
+test('bhv unions 041 a oneOf without a discriminator decodes each json shape to the variant that describes it', function (): void {
+    /** @var SetPetAvatarThumbnailRequest $byString */
+    $byString = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    /** @var SetPetAvatarThumbnailRequest $byArray */
+    $byArray = ObjectSerializer::deserialize('["AQIDBA==","ABCD"]', SetPetAvatarThumbnailRequest::class);
+
+    expect($byString->getActualInstance())->toBe("\x01\x02\x03\x04");
+    expect($byArray->getActualInstance())->toBeInstanceOf(\Ds\Vector::class);
+});
+
+test('bhv unions 042 a union wrapper built with no variant or a null variant holds no instance', function (): void {
+    $nullVariant = null;
+
+    foreach ([new PetFood(), new PetFood($nullVariant)] as $food) {
+        expect($food->getActualInstance())->toBeNull();
+        expect($food->isDryFood())->toBeFalse();
+        expect($food->isWetFood())->toBeFalse();
+        expect($food->asDryFood())->toBeNull();
+        expect($food->asWetFood())->toBeNull();
+    }
+});
+
+test('bhv unions 043 a discriminator value already set on a subtype is written as given', function (): void {
+    $dry = new DryFood(weightKg: 1.0, foodType: 'custom');
+
+    $decoded = json_decode((string) ObjectSerializer::serialize($dry), true);
+
+    expect($decoded['foodType'] ?? null)->toBe('custom');
+});

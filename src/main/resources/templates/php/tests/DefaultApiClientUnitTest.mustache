@@ -1776,6 +1776,25 @@ test('bhv redirects 024 a redirect keeps credentials only when the target is the
     'scheme upgrade changes the port' => ['http://api.example.com/start', 'https://api.example.com/final', false],
 ]);
 
+test('bhv transport 074 a response compressed with a codec whose library is missing raises an error', function (string $encoding, string $library): void {
+    if (function_exists($library)) {
+        test()->markTestSkipped("$library is installed, so the $encoding body is decoded instead");
+    }
+    $client = new StubbedDefaultApiClient(new MockHttpClient(new MockResponse('encoded-bytes', [
+        'http_code' => 200,
+        'response_headers' => ['Content-Encoding' => $encoding],
+    ])));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/codec', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(ApiException::class);
+            expect($e->getCode())->toBe(200);
+        });
+})->with([
+    'br without ext-brotli' => ['br', 'brotli_uncompress'],
+    'zstd without ext-zstd' => ['zstd', 'zstd_uncompress'],
+]);
+
 test('bhv transport 035 decompresses a zlib wrapped deflate response body', function (): void {
     $payload = '{"ok":true}';
     $deflated = gzcompress($payload);

@@ -200,3 +200,9 @@ test('bhv servers 014 a variable without an enum accepts any override', function
 
     expect($server->getUrl(['env' => 'anything-goes']))->toBe('https://anything-goes.api.example.com');
 });
+
+test('bhv servers 028 a generated server and its variables cannot be changed after creation', function (): void {
+    expect(fn (): mixed => Servers::all()[2]->urlTemplate = 'https://evil.example.com')->toThrow(\Error::class);
+    expect(fn (): mixed => Servers::all()[2]->variables['tenant'] = new ServerVariable(defaultValue: 'x'))
+        ->toThrow(\Error::class);
+});
