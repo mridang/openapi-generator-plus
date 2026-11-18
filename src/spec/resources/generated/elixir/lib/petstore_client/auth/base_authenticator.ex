@@ -29,7 +29,9 @@ defmodule PetstoreClient.Auth.BaseAuthenticator do
   @doc false
   # Resolves one credential of an authenticator. A value that was passed is used
   # as it is. A `nil` is read once, now, from the environment variable
-  # `env_name`; an empty variable counts as unset. A credential found in neither
+  # `env_name`; an empty variable counts as unset, and an empty string passed
+  # counts as not passed, so it is read from the environment the same way. A
+  # credential found in neither
   # place raises, so a client that is missing one fails when it is built and not
   # on its first request. The authenticator of a security scheme passes the
   # variable of that scheme; `credential/2` is the variable of an authenticator
@@ -47,6 +49,7 @@ defmodule PetstoreClient.Auth.BaseAuthenticator do
     end
   end
 
+  def credential("", field, env_name), do: credential(nil, field, env_name)
   def credential(value, _field, _env_name), do: value
 
   @doc false
