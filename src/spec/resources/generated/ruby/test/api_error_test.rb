@@ -373,7 +373,7 @@ describe Petstore::Client::Errors::ApiError do
     klasses = Petstore::Client::Errors.constants.map { |name| Petstore::Client::Errors.const_get(name) }
                                     .grep(Class)
     _(klasses).wont_be_empty
-    klasses.each { |klass| _(klass.name).must_start_with 'Petstore::Client::Errors::' }
+    klasses.each { |klass| _(klass.name.start_with?('Petstore::Client::Errors::')).must_equal true }
   end
 
   it 'bhv_errors_010 from_response leaves a scalar JSON error body as the parsed scalar' do

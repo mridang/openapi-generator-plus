@@ -318,8 +318,8 @@ module {{moduleName}}
       def transport_call_options(request_options)
         timeout = request_options&.timeout
         max_retries = request_options&.max_retries
-        if timeout && (!timeout.is_a?(Numeric) || timeout <= 0)
-          raise ArgumentError, "Invalid timeout: must be a positive number of milliseconds (got #{timeout.inspect})"
+        if timeout && (!timeout.is_a?(Numeric) || timeout < 1)
+          raise ArgumentError, "Invalid timeout: must be at least one millisecond (got #{timeout.inspect})"
         end
 
         ::{{moduleName}}::TransportOptions.validate_max_retries!(max_retries) unless max_retries.nil?

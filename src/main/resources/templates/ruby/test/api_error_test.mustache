@@ -373,7 +373,7 @@ describe {{moduleName}}::Errors::ApiError do
     klasses = {{moduleName}}::Errors.constants.map { |name| {{moduleName}}::Errors.const_get(name) }
                                     .grep(Class)
     _(klasses).wont_be_empty
-    klasses.each { |klass| _(klass.name).must_start_with '{{moduleName}}::Errors::' }
+    klasses.each { |klass| _(klass.name.start_with?('{{moduleName}}::Errors::')).must_equal true }
   end
 
   it 'bhv_errors_010 from_response leaves a scalar JSON error body as the parsed scalar' do
