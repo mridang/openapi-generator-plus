@@ -1180,7 +1180,7 @@ func TestBhvOperations089_PetApi_UploadMultipartMock(t *testing.T) {
 // as JSON must carry a per-part Content-Type: application/json header, matching
 // the other 11 SDKs. AddPetPhotos sends a PhotoMetadata object as the "metadata"
 // part.
-func TestPetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
+func TestBhvSerialization060_PetApi_MultipartObjectPartHasJSONContentType(t *testing.T) {
 	t.Parallel()
 	var metadataPartContentType string
 	var sawMetadataPart bool

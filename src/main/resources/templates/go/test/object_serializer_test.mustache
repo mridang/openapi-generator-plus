@@ -82,10 +82,230 @@ func TestBhvSerializationobject147_ObjectSerializer_Serialize_MapToJSON(t *testi
 	}
 }
 
+// A URI-format value must be absolute: an absolute URI of any scheme is accepted,
+// while a relative reference, an empty string or text that is not a URI is refused.
+func TestBhvSerialization049_ObjectSerializer_URIFormatValueMustBeAbsolute(t *testing.T) {
+	t.Parallel()
+	for _, uri := range []string{"urn:isbn:0451450523", "mailto:a@b.com", "https://example.com/pets/fido"} {
+		var pet models.Pet
+		data := []byte(`{"name":"n","photoUrls":[],"homepageUrl":"` + uri + `"}`)
+		if err := deserialize(data, &pet); err != nil {
+			t.Errorf("expected %q to be accepted, got %v", uri, err)
+		}
+	}
+	for _, uri := range []string{"/relative", "not a uri", ""} {
+		var pet models.Pet
+		data := []byte(`{"name":"n","photoUrls":[],"homepageUrl":"` + uri + `"}`)
+		if err := deserialize(data, &pet); err == nil {
+			t.Errorf("expected %q to be refused", uri)
+		}
+	}
+}
+
+// A property whose name begins with a digit is read and written under its exact wire name.
+func TestBhvSerialization050_ObjectSerializer_PropertyNameStartingWithADigitKeepsItsWireName(t *testing.T) {
+	t.Parallel()
+	var edge models.EdgeCases
+	if err := deserialize([]byte(`{"2fa":true}`), &edge); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if edge.N2fa == nil || !*edge.N2fa {
+		t.Fatalf("expected the 2fa property read, got %v", edge.N2fa)
+	}
+	data, err := serialize(edge)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"2fa":true`) {
+		t.Errorf("expected the wire name 2fa on the wire, got %s", string(data))
+	}
+}
+
+// A strict model has no separate public method for its unknown-key check: the
+// single public entry point refuses an undeclared key.
+func TestBhvSerialization051_ObjectSerializer_StrictModelHasNoSeparateUnknownKeyMethod(t *testing.T) {
+	t.Parallel()
+	var tag models.StrictTag
+	if err := deserialize([]byte(`{"id":1,"extra":true}`), &tag); err == nil {
+		t.Fatal("expected an undeclared key to be refused by the strict model")
+	}
+	typ := reflect.TypeOf(&models.StrictTag{})
+	for i := 0; i < typ.NumMethod(); i++ {
+		name := typ.Method(i).Name
+		for _, word := range []string{"Unknown", "Undeclared", "Strict", "Extra"} {
+			if strings.Contains(name, word) {
+				t.Errorf("expected no separate unknown-key method, found %s", name)
+			}
+		}
+	}
+}
+
+// Undeclared keys are kept as additional properties on every element of a list or map read from the wire.
+func TestBhvSerialization052_ObjectSerializer_UndeclaredKeysAreKeptOnListAndMapElements(t *testing.T) {
+	t.Parallel()
+	var list []models.Metadata
+	if err := deserialize([]byte(`[{"x":1}]`), &list); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(list) != 1 || list[0].AdditionalProperties["x"] == nil {
+		t.Errorf("expected the undeclared key kept on the list element, got %+v", list)
+	}
+	var byKey map[string]models.Metadata
+	if err := deserialize([]byte(`{"k":{"y":"v"}}`), &byKey); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := byKey["k"].AdditionalProperties["y"]; got != "v" {
+		t.Errorf("expected the undeclared key kept on the map element, got %v", got)
+	}
+}
+
+// Undeclared keys held by a model are written back as keys of that model when its parent is serialized.
+func TestBhvSerialization053_ObjectSerializer_UndeclaredKeysAreWrittenBackOnTheParent(t *testing.T) {
+	t.Parallel()
+	parent := map[string]models.Metadata{
+		"k": {AdditionalProperties: map[string]any{"z": "w"}},
+	}
+	data, err := serialize(parent)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"z":"w"`) {
+		t.Errorf("expected the undeclared key written back, got %s", string(data))
+	}
+}
+
+// A base64 string for a byte-typed value decodes to the raw bytes it encodes, both as a top-level value and as a property.
+func TestBhvSerialization062_ObjectSerializer_Base64StringDecodesToRawBytes(t *testing.T) {
+	t.Parallel()
+	want := []byte{0x00, 0x01, 0x02, 0xFF}
+	var raw []byte
+	if err := deserialize([]byte(`"AAEC/w=="`), &raw); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !reflect.DeepEqual(raw, want) {
+		t.Errorf("expected top-level bytes %v, got %v", want, raw)
+	}
+	var vault models.BinaryVault
+	if err := deserialize([]byte(`{"seal":"AAEC/w=="}`), &vault); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if vault.Seal == nil || !reflect.DeepEqual(*vault.Seal, want) {
+		t.Errorf("expected property bytes %v, got %v", want, vault.Seal)
+	}
+}
+
+// Raw bytes are written as padded standard base64 text, whether they are a property, a list element or a top-level value.
+func TestBhvSerialization063_ObjectSerializer_RawBytesWriteAsPaddedBase64(t *testing.T) {
+	t.Parallel()
+	top, err := serialize([]byte{0x00, 0x01, 0x02, 0xFF})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(top) != `"AAEC/w=="` {
+		t.Errorf("expected top-level base64 %q, got %s", `"AAEC/w=="`, string(top))
+	}
+	padded, err := serialize([]byte{0x00, 0x01})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(padded) != `"AAE="` {
+		t.Errorf("expected padded base64 %q, got %s", `"AAE="`, string(padded))
+	}
+	seal := []byte{0x00, 0x01, 0x02, 0xFF}
+	prop, err := serialize(&models.BinaryVault{Seal: &seal})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(prop), `"seal":"AAEC/w=="`) {
+		t.Errorf("expected the property base64 on the wire, got %s", string(prop))
+	}
+	shards := [][]byte{{0x00, 0x01}}
+	list, err := serialize(&models.BinaryVault{Shards: &shards})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(list), `"shards":["AAE="]`) {
+		t.Errorf("expected the list element base64 on the wire, got %s", string(list))
+	}
+}
+
+// A collection of unique values is written as a JSON array of its members.
+func TestBhvSerialization064_ObjectSerializer_SetWritesAJSONArrayOfItsMembers(t *testing.T) {
+	t.Parallel()
+	data, err := serialize(models.Set[string]{"b", "a"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var members []string
+	if err := json.Unmarshal(data, &members); err != nil {
+		t.Fatalf("expected a JSON array, got %s: %v", string(data), err)
+	}
+	if len(members) != 2 {
+		t.Fatalf("expected two members, got %v", members)
+	}
+	seenA, seenB := false, false
+	for _, m := range members {
+		seenA = seenA || m == "a"
+		seenB = seenB || m == "b"
+	}
+	if !seenA || !seenB {
+		t.Errorf("expected the members a and b, got %v", members)
+	}
+}
+
+// A null inside an array or map of plain or timestamp values is kept as null in its own position on decode.
+func TestBhvSerialization065_ObjectSerializer_NullElementsKeepTheirPosition(t *testing.T) {
+	t.Parallel()
+	var texts []*string
+	if err := deserialize([]byte(`["a",null,"b"]`), &texts); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(texts) != 3 || texts[0] == nil || texts[1] != nil || texts[2] == nil || *texts[2] != "b" {
+		t.Errorf("expected a null kept at position 1, got %v", texts)
+	}
+	var stamps []*models.DateTime
+	if err := deserialize([]byte(`[null,"2024-01-15T10:30:00.000+00:00"]`), &stamps); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(stamps) != 2 || stamps[0] != nil || stamps[1] == nil {
+		t.Errorf("expected a null kept at position 0 of timestamps, got %v", stamps)
+	}
+	var lookup map[string]*string
+	if err := deserialize([]byte(`{"k":null,"j":"v"}`), &lookup); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if v, ok := lookup["k"]; !ok || v != nil {
+		t.Errorf("expected the map null kept for key k, got %v (present %v)", v, ok)
+	}
+}
+
+// A null is kept only where the property is declared nullable: a nullable property keeps null and decodes a present value as given, and a non-nullable property refuses null.
+func TestBhvSerialization066_ObjectSerializer_NullIsKeptOnlyOnNullableProperties(t *testing.T) {
+	t.Parallel()
+	var nulled models.Defaults
+	if err := deserialize([]byte(`{"label":null}`), &nulled); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if nulled.Label != nil {
+		t.Errorf("expected the nullable label kept as null, got %q", *nulled.Label)
+	}
+	var given models.Defaults
+	if err := deserialize([]byte(`{"label":"shown"}`), &given); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if given.Label == nil || *given.Label != "shown" {
+		t.Errorf("expected the present label decoded as given, got %v", given.Label)
+	}
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":null,"photoUrls":[]}`), &pet); err == nil {
+		t.Error("expected a null for the non-nullable name to be refused")
+	}
+}
+
 // Model MarshalJSON must not HTML-escape either: a model field is serialized by
 // the model's own marshaller, which encoding/json does not un-escape, so a plain
 // json.Marshal there would put the unicode-escaped form on the wire.
-func TestObjectSerializer_Serialize_ModelFieldsAreNotHTMLEscaped(t *testing.T) {
+func TestBhvSerialization061_ObjectSerializer_Serialize_ModelFieldsAreNotHTMLEscaped(t *testing.T) {
 	t.Parallel()
 	name := "a<b>&c"
 	category := models.Category{Name: &name}

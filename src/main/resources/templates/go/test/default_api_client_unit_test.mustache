@@ -783,6 +783,125 @@ func TestBhvSerializationwire049_DefaultApiClientUnit_MultipartRawBytesReusesFie
 	}
 }
 
+// The charset parameter of a response's content type decodes the body; the
+// parameter name matches ignoring letter case and spacing, and a parameter whose
+// name only ends in charset is ignored.
+func TestBhvSerialization055_DefaultApiClientUnit_CharsetParameterDecodesTheBody(t *testing.T) {
+	t.Parallel()
+	latin := []byte{0x63, 0x61, 0x66, 0xE9}
+	if got := decodeBodyByCharset(latin, "text/plain; Charset = ISO-8859-1"); got != "café" {
+		t.Errorf("expected the body decoded by its charset, got %q", got)
+	}
+	if got := decodeBodyByCharset(latin, "text/plain; x-charset=iso-8859-1"); got != string(latin) {
+		t.Errorf("expected a suffix match ignored, got %q", got)
+	}
+}
+
+// Quotes and backslashes in a multipart field or file name are escaped, so the
+// part header stays well formed and the name reads back unchanged.
+func TestBhvSerialization056_DefaultApiClientUnit_MultipartNamesWithQuotesAndBackslashesReadBackUnchanged(t *testing.T) {
+	t.Parallel()
+	name := `a"b\c`
+	body, err := buildMultipartBody(map[string]any{name: []byte{0x01}}, "escape-boundary")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	reader := multipart.NewReader(bytes.NewReader(body), "escape-boundary")
+	part, err := reader.NextPart()
+	if err != nil {
+		t.Fatalf("NextPart failed: %v", err)
+	}
+	if part.FormName() != name {
+		t.Errorf("expected field name %q, got %q", name, part.FormName())
+	}
+	if part.FileName() != name {
+		t.Errorf("expected file name %q, got %q", name, part.FileName())
+	}
+}
+
+// A multipart field or file name that contains a NUL byte or a line break is
+// refused before any request is sent.
+func TestBhvSerialization057_DefaultApiClientUnit_MultipartNamesWithNULOrLineBreakAreRefusedBeforeSending(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"bad\x00name", "bad\nname", "bad\rname"} {
+		hits := 0
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			hits++
+			w.WriteHeader(200)
+		}))
+		client := NewDefaultApiClient(nil)
+		_, err := client.SendRequest("POST", server.URL+"/upload",
+			map[string]string{}, map[string]any{name: []byte{0x01}})
+		server.Close()
+		if err == nil {
+			t.Errorf("expected the name %q refused", name)
+		}
+		if hits != 0 {
+			t.Errorf("expected no request for the name %q, got %d", name, hits)
+		}
+	}
+}
+
+// A multipart part with no filename is sent as application/octet-stream.
+func TestBhvSerialization058_DefaultApiClientUnit_MultipartPartWithoutFilenameIsOctetStream(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	part, err := createMultipartFilePart(writer, "upload", "")
+	if err != nil {
+		t.Fatalf("createMultipartFilePart failed: %v", err)
+	}
+	if _, err := part.Write([]byte{0x01, 0x02}); err != nil {
+		t.Fatalf("write failed: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close failed: %v", err)
+	}
+	reader := multipart.NewReader(&buf, writer.Boundary())
+	got, err := reader.NextPart()
+	if err != nil {
+		t.Fatalf("NextPart failed: %v", err)
+	}
+	if ct := got.Header.Get("Content-Type"); ct != "application/octet-stream" {
+		t.Errorf("expected application/octet-stream, got %q", ct)
+	}
+}
+
+// A byte stream or raw binary value given as a multipart part is sent as a file
+// part that carries exactly its bytes.
+func TestBhvSerialization059_DefaultApiClientUnit_MultipartRawBytesArePartsWithExactlyTheirBytes(t *testing.T) {
+	t.Parallel()
+	payload := []byte{0x00, 0x0D, 0x0A, 0xFF, 0x2D, 0x2D}
+	body, err := buildMultipartBody(map[string]any{
+		"blob":   payload,
+		"stream": bytes.NewReader(payload),
+	}, "bytes-boundary")
+	if err != nil {
+		t.Fatalf("buildMultipartBody failed: %v", err)
+	}
+	reader := multipart.NewReader(bytes.NewReader(body), "bytes-boundary")
+	parts := map[string][]byte{}
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("NextPart failed: %v", err)
+		}
+		content, err := io.ReadAll(part)
+		if err != nil {
+			t.Fatalf("reading part failed: %v", err)
+		}
+		parts[part.FormName()] = content
+	}
+	for _, name := range []string{"blob", "stream"} {
+		if !bytes.Equal(parts[name], payload) {
+			t.Errorf("expected part %q to carry exactly its bytes, got %x", name, parts[name])
+		}
+	}
+}
+
 // Gap BI / Gap F: filename directive + filename validation helpers.
 
 // A character outside the BMP is one rune: one underscore in the ASCII
