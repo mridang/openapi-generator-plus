@@ -1963,3 +1963,5 @@ langkotlin018 | A composed model missing a required property throws on decode
 langkotlin019 | A factory for a second variant wraps that variant and answers only its own accessor
 langkotlin020 | A union with no variant answers nothing from any accessor
 langkotlin021 | A hook set on the configuration is installed on the client the configuration builds
+langkotlin022 | A redirect with an empty Location header returns the redirect response itself
+langkotlin023 | A redirect whose Location header cannot be parsed returns the redirect response itself
