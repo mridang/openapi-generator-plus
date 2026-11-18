@@ -34,7 +34,7 @@ import (
 // model that is dot-imported into the API package; a package-level `ApiResponse`
 // wrapper would collide with that dot-imported model. This test references the
 // public type and its fields directly.
-func TestBaseApi_ApiHttpResponse_PublicTypeNameAndFields(t *testing.T) {
+func TestBhvLanggo012_BaseApi_ApiHttpResponse_PublicTypeNameAndFields(t *testing.T) {
 	t.Parallel()
 	resp := {{packageName}}.ApiHttpResponse{
 		StatusCode: 200,
@@ -84,7 +84,7 @@ func noRetryTransport(t *testing.T) *{{packageName}}.TransportOptions {
 
 // ── Exception dispatch ──
 
-func TestBaseApi_ErrorDispatch(t *testing.T) {
+func TestBhvLanggo013_BaseApi_ErrorDispatch(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		status  int
@@ -119,7 +119,7 @@ func TestBaseApi_ErrorDispatch(t *testing.T) {
 	}
 }
 
-func TestBaseApi_ErrorDispatchViaApi(t *testing.T) {
+func TestBhvLanggo014_BaseApi_ErrorDispatchViaApi(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		status  int
@@ -836,7 +836,7 @@ func TestBhvSerializationwire053_BaseApi_FormArrayFieldEmitsRepeatedKeys(t *test
 // repeated keys (tags=x&tags=y, never a single bracketed/joined value), omit
 // absent optional fields entirely, and encode a space as '+' (HTML
 // form-encoding) rather than %20 — byte-identical to the other 11 SDKs.
-func TestBaseApi_FormUrlencodedWireFormat(t *testing.T) {
+func TestBhvLanggo015_BaseApi_FormUrlencodedWireFormat(t *testing.T) {
 	t.Parallel()
 	client := &capturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -1687,7 +1687,7 @@ func TestBhvOperations126_BaseApi_NullBody_PlaceOrderWithoutAnArgumentSendsNoBod
 	}
 }
 
-func TestBaseApi_NullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
+func TestBhvLanggo016_BaseApi_NullBody_PlaceOrderWithOrderStillSendsJSONBody(t *testing.T) {
 	t.Parallel()
 	client := &bodyCapturingApiClient{}
 	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
@@ -2538,7 +2538,7 @@ func TestBhvRetries005_BaseApi_ARetryAppliesTheAuthenticationHeadersAgain(t *tes
 	}
 }
 
-func TestBaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse(t *testing.T) {
+func TestBhvLanggo017_BaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse(t *testing.T) {
 	t.Parallel()
 	var hits atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2779,7 +2779,7 @@ func TestBhvTransport086_BaseApi_PerCallTimeoutShorterThanTheClientsFailsTheCall
 	}
 }
 
-func TestBaseApi_PerCallTimeoutLongerThanTheClientsLetsASlowResponseThrough(t *testing.T) {
+func TestBhvLanggo018_BaseApi_PerCallTimeoutLongerThanTheClientsLetsASlowResponseThrough(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(250 * time.Millisecond)

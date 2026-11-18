@@ -39,7 +39,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void AdditionalPropertiesIsEmptyAndNeverNullOnNewInstance()
+    public void BhvLangcsharp029AdditionalPropertiesIsEmptyAndNeverNullOnNewInstance()
     {
         var metadata = new Metadata();
         Assert.NotNull(metadata.AdditionalProperties);
@@ -55,7 +55,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void SerializesAdditionalPropertyEntryFlat()
+    public void BhvLangcsharp030SerializesAdditionalPropertyEntryFlat()
     {
         var metadata = new Metadata();
         metadata.AdditionalProperties["customField"] = "hello";
@@ -174,7 +174,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void DeclaredDevDependenciesAreInTheProjectManifest()
+    public void BhvLangcsharp031DeclaredDevDependenciesAreInTheProjectManifest()
     {
         // A generated test may reference a package that only the generator knows
         // about, and every real client keep-lists its own test project file, so
@@ -300,7 +300,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ProjectFileWritesTheDocumentationFileAndPacksTheReadmeAndSymbols()
+    public void BhvLangcsharp032ProjectFileWritesTheDocumentationFileAndPacksTheReadmeAndSymbols()
     {
         var projectFolder = Path.Combine(ProjectRoot().FullName, "src", "PetstoreClient");
         var manifest = File.ReadAllText(Path.Combine(projectFolder, "PetstoreClient.csproj"));
@@ -346,7 +346,7 @@ public class MetadataTest
     [InlineData("### Response headers")]
     [InlineData("### Streaming")]
     [InlineData("### Configuration and transport options")]
-    public void ReadmeDocumentsTheBehaviourThatSurprisesCallers(string heading)
+    public void BhvLangcsharp033ReadmeDocumentsTheBehaviourThatSurprisesCallers(string heading)
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
 
@@ -354,7 +354,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void ReadmeNamesTheSemanticVersioningPolicy()
+    public void BhvLangcsharp034ReadmeNamesTheSemanticVersioningPolicy()
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
 
@@ -362,7 +362,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void SkillsModelSampleSuppliesTheRequiredField()
+    public void BhvLangcsharp035SkillsModelSampleSuppliesTheRequiredField()
     {
         /* The first model has a required property, so a bare constructor call would
            not compile; the sample passes a value for it. */
@@ -373,7 +373,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void MakefileCarriesADependencyAuditTarget()
+    public void BhvLangcsharp036MakefileCarriesADependencyAuditTarget()
     {
         var makefile = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "Makefile"));
 

@@ -369,7 +369,7 @@ class TestDiscoveryDocumentIsChecked:
         auth.set_api_client(_client_serving({**self._OK, **overrides}))
         return auth
 
-    def test_an_issuer_for_another_server_is_rejected(self) -> None:
+    def test_bhv_misc_200_an_issuer_for_another_server_is_rejected(self) -> None:
         auth = self._authenticator_serving(issuer="https://evil.example.com")
         with pytest.raises(
             SerializationException,
@@ -399,7 +399,7 @@ class TestDiscoveryDocumentIsChecked:
         ):
             auth.build_authorization_url()
 
-    def test_a_loopback_http_endpoint_is_accepted(self) -> None:
+    def test_bhv_lang_python_188_a_loopback_http_endpoint_is_accepted(self) -> None:
         auth = self._authenticator_serving(
             authorization_endpoint="http://localhost:8080/authorize"
         )

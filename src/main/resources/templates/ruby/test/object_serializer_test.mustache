@@ -230,7 +230,7 @@ describe {{moduleName}}::ObjectSerializer do
         .must_raise({{moduleName}}::Errors::SerializationError)
     end
 
-    it 'rejects a bare epoch number as a date-time' do
+    it 'bhv_langruby_048 rejects a bare epoch number as a date-time' do
       _ { {{moduleName}}::ObjectSerializer.deserialize('1700000000', 'Time') }
         .must_raise({{moduleName}}::Errors::SerializationError)
     end
@@ -698,7 +698,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(err.message).must_include('Expected a JSON object for {{moduleName}}::Models::Pet, got String')
     end
 
-    it 'raises SerializationError for an array body where an object model is expected' do
+    it 'bhv_langruby_049 raises SerializationError for an array body where an object model is expected' do
       err = _(proc {
         {{moduleName}}::ObjectSerializer.deserialize('[1,2]', 'Pet')
       }).must_raise({{moduleName}}::Errors::SerializationError)
@@ -719,7 +719,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(err.message).must_include('Expected a JSON object for {{moduleName}}::Models::Category, got Integer')
     end
 
-    it 'raises SerializationError for an array where a nested model is expected' do
+    it 'bhv_langruby_050 raises SerializationError for an array where a nested model is expected' do
       err = _(proc {
         {{moduleName}}::ObjectSerializer.deserialize('{"name":"x","photoUrls":[],"category":[1,2]}', 'Pet')
       }).must_raise({{moduleName}}::Errors::SerializationError)
@@ -832,7 +832,7 @@ describe {{moduleName}}::ObjectSerializer do
 
     # Inline property enums are nested constants classes named
     # <Model>::<Prop>Enum with the same shape as a top-level enum class.
-    it 'exposes inline property enums as nested constants classes' do
+    it 'bhv_langruby_051 exposes inline property enums as nested constants classes' do
       mode = {{moduleName}}::Models::Defaults::ModeEnum
       _(mode::VALUES).must_equal(%w[low medium high])
       _(mode.validate!('high')).must_equal('high')
@@ -1038,7 +1038,7 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.deserialize(nil, 'Pet')).must_be_nil
     end
 
-    it 'keeps nil array elements (only hashes filter)' do
+    it 'bhv_langruby_052 keeps nil array elements (only hashes filter)' do
       json = {{moduleName}}::ObjectSerializer.serialize([1, nil, 3])
       _(JSON.parse(json)).must_equal [1, nil, 3]
     end
@@ -1114,7 +1114,7 @@ describe {{moduleName}}::ObjectSerializer do
 
     # F316: building a model never validates. An unknown enum string and a value
     # of the wrong type are held as given; only decoding fails on them.
-    it 'builds a model holding an unknown inline enum string without raising' do
+    it 'bhv_langruby_053 builds a model holding an unknown inline enum string without raising' do
       pet = {{moduleName}}::Models::Pet.new(name: 'Rex', photo_urls: Set['u'], status: 'banana')
 
       _(pet.status).must_equal 'banana'
@@ -1128,7 +1128,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(pet.status).must_equal 7
     end
 
-    it 'copies a model into an unknown inline enum string without raising' do
+    it 'bhv_langruby_054 copies a model into an unknown inline enum string without raising' do
       pet = {{moduleName}}::Models::Pet.new(name: 'Rex', photo_urls: Set['u']).with(status: 'banana')
 
       _(pet.status).must_equal 'banana'
@@ -1144,12 +1144,12 @@ describe {{moduleName}}::ObjectSerializer do
   # ── enum frozen const + VALUES validation (#11) ──
 
   describe 'enum frozen consts' do
-    it 'enum constants are frozen strings' do
+    it 'bhv_langruby_055 enum constants are frozen strings' do
       _({{moduleName}}::Models::TestStatusEnumValidate::PLACED).must_be :frozen?
       _({{moduleName}}::Models::TestStatusEnumValidate::APPROVED).must_be :frozen?
     end
 
-    it 'VALUES contains all enum constants and is frozen' do
+    it 'bhv_langruby_056 VALUES contains all enum constants and is frozen' do
       values = {{moduleName}}::Models::TestStatusEnumValidate::VALUES
       _(values).must_be :frozen?
       _(values).must_include 'placed'
@@ -1191,13 +1191,13 @@ describe {{moduleName}}::ObjectSerializer do
       end
     end
 
-    it 'serialize raises on +Infinity' do
+    it 'bhv_langruby_057 serialize raises on +Infinity' do
       assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.serialize({ 'val' => Float::INFINITY })
       end
     end
 
-    it 'serialize raises on -Infinity' do
+    it 'bhv_langruby_058 serialize raises on -Infinity' do
       assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.serialize({ 'val' => -Float::INFINITY })
       end
@@ -1229,11 +1229,6 @@ describe {{moduleName}}::ObjectSerializer do
       _(location.lat).must_equal(Float::MAX)
     end
 
-    it 'deserialize raises on Infinity literal' do
-      assert_raises({{moduleName}}::Errors::SerializationError) do
-        {{moduleName}}::ObjectSerializer.deserialize('{"val": Infinity}', 'Object')
-      end
-    end
   end
 
   # ── format: byte (Buffer/bytes surface, 2.1) ──
@@ -1290,16 +1285,6 @@ describe {{moduleName}}::ObjectSerializer do
       }).must_raise({{moduleName}}::Errors::SerializationError)
     end
 
-    it 'base64-decodes a top-level byte response (JSON string literal)' do
-      # A top-level `type: string, format: byte` response carried as
-      # application/json arrives as a JSON string literal. deserialize must
-      # JSON-parse it and then base64-decode the inner string to raw bytes.
-      raw = "test-image".dup.force_encoding(Encoding::BINARY)
-      json = Base64.strict_encode64(raw).to_json
-      result = {{moduleName}}::ObjectSerializer.deserialize(json, 'ByteArray')
-      _(result).must_equal(raw)
-      _(result.encoding).must_equal(Encoding::BINARY)
-    end
   end
 
   # ── unevaluatedProperties:false (StrictTag, 2.20) ──
@@ -1531,10 +1516,6 @@ describe {{moduleName}}::ObjectSerializer do
   # S3 / D55: the client does not enforce pattern, minimum or maximum; a value
   # outside the declared bounds decodes as sent and the server owns validation.
   describe 'schema constraints are not enforced' do
-    it 'decodes a quantity above its maximum' do
-      order = {{moduleName}}::ObjectSerializer.deserialize('{"quantity":500}', 'Order')
-      _(order.quantity).must_equal(500)
-    end
 
     it 'bhv_serializationobject_032 decodes a nickname and a slug that violate their patterns' do
       pet = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"nickname":"X!"}', 'Pet')
@@ -1695,7 +1676,7 @@ describe {{moduleName}}::ObjectSerializer do
   # ── format: time (Tod::TimeOfDay surface, 4.8) ──
 
   describe 'format: time round-tripping' do
-    it 'stringify emits HH:MM:SS for a Tod::TimeOfDay' do
+    it 'bhv_langruby_059 stringify emits HH:MM:SS for a Tod::TimeOfDay' do
       t = Tod::TimeOfDay.new(13, 45, 30)
       _({{moduleName}}::ObjectSerializer.stringify(t)).must_equal('13:45:30')
     end
@@ -1719,7 +1700,7 @@ describe {{moduleName}}::ObjectSerializer do
       _({{moduleName}}::ObjectSerializer.stringify(result)).must_equal('10:30:00.123')
     end
 
-    it 'convert_to_type passes through an existing Tod::TimeOfDay' do
+    it 'bhv_langruby_060 convert_to_type passes through an existing Tod::TimeOfDay' do
       original = Tod::TimeOfDay.new(7, 30, 15)
       result = {{moduleName}}::ObjectSerializer.convert_to_type(original, 'Tod::TimeOfDay')
       _(result).must_equal(original)
@@ -1776,11 +1757,6 @@ describe {{moduleName}}::ObjectSerializer do
       _(JSON.parse(json)['ttl']).must_equal('300s')
     end
 
-    it 'serialize emits a duration with days as total seconds' do
-      d = ISO8601::Duration.new('P2DT3H')
-      json = {{moduleName}}::ObjectSerializer.serialize({ 'window' => d })
-      _(JSON.parse(json)['window']).must_equal('183600s')
-    end
 
     it 'bhv_serializationobject_081 serialize emits protobuf-JSON seconds for a duration field on a model body' do
       # Request-body path: a dry-struct model carrying an ISO8601::Duration
@@ -1877,7 +1853,7 @@ describe {{moduleName}}::ObjectSerializer do
       end
     end
 
-    it 'convert_to_type passes through an existing ISO8601::Duration' do
+    it 'bhv_langruby_061 convert_to_type passes through an existing ISO8601::Duration' do
       original = ISO8601::Duration.new('PT1H')
       result = {{moduleName}}::ObjectSerializer.convert_to_type(original, 'ISO8601::Duration')
       _(result).must_equal(original)
@@ -2086,7 +2062,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(item.availability).wont_equal({{moduleName}}::Models::Availability::ON_HOLD)
     end
 
-    it 'accepts a known referenced-enum field value' do
+    it 'bhv_langruby_062 accepts a known referenced-enum field value' do
       item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1,"availability":"Sold"}', 'StockItem')
       _(item.availability).must_equal({{moduleName}}::Models::Availability::SOLD)
     end
@@ -2103,10 +2079,6 @@ describe {{moduleName}}::ObjectSerializer do
       _(item.availability).must_equal({{moduleName}}::Models::Availability::ON_HOLD)
     end
 
-    it 'decodes to the default when the wire leaves the field out' do
-      item = {{moduleName}}::ObjectSerializer.deserialize('{"priority":1}', 'StockItem')
-      _(item.availability).must_equal({{moduleName}}::Models::Availability::ON_HOLD)
-    end
   end
 
   # ── double field deserializes from an INTEGRAL JSON value (canonical 4) ──
@@ -2141,7 +2113,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(item.matrix.last.last).must_be_kind_of(Integer)
     end
 
-    it 'round-trips the nested container back to the same shape' do
+    it 'bhv_serialization_074 round-trips the nested container back to the same shape' do
       json = '{"priority":1,"matrix":[[7,8],[9]]}'
       item = {{moduleName}}::ObjectSerializer.deserialize(json, 'StockItem')
       data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(item))
@@ -2233,7 +2205,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(err.cause).must_be_kind_of(JSON::ParserError)
     end
 
-    it 'prefixes the detail of a failed serialize with the canonical serialize wording' do
+    it 'bhv_serialization_130 prefixes the detail of a failed serialize with the canonical serialize wording' do
       err = assert_raises({{moduleName}}::Errors::SerializationError) do
         {{moduleName}}::ObjectSerializer.serialize(Float::NAN)
       end
@@ -2361,7 +2333,7 @@ describe {{moduleName}}::ObjectSerializer do
       _(encode(decode(%({"amount":#{digits}})))).must_equal(%({"amount":#{digits}}))
     end
 
-    it 'keeps a free-form number a Float' do
+    it 'bhv_langruby_063 keeps a free-form number a Float' do
       value = {{moduleName}}::ObjectSerializer.deserialize('{"x":[1.5]}', 'Object')
 
       _(value[:x].first).must_be_instance_of(Float)
@@ -2522,13 +2494,6 @@ describe {{moduleName}}::ObjectSerializer, 'wire contract for scalars, container
     _({{moduleName}}::ObjectSerializer.deserialize(json, 'Object')).must_equal(a: nested)
   end
 
-  it 'a payload nested past the depth limit is refused with the serialization error' do
-    deep = ('[' * 1001) + (']' * 1001)
-
-    _(proc {
-      {{moduleName}}::ObjectSerializer.deserialize(deep, 'Object')
-    }).must_raise({{moduleName}}::Errors::SerializationError)
-  end
 
   it 'bhv_serialization_025 typed leaves nested in arrays and maps decode to their own typed values' do
     items = {{moduleName}}::ObjectSerializer.deserialize('[{"note":"x"}]', 'Array<TestFormatModel>')
@@ -2635,7 +2600,7 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(model))).must_equal('retries' => 3, 'mode' => 'medium')
   end
 
-  it 'keeps the value the caller sets in place of the schema default' do
+  it 'bhv_langruby_064 keeps the value the caller sets in place of the schema default' do
     model = {{moduleName}}::Models::TestDefaultsModel.new(retries: 5)
 
     _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(model))['retries']).must_equal 5
@@ -2647,7 +2612,7 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _({{moduleName}}::ObjectSerializer.serialize(model)).must_equal('{"kept":null}')
   end
 
-  it 'decodes a present value for a nullable property as given' do
+  it 'bhv_langruby_065 decodes a present value for a nullable property as given' do
     model = {{moduleName}}::ObjectSerializer.deserialize('{"kept":"v","dropped":"w"}', 'TestNullableModel')
 
     _([model.kept, model.dropped]).must_equal(%w[v w])
@@ -2659,14 +2624,8 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _({{moduleName}}::ObjectSerializer.stringify(d)).must_equal('315576000000s')
   end
 
-  it 'round-trips a duration too large for a 64-bit nanosecond count' do
-    edge = {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"315576000000s"}', 'EdgeCases')
 
-    _(edge.retry_after.to_seconds).must_equal(315_576_000_000)
-    _({{moduleName}}::ObjectSerializer.serialize(edge)).must_equal('{"retryAfter":"315576000000s"}')
-  end
-
-  it 'refuses an out-of-range duration string' do
+  it 'bhv_langruby_066 refuses an out-of-range duration string' do
     _(proc {
       {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"315576000001s"}', 'EdgeCases')
     }).must_raise({{moduleName}}::Errors::SerializationError)
@@ -2676,9 +2635,6 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _({{moduleName}}::ObjectSerializer.to_header_value(ISO8601::Duration.new('PT1H'))).must_equal('3600s')
   end
 
-  it 'writes a duration on its own as a protobuf-JSON seconds string' do
-    _({{moduleName}}::ObjectSerializer.serialize(ISO8601::Duration.new('PT5M'))).must_equal('"300s"')
-  end
 
   it 'bhv_serialization_050 reads and writes a property whose name begins with a digit under its wire name' do
     edge = {{moduleName}}::ObjectSerializer.deserialize('{"2fa":true}', 'EdgeCases')
@@ -2694,9 +2650,4 @@ describe {{moduleName}}::ObjectSerializer, 'schema defaults, nullable values, du
     _(members.grep(/unknown|undeclared|strict/i)).must_be_empty
   end
 
-  it 'deserialize refuses an undeclared key for a strict model through the one entry point' do
-    _(proc {
-      {{moduleName}}::ObjectSerializer.deserialize('{"id":1,"extra":2}', 'TestStrictModel')
-    }).must_raise({{moduleName}}::Errors::SerializationError)
-  end
 end

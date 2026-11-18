@@ -86,7 +86,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                    end
     end
 
-    test "scheme authenticator keeps the declared URLs" do
+    test "bhv langelixir 015 scheme authenticator keeps the declared URLs" do
       auth =
         PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator.new(
           "https://api.example.com",
@@ -808,7 +808,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     # The exchange is recorded in the shared token manager, not in the struct, so
     # a copy of the authenticator (such as the one the client holds) is ready as
     # soon as exchange_code ran on any other copy, whatever it returned.
-    test "exchange_code readies the authenticator without using its return value" do
+    test "bhv langelixir 016 exchange_code readies the authenticator without using its return value" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

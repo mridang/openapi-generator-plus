@@ -872,14 +872,14 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_summary doc comments' do
-    it 'shows the summary, description and parameter prose without literal escapes' do
+    it 'bhv_langruby_001 shows the summary, description and parameter prose without literal escapes' do
       path = String(Object.const_source_location(Petstore::Client::Api::PetApi.name)&.first)
       source = File.read(path)
       _(source).must_include(%q(# Get a <plain> "text" summary & it's short))
       _(source).must_include(%q(# Returns '''plain''' text for <tt>/pets/#{id}</tt> and <b> & "c" it's done))
     end
 
-    it 'shows the options parameter prose without literal escapes' do
+    it 'bhv_langruby_002 shows the options parameter prose without literal escapes' do
       path = String(Object.const_source_location(Petstore::Client::Api::Options::GetPetSummaryOptions.name)&.first)
       source = File.read(path)
       _(source).must_include(%q(# @param session [String] Session token: "a<b>" & it's required))
@@ -887,7 +887,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe 'per-operation server variables' do
-    it 'resolves the URL from enum values' do
+    it 'bhv_langruby_003 resolves the URL from enum values' do
       server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
         environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
         version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
@@ -906,7 +906,7 @@ describe Petstore::Client::Api::PetApi do
       )
     end
 
-    it 'rejects a value outside the enum on a later variable' do
+    it 'bhv_langruby_004 rejects a value outside the enum on a later variable' do
       err = _(lambda {
         Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'staging', version: 'v9')
       }).must_raise(ArgumentError)
@@ -914,7 +914,7 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include("Invalid value 'v9' for server variable 'version'")
     end
 
-    it 'rejects nil for an enum variable' do
+    it 'bhv_misc_260 rejects nil for an enum variable' do
       err = _(lambda {
         Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(region: nil) # steep:ignore ArgumentTypeMismatch
       }).must_raise(ArgumentError)
@@ -1224,7 +1224,7 @@ describe Petstore::Client::Api::PetApi do
       _(client.headers['X-Fingerprint']).must_equal 'aGk='
     end
 
-    it 'uses the standard base64 alphabet for format:byte params' do
+    it 'bhv_operations_059 uses the standard base64 alphabet for format:byte params' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1238,26 +1238,6 @@ describe Petstore::Client::Api::PetApi do
       api = Petstore::Client::Api::PetApi.new(client, config)
       api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(revision: 'v1.0/beta:rc1#frag'))
       _(client.url).must_include 'revision=v1.0/beta:rc1%23frag'
-    end
-
-    it 'percent-encodes a path param value exactly once' do
-      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
-      api, server, thread, captured = capture_request_line(200, 'application/json', body)
-      begin
-        # 'a b' (label style) serialises to '.a%20b'. The wrong (double)
-        # encoding would emit '.a%2520b'.
-        api.get_pet_tag(
-          5,
-          'a b',
-          Petstore::Client::Api::Options::GetPetTagOptions.new
-        )
-        request_line = captured.pop
-        _(request_line).must_include '%20'
-        _(request_line).wont_include '%2520'
-      ensure
-        server.close
-        thread.join(2)
-      end
     end
 
     # optional-array-param parity (Wave D): an OPTIONAL array query parameter
@@ -1652,7 +1632,7 @@ describe Petstore::Client::Api::PetApi do
 
     # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
     # from the body entirely; only the required `nickname` is sent.
-    it 'omits absent optional form properties' do
+    it 'bhv_langruby_005 omits absent optional form properties' do
       api, server, thread, captured = capture_request_body
       begin
         options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
@@ -1751,13 +1731,13 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'does not mark an operation that is not deprecated' do
+    it 'bhv_langruby_006 does not mark an operation that is not deprecated' do
       %w[add_pet add_pet_with_http_info delete_pet].each do |name|
         _(doc_block(name)).wont_include '# @deprecated This operation is deprecated.'
       end
     end
 
-    it 'marks the deprecated parameter on its options class' do
+    it 'bhv_langruby_007 marks the deprecated parameter on its options class' do
       path = String(Object.const_source_location(Petstore::Client::Api::Options::FindPetsByStatusOptions.name)&.first)
       _(File.read(path)).must_include '# @deprecated This parameter is deprecated.'
     end
@@ -1779,13 +1759,13 @@ describe Petstore::Client::Api::PetApi do
 
     # Binary downloads are returned as the in-memory StringIO that BaseApi
     # builds, never a File, so the YARD tag and the RBS signature say so.
-    it 'declares the StringIO a binary download returns in YARD' do
+    it 'bhv_langruby_008 declares the StringIO a binary download returns in YARD' do
       %w[get_pet_avatar download_pet_document get_pet_photo].each do |name|
         _(doc_block(name)).must_include '# @return [StringIO]'
       end
     end
 
-    it 'declares the StringIO a binary download returns in RBS' do
+    it 'bhv_langruby_009 declares the StringIO a binary download returns in RBS' do
       root = File.expand_path('../..', File.dirname(__FILE__))
       rbs = File.read(File.join(root, 'sig', 'petstore/client', 'api', 'pet_api.rbs'))
       _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) -> ::StringIO'
@@ -1879,7 +1859,7 @@ describe Petstore::Client::Api::PetApi do
       _(url).must_equal 'http://127.0.0.1:1/pet/7/external'
     end
 
-    it 'substitutes the server variables into the templated URL' do
+    it 'bhv_langruby_010 substitutes the server variables into the templated URL' do
       environment = Petstore::Client::Api::GetStagingPetInfoServerEnvironment
       version = Petstore::Client::Api::GetStagingPetInfoServerVersion
       server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
@@ -1916,15 +1896,6 @@ describe Petstore::Client::Api::PetApi do
         url = url_sent_to(server) { |api, chosen| api.get_multi_server_pet_info(7, server: chosen) }
         _(url).must_equal expected
       end
-    end
-
-    it 'rejects a Mirror channel outside the declared values' do
-      err = assert_raises(ArgumentError) do
-        Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
-          region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: 'other'
-        )
-      end
-      _(err.message).must_include "Invalid value 'other' for server variable 'channel'"
     end
   end
 

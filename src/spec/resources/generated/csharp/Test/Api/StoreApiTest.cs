@@ -553,7 +553,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task OperationWithACancelledTokenSendsNoRequest()
+    public async Task BhvMisc035OperationWithACancelledTokenSendsNoRequest()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -609,7 +609,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreContentQueryKeepsWireDateTimeForm()
+    public async Task BhvMisc211SearchStoreContentQueryKeepsWireDateTimeForm()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -918,7 +918,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
+    public async Task BhvLangcsharp045AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
     {
         var client = new CallOptionsApiClient { Body = "{}" };
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -930,7 +930,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public void TheOptionsOfAnOperationWithNoParametersAndNoSecurityHaveNoAuthField()
+    public void BhvLangcsharp046TheOptionsOfAnOperationWithNoParametersAndNoSecurityHaveNoAuthField()
     {
         Assert.NotNull(typeof(GetInventoryOptions).GetProperty("Timeout"));
         Assert.NotNull(typeof(GetInventoryOptions).GetProperty("Headers"));
@@ -950,7 +950,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task APerCallTimeoutOfZeroIsRejected()
+    public async Task BhvLangcsharp047APerCallTimeoutOfZeroIsRejected()
     {
         var client = new CallOptionsApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());

@@ -184,7 +184,7 @@ def _assert_each_empty_variable_is_unset(
 
 @pytest.mark.parametrize("module,name,variables,bearer,basic,api_key", SCHEMES)
 class TestSchemeAuthenticatorEnvironment:
-    def test_it_builds_from_its_environment_variables_alone(
+    def test_bhv_lang_python_189_it_builds_from_its_environment_variables_alone(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -212,7 +212,7 @@ class TestSchemeAuthenticatorEnvironment:
 
         assert _scheme_class(module, name)(HOST, **_explicit(variables)) is not None
 
-    def test_a_missing_credential_names_its_variable(
+    def test_bhv_lang_python_190_a_missing_credential_names_its_variable(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -293,7 +293,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer explicit"
 
-    def test_the_environment_supplies_the_token(
+    def test_bhv_lang_python_191_the_environment_supplies_the_token(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -438,7 +438,7 @@ class TestBasicSchemeAuthenticator:
         assert authenticator.username == "explicit-user"
         assert authenticator.password == "explicit-pass"
 
-    def test_the_environment_supplies_the_username_and_password(
+    def test_bhv_lang_python_192_the_environment_supplies_the_username_and_password(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -484,7 +484,7 @@ class TestApiKeySchemeAuthenticator:
 
         assert authenticator.api_key == "explicit"
 
-    def test_the_environment_supplies_the_key(
+    def test_bhv_lang_python_193_the_environment_supplies_the_key(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,

@@ -329,7 +329,7 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
-  test('an aborted per-call signal rejects the call with an AbortError', async () => {
+  test('bhv misc 035 an aborted per-call signal rejects the call with an AbortError', async () => {
     const error = await api
       .getPetById(1, undefined, { signal: AbortSignal.abort() })
       .catch((e: unknown) => e);
@@ -337,7 +337,7 @@ describe('PetApi', () => {
     expect((error as Error).name).toBe('AbortError');
   });
 
-  test('an operation without an Options object takes the per-call settings', async () => {
+  test('bhv langnode 009 an operation without an Options object takes the per-call settings', async () => {
     const result = await api.getPetPassport(1, {
       timeout: 5000,
       maxRetries: 0,
@@ -727,7 +727,7 @@ describe('PetApi form-urlencoded body serialization', () => {
 
   // #2 — an optional field that is absent (or null) is omitted from the
   // body entirely, never serialized as the literal string "undefined"/"null".
-  test('#2 absent optional form field is omitted', async () => {
+  test('bhv serialization 098 case 2: absent optional form field is omitted', async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = { nickname: 'Rex' };
@@ -838,7 +838,7 @@ describe('PetApi multipart model-part serialization', () => {
     });
   }
 
-  test('model part uses wire property names and SDK date-time format', async () => {
+  test('bhv serialization 121 model part uses wire property names and SDK date-time format', async () => {
     const { api, getCapture, close } = await captureMultipartBody();
     try {
       const files = [Buffer.from([0xFF, 0xD8, 0xFF])];
@@ -1071,7 +1071,7 @@ describe('PetApi operation servers', () => {
     expect(server.getUrl({ tenant: 'a&b' })).toBe('https://a&b.example.com/api');
   });
 
-  test('a declared server variable value is substituted into the URL', () => {
+  test('bhv misc 157 a declared server variable value is substituted into the URL', () => {
     const server = new GetStagingPetInfoServerStagingServer(
       GetStagingPetInfoServerEnvironment.STAGING,
       GetStagingPetInfoServerVersion.V2,
@@ -1080,7 +1080,7 @@ describe('PetApi operation servers', () => {
     expect(server.getUrl()).toBe('https://staging.example.com/api/v2');
   });
 
-  test('a server variant documents itself with the operation server description', () => {
+  test('bhv langnode 010 a server variant documents itself with the operation server description', () => {
     const source = fs.readFileSync(path.join(process.cwd(), 'src/api/pet-api.ts'), 'utf8');
 
     expect(source).toMatch(
@@ -1092,18 +1092,18 @@ describe('PetApi operation servers', () => {
 describe('PetApi doc comments', () => {
   const source = fs.readFileSync(path.join(process.cwd(), 'src/api/pet-api.ts'), 'utf8');
 
-  test('a parameter description keeps its quotes, angle brackets and ampersand raw', () => {
+  test('bhv langnode 011 a parameter description keeps its quotes, angle brackets and ampersand raw', () => {
     expect(source).toContain(String.raw`* @param options.session Session token: \"a<b>\" & it's required (required)`);
   });
 
-  test('no doc comment carries an HTML entity', () => {
+  test('bhv langnode 012 no doc comment carries an HTML entity', () => {
     expect(source).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
   });
 
   test.each([
     ['deletePet', '* @param options options for query, header, form, and cookie parameters\n'],
     ['getPetSummary', '* @param options options for query, header, form, and cookie parameters\n'],
-  ])('%s documents its options argument', (operation, line) => {
+  ])('bhv langnode 013 %s documents its options argument', (operation, line) => {
     const start = source.lastIndexOf('/**', source.indexOf(`  async ${operation}(`));
     const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
 
@@ -1165,7 +1165,7 @@ describe('PetApi against a recording client', () => {
     expect(recorded[0]!.url.startsWith('https://external-api.example.com/v1/')).toBe(true);
   });
 
-  test('getStagingPetInfo sends the request to the variant with its variables substituted', async () => {
+  test('bhv misc 219 getStagingPetInfo sends the request to the variant with its variables substituted', async () => {
     await recordingApi.getStagingPetInfo(
       1,
       new GetStagingPetInfoServerStagingServer(
@@ -1229,7 +1229,7 @@ describe('PetApi against a recording client', () => {
   });
 
   test.each(['a$&b', 'US$$', "x$'y", '$1'])(
-    'getPetByName puts the value %p in the path as written, never as a replacement pattern',
+    'bhv langnode 014 getPetByName puts the value %p in the path as written, never as a replacement pattern',
     async (name) => {
       await recordingApi.getPetByName(name, { category: 'sample', xCorrelationId: 'sample-correlation' });
 
@@ -1505,7 +1505,7 @@ describe('PetApi against a recording client', () => {
     expect(new URL(recorded[0]!.url).search).toBe('?days=2024-01-15&days=2024-02-01');
   });
 
-  test('getPetSummary sends the required cookie parameter', async () => {
+  test('bhv misc 176 getPetSummary sends the required cookie parameter', async () => {
     await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), { session: 'abc' });
 
     expect(recorded[0]!.headers['Cookie']).toBe('session=abc');
@@ -1541,7 +1541,7 @@ describe('PetApi against a recording client', () => {
     expect(recorded).toHaveLength(0);
   });
   test.each(['abc123', 'a%20b%3Bc', 'a=b', 'x/y:z'])(
-    'deletePet sends the cookie value %p exactly as given',
+    'bhv misc 123 deletePet sends the cookie value %p exactly as given',
     async (value) => {
       await recordingApi.deletePet(1, { apiKey: value });
 
@@ -1551,7 +1551,7 @@ describe('PetApi against a recording client', () => {
   );
 
   test.each(['a b', 'a;b', 'a,b', 'a"b', 'a\\b', 'café', 'a\tb'])(
-    'deletePet refuses the cookie value %p before sending',
+    'bhv langnode 015 deletePet refuses the cookie value %p before sending',
     async (value) => {
       const error = await recordingApi.deletePet(1, { apiKey: value }).catch((e: unknown) => e);
 
@@ -1606,7 +1606,7 @@ describe('PetApi against a recording client', () => {
       expect(recorded[0]!.headers['X-Api-Key']).toBeUndefined();
     });
 
-    test('a scheme credential wins over the client-level authenticator', async () => {
+    test('bhv misc 221 a scheme credential wins over the client-level authenticator', async () => {
       const petApi = new PetApi(recordingClient, config, fallback, { petStoreBearer: bearer });
 
       await petApi.addPet(newPet());

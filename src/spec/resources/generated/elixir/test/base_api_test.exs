@@ -1152,7 +1152,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # An authenticator cookie holding characters RFC 6265 forbids is a caller
   # mistake: ArgumentError before any request is sent.
-  test "raises ArgumentError for an auth cookie RFC 6265 forbids", %{state: state} do
+  test "bhv langelixir 028 raises ArgumentError for an auth cookie RFC 6265 forbids", %{
+    state: state
+  } do
     auth = %TestAuthenticator{
       host_url: "",
       headers: %{},
@@ -1181,7 +1183,8 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # F840: RFC 6265 cookie values go out raw when every character is a legal
   # cookie-octet; anything else fails on the client, before a request is sent.
-  test "an auth cookie made only of legal cookie-octets is sent exactly as given", %{state: state} do
+  test "bhv langelixir 029 an auth cookie made only of legal cookie-octets is sent exactly as given",
+       %{state: state} do
     for good <- ["a=b==", "%41%2F", "x/y+z", "A.B-C_D"] do
       auth = %TestAuthenticator{
         host_url: "",
@@ -1208,7 +1211,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "an auth cookie holding a space, quote, comma, semicolon, backslash, control or non-ASCII character raises ArgumentError",
+  test "bhv langelixir 030 an auth cookie holding a space, quote, comma, semicolon, backslash, control or non-ASCII character raises ArgumentError",
        %{state: state} do
     for bad <- ["a b", ~S(a"b), "a,b", "a;b", ~S(a\b), "a\tb", "a\r\nb", "caf\u00E9"] do
       auth = %TestAuthenticator{
@@ -1343,7 +1346,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Query parameter serialization
 
-  test "appends query params to URL", %{state: state} do
+  test "bhv langelixir 031 appends query params to URL", %{state: state} do
     assert {:ok, _result} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -1753,7 +1756,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "multipart filename containing CRLF raises ArgumentError" do
+  test "bhv langelixir 032 multipart filename containing CRLF raises ArgumentError" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.DefaultApiClient.build_content_disposition(
         "file",
@@ -1762,7 +1765,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "multipart filename containing NUL raises ArgumentError" do
+  test "bhv langelixir 033 multipart filename containing NUL raises ArgumentError" do
     assert_raise ArgumentError, fn ->
       PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\0b.txt")
     end
@@ -1827,7 +1830,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # bytes read little-endian would be a different (CJK) string, so decoding
   # to exactly "Pet" proves the big-endian default. Erlang's bare :utf16
   # encoding atom is {:utf16, :big}, so this SDK already honours the rule.
-  test "decode_text_body decodes BOM-less utf-16 as big-endian (RFC 2781)" do
+  test "bhv langelixir 034 decode_text_body decodes BOM-less utf-16 as big-endian (RFC 2781)" do
     bytes = <<0x00, 0x50, 0x00, 0x65, 0x00, 0x74>>
 
     result =
@@ -2665,7 +2668,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
   # apiresponse-body-nullable-elixir: ApiHttpResponse.body is non-null (a
   # guaranteed string, defaulting to ""), matching the other 11 SDKs —
   # callers never need to nil-check it.
-  test "ApiHttpResponse.body defaults to an empty string, not nil" do
+  test "bhv langelixir 035 ApiHttpResponse.body defaults to an empty string, not nil" do
     resp = %PetstoreClient.ApiHttpResponse{status_code: 204, headers: %{}}
     assert resp.body == ""
     assert is_binary(resp.body)
@@ -3406,6 +3409,13 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 4
   end
 
+  test "bhv misc 296 by default a failed request is retried twice, so three requests reach the wire" do
+    state = retry_state([{503, [{"retry-after", "0"}]}])
+
+    assert {:error, %PetstoreClient.Errors.ServiceUnavailableError{}} = get_thing(state)
+    assert length(attempts()) == 3
+  end
+
   test "bhv retries 018 max_retries 0 sends the request once" do
     state = retry_state([{503, [{"retry-after", "0"}]}, 200], max_retries: 0)
 
@@ -3415,7 +3425,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 1
   end
 
-  test "400, 401, 403, 404, 422 and 501 are not retried" do
+  test "bhv retries 021 the statuses 400, 401, 403, 404, 422 and 501 are not retried" do
     for status <- [400, 401, 403, 404, 422, 501] do
       state = retry_state([{status, [{"retry-after", "0"}]}, 200])
 
@@ -3676,7 +3686,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "a per-call timeout bounds that call and a Retry-After past it is not waited for" do
+  test "bhv langelixir 036 a per-call timeout bounds that call and a Retry-After past it is not waited for" do
     state = retry_state([{503, [{"retry-after", "5"}]}, 200])
     started = System.monotonic_time(:millisecond)
 
@@ -3687,7 +3697,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert System.monotonic_time(:millisecond) - started < 1_000
   end
 
-  test "call_settings reads the options struct, lets opts win and leaves nil out" do
+  test "bhv langelixir 037 call_settings reads the options struct, lets opts win and leaves nil out" do
     options = %{timeout: 5, headers: %{"a" => "1"}, max_retries: nil, other: 1}
 
     assert Enum.sort(PetstoreClient.Api.BaseApi.call_settings(options, timeout: 9)) ==
@@ -3784,7 +3794,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     )
   end
 
-  test "several 2xx responses decode as the type of the status that arrived" do
+  test "bhv langelixir 038 several 2xx responses decode as the type of the status that arrived" do
     return_type = {"Tag", [{"200", "Category"}, {"201", "Tag"}, {"2XX", "Category"}]}
 
     assert {:ok, %PetstoreClient.Models.Category{id: 1, name: "x"}} = decode_as(return_type, 200)
@@ -3792,7 +3802,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert {:ok, %PetstoreClient.Models.Category{id: 1, name: "x"}} = decode_as(return_type, 202)
   end
 
-  test "a 2xx that no row names decodes as the union" do
+  test "bhv langelixir 039 a 2xx that no row names decodes as the union" do
     return_type = {"Tag", [{"200", "Category"}]}
 
     assert {:ok, %PetstoreClient.Models.Category{}} = decode_as(return_type, 200)
@@ -3829,7 +3839,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "the retryable statuses are 408, 409, 429 and 5xx other than 501" do
+  test "bhv retries 021 the retryable statuses are 408, 409, 429 and 5xx other than 501" do
     for status <- [408, 409, 429, 500, 502, 503, 599] do
       assert PetstoreClient.Api.BaseApi.retryable_status?(status)
     end
@@ -3857,7 +3867,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert PetstoreClient.Api.BaseApi.backoff_delay(9, 1.0) == 6_000
   end
 
-  test "retry_after_ms reads a Retry-After given in seconds" do
+  test "bhv langelixir 040 retry_after_ms reads a Retry-After given in seconds" do
     now = ~U[1994-11-06 08:49:00Z]
     retry_after = &PetstoreClient.Api.BaseApi.retry_after_ms(&1, now)
 
