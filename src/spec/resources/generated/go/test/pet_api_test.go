@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -2206,5 +2207,117 @@ func TestBhvOperations024_PetApi_AddPetTreatmentSendsTheChosenVariantAsTheBody(t
 	}
 	if sent["drugName"] != "Amoxicillin" || sent["dosage"] != "250mg" {
 		t.Errorf("expected the variant's fields at the top level, got %v", sent)
+	}
+}
+
+// fakePetApi is a hand-written fake of the group interface. It embeds the
+// interface so that only the operation under test is written, and it records
+// what the caller passed.
+type fakePetApi struct {
+	petstore.PetApiInterface
+	calls  int
+	gotId  int64
+	gotSrv petstore.GetPetByIdServer
+	err    error
+}
+
+func (f *fakePetApi) GetPetById(ctx context.Context, petId int64, server petstore.GetPetByIdServer, callOptions ...petstore.RequestOption) (*models.Pet, error) {
+	f.calls++
+	f.gotId = petId
+	f.gotSrv = server
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &models.Pet{}, nil
+}
+
+// lookupPet is code under test that takes the group interface.
+func lookupPet(api petstore.PetApiInterface, id int64) (*models.Pet, error) {
+	return api.GetPetById(context.Background(), id, nil)
+}
+
+// classifyLookupError is the handler a caller writes once for the typed error.
+func classifyLookupError(err error) string {
+	var notFound *pkgerrors.NotFoundError
+	if errors.As(err, &notFound) {
+		return "not found"
+	}
+	var apiErr *pkgerrors.ApiError
+	if errors.As(err, &apiErr) {
+		return "api error"
+	}
+	return "other"
+}
+
+func TestBhvMocking003_PetApi_FakeIsAcceptedWhereTheInterfaceIsAccepted(t *testing.T) {
+	t.Parallel()
+	fake := &fakePetApi{}
+
+	pet, err := lookupPet(fake, 42)
+
+	if err != nil || pet == nil {
+		t.Fatalf("expected the fake's result, got %v, %v", pet, err)
+	}
+	if fake.calls != 1 || fake.gotId != 42 {
+		t.Errorf("expected one call with id 42, got %d calls with id %d", fake.calls, fake.gotId)
+	}
+}
+
+func TestBhvMocking004_PetApi_FakeRaisesTheTypedErrorTheCallerHandles(t *testing.T) {
+	t.Parallel()
+	typed := &pkgerrors.NotFoundError{ClientError: pkgerrors.ClientError{ApiError: *pkgerrors.NewApiError(404, "not found", "", nil, nil, nil)}}
+	fake := &fakePetApi{err: typed}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"message":"not found"}`))
+	}))
+	defer server.Close()
+
+	_, fakeErr := lookupPet(fake, 1)
+	_, realErr := lookupPet(newPetApiForMock(t, server), 1)
+
+	if got := classifyLookupError(fakeErr); got != "not found" {
+		t.Errorf("expected the typed handler to run for the fake, got %q", got)
+	}
+	if classifyLookupError(fakeErr) != classifyLookupError(realErr) {
+		t.Errorf("expected the fake and the real client to be handled the same way, got %q and %q", classifyLookupError(fakeErr), classifyLookupError(realErr))
+	}
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(fakeErr, &apiErr) {
+		t.Errorf("expected the base ApiError handler to catch the fake's error")
+	}
+}
+
+func TestBhvMocking005_PetApi_InterfaceCallSendsTheSameRequestAsTheClassCall(t *testing.T) {
+	t.Parallel()
+	api := newPetApiForIntegration(t)
+	var viaInterface petstore.PetApiInterface = api
+
+	direct, directErr := api.GetPetByIdWithHTTPInfo(context.Background(), int64(1), nil)
+	through, throughErr := viaInterface.GetPetByIdWithHTTPInfo(context.Background(), int64(1), nil)
+
+	if directErr != nil || throughErr != nil {
+		t.Fatalf("unexpected errors: %v, %v", directErr, throughErr)
+	}
+	if direct.StatusCode != through.StatusCode || direct.RawBody != through.RawBody {
+		t.Errorf("expected the same status and body, got %d %q and %d %q", direct.StatusCode, direct.RawBody, through.StatusCode, through.RawBody)
+	}
+	if !reflect.DeepEqual(direct.Data, through.Data) {
+		t.Errorf("expected the same decoded data, got %v and %v", direct.Data, through.Data)
+	}
+}
+
+func TestBhvMocking006_PetApi_CallWithoutOptionsReachesTheFullSignatureWithNoneSet(t *testing.T) {
+	t.Parallel()
+	fake := &fakePetApi{}
+
+	_, err := lookupPet(fake, 7)
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if fake.gotSrv != nil {
+		t.Errorf("expected the fake to see no per-call options, got %v", fake.gotSrv)
 	}
 }

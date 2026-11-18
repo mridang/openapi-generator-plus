@@ -4960,7 +4960,16 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (operations != null) {
             final String classname = (String) operations.get("classname");
             if (classname != null) {
-                operations.put("clientPropertyName", deriveClientPropertyName(classname));
+                final String clientPropertyName = deriveClientPropertyName(classname);
+                operations.put("clientPropertyName", clientPropertyName);
+                // The accessor suffix of the client interface (getPet): the property name with
+                // its first letter upper-cased, computed here because a template cannot do it.
+                operations.put(
+                        "clientAccessorSuffix",
+                        clientPropertyName.isEmpty()
+                                ? clientPropertyName
+                                : Character.toUpperCase(clientPropertyName.charAt(0))
+                                        + clientPropertyName.substring(1));
             }
             injectTagMetadata(operations);
             final List<CodegenOperation> ops =

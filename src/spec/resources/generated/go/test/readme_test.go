@@ -99,7 +99,7 @@ func TestReadme_HasTheSharedSectionsInTheSharedOrder(t *testing.T) {
 	position := -1
 	for _, heading := range []string{
 		"## Installation", "## Usage", "## Configuration", "### Raw responses", "### Timeouts", "### Retries",
-		"### Expired tokens", "### Request id", "### Cancellation", "### Custom HTTP client", "## Build", "## Test",
+		"### Expired tokens", "### Request id", "### Cancellation", "### Custom HTTP client", "### Testing your code", "## Build", "## Test",
 		"## Caveats", "### Schema constraints", "## Not supported", "### Webhooks and callbacks",
 		"### XML bodies and `nodeType`", "### Link Objects", "### Mutual TLS security schemes",
 	} {
@@ -132,5 +132,23 @@ func TestReadme_Skills_ConfigurationHasTheSharedSubsectionsInTheSharedOrder(t *t
 			t.Errorf("expected the heading %q to come after the previous one", heading)
 		}
 		position = next
+	}
+}
+
+func TestBhvMocking009_Readme_TestingYourCodeNamesTheGroupInterfaceAndTheClient(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	start := strings.Index(readme, "\n### Testing your code\n")
+	if start < 0 {
+		t.Fatalf("expected the README to contain the heading \"### Testing your code\"")
+	}
+	section := readme[start+1:]
+	if end := strings.Index(section[4:], "\n### "); end >= 0 {
+		section = section[:end+4]
+	}
+	for _, name := range []string{"PetApiInterface", "Client"} {
+		if !strings.Contains(section, name) {
+			t.Errorf("expected the section to name %s", name)
+		}
 	}
 }
