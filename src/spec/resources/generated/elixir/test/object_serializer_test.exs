@@ -756,7 +756,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "format: byte (ByteArray)" do
-    test "decodes base64 wire value to raw bytes" do
+    test "bhv serialization 062 decodes base64 wire value to raw bytes" do
       bytes = PetstoreClient.ObjectSerializer.convert_to_type("aGVsbG8=", "ByteArray")
       assert bytes == "hello"
     end
@@ -845,6 +845,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.encode_base64_param(<<0xFB, 0xFF>>) == "+/8="
     end
 
+    test "bhv serialization 063 raw bytes are written as padded standard base64 in a property and a list element" do
+      vault = %PetstoreClient.Models.BinaryVault{seal: <<1, 2>>, shards: [<<3>>]}
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(vault))
+
+      assert data["seal"] == "AQI="
+      assert data["shards"] == ["Aw=="]
+    end
+
     test "encodes each element of a list or set and keeps nil as nil" do
       assert PetstoreClient.ObjectSerializer.encode_base64_param(["hi", "yo"]) == ["aGk=", "eW8="]
       assert PetstoreClient.ObjectSerializer.encode_base64_param(MapSet.new(["hi"])) == ["aGk="]
@@ -925,6 +933,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     test "bhv serializationobject 008 rejects relative references, blanks and whitespace" do
       for bad <- ["/relative", "", " ", "http://a b", "http://a\nb", "no scheme"] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.convert_to_type(bad, "URI")
+        end
+      end
+    end
+
+    test "bhv serialization 049 a URI-format value must be absolute, and a relative, empty or non-URI string is refused" do
+      for bad <- ["/relative/path", "", "not a uri"] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.convert_to_type(bad, "URI")
         end
@@ -1182,7 +1198,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert model.note == nil
     end
 
-    test "a value decodes as given" do
+    test "bhv serialization 066 a value decodes as given" do
       model = PetstoreClient.ObjectSerializer.deserialize(~s({"note":"x"}), "RequiredNullable")
       assert model.note == "x"
     end
@@ -1576,6 +1592,24 @@ defmodule PetstoreClient.ObjectSerializerTest do
       refute Map.has_key?(data, "additional_properties")
     end
 
+    test "bhv serialization 052 undeclared keys are kept on every element of a list read from the wire" do
+      json =
+        ~s([{"createdAt":"2024-01-01T00:00:00Z","region":"eu"},{"createdAt":"2024-01-02T00:00:00Z","weight":"heavy"}])
+
+      [first, second] = PetstoreClient.ObjectSerializer.deserialize(json, "[Metadata]")
+
+      assert first.additional_properties == %{"region" => "eu"}
+      assert second.additional_properties == %{"weight" => "heavy"}
+    end
+
+    test "bhv serialization 053 undeclared keys held by a nested model are written back as keys of that model" do
+      meta = %PetstoreClient.Models.Metadata{additional_properties: %{"region" => "eu"}}
+      sanitized = PetstoreClient.ObjectSerializer.sanitize_for_serialization(%{"meta" => meta})
+
+      assert sanitized["meta"]["region"] == "eu"
+      refute Map.has_key?(sanitized["meta"], "additional_properties")
+    end
+
     test "bhv serializationobject 205 an extra key survives a full deserialize -> serialize round-trip" do
       json = ~s({"region":"eu"})
       meta = PetstoreClient.ObjectSerializer.deserialize(json, "Metadata")
@@ -1945,6 +1979,17 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    test "bhv serialization 064 a collection of unique values is written as a JSON array of its members" do
+      pet = %PetstoreClient.Models.Pet{
+        name: "Rex",
+        photo_urls: MapSet.new(["http://example.com/rex.jpg"])
+      }
+
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(pet))
+
+      assert data["photoUrls"] == ["http://example.com/rex.jpg"]
+    end
+
     test "bhv serializationobject 012 the prefixItems array Pet.location keeps its mixed items in order" do
       pet = %PetstoreClient.Models.Pet{
         name: "Rex",
@@ -1998,6 +2043,23 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert decoded.null == "n"
       assert decoded._true == true
       assert decoded._false == false
+    end
+
+    test "bhv serialization 050 a property whose name begins with a digit reads and writes under its exact wire name" do
+      edge = PetstoreClient.ObjectSerializer.deserialize(~s({"2fa":true}), "EdgeCases")
+      assert edge.n2fa == true
+
+      data = Jason.decode!(PetstoreClient.ObjectSerializer.serialize(edge))
+      assert data["2fa"] == true
+      refute Map.has_key?(data, "n2fa")
+    end
+
+    test "bhv serialization 054 a value in a free-form field keeps its JSON type" do
+      kept = PetstoreClient.ObjectSerializer.deserialize(~s({"freeFormAny":"42"}), "EdgeCases")
+      assert kept.free_form_any == "42"
+
+      cleared = PetstoreClient.ObjectSerializer.deserialize(~s({"freeFormAny":null}), "EdgeCases")
+      assert cleared.free_form_any == nil
     end
 
     test "bhv serializationobject 104 the Error and Result schemas round-trip through their models" do

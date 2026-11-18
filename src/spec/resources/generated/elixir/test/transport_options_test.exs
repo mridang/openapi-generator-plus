@@ -454,6 +454,24 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
+  test "bhv transport 079 turning off verification with a supplied connect_options client setting fails at construction" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        verify_ssl: false,
+        req_options: [connect_options: [timeout: 1]]
+      )
+    end
+  end
+
+  test "bhv transport 080 a proxy the supplied finch pool cannot apply fails at construction" do
+    assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(
+        proxy: "http://proxy:8080",
+        req_options: [finch: MyFinch]
+      )
+    end
+  end
+
   test "req_options finch conflicts with verify_ssl false" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
       PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
