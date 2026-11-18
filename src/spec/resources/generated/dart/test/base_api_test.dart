@@ -21,6 +21,31 @@ import 'package:petstore_client/src/value_serializer.dart'
 
 import 'testcontainers_helper.dart';
 
+/// Records the body of every request as text, for the multipart and form tests.
+class _BodyCapturingApiClient implements ApiClient {
+  String capturedBody = '';
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) async {
+    capturedBody = body is List<int>
+        ? utf8.decode(body, allowMalformed: true)
+        : '$body';
+    return ApiHttpResponse(
+      statusCode: 200,
+      body: '{}',
+      headers: {'content-type': 'application/json'},
+    );
+  }
+}
+
 class _BaseApiAuth implements Authenticator {
   final Map<String, String> headers;
   final Map<String, String> query;
@@ -3327,6 +3352,139 @@ void main() {
         } finally {
           await server.close();
         }
+      },
+    );
+  });
+
+  group('BaseApi request bodies', () {
+    test(
+      'bhv serialization 120 a multipart file part takes its Content-Type from the extension or octet-stream',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            'file.xyzzy': Uint8List.fromList([1, 2, 3]),
+          },
+          contentType: 'multipart/form-data',
+        );
+        expect(
+          client.capturedBody,
+          contains('Content-Type: application/octet-stream'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 121 a model sent as a multipart part uses its wire names and the SDK date-time format',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            'meta': Metadata(createdAt: DateTime.utc(2024, 1, 2, 3, 4, 5)),
+          },
+          contentType: 'multipart/form-data',
+        );
+        expect(
+          client.capturedBody,
+          contains('"createdAt":"2024-01-02T03:04:05.000+00:00"'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 122 a form-urlencoded array repeats its key once per element in order',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            'tags': ['a', 'b'],
+            'id': 1,
+          },
+          contentType: 'application/x-www-form-urlencoded',
+        );
+        expect(client.capturedBody, equals('tags=a&tags=b&id=1'));
+      },
+    );
+
+    test(
+      'bhv serialization 123 a multipart field name containing a NUL character is rejected',
+      () {
+        expect(
+          _RecordingApi(_BodyCapturingApiClient()).invokeApi(
+            method: 'POST',
+            path: '/test/echo',
+            body: {'a\x00b': 'x'},
+            contentType: 'multipart/form-data',
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 124 a non-ASCII multipart filename has an RFC 5987 form with percent-encoding',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            '日本.pdf': Uint8List.fromList([1]),
+          },
+          contentType: 'multipart/form-data',
+        );
+        expect(
+          client.capturedBody,
+          contains(r"filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 125 a form-urlencoded value percent-encodes a literal plus sign as %2B',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'q': 'a+b c'},
+          contentType: 'application/x-www-form-urlencoded',
+        );
+        expect(client.capturedBody, equals('q=a%2Bb+c'));
+      },
+    );
+
+    test(
+      'bhv serialization 126 a non-ASCII multipart field name is kept as UTF-8 in the part header',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'nomé': 'x'},
+          contentType: 'multipart/form-data',
+        );
+        expect(client.capturedBody, contains('name="nomé"'));
+      },
+    );
+
+    test(
+      'bhv serialization 127 a primitive multipart part is sent as plain text in canonical form',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'count': 3},
+          contentType: 'multipart/form-data',
+        );
+        expect(client.capturedBody, contains('\r\n\r\n3\r\n'));
       },
     );
   });
