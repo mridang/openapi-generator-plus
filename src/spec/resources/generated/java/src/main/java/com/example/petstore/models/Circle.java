@@ -38,7 +38,9 @@ public class Circle extends Shape {
    * constructor, the builder and deserialization alike. A collection is copied into an
    * unmodifiable one, so the instance never shares a list with its caller. */
   private Circle(Builder builder) {
-    super(builder.shapeType, builder.label);
+    super(
+        java.util.Objects.requireNonNull(builder.shapeType, "shapeType is required"),
+        builder.label);
     builder.requireNullableProperties();
     this.radius = java.util.Objects.requireNonNull(builder.radius, "radius is required");
   }

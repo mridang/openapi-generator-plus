@@ -38,7 +38,9 @@ public class Square extends Shape {
    * constructor, the builder and deserialization alike. A collection is copied into an
    * unmodifiable one, so the instance never shares a list with its caller. */
   private Square(Builder builder) {
-    super(builder.shapeType, builder.label);
+    super(
+        java.util.Objects.requireNonNull(builder.shapeType, "shapeType is required"),
+        builder.label);
     builder.requireNullableProperties();
     this.side = java.util.Objects.requireNonNull(builder.side, "side is required");
   }

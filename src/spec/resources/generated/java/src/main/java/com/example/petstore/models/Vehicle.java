@@ -9,7 +9,6 @@
 package com.example.petstore.models;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import javax.annotation.Nullable;
 
 /** Vehicle. */
 @com.fasterxml.jackson.annotation.JsonTypeInfo(
@@ -31,10 +30,17 @@ public abstract class Vehicle {
   @JsonProperty("plate")
   public final String plate;
 
-  /* The one place the common properties are set, for the subtypes: they pass their own
-   * values up, so a required property is checked once and read the same through the base. */
-  protected Vehicle(@Nullable String vehicleType, @Nullable String plate) {
-    this.vehicleType = java.util.Objects.requireNonNull(vehicleType, "vehicleType is required");
-    this.plate = java.util.Objects.requireNonNull(plate, "plate is required");
+  /**
+   * Creates the base of a composed model and sets the properties that the subtypes share.
+   *
+   * <p>The subtypes pass their own values up, so a required property is checked once and read the
+   * same through the base.
+   *
+   * @param vehicleType the vehicleType property
+   * @param plate the plate property
+   */
+  protected Vehicle(String vehicleType, String plate) {
+    this.vehicleType = vehicleType;
+    this.plate = plate;
   }
 }

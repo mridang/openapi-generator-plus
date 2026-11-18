@@ -32,10 +32,17 @@ public abstract class Shape {
   @Nullable
   public final String label;
 
-  /* The one place the common properties are set, for the subtypes: they pass their own
-   * values up, so a required property is checked once and read the same through the base. */
-  protected Shape(@Nullable String shapeType, @Nullable String label) {
-    this.shapeType = java.util.Objects.requireNonNull(shapeType, "shapeType is required");
+  /**
+   * Creates the base of a composed model and sets the properties that the subtypes share.
+   *
+   * <p>The subtypes pass their own values up, so a required property is checked once and read the
+   * same through the base.
+   *
+   * @param shapeType the shapeType property
+   * @param label the label property
+   */
+  protected Shape(String shapeType, @Nullable String label) {
+    this.shapeType = shapeType;
     this.label = label;
   }
 }

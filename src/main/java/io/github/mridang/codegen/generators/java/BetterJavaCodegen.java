@@ -914,14 +914,25 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
     /**
      * Builds the argument list a classic allOf child passes to its base
      * constructor: the base's own properties, in the base's order, read from
-     * the child's builder.
+     * the child's builder. A required non-nullable property is checked here,
+     * so the base constructor can take it as non-null.
      */
     @Override
     protected void decorateClassicDiscriminatorChild(
             final CodegenModel child, final CodegenModel base) {
         final List<String> args = new ArrayList<>();
         for (final CodegenProperty property : base.vars) {
-            args.add("builder." + property.name);
+            final String value = "builder." + property.name;
+            if (property.required && !property.isNullable) {
+                args.add(
+                        "java.util.Objects.requireNonNull("
+                                + value
+                                + ", \""
+                                + property.name
+                                + " is required\")");
+            } else {
+                args.add(value);
+            }
         }
         child.vendorExtensions.put("superArgs", String.join(", ", args));
     }

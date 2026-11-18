@@ -39,7 +39,9 @@ public class Truck extends Vehicle {
    * constructor, the builder and deserialization alike. A collection is copied into an
    * unmodifiable one, so the instance never shares a list with its caller. */
   private Truck(Builder builder) {
-    super(builder.vehicleType, builder.plate);
+    super(
+        java.util.Objects.requireNonNull(builder.vehicleType, "vehicleType is required"),
+        java.util.Objects.requireNonNull(builder.plate, "plate is required"));
     builder.requireNullableProperties();
     this.payloadKg = builder.payloadKg;
   }
