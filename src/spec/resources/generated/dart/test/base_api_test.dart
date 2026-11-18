@@ -4077,6 +4077,42 @@ void main() {
       );
     });
 
+    test(
+      'bhv errors 205 a decode failure of a response carries the status, the headers and the raw body',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 200,
+            body: '[1, 2',
+            headers: {'content-type': 'application/json'},
+          ),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApiForResult<Map<String, dynamic>>(
+            method: 'GET',
+            path: '/items/7?token=secret',
+            returnType: 'Map<String, dynamic>',
+            deserialize: (body) =>
+                deserialize<Map<String, dynamic>>(body, (json) => json)!,
+          ),
+          throwsA(
+            isA<SerializationException>()
+                .having((e) => e.statusCode, 'statusCode', 200)
+                .having(
+                  (e) => e.responseHeaders?['content-type'],
+                  'content-type',
+                  'application/json',
+                )
+                .having((e) => e.responseBody, 'responseBody', '[1, 2')
+                .having((e) => e.requestMethod, 'requestMethod', 'GET')
+                .having((e) => e.requestPath, 'requestPath', '/items/7'),
+          ),
+        );
+      },
+    );
+
     test('bhv errors 027 an absolute url is reduced to its path', () async {
       final client = _ScriptedApiClient([_reply(503)], maxRetries: 0);
       final api = _RecordingApi(client);

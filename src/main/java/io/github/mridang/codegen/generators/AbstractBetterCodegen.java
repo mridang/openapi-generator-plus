@@ -3489,7 +3489,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             return;
         }
         for (final Map<String, Object> schema : schemas) {
-            final String className = Objects.requireNonNull((String) schema.get("className"));
+            final String className = Objects.requireNonNull(Objects.requireNonNull((String) schema.get("className")));
             final String path = errorSchemaFilePath(className);
             if (path == null || !writtenErrorSchemas.add(className)) {
                 continue;
@@ -3511,7 +3511,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      * {@code isDefault}, {@code isRange}, {@code isFirst}, {@code isLast}),
      * {@code hasErrorResponses} and {@code errorSchemaResponses}, the rows that
      * carry a schema. The spec-level {@code errorSchemas} list (one entry per
-     * distinct schema with the status class it subclasses) is refreshed in
+     * distinct schema with the status class it subclasses, plus {@code classFilename},
+     * {@code schemaFilename}, {@code parentFilename} and {@code parentIsApi}) is refreshed in
      * {@code additionalProperties} every time an operation is seen.
      */
     private void populateErrorResponses(CodegenOperation op, Map<String, Object> d) {
@@ -3545,6 +3546,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final List<Map<String, Object>> schemas =
                 ErrorResponses.distinctSchemas(
                         new ArrayList<>(declaredErrorsByOperation.values()), suffix, this::statusClassName);
+        for (final Map<String, Object> schema : schemas) {
+            final String className = Objects.requireNonNull((String) schema.get("className"));
+            final String schemaName = Objects.requireNonNull((String) schema.get("schemaName"));
+            final String parentClassName = Objects.requireNonNull((String) schema.get("parentClassName"));
+            schema.put("classFilename", NamingConvention.SNAKE_CASE.apply(className));
+            schema.put("schemaFilename", toModelFilename(schemaName));
+            schema.put("parentFilename", NamingConvention.SNAKE_CASE.apply(parentClassName));
+            schema.put("parentIsApi", ErrorResponses.API.equals(schema.get("parentStem")));
+        }
         additionalProperties.put("errorSchemas", schemas);
         additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
         writeErrorSchemaFiles(schemas);
