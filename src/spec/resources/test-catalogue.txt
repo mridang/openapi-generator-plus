@@ -1960,3 +1960,4 @@ langswift015 | A debugger dump of a basic authenticator does not reveal the pass
 langswift016 | Basic credentials that cannot be encoded are rejected when the authenticator is constructed
 langswift017 | The configuration builder sets the call hook and passing nil clears it
 langswift018 | The string forms of a configuration do not reveal the call hook
+langswift019 | A type-erased value holding a dictionary compares and hashes independently of key order
