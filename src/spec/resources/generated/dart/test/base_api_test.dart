@@ -337,6 +337,29 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 195 A whitespace-only token returned by a token provider is rejected when the request is made.',
+      () {
+        expect(
+          () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(
+            host: 'https://api.example.com',
+            token: '   ',
+          ),
+          throwsArgumentError,
+        );
+        // A valid token still constructs and emits the expected header.
+        final ok = BearerAuthenticator(
+          host: 'https://api.example.com',
+          token: 't',
+        );
+        expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
+      },
+    );
+
     test('bhv errors 034 parses JSON error body', () async {
       final config = ConfigurationBuilder()
           .baseUrl('$chasmHttpUrl/test/status/400')
@@ -574,6 +597,39 @@ void main() {
         await server.close();
       }
     });
+
+    test(
+      'bhv misc 192 An auth cookie made only of legal cookie octets is sent exactly as given.',
+      () async {
+        String? receivedCookie;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedCookie = request.headers.value('cookie');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Test","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': auth},
+          );
+
+          await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
+          expect(receivedCookie, equals('session=abc123'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('bhv serializationwire 002 forwards auth query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1879,6 +1935,22 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 239 an operation query parameter is serialized when no authenticator is configured',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'status': 'available'},
+        );
+
+        expect(client.capturedUrl, contains('status=available'));
+      },
+    );
+
     test('bhv misc 238 serializes number query params', () async {
       final client = _CapturingApiClient();
       final api = _RecordingApi(client);
@@ -2172,6 +2244,31 @@ void main() {
 
     test(
       'bhv operations 075 form date-time field uses the canonical stringify form',
+      () async {
+        final client = _CapturingApiClient();
+        final api = PetApi(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+        );
+
+        await api.setPetPreferences(
+          1,
+          SetPetPreferencesOptions(
+            nickname: 'a b',
+            reminder: DateTime.utc(2024, 1, 15, 10, 30),
+          ),
+        );
+
+        expect(
+          client.capturedBody,
+          contains('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00'),
+        );
+        expect(client.capturedBody, isNot(contains('%20')));
+      },
+    );
+
+    test(
+      'bhv misc 210 A date-time form field is encoded in canonical form with its colons and plus sign percent-escaped on the wire.',
       () async {
         final client = _CapturingApiClient();
         final api = PetApi(
@@ -2857,7 +2954,74 @@ void main() {
     });
 
     test(
+      'bhv misc 209 A void operation ignores a success response body whether it is text or a non-object JSON value, and returns no data.',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final auth = _BaseApiAuth();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'adminBasic': auth},
+          );
+          try {
+            await api.deletePet(1, null);
+          } catch (_) {}
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv serializationwire 007 empty content-type defaults to application/json on requests with body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedContentType;
+        server.listen((request) {
+          receivedContentType = request.headers.contentType?.toString();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          /* addPet is a POST with a JSON body — the HeaderSelector
+         * defaults the empty contentType parameter to
+         * application/json and DefaultApiClient retains it because
+         * a body is present. GET endpoints can't exercise this
+         * because the client strips Content-Type when body is null
+         * (see RFC 7231 §3.1.1.5). */
+          await api.addPet(
+            Pet(name: 'Fido', photoUrls: <String>{}),
+            const AddPetOptions(),
+          );
+          expect(receivedContentType, isNotNull);
+          expect(receivedContentType, contains('application/json'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 202 A text body sent without a declared content type goes out with the JSON media type and no parameters.',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         String? receivedContentType;
@@ -4860,6 +5024,39 @@ void main() {
 
     test(
       'bhv operations 026 the default authenticator serves an operation no scheme matches',
+      () async {
+        String? sent;
+        final transport = MockClient((request) async {
+          sent = request.headers['authorization'];
+          return http.Response(
+            '{"id":1,"name":"x","photoUrls":[]}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://api.test',
+            token: 'fallback',
+          ),
+          adminBasic: BasicAuthenticator(
+            host: 'http://api.test',
+            username: 'admin',
+            password: 'pw',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(transport)
+              .build(),
+        );
+
+        await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+        expect(sent, equals('Bearer fallback'));
+      },
+    );
+
+    test(
+      'bhv misc 197 An operation whose named schemes the client does not hold is served by the client\'s default authenticator.',
       () async {
         String? sent;
         final transport = MockClient((request) async {

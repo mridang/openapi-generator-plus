@@ -593,6 +593,27 @@ void main() {
             .having((e) => '${e.message}', 'message', contains('verifySsl'))),
       );
     });
+    test('bhv misc 298 A client built with a malformed proxy URL fails with an invalid proxy URL error', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('not-a-valid-url').build(),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          startsWith('Invalid proxy URL'),
+        )),
+      );
+    });
+
+    test('bhv options 068 A SOCKS proxy scheme fails at construction with the documented error message', () {
+      expect(
+        () => TransportOptionsBuilder().proxy('socks5://proxy.example.com:1080').build(),
+        throwsA(isA<ArgumentError>().having(
+          (e) => e.message,
+          'message',
+          equals('Invalid proxy URL (must use http or https scheme)'),
+        )),
+      );
+    });
   });
 }
 {{/generateTests}}
