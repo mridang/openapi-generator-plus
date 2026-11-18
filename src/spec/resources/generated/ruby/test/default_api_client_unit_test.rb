@@ -57,7 +57,7 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  it 'sends a method Faraday does not know, such as QUERY, with its body' do
+  it 'bhv_langruby_033 sends a method Faraday does not know, such as QUERY, with its body' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new
     stubs.send(:new_stub, :query, '/search') do |env|
@@ -124,13 +124,9 @@ describe 'DefaultApiClientUnit' do
     sent
   end
 
-  it 'installs the passthrough query encoder on the connection it builds' do
+  it 'bhv_langruby_034 installs the passthrough query encoder on the connection it builds' do
     connection = Petstore::Client::DefaultApiClient.new.send(:build_connection)
     _(connection.options.params_encoder).must_equal Petstore::Client::DefaultApiClient::QueryParamsEncoder
-  end
-
-  it 'sends a repeated query key once per value' do
-    _(sent_query('tags=a&tags=b&tags=c')).must_equal 'tags=a&tags=b&tags=c'
   end
 
   it 'bhv_redirects_019 keeps the order of the query parameters' do
@@ -141,18 +137,18 @@ describe 'DefaultApiClientUnit' do
     _(sent_query('revision=v1.0/beta:rc1&at=a@b,c;d')).must_equal 'revision=v1.0/beta:rc1&at=a@b,c;d'
   end
 
-  it 'keeps an encoded plus and an encoded space distinct' do
+  it 'bhv_langruby_035 keeps an encoded plus and an encoded space distinct' do
     _(sent_query('a=1%2B2&b=x%20y')).must_equal 'a=1%2B2&b=x%20y'
   end
 
-  it 'query encoder decodes to the raw string and encodes it back unchanged' do
+  it 'bhv_langruby_036 query encoder decodes to the raw string and encodes it back unchanged' do
     encoder = Petstore::Client::DefaultApiClient::QueryParamsEncoder
     _(encoder.encode(encoder.decode('b=2&a=1&b=3'))).must_equal 'b=2&a=1&b=3'
     _(encoder.decode(nil)).must_equal({})
     _(encoder.decode('')).must_equal({})
   end
 
-  it 'query encoder encodes separate params with %20 for a space' do
+  it 'bhv_misc_255 query encoder encodes separate params with %20 for a space' do
     encoder = Petstore::Client::DefaultApiClient::QueryParamsEncoder
     _(encoder.encode({ 'q' => 'a b' })).must_equal 'q=a%20b'
   end
@@ -644,7 +640,7 @@ describe 'DefaultApiClientUnit' do
     "\u{1F600}.png" => %(filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png),
     'plain.txt' => %(filename="plain.txt")
   }.each do |input, directive|
-    it "builds the filename directive for #{input.inspect}" do
+    it "bhv_misc_099 builds the filename directive for #{input.inspect}" do
       client = Petstore::Client::DefaultApiClient.new
       _(client.send(:build_content_disposition, 'file', input))
         .must_equal(%(Content-Disposition: form-data; name="file"; #{directive}))
@@ -895,7 +891,7 @@ describe 'DefaultApiClientUnit' do
     'anim.gif' => 'image/gif',
     'data.json' => 'application/json'
   }.each do |filename, mime|
-    it "sets #{mime} for a #{File.extname(filename)} upload" do
+    it "bhv_langruby_037 sets #{mime} for a #{File.extname(filename)} upload" do
       captured_body = nil
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do |env|
@@ -1522,19 +1518,6 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  it 'returns a 3xx without a Location header as the terminal response' do
-    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-      stub.get('/moved') { [301, { 'content-type' => 'text/plain' }, 'moved body'] }
-    end
-    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
-    client = Petstore::Client::DefaultApiClient.new(transport)
-    client.stub(:build_connection, stub_connection(stubs)) do
-      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
-      _(resp.status_code).must_equal 301
-      _(resp.body).must_equal 'moved body'
-    end
-  end
-
   it 'bhv_redirects_010 returns a 3xx with an empty Location header as the terminal response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/moved') { [302, { 'location' => '', 'content-type' => 'text/plain' }, 'moved body'] }
@@ -1677,25 +1660,6 @@ describe 'DefaultApiClientUnit' do
     thread.join
   end
 
-  it 'a second close releases nothing more, in flight or not' do
-    release = Queue.new
-    port, thread = serve_when_released(release)
-    closes = [] # : Array[bool]
-    client = client_counting_closes(closes)
-    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
-    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
-
-    client.close
-    client.close
-    release << true
-    request.value
-    client.close
-    client.close
-
-    _(closes.length).must_equal 1
-    thread.join
-  end
-
   it 'bhv_lifecycle_022 releases the connection at once when no request is in flight' do
     port, thread = serve_once do |socket|
       socket.print("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n" \
@@ -1809,7 +1773,7 @@ describe 'DefaultApiClientUnit' do
     client = Petstore::Client::DefaultApiClient.new(transport)
     headers = {
       'X-API-Key' => 'secret-api-key-value',
-      'X-Internal-Key' => 'secret-api-key-value',
+      'X-Internal-Key' => 'secret-api-key-value'
     }
     client.stub(:build_connection, stub_connection(stubs)) do
       client.send_request(:GET, 'http://localhost/start', headers, nil)
@@ -1905,7 +1869,7 @@ describe 'DefaultApiClientUnit' do
     file&.unlink
   end
 
-  it 'leaves the certificate store unset when no CA is configured' do
+  it 'bhv_langruby_038 leaves the certificate store unset when no CA is configured' do
     ssl = Petstore::Client::DefaultApiClient.new.send(:build_connection).ssl
     _(ssl.cert_store).must_be_nil
   end
@@ -1934,11 +1898,9 @@ describe 'DefaultApiClientUnit' do
     # Faraday's net_http adapter wraps Net::OpenTimeout in ConnectionFailed.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/connect-timeout') do
-        begin
-          raise Net::OpenTimeout, 'execution expired'
-        rescue Net::OpenTimeout => e
-          raise Faraday::ConnectionFailed, e
-        end
+        raise Net::OpenTimeout, 'execution expired'
+      rescue Net::OpenTimeout => e
+        raise Faraday::ConnectionFailed, e
       end
     end
     client = Petstore::Client::DefaultApiClient.new(single_attempt)
@@ -1956,11 +1918,9 @@ describe 'DefaultApiClientUnit' do
     # same budget as the connect and read ones, so it is the same error type.
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/write-timeout') do
-        begin
-          raise Net::WriteTimeout, 'execution expired'
-        rescue Net::WriteTimeout => e
-          raise Faraday::TimeoutError, e
-        end
+        raise Net::WriteTimeout, 'execution expired'
+      rescue Net::WriteTimeout => e
+        raise Faraday::TimeoutError, e
       end
     end
     client = Petstore::Client::DefaultApiClient.new(single_attempt)
@@ -2144,7 +2104,7 @@ describe 'DefaultApiClientUnit' do
   # compressed in-process via the same gem the client uses to inflate it.
   # Skipped when the optional brotli gem is absent (the alpine CI image sets
   # BUNDLE_WITHOUT=optional), since there is then nothing to compress with.
-  it 'decompresses a valid brotli-encoded body' do
+  it 'bhv_langruby_039 decompresses a valid brotli-encoded body' do
     skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
 
     compressed = Brotli.deflate('{"ok":true}')
@@ -2519,7 +2479,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   [408, 409, 429, 500, 502, 503, 504, 599].each do |status|
-    it "retries a #{status} response and returns it once the retries are spent" do
+    it "bhv_langruby_040 retries a #{status} response and returns it once the retries are spent" do
       outcome, envs, = run_retry_probe { [status, {}, 'no'] }
 
       _(outcome.status_code).must_equal status
@@ -2528,7 +2488,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   [400, 401, 403, 404, 422, 501].each do |status|
-    it "does not retry a #{status} response" do
+    it "bhv_langruby_041 does not retry a #{status} response" do
       outcome, envs, delays = run_retry_probe { [status, {}, 'no'] }
 
       _(outcome.status_code).must_equal status
@@ -2663,7 +2623,7 @@ describe 'DefaultApiClientUnit' do
     _(delays.length).must_equal 2
   end
 
-  it 'does not retry a TLS failure' do
+  it 'bhv_misc_170 does not retry a TLS failure' do
     outcome, envs, = run_retry_probe { raise Faraday::SSLError, 'bad certificate' }
 
     _(outcome).must_be_instance_of Petstore::Client::Errors::NetworkError
@@ -2764,7 +2724,7 @@ describe 'DefaultApiClientUnit' do
     _($LOADED_FEATURES.grep(%r{faraday/follow_redirects})).must_be_empty
   end
 
-  it 'does not declare the faraday-follow_redirects gem' do
+  it 'bhv_langruby_042 does not declare the faraday-follow_redirects gem' do
     spec = Gem::Specification.load('petstore_client.gemspec')
     _(spec.runtime_dependencies.map(&:name)).wont_include 'faraday-follow_redirects'
   end

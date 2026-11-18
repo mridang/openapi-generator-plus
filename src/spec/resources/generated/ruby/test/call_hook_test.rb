@@ -44,7 +44,7 @@ describe Petstore::Client::CallHook do
     _(last.outcomes).must_equal [outcome]
   end
 
-  it 'finishes every observer of a chain although one of them fails' do
+  it 'bhv_langruby_022 finishes every observer of a chain although one of them fails' do
     failing = Object.new
     failing.define_singleton_method(:start) do |_info, _headers|
       observer = Object.new
@@ -58,7 +58,7 @@ describe Petstore::Client::CallHook do
     _(after.outcomes).must_equal [outcome]
   end
 
-  it 'carries what a call is described by in frozen values' do
+  it 'bhv_langruby_023 carries what a call is described by in frozen values' do
     _(info.operation_id).must_equal 'getItem'
     _(info.http_method).must_equal 'GET'
     _(info.url_template).must_equal '/items/{id}'

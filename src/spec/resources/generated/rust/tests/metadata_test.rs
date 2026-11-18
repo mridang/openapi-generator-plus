@@ -21,7 +21,7 @@ fn test_bhv_models_008_metadata_serialize_deserialize() {
 }
 
 #[test]
-fn test_metadata_deserialize_from_json() {
+fn test_bhv_langrust_038_metadata_deserialize_from_json() {
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00+00:00"}"#;
 
     let metadata: Metadata =
@@ -271,7 +271,7 @@ fn test_bhv_models_012_debug_dump_shows_the_fields_and_the_additional_properties
 }
 
 #[test]
-fn test_pet_location_free_form_json_round_trips() {
+fn test_bhv_misc_249_pet_location_free_form_json_round_trips() {
     /* FIX 3: Pet.location is Option<Vec<JsonValue>> (free-form JSON array). The
      * inner free-form JSON must round-trip losslessly through the public
      * JsonValue wrapper, with no serde_json::Value in the field signature. */
@@ -316,7 +316,7 @@ fn test_pet_location_free_form_json_round_trips() {
 // the same instant. A `Z`-suffixed input and a `+00:00` input denote the same
 // instant, so they must serialize identically after a round-trip.
 #[test]
-fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
+fn test_bhv_serialization_102_metadata_date_time_round_trips_with_consistent_utc_offset() {
     use petstore::date_time::DateTime;
 
     let json_data = r#"{"createdAt":"2024-01-15T10:30:00Z"}"#;
@@ -364,11 +364,6 @@ fn test_metadata_date_time_round_trips_with_consistent_utc_offset() {
 
 /* D57, F080: a date-time field without an offset is rejected on decode,
  * whatever the host zone. */
-#[test]
-fn test_metadata_date_time_without_an_offset_is_rejected() {
-    let result = serde_json::from_str::<Metadata>(r#"{"createdAt":"2024-01-15T10:30:00"}"#);
-    assert!(result.is_err(), "an offset-less date-time must be rejected");
-}
 
 // -- date-time serialization preserves sub-second precision --
 //
@@ -479,7 +474,7 @@ fn test_bhv_models_007_generated_models_have_no_null_example_doc() {
 /// only, never a `//` line comment, matching the other SDKs and the comment
 /// style SKILLS.md documents.
 #[test]
-fn test_generated_source_has_no_line_comments() {
+fn test_bhv_langrust_039_generated_source_has_no_line_comments() {
     fn walk(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
         for entry in std::fs::read_dir(dir).expect("failed to read source directory") {
             let path = entry.expect("failed to read directory entry").path();

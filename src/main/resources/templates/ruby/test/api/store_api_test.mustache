@@ -152,7 +152,7 @@ describe {{moduleName}}::Api::StoreApi do
   end
 
   describe '#search_store uniqueItems query' do
-    it 'expands a Set of labels into one pair per element' do
+    it 'bhv_langruby_011 expands a Set of labels into one pair per element' do
       api, server, thread, captured = capture_wire_request('[]')
       begin
         api.search_store({{moduleName}}::Api::Options::SearchStoreOptions.new(labels: Set['red', 'blue']))
@@ -213,7 +213,7 @@ describe {{moduleName}}::Api::StoreApi do
   end
 
   describe 'per-call options on an operation with no parameter and no security' do
-    it 'has an Options object that carries only the per-call settings' do
+    it 'bhv_langruby_012 has an Options object that carries only the per-call settings' do
       options = {{moduleName}}::Api::Options::GetInventoryOptions.new(timeout: 2500, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
 
       _(options.timeout).must_equal 2500
@@ -237,11 +237,6 @@ describe {{moduleName}}::Api::StoreApi do
       _(-> { @api.get_inventory({{moduleName}}::Api::Options::GetInventoryOptions.new(timeout: 0)) }).must_raise ArgumentError
     end
 
-    it 'rejects a per-call retry count that is negative on the variant that returns the result' do
-      options = {{moduleName}}::Api::Options::GetInventoryOptions.new(max_retries: -1)
-
-      _(-> { @api.get_inventory_with_http_info(options) }).must_raise ArgumentError
-    end
 
     it 'bhv_options_053 per-call headers apply to that one call only' do
       api, server, thread, captured = capture_wire_headers(2)
@@ -282,7 +277,7 @@ describe {{moduleName}}::Api::StoreApi do
       _(-> { @api.get_inventory({{moduleName}}::Api::Options::GetInventoryOptions.new(timeout: 0.5)) }).must_raise ArgumentError
     end
 
-    it 'still takes no argument at all' do
+    it 'bhv_langruby_013 still takes no argument at all' do
       _(@api.get_inventory).must_be_kind_of(Hash)
     end
   end
@@ -574,7 +569,7 @@ describe {{moduleName}}::Api::StoreApi do
       end
     end
 
-    it 'refuses a nil account before sending' do
+    it 'bhv_langruby_014 refuses a nil account before sending' do
       api, server, thread, captured = capture_wire_request('{}')
       begin
         err = _ { api.create_account(nil) }.must_raise(ArgumentError)

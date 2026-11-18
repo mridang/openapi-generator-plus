@@ -177,7 +177,7 @@ describe Petstore::Client::TransportOptions do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
-    _(error.message).must_match(/\AInvalid proxy URL \(.*\): http:\/\/\[::1:3128\z/m)
+    _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
   end
 
   it 'bhv_options_046 constructing directly with a non-http proxy scheme raises ArgumentError' do
@@ -367,7 +367,7 @@ describe Petstore::Client::TransportOptions do
   end
 
   describe 'custom connection' do
-    it 'keeps the supplied connection' do
+    it 'bhv_langruby_087 keeps the supplied connection' do
       conn = Faraday.new('http://localhost')
       _(Petstore::Client::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
     end
@@ -380,7 +380,7 @@ describe Petstore::Client::TransportOptions do
       _(Petstore::Client::TransportOptions.builder.build.connection).must_be_nil
     end
 
-    it 'defaults to no connection' do
+    it 'bhv_langruby_088 defaults to no connection' do
       _(Petstore::Client::TransportOptions.builder.build.connection).must_be_nil
     end
 
@@ -419,7 +419,7 @@ describe Petstore::Client::TransportOptions do
       _(error.message).must_include 'verify_ssl'
     end
 
-    it 'rejects a connection combined with a CA bundle' do
+    it 'bhv_misc_186 rejects a connection combined with a CA bundle' do
       error = assert_raises(ArgumentError) do
         Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).ca_cert_path('/tmp/ca.pem').build
       end
@@ -450,7 +450,7 @@ describe Petstore::Client::TransportOptions do
       _(error.message).must_include 'follow redirects'
     end
 
-    it 'rejects an object that is not a connection' do
+    it 'bhv_langruby_089 rejects an object that is not a connection' do
       error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.connection(Object.new).build }
       _(error.message).must_include 'Faraday::Connection'
     end
