@@ -64,7 +64,10 @@ defmodule PetstoreClient.Errors.RejectedRequestError do
 
   @doc false
   # The errors this one specialises, nearest first, for the predicates of the status errors.
-  @spec __ancestors__() :: [module()]
+  @spec __ancestors__() :: [
+          PetstoreClient.Errors.ClientError | PetstoreClient.Errors.ApiError,
+          ...
+        ]
   def __ancestors__ do
     [PetstoreClient.Errors.ClientError, PetstoreClient.Errors.ApiError]
   end
@@ -92,7 +95,12 @@ defmodule PetstoreClient.Errors.RejectedRequestError do
     * `headers` - The HTTP response headers, if available.
     * `body` - The raw HTTP response body, if available.
   """
-  @spec from_error_response(integer(), map() | nil, String.t() | nil) :: Exception.t()
+  @spec from_error_response(
+          integer(),
+          %{optional(String.t()) => String.t()} | nil,
+          String.t() | nil
+        ) ::
+          Exception.t()
   def from_error_response(status_code, headers, body) do
     status = ApiError.from_response(status_code, headers, body)
 
