@@ -388,7 +388,7 @@ import Testing
 
   /* F1054: expiry is read off a clock that a wall-clock change does not
    * move: it never runs backwards and it ticks in real time. */
-  @Test func testExpiryClockIsMonotonic() async throws {
+  @Test func testBhvLangswift051ExpiryClockIsMonotonic() async throws {
     let first = MonotonicClock.now()
     try await Task.sleep(nanoseconds: 20_000_000)
     let second = MonotonicClock.now()
@@ -396,7 +396,7 @@ import Testing
     #expect(second - first < 5)
   }
 
-  @Test func testNonPositiveExpiresInIsStaleImmediately() {
+  @Test func testBhvLangswift052NonPositiveExpiresInIsStaleImmediately() {
     let now: TimeInterval = 1_000_000
     #expect(OAuth2TokenManager.expiry(for: 0, now: now) == now)
     #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
@@ -596,7 +596,7 @@ import Testing
       ])
   }
 
-  @Test func testTokenRequestBodyEncodesNonAsciiAsUtf8() async throws {
+  @Test func testBhvLangswift053TokenRequestBodyEncodesNonAsciiAsUtf8() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
     let manager = OAuth2TokenManager()
@@ -832,7 +832,7 @@ import Testing
     #expect(OAuth2TokenManager.parseExpiresIn(json?["expires_in"]) == seconds)
   }
 
-  @Test func testHugeExpiresInCachesTheToken() async throws {
+  @Test func testBhvLangswift054HugeExpiresInCachesTheToken() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"huge1\",\"expires_in\":1e20}"))
     client.responses.append(makeResponse(body: "{\"access_token\":\"huge2\",\"expires_in\":3600}"))

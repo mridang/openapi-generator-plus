@@ -1992,3 +1992,7 @@ langswift047 | Reading the exchanged flag while a code exchange is in progress i
 langswift048 | An empty authorization code error carries the canonical message
 langswift049 | A request made before the code is exchanged fails with the canonical message
 langswift050 | The SHA-256 digest used for PKCE matches the known answers
+langswift051 | The expiry clock never goes backwards between two reads
+langswift052 | A token response with a zero or negative lifetime is stale immediately
+langswift053 | A token request body encodes non-ASCII form values as UTF-8
+langswift054 | A token with a huge lifetime is cached rather than refetched
