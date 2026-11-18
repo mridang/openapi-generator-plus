@@ -1978,4 +1978,14 @@ langkotlin033 | Generated sources contain no HTML character entities
 langkotlin034 | A generated OAuth2 client credentials wrapper prefers its argument to its variable
 langkotlin035 | A generated OAuth2 password wrapper reads every credential from its own variable
 langkotlin036 | A non-finite expires_in value leaves the token stale
+langkotlin037 | A string value is serialised and deserialised as a plain string
+langkotlin038 | A null optional field is left out of the serialised object
+langkotlin039 | A bare number where a string field is declared throws on decode
+langkotlin040 | A quoted number where a long field is declared throws on decode
+langkotlin041 | A quoted number where an int field is declared throws on decode
+langkotlin042 | A float literal too large for its type is refused when a payload is decoded
+langkotlin043 | Undeclared keys are kept as additional properties inside a container element
+langkotlin044 | A strict JSON reader without the SDK module does not decode a contextual serializer
+langkotlin045 | A strict JSON reader with the SDK module decodes a contextual serializer
+langkotlin046 | Decimal values with different scales but equal value compare equal
 langkotlin054 | A password grant wrapper whose refresh is rejected falls back to the original grant
