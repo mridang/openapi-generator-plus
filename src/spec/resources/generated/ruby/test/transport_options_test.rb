@@ -57,6 +57,14 @@ describe Petstore::Client::TransportOptions do
     _(opts.default_headers).must_be_empty
   end
 
+  it 'bhv_options_068 a SOCKS proxy is refused at construction with the documented message' do
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::TransportOptions.builder.proxy('socks5://proxy.example.com:1080')
+    end
+
+    _(err.message).must_equal 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080'
+  end
+
   it 'bhv_options_022 inject_request_id defaults to false' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.inject_request_id).must_equal false

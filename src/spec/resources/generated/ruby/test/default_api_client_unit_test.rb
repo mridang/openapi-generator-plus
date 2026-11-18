@@ -126,6 +126,27 @@ describe 'DefaultApiClientUnit' do
     _(seen.values).must_equal ['caller']
   end
 
+  it 'bhv_redirects_056 an opted-out request sends no transport default header and the next normal request does' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      2.times do
+        stub.get('/echo') do |env|
+          seen << env.request_headers.to_h.transform_keys(&:downcase)
+          [200, {}, 'ok']
+        end
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.default_headers({ 'X-Token' => 'default' }).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', {}, nil, no_default_headers: true)
+      client.send_request(:GET, 'http://localhost/echo', {}, nil)
+    end
+
+    _(seen.first).wont_include 'x-token'
+    _(seen.last['x-token']).must_equal 'default'
+  end
+
   it 'bhv_redirects_016 leaves the default headers off a request that asks for none, keeping the SDK headers' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -2597,6 +2618,57 @@ describe 'DefaultApiClientUnit' do
     _(outcome.body).must_equal 'ok'
     _(envs.length).must_equal 3
     _(delays.length).must_equal 2
+  end
+
+  it 'bhv_retries_047 a wait that would overrun the caller timeout is not taken' do
+    budget = Petstore::Client::TransportOptions.builder.timeout(2_000).build
+    outcome, envs, delays = run_retry_probe(options: budget, &ok_after(1, [503, { 'Retry-After' => '30' }, 'later']))
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'bhv_retries_048 the default client retries a 503 over a real connection and returns the later success' do
+    server = TCPServer.new('127.0.0.1', 0)
+    port = server.addr[1]
+    replies = [
+      "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbusy",
+      "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+    ]
+    thread = Thread.new do
+      replies.each do |raw|
+        conn = server.accept
+        conn.gets
+        while (line = conn.gets)
+          break if line.strip.empty?
+        end
+        conn.write(raw)
+        conn.close
+      end
+    end
+
+    outcome = Petstore::Client::DefaultApiClient.new.send_request('GET', "http://127.0.0.1:#{port}/r", {}, nil)
+    thread.join
+    server.close
+
+    _(outcome.status_code).must_equal 200
+    _(outcome.body).must_equal 'ok'
+  end
+
+  it 'bhv_transport_089 a Content-Encoding that does not match the body raises the SDK API error' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/bad-gzip') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'plain-not-gzip']
+      end
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises(Petstore::Client::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/bad-gzip', {}, nil)
+      end
+      _(err).must_be_kind_of Petstore::Client::Errors::ApiError
+    end
   end
 
   it 'bhv_retries_041 backs off from 0.5 s, doubling, with up to 25% jitter' do

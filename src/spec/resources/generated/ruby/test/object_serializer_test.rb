@@ -2588,6 +2588,42 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
     }).must_raise(Petstore::Client::Errors::SerializationError)
   end
 
+  it 'bhv_serialization_072 undeclared keys are passed over without error, one or several, scalar or nested' do
+    json = '{"createdAt":"2024-01-01T00:00:00Z","rogue":"x","nested":{"a":[1,{"b":null}]},"count":2}'
+    meta = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
+
+    _(meta).must_be_kind_of Petstore::Client::Models::Metadata
+  end
+
+  it 'bhv_serialization_068 a model built in code keeps a wrong-typed value as given and raises nothing' do
+    account = Petstore::Client::Models::Account.new(username: 123)
+
+    _(account.username).must_equal 123
+  end
+
+  it 'bhv_serialization_112 a password property is masked in the inspect form and not on the wire' do
+    account = Petstore::Client::Models::Account.new(username: 'ann', password: 'p-secret-value')
+
+    _(account.inspect).wont_include 'p-secret-value'
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(account))['password']).must_equal 'p-secret-value'
+  end
+
+  it 'bhv_serialization_115 an integral JSON number decoded as a floating-point type becomes a float' do
+    value = Petstore::Client::ObjectSerializer.deserialize('3', 'Float')
+
+    _(value).must_be_kind_of Float
+    _(value).must_equal 3.0
+  end
+
+  it 'bhv_serialization_116 a keyword-named property keeps its exact wire key on serialize and deserialize' do
+    edge = Petstore::Client::ObjectSerializer.deserialize('{"class":"c","null":"n","true":true}', 'EdgeCases')
+    written = JSON.parse(Petstore::Client::ObjectSerializer.serialize(edge))
+
+    _(written['class']).must_equal 'c'
+    _(written['null']).must_equal 'n'
+    _(written['true']).must_equal true
+  end
+
   it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do
     items = Petstore::Client::ObjectSerializer.deserialize('[{"customField":"a"}]', 'Array<Metadata>')
 
