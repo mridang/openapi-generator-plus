@@ -4212,7 +4212,8 @@ class ObjectSerializerTest {
   @Test
   void bhvMisc104AStringFieldDeclaredWithTheEmailFormatDecodesWithoutValidation() {
     String json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}";
-    assertEquals("x@", decode(json).contact);
+    assertEquals(
+        "x@", serializer.deserialize(json, com.example.petstore.models.NativeValues.class).contact);
   }
 
   @Test
@@ -4379,5 +4380,142 @@ class ObjectSerializerTest {
   void bhvMisc138ConvertingAnEnumMemberToTextYieldsItsWireValue() {
     assertEquals("a-b", com.example.petstore.models.Separator.A_B.toString());
     assertEquals(" ", String.valueOf(com.example.petstore.models.Separator.SPACE_1));
+  }
+
+  @Test
+  void bhvMisc139ACollectionPassedIntoAModelIsCopiedSoLaterChangesDoNotReachIt() {
+    java.util.List<byte[]> source = new java.util.ArrayList<>(List.of(new byte[] {4, 5}));
+    com.example.petstore.models.BinaryVault vault =
+        com.example.petstore.models.BinaryVault.builder()
+            .seal(new byte[] {1})
+            .shards(source)
+            .build();
+    source.add(new byte[] {6});
+    assertEquals(1, vault.shards.size());
+    assertThrows(UnsupportedOperationException.class, () -> vault.shards.add(new byte[] {7}));
+  }
+
+  @Test
+  void bhvMisc140BuildingAModelWithoutARequiredPropertyNamesIt() {
+    NullPointerException thrown =
+        assertThrows(
+            NullPointerException.class,
+            () -> com.example.petstore.models.Employee.builder().build());
+    assertEquals("name is required", thrown.getMessage());
+  }
+
+  @Test
+  void bhvMisc141AModelBuiltWithoutADefaultedPropertyHoldsTheDefault() {
+    com.example.petstore.models.Defaults model =
+        com.example.petstore.models.Defaults.builder().build();
+    assertEquals(3, model.retries);
+    assertEquals(com.example.petstore.models.Defaults.ModeEnum.MEDIUM, model.mode);
+  }
+
+  @Test
+  void bhvMisc142AdditionalPropertiesAreReturnedUnchangedByKey() {
+    com.example.petstore.models.Metadata meta =
+        serializer.deserialize(
+            "{\"note\":\"x\",\"owner\":\"ann\"}", com.example.petstore.models.Metadata.class);
+    assertEquals("x", meta.getAdditionalProperties().get("note"));
+    assertEquals(List.of("note", "owner"), List.copyOf(meta.getAdditionalProperties().keySet()));
+  }
+
+  @Test
+  void bhvMisc143ACopyKeepsTheAdditionalPropertiesAndComparesEqual() {
+    com.example.petstore.models.Metadata original =
+        com.example.petstore.models.Metadata.builder()
+            .putAdditionalProperty("customField", "a")
+            .build();
+    com.example.petstore.models.Metadata copy = original.toBuilder().build();
+    assertEquals(Map.of("customField", "a"), copy.getAdditionalProperties());
+    assertEquals(original, copy);
+  }
+
+  @Test
+  void bhvMisc144ValidatingAModelRefusesAStringForANumericField() {
+    assertThrows(
+        SerializationException.class,
+        () ->
+            serializer.deserialize(
+                "{\"retries\":\"3\"}", com.example.petstore.models.Defaults.class));
+  }
+
+  @Test
+  void bhvMisc145ReadingTheUndeclaredKeysReturnsACopyThatCannotChangeTheInstance() {
+    com.example.petstore.models.Metadata meta =
+        serializer.deserialize(
+            "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"note\":\"x\"}",
+            com.example.petstore.models.Metadata.class);
+    Map<String, String> props = meta.getAdditionalProperties();
+    assertThrows(UnsupportedOperationException.class, () -> props.put("note", "changed"));
+    assertEquals("x", meta.getAdditionalProperties().get("note"));
+  }
+
+  @Test
+  void bhvMisc146ACopyWithNoChangesIsANewEqualInstance() {
+    com.example.petstore.models.Department original =
+        com.example.petstore.models.Department.builder().name("Ops").build();
+    com.example.petstore.models.Department copy = original.toBuilder().build();
+    assertNotSame(original, copy);
+    assertEquals(original, copy);
+  }
+
+  @Test
+  void bhvMisc147ACopyHoldsTheSameNestedObjectAsTheOriginal() {
+    com.example.petstore.models.Employee lead =
+        com.example.petstore.models.Employee.builder().name("Ann").build();
+    com.example.petstore.models.Department original =
+        com.example.petstore.models.Department.builder().name("Ops").lead(lead).build();
+    com.example.petstore.models.Department copy = original.toBuilder().name("Eng").build();
+    assertTrue(original.lead == copy.lead);
+  }
+
+  @Test
+  void bhvMisc148ACopySerializesToTheWireFormWithItsChangesApplied() {
+    com.example.petstore.models.Department original =
+        com.example.petstore.models.Department.builder()
+            .name("Ops")
+            .lead(com.example.petstore.models.Employee.builder().name("Ann").build())
+            .build();
+    com.example.petstore.models.Department copy = original.toBuilder().name("Eng").build();
+    com.example.petstore.models.Department expected =
+        com.example.petstore.models.Department.builder()
+            .name("Eng")
+            .lead(com.example.petstore.models.Employee.builder().name("Ann").build())
+            .build();
+    assertEquals(serializer.serialize(expected), serializer.serialize(copy));
+  }
+
+  @Test
+  void bhvMisc150ModelsWithEqualFieldsCompareEqualAndDifferingOnesDoNot() {
+    assertEquals(
+        com.example.petstore.models.Employee.builder().name("Ann").build(),
+        com.example.petstore.models.Employee.builder().name("Ann").build());
+    assertNotEquals(
+        com.example.petstore.models.Employee.builder().name("Ann").build(),
+        com.example.petstore.models.Employee.builder().name("Bo").build());
+  }
+
+  @Test
+  void bhvMisc151AModelHoldingAMapComparesByItsEntries() {
+    assertEquals(
+        com.example.petstore.models.Metadata.builder()
+            .putAdditionalProperty("a", "1")
+            .putAdditionalProperty("b", "2")
+            .build(),
+        com.example.petstore.models.Metadata.builder()
+            .putAdditionalProperty("a", "1")
+            .putAdditionalProperty("b", "2")
+            .build());
+    assertNotEquals(
+        com.example.petstore.models.Metadata.builder()
+            .putAdditionalProperty("a", "1")
+            .putAdditionalProperty("b", "2")
+            .build(),
+        com.example.petstore.models.Metadata.builder()
+            .putAdditionalProperty("a", "1")
+            .putAdditionalProperty("b", "3")
+            .build());
   }
 }

@@ -2341,6 +2341,22 @@ class TestNetworkErrors:
         assert excinfo.value.status_code == 0
         assert isinstance(excinfo.value.__cause__, urllib3.exceptions.MaxRetryError)
 
+    def test_bhv_misc_282_a_dropped_connection_keeps_the_transport_error_as_the_cause(
+        self,
+    ) -> None:
+        import urllib3
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                raise urllib3.exceptions.ProtocolError("Connection aborted.")
+
+        client = DefaultApiClient(
+            TransportOptions.builder().max_retries(0).build(), pool_manager=_Pool()
+        )
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert isinstance(excinfo.value.__cause__, urllib3.exceptions.ProtocolError)
+
 
 class TestNetworkErrorMessageKeepsTheQueryOut:
     def test_bhv_errors_078_a_query_parameter_api_key_is_not_copied_into_the_message(
@@ -2628,6 +2644,20 @@ class TestRedirectToNonHttpScheme:
             client.send_request("GET", "https://example.com/start", {}, None)
         assert not isinstance(excinfo.value, NetworkException)
         assert excinfo.value.status_code == 302
+
+    def test_bhv_misc_285_an_undecodable_content_encoding_is_refused_with_the_exact_message(
+        self,
+    ) -> None:
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(200, {"content-encoding": "br"})
+
+        client = DefaultApiClient(
+            TransportOptions.builder().build(), pool_manager=_Pool()
+        )
+        with pytest.raises(ValueError) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert str(excinfo.value) == "Unsupported Content-Encoding 'br'"
 
 
 class TestZstdDecompression:

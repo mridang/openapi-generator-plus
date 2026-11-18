@@ -168,6 +168,14 @@ class TestOneOfPetFood:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, "PetFood")
 
+    def test_bhv_misc_294_a_subtype_payload_without_its_discriminator_decodes_as_the_mapped_variant(
+        self,
+    ) -> None:
+        result = ObjectSerializer().deserialize('{"weightKg":2.5}', "DryFood")
+
+        assert isinstance(result, DryFood)
+        assert result.food_type == "dry"
+
 
 class TestAllOfVehicle:
     """allOf with a discriminator: Vehicle and Shape"""
@@ -377,6 +385,22 @@ class TestAnyOfPetTreatment:
         assert "procedureName" in surg_json
         assert "drugName" not in surg_json
 
+    def test_bhv_misc_291_a_payload_matching_several_variants_decodes_to_the_first_declared(
+        self,
+    ) -> None:
+        json_str = '{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}'
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+
+        assert isinstance(result.actual_instance, Medication)
+
+    def test_bhv_misc_293_an_anyof_value_skips_candidates_that_do_not_match(
+        self,
+    ) -> None:
+        json_str = '{"procedureName":"Spay","durationMinutes":45}'
+        result = ObjectSerializer().deserialize(json_str, "PetTreatment")
+
+        assert isinstance(result.actual_instance, Surgery)
+
 
 class TestAnyOfTreatmentRecord:
     """anyOf variants are tried in DECLARATION order: TreatmentRecord declares
@@ -574,3 +598,24 @@ class TestUnionWrapperBehaviours:
         food = DryFood(foodType="custom", weightKg=2.5)
 
         assert json.loads(ObjectSerializer().serialize(food))["foodType"] == "custom"
+
+    def test_bhv_misc_292_a_union_wrapper_serializes_its_bare_payload_and_reads_it_back(
+        self,
+    ) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b"hi")
+
+        wire = ObjectSerializer().serialize(req)
+
+        assert wire == '"aGk="'
+        assert (
+            ObjectSerializer()
+            .deserialize(wire, "SetPetAvatarThumbnailRequest")
+            .actual_instance
+            == b"hi"
+        )
+
+    def test_bhv_misc_295_a_non_list_value_is_rejected_for_the_array_variant_of_a_oneof(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":1}', "SetPetAvatarThumbnailRequest")
