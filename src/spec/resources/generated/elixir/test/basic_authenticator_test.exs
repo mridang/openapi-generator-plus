@@ -83,7 +83,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert headers["Authorization"] == "Basic w7xuw69jw7hkw6k6cMOkc3N3w7ZyZA=="
     end
 
-    test "a password may contain a colon" do
+    test "bhv authbasic 018 a password may contain a colon" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3:cret")
 
       assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
@@ -149,7 +149,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       end
     end
 
-    test "rejects whitespace-only token" do
+    test "bhv authbearer 027 rejects whitespace-only token" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "   ")
       end
@@ -176,6 +176,14 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert inspect(auth) =~ ~s(password: "***")
     end
 
+    test "bhv authbasic 020 a basic authenticator masks the password in its debug output" do
+      secret = Enum.join(["super", "secret", "pw"], "-")
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", secret)
+
+      refute inspect(auth) =~ secret
+      assert inspect(auth) =~ ~s(password: "***")
+    end
+
     test "bhv authbasic 010 basic auth repr shows the host and username and masks only the password" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "super-secret-pw")
 
@@ -184,7 +192,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert inspect(auth) =~ ~s(password: "***")
     end
 
-    test "api key is not leaked by inspect/1" do
+    test "bhv authapikey 026 api key is not leaked by inspect/1" do
       auth =
         ApiKeyAuthenticator.new(
           "https://api.example.com",

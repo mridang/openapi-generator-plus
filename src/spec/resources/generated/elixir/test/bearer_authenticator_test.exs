@@ -186,6 +186,37 @@ defmodule PetstoreClient.Auth.BearerAuthenticatorTest do
       end
     end
 
+    test "bhv authbearer 019 an empty environment variable counts as unset and fails construction naming it" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "")
+      on_exit(fn -> System.delete_env(name) end)
+
+      assert_raise ArgumentError, ~r/#{name}/, fn ->
+        BearerAuthenticator.new("https://api.example.com", nil)
+      end
+    end
+
+    test "bhv authbearer 022 a non-ASCII token is rejected at construction with the exact message" do
+      error =
+        assert_raise ArgumentError, fn ->
+          BearerAuthenticator.new("https://api.example.com", "ñoño")
+        end
+
+      assert error.message ==
+               "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+    end
+
+    test "bhv authbearer 025 the environment variable is read once, at construction" do
+      name = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"
+      System.put_env(name, "first")
+      on_exit(fn -> System.delete_env(name) end)
+
+      auth = BearerAuthenticator.new("https://api.example.com", nil)
+      System.put_env(name, "second")
+
+      assert BearerAuthenticator.auth_headers(auth)["Authorization"] == "Bearer first"
+    end
+
     test "bhv authbearer 011 default inspect/1 redacts the token but keeps the host" do
       auth = BearerAuthenticator.new("https://api.example.com", "super-secret-token")
 

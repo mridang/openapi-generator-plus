@@ -22,7 +22,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert cookies["session"] == "abc123"
     end
 
-    test "a nil key is read once from the environment and a passed key wins" do
+    test "bhv authapikey 021 a nil key is read once from the environment and a passed key wins" do
       name = "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY"
       System.put_env(name, "from-env")
       on_exit(fn -> System.delete_env(name) end)
@@ -185,7 +185,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
                    end
     end
 
-    test "a key emits only at its own location" do
+    test "bhv authapikey 022 a key emits only at its own location" do
       for location <- [:header, :query, :cookie] do
         auth = ApiKeyAuthenticator.new("https://api.example.com", "k", "abc123", location)
 
@@ -249,6 +249,21 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
           ] do
         auth = module.new("https://api.example.com", "super-secret-key")
         refute inspect(auth) =~ "super-secret-key"
+        assert inspect(auth) =~ ~s(api_key: "***")
+      end
+    end
+
+    test "bhv authapikey 025 generated API key wrappers mask the key in their debug output" do
+      secret = Enum.join(["super", "secret", "key"], "-")
+
+      for module <- [
+            PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
+            PetstoreClient.Auth.InternalApiKeyAuthenticator,
+            PetstoreClient.Auth.ApiKeyQueryAuthenticator,
+            PetstoreClient.Auth.SessionCookieAuthenticator
+          ] do
+        auth = module.new("https://api.example.com", secret)
+        refute inspect(auth) =~ secret
         assert inspect(auth) =~ ~s(api_key: "***")
       end
     end
@@ -331,6 +346,12 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "kéy", :query)
 
       assert ApiKeyAuthenticator.query_params(auth) == %{"api_key" => "kéy"}
+    end
+
+    test "bhv authapikey 023 a cookie key accepts a non-ASCII value" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "session", "kéy", :cookie)
+
+      assert ApiKeyAuthenticator.cookie_params(auth) == %{"session" => "kéy"}
     end
 
     test "bhv authapikey 016 a valid query key builds an authenticator" do
