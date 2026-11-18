@@ -152,7 +152,7 @@ describe Petstore::Client::DefaultApiClient do
       chasm_url = ENV.fetch('CHASM_HTTP_URL')
       dead = %w[HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy]
       bypass = %w[NO_PROXY no_proxy]
-      saved = {} # : Hash[String, String?]
+      saved = {} #: Hash[String, String?]
       (dead + bypass).each { |name| saved[name] = ENV.fetch(name, nil) }
       dead.each { |name| ENV[name] = 'http://127.0.0.1:1' }
       bypass.each { |name| ENV.delete(name) }
@@ -573,13 +573,13 @@ describe Petstore::Client::DefaultApiClient do
       client = Petstore::Client::DefaultApiClient.new(transport)
       boundary = 'test-boundary'
       multipart_body = "--#{boundary}\r\n" \
-                       "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
-                       "hello\r\n" \
-                       "--#{boundary}\r\n" \
-                       "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
-                       "Content-Type: application/octet-stream\r\n\r\n" \
-                       "file-content-bytes\r\n" \
-                       "--#{boundary}--\r\n"
+        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
+        "hello\r\n" \
+        "--#{boundary}\r\n" \
+        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
+        "Content-Type: application/octet-stream\r\n\r\n" \
+        "file-content-bytes\r\n" \
+        "--#{boundary}--\r\n"
       headers = { 'Content-Type' => "multipart/form-data; boundary=#{boundary}" }
       # chasm echoes the replayed request after the 307; we verify the
       # method stayed POST and the multipart body was carried through.
@@ -603,13 +603,13 @@ describe Petstore::Client::DefaultApiClient do
       client = Petstore::Client::DefaultApiClient.new(transport)
       boundary = 'test-boundary'
       multipart_body = "--#{boundary}\r\n" \
-                       "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
-                       "hello\r\n" \
-                       "--#{boundary}\r\n" \
-                       "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
-                       "Content-Type: application/octet-stream\r\n\r\n" \
-                       "file-content-bytes\r\n" \
-                       "--#{boundary}--\r\n"
+        "Content-Disposition: form-data; name=\"description\"\r\n\r\n" \
+        "hello\r\n" \
+        "--#{boundary}\r\n" \
+        "Content-Disposition: form-data; name=\"file\"; filename=\"file\"\r\n" \
+        "Content-Type: application/octet-stream\r\n\r\n" \
+        "file-content-bytes\r\n" \
+        "--#{boundary}--\r\n"
       headers = { 'Content-Type' => "multipart/form-data; boundary=#{boundary}" }
       # chasm echoes the replayed request after the 307; we verify the
       # method stayed POST and the multipart body was carried through.
@@ -694,10 +694,12 @@ describe Petstore::Client::DefaultApiClient do
       # Each redirecting thread must raise; capture the exception per thread.
       refused = Array.new(4) do
         Thread.new do
-          client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
-          nil
-        rescue Petstore::Client::Errors::ApiError => e
-          e
+          begin
+            client.send_request(:GET, "#{chasm_url}/test/redirect/302", {}, nil)
+            nil
+          rescue Petstore::Client::Errors::ApiError => e
+            e
+          end
         end
       end
       # Each non-redirecting thread must succeed despite the concurrent

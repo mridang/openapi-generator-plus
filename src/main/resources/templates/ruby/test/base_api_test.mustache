@@ -494,6 +494,14 @@ describe {{moduleName}}::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'default'
     end
 
+    it 'bhv_misc_072 each API group holds the default credential and the scheme credentials the client was built with' do
+      api, client = api_with({ 'apiKeyHeader' => credential('key') }, credential('default'))
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'key'
+    end
+
     it 'bhv_authintegration_003 prefers a matching scheme credential to the client authenticator' do
       api, client = api_with({ 'apiKeyHeader' => credential('key') }, credential('default'))
 

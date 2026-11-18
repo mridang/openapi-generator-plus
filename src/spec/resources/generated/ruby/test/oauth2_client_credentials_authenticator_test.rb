@@ -118,8 +118,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     # swallowed into an empty header map that would send the API request
     # unauthenticated and produce a confusing downstream 401.
     error_client = ConfigurableClientCredentialsClient.new([
-                                                             { status: 401, body: { 'error' => 'invalid_client' } }
-                                                           ])
+      { status: 401, body: { 'error' => 'invalid_client' } }
+    ])
     error_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -141,8 +141,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     # consecutive header requests reuse the same token and issue only a
     # single token request to the endpoint.
     caching_client = ConfigurableClientCredentialsClient.new([
-                                                               { status: 200, body: { 'access_token' => 'cached_cc_token', 'expires_in' => 3600 } }
-                                                             ])
+      { status: 200, body: { 'access_token' => 'cached_cc_token', 'expires_in' => 3600 } }
+    ])
     caching_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com',
       'my_client_id',
@@ -259,9 +259,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
   it 'bhv_authoauthtwoclientcred_005 invalidate_access_token drops the cached token so the next call fetches a new one' do
     client = ConfigurableClientCredentialsClient.new([
-                                                       { status: 200, body: { 'access_token' => 'first_cc_token', 'expires_in' => 3600 } },
-                                                       { status: 200, body: { 'access_token' => 'second_cc_token', 'expires_in' => 3600 } }
-                                                     ])
+      { status: 200, body: { 'access_token' => 'first_cc_token', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'second_cc_token', 'expires_in' => 3600 } }
+    ])
     auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token', %w[read write]
     )
@@ -275,10 +275,10 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
   it 'bhv_auth_057 a rejected, unreachable or malformed refresh falls back to the original grant' do
     fallback_client = ConfigurableClientCredentialsClient.new([
-                                                                { status: 200, body: { 'access_token' => 'tok_a', 'refresh_token' => 'ref_a', 'expires_in' => -1 } },
-                                                                { status: 400, body: { 'error' => 'invalid_grant' } },
-                                                                { status: 401, body: { 'error' => 'invalid_client' } }
-                                                              ])
+      { status: 200, body: { 'access_token' => 'tok_a', 'refresh_token' => 'ref_a', 'expires_in' => -1 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } },
+      { status: 401, body: { 'error' => 'invalid_client' } }
+    ])
     fallback_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token', %w[read]
     )
@@ -293,10 +293,10 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
 
   it 'bhv_auth_026 a failed refresh falls back to the original grant and reports that grant error with its status' do
     fallback_client = ConfigurableClientCredentialsClient.new([
-                                                                { status: 200, body: { 'access_token' => 'tok_a', 'refresh_token' => 'ref_a', 'expires_in' => -1 } },
-                                                                { status: 400, body: { 'error' => 'invalid_grant' } },
-                                                                { status: 401, body: { 'error' => 'invalid_client' } }
-                                                              ])
+      { status: 200, body: { 'access_token' => 'tok_a', 'refresh_token' => 'ref_a', 'expires_in' => -1 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } },
+      { status: 401, body: { 'error' => 'invalid_client' } }
+    ])
     fallback_auth = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
       'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token', %w[read]
     )

@@ -690,6 +690,25 @@ describe {{moduleName}}::Errors::ApiError do
     assert_nil(errors::ApiError.new('no response').request_id)
   end
 
+  it 'bhv_misc_080 a body is decoded with the schema of its own status code and is refused against another status schema' do
+    errors = {{moduleName}}::Errors
+    tagged = lambda do |tag|
+      Class.new do
+        define_singleton_method(:from_error_response) do |status, headers, body, **|
+          errors::ApiError.new(status_code: status, message: tag, response_headers: headers, response_body: body)
+        end
+      end
+    end
+    schemas = { '404' => tagged.call('exact'), '4XX' => tagged.call('range'), 'default' => tagged.call('default') }
+    from = ->(status, declared) { errors::ApiError.from_response(status, {}, '{}', error_schemas: declared) }
+
+    _(from.call(404, schemas).detail_message).must_equal 'exact'
+    _(from.call(418, schemas).detail_message).must_equal 'range'
+    _(from.call(502, schemas).detail_message).must_equal 'default'
+    _(from.call(502, {})).must_be_instance_of errors::BadGatewayError
+    _(from.call(404, nil)).must_be_instance_of errors::NotFoundError
+  end
+
   it 'bhv_errors_203 the error factory of an operation is chosen by exact status, then range, then default' do
     errors = {{moduleName}}::Errors
     tagged = lambda do |tag|

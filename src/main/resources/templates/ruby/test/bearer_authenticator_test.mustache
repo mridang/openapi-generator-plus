@@ -143,6 +143,13 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
       _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{prefix}_TOKEN"
     end
 
+    it 'bhv_misc_068 an empty string passed for a credential counts as not passed and is read from the environment' do
+      error = _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' }) })
+              .must_raise ArgumentError
+
+      _(error.message).must_include "#{prefix}_TOKEN"
+    end
+
     it 'bhv_authbearer_019 an empty token variable counts as unset and fails construction naming it' do
       error = _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' }) })
               .must_raise ArgumentError

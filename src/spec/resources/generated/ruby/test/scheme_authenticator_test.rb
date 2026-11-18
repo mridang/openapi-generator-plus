@@ -304,7 +304,6 @@ describe 'scheme authenticators' do
     environment_schemes.each do |name, base, credentials|
       env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
       next unless base == 'BearerAuthenticator'
-
       _(scheme_class(name).new('https://api.example.com', 'given', env: env).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
     end
   end

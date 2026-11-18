@@ -122,7 +122,7 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_include('2024-01-01')
       _(result).must_include('12:30:45')
       assert(result.include?('+00:00') || result.include?('Z') || result.end_with?('Z'),
-             "should contain UTC offset: #{result}")
+        "should contain UTC offset: #{result}")
     end
 
     it 'bhv_serializationobject_116 positive offset is preserved in serialized string' do
@@ -152,7 +152,7 @@ describe Petstore::Client::ObjectSerializer do
     it 'bhv_serializationobject_149 serialized datetime string contains an offset' do
       t = Time.new(2024, 1, 1, 12, 30, 45, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
-      assert_match(/[+-]\d{2}:\d{2}$|Z$/, result, "should end with offset: #{result}")
+      assert(result.match?(/[+-]\d{2}:\d{2}$|Z$/), "should end with offset: #{result}")
     end
 
     it 'bhv_serialization_093 a date-time is written with a numeric UTC offset, never Z, keeping sub-second digits' do
@@ -429,6 +429,13 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.stringify(9_007_199_254_740_993)).must_equal('9007199254740993')
     end
 
+    it 'bhv_misc_089 a date-time is written in its canonical form in a field, optional, list, set or map' do
+      t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+      result = Petstore::Client::ObjectSerializer.stringify(t)
+      _(result).must_include('2024-01-15')
+      _(result).must_include('10:30:00')
+    end
+
     it 'bhv_serializationobject_157 returns ISO 8601 string for Time' do
       t = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
       result = Petstore::Client::ObjectSerializer.stringify(t)
@@ -675,7 +682,7 @@ describe Petstore::Client::ObjectSerializer do
     # deserialization. JSON.parse tolerates the BOM, so a Category prefixed
     # with U+FEFF round-trips to the same model. GREEN everywhere.
     it 'bhv_serializationobject_060 deserializes BOM-prefixed JSON to typed model' do
-      json_str = '﻿{"id":1,"name":"Dogs"}'
+      json_str = "﻿{\"id\":1,\"name\":\"Dogs\"}"
       category = Petstore::Client::ObjectSerializer.deserialize(json_str, 'Category')
       _(category).must_be_kind_of(Petstore::Client::Models::Category)
       _(category.id).must_equal(1)
@@ -1285,7 +1292,7 @@ describe Petstore::Client::ObjectSerializer do
       # A top-level `type: string, format: byte` response carried as
       # application/json arrives as a JSON string literal. deserialize must
       # JSON-parse it and then base64-decode the inner string to raw bytes.
-      raw = 'test-image'.dup.force_encoding(Encoding::BINARY)
+      raw = "test-image".dup.force_encoding(Encoding::BINARY)
       json = Base64.strict_encode64(raw).to_json
       result = Petstore::Client::ObjectSerializer.deserialize(json, 'ByteArray')
       _(result).must_equal(raw)
@@ -1376,6 +1383,13 @@ describe Petstore::Client::ObjectSerializer do
         '{"trackingId":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F"}', 'Petstore::Client::Models::Order'
       )
       _(order.tracking_id).must_equal('e621e1f8-c36c-495a-93fc-0c247a3e6e5f')
+    end
+
+    it 'bhv_misc_085 a UUID that is not in canonical form is refused when built and when written as a parameter' do
+      err = assert_raises(Petstore::Client::Errors::SerializationError) do
+        Petstore::Client::ObjectSerializer.deserialize('{"trackingId":"not-a-uuid"}', 'Petstore::Client::Models::Order')
+      end
+      _(err.message).must_equal('Invalid UUID for format: uuid: "not-a-uuid"')
     end
 
     it 'bhv_serializationobject_048 rejects a malformed uuid on decode' do
@@ -1746,6 +1760,12 @@ describe Petstore::Client::ObjectSerializer do
       d = ISO8601::Duration.new('PT1H30M')
       out = Petstore::Client::ObjectSerializer.stringify(d)
       _(out).must_equal('5400s')
+    end
+
+    it 'bhv_misc_090 a duration field of a record writes its fractional seconds in the wire form' do
+      d = ISO8601::Duration.new('PT5M')
+      json = Petstore::Client::ObjectSerializer.serialize({ 'ttl' => d })
+      _(JSON.parse(json)['ttl']).must_equal('300s')
     end
 
     it 'bhv_serializationobject_146 serialize emits the protobuf-JSON duration string inside a hash' do

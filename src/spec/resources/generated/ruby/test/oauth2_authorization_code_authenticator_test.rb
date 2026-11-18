@@ -86,11 +86,29 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     URI.decode_www_form(URI(url).query.to_s).to_h
   end
 
+  it 'bhv_misc_078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce' do
+    params = pkce_challenge_of(auth.build_authorization_url('s'))
+    _(params['code_challenge_method']).must_equal 'S256'
+    _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(params).wont_include 'nonce'
+  end
+
   it 'bhv_authoauthtwoauthcode_023 adds an S256 code challenge to the authorization URL and no nonce' do
     params = pkce_challenge_of(auth.build_authorization_url('s'))
     _(params['code_challenge_method']).must_equal 'S256'
     _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
     _(params).wont_include 'nonce'
+  end
+
+  it 'bhv_misc_077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call' do
+    client = FakeAuthCodeClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
+    auth.api_client = client
+
+    challenge = pkce_challenge_of(auth.build_authorization_url)['code_challenge']
+    auth.exchange_code('auth_code_123')
+    verifier = URI.decode_www_form(client.last_body.to_s).to_h['code_verifier'].to_s
+    _(verifier).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)).must_equal challenge
   end
 
   it 'bhv_authoauthtwoauthcode_008 proves the challenge with a 43 character verifier on the code exchange' do
@@ -130,9 +148,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
   # F855: a 401 drops the cached access token and keeps the refresh token.
   it 'bhv_authoauthtwoauthcode_016 invalidates the cached access token and refreshes with the kept refresh token' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } },
-                                      { status: 200, body: { 'access_token' => 'tok_new', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok_new', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -145,8 +163,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_012 exchanges code with correct grant type' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -158,8 +176,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_032 sends the code exchange parameters in a fixed order' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -168,9 +186,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_015 includes refresh token on refresh' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
-                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -181,9 +199,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_026 authenticates the client on the refresh grant' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
-                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -195,9 +213,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_002 surfaces a rejected refresh after exactly one refresh POST' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
-                                      { status: 400, body: { 'error' => 'invalid_grant' } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('auth_code_123')
@@ -208,9 +226,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_021 second exchange_code sends the new code and replaces the session' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
-                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('a')
@@ -223,9 +241,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_auth_053 exchanging a code discards the refresh token previously held' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
-                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
     manager = auth.instance_variable_get(:@token_manager)
 
@@ -237,9 +255,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_022 second exchange without a refresh_token drops the old refresh token' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
-                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
     auth.api_client = client
     manager = auth.instance_variable_get(:@token_manager)
 
@@ -251,9 +269,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_013 a failed exchange keeps the previous session' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
-                                      { status: 400, body: { 'error' => 'invalid_grant' } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } }
+    ])
     auth.api_client = client
 
     auth.exchange_code('a')
@@ -288,8 +306,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_auth_054 a non-success token response raises an OAuth2 server error naming the status and body' do
     auth.api_client = FakeAuthCodeClient.new([
-                                               { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 'code expired' } }
-                                             ])
+      { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 'code expired' } }
+    ])
     err = _(-> { auth.exchange_code('a') }).must_raise Petstore::Client::Errors::OAuth2ServerError
     _(err.message).must_include '400'
     _(err.message).must_include 'invalid_grant'
@@ -395,9 +413,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_024 sends the code exchange to the token URL and the refresh grant to the refresh URL' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
-                                      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_refreshed', 'expires_in' => 3600 } }
+    ])
     split_auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/authorize',
       'https://auth.example.com/token', 'https://app.example.com/callback', %w[read],
@@ -417,8 +435,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_017 keeps ~ literal and percent-encodes * ! \' ( ) in the code exchange body' do
     client = FakeAuthCodeClient.new([
-                                      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-                                    ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
     special_auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
       'https://api.example.com', "id~*!'()", "secret~*!'()", 'https://auth.example.com/authorize',
       'https://auth.example.com/token', 'https://app.example.com/callback', %w[read]

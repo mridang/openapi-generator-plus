@@ -381,6 +381,19 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
   end
 
+  it 'bhv_misc_070 a discovery document that is not a JSON object raises the serialization error and keeps no cause' do
+    client = FakeOidcClient.new([{ status: 200, body: '<html>not json</html>' }])
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = client
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err).must_be_instance_of Petstore::Client::Errors::SerializationError
+  end
+
   it 'bhv_authoidc_016 raises SerializationError when the discovery document is not JSON' do
     client = FakeOidcClient.new([{ status: 200, body: '<html>not json</html>' }])
     auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(

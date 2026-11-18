@@ -62,7 +62,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # A Unicode space is not ASCII blank, so the printable-ASCII rule rejects it
   # rather than the empty-token rule.
   it 'bhv_authbearer_016 a Unicode space is not blank, it fails the printable ASCII check instead' do
-    error = _(lambda {
+    error = _(-> {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "\u00A0")
     }).must_raise ArgumentError
     _(error.message).must_equal 'Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
@@ -72,19 +72,19 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   # from .env / file reads, which would CRLF-inject the Authorization header.
   # Also reject non-ASCII.
   it 'bhv_authbearer_012 rejects CR/LF in the token' do
-    _(lambda {
+    _(-> {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
   end
 
   it 'bhv_authbearer_028 rejects a bearer token containing CRLF at construction' do
-    _(lambda {
+    _(-> {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
     }).must_raise ArgumentError
   end
 
   it 'bhv_authbearer_022 rejects a non-ASCII token' do
-    _(lambda {
+    _(-> {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
     }).must_raise ArgumentError
   end
@@ -102,7 +102,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'super-secret-token')
     _(auth.inspect).wont_include 'super-secret-token'
     _(auth.to_s).wont_include 'super-secret-token'
-    _(auth.to_s).wont_include 'super-secret-token'
+    _("#{auth}").wont_include 'super-secret-token'
     _(auth.inspect).must_include '***'
     _(auth.inspect).must_include 'host='
   end
@@ -148,6 +148,13 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{prefix}_TOKEN"
     end
 
+    it 'bhv_misc_068 an empty string passed for a credential counts as not passed and is read from the environment' do
+      error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' }) })
+              .must_raise ArgumentError
+
+      _(error.message).must_include "#{prefix}_TOKEN"
+    end
+
     it 'bhv_authbearer_019 an empty token variable counts as unset and fails construction naming it' do
       error = _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' }) })
               .must_raise ArgumentError
@@ -170,20 +177,20 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     end
 
     it 'bhv_misc_060 supplying both an API key and an API key provider is refused' do
-      _(lambda {
+      _(-> {
         Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'p' })
       }).must_raise ArgumentError
     end
 
     it 'bhv_auth_039 refuses a token and a token provider passed together' do
-      _(lambda {
+      _(-> {
         Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'p' })
       }).must_raise ArgumentError
     end
 
     it 'bhv_auth_040 treats a set but empty token variable as unset' do
       prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
-      _(lambda {
+      _(-> {
         Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' })
       }).must_raise ArgumentError
     end
@@ -246,7 +253,7 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   end
 
   it 'bhv_authbearer_026 a token and a token provider passed together are refused' do
-    _(lambda {
+    _(-> {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'explicit', token_provider: -> { 'from-provider' })
     }).must_raise ArgumentError
   end

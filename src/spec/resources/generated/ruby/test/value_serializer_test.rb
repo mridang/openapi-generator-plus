@@ -543,14 +543,14 @@ describe Petstore::Client::ValueSerializer do
       # Gap W — empty-string path values silently produce malformed
       # URLs like `/resource//details`; reject at serialization time so
       # callers see the real error rather than a downstream 404.
-      _(lambda {
+      _(-> {
         Petstore::Client::ValueSerializer.serialize_styled('id', '', :path, 'string', nil, 'simple', false)
       }).must_raise ArgumentError
     end
 
     ['.', '..'].each do |segment|
       it "bhv_serializationparam_029 rejects the dot segment #{segment.inspect} as a simple path value" do
-        err = _(lambda {
+        err = _(-> {
           Petstore::Client::ValueSerializer.serialize_styled('id', segment, :path, 'string', nil, 'simple', false)
         }).must_raise ArgumentError
         _(err.message).must_equal "Path parameter 'id' must not be '.' or '..'"

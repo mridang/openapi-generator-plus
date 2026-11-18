@@ -96,8 +96,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_014 extracts access token from response' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -107,8 +107,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_028 stores refresh token' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -118,9 +118,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_029 sends the refresh grant to the refresh URL with the client credentials' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 0 } },
-                                   { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 0 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     params = { 'grant_type' => 'password', 'client_id' => 'cid', 'client_secret' => 'sec' }
@@ -134,9 +134,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_023 posts params that already are a refresh grant exactly once' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 0 } },
-                                   { status: 400, body: { 'error' => 'invalid_grant' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 0 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -149,9 +149,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_006 exchange bypasses the cache and the refresh path' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
-                                   { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -165,9 +165,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_015 exchange restores the previous session when it fails' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
-                                   { status: 400, body: { 'error' => 'invalid_grant' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' })
@@ -181,8 +181,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_025 returns cached token when not expired' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_abc', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -194,9 +194,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_021 refetches token when expired' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
-                                   { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_first', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'tok_second', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -221,9 +221,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_018 invalidate_access_token forces refetch' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
-                                   { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok1', 'expires_in' => 3600 } },
+      { status: 200, body: { 'access_token' => 'tok2', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -272,8 +272,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # A 2xx response whose body omits access_token must surface as the typed
     # OAuth2TokenError, not silently cache an empty token.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'refresh_token' => 'x' } }
-                                 ])
+      { status: 200, body: { 'refresh_token' => 'x' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -357,15 +357,15 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     # typed OAuth2ServerError carrying code/description/uri.
     client = FakeTokenClient.new([
-                                   {
-                                     status: 400,
-                                     body: {
-                                       'error' => 'invalid_grant',
-                                       'error_description' => 'refresh token expired',
-                                       'error_uri' => 'https://docs.example.com/errors/invalid_grant'
-                                     }
-                                   }
-                                 ])
+      {
+        status: 400,
+        body: {
+          'error' => 'invalid_grant',
+          'error_description' => 'refresh token expired',
+          'error_uri' => 'https://docs.example.com/errors/invalid_grant'
+        }
+      }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -395,9 +395,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     manager.api_client = client
 
     manager.get_access_token('https://auth.example.com/token', {
-                               'grant_type' => 'client_credentials', 'client_id' => 'my_client_id',
-                               'client_secret' => 'my_client_secret', 'scope' => 'read write'
-                             })
+      'grant_type' => 'client_credentials', 'client_id' => 'my_client_id',
+      'client_secret' => 'my_client_secret', 'scope' => 'read write'
+    })
     _(client.last_body).must_equal 'grant_type=client_credentials&client_id=my_client_id&client_secret=my_client_secret&scope=read+write'
   end
 
@@ -416,8 +416,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   it 'bhv_authoauthtwotokenmgr_013 expires_in short-lived token does not storm' do
     # Gap CM: short-lived token must produce exactly ONE network call.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'short', 'expires_in' => 10 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -429,8 +429,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   it 'bhv_authoauthtwotokenmgr_010 expires_in long-lived token applies full buffer' do
     # Gap CM: long-lived token gets full 30s buffer; second call serves cache.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'long', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -447,9 +447,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # The real expiry is stored and one margin (half the lifetime, at most
     # 60 s) is applied on read, so a token of 90 s or less is still cached.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'sixty1', 'expires_in' => 60 } },
-                                   { status: 200, body: { 'access_token' => 'sixty2', 'expires_in' => 60 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'sixty1', 'expires_in' => 60 } },
+      { status: 200, body: { 'access_token' => 'sixty2', 'expires_in' => 60 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -461,9 +461,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_012 a token with a zero lifetime is stale on arrival' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 0 } },
-                                   { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 0 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'edge1', 'expires_in' => 0 } },
+      { status: 200, body: { 'access_token' => 'edge2', 'expires_in' => 0 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -477,9 +477,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # Gap A3 (RFC 6749 §6): an empty refresh_token in a refresh response
     # MUST NOT clobber the cached refresh_token.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 0 } },
-                                   { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'old_access', 'refresh_token' => 'old_refresh', 'expires_in' => 0 } },
+      { status: 200, body: { 'access_token' => 'new_access', 'expires_in' => 3600, 'refresh_token' => '' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -498,8 +498,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # quoted string. The manager must accept it and cache the token; a
     # second call within the buffer window must serve from cache.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'str-tok', 'expires_in' => '3600' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -515,9 +515,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
     it "bhv_auth_056 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
       client = FakeTokenClient.new([
-                                     { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
-                                     { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
-                                   ])
+        { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
+        { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
+      ])
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
 
@@ -531,8 +531,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   [1e20, 10**30, '9' * 400].each do |raw|
     it "bhv_authoauthtwotokenmgr_005 expires_in #{raw.to_s[0, 12]} is clamped to one year instead of overflowing" do
       client = FakeTokenClient.new([
-                                     { status: 200, body: { 'access_token' => 'huge', 'expires_in' => raw } }
-                                   ])
+        { status: 200, body: { 'access_token' => 'huge', 'expires_in' => raw } }
+      ])
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
 
@@ -546,8 +546,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_auth_056 expires_in as a padded decimal string with a fraction is accepted' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -561,8 +561,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # D1: some providers send expires_in as a JSON float (e.g. 3600.5).
     # The manager must floor it and cache the token.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'flt-tok', 'expires_in' => 3600.5 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -579,9 +579,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # D1: a negative expires_in (e.g. -1) must mark the token as
     # immediately stale so the very next call refetches.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
-                                   { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'neg1', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'neg2', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -596,8 +596,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_031 throws when token request fails' do
     client = FakeTokenClient.new([
-                                   { status: 401, body: { 'error' => 'invalid_client' } }
-                                 ])
+      { status: 401, body: { 'error' => 'invalid_client' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -617,8 +617,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # `no_redirect: true` so the transport refuses any 3xx instead of
     # silently replaying the credentials body to a redirect target.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_nr', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -628,8 +628,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_035 token POST carries the form Content-Type and a JSON Accept header' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok_h', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok_h', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -687,9 +687,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_022 sends the refresh grant with the cached refresh token and the client credentials' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'cached_refresh', 'expires_in' => -1 } },
-                                   { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'cached_refresh', 'expires_in' => -1 } },
+      { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -702,10 +702,10 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_016 falls back to the original grant when the refresh grant fails' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'revoked', 'expires_in' => -1 } },
-                                   { status: 400, body: { 'error' => 'invalid_grant' } },
-                                   { status: 200, body: { 'access_token' => 'third', 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'revoked', 'expires_in' => -1 } },
+      { status: 400, body: { 'error' => 'invalid_grant' } },
+      { status: 200, body: { 'access_token' => 'third', 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -720,9 +720,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_039 a response without expires_in is cached indefinitely' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'no_expiry' } },
-                                   { status: 200, body: { 'access_token' => 'unexpected' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'no_expiry' } },
+      { status: 200, body: { 'access_token' => 'unexpected' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -737,10 +737,10 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     # expires_in carries no expiry, so it is cached instead of refreshing
     # again on every call.
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'r', 'expires_in' => 0 } },
-                                   { status: 200, body: { 'access_token' => 'second' } },
-                                   { status: 200, body: { 'access_token' => 'third' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'first', 'refresh_token' => 'r', 'expires_in' => 0 } },
+      { status: 200, body: { 'access_token' => 'second' } },
+      { status: 200, body: { 'access_token' => 'third' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -753,8 +753,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_017 ignores a numeric refresh_token' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => 12_345, 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => 12_345, 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -764,8 +764,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_020 non string refresh token is ignored for a structured value too' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => %w[not a string], 'expires_in' => 3600 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'tok', 'refresh_token' => %w[not a string], 'expires_in' => 3600 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 
@@ -786,9 +786,9 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_002 accepts a bearer token_type in any case and a missing one' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'a', 'token_type' => 'BEARER', 'expires_in' => 0 } },
-                                   { status: 200, body: { 'access_token' => 'b', 'expires_in' => 0 } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'a', 'token_type' => 'BEARER', 'expires_in' => 0 } },
+      { status: 200, body: { 'access_token' => 'b', 'expires_in' => 0 } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     params = { 'grant_type' => 'client_credentials' }
@@ -798,8 +798,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_authoauthtwotokenmgr_038 rejects a token_type other than bearer without echoing it' do
     client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'a', 'token_type' => 'DPoP-secret' } }
-                                 ])
+      { status: 200, body: { 'access_token' => 'a', 'token_type' => 'DPoP-secret' } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
     err = assert_raises(Petstore::Client::Errors::OAuth2TokenError) do
@@ -830,8 +830,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
 
   it 'bhv_errors_082 keeps a valid error code when its description and uri are not strings' do
     client = FakeTokenClient.new([
-                                   { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 42, 'error_uri' => ['https://x'] } }
-                                 ])
+      { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 42, 'error_uri' => ['https://x'] } }
+    ])
     manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client
 

@@ -81,11 +81,29 @@ describe {{moduleName}}::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     URI.decode_www_form(URI(url).query.to_s).to_h
   end
 
+  it 'bhv_misc_078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce' do
+    params = pkce_challenge_of(auth.build_authorization_url('s'))
+    _(params['code_challenge_method']).must_equal 'S256'
+    _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(params).wont_include 'nonce'
+  end
+
   it 'bhv_authoauthtwoauthcode_023 adds an S256 code challenge to the authorization URL and no nonce' do
     params = pkce_challenge_of(auth.build_authorization_url('s'))
     _(params['code_challenge_method']).must_equal 'S256'
     _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
     _(params).wont_include 'nonce'
+  end
+
+  it 'bhv_misc_077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call' do
+    client = FakeAuthCodeClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
+    auth.api_client = client
+
+    challenge = pkce_challenge_of(auth.build_authorization_url)['code_challenge']
+    auth.exchange_code('auth_code_123')
+    verifier = URI.decode_www_form(client.last_body.to_s).to_h['code_verifier'].to_s
+    _(verifier).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)).must_equal challenge
   end
 
   it 'bhv_authoauthtwoauthcode_008 proves the challenge with a 43 character verifier on the code exchange' do

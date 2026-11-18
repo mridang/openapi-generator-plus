@@ -84,10 +84,10 @@ unless shared_helpers
   CHASM.with_exposed_port(4010)
   CHASM.with_exposed_port(8443)
   CHASM.with_filesystem_binds([
-                                "#{spec_path}:/tmp/openapi.yaml:ro",
-                                "#{chasm_cert_path}:/certs/cert.pem:ro",
-                                "#{chasm_key_path}:/certs/key.pem:ro"
-                              ])
+    "#{spec_path}:/tmp/openapi.yaml:ro",
+    "#{chasm_cert_path}:/certs/cert.pem:ro",
+    "#{chasm_key_path}:/certs/key.pem:ro"
+  ])
   CHASM.with_command(
     'mock', '/tmp/openapi.yaml', '--host', '0.0.0.0',
     '--tls-cert', '/certs/cert.pem',
