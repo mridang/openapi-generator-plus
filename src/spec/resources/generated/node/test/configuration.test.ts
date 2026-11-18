@@ -277,33 +277,33 @@ describe("Configuration", () => {
     }
   });
 
-  test("signal is undefined by default", () => {
+  test("bhv langnode 053 signal is undefined by default", () => {
     expect(Configuration.builder().build().signal).toBeUndefined();
   });
 
-  test("the builder stores the client-level signal", () => {
+  test("bhv misc 135 the builder stores the client-level signal", () => {
     const controller = new AbortController();
     const config = Configuration.builder().signal(controller.signal).build();
     expect(config.signal).toBe(controller.signal);
   });
 
-  test("the signal is not part of the printable form", () => {
+  test("bhv langnode 054 the signal is not part of the printable form", () => {
     const config = Configuration.builder()
       .signal(new AbortController().signal)
       .build();
     expect(Object.keys(config.toJSON())).toEqual(["baseUrl", "defaultHeaders"]);
   });
 
-  test("the call hook is undefined by default", () => {
+  test("bhv langnode 055 the call hook is undefined by default", () => {
     expect(Configuration.builder().build().callHook).toBeUndefined();
   });
 
-  test("the builder stores the call hook", () => {
+  test("bhv langnode 056 the builder stores the call hook", () => {
     const hook = { start: () => undefined };
     expect(Configuration.builder().callHook(hook).build().callHook).toBe(hook);
   });
 
-  test("the call hook is not part of the printable form", () => {
+  test("bhv langnode 057 the call hook is not part of the printable form", () => {
     const config = Configuration.builder()
       .callHook({ start: () => undefined })
       .build();
