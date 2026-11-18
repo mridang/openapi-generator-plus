@@ -1946,3 +1946,4 @@ langpython003 | Every constructor chains the given cause.
 langpython004 | Fields are read only.
 langpython005 | The request is unknown by default.
 langpython006 | An incomplete request attachment is ignored.
+langpython007 | An API key authenticator compares by identity, so two instances with equal secrets are unequal and hash apart.
