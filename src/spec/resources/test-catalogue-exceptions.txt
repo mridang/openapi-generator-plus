@@ -458,3 +458,5 @@ python | misc044 | a declared gzip body that is not gzip raises ApiException (tr
 python | misc051 | operation Options objects are typed, so an option the operation cannot apply is refused by Python as an unknown keyword at construction
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
+node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
+node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
