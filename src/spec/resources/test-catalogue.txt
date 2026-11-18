@@ -1951,3 +1951,5 @@ langkotlin006 | A void operation ignores a success body that is JSON but not an 
 langkotlin007 | A generated basic scheme wrapper reads its user and password from its own variables
 langkotlin008 | A token made only of form feeds is rejected as empty
 langkotlin009 | A generated bearer scheme wrapper reads its token from its own environment variable
+langkotlin010 | A failing observer does not stop the other observers from being told the outcome
+langkotlin011 | A hook sees the request as edited by the hooks that ran before it
