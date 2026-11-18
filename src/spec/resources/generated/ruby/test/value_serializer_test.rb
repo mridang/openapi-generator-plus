@@ -6,6 +6,12 @@ describe Petstore::Client::ValueSerializer do
   parallelize_me!
 
   describe 'path location' do
+    it 'bhv_misc_082 an enum value is sent as its wire value in a path, query or header parameter' do
+      %i[path query header].each do |location|
+        _(Petstore::Client::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
+      end
+    end
+
     it 'bhv_serializationparam_062 null returns empty string' do
       _(Petstore::Client::ValueSerializer.serialize(nil, :path, 'string')).must_equal('')
     end

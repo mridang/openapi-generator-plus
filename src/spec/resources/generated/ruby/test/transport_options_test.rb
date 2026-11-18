@@ -6,6 +6,10 @@ require 'petstore_client'
 describe Petstore::Client::TransportOptions do
   parallelize_me!
 
+  it 'bhv_misc_051 an unknown option is refused by the builder rather than ignored' do
+    _ { Petstore::Client::TransportOptions.builder.no_such_option(1) }.must_raise NoMethodError
+  end
+
   it 'bhv_options_043 verify_ssl defaults to true' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true

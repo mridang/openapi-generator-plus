@@ -674,6 +674,32 @@ describe Petstore::Client::Api::StoreApi do
       end
     end
 
+    it 'bhv_misc_048 a success status that no declared response row names decodes as the union' do
+      api, server, thread, = capture_wire_request('{"reservationId":7,"quantity":2}', status_line: '202 Accepted')
+      begin
+        result = api.reserve_stock
+
+        _(result).wont_be_nil
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_079 each success status decodes as the type declared for the status it arrived with' do
+      api, server, thread, = capture_wire_request(
+        '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}', status_line: '201 Created'
+      )
+      begin
+        result = api.reserve_stock
+
+        _(result).must_be_kind_of(Petstore::Client::Models::ReservationReceipt)
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
     it 'bhv_operations_154 a 201 body that fits the 200 schema but not its own status schema is refused' do
       api, server, thread, = capture_wire_request('{"reservationId":31,"quantity":4}', status_line: '201 Created')
       begin

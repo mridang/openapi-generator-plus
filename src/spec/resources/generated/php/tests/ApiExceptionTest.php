@@ -7,6 +7,45 @@ use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\Errors\OpenAPIException;
 use PetstoreClient\Models\Category;
 
+test('bhv misc 015 a typed view of a non object error body is a serialization error', function (): void {
+    $err = new \PetstoreClient\Errors\BadRequestException(message: 'boom', responseHeaders: [], responseBody: '[1,2]');
+
+    expect(fn (): mixed => $err->getTypedErrorBody(Category::class))->toThrow(SerializationException::class);
+});
+
+test('bhv misc 016 the rendered body is capped and states the bytes omitted', function (): void {
+    $err = new ApiException(502, 'bad gateway', null, str_repeat('a', 3000));
+
+    expect((string) $err)->toContain('more bytes');
+    expect(strlen((string) $err))->toBeLessThan(1500);
+});
+
+test('bhv misc 018 a token error with a non json body exposes status, no code and the raw text', function (): void {
+    $err = new \PetstoreClient\Errors\OAuth2ServerException(500, null, null, null, 'upstream exploded');
+
+    expect($err->statusCode)->toBe(500);
+    expect($err->errorCode)->toBeNull();
+    expect($err->rawBody)->toBe('upstream exploded');
+});
+
+test('bhv misc 020 the request line needs both the method and the path', function (): void {
+    $err = ApiException::fromResponse(500, [], 'x', null, '/items');
+
+    expect((string) $err)->not->toContain('Request:');
+});
+
+test('bhv misc 022 a server error is an instance of the sdk root error type', function (): void {
+    $err = ApiException::fromResponse(503, [], '{}');
+
+    expect($err)->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect($err)->toBeInstanceOf(OpenAPIException::class);
+});
+
+test('bhv misc 023 an unmapped 5xx is the generic server error and another unmapped status the base error', function (): void {
+    expect(ApiException::fromResponse(520, [], null))->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    expect(ApiException::fromResponse(399, [], null)::class)->toBe(ApiException::class);
+});
+
 test('bhv errors 004 exposes status code, message, body, headers and error body', function (): void {
     $ex = new ApiException(
         404,

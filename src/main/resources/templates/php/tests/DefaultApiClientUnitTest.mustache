@@ -1548,6 +1548,20 @@ test('bhv misc 038 no caCertPath leaves the system trust store in place', functi
     expect($defaults['capath'])->toBeNull();
 });
 
+test('bhv misc 024 a transport failure keeps the underlying error as its cause', function (): void {
+    $cause = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
+    $client = new StubbedDefaultApiClient(new MockHttpClient(function () use ($cause): never {
+        throw $cause;
+    }));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/refused', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\{{invokerPackage}}\Errors\NetworkException $e) {
+        expect($e->getPrevious())->toBe($cause);
+    }
+});
+
 test('bhv transport 032 transport failure raises NetworkException with status 0 and the cause kept', function (): void {
     $cause = new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
     $client = new StubbedDefaultApiClient(new MockHttpClient(function () use ($cause): never {
