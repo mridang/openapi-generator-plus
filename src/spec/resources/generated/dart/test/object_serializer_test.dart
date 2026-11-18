@@ -810,6 +810,18 @@ void main() {
     );
 
     test(
+      'bhv serialization 050 a property whose name begins with a digit reads and writes under its exact wire name',
+      () {
+        final decoded = deserialize<EdgeCases>(
+          '{"2fa":true}',
+          EdgeCases.fromJson,
+        );
+        expect(decoded!.n2fa, isTrue);
+        expect(jsonDecode(serialize(decoded)), equals({'2fa': true}));
+      },
+    );
+
+    test(
       'bhv serializationobject 111 Defaults numeric defaults are exact typed values when the keys are absent',
       () {
         final defaults = deserialize<Defaults>('{}', Defaults.fromJson)!;

@@ -2206,6 +2206,41 @@ void main() {
           throwsA(isA<ArgumentError>()));
     });
 
+    test('bhv serialization 056 quotes and backslashes in multipart field and file names are escaped', () {
+      expect(escapeMultipartFieldName('a"b\\c'), equals('a\\"b\\\\c'));
+      expect(buildFilenameDirective('x"y\\z.txt'),
+          equals('filename="x\\"y\\\\z.txt"'));
+    });
+
+    test('bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused before any request is sent', () async {
+      var requests = 0;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        requests++;
+        request.response
+          ..statusCode = 200
+          ..close();
+      });
+
+      try {
+        final client = DefaultApiClient();
+        for (final name in ['fi\r\nle', 'fi\x00le']) {
+          await expectLater(
+            client.sendRequest(
+              'POST',
+              'http://127.0.0.1:${server.port}/upload',
+              {},
+              {name: 'x'},
+            ),
+            throwsA(isA<ArgumentError>()),
+          );
+        }
+        expect(requests, equals(0));
+      } finally {
+        await server.close();
+      }
+    });
+
     // -- Gap J: per-part MIME sniffing from the filename extension --
 
     /* The multipart body now carries the file part's raw bytes (not a
@@ -2489,7 +2524,7 @@ void main() {
       }
     });
 
-    test('multipart JSON part declares application/json without a charset', () async {
+    test('bhv serialization 060 a model sent as a multipart part declares application/json without a charset', () async {
       String body = '';
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {

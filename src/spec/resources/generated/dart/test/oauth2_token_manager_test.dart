@@ -1046,6 +1046,31 @@ void main() {
     );
 
     test(
+      'bhv auth 026 a refresh that fails and a failed fallback grant raise the fallback error with its status',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":0}',
+        );
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        client.enqueue('{"error":"invalid_client"}', statusCode: 401);
+        final manager = OAuth2TokenManager();
+        manager.setApiClient(client);
+
+        await manager.getAccessToken(tokenUrl, original);
+
+        await expectLater(
+          () => manager.getAccessToken(tokenUrl, original),
+          throwsA(
+            isA<OAuth2ServerException>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having((e) => e.code, 'code', 'invalid_client'),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv authoauthtwotokenmgr 029 the refresh grant goes to the refreshUrl',
       () async {
         final client = _FakeApiClient();
