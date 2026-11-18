@@ -123,6 +123,8 @@ describe("TraceContextUtil", () => {
       extract: (context: unknown): unknown => context,
       fields: (): string[] => ["x-caller-trace"],
     };
+    /* setGlobalPropagator does not replace a propagator already registered, so clear it first. */
+    propagation.disable();
     propagation.setGlobalPropagator(
       custom as unknown as Parameters<
         typeof propagation.setGlobalPropagator
@@ -136,6 +138,7 @@ describe("TraceContextUtil", () => {
       expect(headers["x-caller-trace"]).toBe("registered");
       expect(headers["Authorization"]).toBe("Bearer token");
     } finally {
+      propagation.disable();
       propagation.setGlobalPropagator(new W3CTraceContextPropagator());
     }
   });

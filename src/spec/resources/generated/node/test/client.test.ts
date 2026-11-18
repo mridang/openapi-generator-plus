@@ -132,7 +132,7 @@ describe("Client", () => {
           url: String(input),
           authorization: headers["Authorization"],
         });
-        return new Response('{"available":1}', {
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
           status: 200,
           headers: { "content-type": "application/json" },
         });
@@ -143,7 +143,9 @@ describe("Client", () => {
         TransportOptions.builder().fetch(stub).build(),
       );
 
-      await client.store.getInventory();
+      await client.pet.addPet(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      );
 
       expect(seen[0]!.url.startsWith("https://arg.example.com/")).toBe(true);
       expect(seen[0]!.authorization).toBe("Bearer arg-token");
@@ -157,18 +159,20 @@ describe("Client", () => {
         init?: RequestInit,
       ): Promise<Response> => {
         seen.push((init?.headers as Record<string, string>)["Authorization"]);
-        return new Response('{"available":1}', {
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
           status: 200,
           headers: { "content-type": "application/json" },
         });
       }) as typeof fetch;
       const client = Client.withToken(
-        "/api/v3",
+        "https://arg.example.com",
         "arg-token",
         TransportOptions.builder().fetch(stub).build(),
       );
 
-      await client.store.getInventory();
+      await client.pet.addPet(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      );
 
       expect(seen[0]).toBe("Bearer arg-token");
     });
@@ -196,12 +200,16 @@ describe("Client", () => {
       });
     }) as typeof fetch;
     const client = Client.withToken(
-      "/api/v3",
+      "https://api.example.com",
       "static-token",
       TransportOptions.builder().fetch(stub).build(),
     );
 
-    await expect(client.store.getInventory()).rejects.toThrow();
+    await expect(
+      client.pet.addPet(
+        new Pet({ id: 1, name: "x", photoUrls: new Set<string>() }),
+      ),
+    ).rejects.toThrow();
     expect(calls).toBe(1);
   });
 

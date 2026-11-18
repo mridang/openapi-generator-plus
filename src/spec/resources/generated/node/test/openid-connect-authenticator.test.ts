@@ -817,6 +817,7 @@ describe("OpenIdConnectAuthenticator", () => {
         [],
       );
       fresh.setApiClient(mockClient);
+      mockClient.callCount = 0;
       mockClient.responses = discoveryDocument({
         authorization_endpoint: authorizationEndpoint,
         token_endpoint: tokenEndpoint,

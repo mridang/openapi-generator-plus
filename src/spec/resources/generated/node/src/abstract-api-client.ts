@@ -136,7 +136,10 @@ export abstract class AbstractApiClient implements ApiClient {
         ? (value as Record<string, unknown>)[key]
         : undefined;
     const name = String(field(error, "name") ?? "");
-    const message = String(field(error, "message") ?? error);
+    const message = AbstractApiClient.scrubUrlFromMessage(
+      String(field(error, "message") ?? error),
+      url,
+    );
     const causeCode = String(field(field(error, "cause"), "code") ?? "");
     const request = {
       requestMethod: method,
@@ -162,6 +165,29 @@ export abstract class AbstractApiClient implements ApiClient {
       cause: error,
       ...request,
     });
+  }
+
+  /**
+   * Replace the request URL, as fetch quotes it in its own error text, with the
+   * same URL minus its userinfo, query string and fragment. fetch rejects a URL
+   * that carries credentials with a message that repeats the whole URL.
+   *
+   * @param message the error message fetch or the body read produced
+   * @param url the request URL that failed
+   * @returns the message with the URL stripped of its secrets
+   */
+  private static scrubUrlFromMessage(message: string, url: string): string {
+    if (url === "" || !message.includes(url)) {
+      return message;
+    }
+    let safe: string;
+    try {
+      const parsed = new URL(url);
+      safe = `${parsed.protocol}//${parsed.host}${parsed.pathname}`;
+    } catch {
+      safe = url.split(/[?#]/)[0]!.replace(/\/\/[^/@]*@/, "//");
+    }
+    return message.split(url).join(safe);
   }
 
   /**
@@ -331,6 +357,10 @@ export abstract class AbstractApiClient implements ApiClient {
       !ArrayBuffer.isView(body) &&
       !(body instanceof ArrayBuffer) &&
       !(body instanceof Blob);
+    /* A signal that has already fired cancels the call before any attempt: no request is sent. */
+    if (callerSignal?.aborted) {
+      throw callerSignal.reason;
+    }
     for (let attempt = 0; ; attempt++) {
       /* Every retry is a fresh request: the headers are rebuilt from the
        * caller's, with the authentication headers asked for again. */

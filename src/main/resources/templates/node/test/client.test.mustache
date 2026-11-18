@@ -104,11 +104,11 @@ describe('{{clientClassName}}', () => {
       const stub = (async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
         const headers = init?.headers as Record<string, string>;
         seen.push({ url: String(input), authorization: headers['Authorization'] });
-        return new Response('{"available":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', { status: 200, headers: { 'content-type': 'application/json' } });
       }) as typeof fetch;
       const client = {{clientClassName}}.withToken('https://arg.example.com', 'arg-token', TransportOptions.builder().fetch(stub).build());
 
-      await client.store.getInventory();
+      await client.pet.addPet(new Pet({ id: 1, name: 'x', photoUrls: new Set<string>() }));
 
       expect(seen[0]!.url.startsWith('https://arg.example.com/')).toBe(true);
       expect(seen[0]!.authorization).toBe('Bearer arg-token');
@@ -119,11 +119,11 @@ describe('{{clientClassName}}', () => {
       const seen: Array<string | undefined> = [];
       const stub = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
         seen.push((init?.headers as Record<string, string>)['Authorization']);
-        return new Response('{"available":1}', { status: 200, headers: { 'content-type': 'application/json' } });
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', { status: 200, headers: { 'content-type': 'application/json' } });
       }) as typeof fetch;
-      const client = {{clientClassName}}.withToken('{{{basePath}}}', 'arg-token', TransportOptions.builder().fetch(stub).build());
+      const client = {{clientClassName}}.withToken('https://arg.example.com', 'arg-token', TransportOptions.builder().fetch(stub).build());
 
-      await client.store.getInventory();
+      await client.pet.addPet(new Pet({ id: 1, name: 'x', photoUrls: new Set<string>() }));
 
       expect(seen[0]).toBe('Bearer arg-token');
     });
@@ -147,9 +147,9 @@ describe('{{clientClassName}}', () => {
       calls++;
       return new Response('{}', { status: 401, headers: { 'content-type': 'application/json' } });
     }) as typeof fetch;
-    const client = {{clientClassName}}.withToken('{{{basePath}}}', 'static-token', TransportOptions.builder().fetch(stub).build());
+    const client = {{clientClassName}}.withToken('https://api.example.com', 'static-token', TransportOptions.builder().fetch(stub).build());
 
-    await expect(client.store.getInventory()).rejects.toThrow();
+    await expect(client.pet.addPet(new Pet({ id: 1, name: 'x', photoUrls: new Set<string>() }))).rejects.toThrow();
     expect(calls).toBe(1);
   });
 
