@@ -150,7 +150,7 @@ import Testing
 
     /* A format: password property never reaches a log; the wire form is
        unchanged. */
-    @Test func testPasswordPropertyIsMaskedInTheStringForms() throws {
+    @Test func testBhvSerialization112PasswordPropertyIsMaskedInTheStringForms() throws {
         let marker = ["hid", "den"].joined()
         let account = Account(username: "u", password: marker)
         #expect(!String(describing: account).contains(marker))
