@@ -59,6 +59,15 @@ class _MockGetExternalPetInfoServer extends GetExternalPetInfoServer {
   String getUrl() => chasmUrl;
 }
 
+class _LocalStagingPetInfoServer extends GetStagingPetInfoServer {
+  _LocalStagingPetInfoServer(this._url);
+
+  final String _url;
+
+  @override
+  String getUrl() => _url;
+}
+
 class _LocalExternalPetInfoServer extends GetExternalPetInfoServer {
   _LocalExternalPetInfoServer(this._url);
 
@@ -820,6 +829,36 @@ void main() {
      * operation that receives a 200 with an empty body must throw the
      * typed ApiException from the plain convenience method (parity with
      * C#/Swift), not a Dart runtime TypeError from `null as Pet`. */
+    test('bhv misc 219 an operation with several servers sends its request to the server chosen for that operation', () async {
+      var received = false;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        received = true;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"x","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://127.0.0.1:1')
+            .defaultHeader('Authorization', 'Bearer test-token')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getStagingPetInfo(
+          1,
+          _LocalStagingPetInfoServer('http://localhost:${server.port}'),
+        );
+
+        expect(received, isTrue);
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv operations 160 a call to an external-variant operation is sent to the URL of the generated server variant', () async {
       var received = false;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

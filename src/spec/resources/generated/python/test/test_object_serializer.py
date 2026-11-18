@@ -214,6 +214,23 @@ class TestContainerDatetimeAwareDecodeRule:
         assert restored.label == "untitled"
         assert restored.scale == 0.25
 
+    def test_bhv_misc_230_a_model_with_no_extra_properties_writes_only_its_declared_keys(
+        self,
+    ) -> None:
+        parsed = json.loads(ObjectSerializer().serialize(Category(name="x")))
+
+        assert "data" not in parsed
+        assert "additionalProperties" not in parsed
+
+    def test_bhv_misc_231_a_model_built_in_code_keeps_a_wrong_typed_value_while_decoding_refuses_it(
+        self,
+    ) -> None:
+        built = Category.model_construct(name=123)
+
+        assert built.name == 123
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"name": 123}', "Category")
+
 
 class TestNonAsciiSerialization:
     def test_bhv_serializationobject_019_accented_character_not_unicode_escaped(
@@ -665,6 +682,17 @@ class TestNativeValueFormats:
         assert isinstance(model, EdgeCases)
         assert model.class_ == "x"
         assert json.loads(ObjectSerializer().serialize(model))["class"] == "x"
+
+    def test_bhv_misc_235_a_duration_with_fractional_seconds_keeps_its_fraction_when_serialized(
+        self,
+    ) -> None:
+        import datetime
+
+        from petstore_client._duration import _format_timedelta_protobuf
+
+        assert (
+            _format_timedelta_protobuf(datetime.timedelta(milliseconds=1500)) == "1.5s"
+        )
 
 
 class TestNullOptionalField:
@@ -1343,6 +1371,18 @@ class TestExtraFieldsOnDeserialize:
 
         assert isinstance(items[0], Freeform)
         assert items[0].additional_properties == {"snake_case_key": 1}
+
+    def test_bhv_misc_234_a_model_in_a_list_keeps_its_additional_properties_through_a_round_trip(
+        self,
+    ) -> None:
+        from petstore_client.models.freeform import Freeform
+
+        serializer = ObjectSerializer()
+        items = serializer.deserialize('[{"label":"x","extra":"y"}]', "List[Freeform]")
+        restored = serializer.deserialize(serializer.serialize(items), "List[Freeform]")
+
+        assert isinstance(restored[0], Freeform)
+        assert restored[0].additional_properties == {"extra": "y"}
 
 
 class TestUnevaluatedPropertiesFalseRejectsExtraKeys:
