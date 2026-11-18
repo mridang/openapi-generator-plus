@@ -586,6 +586,25 @@ describe("OAuth2TokenManager", () => {
     await expect(promise).rejects.toBeInstanceOf(OpenAPIError);
   });
 
+  test("bhv authoauthtwotokenmgr 047 an OAuth2 server error without an error code names the status and the raw body", async () => {
+    mockClient.responseStatus = 502;
+    mockClient.responseBody = "upstream down";
+
+    const promise = tokenManager.getAccessToken(
+      "https://auth.example.com/token",
+      {
+        grant_type: "client_credentials",
+      },
+    );
+    await expect(promise).rejects.toBeInstanceOf(OAuth2ServerError);
+    await promise.catch((err: OAuth2ServerError) => {
+      expect(err.message).toBe(
+        "Token request failed with status 502: upstream down",
+      );
+      expect(err.rawBody).toBe("upstream down");
+    });
+  });
+
   test("bhv authoauthtwotokenmgr 032 server error response parsed to typed OAuth2ServerError", async () => {
     // RFC 6749 §5.2: a 4xx response with a JSON error object must surface as a
     // typed OAuth2ServerError carrying code/description/uri.
