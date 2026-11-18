@@ -224,4 +224,24 @@ import Testing
     #expect(
       Servers.all.map(\.urlTemplate) == [Servers.server0.urlTemplate, Servers.server1.urlTemplate])
   }
+
+  /* A server built with explicit variable values resolves those values into its URL. */
+  @Test func testBhvMisc157AServerBuiltWithExplicitValuesResolvesThemIntoItsUrl() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.example.com/{ver}",
+      variables: [
+        "env": ServerVariable(defaultValue: "api", enumValues: ["api", "staging"]),
+        "ver": ServerVariable(defaultValue: "v2"),
+      ])
+    #expect(
+      try server.url(variables: ["env": "staging", "ver": "v3"]) == "https://staging.example.com/v3"
+    )
+  }
+
+  /* A server built with a fixed URL reports exactly that URL. */
+  @Test func testBhvMisc158AServerBuiltWithAFixedUrlReportsThatUrlExactly() throws {
+    #expect(
+      try ServerConfiguration(urlTemplate: "https://fixed.example.com/v1").url()
+        == "https://fixed.example.com/v1")
+  }
 }

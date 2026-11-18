@@ -648,3 +648,6 @@ swift | misc147 | Swift models are value types, so a copy's nested model is an i
 swift | misc149 | copy takes only the model's declared properties as typed parameters, so an undeclared attribute is a compile-time error and no runtime error naming it can occur
 swift | misc152 | Swift has no abort signal: a call is cancelled through Task cancellation, and no call takes a signal that could already be aborted
 swift | misc153 | Swift has no client-level or per-call cancel signal: cancellation is Task cancellation of the awaiting task, and the client has no signal to set
+swift | misc178 | the Swift test fixture declares no operation with a multipart content type other than multipart/form-data, so no other multipart type reaches the transport
+swift | misc185 | the Swift OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be observed
+swift | misc186 | the Swift transport options take no ready-made HTTP connection object, so there is no connection value to reject when the options are built

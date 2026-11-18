@@ -304,4 +304,13 @@ import Testing
     #expect(config.debugDescription.contains("Accept"))
     #expect(config.debugDescription.contains("text/plain"))
   }
+
+  /* The inspect form shows the values of default headers whose names are not sensitive. */
+  @Test func testBhvMisc180TheInspectFormShowsNonSensitiveDefaultHeaderValues() {
+    let config = ConfigurationBuilder()
+      .baseURL("https://api.example.com")
+      .defaultHeader(name: "X-Client", value: "visible-value")
+      .build()
+    #expect(config.description.contains("visible-value"))
+  }
 }
