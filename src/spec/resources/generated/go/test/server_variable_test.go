@@ -68,6 +68,19 @@ func TestServerVariable_EnumValuesReturnsCopy(t *testing.T) {
 	}
 }
 
+// Go has no frozen slice, so the accessor hands out a copy: a caller that
+// changes the slice it read does not change the variable's enum values.
+func TestBhvServers024_ServerVariable_EnumValuesCannotBeMutatedThroughTheAccessor(t *testing.T) {
+	t.Parallel()
+	v := petstore.NewServerVariable("v3", "", []string{"v2", "v3"})
+
+	v.EnumValues()[0] = "mutated"
+
+	if enum := v.EnumValues(); enum[0] != "v2" || enum[1] != "v3" {
+		t.Errorf("EnumValues = %v, want [v2 v3] after a caller changed the slice it read", enum)
+	}
+}
+
 // A variable exposes its default value, its description and its enum values.
 func TestBhvServers017_ServerVariable_ExposesDefaultValueDescriptionAndEnumValues(t *testing.T) {
 	t.Parallel()

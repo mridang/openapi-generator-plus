@@ -438,10 +438,15 @@ func isRetryableStatus(status int) bool {
 }
 
 // isRetryableTransportError reports whether a send failure is a network error
-// that may succeed on another attempt: a cancellation and a closed client
-// never are.
+// that may succeed on another attempt. A timeout, a cancellation and a closed
+// client never are: a timed-out attempt has already spent its budget, and the
+// other languages do not retry it either.
 func isRetryableTransportError(err error) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, ErrClientClosed) {
+		return false
+	}
+	var timeoutErr *errors_pkg.NetworkTimeoutError
+	if errors.As(err, &timeoutErr) {
 		return false
 	}
 	var networkErr *errors_pkg.NetworkError

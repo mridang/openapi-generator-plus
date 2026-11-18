@@ -844,6 +844,26 @@ func TestBhvTransport059_DefaultApiClient_AuthenticatingProxyRefusesARequestWith
 	}
 }
 
+// A proxy that requires credentials answers 407 when none are sent, and the
+// client hands that answer back as a response.
+func TestBhvTransport063_DefaultApiClient_AProxyThatRequiresCredentialsAnswers407WhenNoneAreSent(t *testing.T) {
+	t.Parallel()
+	transport, buildErr := NewTransportOptionsBuilder().
+		Proxy(authProxyURL).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", chasmInternalHTTPURL+"/test/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != 407 {
+		t.Errorf("expected status 407 without proxy credentials, got %d", resp.StatusCode)
+	}
+}
+
 // Regression: POST/PUT/PATCH with body == nil must emit an explicit
 // Content-Length: 0. Some servers / WAFs reject body-bearing verbs with
 // no Content-Length (411 Length Required). The client attaches an empty
@@ -1245,7 +1265,7 @@ func TestDefaultApiClient_RedirectLimitFollowsExactlyMaxRedirects(t *testing.T) 
 	}
 }
 
-func TestDefaultApiClient_CancellingTheCallContextAbortsTheRequest(t *testing.T) {
+func TestBhvTransport060_DefaultApiClient_CancellingTheCallContextAbortsTheRequest(t *testing.T) {
 	t.Parallel()
 	client := NewDefaultApiClient(nil)
 	ctx, cancel := context.WithCancel(context.Background())

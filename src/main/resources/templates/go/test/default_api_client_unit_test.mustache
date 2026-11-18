@@ -1053,6 +1053,57 @@ func TestBhvRedirects012_DefaultApiClientUnit_StripsAuthorizationAcrossCrossOrig
 	}
 }
 
+// hopRecordingTripper records the Authorization header of every request it gets
+// and answers the first one with a 302 to location.
+type hopRecordingTripper struct {
+	location       string
+	authorizations []string
+}
+
+func (r *hopRecordingTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.authorizations = append(r.authorizations, req.Header.Get("Authorization"))
+	if len(r.authorizations) == 1 {
+		return &http.Response{
+			StatusCode: http.StatusFound,
+			Status:     "302 Found",
+			Header:     http.Header{"Location": []string{r.location}},
+			Body:       io.NopCloser(strings.NewReader("moved")),
+			Request:    req,
+		}, nil
+	}
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Status:     "200 OK",
+		Header:     http.Header{},
+		Body:       io.NopCloser(strings.NewReader("done")),
+		Request:    req,
+	}, nil
+}
+
+// https://host and https://host:443 are one origin, so a redirect between them
+// keeps the credentials.
+func TestBhvRedirects037_DefaultApiClientUnit_ARedirectToTheExplicitDefaultPortKeepsAuthorization(t *testing.T) {
+	t.Parallel()
+	tripper := &hopRecordingTripper{location: "https://example.test:443/landed"}
+	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", "https://example.test/start",
+		map[string]string{"Authorization": "Bearer redirect-probe"}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(tripper.authorizations) != 2 {
+		t.Fatalf("expected the request and one followed redirect, got %d", len(tripper.authorizations))
+	}
+	if got := tripper.authorizations[1]; got != "Bearer redirect-probe" {
+		t.Errorf("expected Authorization to reach the redirect target, got %q", got)
+	}
+}
+
 // F1093: a credential carried under a name the spec does not declare (a
 // custom authenticator's X-Auth-Token, a default header named like a secret)
 // is stripped from a cross-origin redirect too; an ordinary header survives.
@@ -1555,7 +1606,7 @@ func TestBhvRedirects017_DefaultApiClientUnit_AFollowedRedirectHopIsReleased(t *
 	tripper.assertEveryRedirectResponseWasClosed(t)
 }
 
-func TestDefaultApiClientUnit_ARefusedRedirectResponseIsReleased(t *testing.T) {
+func TestBhvTransport064_DefaultApiClientUnit_ARefusedRedirectResponseIsReleased(t *testing.T) {
 	t.Parallel()
 	tripper := &redirectingTripper{location: "ftp://example.test/next", redirects: -1}
 	transport, err := NewTransportOptionsBuilder().FollowRedirects(true).RoundTripper(tripper).Build()
@@ -2327,7 +2378,7 @@ func TestBhvTransport025_DefaultApiClientUnit_VerifySslTrueRejectsAnAddressTheCe
 }
 
 // Turning verification off is the only thing that lets the same server through.
-func TestDefaultApiClientUnit_VerifySslFalseAcceptsUntrustedCertificate(t *testing.T) {
+func TestBhvTransport062_DefaultApiClientUnit_VerifySslFalseAcceptsUntrustedCertificate(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -2373,6 +2424,70 @@ func TestDefaultApiClientUnit_CaCertPathDecidesWhichServersAreTrusted(t *testing
 	var netErr *pkgerrors.NetworkError
 	if !errors.As(err, &netErr) {
 		t.Fatalf("expected *NetworkError for an unrelated CA, got %T: %v", err, err)
+	}
+}
+
+// A configured CA is the whole trust store: the client's roots are exactly that
+// CA, not the system roots with it added.
+func TestBhvTransport065_DefaultApiClientUnit_ACustomCaReplacesTheSystemTrustStore(t *testing.T) {
+	t.Parallel()
+	caPath := writeCertPEM(t, unrelatedCaDER(t))
+	caPEM, err := os.ReadFile(caPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	transport, err := NewTransportOptionsBuilder().CACertPath(caPath).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	defer func() { _ = client.Close() }()
+
+	if client.owned == nil || client.owned.TLSClientConfig == nil || client.owned.TLSClientConfig.RootCAs == nil {
+		t.Fatal("expected the client to pin its roots to the configured CA")
+	}
+	want := x509.NewCertPool()
+	if !want.AppendCertsFromPEM(caPEM) {
+		t.Fatal("the fixture CA did not parse")
+	}
+	if !client.owned.TLSClientConfig.RootCAs.Equal(want) {
+		t.Error("expected the configured CA to be the only trust anchor, not added to the system roots")
+	}
+}
+
+// A CA bundle file trusts every certificate in it, not only the first one: the
+// server's certificate is the second PEM block here.
+func TestBhvTransport066_DefaultApiClientUnit_ACaBundleFileTrustsEveryCertificateItContains(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	var bundle []byte
+	for _, der := range [][]byte{unrelatedCaDER(t), server.Certificate().Raw} {
+		data, err := os.ReadFile(writeCertPEM(t, der))
+		if err != nil {
+			t.Fatal(err)
+		}
+		bundle = append(bundle, data...)
+	}
+	bundlePath := filepath.Join(t.TempDir(), "bundle.pem")
+	if err := os.WriteFile(bundlePath, bundle, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	transport, err := NewTransportOptionsBuilder().CACertPath(bundlePath).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	resp, err := client.SendRequest("GET", server.URL+"/test", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("expected the second certificate in the bundle to be trusted, got %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
 	}
 }
 
@@ -2547,7 +2662,7 @@ func TestBhvRetries013_DefaultApiClientUnit_IsRetryableTransportError_IsTheNetwo
 		want bool
 	}{
 		{"network error", pkgerrors.NewNetworkError("request failed", cause), true},
-		{"timeout error", pkgerrors.NewNetworkTimeoutError("request timed out", cause), true},
+		{"timeout error", pkgerrors.NewNetworkTimeoutError("request timed out", cause), false},
 		{"cancellation", fmt.Errorf("request cancelled: %w", context.Canceled), false},
 		{"closed client", ErrClientClosed, false},
 		{"invalid request", fmt.Errorf("%w: bad", ErrInvalidRequest), false},
@@ -2556,6 +2671,62 @@ func TestBhvRetries013_DefaultApiClientUnit_IsRetryableTransportError_IsTheNetwo
 		if got := isRetryableTransportError(tc.err); got != tc.want {
 			t.Errorf("%s: expected %t, got %t", tc.name, tc.want, got)
 		}
+	}
+}
+
+func TestBhvRetries042_DefaultApiClientUnit_ATimeoutIsNotRetried(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	hits := make(chan struct{}, 8)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits <- struct{}{}
+		<-release
+	}))
+	defer server.Close()
+	defer close(release)
+
+	timeout := 100
+	transport, err := NewTransportOptionsBuilder().Timeout(&timeout).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err = client.SendRequest("GET", server.URL+"/slow", map[string]string{}, nil)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+	if got := len(hits); got != 1 {
+		t.Errorf("expected the timed-out request to be sent once, got %d attempts", got)
+	}
+}
+
+// closeRecordingReader is a caller-supplied stream that counts its Close calls.
+type closeRecordingReader struct {
+	*bytes.Reader
+	closed bool
+}
+
+func (r *closeRecordingReader) Close() error {
+	r.closed = true
+	return nil
+}
+
+func TestBhvTransport061_DefaultApiClientUnit_CallerSuppliedStreamIsLeftOpenAfterTheBodyIsSent(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.ReadAll(r.Body)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	stream := &closeRecordingReader{Reader: bytes.NewReader([]byte("payload"))}
+	client := NewDefaultApiClient(nil)
+	if _, err := client.SendRequest("POST", server.URL+"/upload", map[string]string{}, map[string]any{"file": stream}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if stream.closed {
+		t.Error("expected the caller-supplied stream to stay open after the body was sent")
 	}
 }
 
