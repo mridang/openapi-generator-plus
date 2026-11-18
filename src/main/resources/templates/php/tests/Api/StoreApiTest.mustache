@@ -607,6 +607,12 @@ test('bhv operations 116 get tree decodes the self recursive node', function ():
     expect($tree->child?->child)->toBeNull();
 });
 
+test('bhv misc 013 a no parameter operation can be called with no argument and returns its result', function (): void {
+    $api = newStoreApiForMock(200, 'application/json', '{"retries":9}');
+
+    expect($api->getDefaults()->retries)->toBe(9);
+});
+
 test('bhv operations 123 get defaults keeps the schema defaults for absent fields', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '{"retries":9}');
 

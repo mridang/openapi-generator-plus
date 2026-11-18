@@ -1950,4 +1950,14 @@ public class OAuth2TokenManagerTest
         );
         Assert.Equal(2, client.CallCount);
     }
+
+    [Fact]
+    public void BhvMisc018ATokenErrorWithANonJsonBodyHasNoCodeAndKeepsTheRawBody()
+    {
+        var ex = new OAuth2ServerException(502, null, null, null, "<html>gateway</html>");
+
+        Assert.Equal(502, ex.StatusCode);
+        Assert.Null(ex.Code);
+        Assert.Equal("<html>gateway</html>", ex.RawBody);
+    }
 }

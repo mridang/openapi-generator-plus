@@ -152,6 +152,25 @@ class StoreApiTest {
     inner class MockTests {
 
         @Test
+        @DisplayName("bhvMisc011 an options object for an operation with no parameters accepts its settings and defaults them")
+        fun bhvMisc011OptionsWithNoParametersAcceptSettingsAndDefaultThem() {
+            val built = {{apiPackage}}.options.GetInventoryOptions(timeout = 5L, headers = mapOf("X-A" to "1"), maxRetries = 0)
+
+            assertEquals(5L, built.timeout)
+            assertEquals(0, built.maxRetries)
+            assertEquals("1", built.headers?.get("X-A"))
+            assertNull({{apiPackage}}.options.GetInventoryOptions().timeout)
+        }
+
+        @Test
+        @DisplayName("bhvMisc013 an operation with no parameters is called with no argument and returns its result")
+        fun bhvMisc013NoParameterOperationReturnsItsResult() = runBlocking<Unit> {
+            val api = capturingStoreApi("""{"available":3}""") { _, _ -> }
+
+            assertEquals(mapOf("available" to 3), api.getInventory())
+        }
+
+        @Test
         @DisplayName("bhvOperations106 getOrderNotFound")
         fun testGetOrderNotFound() {
             val engine =

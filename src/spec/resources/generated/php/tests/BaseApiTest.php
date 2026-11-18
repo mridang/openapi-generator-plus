@@ -49,6 +49,26 @@ function makeBaseApiTestableApi(): TestableApi
     return new TestableApi(new DefaultApiClient(TransportOptions::builder()->maxRetries(0)->build()), $config);
 }
 
+test('bhv misc 021 the error path keeps the base url prefix and drops the query string', function (): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, '{}', ['Content-Type' => 'application/json'])]);
+    $api = new TestableApi($client, new Configuration('https://example.test/v1'));
+
+    try {
+        $api->call('GET', '/items/1', ['q' => 'x'], [], null, ['application/json'], 'application/json');
+        test()->fail('Expected exception not thrown');
+    } catch (NotFoundException $e) {
+        expect($e->getRequestPath())->toBe('/v1/items/1');
+    }
+});
+
+test('bhv misc 025 a typed call fails when the server answers with a client error status', function (): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, '{}', ['Content-Type' => 'application/json'])]);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], 'application/json', 'object'))
+        ->toThrow(NotFoundException::class);
+});
+
 test('bhv errors 037 throws correct exception', function (int $status, string $expectedClass): void {
     try {
         makeBaseApiTestableApi()->call(

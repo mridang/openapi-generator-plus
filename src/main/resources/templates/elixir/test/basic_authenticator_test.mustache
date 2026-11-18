@@ -213,5 +213,16 @@ defmodule {{moduleName}}.Auth.BasicAuthenticatorTest do
                "Basic " <> Base.encode64("alice:env-pass")
     end
   end
+
+  test "bhv misc 017 a construction error for rejected credentials never includes the rejected value" do
+    error =
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.Auth.BasicAuthenticator.new("https://api.example.com", "alice", "sec\rret-9")
+      end
+
+    refute Exception.message(error) =~ "sec"
+    refute Exception.message(error) =~ "ret-9"
+  end
+
 end
 {{/generateTests}}

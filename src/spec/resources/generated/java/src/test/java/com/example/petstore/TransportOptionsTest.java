@@ -701,4 +701,13 @@ class TransportOptionsTest {
       supplied.close();
     }
   }
+
+  @Test
+  void bhvMisc026AConfigurationMistakeIsAnIllegalArgumentNotAnApiError() {
+    IllegalArgumentException ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1).build());
+    org.junit.jupiter.api.Assertions.assertFalse(
+        ex instanceof com.example.petstore.errors.ApiException);
+  }
 }
