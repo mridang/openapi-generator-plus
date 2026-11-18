@@ -35,6 +35,43 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
     });
 
+    test('bhv lifecycle 028 an explicit host and token win over the environment', () {
+      final auth = BearerAuthenticator(
+        host: 'https://explicit.example.com',
+        token: 'explicit',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.host(), equals('https://explicit.example.com'));
+      expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+    });
+
+    test('bhv lifecycle 032 a token passed to the client is preferred to the one in the environment', () {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        token: 'passed',
+        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'},
+      );
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer passed'));
+    });
+
+    test('bhv authbearer 028 a bearer token containing CRLF is rejected at construction', () {
+      expect(
+        () => BearerAuthenticator(host: '{{{basePath}}}', token: 'tok\r\nInjected: yes'),
+        throwsArgumentError,
+      );
+    });
+
+    test('bhv lifecycle 025 the environment variable is read once, at construction', () {
+      final environment = {BearerAuthenticator.defaultEnvironmentVariable: 'fromenv'};
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', environment: environment);
+
+      environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+      expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
+    });
+
     test('a named environment variable is read instead of the default', () {
       final auth = BearerAuthenticator(
         host: '{{{basePath}}}',

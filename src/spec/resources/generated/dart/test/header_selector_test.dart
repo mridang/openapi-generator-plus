@@ -119,6 +119,21 @@ void main() {
     });
 
     test(
+      'bhv headers 029 the Accept header is empty when every entry is blank',
+      () {
+        final hs = HeaderSelector();
+
+        final headers = hs.selectHeaders(
+          ['', '   '],
+          'application/json',
+          false,
+        );
+
+        expect(headers['Accept'] ?? '', isEmpty);
+      },
+    );
+
+    test(
       'bhv headers 006 selectHeaders returns no Accept when all entries empty',
       () {
         final hs = HeaderSelector();

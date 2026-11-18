@@ -3416,7 +3416,7 @@ void main() {
       expect(sent, isNull);
     });
 
-    test('a client with no credential at all is refused', () {
+    test('bhv lifecycle 026 a client with no credential at all is refused', () {
       expect(() => {{clientClassName}}(), throwsArgumentError);
     });
 
@@ -3542,7 +3542,7 @@ void main() {
       );
     });
 
-    test('a network failure carries the method and the path', () async {
+    test('bhv errors 057 a network failure carries the method and the path', () async {
       final client = _ScriptedApiClient(
           [const NetworkException(message: 'reset')],
           maxRetries: 0);
