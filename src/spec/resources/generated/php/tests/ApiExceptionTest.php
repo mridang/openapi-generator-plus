@@ -92,7 +92,7 @@ test('bhv errors 018 ApiException extends the SDK root OpenAPIException', functi
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 
-test('bhv langphp 053 a thrown typed error is caught by a {{errorPrefix}}Exception catch', function (): void {
+test('bhv langphp 053 a thrown typed error is caught by a OpenAPIException catch', function (): void {
     /* Full chain: UnauthorizedException → ClientException → ApiException
      * → OpenAPIException → \Exception. Catching the root must catch the
      * 401 typed error. */
@@ -735,4 +735,108 @@ test('bhv errors 077 a url in diagnostics drops its query string, userinfo and f
 
 test('bhv errors 084 an error built without a response reports a status code of zero by default', function (): void {
     expect((new ApiException())->getStatusCode())->toBe(0);
+});
+
+test('bhv errors 086 a body of exactly 1 KiB renders whole and a larger body is truncated', function (): void {
+    $exact = new ApiException(500, 'boom', null, str_repeat('a', 1024));
+    $over = new ApiException(500, 'boom', null, str_repeat('a', 1025));
+
+    expect((string) $exact)->toEndWith(str_repeat('a', 1024));
+    expect((string) $exact)->not->toContain('more bytes');
+    expect((string) $over)->toContain('... (1 more bytes)');
+    expect($over->getResponseBody())->toBe(str_repeat('a', 1025));
+});
+
+test('bhv errors 087 credential and challenge headers are masked in the rendered message', function (): void {
+    $ex = new ApiException(401, 'denied', [
+        'Authorization' => 'Bearer abc',
+        'Cookie' => 'sid=1',
+        'WWW-Authenticate' => 'Basic realm=x',
+        'Proxy-Authenticate' => 'Basic realm=y',
+    ]);
+
+    expect((string) $ex)->toContain('***');
+    expect((string) $ex)->not->toContain('Bearer abc');
+    expect((string) $ex)->not->toContain('sid=1');
+    expect((string) $ex)->not->toContain('realm=x');
+    expect((string) $ex)->not->toContain('realm=y');
+});
+
+test('bhv errors 088 absent sections are left out of the message and present ones are kept', function (): void {
+    $ex = new ApiException(500, 'down', [], '');
+
+    expect((string) $ex)->toBe("down\nHTTP status code: 500");
+});
+
+test('bhv errors 089 an error with an empty message renders the default message text', function (): void {
+    /* A PHP string message cannot be null, so an absent message is the empty string. */
+    $ex = new ApiException(0, '');
+
+    expect((string) $ex)->toStartWith('Error message: the server returns an error');
+});
+
+test('bhv errors 090 an error with no response keeps its body and headers as null', function (): void {
+    $ex = ApiException::fromResponse(0, null, null);
+
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+});
+
+test('bhv errors 091 the rendered message names the method and path of the failed request', function (): void {
+    $withResponse = ApiException::fromResponse(404, [], 'missing', 'GET', '/items/7');
+    $withoutResponse = new ApiException(0, 'connection reset', null, null, null, null, 'get', '/items/7?x=1');
+
+    expect((string) $withResponse)->toContain("Request: GET /items/7");
+    expect((string) $withoutResponse)->toContain("Request: GET /items/7");
+    expect((string) $withoutResponse)->not->toContain('x=1');
+});
+
+test('bhv errors 092 a network timeout carries the method and path of its request and stays a timeout', function (): void {
+    $timeout = new \PetstoreClient\Errors\NetworkTimeoutException('timed out', null, 'post', '/items/7?x=1');
+
+    expect($timeout)->toBeInstanceOf(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect($timeout->getRequestMethod())->toBe('POST');
+    expect($timeout->getRequestPath())->toBe('/items/7');
+});
+
+test('bhv errors 093 an error exposes the decoded error body alongside the raw response body', function (): void {
+    $raw = "\xEF\xBB\xBF" . '{"code":"bad"}';
+    $ex = ApiException::fromResponse(400, null, $raw);
+
+    expect($ex->getErrorBody())->toBe(['code' => 'bad']);
+    expect($ex->getResponseBody())->toBe($raw);
+});
+
+test('bhv errors 094 every error the sdk raises is the root sdk exception', function (): void {
+    $errors = [
+        new ApiException(500, 'boom'),
+        new \PetstoreClient\Errors\NetworkException('down'),
+        new SerializationException('bad'),
+        ApiException::fromResponse(404, null, null),
+    ];
+
+    foreach ($errors as $error) {
+        expect($error)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+    }
+});
+
+test('bhv errors 095 a typed 4xx or 5xx error is found by its status family', function (): void {
+    expect(ApiException::fromResponse(404, null, null))->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+    expect(ApiException::fromResponse(503, null, null))->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+});
+
+test('bhv errors 096 a status outside every class range falls back to the base error', function (): void {
+    foreach ([399, 600] as $status) {
+        $ex = ApiException::fromResponse($status, null, null);
+
+        expect($ex::class)->toBe(ApiException::class);
+        expect($ex)->not->toBeInstanceOf(\PetstoreClient\Errors\ClientException::class);
+        expect($ex)->not->toBeInstanceOf(\PetstoreClient\Errors\ServerException::class);
+    }
+});
+
+test('bhv errors 097 an unrecognised 4xx status raises the generic client error', function (): void {
+    $ex = ApiException::fromResponse(499, null, null);
+
+    expect($ex::class)->toBe(\PetstoreClient\Errors\ClientException::class);
 });

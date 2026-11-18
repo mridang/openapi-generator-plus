@@ -129,6 +129,39 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvMisc003AnAllOptionalOperationRunsWithNoArgumentsAndSendsNoOmittedParameter()
+    {
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync();
+
+        Assert.DoesNotContain("status=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc004CallingWithRequiredFieldsAndNoOptionsNamesTheFirstMissingField()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _api.GetPetByNameAsync("Rex", null!));
+        Assert.Equal("options.Category", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'category' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc005ABareNullBodyForAListOperationRaisesAnApiError()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "null");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(
+            () => mockApi.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "available" }));
+    }
+
+    [Fact]
     public async Task BhvLangcsharp021TestFindPetsByStatusNoArgsDoesNotThrow()
     {
         // L10 regression: findPetsByStatus has ONLY optional params, so the

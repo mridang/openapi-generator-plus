@@ -26,6 +26,96 @@ import org.junit.jupiter.api.Test
 class ApiExceptionTest {
 
     @Test
+    @DisplayName("bhvErrors085 the rendered body escapes control characters so a line break cannot forge a line")
+    fun bhvErrors085RenderedBodyEscapesControlCharacters() {
+        val ex = ApiException(statusCode = 500, message = "boom", responseHeaders = null, responseBody = "a\r\nb")
+
+        assertFalse(ex.toString().contains("a\r\nb"))
+        assertEquals("boom\nHTTP status code: 500\nResponse body: a\\x0D\\x0Ab", ex.toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors087 the rendered form masks the authentication challenge headers")
+    fun bhvErrors087RenderedFormMasksAuthenticationChallengeHeaders() {
+        val ex = ApiException(
+            statusCode = 401,
+            message = "denied",
+            responseHeaders = mapOf(
+                "WWW-Authenticate" to "Basic realm=hidden-realm",
+                "Proxy-Authenticate" to "Basic realm=hidden-proxy",
+            ),
+            responseBody = null,
+        )
+
+        assertFalse(ex.toString().contains("hidden-realm"))
+        assertFalse(ex.toString().contains("hidden-proxy"))
+    }
+
+    @Test
+    @DisplayName("bhvErrors089 an error with a null or empty message renders the default message text")
+    fun bhvErrors089NullOrEmptyMessageRendersTheDefaultText() {
+        val ex = ApiException(statusCode = 500, message = null, responseHeaders = null, responseBody = null)
+
+        assertTrue(ex.toString().startsWith("Error message: the server returns an error"))
+    }
+
+    @Test
+    @DisplayName("bhvErrors090 a network error keeps its response headers and body as null")
+    fun bhvErrors090NetworkErrorKeepsNullResponseHeadersAndBody() {
+        val ex = NetworkException("connection refused", java.io.IOException("refused"))
+
+        assertNull(ex.responseHeaders)
+        assertNull(ex.responseBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors093 an error built from a response keeps the raw body and the decoded error body")
+    fun bhvErrors093ErrorBuiltFromResponseExposesDecodedAndRawBody() {
+        val raw = "﻿{\"code\":\"E1\"}"
+        val ex = ApiException.fromResponse(400, null, raw)
+
+        assertEquals(raw, ex.responseBody)
+        assertNotNull(ex.errorBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors094 every error type the SDK raises is the branded root")
+    fun bhvErrors094EveryRaisedErrorIsTheBrandedRoot() {
+        assertTrue(SerializationException("decode failed") is {{errorPrefix}}Exception)
+        assertTrue(NetworkException("connection refused", java.io.IOException("refused")) is {{errorPrefix}}Exception)
+        assertTrue(ApiException.fromResponse(404, null, null) is {{errorPrefix}}Exception)
+    }
+
+    @Test
+    @DisplayName("bhvErrors095 a typed error is matched by its status-class family")
+    fun bhvErrors095TypedErrorIsMatchedByItsStatusClass() {
+        val notFound = ApiException.fromResponse(404, null, null)
+        assertTrue(notFound is ClientException)
+        assertFalse(notFound is ServerException)
+
+        val internal = ApiException.fromResponse(500, null, null)
+        assertTrue(internal is ServerException)
+    }
+
+    @Test
+    @DisplayName("bhvErrors096 a status outside a class range is not classified into that class")
+    fun bhvErrors096StatusOutsideItsClassFallsBackToTheBase() {
+        listOf(399, 600).forEach { status ->
+            val ex = ApiException.fromResponse(status, null, null)
+
+            assertFalse(ex is ClientException)
+            assertFalse(ex is ServerException)
+            assertEquals(ApiException::class.java, ex.javaClass)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors097 an unrecognised 4xx status raises the generic client error")
+    fun bhvErrors097UnrecognisedClientStatusIsTheGenericClientError() {
+        assertTrue(ApiException.fromResponse(499, null, null) is ClientException)
+    }
+
+    @Test
     fun bhvErrors004ExposesStatusCodeMessageBodyHeadersErrorBody() {
         val ex = ApiException(
             statusCode = 404,

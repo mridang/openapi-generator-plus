@@ -1508,6 +1508,164 @@ fn test_bhv_errors_203_the_error_factory_of_an_operation_is_chosen_by_exact_stat
     );
     assert!(unmatched.is::<NotFoundError>());
 }
+#[test]
+fn test_bhv_errors_085_a_carriage_return_and_line_feed_in_the_body_render_escaped() {
+    let err = ApiError::new(500, "boom".to_string(), None, Some("a\r\nb".to_string()));
+    assert_eq!(
+        "boom\nHTTP status code: 500\nResponse body: a\\r\\nb",
+        err.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_086_a_body_of_exactly_1_kib_is_shown_whole() {
+    let body = "a".repeat(1024);
+    let err = ApiError::new(500, "boom".to_string(), None, Some(body.clone()));
+    assert_eq!(
+        format!("boom\nHTTP status code: 500\nResponse body: {}", body),
+        err.to_string()
+    );
+    assert_eq!(
+        Some(body.as_str()),
+        err.response_body(),
+        "the full body stays on the error"
+    );
+}
+
+#[test]
+fn test_bhv_errors_087_authentication_and_challenge_headers_are_masked_in_the_message() {
+    let mut headers = HashMap::new();
+    headers.insert("authorization".to_string(), "Bearer abc".to_string());
+    headers.insert("cookie".to_string(), "sid=abc".to_string());
+    headers.insert("www-authenticate".to_string(), "Basic realm=x".to_string());
+    headers.insert(
+        "proxy-authenticate".to_string(),
+        "Basic realm=y".to_string(),
+    );
+    let text = ApiError::new(401, "denied".to_string(), Some(headers), None).to_string();
+    assert!(!text.contains("Bearer abc"), "{text}");
+    assert!(!text.contains("sid=abc"), "{text}");
+    assert!(!text.contains("realm=x"), "{text}");
+    assert!(!text.contains("realm=y"), "{text}");
+}
+
+#[test]
+fn test_bhv_errors_088_absent_sections_are_left_out_and_present_ones_are_kept() {
+    let empty = ApiError::new(
+        500,
+        "down".to_string(),
+        Some(HashMap::new()),
+        Some(String::new()),
+    );
+    assert_eq!("down\nHTTP status code: 500", empty.to_string());
+
+    let partial = ApiError::new(500, "down".to_string(), None, Some("upstream".to_string()));
+    assert_eq!(
+        "down\nHTTP status code: 500\nResponse body: upstream",
+        partial.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_089_an_empty_message_renders_the_default_text() {
+    let err = ApiError::new(500, String::new(), None, None);
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        err.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_090_a_request_with_no_response_keeps_headers_and_body_as_none() {
+    let err = ApiError::new(0, "no response".to_string(), None, None);
+    assert!(
+        err.response_headers().is_none(),
+        "absent headers stay None, not an empty map"
+    );
+    assert!(
+        err.response_body().is_none(),
+        "an absent body stays None, not an empty string"
+    );
+}
+
+#[test]
+fn test_bhv_errors_091_the_message_names_the_method_and_path_of_a_request_with_no_response() {
+    let err = ApiError::from_response(0, &HashMap::new(), "", Some("GET"), Some("/items/7"));
+    assert!(err.to_string().contains("GET /items/7"), "{}", err);
+}
+
+#[test]
+fn test_bhv_errors_093_a_bom_prefixed_body_is_decoded_and_the_raw_body_kept() {
+    let raw = "\u{feff}{\"a\":1}";
+    let err = ApiError::new(400, "bad".to_string(), None, Some(raw.to_string()));
+    let body = err.error_body().expect("a BOM-prefixed body must parse");
+    assert_eq!(body["a"], serde_json::json!(1));
+    assert_eq!(Some(raw), err.response_body());
+}
+
+#[test]
+fn test_bhv_errors_094_every_sdk_error_is_recognised_as_the_root_error_type() {
+    let api = ApiError::new(500, "boom".to_string(), None, None);
+    assert_is_open_api_error(&api);
+
+    let network = NetworkError::try_from(ApiError::new(0, "refused".to_string(), None, None))
+        .expect("status 0 is a network error");
+    assert_is_open_api_error(&network);
+
+    let token = OAuth2TokenError::new("token response missing".to_string());
+    assert_is_open_api_error(&token);
+}
+
+#[test]
+fn test_bhv_errors_095_a_typed_4xx_error_is_found_by_its_client_family() {
+    let not_found = NotFoundError::try_from(client_chain(404, "gone")).expect("a 404");
+    assert_eq!(404, not_found.client_error().api_error().status_code());
+}
+
+#[test]
+fn test_bhv_errors_096_a_status_outside_every_class_range_falls_back_to_the_base_error() {
+    for status in [399u16, 600u16] {
+        assert!(
+            ClientError::try_from(ApiError::new(status, "odd".to_string(), None, None)).is_err(),
+            "status {status} must not be a client error"
+        );
+        assert!(
+            ServerError::try_from(ApiError::new(status, "odd".to_string(), None, None)).is_err(),
+            "status {status} must not be a server error"
+        );
+    }
+}
+
+#[test]
+fn test_bhv_errors_097_an_unrecognised_4xx_status_raises_the_generic_client_error() {
+    let client = ClientError::try_from(ApiError::new(499, "odd".to_string(), None, None))
+        .expect("an unrecognised 4xx is the generic client error");
+    assert_eq!(499, client.api_error().status_code());
+}
+
+#[test]
+fn test_bhv_errors_098_a_missing_ca_path_is_named_as_an_invalid_ca_certificate() {
+    let missing = "/definitely/not/here/ca.pem";
+    let err = petstore::TransportOptions::builder()
+        .ca_cert_path(missing)
+        .build()
+        .expect_err("a missing CA file must be refused");
+    match err {
+        petstore::errors::ConfigurationError::InvalidCaCertificate(message) => {
+            assert!(
+                message.contains(missing),
+                "the message must name the file: {}",
+                message
+            );
+            assert!(
+                message.contains("failed to read CA certificate"),
+                "{}",
+                message
+            );
+        }
+        other => panic!("expected InvalidCaCertificate, got {}", other),
+    }
+}
 
 #[test]
 fn test_bhv_errors_204_a_body_that_does_not_match_its_declared_error_schema_leaves_the_status_error_with_the_raw_body_and_a_cause(
