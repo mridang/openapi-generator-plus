@@ -748,3 +748,5 @@ dart | misc214 | Dart query values are stringified by toString for any object th
 
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
 ||||||| c38bbe25c
+java | misc185 | The Java OAuth2 token manager has no stop operation and runs no background task, so there is nothing to stop twice and no later token request that a stop could refuse
+java | misc187 | The Java authenticators never read the API base URL from the environment and document the host as never read from it, so a client cannot take its host from the environment

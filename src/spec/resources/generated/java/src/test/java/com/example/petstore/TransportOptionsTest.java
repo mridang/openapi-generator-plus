@@ -724,4 +724,15 @@ class TransportOptionsTest {
             IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
     assertFalse(thrown instanceof OpenAPIException);
   }
+
+  @Test
+  void bhvMisc186AReadyMadeConnectionWithACaBundleIsRejectedWhenBuilt() {
+    assertThrowsExactly(
+        IllegalArgumentException.class,
+        () ->
+            TransportOptions.builder()
+                .httpClient(java.net.http.HttpClient.newHttpClient())
+                .caCertPath("/tmp/ca.pem")
+                .build());
+  }
 }
