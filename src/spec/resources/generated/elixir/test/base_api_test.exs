@@ -73,7 +73,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
   # Exception dispatch
 
-  test "a binary return type gets the raw bytes of a JSON body", %{state: state} do
+  test "bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body", %{
+    state: state
+  } do
     assert {:ok, body} =
              PetstoreClient.Api.BaseApi.invoke_api(
                state,
@@ -869,6 +871,25 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert IO.iodata_to_binary(request.body) == "name=%233+items"
   end
 
+  test "bhv serializationwire 057 a form-urlencoded body keeps only the unreserved set literal and escapes the rest" do
+    state = retry_state([200])
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      state,
+      :post,
+      "/things",
+      %{},
+      %{},
+      %{"k" => "a~b*c!d'e(f)g"},
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert [request] = attempts()
+    assert IO.iodata_to_binary(request.body) == "k=a~b%2Ac%21d%27e%28f%29g"
+  end
+
   test "bhv serializationwire 021 serializes form-urlencoded body", %{state: state} do
     body = %{"name" => "alice", "age" => "30"}
 
@@ -1628,7 +1649,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "multipart filename with embedded quote is backslash-escaped" do
+  test "bhv serializationwire 061 multipart filename with embedded quote is backslash-escaped" do
     disposition =
       PetstoreClient.DefaultApiClient.build_content_disposition("file", "a\"b.txt")
 
@@ -2181,6 +2202,30 @@ defmodule PetstoreClient.Api.BaseApiTest do
            "Expected default base, got: #{url}"
 
     Agent.stop(name)
+  end
+
+  test "bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire" do
+    {:ok, name} = UrlCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: UrlCapturingApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{"revision" => {:allow_reserved, "v1.0/beta:rc1?a=b;~'(c)"}},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    url = UrlCapturingApiClient.captured_url(name)
+
+    assert String.contains?(url, "revision=v1.0/beta:rc1?a=b;~'(c)"),
+           "Expected the reserved characters literal, got: #{url}"
   end
 
   test "bhv operations 066 an allowReserved query value percent-encodes a hash and keeps the other params" do

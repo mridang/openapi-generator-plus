@@ -109,6 +109,12 @@ defmodule PetstoreClient.ValueSerializerTest do
              ) == ",x,"
     end
 
+    test "bhv serializationparam 115 a csv query array keeps an empty slot for a null element" do
+      assert PetstoreClient.ValueSerializer.serialize([1, nil, 3], :query, "array",
+               collection_format: :csv
+             ) == "1,,3"
+    end
+
     test "bhv serializationparam 032 empty array returns empty string for csv" do
       assert PetstoreClient.ValueSerializer.serialize([], :query, "array") == ""
     end
@@ -603,6 +609,21 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "5"
     end
 
+    test "bhv serializationparam 109 an unknown style falls back to plain value serialization" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "id",
+          "5",
+          :query,
+          "string",
+          nil,
+          "unknownStyle",
+          false
+        )
+
+      assert result == "5"
+    end
+
     test "bhv serializationparam 035 empty style falls back to location-based serialization" do
       result =
         PetstoreClient.ValueSerializer.serialize_styled(
@@ -644,6 +665,20 @@ defmodule PetstoreClient.ValueSerializerTest do
                true
              ) ==
                ["blue", "red"]
+    end
+
+    test "bhv serializationparam 117 a set in form style without explode joins its elements with commas" do
+      set = MapSet.new(["red", "blue"])
+
+      assert PetstoreClient.ValueSerializer.serialize_styled(
+               "labels",
+               set,
+               :query,
+               "array",
+               nil,
+               "form",
+               false
+             ) == "blue,red"
     end
 
     test "a set expands like an array for the unstyled and header paths" do
@@ -709,7 +744,7 @@ defmodule PetstoreClient.ValueSerializerTest do
              ]
     end
 
-    test "a nested object or array leaf is a SerializationError" do
+    test "bhv serializationparam 108 a nested object or array leaf is a SerializationError" do
       for leaf <- [%{"x" => 1}, [1, 2]] do
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ValueSerializer.serialize_styled(
@@ -791,6 +826,16 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "serialize_deep_object/2" do
+    test "bhv serializationparam 111 a deepObject parameter writes each property as name[key]" do
+      result =
+        PetstoreClient.ValueSerializer.serialize_deep_object("filter", %{
+          "status" => "active",
+          "type" => "dog"
+        })
+
+      assert result == %{"filter[status]" => "active", "filter[type]" => "dog"}
+    end
+
     test "bhv serializationparam 017 basic map returns bracketed keys" do
       result =
         PetstoreClient.ValueSerializer.serialize_deep_object("filter", %{
@@ -878,6 +923,11 @@ defmodule PetstoreClient.ValueSerializerTest do
         assert PetstoreClient.ValueSerializer.serialize("a" <> char <> "b", :path, "string") ==
                  "a" <> encoded <> "b"
       end
+    end
+
+    test "bhv serializationparam 119 a tilde is kept literal in a path parameter value" do
+      assert PetstoreClient.ValueSerializer.serialize("a~b", :path, "string") == "a~b"
+      assert PetstoreClient.ValueSerializer.serialize("~", :path, "string") == "~"
     end
 
     test "bhv serializationparam 004 a value that already looks percent-encoded is encoded again" do
@@ -1120,6 +1170,23 @@ defmodule PetstoreClient.ValueSerializerTest do
   # `format: date` as `Date`, whose `Date.to_iso8601/1` already produces
   # YYYY-MM-DD.
   describe "format:date path parameter emits YYYY-MM-DD" do
+    test "bhv serializationparam 110 a date value is written as YYYY-MM-DD in every location" do
+      date = ~D[2024-01-15]
+      assert PetstoreClient.ValueSerializer.serialize(date, :query, "string") == "2024-01-15"
+      assert PetstoreClient.ValueSerializer.serialize(date, :header, "string") == "2024-01-15"
+      assert PetstoreClient.ValueSerializer.serialize(date, :path, "string") == "2024-01-15"
+    end
+
+    test "bhv serializationparam 120 an array of date values is written with each element as YYYY-MM-DD" do
+      dates = [~D[2024-01-15], ~D[2024-02-01]]
+
+      assert PetstoreClient.ValueSerializer.serialize(dates, :header, "array") ==
+               "2024-01-15,2024-02-01"
+
+      assert PetstoreClient.ValueSerializer.serialize(dates, :query, "array") ==
+               "2024-01-15,2024-02-01"
+    end
+
     test "bhv serializationparam 028 Date in path returns YYYY-MM-DD" do
       date = ~D[2024-01-15]
       assert PetstoreClient.ValueSerializer.serialize(date, :path, "string") == "2024-01-15"

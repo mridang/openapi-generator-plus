@@ -311,7 +311,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
              "https://sandbox.example.com/api/v3"
   end
 
-  test "per-operation server variant rejects a value outside the variable enum" do
+  test "bhv servers 020 per-operation server variant rejects a value outside the variable enum" do
     server = %{{moduleName}}.Api.GetStagingPetInfoServer.StagingServer{
       environment: "attacker.net/x#",
       version: "v2"

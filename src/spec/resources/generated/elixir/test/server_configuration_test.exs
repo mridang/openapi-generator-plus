@@ -133,6 +133,15 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://{version}.api.example.com/v2"
     end
 
+    test "bhv servers 023 a server variable value containing replacement patterns is substituted literally" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com",
+        variables: %{"env" => %ServerVariable{default_value: "a\\1b$&"}}
+      }
+
+      assert ServerConfiguration.url(config) == "https://a\\1b$&.api.example.com"
+    end
+
     test "bhv servers 007 leaves an unknown placeholder in the template untouched" do
       config = %ServerConfiguration{url_template: "https://{unknown}.example.com"}
 
@@ -197,6 +206,14 @@ defmodule PetstoreClient.ServerConfigurationTest do
   end
 
   describe "the hostile third global server" do
+    test "bhv servers 021 a server URL with special characters in its default and enum values resolves to the raw characters" do
+      server = PetstoreClient.Servers.server_2()
+      assert ServerConfiguration.url(server) == "https://o'neil.example.com/api"
+
+      assert ServerConfiguration.url(server, %{"tenant" => "a&b"}) ==
+               "https://a&b.example.com/api"
+    end
+
     test "bhv servers 013 the third global server keeps its hostile text unchanged" do
       config = PetstoreClient.Servers.server_2()
       tenant = config.variables["tenant"]

@@ -22,6 +22,16 @@ end
 defmodule PetstoreClient.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
+  describe "model documentation" do
+    test "bhv serializationobject 227 a model externalDocs description is documented verbatim without HTML entities" do
+      {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} =
+        Code.fetch_docs(PetstoreClient.Models.Account)
+
+      assert moduledoc =~ ~s(Account <docs> & "notes" it's here)
+      refute moduledoc =~ "&lt;"
+    end
+  end
+
   describe "DateTimeOffsetPreservation" do
     test "bhv serializationobject 174 UTC datetime serializes containing date-time and UTC offset" do
       dt = ~U[2024-01-01 12:30:45Z]
@@ -984,6 +994,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    test "bhv serializationobject 229 deserializing a map of models returns a model instance for each value" do
+      json = ~s({"dogs":{"id":1,"name":"Dogs"},"cats":{"id":2,"name":"Cats"}})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "%{String.t() => Category}")
+      assert %PetstoreClient.Models.Category{id: 1, name: "Dogs"} = result["dogs"]
+      assert %PetstoreClient.Models.Category{id: 2, name: "Cats"} = result["cats"]
+    end
+
     test "bhv serializationobject 123 rejects a null value in a map of models" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(~s({"a":null}), "%{String.t() => Category}")
@@ -1108,7 +1125,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
-    test "omitting an optional field does not raise" do
+    test "bhv serializationobject 231 omitting an optional field does not raise" do
       # `status` is optional; its absence must not trip the required check.
       json = ~s({"name":"Rex","photoUrls":["http://example.com/rex.jpg"]})
       pet = PetstoreClient.ObjectSerializer.deserialize(json, "Pet")
@@ -1211,6 +1228,18 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "format: time round-tripping" do
+    test "bhv serializationobject 230 a time value survives a stringify and parse round trip" do
+      original = ~T[07:30:15]
+
+      restored =
+        PetstoreClient.ObjectSerializer.convert_to_type(
+          PetstoreClient.ObjectSerializer.stringify(original),
+          "Time"
+        )
+
+      assert restored == original
+    end
+
     test "stringify emits HH:MM:SS for a Time" do
       assert PetstoreClient.ObjectSerializer.stringify(~T[13:45:30]) == "13:45:30"
     end
