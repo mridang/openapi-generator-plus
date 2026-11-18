@@ -147,7 +147,13 @@ class OpenIdConnectAuthenticator extends BaseAuthenticator implements HttpAwareA
         );
 
         if ($response->statusCode < 200 || $response->statusCode >= 300) {
-            throw ApiException::fromResponse($response->statusCode, $response->headers, $response->body);
+            throw ApiException::fromResponse(
+                $response->statusCode,
+                $response->headers,
+                $response->body,
+                'GET',
+                (string) parse_url($this->openIdConnectUrl, PHP_URL_PATH)
+            );
         }
 
         $discovery = json_decode($response->body, true);

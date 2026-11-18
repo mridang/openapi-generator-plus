@@ -238,7 +238,7 @@ function sentApiKeys(\PetstoreClient\Auth\Authenticator $auth): array
     return array_values(array_merge($auth->getAuthHeaders(), $auth->getQueryParams(), $auth->getCookieParams()));
 }
 
-test('an explicit api key wins over the environment', function (): void {
+test('bhv authscheme 009 an explicit api key wins over the environment', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
         $auth = new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit');
         expect(sentApiKeys($auth))->toBe(['explicit']);

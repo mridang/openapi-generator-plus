@@ -121,6 +121,14 @@ test('bhv authoauthtwoimplicit 010 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
+test('bhv authoauthtwoimplicit 016 an implicit access token may contain a tab', function (): void {
+    $authenticator = makeOAuth2ImplicitAuthenticator();
+
+    $authenticator->setAccessToken("a\tb");
+
+    expect($authenticator->getAuthHeaders()['Authorization'])->toBe("Bearer a\tb");
+});
+
 test('bhv authoauthtwoimplicit 014 set access token rejects a token outside printable ascii', function (string $token): void {
     $authenticator = makeOAuth2ImplicitAuthenticator();
 

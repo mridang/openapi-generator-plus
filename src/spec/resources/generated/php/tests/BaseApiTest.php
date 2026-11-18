@@ -230,6 +230,25 @@ test('bhv authintegration 010 forwards auth headers', function (): void {
     expect($result['headers']['x-custom'])->toBe('auth-value');
 });
 
+test('bhv authintegration 019 an invalid auth cookie fails before any request is sent', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $auth = new TestAuthenticator(cookies: ['session' => 'a;b']);
+
+    expect(fn () => $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', $auth))
+        ->toThrow(\InvalidArgumentException::class, "Cookie value for 'session' contains characters forbidden by RFC 6265");
+    expect($client->capturedUrl)->toBe('');
+});
+
+test('bhv serializationparam 107 a query value keeps only the unreserved set literal', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ["k*'" => "a~b*c!d'e(f)g h"], [], null, ['application/json'], 'application/json');
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?k%2A%27=a~b%2Ac%21d%27e%28f%29g%20h');
+});
+
 test('bhv authintegration 017 sets cookie header', function (): void {
     $auth = new TestAuthenticator(cookies: ['session' => 'abc123']);
     $result = makeBaseApiTestableApi()->call(
@@ -535,7 +554,7 @@ test('the bearer scheme credential is applied to an operation that requires it',
     expect($client->capturedHeaders['Authorization'] ?? '')->toBe('Bearer per-op-token');
 });
 
-test('configured api-key header authenticator is applied to a secured operation', function (): void {
+test('bhv authintegration 018 configured api-key header authenticator is applied to a secured operation', function (): void {
     // apiKeyHeader scheme defined by the spec sends X-API-Key as a header.
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');

@@ -1307,6 +1307,8 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final Map<String, Object> scheme = new HashMap<>();
         scheme.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
         scheme.put("tokenUrlLiteral", toPhpStringLiteral(java.util.Objects.toString(spec.tokenUrl(), "")));
+        scheme.put("refreshUrlLiteral", toPhpStringLiteral(java.util.Objects.toString(
+                spec.refreshUrl() != null ? spec.refreshUrl() : spec.tokenUrl(), "")));
         scheme.put("authorizationUrlLiteral",
                 toPhpStringLiteral(java.util.Objects.toString(spec.authorizationUrl(), "")));
         scheme.put("scopesLiteral", formatPhpScopes(spec.scopes()));

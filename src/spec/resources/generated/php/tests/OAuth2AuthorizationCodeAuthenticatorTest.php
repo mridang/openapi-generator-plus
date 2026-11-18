@@ -167,6 +167,42 @@ test('bhv authoauthtwoauthcode 015 includes refresh token on refresh', function 
     expect($headers['Authorization'])->toBe('Bearer access2');
 });
 
+test('bhv authoauthtwoauthcode 030 auth headers before the code exchange name the exchange call to make first', function (): void {
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient(makeOAuth2AuthCodeMockClient());
+
+    expect(fn () => $authenticator->getAuthHeaders())
+        ->toThrow(\LogicException::class, 'Must call exchangeCode() before making API requests');
+});
+
+test('bhv authoauthtwoauthcode 032 the code exchange body uses a fixed parameter order', function (): void {
+    $client = makeOAuth2AuthCodeMockClient();
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        []
+    );
+    $authenticator->setApiClient($client);
+
+    $authenticator->exchangeCode('C');
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toBe(
+        'grant_type=authorization_code&code=C&client_id=my-client-id&client_secret=my-client-secret&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback'
+    );
+});
+
 test('bhv authoauthtwoauthcode 027 throws before exchange code called', function (): void {
     $client = makeOAuth2AuthCodeMockClient();
     $authenticator = new OAuth2AuthorizationCodeAuthenticator(

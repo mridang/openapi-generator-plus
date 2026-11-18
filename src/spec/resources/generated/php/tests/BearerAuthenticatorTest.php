@@ -203,7 +203,7 @@ test('the environment is read once, when the authenticator is built', function (
     });
 });
 
-test('a missing or empty environment token fails when the authenticator is built', function (?string $value): void {
+test('bhv authscheme 010 a missing or empty environment token fails naming the variable when the authenticator is built', function (?string $value): void {
     withBearerTokenEnvironment($value, function (): void {
         expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com'))
             ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN');

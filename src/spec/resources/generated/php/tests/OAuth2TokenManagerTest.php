@@ -207,7 +207,44 @@ test('bhv authoauthtwotokenmgr 005 an expires_in beyond one year is clamped to o
     expect($expiry)->toBeGreaterThan(microtime(true) + 31536000.0 - 120.0);
 })->with([9999999999, 1.0e20, '9999999999', '99999999999999999999999999']);
 
-test('a string expires_in outside the decimal grammar is stale', function (string $expiresIn): void {
+test('bhv authoauthtwotokenmgr 043 the token request body is serialised with the parameters in a fixed key order', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 'a1']), ['Content-Type' => 'application/json']));
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', [
+        'zeta' => 'z',
+        'scope' => 's',
+        'client_secret' => 'cs',
+        'alpha' => 'a',
+        'client_id' => 'ci',
+        'password' => 'p',
+        'username' => 'u',
+        'grant_type' => 'password',
+    ]);
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toBe(
+        'grant_type=password&username=u&password=p&client_id=ci&client_secret=cs&scope=s&alpha=a&zeta=z'
+    );
+});
+
+test('bhv authoauthtwotokenmgr 045 a padded decimal string expires_in is accepted so the token is cached', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'padded',
+        'expires_in' => " 3600.5\n",
+    ]), ['Content-Type' => 'application/json']));
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($client->capturedRequests)->toHaveCount(1);
+});
+
+test('bhv authoauthtwotokenmgr 046 a string expires_in outside the decimal grammar is stale', function (string $expiresIn): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(
         200,
@@ -652,7 +689,7 @@ test('bhv authoauthtwotokenmgr 020 non string refresh token is ignored', functio
     'null' => [null],
 ]);
 
-test('token error response message follows the status, code and description', function (int $status, string $body, string $expected): void {
+test('bhv authoauthtwotokenmgr 042 token error response message follows the status, code and description', function (int $status, string $body, string $expected): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse($status, $body, ['Content-Type' => 'application/json']));
 
