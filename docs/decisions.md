@@ -60,6 +60,10 @@ A property that is optional and nullable is the language's own optional type, an
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
 
+## An integer with no format is 32 bits
+
+A property with `type: integer` and no `format` is typed as a 32-bit integer in every language, the same as `format: int32`. A value outside that range fails the decode with a `SerializationError` and is never wrapped or truncated. Widening it to 64 bits everywhere would change the type of every such field in every SDK, and widening it only where the language is already 64-bit would give the twelve SDKs different public types, so it stays 32-bit and the spec says `format: int64` where a field needs more. Five languages that decode into a wider integer (Python, Ruby, PHP, Swift, Elixir) do not refuse the value yet; that is a gap to close, not a different rule. See [types](types.md) and issue [#159](https://github.com/mridang/openapi-generator-plus/issues/159).
+
 ## Language version floors
 
 The minimum version of each language is the oldest release that its maintainers still support, and it is written in the build manifest of the generated SDK (`pom.xml`, `build.gradle.kts`, the `.csproj`, `package.json`, `pyproject.toml`, the gemspec, `composer.json`, `go.mod`, `Cargo.toml`, `Package.swift`, `pubspec.yaml` and `mix.exs`). A generated README states the same floor as its manifest, and the language page for each SDK is the single place where the floor is explained. The generated READMEs describe how a floor moves: the Node.js, C# and Swift READMEs say that dropping a runtime is a major release, and the Ruby README says that dropping an end-of-life Ruby is a minor release. The current floors are in the table in the [README](../README.md#languages).

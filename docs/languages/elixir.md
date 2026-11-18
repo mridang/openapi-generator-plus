@@ -79,8 +79,60 @@ The extra applications are `:logger` and `:crypto`. If a `br` response arrives a
 - Deprecated operations carry `@deprecated`. A deprecated model field gets a note in the module's `@moduledoc`, because `@deprecated` applies to functions only.
 - Streaming is not supported. Req reads each response whole. Inject a transport if you need streaming.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `PetstoreClient.CallHook` is the name to look for in this SDK.
+
+```elixir
+defmodule TenantHook do
+  @behaviour PetstoreClient.CallHook
+
+  @impl true
+  def start(_info, headers), do: {Map.put(headers, "X-Tenant", "a"), nil}
+
+  @impl true
+  def finish(_state, _outcome), do: :ok
+end
+
+client = PetstoreClient.Client.with_token("/api/v3", "token", nil, call_hook: TenantHook)
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```elixir
+eu = PetstoreClient.Client.with_token("https://eu.api.example.com", "eu-token")
+us = PetstoreClient.Client.with_token("https://us.api.example.com", "us-token")
+```
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `models/animal.ex`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `..._with_http_info` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `PetstoreClient.Errors.ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```elixir
+{:ok, result} = PetstoreClient.Api.PetApi.add_pet_with_http_info(client.pet, pet)
+result.status_code
+result.headers["etag"]
+result.raw_body
+
+{:error, %PetstoreClient.Errors.ApiError{} = error} = PetstoreClient.Api.PetApi.add_pet(client.pet, pet)
+{error.status_code, error.response_headers, error.response_body}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into the width-less `integer()`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - `format: date-time` decoding returns UTC. See the table note above.
 - `format: decimal` and `number` are `float()` and lose exactness.
 - Building a struct never validates anything: a wrong-typed scalar or an atom that is no enum member builds fine. The checks run when a response is decoded (a wrong type, a missing required property and an unknown enum string raise `SerializationError`) and when a body is encoded (an inline enum atom outside its members raises).

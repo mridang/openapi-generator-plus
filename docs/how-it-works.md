@@ -38,6 +38,56 @@ Some rules need no configuration because the generator applies them to every doc
 
 The `x-internal` rule is how the shared test specification works: transport-test endpoints (echo, delay, compression, redirects, error statuses) live in the same file that the mock server serves, and are removed before generation so they do not become SDK methods.
 
+### Renaming with a script
+
+A name in a generated SDK comes from the specification, so a rename is a change to the specification, and `RUN_SCRIPT` is the place to make it: it loads an ES module that exports `apply(openAPI, ruleConfig, logger)` and runs it on the parsed document before any generator sees it (`--openapi-normalizer "RUN_SCRIPT=/local/rename.mjs"`). The script below renames the schema `Pet` to `Animal` and updates every reference to it. It was run against the petstore specification and produced `Animal` in all twelve languages, with each language's own file name and casing.
+
+```javascript
+const FROM = 'Pet';
+const TO = 'Animal';
+const PREFIX = '#/components/schemas/';
+
+export function apply(openAPI, ruleConfig, logger) {
+  const seen = new Set();
+  const visit = (schema) => {
+    if (!schema || seen.has(schema)) return;
+    seen.add(schema);
+    if (schema.get$ref() === PREFIX + FROM) schema.set$ref(PREFIX + TO);
+    const properties = schema.getProperties();
+    if (properties) for (const value of properties.values()) visit(value);
+    visit(schema.getItems());
+    const extra = schema.getAdditionalProperties();
+    if (extra && typeof extra !== 'boolean' && extra.get$ref) visit(extra);
+    for (const list of [schema.getAllOf(), schema.getOneOf(), schema.getAnyOf()]) {
+      if (list) for (const member of list) visit(member);
+    }
+  };
+  const visitContent = (content) => {
+    if (content) for (const media of content.values()) visit(media.getSchema());
+  };
+
+  const components = openAPI.getComponents();
+  const schemas = components.getSchemas();
+  for (const schema of schemas.values()) visit(schema);
+
+  for (const item of openAPI.getPaths().values()) {
+    for (const operation of item.readOperations()) {
+      for (const parameter of operation.getParameters() || []) visit(parameter.getSchema());
+      if (operation.getRequestBody()) visitContent(operation.getRequestBody().getContent());
+      for (const response of operation.getResponses().values()) visitContent(response.getContent());
+    }
+  }
+
+  const renamed = new LinkedHashMap();
+  for (const entry of schemas.entrySet()) {
+    renamed.put(entry.getKey() === FROM ? TO : entry.getKey(), entry.getValue());
+  }
+  components.setSchemas(renamed);
+}
+```
+
+The script sees the OpenAPI Java model (`OpenAPI`, `Schema`, `LinkedHashMap` and the other model classes are bound in the context). Only type names can be renamed this way without changing the wire: the name of a property or a parameter is also its wire name, so a rename of one changes the requests and the responses. The generators never read an `x-` name from the specification, and there is no name map in the configuration, because twelve naming schemes with reserved-word escaping (D40 to D46) would each have to honour it.
+
 ### The shared generator
 
 `AbstractBetterCodegen` is about six thousand lines and holds everything the twelve have in common, so changing it changes every SDK. It escapes literals and enum values, normalises doc comments, decides which model names collide with reserved words, adds per-operation server information, renders each operation's Options class, detects the security schemes in the document and exposes them to the templates, and prepares the data the templates need. Each language adds a thin `Better<Lang>Codegen` class with only what is its own: its type mappings, its reserved words, its identifier casing and its file layout.

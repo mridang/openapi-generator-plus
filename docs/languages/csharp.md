@@ -27,7 +27,7 @@ The floor is written once, in the project file above. The support policy is that
 | `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `string` | no dedicated type |
 | `integer`, `format: int32` | `int` | |
 | `integer`, `format: int64` | `long` | |
-| `integer`, no format | `int` | 32 bits; see Under review |
+| `integer`, no format | `int` | 32 bits; see Known limits |
 | `number`, `format: float` | `float` | |
 | `number`, `format: double` | `double` | binary floating point, so not for money |
 | `number`, no format, or `format: decimal` | `decimal` | exact base-10 arithmetic |
@@ -90,8 +90,74 @@ The model namespace is always `Models` and the API namespace is always `Api`; th
 - **Custom transport.** `TransportOptionsBuilder.HttpClient(...)` and `HttpMessageHandler(...)` carry requests on your own client or handler; combining them with `Proxy`, `CaCertPath` or `VerifySsl(false)` fails in `Build()` with `ArgumentException`. You can also implement `IApiClient` and inject it.
 - **Trimming.** The SDK works with `PublishTrimmed`; expect the `IL2026` and `IL2075` trim warnings that any reflection-based serializer produces.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `ICallHook` is the name to look for in this SDK.
+
+```csharp
+using var client = Client.WithToken("https://api.example.com", "your-token", callHook: new TimingHook());
+
+internal sealed class TimingObserver(CallInfo info, long started) : ICallObserver
+{
+    public void Finish(CallOutcome outcome) =>
+        Console.WriteLine(
+            $"{info.OperationId} {outcome.StatusCode} {Stopwatch.GetElapsedTime(started).TotalMilliseconds} ms");
+}
+
+internal sealed class TimingHook : ICallHook
+{
+    public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers)
+    {
+        headers["X-Caller"] = "billing";
+        return new TimingObserver(info, Stopwatch.GetTimestamp());
+    }
+}
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```csharp
+using var eu = Client.WithToken("https://eu.api.example.com", "eu-token");
+using var us = Client.WithToken("https://us.api.example.com", "us-token");
+```
+
+Disposing one client does not affect the other.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `Models/Animal.cs`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfoAsync` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```csharp
+ApiResult<Pet> result = await client.Pet.AddPetWithHttpInfoAsync(pet);
+int status = result.StatusCode;
+string? etag = result.Headers.GetValueOrDefault("etag");
+string raw = result.RawBody;
+
+try
+{
+    await client.Pet.AddPetAsync(pet);
+}
+catch (ApiException e)
+{
+    Console.WriteLine($"{e.StatusCode} {e.ResponseHeaders} {e.ResponseBody}");
+}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - Native AOT is not supported, because the serialization layer relies on reflection and custom converters.
 - Request and response bodies are read and sent whole; there is no streaming of a response body.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked by the SDK. `System.Text.Json` enforces required members, integer ranges and wire types, and nothing else.
@@ -106,7 +172,6 @@ The model namespace is always `Models` and the API namespace is always `Api`; th
 
 These are proposals from a review of the type mapping against current .NET. None of them is decided, and none changes what the generator produces today.
 
-- Map `type: integer` with no format to `long` (or `BigInteger`) instead of `int`, as one decision shared with Java and Kotlin.
 - Map free-form objects to `System.Text.Json.Nodes.JsonNode` or `JsonElement` instead of `object`.
 - Map `ipv4` and `ipv6` to `System.Net.IPAddress` with a custom converter, or keep `string` for parity with the other SDKs.
 - Do not adopt the union types of C# 15 now: they need .NET 11, a short-support release, and would push the floor well above the oldest supported runtime.

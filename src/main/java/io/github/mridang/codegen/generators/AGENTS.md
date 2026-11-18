@@ -394,6 +394,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D92 | Returned headers drop Content-Encoding and Content-Length whenever the body was decoded. | Headers describe the body the caller receives. |
 | D93 | dart `findPetsBornOn` doc comment says the date is a `DateTime` passed through `stringifyDate`. | Doc truth. |
 | D94 | Verified fixed, locks exist: non-string date-time rejected, bare null body is absent, non-object where a model is expected is `SerializationError`, exact wire names only, NaN/Infinity rejected, numeric-only additionalProperties encodes an object, swift truncates sub-millisecond, empty `User-Agent` sent as given, ruby form bodies use `stringify`, an auth query param replaces a same-named operation param. | No action. |
+| D95 | An integer with no format stays 32-bit in all twelve (as `int32`); a value outside the range is a `SerializationError`, never wrapped; wider fields declare `format: int64` (#159). | Enforced today in java, kotlin, csharp, go, rust, node, dart; python, ruby, php, swift (`Int`) and elixir (`integer()`) still accept a wider value: a gap to close, not an exception. |
 
 ### Forced divergences (FD): do not align these away
 

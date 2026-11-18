@@ -95,8 +95,65 @@ Only `invokerPackage` and `packageVersion` are declared as options in the genera
 - **Custom transport.** Wrap any PSR-18 client in `Psr18ApiClient`, or use `Client::withHttpClient(...)`. The SDK keeps its own redirect loop, so disable redirects on your client. `TransportOptions` settings for proxy, TLS and timeout do not apply to an injected client, and setting a proxy, CA bundle or `verifySsl(false)` together with one is rejected with `InvalidArgumentException`.
 - **Request id.** `injectRequestId(true)` adds an `X-Request-ID` header to every request.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```php
+final class TenantHook implements CallHook
+{
+    public function start(CallInfo $info, array &$headers): ?CallObserver
+    {
+        $headers['X-Tenant'] = 'a';
+
+        return null;
+    }
+}
+
+$client = Client::withToken('https://api.example.com', 'your-token', callHook: new TenantHook());
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```php
+$eu = Client::withToken('https://eu.api.example.com', 'eu-token');
+$us = Client::withToken('https://us.api.example.com', 'us-token');
+```
+
+Call `close()` on each when you are done.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `lib/Models/Animal.php`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```php
+$result = $client->pet->addPetWithHttpInfo($body);
+$status = $result->statusCode;
+$etag = $result->headers['etag'] ?? null;
+$raw = $result->rawBody;
+
+try {
+    $client->pet->addPet($body);
+} catch (\PetstoreClient\Errors\ApiException $e) {
+    $failed = [$e->getStatusCode(), $e->getResponseHeaders(), $e->getResponseBody()];
+}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a PHP `int`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - The generated README states that the Symfony serializer takes `int64` values through `float`, so values above 2^53 may lose precision on 64-bit PHP. See Under review.
 - `number` values, including `format: decimal`, are `float`, so `0.1 + 0.2` is not exact. Use BCMath on the raw value when you need exact arithmetic.
 - `date` and `date-time` are mutable `\DateTime` objects, which can be changed in place even inside a `readonly` model.

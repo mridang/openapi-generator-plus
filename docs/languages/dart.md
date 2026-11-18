@@ -74,8 +74,67 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - `TraceContextUtil.propagator` is a registration hook that you set if you want trace headers, because Dart cannot detect an optional OpenTelemetry dependency at run time.
 - An absent optional server description is an empty string, not `null`. It never goes on the wire.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```dart
+class SourceHook implements CallHook {
+  @override
+  CallObserver? start(CallInfo info, Map<String, String> headers) {
+    headers['X-Source'] = 'nightly-job';
+    return null;
+  }
+}
+
+final client = Client.withToken(
+  host: 'https://api.example.com',
+  accessToken: 'your-token',
+  callHook: SourceHook(),
+);
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```dart
+final eu = Client.withToken(host: 'https://eu.api.example.com', accessToken: 'eu-token');
+final us = Client.withToken(host: 'https://us.api.example.com', accessToken: 'us-token');
+```
+
+Call `close()` on each when you are done.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `lib/src/models/animal.dart`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```dart
+final result = await client.pet.addPetWithHttpInfo(pet);
+final status = result.statusCode;
+final etag = result.headers['etag'];
+final raw = result.rawBody;
+
+try {
+  await client.pet.addPet(pet);
+} on ApiException catch (e) {
+  print('${e.statusCode} ${e.responseHeaders} ${e.responseBody}');
+}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - There is no per-call cancellation handle.
 - Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only. Other charsets such as `shift_jis` fall back to lenient UTF-8, because Dart has no multi-charset standard library.
 - Bare `number` is a lossy `double`, and `int64` beyond 2^53 is lossy on the web.
