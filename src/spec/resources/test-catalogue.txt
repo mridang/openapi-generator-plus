@@ -1954,3 +1954,5 @@ langswift009 | When one header layer holds two spellings of a name the same valu
 langswift010 | An allow-reserved query value keeps reserved characters but percent-encodes hash and brackets
 langswift011 | A per-call timeout of zero is rejected with a configuration error
 langswift012 | A success response with an empty body and a status other than 200 has no data but keeps its status
+langswift013 | A failing token provider fails the request with its own error rather than sending an empty credential
+langswift014 | A bearer authenticator built from a token provider does not show the token in its description
