@@ -1016,7 +1016,7 @@ authapikey018 | Rejects a CR in a header API key value at construction
 authoauthtwoimplicit014 | Rejects a non-ASCII access token with the RFC 7230 message
 operations125 | Raises the language's argument error, naming the required query param category, when it is nil | multi
 errors044 | Every error lives in src/errors and the package root exports it
-serializationparam104 | EncodeContentCookie keeps only the unreserved set literal
+serializationparam104 | EncodeContentCookie keeps only the unreserved set literal / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
 config017 | Configuration is immutable
 retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
 serializationobject182 | Unknown enum value on deserialize throws
@@ -1045,11 +1045,11 @@ authbearer018 | An explicit token wins over the environment | multi
 transport059 | Authenticating proxy refuses a request without credentials
 servers018 | EnumValues are exposed for validation
 servers019 | Enum does not contain a value outside the allowed set
-serializationparam105 | SerializeStyled form scalar
+serializationparam105 | SerializeStyled form scalar / An ipv4 or ipv6 query, header and path parameter is written in the same canonical text as a body field | multi
 serializationwire055 | #3 space in a form value encodes as plus
 lifecycle025 | Reads the environment once, when the authenticator is built | multi
 serializationwire056 | Falls back to application/octet-stream when extension is unknown
-serializationparam106 | Path with null style behaves like simple
+serializationparam106 | Path with null style behaves like simple / A type: number parameter given as the language's exact decimal is written in plain notation with no exponent and no float widening | multi
 authoidc029 | Concurrent callers on a cold authenticator share one discovery request
 retries029 | Falls back to the backoff when Retry-After is not understood
 authapikey021 | An API key is read from the environment when none is passed, and a passed key wins
@@ -1432,9 +1432,6 @@ serializationobject409 | A format: hostname or email value is kept as given and 
 serializationobject410 | A type: number field keeps all 25 digits of 12.345678901234567890123 from decode to encode and writes them as a bare JSON number in plain notation where the language has an exact decimal | multi
 serializationobject411 | A type: string field with format decimal decodes a quoted number into the native decimal, writes it back as a JSON string, and rejects a bare JSON number | multi
 serializationobject412 | A type: number value the native decimal cannot hold fails with the SDK serialization error and is never rounded | multi
-serializationparam104 | A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
-serializationparam105 | An ipv4 or ipv6 query, header and path parameter is written in the same canonical text as a body field | multi
-serializationparam106 | A type: number parameter given as the language's exact decimal is written in plain notation with no exponent and no float widening | multi
 operations157 | A null required nullable query parameter is sent as the key with an empty value
 operations158 | Every null required nullable query parameter is sent as an empty value in declaration order
 operations159 | A non-null required nullable query parameter is sent with its value
