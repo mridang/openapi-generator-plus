@@ -27,18 +27,24 @@ class BinaryVault {
 
   /// Creates a [BinaryVault] from a JSON map.
   factory BinaryVault.fromJson(Map<String, dynamic> json) {
-    return BinaryVault(
-      seal: json['seal'] != null ? decodeBase64(json['seal'] as String) : null,
-      shards: json['shards'] != null
-          ? deserializeArray(
-              json['shards'] as List,
-              (e) => decodeBase64(e as String),
-            )
-          : null,
-      labels: (json['labels'] as Map<String, dynamic>?)?.map(
-        (k, v) => MapEntry(k, decodeBase64(v as String)),
-      ),
-    );
+    try {
+      return BinaryVault(
+        seal: json['seal'] != null
+            ? decodeBase64(json['seal'] as String)
+            : null,
+        shards: json['shards'] != null
+            ? deserializeArray(
+                json['shards'] as List,
+                (e) => decodeBase64(e as String),
+              )
+            : null,
+        labels: (json['labels'] as Map<String, dynamic>?)?.map(
+          (k, v) => MapEntry(k, decodeBase64(v as String)),
+        ),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for BinaryVault: $e', e);
+    }
   }
 
   /// Converts this [BinaryVault] to a JSON map.

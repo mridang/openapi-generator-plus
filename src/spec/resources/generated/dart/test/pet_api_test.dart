@@ -125,10 +125,6 @@ void main() {
             apiClient: DefaultApiClient(),
             config: config,
             schemeAuthenticators: {
-              'petStoreBearer': _FixedHeaderAuth(
-                'Authorization',
-                'Bearer bearer-token',
-              ),
               'apiKeyHeader': _FixedHeaderAuth('X-API-Key', 'key-token'),
             },
           );

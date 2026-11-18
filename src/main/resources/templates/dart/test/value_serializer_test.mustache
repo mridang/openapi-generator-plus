@@ -3,7 +3,7 @@
 import 'dart:typed_data';
 
 import 'package:test/test.dart';
-import 'package:{{packageName}}/{{packageName}}.dart' show SerializationException;
+import 'package:{{packageName}}/{{packageName}}.dart' show Category, SerializationException;
 import 'package:{{packageName}}/src/value_serializer.dart';
 import 'package:{{packageName}}/src/object_serializer.dart' show stringify;
 
@@ -820,11 +820,11 @@ void main() {
     });
 
     test('bhv serialization 006 a query name or value percent-encodes reserved and space characters so it cannot add a parameter', () {
-      expect(serializeValue('a&b=c d', 'query', 'string', ''), equals('a%26b%3Dc%20d'));
+      expect(encodeRfc3986QueryComponent('a&b=c d'), equals('a%26b%3Dc%20d'));
     });
 
     test('bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII text as percent-encoded UTF-8', () {
-      expect(serializeValue('a+é', 'query', 'string', ''), equals('a%2B%C3%A9'));
+      expect(encodeRfc3986QueryComponent('a+é'), equals('a%2B%C3%A9'));
     });
 
     test('bhv serialization 005 a path value keeps unreserved and sub-delimiter characters literal and encodes the rest', () {

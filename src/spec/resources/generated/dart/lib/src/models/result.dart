@@ -15,7 +15,11 @@ class Result {
 
   /// Creates a [Result] from a JSON map.
   factory Result.fromJson(Map<String, dynamic> json) {
-    return Result(ok: json['ok'] as bool?);
+    try {
+      return Result(ok: json['ok'] as bool?);
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Result: $e', e);
+    }
   }
 
   /// Converts this [Result] to a JSON map.

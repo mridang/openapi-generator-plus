@@ -691,9 +691,12 @@ void main() {
         final byArray = SetPetAvatarThumbnailRequest.fromJson(<String>[
           base64Encode(<int>[104, 105]),
         ]);
-        expect(byArray.actualInstance, isA<List>());
+        expect(byArray.actualInstance, isA<List<Object?>>());
         expect(byArray.actualInstance, isNot(isA<Uint8List>()));
-        expect((byArray.actualInstance as List).single, isA<Uint8List>());
+        expect(
+          (byArray.actualInstance as List<Object?>).single,
+          isA<Uint8List>(),
+        );
       },
     );
 

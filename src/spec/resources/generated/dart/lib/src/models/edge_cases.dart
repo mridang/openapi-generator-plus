@@ -111,60 +111,64 @@ class EdgeCases {
 
   /// Creates a [EdgeCases] from a JSON map.
   factory EdgeCases.fromJson(Map<String, dynamic> json) {
-    return EdgeCases(
-      freeFormAny: json['freeFormAny'] as Object?,
+    try {
+      return EdgeCases(
+        freeFormAny: json['freeFormAny'] as Object?,
 
-      favoriteColor: json['favoriteColor'] != null
-          ? Color.fromJson(json['favoriteColor'] as String)
-          : null,
+        favoriteColor: json['favoriteColor'] != null
+            ? Color.fromJson(json['favoriteColor'] as String)
+            : null,
 
-      permissionsNote: json['permissionsNote'] as String?,
+        permissionsNote: json['permissionsNote'] as String?,
 
-      and: json['and'] as bool?,
+        and: json['and'] as bool?,
 
-      or: json['or'] as bool?,
+        or: json['or'] as bool?,
 
-      not: json['not'] as bool?,
+        not: json['not'] as bool?,
 
-      class_: json['class'] as String?,
+        class_: json['class'] as String?,
 
-      return_: json['return'] as String?,
+        return_: json['return'] as String?,
 
-      retryAfter: json['retryAfter'] != null
-          ? parseProtobufDuration(json['retryAfter'] as String)
-          : null,
+        retryAfter: json['retryAfter'] != null
+            ? parseProtobufDuration(json['retryAfter'] as String)
+            : null,
 
-      expiresAt: json['expiresAt'] != null
-          ? parseDateTime(json['expiresAt'] as String)
-          : null,
+        expiresAt: json['expiresAt'] != null
+            ? parseDateTime(json['expiresAt'] as String)
+            : null,
 
-      n2fa: json['2fa'] as bool?,
+        n2fa: json['2fa'] as bool?,
 
-      separator: json['separator'] != null
-          ? Separator.fromJson(json['separator'] as String)
-          : null,
+        separator: json['separator'] != null
+            ? Separator.fromJson(json['separator'] as String)
+            : null,
 
-      null_: json['null'] as String?,
+        null_: json['null'] as String?,
 
-      true_: json['true'] as bool?,
+        true_: json['true'] as bool?,
 
-      false_: json['false'] as bool?,
+        false_: json['false'] as bool?,
 
-      lastError: json['lastError'] != null
-          ? ModelError.fromJson(json['lastError'] as Map<String, dynamic>)
-          : null,
-      outcome: json['outcome'] != null
-          ? Result.fromJson(json['outcome'] as Map<String, dynamic>)
-          : null,
+        lastError: json['lastError'] != null
+            ? ModelError.fromJson(json['lastError'] as Map<String, dynamic>)
+            : null,
+        outcome: json['outcome'] != null
+            ? Result.fromJson(json['outcome'] as Map<String, dynamic>)
+            : null,
 
-      cutoff: json['cutoff'] as String?,
+        cutoff: json['cutoff'] as String?,
 
-      phase: json['phase'] != null
-          ? EdgeCasesPhaseEnum.fromJson(json['phase'] as String)
-          : null,
+        phase: json['phase'] != null
+            ? EdgeCasesPhaseEnum.fromJson(json['phase'] as String)
+            : null,
 
-      slug: json['slug'] as String?,
-    );
+        slug: json['slug'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for EdgeCases: $e', e);
+    }
   }
 
   /// Converts this [EdgeCases] to a JSON map.

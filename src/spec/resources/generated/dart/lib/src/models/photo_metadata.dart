@@ -28,21 +28,25 @@ class PhotoMetadata {
 
   /// Creates a [PhotoMetadata] from a JSON map.
   factory PhotoMetadata.fromJson(Map<String, dynamic> json) {
-    return PhotoMetadata(
-      caption: json['caption'] as String?,
+    try {
+      return PhotoMetadata(
+        caption: json['caption'] as String?,
 
-      isPrimary: json['isPrimary'] as bool?,
+        isPrimary: json['isPrimary'] as bool?,
 
-      takenAt: json['takenAt'] != null
-          ? parseDateTime(json['takenAt'] as String)
-          : null,
+        takenAt: json['takenAt'] != null
+            ? parseDateTime(json['takenAt'] as String)
+            : null,
 
-      location: json['location'] != null
-          ? PhotoMetadataLocation.fromJson(
-              json['location'] as Map<String, dynamic>,
-            )
-          : null,
-    );
+        location: json['location'] != null
+            ? PhotoMetadataLocation.fromJson(
+                json['location'] as Map<String, dynamic>,
+              )
+            : null,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for PhotoMetadata: $e', e);
+    }
   }
 
   /// Converts this [PhotoMetadata] to a JSON map.

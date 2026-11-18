@@ -29,11 +29,15 @@ class Category {
 
   /// Creates a [Category] from a JSON map.
   factory Category.fromJson(Map<String, dynamic> json) {
-    return Category(
-      id: readInt64OrNull(json['id']),
+    try {
+      return Category(
+        id: readInt64OrNull(json['id']),
 
-      name: json['name'] as String?,
-    );
+        name: json['name'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Category: $e', e);
+    }
   }
 
   /// Converts this [Category] to a JSON map.

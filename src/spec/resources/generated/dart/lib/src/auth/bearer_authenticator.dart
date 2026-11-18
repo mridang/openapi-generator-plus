@@ -72,20 +72,20 @@ class BearerAuthenticator extends BaseAuthenticator {
     if (token != null) {
       return token;
     }
-    if (tokenProvider != null) {
-      return null;
-    }
     final fromEnvironment = readEnvironmentVariable(
       environmentVariable,
       environment,
     );
-    if (fromEnvironment == null) {
-      throw ArgumentError(
-        'A bearer token is required: pass token or tokenProvider, or set the '
-        '$environmentVariable environment variable',
-      );
+    if (fromEnvironment != null) {
+      return fromEnvironment;
     }
-    return fromEnvironment;
+    if (tokenProvider != null) {
+      return null;
+    }
+    throw ArgumentError(
+      'A bearer token is required: pass token or tokenProvider, or set the '
+      '$environmentVariable environment variable',
+    );
   }
 
   static void _validate(String token) {

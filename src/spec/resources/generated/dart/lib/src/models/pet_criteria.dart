@@ -17,11 +17,15 @@ class PetCriteria {
 
   /// Creates a [PetCriteria] from a JSON map.
   factory PetCriteria.fromJson(Map<String, dynamic> json) {
-    return PetCriteria(
-      breed: json['breed'] as String?,
+    try {
+      return PetCriteria(
+        breed: json['breed'] as String?,
 
-      minAge: readInt32OrNull(json['min_age']),
-    );
+        minAge: readInt32OrNull(json['min_age']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for PetCriteria: $e', e);
+    }
   }
 
   /// Converts this [PetCriteria] to a JSON map.

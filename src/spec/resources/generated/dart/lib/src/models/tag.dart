@@ -18,7 +18,15 @@ class Tag {
 
   /// Creates a [Tag] from a JSON map.
   factory Tag.fromJson(Map<String, dynamic> json) {
-    return Tag(id: readInt64OrNull(json['id']), name: json['name'] as String?);
+    try {
+      return Tag(
+        id: readInt64OrNull(json['id']),
+
+        name: json['name'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Tag: $e', e);
+    }
   }
 
   /// Converts this [Tag] to a JSON map.

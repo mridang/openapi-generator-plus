@@ -407,7 +407,6 @@ void main() {
         host: '{{{basePath}}}',
         token: 'explicit',
         environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
-        tokenProvider: () => 'from-provider',
       );
       final fromEnv = BearerAuthenticator(
         host: '{{{basePath}}}',

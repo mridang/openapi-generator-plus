@@ -27,13 +27,17 @@ class Metadata {
         additionalProperties[entry.key] = entry.value;
       }
     }
-    return Metadata(
-      createdAt: json['createdAt'] != null
-          ? parseDateTime(json['createdAt'] as String)
-          : null,
+    try {
+      return Metadata(
+        createdAt: json['createdAt'] != null
+            ? parseDateTime(json['createdAt'] as String)
+            : null,
 
-      additionalProperties: additionalProperties,
-    );
+        additionalProperties: additionalProperties,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Metadata: $e', e);
+    }
   }
 
   /// Converts this [Metadata] to a JSON map.

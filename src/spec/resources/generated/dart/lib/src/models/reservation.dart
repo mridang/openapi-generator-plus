@@ -39,11 +39,15 @@ class Reservation {
         "Missing required field 'quantity' for Reservation",
       );
     }
-    return Reservation(
-      reservationId: readInt64(json['reservationId']),
+    try {
+      return Reservation(
+        reservationId: readInt64(json['reservationId']),
 
-      quantity: readInt32(json['quantity']),
-    );
+        quantity: readInt32(json['quantity']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Reservation: $e', e);
+    }
   }
 
   /// Converts this [Reservation] to a JSON map.
