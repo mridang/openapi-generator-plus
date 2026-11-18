@@ -532,7 +532,7 @@ describe("DefaultApiClient CA certificate fail-fast", () => {
     }
   });
 
-  it("an empty caCertPath file is a failed parse", () => {
+  it("bhv langnode 062 an empty caCertPath file is a failed parse", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-cert-"));
     const empty = path.join(dir, "empty.pem");
     fs.writeFileSync(empty, "");
@@ -567,7 +567,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
   // produces no response headers, so the thrown ApiError must carry
   // responseHeaders === null (the documented "no headers" sentinel), not an
   // empty {} that would be indistinguishable from a real header-less response.
-  it("connection failure throws NetworkError with null responseHeaders", async () => {
+  it("bhv langnode 063 connection failure throws NetworkError with null responseHeaders", async () => {
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRetries(0).build(),
     );
@@ -826,7 +826,7 @@ describe("DefaultApiClient transport-failure responseHeaders", () => {
     expect((caught as NetworkTimeoutError).statusCode).toBe(0);
   });
 
-  it("using a closed client throws the invalid-state Error", async () => {
+  it("bhv langnode 064 using a closed client throws the invalid-state Error", async () => {
     // A wrong call order is a programming error, not an SDK error.
     const client = new DefaultApiClient();
     await client.close();
@@ -1046,11 +1046,14 @@ describe("DefaultApiClient.buildContentDisposition multipart filename safety", (
     ['a"b\\c.txt', 'filename="a\\"b\\\\c.txt"'],
     ["\u{1F600}.png", `filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png`],
     ["plain.txt", 'filename="plain.txt"'],
-  ])("builds the filename directive for %p", (filename, expected) => {
-    expect(DefaultApiClient.buildContentDisposition("file", filename)).toBe(
-      `form-data; name="file"; ${expected}`,
-    );
-  });
+  ])(
+    "bhv misc 099 builds the filename directive for %p",
+    (filename, expected) => {
+      expect(DefaultApiClient.buildContentDisposition("file", filename)).toBe(
+        `form-data; name="file"; ${expected}`,
+      );
+    },
+  );
 });
 
 // Canonical behavior #4 — a multipart file part advertises a Content-Type
@@ -1063,7 +1066,7 @@ describe("DefaultApiClient.mimeTypeForFilename (canonical behavior #4)", () => {
     );
   });
 
-  it("maps .jpg/.jpeg to image/jpeg", () => {
+  it("bhv langnode 065 maps .jpg/.jpeg to image/jpeg", () => {
     expect(DefaultApiClient.mimeTypeForFilename("a.jpg")).toBe("image/jpeg");
     expect(DefaultApiClient.mimeTypeForFilename("a.jpeg")).toBe("image/jpeg");
   });
@@ -1074,7 +1077,7 @@ describe("DefaultApiClient.mimeTypeForFilename (canonical behavior #4)", () => {
     );
   });
 
-  it("falls back to application/octet-stream when there is no extension", () => {
+  it("bhv langnode 066 falls back to application/octet-stream when there is no extension", () => {
     expect(DefaultApiClient.mimeTypeForFilename("noext")).toBe(
       "application/octet-stream",
     );
@@ -1176,7 +1179,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
       "multipart/Related; boundary=",
     ],
   ])(
-    "a declared %s content type keeps its subtype with the SDK boundary",
+    "bhv misc 100 a declared %s content type keeps its subtype with the SDK boundary",
     async (declared, expectedPrefix) => {
       let contentType: string | undefined;
       const srv = http.createServer((req, res) => {
@@ -1204,7 +1207,7 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     },
   );
 
-  it("#4 unknown file extension falls back to application/octet-stream", async () => {
+  it("bhv langnode 067 case 4: unknown file extension falls back to application/octet-stream", async () => {
     const { url, getBody, close } = await captureRawBody();
     try {
       const client = new DefaultApiClient();
@@ -1357,7 +1360,7 @@ describe("DefaultApiClient.mimeTypeForFilename per-part MIME sniffing", () => {
     );
   });
 
-  it("maps .jpg and .jpeg to image/jpeg", () => {
+  it("bhv langnode 068 maps .jpg and .jpeg to image/jpeg", () => {
     expect(DefaultApiClient.mimeTypeForFilename("a.jpg")).toBe("image/jpeg");
     expect(DefaultApiClient.mimeTypeForFilename("a.jpeg")).toBe("image/jpeg");
   });
@@ -1372,7 +1375,7 @@ describe("DefaultApiClient.mimeTypeForFilename per-part MIME sniffing", () => {
     );
   });
 
-  it("falls back to application/octet-stream when filename has no extension", () => {
+  it("bhv langnode 069 falls back to application/octet-stream when filename has no extension", () => {
     expect(DefaultApiClient.mimeTypeForFilename("noext")).toBe(
       "application/octet-stream",
     );
@@ -1403,7 +1406,7 @@ describe("SENSITIVE_HEADER_NAMES allowlist", () => {
     expect(SENSITIVE_HEADER_NAMES.has("x-internal-key")).toBe(true);
   });
 
-  it("lists the spec-declared apiKey-in-header names in its comment with no dangling separator", () => {
+  it("bhv langnode 070 lists the spec-declared apiKey-in-header names in its comment with no dangling separator", () => {
     const own = fs.readFileSync(
       path.join(process.cwd(), "test", "default-api-client-unit.test.ts"),
       "utf8",
@@ -1413,7 +1416,7 @@ describe("SENSITIVE_HEADER_NAMES allowlist", () => {
     expect(listed?.[1]).toBe(["X-API-Key", "X-Internal-Key"].join(", "));
   });
 
-  it("does NOT include hardcoded SaaS-provider key names absent from the spec", () => {
+  it("bhv langnode 071 does NOT include hardcoded SaaS-provider key names absent from the spec", () => {
     // These were in the old static list but are not declared by any
     // apiKey-in-header scheme in this spec, so they must no longer be stripped.
     expect(SENSITIVE_HEADER_NAMES.has("x-functions-key")).toBe(false);
@@ -1423,13 +1426,13 @@ describe("SENSITIVE_HEADER_NAMES allowlist", () => {
     expect(SENSITIVE_HEADER_NAMES.has("fastly-key")).toBe(false);
   });
 
-  it("entries are lowercase so case-insensitive matching works on Set.has", () => {
+  it("bhv langnode 072 entries are lowercase so case-insensitive matching works on Set.has", () => {
     for (const name of SENSITIVE_HEADER_NAMES) {
       expect(name).toBe(name.toLowerCase());
     }
   });
 
-  it("does not include non-credential headers", () => {
+  it("bhv langnode 073 does not include non-credential headers", () => {
     expect(SENSITIVE_HEADER_NAMES.has("content-type")).toBe(false);
     expect(SENSITIVE_HEADER_NAMES.has("accept")).toBe(false);
     expect(SENSITIVE_HEADER_NAMES.has("user-agent")).toBe(false);
@@ -1714,7 +1717,7 @@ describe("redirect origin comparison", () => {
     ["https://api.example.com:443/a", "https://api.example.com/b"],
     ["http://api.example.com/a", "http://api.example.com:80/b"],
     ["https://API.example.com/a", "https://api.example.com/b"],
-  ])("%s and %s are the same origin", (a, b) => {
+  ])("bhv langnode 077 %s and %s are the same origin", (a, b) => {
     expect(sameOrigin(a, b)).toBe(true);
   });
 
@@ -1723,7 +1726,7 @@ describe("redirect origin comparison", () => {
     ["https://api.example.com/a", "http://api.example.com/b"],
     ["http://api.example.com/a", "https://api.example.com:80/b"],
     ["https://api.example.com/a", "https://other.example.com/b"],
-  ])("%s and %s are different origins", (a, b) => {
+  ])("bhv langnode 078 %s and %s are different origins", (a, b) => {
     expect(sameOrigin(a, b)).toBe(false);
   });
 
@@ -1786,7 +1789,7 @@ describe("SendRequestOptions.noRedirect", () => {
     await new Promise<void>((resolve) => srv.close(() => resolve()));
   });
 
-  it("follows 307 by default", async () => {
+  it("bhv misc 125 follows 307 by default", async () => {
     const transport = TransportOptions.builder().followRedirects(true).build();
     const client = new DefaultApiClient(transport);
     const response = await client.sendRequest(
@@ -2028,7 +2031,7 @@ describe("HTTPS -> HTTP body replay guard", () => {
     expect(call).toBe(2);
   });
 
-  it("allows HTTP -> HTTP replay (no TLS to begin with, no downgrade)", async () => {
+  it("bhv misc 165 allows HTTP -> HTTP replay (no TLS to begin with, no downgrade)", async () => {
     let call = 0;
     global.fetch = (async (): Promise<Response> => {
       call++;
@@ -2313,7 +2316,7 @@ describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
     [307, "PUT", "PUT", true],
     [308, "DELETE", "DELETE", true],
   ])(
-    "%i on %s follows with %s (body kept: %s)",
+    "bhv langnode 079 %i on %s follows with %s (body kept: %s)",
     async (status, method, expectedMethod, bodyKept) => {
       const calls: Array<{ method: unknown; body: unknown }> = [];
       global.fetch = (async (
@@ -3015,7 +3018,7 @@ describe("graceful close", () => {
     }
   });
 
-  it("cancels a running request through its own signal, never through close()", async () => {
+  it("bhv langnode 074 cancels a running request through its own signal, never through close()", async () => {
     const slow = await slowServer();
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRetries(0).build(),
@@ -3136,7 +3139,7 @@ describe("request header and byte body handling", () => {
     expect(seen[1]!["Authorization"]).toBe("Bearer api-only");
   });
 
-  it("sends a plain Uint8Array body as raw bytes, not multipart", async () => {
+  it("bhv misc 217 sends a plain Uint8Array body as raw bytes, not multipart", async () => {
     let seenBody: unknown;
     let seenHeaders: Record<string, string> = {};
     global.fetch = (async (
@@ -3287,7 +3290,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     expect((error as ApiError).statusCode).toBe(200);
   });
 
-  it("decodes a genuinely gzip-encoded body that the fetch layer left compressed", async () => {
+  it("bhv transport 088 decodes a genuinely gzip-encoded body that the fetch layer left compressed", async () => {
     // ensureDecoded is exercised directly: a valid gzip stream still on the
     // wire is decompressed rather than passed through as base64. It is async
     // because the shared base decodes via the Web-standard DecompressionStream
@@ -3297,7 +3300,7 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     expect(out.toString("utf-8")).toBe('{"userId":1}');
   });
 
-  it("leaves an already-decoded body untouched (no double-decode)", async () => {
+  it("bhv langnode 075 leaves an already-decoded body untouched (no double-decode)", async () => {
     // When the fetch layer has already decoded the body the gzip magic is gone,
     // so ensureDecoded must pass the plaintext through unchanged.
     const decoded = Buffer.from('{"userId":1}', "utf-8");
@@ -3915,7 +3918,7 @@ describe("caller-supplied upload handles are left untouched", () => {
     expect(await whole.text()).toBe("body-bytes");
   });
 
-  it("a Blob is still readable after a failed call", async () => {
+  it("bhv misc 036 a Blob is still readable after a failed call", async () => {
     global.fetch = (async () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof fetch;
@@ -4085,7 +4088,7 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     expect(calls).toHaveLength(2);
   });
 
-  it("a per-call timeout of null lifts the transport deadline for the backoff wait", async () => {
+  it("bhv langnode 076 a per-call timeout of null lifts the transport deadline for the backoff wait", async () => {
     const response = await send(
       clientPlaying(
         [reply(503, { "Retry-After": "5" }), reply(200)],
@@ -4359,11 +4362,14 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     );
   });
 
-  it.each([-1, 1.5, Number.NaN])("maxRetries(%p) is rejected", (value) => {
-    expect(() => TransportOptions.builder().maxRetries(value)).toThrow(
-      TypeError,
-    );
-  });
+  it.each([-1, 1.5, Number.NaN])(
+    "bhv langnode 080 maxRetries(%p) is rejected",
+    (value) => {
+      expect(() => TransportOptions.builder().maxRetries(value)).toThrow(
+        TypeError,
+      );
+    },
+  );
 });
 
 describe("automatic retries and cancellation", () => {
