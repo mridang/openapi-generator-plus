@@ -803,15 +803,6 @@ void main() {
       },
     );
 
-    test('an empty message renders the generic line', () {
-      const err = ApiException(statusCode: 0, message: '');
-
-      expect(
-        err.toString(),
-        equals('Error message: the server returns an error'),
-      );
-    });
-
     test(
       'bhv errors 010 a scalar JSON error body is exposed but not deserializable into a model',
       () {

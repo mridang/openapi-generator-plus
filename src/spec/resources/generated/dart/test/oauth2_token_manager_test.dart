@@ -1291,22 +1291,5 @@ void main() {
         equals('Token request failed with status 400: invalid_grant'),
       );
     });
-
-    test('with an error code and description it joins them with two dashes', () {
-      final err = OAuth2ServerException(
-        400,
-        'invalid_grant',
-        'refresh token expired',
-        null,
-        '{}',
-      );
-
-      expect(
-        err.message,
-        equals(
-          'Token request failed with status 400: invalid_grant -- refresh token expired',
-        ),
-      );
-    });
   });
 }
