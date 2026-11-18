@@ -361,7 +361,7 @@ mod tests {
     }
 
     #[test]
-    fn creation_lock_is_released_when_the_guarded_body_panics() {
+    fn test_bhv_langrust_052_creation_lock_is_released_when_the_guarded_body_panics() {
         let path = lock_path_for("panic");
         let _ = std::fs::remove_file(&path);
 
@@ -374,7 +374,7 @@ mod tests {
     }
 
     #[test]
-    fn creation_lock_is_released_when_the_guarded_body_returns() {
+    fn test_bhv_langrust_053_creation_lock_is_released_when_the_guarded_body_returns() {
         let path = lock_path_for("return");
         let _ = std::fs::remove_file(&path);
 
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    fn panic_message_reports_str_and_string_payloads() {
+    fn test_bhv_langrust_054_panic_message_reports_str_and_string_payloads() {
         let from_str = std::panic::catch_unwind(|| panic!("static reason")).unwrap_err();
         assert_eq!("static reason", panic_message(from_str.as_ref()));
 
