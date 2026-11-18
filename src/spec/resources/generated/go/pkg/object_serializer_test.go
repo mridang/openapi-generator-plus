@@ -2591,7 +2591,7 @@ func TestBhvSerializationobject051_ObjectSerializer_Deserialize_DeepJSONDepthCap
 // A oneOf payload that names no usable variant is a decode failure like any
 // other: through the SDK's deserializer it is a *SerializationError that
 // satisfies the OpenAPIError root, never a bare error or a silently empty union.
-func TestObjectSerializer_Deserialize_UnroutableDiscriminatorIsSerializationError(t *testing.T) {
+func TestBhvUnions033_ObjectSerializer_Deserialize_UnroutableDiscriminatorIsSerializationError(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name string

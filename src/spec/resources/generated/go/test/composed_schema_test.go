@@ -58,6 +58,14 @@ func TestBhvUnions013_ComposedSchema_PetFood_DeserializeWetFood(t *testing.T) {
 	}
 }
 
+func TestBhvUnions035_ComposedSchema_PetFood_DiscriminatorValueNotInTheMappingFailsToDeserialize(t *testing.T) {
+	t.Parallel()
+	var food models.PetFood
+	if err := json.Unmarshal([]byte(`{"foodType":"kibble","calories":300}`), &food); err == nil {
+		t.Error("expected an error for a discriminator value the mapping does not list")
+	}
+}
+
 func TestBhvUnions016_ComposedSchema_PetFood_DeserializeUnknownDiscriminator(t *testing.T) {
 	t.Parallel()
 	// Gap AU: SDK now throws on unknown discriminator values for parity
@@ -155,7 +163,7 @@ func TestComposedSchema_PetFood_ConstructedFromAPointerStoresTheVariantByValue(t
 	}
 }
 
-func TestComposedSchema_PetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
+func TestBhvUnions032_ComposedSchema_PetFood_ConstructedFromVariantSerializesWithoutDecoding(t *testing.T) {
 	t.Parallel()
 	food := models.NewPetFood(*models.NewDryFood(2.5))
 
@@ -660,6 +668,33 @@ func TestBhvUnions022_ComposedSchema_SetPetAvatarThumbnailRequest_EqualComparesB
 	}
 }
 
+func TestBhvUnions029_ComposedSchema_SetPetAvatarThumbnailRequest_OneOfWrappersHaveValueEquality(t *testing.T) {
+	t.Parallel()
+	left := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
+	right := models.NewSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
+	other := models.NewSetPetAvatarThumbnailRequest([]byte{0x03})
+
+	if !left.Equal(right) {
+		t.Error("expected two wrappers holding the same value to be equal")
+	}
+	if left.Equal(other) {
+		t.Error("expected a wrapper holding a different value not to be equal")
+	}
+}
+
+func TestBhvUnions034_ComposedSchema_SetPetAvatarThumbnailRequest_AccessorReturnsTheHeldVariantAndNothingForTheOther(t *testing.T) {
+	t.Parallel()
+	payload := []byte{0x01, 0x02}
+	union := models.NewByteSliceSetPetAvatarThumbnailRequest(payload)
+
+	if got, ok := union.AsByteSlice(); !ok || !reflect.DeepEqual(got, payload) {
+		t.Errorf("expected the held byte slice back, got %v (ok=%v)", got, ok)
+	}
+	if got, ok := union.AsByteSliceSlice(); ok || got != nil {
+		t.Errorf("expected nothing for the other variant, got %v (ok=%v)", got, ok)
+	}
+}
+
 func TestBhvUnions011_ComposedSchema_PetTreatment_EqualComparesByValue(t *testing.T) {
 	t.Parallel()
 
@@ -674,7 +709,7 @@ func TestBhvUnions011_ComposedSchema_PetTreatment_EqualComparesByValue(t *testin
 	}
 }
 
-func TestComposedSchema_DryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T) {
+func TestBhvUnions030_ComposedSchema_DryFood_AbsentDiscriminatorPropertyIsFilledWithItsDefault(t *testing.T) {
 	t.Parallel()
 	var food models.DryFood
 	if err := json.Unmarshal([]byte(`{"weightKg":2.5}`), &food); err != nil {
