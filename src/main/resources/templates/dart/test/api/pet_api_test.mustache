@@ -1121,7 +1121,7 @@ void main() {
     /* F857: the credential configured for the scheme an operation's spec
      * names (schemeAuthenticators) is applied to the outgoing request,
      * overriding the client's default header. There is no per-call override. */
-    test('addPet auth supplied for its scheme is applied', () async {
+    test('bhv auth 045 addPet auth supplied for its scheme is applied', () async {
       String? capturedAuth;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {

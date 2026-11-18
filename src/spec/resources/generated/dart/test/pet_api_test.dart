@@ -1298,39 +1298,45 @@ void main() {
     /* F857: the credential configured for the scheme an operation's spec
      * names (schemeAuthenticators) is applied to the outgoing request,
      * overriding the client's default header. There is no per-call override. */
-    test('addPet auth supplied for its scheme is applied', () async {
-      String? capturedAuth;
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        capturedAuth = request.headers.value('authorization');
-        request.response
-          ..statusCode = 200
-          ..headers.contentType = ContentType.json
-          ..write('{"id":1,"name":"x","photoUrls":[]}')
-          ..close();
-      });
+    test(
+      'bhv auth 045 addPet auth supplied for its scheme is applied',
+      () async {
+        String? capturedAuth;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"x","photoUrls":[]}')
+            ..close();
+        });
 
-      try {
-        final config = ConfigurationBuilder()
-            .baseUrl('http://localhost:${server.port}')
-            .defaultHeader('Authorization', 'Bearer default-token')
-            .build();
-        final api = PetApi(
-          apiClient: DefaultApiClient(),
-          config: config,
-          schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
-        );
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .defaultHeader('Authorization', 'Bearer default-token')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': _PerCallAuth()},
+          );
 
-        await api.addPet(
-          Pet(name: 'OptDog', photoUrls: <String>{'http://example.com/p.jpg'}),
-          null,
-        );
+          await api.addPet(
+            Pet(
+              name: 'OptDog',
+              photoUrls: <String>{'http://example.com/p.jpg'},
+            ),
+            null,
+          );
 
-        expect(capturedAuth, equals('Bearer per-call-token'));
-      } finally {
-        await server.close();
-      }
-    });
+          expect(capturedAuth, equals('Bearer per-call-token'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* auth-omitted-uses-config-default: when no auth is supplied on the
      * Options object, the call must fall back to the Configuration's

@@ -127,6 +127,25 @@ void main() {
       },
     );
 
+    test(
+      'bhv auth 040 an environment variable that is set but empty is treated as unset',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(BearerAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      },
+    );
+
     test('bhv authbearer 019 an empty environment value counts as unset', () {
       expect(
         () => BearerAuthenticator(
@@ -179,6 +198,20 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test(
+      'bhv auth 039 passing both a token and a token provider is rejected with an error',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            token: 'a',
+            tokenProvider: () => 'b',
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('bhv authbearer 014 the provider is asked on every request', () async {
       var calls = 0;
