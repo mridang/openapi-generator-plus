@@ -74,7 +74,7 @@ function newPetApiForMock(int $statusCode, string $requestContentType, string $b
     return new PetApi(apiClient: $client, config: $config);
 }
 
-test('data methods declare a native return type', function (string $method, string $expected): void {
+test('bhv langphp 026 data methods declare a native return type', function (string $method, string $expected): void {
     $returnType = (new \ReflectionMethod(PetApi::class, $method))->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
@@ -102,7 +102,7 @@ test('bhv operations 082 the options parameter doc names no per-operation authen
     ['getPetByNameWithHttpInfo', '$options Options for query, header, form, and cookie parameters' . "\n"],
 ]);
 
-test('operation summary and description reach the doc comment unescaped', function (): void {
+test('bhv langphp 027 operation summary and description reach the doc comment unescaped', function (): void {
     $doc = (new \ReflectionMethod(PetApi::class, 'getPetSummary'))->getDocComment();
     expect($doc)->toBeString();
     assert(is_string($doc));
@@ -262,7 +262,7 @@ test('bhv operations 045 get pet avatar', function (): void {
     expect($result)->toBeString();
 });
 
-test('get pet avatar returns decoded bytes not base64 string', function (): void {
+test('bhv langphp 028 get pet avatar returns decoded bytes not base64 string', function (): void {
     /* The transport base64-encodes binary response bodies for transit. A
      * binary operation must hand back the DECODED raw bytes, so re-encoding
      * the returned value as base64 must reproduce the raw (still-encoded)
@@ -623,7 +623,7 @@ test('bhv operations 066 get pet tag preserves reserved chars only for allowRese
     expect($captured->url)->toContain('filter=a%3Ab');
 });
 
-test('get pet tag percent encodes a fragment delimiter in an allowReserved value', function (): void {
+test('bhv operations 066 get pet tag percent encodes a fragment delimiter in an allowReserved value', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -761,7 +761,7 @@ test('bhv serializationwire 055 form body encodes space as plus not percent twen
  * value carries a non-midnight time-of-day and a non-UTC offset so that any
  * leak of the time component (or an offset-shifted day) fails the assertion. */
 
-test('date only query param serialises without time component', function (): void {
+test('bhv langphp 029 date only query param serialises without time component', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -898,7 +898,7 @@ test('bhv operations 071 setPetAvatar honours the selected request content type'
     unlink($tmpFile);
 });
 
-test('setPetAvatar takes in-memory bytes and a stream without a temporary file', function (): void {
+test('bhv misc 217 setPetAvatar takes in-memory bytes and a stream without a temporary file', function (): void {
     $rawBytes = "\xFF\xD8\xFF\xE0";
 
     [$api, $captured] = newBodyCapturingPetApi();
@@ -1133,7 +1133,7 @@ test('bhv operations 029 delete pet cookie param with CRLF fails closed', functi
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('delete pet cookie param with bare control char fails closed', function (): void {
+test('bhv operations 029 delete pet cookie param with bare control char fails closed', function (): void {
     [$api] = newBodyCapturingPetApi();
 
     // A bare NUL is a forbidden RFC-6265 cookie-octet just like CR/LF.
@@ -1143,7 +1143,7 @@ test('delete pet cookie param with bare control char fails closed', function ():
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('delete pet cookie param with a clean value is sent on the wire', function (): void {
+test('bhv operations 030 delete pet cookie param with a clean value is sent on the wire', function (): void {
     // A well-formed value passes the RFC-6265 guard and reaches the Cookie
     // header — proving the validation rejects only the forbidden octets.
     [$api, $captured] = newHeaderCapturingPetApi();
@@ -1403,7 +1403,7 @@ test('bhv operations 079 the credential of the scheme the operation requires is 
     expect($captured->headers['Authorization'] ?? null)->toBe('Bearer scheme-token');
 });
 
-test('an operation takes no per call authenticator', function (): void {
+test('bhv operations 082 an operation takes no per call authenticator', function (): void {
     expect((new \ReflectionClass(AddPetOptions::class))->hasProperty('auth'))->toBeFalse();
 });
 
@@ -1602,7 +1602,7 @@ test('bhv operations 056 get pet summary throws when required cookie param is em
     expect($captured->url)->toBe('');
 });
 
-test('get pet summary sends the required cookie param when supplied', function (): void {
+test('bhv langphp 030 get pet summary sends the required cookie param when supplied', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -1633,7 +1633,7 @@ function dumpForRedaction(object $value): string
     return $varDump . "\n" . print_r($value, true);
 }
 
-test('bearer authenticator masks token in debug output', function (): void {
+test('bhv authbearer 011 bearer authenticator masks token in debug output', function (): void {
     $dump = dumpForRedaction(new BearerAuthenticator('https://api.example.com', 'super-secret-token'));
 
     expect($dump)->not->toContain('super-secret-token');
@@ -1664,7 +1664,7 @@ test('bhv operations 026 client credentials authenticator masks client secret in
     expect($dump)->toContain('my-client-id');
 });
 
-test('auth code authenticator masks client secret in debug output', function (): void {
+test('bhv misc 190 auth code authenticator masks client secret in debug output', function (): void {
     $dump = dumpForRedaction(new OAuth2AuthorizationCodeAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -1679,7 +1679,7 @@ test('auth code authenticator masks client secret in debug output', function ():
     expect($dump)->toContain('***');
 });
 
-test('password authenticator masks client secret and resource owner password in debug output', function (): void {
+test('bhv langphp 031 password authenticator masks client secret and resource owner password in debug output', function (): void {
     $dump = dumpForRedaction(new OAuth2PasswordAuthenticator(
         'https://api.example.com',
         'my-client-id',
@@ -1696,7 +1696,7 @@ test('password authenticator masks client secret and resource owner password in 
     expect($dump)->toContain('testuser');
 });
 
-test('openid connect authenticator masks client secret in debug output', function (): void {
+test('bhv langphp 032 openid connect authenticator masks client secret in debug output', function (): void {
     $dump = dumpForRedaction(new OpenIdConnectAuthenticator(
         'https://api.example.com',
         'https://auth.example.com/.well-known/openid-configuration',
@@ -1793,7 +1793,7 @@ test('bhv operations 084 the mirror operation server resolves reserved character
     'apostrophe' => ["it's", "https://eu.mirror.example.com/it's/v1"],
 ]);
 
-test('the third global server round trips its url, description and variable', function (): void {
+test('bhv langphp 033 the third global server round trips its url, description and variable', function (): void {
     $server = \PetstoreClient\Servers::server2();
     $tenant = $server->variables['tenant'];
 
