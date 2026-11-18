@@ -3263,6 +3263,18 @@ class TestRetryPolicy:
 
         assert 0 < pool.timeout.total <= 5
 
+    def test_bhv_misc_169_the_backoff_starts_at_half_a_second_and_doubles_up_to_eight(
+        self,
+    ) -> None:
+        assert [_retry_delay(attempt, jitter=0.0) for attempt in range(6)] == [
+            0.5,
+            1.0,
+            2.0,
+            4.0,
+            8.0,
+            8.0,
+        ]
+
 
 class TestTransportBehaviours:
     def test_bhv_transport_067_a_successful_response_with_no_body_is_a_success_with_an_empty_body(

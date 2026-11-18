@@ -16,6 +16,114 @@ import 'package:petstore_client/src/object_serializer.dart';
 void main() {
   group('ObjectSerializer', () {
     test(
+      'bhv misc 094 a free-form JSON object is written with its members and values unchanged',
+      () {
+        final data = {
+          'b': [1, 'x'],
+          'a': {'c': true},
+        };
+        expect(jsonDecode(serialize(data)), equals(data));
+      },
+    );
+
+    test(
+      'bhv misc 102 a binary field keeps exactly the bytes it was given through copying',
+      () {
+        final bytes = Uint8List.fromList([0, 255, 16]);
+        final copy = BinaryVault(seal: bytes).copyWith();
+        expect(copy.seal, equals([0, 255, 16]));
+      },
+    );
+
+    test(
+      'bhv misc 103 rejecting undeclared keys on one strict model leaves a plain model accepting them',
+      () {
+        expect(
+          () => deserialize<StrictTag>('{"rogue":"x"}', StrictTag.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          deserialize<Metadata>(
+            '{"rogue":"x"}',
+            Metadata.fromJson,
+          )?.additionalProperties,
+          equals({'rogue': 'x'}),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 105 copying a model never validates the values it is given',
+      () {
+        expect(Order().copyWith(quantity: 500).quantity, equals(500));
+      },
+    );
+
+    test(
+      'bhv misc 106 a null element in an array body keeps its position when serialized',
+      () {
+        expect(serialize([1, null, 2]), equals('[1,null,2]'));
+      },
+    );
+
+    test(
+      'bhv misc 108 a model built with an integer enum member keeps that member wire value',
+      () {
+        expect(
+          jsonDecode(serialize(const Subscription(rank: Rank.low))),
+          containsPair('rank', 1),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 109 a nested object is validated with the outer rules at decode',
+      () {
+        expect(
+          () => deserialize<EdgeCases>(
+            '{"lastError":{"code":"three"}}',
+            EdgeCases.fromJson,
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test('bhv misc 110 a list of dates with a non-date element is refused', () {
+      expect(
+        () => deserializeArray<DateTime>(
+          jsonDecode('["2024-01-01T00:00:00Z","not-a-date"]'),
+          (e) => parseDateTime(e as String),
+        ),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test(
+      'bhv misc 113 a string form shows the contents of list, map and byte fields',
+      () {
+        final text = BinaryVault(
+          seal: Uint8List.fromList([1, 2, 3]),
+          shards: [
+            Uint8List.fromList([4, 5]),
+            Uint8List.fromList([6]),
+          ],
+          labels: {
+            'first': Uint8List.fromList([7, 8]),
+          },
+        ).toString();
+        expect(
+          text,
+          allOf(
+            contains('[1, 2, 3]'),
+            contains('[4, 5]'),
+            contains('first: [7, 8]'),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv misc 089 a date-time in a container is written in canonical form',
       () {
         final at = DateTime.utc(2026, 1, 2, 3, 4, 5);

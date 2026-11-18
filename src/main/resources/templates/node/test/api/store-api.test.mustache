@@ -749,4 +749,19 @@ describe('StoreApi misc behaviours', () => {
     const result = await api.getInventory();
     expect(result).toBeDefined();
   });
+
+
+  test('bhv misc 114 a success response is decoded by the decoder for the status code actually received', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+    } finally {
+      close();
+    }
+  });
 });
