@@ -202,6 +202,13 @@ describe Petstore::Client::Api::BaseApi do
     end
   end
 
+  it 'bhv_errors_097 an unrecognised 4xx status raises the generic client error' do
+    err = assert_raises(Petstore::Client::Errors::ClientError) do
+      api.call('GET', '/test/status/418', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 418
+  end
+
   it 'bhv_errors_048 a 418 response throws ClientError' do
     err = assert_raises(Petstore::Client::Errors::ClientError) do
       api.call('GET', '/test/status/418', {}, {}, nil, ['application/json'], 'application/json', nil)
@@ -362,6 +369,16 @@ describe Petstore::Client::Api::BaseApi do
                       ['application/json'], 'application/json', 'Object', auth)
     _(result).wont_be_nil
     _(result[:headers][:'x-custom']).must_equal 'auth-value'
+  end
+
+  it 'bhv_misc_008 a supplied required cookie parameter is sent in the Cookie header' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => 'abc123' })
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil, auth)
+    _(client.captured_headers['Cookie']).must_equal 'session=abc123'
   end
 
   it 'bhv_authintegration_017 sets Cookie header from auth cookies' do
@@ -1302,6 +1319,18 @@ describe Petstore::Client::Api::BaseApi do
                                       ['application/json'], 'application/json', nil)
     _(result.raw_body).must_be_kind_of String
     _(result.raw_body).must_equal ''
+  end
+
+  it 'bhv_results_007 a result returns the payload, the raw body and the response headers together' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call_for_result('GET', '/test/echo', {}, {}, nil,
+                                      ['application/json'], 'application/json', 'Object')
+    _(result.status_code).must_equal 200
+    _(result.data).wont_be_nil
+    _(result.headers).wont_be_nil
+    _(result.raw_body).must_equal '{}'
   end
 
   it 'bhv_operations_018 with_http_info variant returns ApiResult with status, data, headers, and raw_body' do

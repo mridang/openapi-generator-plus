@@ -41,6 +41,20 @@ describe 'Metadata' do
     _(data['createdAt']).wont_be_nil
   end
 
+  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level' do
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
+    metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
+
+    # Undeclared keys are captured (not silently dropped) so a round-trip
+    # preserves them, matching the SDKs that round-trip additionalProperties.
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => '3')
+
+    data = JSON.parse(Petstore::Client::ObjectSerializer.serialize(metadata))
+    _(data['customField']).must_equal('hello')
+    _(data['count']).must_equal('3')
+    _(data['createdAt']).wont_be_nil
+  end
+
   it 'bhv_models_001 captures and round-trips additionalProperties' do
     json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
@@ -111,6 +125,17 @@ describe 'Metadata', 'round-trip and constants' do
     data = JSON.parse(json)
 
     _(data['createdAt']).wont_be_nil
+  end
+
+  it 'bhv_models_025 two instances that differ only in undeclared extra properties are not equal' do
+    first = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
+    same = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
+    other = Petstore::Client::ObjectSerializer.deserialize('{"customField":"b"}', 'Metadata')
+
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_005 equality includes the additional properties' do

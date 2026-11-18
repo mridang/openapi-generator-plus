@@ -99,6 +99,15 @@ describe Petstore::Client::Errors::ApiError do
     _(err.response_body.bytesize).must_equal 3000
   end
 
+  it 'bhv_misc_016 the rendered error body shows a fixed number of characters and states how many bytes were omitted' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 502, message: 'bad gateway', response_headers: nil, response_body: 'a' * 3000
+    )
+
+    _(err.message).must_equal("bad gateway\nHTTP status code: 502\nResponse body: #{'a' * 1024}... (1976 more bytes)")
+    _(err.response_body.bytesize).must_equal 3000
+  end
+
   it 'bhv_errors_065 cuts a long response body at 1 KiB and counts the bytes left out' do
     err = Petstore::Client::Errors::ApiError.new(
       status_code: 502, message: 'bad gateway', response_headers: nil, response_body: 'a' * 3000
@@ -512,6 +521,13 @@ describe Petstore::Client::Errors::ApiError do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil)
 
     assert_nil(err.typed_error_body('Category'))
+  end
+
+  it 'bhv_misc_015 a typed view of an error body that is valid JSON but not an object is refused' do
+    err = Petstore::Client::Errors::ApiError.from_response(400, {}, '<html>oops</html>')
+
+    raised = assert_raises(Petstore::Client::Errors::SerializationError) { err.typed_error_body('Category') }
+    _(raised).must_be_instance_of(Petstore::Client::Errors::SerializationError)
   end
 
   it 'bhv_errors_017 typed_error_body raises SerializationError for a body that is not the model' do
