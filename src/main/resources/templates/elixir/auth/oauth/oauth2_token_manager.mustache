@@ -464,22 +464,13 @@ defmodule {{moduleName}}.Auth.OAuth.OAuth2TokenManager do
     trunc(:math.floor(value))
   end
 
+  # A string lifetime is plain decimal digits with an optional fraction, padded
+  # with whitespace. A sign, an exponent, an underscore or a hex prefix is not a
+  # lifetime, so the token is stale (0), as in the other eleven SDKs.
   defp parse_expires_in(value) when is_binary(value) do
-    trimmed = String.trim(value)
-
-    if trimmed == "" do
-      0
-    else
-      case Integer.parse(trimmed) do
-        {n, ""} ->
-          n
-
-        _ ->
-          case Float.parse(trimmed) do
-            {f, ""} -> trunc(:math.floor(f))
-            _ -> 0
-          end
-      end
+    case Regex.run(~r/\A\s*(\d+)(?:\.\d+)?\s*\z/, value, capture: :all_but_first) do
+      [whole] -> String.to_integer(whole)
+      nil -> 0
     end
   end
 

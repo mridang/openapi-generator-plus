@@ -131,6 +131,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       end
     end
 
+    test "bhv authoauthtwoimplicit 016 a tab is allowed inside the access token" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.set_access_token(auth, "tok\tX")
+
+      headers = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer tok\tX"
+    end
+
     test "bhv authoauthtwoimplicit 001 authorization URL percent-encodes * ! ' ( ) and keeps ~ literal" do
       auth =
         PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.new(

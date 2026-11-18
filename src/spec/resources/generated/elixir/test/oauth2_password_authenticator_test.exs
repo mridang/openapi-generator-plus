@@ -273,6 +273,43 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert Base.decode64!(encoded) == "my-client-id:my-client-secret"
     end
 
+    test "bhv authoauthtwopassword 022 the generated scheme wrapper sends the first grant to the token URL and the refresh grant to the refresh URL" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 0
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret",
+          "alice",
+          "s3cret"
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/oauth/token"
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/oauth/refresh"
+    end
+
     test "bhv authoauthtwopassword 017 the first grant goes to the token URL and the refresh to the refresh URL" do
       fake_client =
         FakeApiClient.new([
@@ -403,7 +440,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert URI.decode_query(retry)["grant_type"] == "password"
     end
 
-    test "password grant and refresh bodies are in the fixed order" do
+    test "bhv authoauthtwopassword 021 password grant and refresh bodies are in the fixed order" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{

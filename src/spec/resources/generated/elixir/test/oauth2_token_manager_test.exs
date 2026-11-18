@@ -896,7 +896,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
-    test "the token request body is in the fixed order" do
+    test "bhv authoauthtwotokenmgr 043 the token request body is in the fixed order" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -1136,6 +1136,79 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert first == "str-tok"
       assert second == "str-tok"
       assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "bhv authoauthtwotokenmgr 045 a padded decimal string expires_in is accepted as a lifetime so the token is cached" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "pad-tok", "expires_in" => " 3600.5\n"})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      first =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      second =
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
+
+      assert first == "pad-tok"
+      assert second == "pad-tok"
+      assert FakeApiClient.call_count(fake_client) == 1
+    end
+
+    test "bhv authoauthtwotokenmgr 046 a string expires_in outside the plain decimal grammar leaves the token stale" do
+      for raw <- [
+            "0x1000",
+            "1e4",
+            "1e3",
+            "1_000_000",
+            "3_600",
+            "3600d",
+            "+5",
+            "-5",
+            "5.",
+            "abc",
+            ""
+          ] do
+        fake_client =
+          FakeApiClient.new([
+            %PetstoreClient.ApiHttpResponse{
+              status_code: 200,
+              body: Jason.encode!(%{"access_token" => "odd1", "expires_in" => raw})
+            },
+            %PetstoreClient.ApiHttpResponse{
+              status_code: 200,
+              body: Jason.encode!(%{"access_token" => "odd2", "expires_in" => 3600})
+            }
+          ])
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        params = %{"grant_type" => "client_credentials"}
+        token_url = "https://auth.example.com/token"
+
+        assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                 manager,
+                 token_url,
+                 params
+               ) == "odd1"
+
+        assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+                 manager,
+                 token_url,
+                 params
+               ) == "odd2",
+               "expires_in #{inspect(raw)} is not a plain decimal number, so the token must be stale"
+      end
     end
 
     test "bhv authoauthtwotokenmgr 008 expires_in as float is floored" do
