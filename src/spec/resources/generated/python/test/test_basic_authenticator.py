@@ -66,7 +66,7 @@ class TestBasicAuthenticator:
         assert "s3cret" not in rendered
         assert "***" in rendered
 
-    def test_equal_credentials_are_not_equal_by_value(self) -> None:
+    def test_bhv_lang_python_034_equal_credentials_are_not_equal_by_value(self) -> None:
         """Authenticators compare by identity, so a secret is never compared or hashed by value."""
         first = BasicAuthenticator(
             host="https://api.example.com", username="alice", password="s3cret"
@@ -80,7 +80,7 @@ class TestBasicAuthenticator:
 
 
 class TestBearerAuthenticator:
-    def test_rejects_empty_token(self) -> None:
+    def test_bhv_lang_python_035_rejects_empty_token(self) -> None:
         with pytest.raises(ValueError):
             BearerAuthenticator(host="https://api.example.com", token="")
 
@@ -96,7 +96,7 @@ class TestBearerAuthenticator:
                 host="https://api.example.com", username="ali:ce", password="pw"
             )
 
-    def test_token_is_not_leaked_in_repr(self) -> None:
+    def test_bhv_lang_python_036_token_is_not_leaked_in_repr(self) -> None:
         auth = BearerAuthenticator(host="https://api.example.com", token="supersecret")
         assert "supersecret" not in repr(auth)
         assert "supersecret" not in str(auth)
@@ -242,7 +242,7 @@ class TestBasicBehaviours:
                 host="https://api.example.com", username="alice\r\n", password="s3cret"
             )
 
-    def test_a_refused_password_is_named_as_the_fault(self) -> None:
+    def test_bhv_lang_python_037_a_refused_password_is_named_as_the_fault(self) -> None:
         with pytest.raises(ValueError, match="password"):
             BasicAuthenticator(
                 host="https://api.example.com", username="alice", password="s3c\x00ret"

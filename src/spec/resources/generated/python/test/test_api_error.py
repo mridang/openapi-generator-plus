@@ -261,7 +261,9 @@ class TestCause:
             NetworkTimeoutException,
         ],
     )
-    def test_every_constructor_chains_the_given_cause(self, error_type: Any) -> None:
+    def test_bhv_lang_python_003_every_constructor_chains_the_given_cause(
+        self, error_type: Any
+    ) -> None:
         cause = ValueError("root cause")
 
         err = error_type(message="boom", cause=cause)
@@ -280,7 +282,7 @@ class TestErrorTreeExports:
                 "petstore_client.errors"
             )
 
-    def test_package_root_exports_the_whole_error_tree(self) -> None:
+    def test_bhv_misc_283_package_root_exports_the_whole_error_tree(self) -> None:
         for name in ERROR_TREE:
             assert name in petstore_client.__all__
             assert getattr(petstore_client, name) is getattr(
@@ -468,7 +470,7 @@ class TestFromResponse:
 
 
 class TestApiErrorImmutability:
-    def test_fields_are_read_only(self) -> None:
+    def test_bhv_lang_python_004_fields_are_read_only(self) -> None:
         err = ApiException(
             status_code=404,
             message="not found",
@@ -866,7 +868,7 @@ class TestRequestContext:
         assert err.request_path is None
         assert str(err) == "API returned status code 404\nHTTP status code: 404"
 
-    def test_the_request_is_unknown_by_default(self) -> None:
+    def test_bhv_lang_python_005_the_request_is_unknown_by_default(self) -> None:
         err = ApiException(status_code=500, message="boom")
 
         assert err.request_method is None
@@ -1053,7 +1055,9 @@ class TestErrorBehaviours:
         assert error.request_method == "GET"
         assert error.request_path == "/pets"
 
-    def test_an_incomplete_request_attachment_is_ignored(self) -> None:
+    def test_bhv_lang_python_006_an_incomplete_request_attachment_is_ignored(
+        self,
+    ) -> None:
         error = ApiException(status_code=500)._with_request("", "/pets")
 
         assert error.request_method is None

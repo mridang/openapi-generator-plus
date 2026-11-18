@@ -405,7 +405,7 @@ describe {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator do
   # Discovery is an HTTP call like any other: a non-2xx answer raises the
   # same status-specific error an API call would.
   { 404 => {{moduleName}}::Errors::NotFoundError, 500 => {{moduleName}}::Errors::InternalServerError }.each do |status, error_class|
-    it "raises #{error_class} when discovery answers #{status}" do
+    it "bhv_langruby_067 raises #{error_class} when discovery answers #{status}" do
       client = FakeOidcClient.new([{ status: status, body: '{}' }])
       auth = {{moduleName}}::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',
