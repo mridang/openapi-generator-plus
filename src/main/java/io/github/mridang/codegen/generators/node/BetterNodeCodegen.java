@@ -44,7 +44,61 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFileEmitter {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterNodeCodegen.class);
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema-error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, "src", "errors", NamingConvention.KEBAB_CASE.apply(className) + ".ts")
+                .toString();
+    }
+
+    /**
+     * Marks each inherited property of a discriminator child that the base
+     * already declares and that has no initializer. TypeScript rejects such a
+     * redeclaration (TS2612), and a readonly base field cannot be assigned in
+     * the child, so the model template leaves those fields to the base. An
+     * inherited property with a default keeps its declaration, because the
+     * child's own constructor assigns the default to it.
+     */
+    @Override
+    protected void decorateClassicDiscriminatorChild(final CodegenModel child, final CodegenModel base) {
+        final Set<String> baseProps = new HashSet<>();
+        for (final CodegenProperty p : base.vars) {
+            baseProps.add(p.baseName);
+        }
+        for (final CodegenProperty p : child.vars) {
+            final boolean isDiscriminator = base.discriminator != null
+                    && Objects.equals(base.discriminator.getPropertyBaseName(), p.baseName);
+            final boolean hasInitializer = p.defaultValue != null || isDiscriminator
+                    || Boolean.TRUE.equals(p.vendorExtensions.get("siblingDefaultIsEnum"));
+            if (baseProps.contains(p.baseName) && !hasInitializer) {
+                p.vendorExtensions.put("x-skip-redeclare", true);
+            }
+        }
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        schema.put(
+                "classFileName",
+                NamingConvention.KEBAB_CASE.apply(Objects.requireNonNull((String) schema.get("className"))));
+        schema.put(
+                "parentFileName",
+                NamingConvention.KEBAB_CASE.apply(Objects.requireNonNull((String) schema.get("parentClassName"))));
+    }
 
     /**
      * Initializes all TypeScript-specific type mappings, language
@@ -324,6 +378,17 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/forbidden-error.mustache", "src/errors", "forbidden-error.ts"),
             new SupportingFileSpec("errors/not-found-error.mustache", "src/errors", "not-found-error.ts"),
             new SupportingFileSpec("errors/conflict-error.mustache", "src/errors", "conflict-error.ts"),
+            new SupportingFileSpec("errors/payment-required-error.mustache", "src/errors", "payment-required-error.ts"),
+            new SupportingFileSpec("errors/method-not-allowed-error.mustache", "src/errors", "method-not-allowed-error.ts"),
+            new SupportingFileSpec("errors/request-timeout-error.mustache", "src/errors", "request-timeout-error.ts"),
+            new SupportingFileSpec("errors/gone-error.mustache", "src/errors", "gone-error.ts"),
+            new SupportingFileSpec("errors/payload-too-large-error.mustache", "src/errors", "payload-too-large-error.ts"),
+            new SupportingFileSpec("errors/unsupported-media-type-error.mustache", "src/errors", "unsupported-media-type-error.ts"),
+            new SupportingFileSpec("errors/locked-error.mustache", "src/errors", "locked-error.ts"),
+            new SupportingFileSpec("errors/not-implemented-error.mustache", "src/errors", "not-implemented-error.ts"),
+            new SupportingFileSpec("errors/bad-gateway-error.mustache", "src/errors", "bad-gateway-error.ts"),
+            new SupportingFileSpec("errors/service-unavailable-error.mustache", "src/errors", "service-unavailable-error.ts"),
+            new SupportingFileSpec("errors/gateway-timeout-error.mustache", "src/errors", "gateway-timeout-error.ts"),
             new SupportingFileSpec("errors/unprocessable-entity-error.mustache", "src/errors", "unprocessable-entity-error.ts"),
             new SupportingFileSpec("errors/too-many-requests-error.mustache", "src/errors", "too-many-requests-error.ts"),
             new SupportingFileSpec("errors/internal-server-error.mustache", "src/errors", "internal-server-error.ts"),

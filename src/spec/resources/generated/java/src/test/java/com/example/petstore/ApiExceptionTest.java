@@ -9,6 +9,7 @@
 package com.example.petstore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -321,6 +322,92 @@ class ApiExceptionTest {
         429,
         new com.example.petstore.errors.TooManyRequestsException("m", null, null, null, cause)
             .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.PaymentRequiredException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        402,
+        new com.example.petstore.errors.PaymentRequiredException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.MethodNotAllowedException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        405,
+        new com.example.petstore.errors.MethodNotAllowedException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.RequestTimeoutException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        408,
+        new com.example.petstore.errors.RequestTimeoutException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.GoneException("m", null, null, null, cause).getCause());
+    assertEquals(
+        410,
+        new com.example.petstore.errors.GoneException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.PayloadTooLargeException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        413,
+        new com.example.petstore.errors.PayloadTooLargeException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.UnsupportedMediaTypeException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        415,
+        new com.example.petstore.errors.UnsupportedMediaTypeException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.LockedException("m", null, null, null, cause).getCause());
+    assertEquals(
+        423,
+        new com.example.petstore.errors.LockedException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.NotImplementedException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        501,
+        new com.example.petstore.errors.NotImplementedException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.BadGatewayException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        502,
+        new com.example.petstore.errors.BadGatewayException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.ServiceUnavailableException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        503,
+        new com.example.petstore.errors.ServiceUnavailableException("m", null, null, null, cause)
+            .getStatusCode());
+    assertEquals(
+        cause,
+        new com.example.petstore.errors.GatewayTimeoutException("m", null, null, null, cause)
+            .getCause());
+    assertEquals(
+        504,
+        new com.example.petstore.errors.GatewayTimeoutException("m", null, null, null, cause)
+            .getStatusCode());
     assertInstanceOf(
         com.example.petstore.errors.ClientException.class,
         new com.example.petstore.errors.TooManyRequestsException("m", null, null, null, cause));
@@ -342,6 +429,25 @@ class ApiExceptionTest {
             .getCause());
     assertNull(
         new com.example.petstore.errors.NotFoundException("m", null, null, null, null).getCause());
+    for (ApiException named :
+        java.util.List.<ApiException>of(
+            new com.example.petstore.errors.PaymentRequiredException("m"),
+            new com.example.petstore.errors.MethodNotAllowedException("m"),
+            new com.example.petstore.errors.RequestTimeoutException("m"),
+            new com.example.petstore.errors.GoneException("m"),
+            new com.example.petstore.errors.PayloadTooLargeException("m"),
+            new com.example.petstore.errors.UnsupportedMediaTypeException("m"),
+            new com.example.petstore.errors.LockedException("m"))) {
+      assertInstanceOf(com.example.petstore.errors.ClientException.class, named);
+    }
+    for (ApiException named :
+        java.util.List.<ApiException>of(
+            new com.example.petstore.errors.NotImplementedException("m"),
+            new com.example.petstore.errors.BadGatewayException("m"),
+            new com.example.petstore.errors.ServiceUnavailableException("m"),
+            new com.example.petstore.errors.GatewayTimeoutException("m"))) {
+      assertInstanceOf(com.example.petstore.errors.ServerException.class, named);
+    }
   }
 
   @Test
@@ -367,9 +473,20 @@ class ApiExceptionTest {
             Map.entry(409, com.example.petstore.errors.ConflictException.class),
             Map.entry(422, com.example.petstore.errors.UnprocessableEntityException.class),
             Map.entry(429, com.example.petstore.errors.TooManyRequestsException.class),
+            Map.entry(402, com.example.petstore.errors.PaymentRequiredException.class),
+            Map.entry(405, com.example.petstore.errors.MethodNotAllowedException.class),
+            Map.entry(408, com.example.petstore.errors.RequestTimeoutException.class),
+            Map.entry(410, com.example.petstore.errors.GoneException.class),
+            Map.entry(413, com.example.petstore.errors.PayloadTooLargeException.class),
+            Map.entry(415, com.example.petstore.errors.UnsupportedMediaTypeException.class),
+            Map.entry(423, com.example.petstore.errors.LockedException.class),
+            Map.entry(501, com.example.petstore.errors.NotImplementedException.class),
+            Map.entry(502, com.example.petstore.errors.BadGatewayException.class),
+            Map.entry(503, com.example.petstore.errors.ServiceUnavailableException.class),
+            Map.entry(504, com.example.petstore.errors.GatewayTimeoutException.class),
             Map.entry(418, com.example.petstore.errors.ClientException.class),
             Map.entry(500, com.example.petstore.errors.InternalServerErrorException.class),
-            Map.entry(503, com.example.petstore.errors.ServerException.class),
+            Map.entry(599, com.example.petstore.errors.ServerException.class),
             Map.entry(302, ApiException.class),
             Map.entry(600, ApiException.class));
     for (Map.Entry<Integer, Class<? extends ApiException>> entry : expected.entrySet()) {
@@ -528,11 +645,72 @@ class ApiExceptionTest {
 
   @Test
   void bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
-    ApiException ex = ApiException.fromResponse(502, Map.of(), "<html>bad gateway</html>");
+    ApiException ex = ApiException.fromResponse(599, Map.of(), "<html>bad gateway</html>");
 
     assertEquals(com.example.petstore.errors.ServerException.class, ex.getClass());
     assertEquals("<html>bad gateway</html>", ex.getResponseBody());
     assertNull(ex.getErrorBody());
+  }
+
+  @Test
+  void bhvErrors201AnErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+    for (int status : new int[] {408, 409, 429, 500, 502, 503, 504, 599}) {
+      assertTrue(
+          ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
+    }
+    for (int status : new int[] {400, 401, 403, 404, 422, 501, 302}) {
+      assertFalse(
+          ApiException.fromResponse(status, Map.of(), null).isRetryable(), "status " + status);
+    }
+  }
+
+  @Test
+  void bhvErrors202AnErrorExposesTheRequestIdHeaderAsItsRequestId() {
+    assertEquals(
+        "abc", ApiException.fromResponse(500, Map.of("X-Request-ID", "abc"), null).getRequestId());
+    assertEquals(
+        "abc", ApiException.fromResponse(500, Map.of("x-request-id", "abc"), null).getRequestId());
+    assertNull(ApiException.fromResponse(500, Map.of("other", "abc"), null).getRequestId());
+    assertNull(new ApiException(0, "no response", null, null).getRequestId());
+  }
+
+  @Test
+  void bhvErrors203TheErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+    Map<String, com.example.petstore.errors.ErrorFactory> factories =
+        Map.of(
+            "404", (m, p, s, h, b) -> new ApiException(s, "exact", h, b),
+            "4XX", (m, p, s, h, b) -> new ApiException(s, "range", h, b),
+            "default", (m, p, s, h, b) -> new ApiException(s, "default", h, b));
+
+    assertEquals(
+        "exact",
+        ApiException.fromResponse("GET", "/x", 404, Map.of(), "{}", factories).getMessage());
+    assertEquals(
+        "range",
+        ApiException.fromResponse("GET", "/x", 418, Map.of(), "{}", factories).getMessage());
+    assertEquals(
+        "default",
+        ApiException.fromResponse("GET", "/x", 502, Map.of(), "{}", factories).getMessage());
+    assertEquals(
+        com.example.petstore.errors.BadGatewayException.class,
+        ApiException.fromResponse("GET", "/x", 502, Map.of(), "{}", Map.of()).getClass());
+    assertEquals(
+        com.example.petstore.errors.NotFoundException.class,
+        ApiException.fromResponse("GET", "/x", 404, Map.of(), "{}", null).getClass());
+  }
+
+  @Test
+  void
+      bhvErrors204ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+    ApiException ex =
+        com.example.petstore.errors.UnexpectedFailureException.fromErrorResponse(
+            "GET", "/x", 400, Map.of(), "[1, 2");
+
+    assertEquals(
+        ApiException.fromResponse("GET", "/x", 400, Map.of(), "[1, 2").getClass(), ex.getClass());
+    assertEquals("[1, 2", ex.getResponseBody());
+    assertEquals(400, ex.getStatusCode());
+    assertNotNull(ex.getCause());
   }
 
   @Test
@@ -550,6 +728,17 @@ class ApiExceptionTest {
             com.example.petstore.errors.ConflictException.class,
             com.example.petstore.errors.UnprocessableEntityException.class,
             com.example.petstore.errors.TooManyRequestsException.class,
+            com.example.petstore.errors.PaymentRequiredException.class,
+            com.example.petstore.errors.MethodNotAllowedException.class,
+            com.example.petstore.errors.RequestTimeoutException.class,
+            com.example.petstore.errors.GoneException.class,
+            com.example.petstore.errors.PayloadTooLargeException.class,
+            com.example.petstore.errors.UnsupportedMediaTypeException.class,
+            com.example.petstore.errors.LockedException.class,
+            com.example.petstore.errors.NotImplementedException.class,
+            com.example.petstore.errors.BadGatewayException.class,
+            com.example.petstore.errors.ServiceUnavailableException.class,
+            com.example.petstore.errors.GatewayTimeoutException.class,
             com.example.petstore.errors.InternalServerErrorException.class,
             com.example.petstore.errors.NetworkException.class,
             com.example.petstore.errors.NetworkTimeoutException.class,
@@ -566,6 +755,28 @@ class ApiExceptionTest {
   @Test
   void bhvErrors025SerializationExceptionIsAnOpenApiException() {
     assertInstanceOf(OpenAPIException.class, new SerializationException("bad"));
+  }
+
+  @Test
+  void serializationExceptionWithoutAResponseHasNoResponseContextAndStripsTheQuery() {
+    SerializationException bare = new SerializationException("bad");
+    assertEquals(0, bare.getStatusCode());
+    assertNull(bare.getResponseHeaders());
+    assertNull(bare.getResponseBody());
+    assertNull(bare.getRequestMethod());
+    assertNull(bare.getRequestPath());
+
+    SerializationException withResponse =
+        new SerializationException(
+            "bad",
+            null,
+            200,
+            Map.of("content-type", "text/plain"),
+            "x",
+            "GET",
+            "http://h/a/b?token=1");
+    assertEquals(200, withResponse.getStatusCode());
+    assertEquals("/a/b", withResponse.getRequestPath());
   }
 
   @Test

@@ -28,6 +28,7 @@ from {{packageName}}.api_client import ApiClient
 from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 from {{packageName}}.errors import ApiException, NetworkException, {{errorPrefix}}Exception
+from {{packageName}}.errors.bad_gateway_exception import BadGatewayException
 from {{packageName}}.errors.client_exception import ClientException
 from {{packageName}}.errors.server_exception import ServerException
 from {{packageName}}.errors.bad_request_exception import BadRequestException
@@ -125,7 +126,7 @@ class TestExceptionDispatch:
         (429, TooManyRequestsException),
         (418, ClientException),
         (500, InternalServerErrorException),
-        (502, ServerException),
+        (502, BadGatewayException),
     ])
     async def test_bhv_errors_037_throws_correct_exception(self, api: Any, status: Any, expected_class: Any) -> None:
         with pytest.raises(expected_class) as exc_info:
@@ -1093,6 +1094,19 @@ class TestContentTypeDeserialization:
         with pytest.raises(SerializationException, match="Unexpected response Content-Type 'text/plain'"):
             await stub.call('GET', '/test/echo', {}, {}, None,
                             ['text/plain'], 'application/json', 'Pet')
+
+    async def test_bhv_errors_205_a_decode_failure_carries_the_response_and_the_request(self) -> None:
+        client = MalformedJsonApiClient()
+        config = Configuration(base_url='http://localhost')
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(SerializationException) as excinfo:
+            await stub.call('GET', '/test/echo?page=2', {}, {}, None,
+                            ['application/json'], 'application/json', 'object')
+        assert excinfo.value.status_code == 200
+        assert excinfo.value.response_headers == {'Content-Type': 'application/json'}
+        assert excinfo.value.response_body == '{"id": 1, '
+        assert excinfo.value.request_method == 'GET'
+        assert excinfo.value.request_path == '/test/echo'
 
     async def test_unexpected_content_type_names_the_operation(self) -> None:
         client = PlainTextApiClient()

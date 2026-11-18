@@ -159,6 +159,10 @@ class BaseApi
      *                                            alternatives of scheme ids that must all be
      *                                            configured. Read only when per-scheme credentials
      *                                            are configured.
+     * @param array<int|string, \Closure(int, array<string, string>|null, string|null, string|null, string|null): ApiException> $errorSchemas
+     *                                            Factory of the error type of each error schema
+     *                                            the operation declares, by declared status (404,
+     *                                            4XX or default). Empty when it declares none.
      *
      * @return ApiResult<mixed> Result containing deserialized data, status code, raw body, and headers
      * @throws ApiException
@@ -179,7 +183,8 @@ class BaseApi
         ?array $headers = null,
         ?int $maxRetries = null,
         array $successTypes = [],
-        array $securityRequirements = []
+        array $securityRequirements = [],
+        array $errorSchemas = []
     ): ApiResult {
         $this->lifecycle?->assertOpen();
         $callHeaders = $headers;
@@ -358,10 +363,39 @@ class BaseApi
                 $response->headers,
                 $response->body,
                 $method,
+                $url,
+                $errorSchemas
+            );
+        }
+
+        try {
+            $data = $this->decodeSuccessBody($response, $returnType, $successTypes);
+        } catch (SerializationException $e) {
+            throw $e->withResponse(
+                $response->statusCode,
+                $response->headers,
+                $response->body,
+                $method,
                 $url
             );
         }
 
+        return new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+    }
+
+    /**
+     * Decode the body of a successful response as the return type of the operation.
+     *
+     * @param ApiHttpResponse           $response     the successful response
+     * @param string|null               $returnType   the return type of the operation
+     * @param array<int|string, string> $successTypes the model type of each success status
+     *                                                of an operation with several 2xx responses
+     *
+     * @return mixed the decoded body, or null for an empty body
+     * @throws SerializationException when the body cannot be decoded as the return type
+     */
+    private function decodeSuccessBody(ApiHttpResponse $response, ?string $returnType, array $successTypes): mixed
+    {
         $data = null;
         if (trim($response->body) !== '') {
             $respContentType = null;
@@ -430,7 +464,7 @@ class BaseApi
             }
         }
 
-        return new ApiResult($response->statusCode, $data, $response->body, $response->headers);
+        return $data;
     }
 
     /**

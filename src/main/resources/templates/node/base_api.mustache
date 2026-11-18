@@ -8,6 +8,7 @@ import { isHttpAwareAuthenticator } from '../auth/http-aware-authenticator{{impo
 /* Imported through the errors barrel, which loads every status-specific
  * error, so ApiError.fromResponse knows them all. */
 import { ApiError, SerializationError, {{errorPrefix}}Error } from '../errors/index{{importFileExtension}}';
+import type { ErrorSchemas } from '../errors/index{{importFileExtension}}';
 import { Configuration } from '../configuration{{importFileExtension}}';
 import { DefaultApiClient } from '#transport';
 import { HeaderSelector } from '../header-selector{{importFileExtension}}';
@@ -123,7 +124,8 @@ export abstract class BaseApi {
     rawBody = false,
     returnKind?: 'model' | 'string' | 'binary',
     operationName = '',
-    requestOptions?: RequestOptions
+    requestOptions?: RequestOptions,
+    errorSchemas?: ErrorSchemas
   ): Promise<ApiResult<T>> {
     BaseApi.checkCallLimits(requestOptions);
     const callTimeout = requestOptions?.timeout;
@@ -308,55 +310,26 @@ export abstract class BaseApi {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      this.throwApiError(response, method, url);
+      this.throwApiError(response, method, url, errorSchemas);
     }
 
     let data: T | undefined;
     if (returnType != null && response.body) {
-      const respContentType =
-        Object.entries(response.headers)
-          .find(([k]) => k.toLowerCase() === 'content-type')?.[1]
-          ?.split(';')[0]
-          ?.trim() ?? '';
-      const isJson = respContentType === '' || this.headerSelector.isJsonMime(respContentType);
-      if (!isJson) {
-        /* The transport stores text bodies verbatim but base64-encodes
-         * binary bodies (DefaultApiClient.isTextContentType decides which).
-         * A string return accepts a text payload (text/*, application/xml,
-         * application/javascript, *+xml) verbatim; a binary return
-         * base64-decodes the payload to a Buffer so the caller receives the
-         * actual bytes. Any other non-JSON body for a model return is a
-         * SerializationError, never a raw string typed as the model.
-         * JSON/+json content is already handled by the else branch.
-         * rawBody keeps the original (still-encoded) string. */
-        const mediaType = respContentType.split(';')[0].trim().toLowerCase();
-        const isText =
-          mediaType.startsWith('text/') ||
-          mediaType === 'application/xml' ||
-          mediaType === 'application/javascript' ||
-          mediaType.endsWith('+xml');
-        if (returnKind !== 'model' && returnKind !== 'binary' && isText) {
-          data = response.body as unknown as T;
-        } else if (returnKind !== 'model') {
-          data = Buffer.from(response.body, 'base64') as unknown as T;
-        } else {
-          throw new SerializationError(
-            `Unexpected response Content-Type '${mediaType}' for ${this.constructor.name}${operationName ? '.' + operationName : ''}: expected a JSON body`
-          );
+      try {
+        data = this.decodeResponseBody(response.statusCode, response.headers, response.body, returnType, returnKind, operationName);
+      } catch (error) {
+        /* A body that cannot be decoded is raised with the response it came
+         * from: its status, headers and raw body, and the request. */
+        if (error instanceof SerializationError) {
+          throw error.withResponse({
+            statusCode: response.statusCode,
+            responseHeaders: response.headers,
+            responseBody: response.body,
+            requestMethod: method,
+            requestPath: BaseApi.pathOf(url)
+          });
         }
-      } else {
-        /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
-         * but Windows-generated payloads often include one and JSON.parse
-         * rejects it. Strip silently for parity with Java Jackson / C#
-         * System.Text.Json which strip transparently. */
-        const cleaned = response.body.charCodeAt(0) === 0xFEFF
-          ? response.body.slice(1)
-          : response.body;
-        /* F5: route through ObjectSerializer.parseJson so the
-         * MAX_JSON_DEPTH pre-flight guard rejects malicious
-         * 100k-deep payloads before V8 stack-overflows. */
-        const json = ObjectSerializer.parseJson(cleaned);
-        data = returnType(json, response.statusCode);
+        throw error;
       }
     }
 
@@ -407,7 +380,8 @@ export abstract class BaseApi {
     rawBody = false,
     returnKind?: 'model' | 'string' | 'binary',
     operationName = '',
-    requestOptions?: RequestOptions
+    requestOptions?: RequestOptions,
+    errorSchemas?: ErrorSchemas
   ): Promise<T | void> {
     const result = await this.invokeApiForResult(
       method,
@@ -422,9 +396,77 @@ export abstract class BaseApi {
       rawBody,
       returnKind,
       operationName,
-      requestOptions
+      requestOptions,
+      errorSchemas
     );
     return result.data;
+  }
+
+  /**
+   * Decode a non-empty success body into the operation's return value.
+   *
+   * @param statusCode the HTTP status code of the response
+   * @param headers the response headers
+   * @param body the raw response body
+   * @param returnType deserialization function for a JSON body
+   * @param returnKind how a non-JSON success body is read
+   * @param operationName the operation name, used in error messages
+   * @returns the decoded value
+   * @throws SerializationError if the body cannot be decoded
+   */
+  private decodeResponseBody<T>(
+    statusCode: number,
+    headers: Record<string, string>,
+    body: string,
+    returnType: (json: unknown, statusCode: number) => T,
+    returnKind: 'model' | 'string' | 'binary' | undefined,
+    operationName: string
+  ): T {
+    const respContentType =
+      Object.entries(headers)
+        .find(([k]) => k.toLowerCase() === 'content-type')?.[1]
+        ?.split(';')[0]
+        ?.trim() ?? '';
+    const isJson = respContentType === '' || this.headerSelector.isJsonMime(respContentType);
+    if (!isJson) {
+      /* The transport stores text bodies verbatim but base64-encodes
+       * binary bodies (DefaultApiClient.isTextContentType decides which).
+       * A string return accepts a text payload (text/*, application/xml,
+       * application/javascript, *+xml) verbatim; a binary return
+       * base64-decodes the payload to a Buffer so the caller receives the
+       * actual bytes. Any other non-JSON body for a model return is a
+       * SerializationError, never a raw string typed as the model.
+       * JSON/+json content is already handled by the else branch.
+       * rawBody keeps the original (still-encoded) string. */
+      const mediaType = respContentType.split(';')[0].trim().toLowerCase();
+      const isText =
+        mediaType.startsWith('text/') ||
+        mediaType === 'application/xml' ||
+        mediaType === 'application/javascript' ||
+        mediaType.endsWith('+xml');
+      if (returnKind !== 'model' && returnKind !== 'binary' && isText) {
+        return body as unknown as T;
+      } else if (returnKind !== 'model') {
+        return Buffer.from(body, 'base64') as unknown as T;
+      } else {
+        throw new SerializationError(
+          `Unexpected response Content-Type '${mediaType}' for ${this.constructor.name}${operationName ? '.' + operationName : ''}: expected a JSON body`
+        );
+      }
+    } else {
+      /* RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
+       * but Windows-generated payloads often include one and JSON.parse
+       * rejects it. Strip silently for parity with Java Jackson / C#
+       * System.Text.Json which strip transparently. */
+      const cleaned = body.charCodeAt(0) === 0xFEFF
+        ? body.slice(1)
+        : body;
+      /* F5: route through ObjectSerializer.parseJson so the
+       * MAX_JSON_DEPTH pre-flight guard rejects malicious
+       * 100k-deep payloads before V8 stack-overflows. */
+      const json = ObjectSerializer.parseJson(cleaned);
+      return returnType(json, statusCode);
+    }
   }
 
   /**
@@ -436,12 +478,16 @@ export abstract class BaseApi {
   private throwApiError(
     response: { statusCode: number; body: string | null; headers: Record<string, string> },
     method: string,
-    url: string
+    url: string,
+    errorSchemas?: ErrorSchemas
   ): never {
-    throw ApiError.fromResponse(response.statusCode, response.headers, response.body, {
-      method,
-      path: BaseApi.pathOf(url)
-    });
+    throw ApiError.fromResponse(
+      response.statusCode,
+      response.headers,
+      response.body,
+      { method, path: BaseApi.pathOf(url) },
+      errorSchemas
+    );
   }
 
   /**

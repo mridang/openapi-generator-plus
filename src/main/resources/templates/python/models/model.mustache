@@ -94,7 +94,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
     _discriminator_property_name: ClassVar[str] = '{{discriminator.propertyBaseName}}'
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing,
@@ -329,6 +329,9 @@ from pydantic import BaseModel, ConfigDict, Field, SerializationInfo, Validation
 from pydantic import StrictBool, StrictFloat, StrictInt, StrictStr
 from {{packageName}}._types import ApiModel, hash_model
 from typing import Any, Callable, ClassVar, Dict, List, Optional, Set, Union
+{{#vendorExtensions.x-allof-child}}
+from {{packageName}}.models.{{vendorExtensions.x-allof-base-filename}} import {{vendorExtensions.x-allof-base-name}}
+{{/vendorExtensions.x-allof-child}}
 {{! A bare number default is built as a Decimal; ruff prunes it when unused. }}
 from decimal import Decimal
 {{#hasEnums}}
@@ -594,7 +597,7 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
     }
 
     @classmethod
-    def get_discriminator_value(cls, obj: Dict[str, Any]) -> Optional[str]:
+    def get_discriminator_value(cls, obj: Dict[str, Any]) -> str:
         """Returns the discriminator value (object type) of the data.
 
         Gap AU: raises ValueError when the discriminator field is missing
@@ -625,6 +628,29 @@ class {{classname}}({{#parent}}{{{.}}}{{/parent}}{{^parent}}ApiModel{{/parent}})
             )
 
 {{/discriminator}}
+{{#vendorExtensions.x-allof-base}}
+
+    @model_validator(mode='wrap')
+    @classmethod
+    def _route_to_subtype(cls, data: Any, handler: Any, info: ValidationInfo) -> Any:
+        """Decode the base type into the subtype its discriminator names.
+
+        Only the base itself routes: a subtype validates its own payload. A
+        missing, empty or unknown discriminator value raises ValueError, which
+        names the value, so decoding fails with the SDK serialization error.
+        """
+        if cls is not {{classname}} or not isinstance(data, dict):
+            return handler(data)
+        import {{packageName}}.models as _models
+        subtype = getattr(_models, cls.get_discriminator_value(data))
+        wire = bool(info.context and info.context.get('wire_decode'))
+        return subtype.model_validate(
+            data,
+            by_alias=True if wire else None,
+            by_name=False if wire else None,
+            context=info.context,
+        )
+{{/vendorExtensions.x-allof-base}}
 {{/hasChildren}}
 {{/anyOf}}
 {{/oneOf}}

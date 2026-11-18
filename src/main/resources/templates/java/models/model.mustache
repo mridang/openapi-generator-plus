@@ -668,8 +668,33 @@ public class {{classname}} {
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
+{{#vendorExtensions.x-allof-base}}
+@com.fasterxml.jackson.annotation.JsonTypeInfo(
+    use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME,
+    include = com.fasterxml.jackson.annotation.JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "{{discriminator.propertyBaseName}}",
+    visible = true)
+@com.fasterxml.jackson.annotation.JsonSubTypes({
+{{#discriminator}}
+{{#mappedModels}}
+  @com.fasterxml.jackson.annotation.JsonSubTypes.Type(value = {{modelName}}.class, name = "{{mappingName}}"){{^-last}},{{/-last}}
+{{/mappedModels}}
+{{/discriminator}}
+})
+public abstract class {{classname}} {
+{{/vendorExtensions.x-allof-base}}
+{{^vendorExtensions.x-allof-base}}
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(builder = {{classname}}.Builder.class)
+{{#vendorExtensions.x-allof-child}}
+@com.fasterxml.jackson.annotation.JsonTypeInfo(
+    use = com.fasterxml.jackson.annotation.JsonTypeInfo.Id.NAME,
+    include = com.fasterxml.jackson.annotation.JsonTypeInfo.As.EXISTING_PROPERTY,
+    property = "{{vendorExtensions.x-allof-discriminator-property}}",
+    visible = true,
+    defaultImpl = {{classname}}.class)
+{{/vendorExtensions.x-allof-child}}
 public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
+{{/vendorExtensions.x-allof-base}}
 {{#vars}}
 {{#isEnum}}
 
@@ -839,6 +864,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vars}}
 
 {{#vars}}
+{{^vendorExtensions.x-inherited}}
   {{! L2: a single Javadoc block per property. Description, the singular example,
       and any plural x-examples are all merged here as proper Javadoc (the
       pluralExamples block previously used the `///` markdown-doc idiom, inert on
@@ -884,7 +910,47 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.ALWAYS){{/isNullable}}{{/required}}
   public final {{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}};
 
+{{/vendorExtensions.x-inherited}}
 {{/vars}}
+{{#vendorExtensions.x-allof-base}}
+
+  /**
+   * Creates the base of a composed model and sets the properties that the subtypes share.
+   *
+   * <p>The subtypes pass their own values up, so a required property is checked once and read the
+   * same through the base.
+   *
+  {{#vars}}
+   * @param {{name}} the {{name}} property
+  {{/vars}}
+   */
+  protected {{classname}}({{#vars}}{{^required}}@Nullable {{/required}}{{#required}}{{#isNullable}}@Nullable {{/isNullable}}{{/required}}{{#isEnum}}{{{datatypeWithEnum}}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}} {{name}}{{^-last}}, {{/-last}}{{/vars}}) {
+{{#vars}}
+{{#required}}
+{{^isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}{{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+            new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{#isNullable}}
+    this.{{name}} =
+        {{#isByteArray}}{{name}} == null ? null : {{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/isNullable}}
+{{/required}}
+{{^required}}
+    this.{{name}} =
+        {{#isByteArray}}{{name}} == null ? null : {{name}}.clone(){{/isByteArray}}{{^isByteArray}}{{#vendorExtensions.copyKind}}{{name}} == null
+            ? null
+            : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
+                new java.util.{{vendorExtensions.copyImpl}}<>({{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
+{{/required}}
+{{/vars}}
+  }
+{{/vendorExtensions.x-allof-base}}
+{{^vendorExtensions.x-allof-base}}
 {{#isAdditionalPropertiesTrue}}
 
   /* Wire names of the declared properties; an additional property with one of
@@ -937,8 +1003,12 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * constructor, the builder and deserialization alike. A collection is copied into an
    * unmodifiable one, so the instance never shares a list with its caller. */
   private {{classname}}(Builder builder) {
+{{#vendorExtensions.x-allof-child}}
+    super({{{vendorExtensions.superArgs}}});
+{{/vendorExtensions.x-allof-child}}
     builder.requireNullableProperties();
 {{#vars}}
+{{^vendorExtensions.x-inherited}}
 {{#required}}
 {{^isNullable}}
     this.{{name}} =
@@ -961,6 +1031,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
             : java.util.Collections.unmodifiable{{vendorExtensions.copyKind}}(
                 new java.util.{{vendorExtensions.copyImpl}}<>(builder.{{name}})){{/vendorExtensions.copyKind}}{{^vendorExtensions.copyKind}}builder.{{name}}{{/vendorExtensions.copyKind}}{{/isByteArray}};
 {{/required}}
+{{/vendorExtensions.x-inherited}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
     this.additionalProperties = new java.util.LinkedHashMap<>(builder.additionalProperties);
@@ -1181,6 +1252,7 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
     sb.append("}");
     return sb.toString();
   }
+{{/vendorExtensions.x-allof-base}}
 }
 {{/anyOf}}
 {{/oneOf}}

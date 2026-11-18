@@ -37,7 +37,7 @@ from ..object_serializer import ObjectSerializer
 from ..value_serializer import ValueSerializer, AllowReservedValue
 from ..header_selector import HeaderSelector
 from ..trace_context_util import inject_trace_context
-from ..errors import ApiException, NetworkException, NetworkTimeoutException, {{errorPrefix}}Exception
+from ..errors import ApiException, ErrorFactory, NetworkException, NetworkTimeoutException, {{errorPrefix}}Exception
 from ..errors.serialization_exception import SerializationException
 from ..auth.authenticator import Authenticator
 from ..auth.http_aware_authenticator import HttpAwareAuthenticator
@@ -220,6 +220,7 @@ class BaseApi:
         operation_name: str = '',
         request_options: Optional[CallOptions] = None,
         decode_success: Optional[Callable[[int, str], Any]] = None,
+        error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
     ) -> 'ApiResult[Any]':
         """Invoke an API operation and return the full result including status
         code, headers, and raw body alongside the deserialized data.
@@ -245,6 +246,9 @@ class BaseApi:
                 ``headers`` and ``max_retries`` apply to this call only.
             decode_success: Decodes a 2xx body by the status code it came with,
                 for an operation that answers different schemas per status.
+            error_schemas: The factories of the error schemas this operation
+                declares, by declared status (``'404'``, ``'4XX'``,
+                ``'default'``), or ``None`` when it declares none.
 
         Returns:
             ApiResult containing deserialized data, status code, raw body,
@@ -481,38 +485,50 @@ class BaseApi:
             raise
 
         if response.status_code < 200 or response.status_code >= 300:
-            self._throw_api_exception(response, method, request_path)
+            self._throw_api_exception(response, method, request_path, error_schemas)
 
         data: Any = None
-        if return_type is not None and response.body:
-            resp_content_type = ''
-            for k, v in response.headers.items():
-                if k.lower() == 'content-type':
-                    resp_content_type = v.split(';')[0].strip()
-                    break
-            if resp_content_type and not self._header_selector.is_json_mime(resp_content_type):
-                if return_type == 'bytes':
-                    import base64
-                    data = base64.b64decode(response.body) if response.body else b''
-                elif return_type in ('str', 'StrictStr') and self._is_text_media_type(resp_content_type):
-                    data = response.body
+        try:
+            if return_type is not None and response.body:
+                resp_content_type = ''
+                for k, v in response.headers.items():
+                    if k.lower() == 'content-type':
+                        resp_content_type = v.split(';')[0].strip()
+                        break
+                if resp_content_type and not self._header_selector.is_json_mime(resp_content_type):
+                    if return_type == 'bytes':
+                        import base64
+                        data = base64.b64decode(response.body) if response.body else b''
+                    elif return_type in ('str', 'StrictStr') and self._is_text_media_type(resp_content_type):
+                        data = response.body
+                    else:
+                        raise SerializationException(
+                            f"Unexpected response Content-Type '{resp_content_type}' "
+                            f'for {self._operation_label(operation_name)}: expected a JSON body'
+                        )
+                elif return_type == 'bytes' and not isinstance(
+                    ObjectSerializer.parse_json(response.body), str
+                ):
+                    # A binary operation that may also answer application/json (content
+                    # negotiation) gets a JSON document that is not a base64 string:
+                    # hand back the raw body bytes, the same as every SDK that returns
+                    # the bytes of whatever body arrived.
+                    data = response.body.encode('utf-8') if isinstance(response.body, str) else response.body
+                elif decode_success is not None:
+                    data = decode_success(response.status_code, response.body)
                 else:
-                    raise SerializationException(
-                        f"Unexpected response Content-Type '{resp_content_type}' "
-                        f'for {self._operation_label(operation_name)}: expected a JSON body'
-                    )
-            elif return_type == 'bytes' and not isinstance(
-                ObjectSerializer.parse_json(response.body), str
-            ):
-                # A binary operation that may also answer application/json (content
-                # negotiation) gets a JSON document that is not a base64 string:
-                # hand back the raw body bytes, the same as every SDK that returns
-                # the bytes of whatever body arrived.
-                data = response.body.encode('utf-8') if isinstance(response.body, str) else response.body
-            elif decode_success is not None:
-                data = decode_success(response.status_code, response.body)
-            else:
-                data = self._object_serializer.deserialize(response.body, return_type)
+                    data = self._object_serializer.deserialize(response.body, return_type)
+        except SerializationException as error:
+            # The response itself is what could not be decoded: keep what came
+            # back so the caller can see the status, the headers and the body.
+            error._with_response(
+                response.status_code,
+                response.headers,
+                response.body,
+                method,
+                request_path,
+            )
+            raise
 
         return ApiResult(
             status_code=response.status_code,
@@ -730,6 +746,7 @@ class BaseApi:
         response: 'ApiHttpResponse',
         request_method: Optional[str] = None,
         request_path: Optional[str] = None,
+        error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
     ) -> None:
         """Raise the exception :meth:`ApiException.from_response` maps the
         error response to. The body is parsed as JSON where possible so that
@@ -742,4 +759,5 @@ class BaseApi:
             response.body,
             request_method,
             request_path,
+            error_schemas,
         )

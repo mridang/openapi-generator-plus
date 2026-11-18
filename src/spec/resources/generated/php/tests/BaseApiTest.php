@@ -23,6 +23,7 @@ use PetstoreClient\Errors\NotFoundException;
 use PetstoreClient\Errors\ConflictException;
 use PetstoreClient\Errors\UnprocessableEntityException;
 use PetstoreClient\Errors\TooManyRequestsException;
+use PetstoreClient\Errors\BadGatewayException;
 use PetstoreClient\Errors\InternalServerErrorException;
 use PetstoreClient\ApiClient;
 use PetstoreClient\ApiHttpResponse;
@@ -70,7 +71,7 @@ test('bhv errors 037 throws correct exception', function (int $status, string $e
     [429, TooManyRequestsException::class],
     [418, ClientException::class],
     [500, InternalServerErrorException::class],
-    [502, ServerException::class],
+    [502, BadGatewayException::class],
 ]);
 
 test('bhv errors 029 get typed error body deserializes into given class', function (): void {
@@ -292,6 +293,39 @@ function tokenRotatingApiClient(\ArrayObject $requests): ApiClient
         }
     };
 }
+
+test('bhv errors 205 a decode failure of a response carries the status, the headers and the raw body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '[1, 2', ['Content-Type' => 'application/json', 'x-request-id' => 'r1']);
+        }
+    };
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    try {
+        $api->call('post', '/items?token=secret', [], [], null, ['application/json'], null, Category::class);
+        test()->fail('Expected exception not thrown');
+    } catch (\PetstoreClient\Errors\SerializationException $e) {
+        expect($e->getStatusCode())->toBe(200);
+        expect($e->getResponseHeaders())->toBe(['Content-Type' => 'application/json', 'x-request-id' => 'r1']);
+        expect($e->getResponseBody())->toBe('[1, 2');
+        expect($e->getRequestMethod())->toBe('POST');
+        expect($e->getRequestPath())->toBe('/items');
+        expect($e->getPrevious())->not->toBeNull();
+    }
+});
 
 test('bhv retries 001 a 401 drops the cached token and replays the request once with a fresh one', function (): void {
     /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */

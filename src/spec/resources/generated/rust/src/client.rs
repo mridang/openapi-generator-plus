@@ -10,6 +10,7 @@
 use std::sync::Arc;
 
 use crate::api::PetApi;
+use crate::api::ProblemsApi;
 use crate::api::StoreApi;
 use crate::api_client::ApiClient;
 use crate::auth::Authenticator;
@@ -63,6 +64,8 @@ fn resolve_host(host: Option<&str>) -> Result<String, ConfigurationError> {
 pub struct Client {
     /// API operations for the PetApi group.
     pub pet: PetApi,
+    /// API operations for the ProblemsApi group.
+    pub problems: ProblemsApi,
     /// API operations for the StoreApi group.
     pub store: StoreApi,
     /* The transport the facade was built around. Closing the facade closes
@@ -106,6 +109,8 @@ impl Client {
             api_client: api_client.clone(),
             pet: PetApi::new(api_client.clone(), config.clone(), None)
                 .with_scheme_authenticators(by_scheme.clone()),
+            problems: ProblemsApi::new(api_client.clone(), config.clone(), None)
+                .with_scheme_authenticators(by_scheme.clone()),
             store: StoreApi::new(api_client.clone(), config.clone(), None)
                 .with_scheme_authenticators(by_scheme.clone()),
         }
@@ -129,6 +134,11 @@ impl Client {
         Self {
             api_client: api_client.clone(),
             pet: PetApi::new(
+                api_client.clone(),
+                config.clone(),
+                Some(authenticator.clone()),
+            ),
+            problems: ProblemsApi::new(
                 api_client.clone(),
                 config.clone(),
                 Some(authenticator.clone()),

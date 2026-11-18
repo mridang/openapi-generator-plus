@@ -14,6 +14,7 @@ import 'configuration.dart';
 import 'default_api_client.dart';
 import 'transport_options.dart';
 import 'api/pet_api.dart';
+import 'api/problems_api.dart';
 import 'api/store_api.dart';
 
 /// Unified entry point for all API services.
@@ -44,6 +45,9 @@ class Client {
   /// API operations for the PetApi group.
   final PetApi pet;
 
+  /// API operations for the ProblemsApi group.
+  final ProblemsApi problems;
+
   /// API operations for the StoreApi group.
   final StoreApi store;
 
@@ -56,6 +60,7 @@ class Client {
     required DefaultApiClient apiClient,
   }) : _apiClient = apiClient,
        pet = _createPetApi(host, authenticator, schemes, apiClient),
+       problems = _createProblemsApi(host, authenticator, schemes, apiClient),
        store = _createStoreApi(host, authenticator, schemes, apiClient);
 
   /// Creates a new client from its credentials and transport options.
@@ -138,6 +143,21 @@ class Client {
   ) {
     final config = ConfigurationBuilder().baseUrl(host.host()).build();
     return PetApi(
+      apiClient: apiClient,
+      config: config,
+      authenticator: authenticator,
+      schemeAuthenticators: schemes,
+    );
+  }
+
+  static ProblemsApi _createProblemsApi(
+    Authenticator host,
+    Authenticator? authenticator,
+    Map<String, Authenticator> schemes,
+    DefaultApiClient apiClient,
+  ) {
+    final config = ConfigurationBuilder().baseUrl(host.host()).build();
+    return ProblemsApi(
       apiClient: apiClient,
       config: config,
       authenticator: authenticator,

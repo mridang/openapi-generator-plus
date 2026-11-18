@@ -7,6 +7,7 @@ import {{invokerPackage}}.errors.SerializationException
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.BadRequestException
 import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.ErrorFactory
 import {{invokerPackage}}.errors.NotFoundException
 import {{invokerPackage}}.errors.ServerException
 import org.junit.jupiter.api.Assertions.*
@@ -251,9 +252,20 @@ class ApiExceptionTest {
                 409 to {{invokerPackage}}.errors.ConflictException::class.java,
                 422 to {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
                 429 to {{invokerPackage}}.errors.TooManyRequestsException::class.java,
+                402 to {{invokerPackage}}.errors.PaymentRequiredException::class.java,
+                405 to {{invokerPackage}}.errors.MethodNotAllowedException::class.java,
+                408 to {{invokerPackage}}.errors.RequestTimeoutException::class.java,
+                410 to {{invokerPackage}}.errors.GoneException::class.java,
+                413 to {{invokerPackage}}.errors.PayloadTooLargeException::class.java,
+                415 to {{invokerPackage}}.errors.UnsupportedMediaTypeException::class.java,
+                423 to {{invokerPackage}}.errors.LockedException::class.java,
+                501 to {{invokerPackage}}.errors.NotImplementedException::class.java,
+                502 to {{invokerPackage}}.errors.BadGatewayException::class.java,
+                503 to {{invokerPackage}}.errors.ServiceUnavailableException::class.java,
+                504 to {{invokerPackage}}.errors.GatewayTimeoutException::class.java,
                 418 to {{invokerPackage}}.errors.ClientException::class.java,
                 500 to {{invokerPackage}}.errors.InternalServerErrorException::class.java,
-                503 to {{invokerPackage}}.errors.ServerException::class.java,
+                599 to {{invokerPackage}}.errors.ServerException::class.java,
                 // 302 is below the client range and 600 above the server range:
                 // neither is a ClientException or a ServerException, both are
                 // the base type.
@@ -276,7 +288,7 @@ class ApiExceptionTest {
 
     @Test
     fun bhvErrors005FromResponseLeavesTheErrorBodyNullWhenTheBodyIsNotJson() {
-        val ex = ApiException.fromResponse(502, emptyMap(), "<html>bad gateway</html>")
+        val ex = ApiException.fromResponse(599, emptyMap(), "<html>bad gateway</html>")
 
         assertEquals({{invokerPackage}}.errors.ServerException::class.java, ex.javaClass)
         assertEquals("<html>bad gateway</html>", ex.responseBody)
@@ -308,6 +320,17 @@ class ApiExceptionTest {
                 {{invokerPackage}}.errors.ConflictException::class.java,
                 {{invokerPackage}}.errors.UnprocessableEntityException::class.java,
                 {{invokerPackage}}.errors.TooManyRequestsException::class.java,
+                {{invokerPackage}}.errors.PaymentRequiredException::class.java,
+                {{invokerPackage}}.errors.MethodNotAllowedException::class.java,
+                {{invokerPackage}}.errors.RequestTimeoutException::class.java,
+                {{invokerPackage}}.errors.GoneException::class.java,
+                {{invokerPackage}}.errors.PayloadTooLargeException::class.java,
+                {{invokerPackage}}.errors.UnsupportedMediaTypeException::class.java,
+                {{invokerPackage}}.errors.LockedException::class.java,
+                {{invokerPackage}}.errors.NotImplementedException::class.java,
+                {{invokerPackage}}.errors.BadGatewayException::class.java,
+                {{invokerPackage}}.errors.ServiceUnavailableException::class.java,
+                {{invokerPackage}}.errors.GatewayTimeoutException::class.java,
                 {{invokerPackage}}.errors.InternalServerErrorException::class.java,
                 {{invokerPackage}}.errors.NetworkException::class.java,
                 {{invokerPackage}}.errors.NetworkTimeoutException::class.java,
@@ -429,6 +452,17 @@ class ApiExceptionTest {
         val cause = IllegalStateException("root")
         assertSame(cause, BadRequestException("bad", cause = cause).cause)
         assertSame(cause, NotFoundException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.PaymentRequiredException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.MethodNotAllowedException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.RequestTimeoutException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.GoneException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.PayloadTooLargeException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.UnsupportedMediaTypeException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.LockedException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.NotImplementedException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.BadGatewayException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.ServiceUnavailableException("gone", cause = cause).cause)
+        assertSame(cause, {{invokerPackage}}.errors.GatewayTimeoutException("gone", cause = cause).cause)
         assertSame(cause, ClientException(418, "teapot", cause = cause).cause)
         assertSame(cause, ServerException(503, "down", cause = cause).cause)
         assertNull(NotFoundException("gone").cause)
@@ -497,4 +531,61 @@ class ApiExceptionTest {
         assertNull(ex.errorBody)
         assertEquals("<html>oops</html>", ex.responseBody)
     }
+
+    @Test
+    @DisplayName("bhvErrors201 an error is retryable exactly for the statuses the client retries")
+    fun anErrorIsRetryableExactlyForTheStatusesTheClientRetries() {
+        for (status in listOf(408, 409, 429, 500, 502, 503, 504, 599)) {
+            assertTrue(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+        for (status in listOf(400, 401, 403, 404, 422, 501, 302)) {
+            assertFalse(ApiException.fromResponse(status, emptyMap(), null).isRetryable, "status $status")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors202 an error exposes the x-request-id response header as its request id")
+    fun anErrorExposesTheRequestIdHeaderAsItsRequestId() {
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("X-Request-ID" to "abc"), null).requestId)
+        assertEquals("abc", ApiException.fromResponse(500, mapOf("x-request-id" to "abc"), null).requestId)
+        assertNull(ApiException.fromResponse(500, mapOf("other" to "abc"), null).requestId)
+        assertNull(ApiException(0, "no response", null, null).requestId)
+    }
+
+    @Test
+    @DisplayName("bhvErrors203 the error factory of an operation is chosen by exact status, then range, then default")
+    fun theErrorFactoryOfAnOperationIsChosenByExactStatusThenRangeThenDefault() {
+        fun factory(message: String) =
+            ErrorFactory { _, _, status, headers, body -> ApiException(status, message, headers, body) }
+        val factories = mapOf("404" to factory("exact"), "4XX" to factory("range"), "default" to factory("default"))
+
+        assertEquals("exact", ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("range", ApiException.fromResponse(418, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals("default", ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", factories).message)
+        assertEquals(
+            {{invokerPackage}}.errors.BadGatewayException::class,
+            ApiException.fromResponse(502, emptyMap(), "{}", "GET", "/x", emptyMap())::class,
+        )
+        assertEquals(
+            NotFoundException::class,
+            ApiException.fromResponse(404, emptyMap(), "{}", "GET", "/x", null)::class,
+        )
+    }
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+    @Test
+    @DisplayName("bhvErrors204 a body that does not match its declared error schema leaves the status error with the raw body and a cause")
+    fun aBodyThatDoesNotMatchItsDeclaredErrorSchemaLeavesTheStatusErrorWithTheRawBodyAndACause() {
+        val ex = {{invokerPackage}}.errors.{{{className}}}.fromErrorResponse("GET", "/x", {{sampleStatus}}, emptyMap(), "[1, 2")
+
+        assertEquals(ApiException.fromResponse({{sampleStatus}}, emptyMap(), "[1, 2")::class, ex::class)
+        assertEquals("[1, 2", ex.responseBody)
+        assertEquals({{sampleStatus}}, ex.statusCode)
+        assertNotNull(ex.cause)
+    }
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
 }

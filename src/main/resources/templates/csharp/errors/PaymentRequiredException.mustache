@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 402 Payment Required.
+/// </summary>
+public class PaymentRequiredException : ClientException
+{
+    public PaymentRequiredException()
+        : this("Payment Required") { }
+
+    public PaymentRequiredException(string message)
+        : this(message, null, null, null) { }
+
+    public PaymentRequiredException(string message, Exception innerException)
+        : base(402, message, innerException) { }
+
+    public PaymentRequiredException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(402, message, responseHeaders, responseBody, errorBody) { }
+}

@@ -33,6 +33,17 @@ defmodule PetstoreClient do
       PetstoreClient.Errors.ForbiddenError
       PetstoreClient.Errors.NotFoundError
       PetstoreClient.Errors.ConflictError
+      PetstoreClient.Errors.PaymentRequiredError
+      PetstoreClient.Errors.MethodNotAllowedError
+      PetstoreClient.Errors.RequestTimeoutError
+      PetstoreClient.Errors.GoneError
+      PetstoreClient.Errors.PayloadTooLargeError
+      PetstoreClient.Errors.UnsupportedMediaTypeError
+      PetstoreClient.Errors.LockedError
+      PetstoreClient.Errors.NotImplementedError
+      PetstoreClient.Errors.BadGatewayError
+      PetstoreClient.Errors.ServiceUnavailableError
+      PetstoreClient.Errors.GatewayTimeoutError
       PetstoreClient.Errors.UnprocessableEntityError
       PetstoreClient.Errors.TooManyRequestsError
       PetstoreClient.Errors.ServerError    # 5xx grouping

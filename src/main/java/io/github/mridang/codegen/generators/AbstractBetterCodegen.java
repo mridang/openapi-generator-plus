@@ -657,6 +657,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     public void processOpenAPI(OpenAPI openAPI) {
         super.processOpenAPI(openAPI);
+        generating = true;
         additionalProperties.put(
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
@@ -3433,6 +3434,189 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     }
 
     /**
+     * The suffix this language gives every error type: {@code Exception} by
+     * default, {@code Error} where the language's convention says so.
+     *
+     * @return {@code Exception} or {@code Error}
+     */
+    protected String errorSuffix() {
+        return "Exception";
+    }
+
+    /**
+     * The class name of a status class in this language. A language overrides it
+     * only when a stem collides with a type its standard library already has.
+     *
+     * @param stem a status class stem such as {@code NotFound}
+     * @return the class name, such as {@code NotFoundException}
+     */
+    protected String statusClassName(String stem) {
+        return ErrorResponses.statusClassName(stem, errorSuffix());
+    }
+
+    /**
+     * The model class name of a declared error schema as it is spelled in the generated error
+     * types. The default is the data type as it is; a language whose data types are qualified
+     * names (php) returns the bare class name.
+     *
+     * @param dataType the data type of the response model
+     * @return the model class name
+     */
+    protected String errorSchemaModelName(String dataType) {
+        return dataType;
+    }
+
+    /**
+     * The template of the per-schema error type, or null when the language does
+     * not generate one yet. The template renders once per entry of
+     * {@code errorSchemas}.
+     *
+     * @return a template name under the language's template folder, or null
+     */
+    @Nullable
+    protected String errorSchemaTemplate() {
+        return null;
+    }
+
+    /**
+     * Where the per-schema error type of the given class is written.
+     *
+     * @param className the error class name, such as {@code ProjectNotFoundException}
+     * @return the file path, or null when the language writes none
+     */
+    @Nullable
+    protected String errorSchemaFilePath(String className) {
+        return null;
+    }
+
+    /**
+     * Adds language-specific keys, such as a file name, to one entry of {@code errorSchemas}
+     * before the templates see it. The default adds nothing.
+     *
+     * @param schema the entry, with {@code className} among its keys
+     */
+    protected void decorateErrorSchema(Map<String, Object> schema) {
+        // no language-specific keys by default
+    }
+
+    /** Names of the error schema classes already written, so each is written once. */
+    private final java.util.Set<String> writtenErrorSchemas = new java.util.HashSet<>();
+
+    /** Set once a document is being generated, so a bare codegen never writes files. */
+    private boolean generating;
+
+    private void writeErrorSchemaFiles(List<Map<String, Object>> schemas) {
+        final String template = errorSchemaTemplate();
+        if (!generating || template == null) {
+            return;
+        }
+        for (final Map<String, Object> schema : schemas) {
+            final String className = Objects.requireNonNull(Objects.requireNonNull((String) schema.get("className")));
+            final String path = errorSchemaFilePath(className);
+            if (path == null || !writtenErrorSchemas.add(className)) {
+                continue;
+            }
+            writeFile(path, renderOptionsTemplate(template, new HashMap<>(schema)));
+            postProcessFile(Path.of(path).toFile(), "source");
+        }
+    }
+
+    /** Rows of declared error responses per operation, keyed by operation, in generation order. */
+    private final Map<String, List<Map<String, Object>>> declaredErrorsByOperation =
+            new java.util.LinkedHashMap<>();
+
+    /**
+     * Exposes the error responses an operation declares on its decorator map:
+     * {@code errorResponses} (one row per distinct status, a default response
+     * last: {@code status}, {@code statusClass}, {@code statusClassName},
+     * {@code schemaName}, {@code schemaClassName}, {@code hasSchema},
+     * {@code isDefault}, {@code isRange}, {@code isFirst}, {@code isLast}),
+     * {@code hasErrorResponses} and {@code errorSchemaResponses}, the rows that
+     * carry a schema. The spec-level {@code errorSchemas} list (one entry per
+     * distinct schema with the status class it subclasses, plus {@code classFilename},
+     * {@code schemaFilename}, {@code parentFilename} and {@code parentIsApi}) is refreshed in
+     * {@code additionalProperties} every time an operation is seen.
+     */
+    private void populateErrorResponses(CodegenOperation op, Map<String, Object> d) {
+        final List<ErrorResponses.Declared> declared = new ArrayList<>();
+        if (op.responses != null) {
+            for (final org.openapitools.codegen.CodegenResponse response : op.responses) {
+                if (response.code == null || !ErrorResponses.isErrorStatus(response.code)) {
+                    continue;
+                }
+                final boolean model = response.isModel && response.dataType != null;
+                declared.add(
+                        new ErrorResponses.Declared(
+                                response.code, model ? errorSchemaModelName(response.dataType) : null));
+            }
+        }
+        final String suffix = errorSuffix();
+        final List<Map<String, Object>> rows = ErrorResponses.operationRows(declared, suffix, this::statusClassName);
+        final List<Map<String, Object>> withSchema = new ArrayList<>();
+        for (final Map<String, Object> row : rows) {
+            if (Boolean.TRUE.equals(row.get("hasSchema"))) {
+                withSchema.add(new java.util.LinkedHashMap<>(row));
+            }
+        }
+        for (int i = 0; i < withSchema.size(); i++) {
+            withSchema.get(i).put("isFirst", i == 0);
+            withSchema.get(i).put("isLast", i == withSchema.size() - 1);
+        }
+        d.put("errorResponses", rows);
+        d.put("hasErrorResponses", !rows.isEmpty());
+        d.put("errorSchemaResponses", withSchema);
+        d.put("hasErrorSchemaResponses", !withSchema.isEmpty());
+        declaredErrorsByOperation.put(op.httpMethod + " " + op.path, rows);
+        final List<Map<String, Object>> schemas =
+                ErrorResponses.distinctSchemas(
+                        new ArrayList<>(declaredErrorsByOperation.values()), suffix, this::statusClassName);
+        for (final Map<String, Object> schema : schemas) {
+            final String className = Objects.requireNonNull((String) schema.get("className"));
+            final String schemaName = Objects.requireNonNull((String) schema.get("schemaName"));
+            final String parentClassName = Objects.requireNonNull((String) schema.get("parentClassName"));
+            schema.put("classFilename", NamingConvention.SNAKE_CASE.apply(className));
+            schema.put("schemaFilename", toModelFilename(schemaName));
+            schema.put("parentFilename", NamingConvention.SNAKE_CASE.apply(parentClassName));
+            schema.put("parentIsApi", ErrorResponses.API.equals(schema.get("parentStem")));
+            decorateErrorSchema(schema);
+        }
+        additionalProperties.put("errorSchemas", schemas);
+        additionalProperties.put("hasErrorSchemas", !schemas.isEmpty());
+        writeErrorSchemaFiles(schemas);
+    }
+
+    /**
+     * Exposes {@code errorSchemaImports} on the operations object: the distinct error schema
+     * classes the operations of this API group pass to the transport, so a template imports
+     * exactly the ones it uses. Runs after the operation decorators are populated.
+     */
+    private void putErrorSchemaImports(Map<String, Object> objs, @Nullable List<CodegenOperation> ops) {
+        final java.util.Set<String> usedErrorSchemas = new java.util.LinkedHashSet<>();
+        if (ops != null) {
+            for (final CodegenOperation op : ops) {
+                if (op.vendorExtensions == null) {
+                    continue;
+                }
+                final Object rows =
+                        decoratorMap(op.vendorExtensions, OP_DECORATOR_NS).get("errorSchemaResponses");
+                if (rows instanceof List) {
+                    for (final Object row : (List<?>) rows) {
+                        final Object className = ((Map<?, ?>) row).get("schemaClassName");
+                        if (className != null) {
+                            usedErrorSchemas.add((String) className);
+                        }
+                    }
+                }
+            }
+        }
+        final List<Map<String, Object>> errorSchemaImports = new ArrayList<>();
+        for (final String className : usedErrorSchemas) {
+            errorSchemaImports.add(new HashMap<>(Map.of("className", className)));
+        }
+        objs.put("errorSchemaImports", errorSchemaImports);
+    }
+
+    /**
      * Populates operation-level decorator properties on
      * {@code op.vendorExtensions["op"]}. Idempotent — safe to invoke
      * multiple times per operation. Templates consume via
@@ -3530,6 +3714,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // F1062 — per-status success variants for multi-2xx operations.
         populateSuccessResponses(op, d);
+
+        // Declared error responses: the status class and schema of each non-2xx response.
+        populateErrorResponses(op, d);
 
         // O10 — Return kind classification
         d.put("returnKind", deriveReturnKind(op));
@@ -4751,6 +4938,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                     }
                 }
             }
+            putErrorSchemaImports(objs, ops);
         }
         cleanupBadImports(objs);
 
@@ -6049,6 +6237,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (setsDiscriminatorParent()) {
             wireDiscriminatorParents(result);
         }
+        markClassicDiscriminatorInheritance(result);
         for (final ModelsMap modelsMap : result.values()) {
             for (final ModelMap modelMap : modelsMap.getModels()) {
                 final CodegenModel model = modelMap.getModel();
@@ -6092,7 +6281,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 // Gap K: Auto-inject discriminator value on serialization by
                 // defaulting the child model's discriminator property.
                 if (setsDiscriminatorDefaultOnChildren()
-                        && model.discriminator != null && !model.oneOf.isEmpty()) {
+                        && model.discriminator != null
+                        && (!model.oneOf.isEmpty() || isClassicDiscriminatorBase(model))) {
                     final String discPropName = model.discriminator.getPropertyBaseName();
                     final boolean demote = demotesDiscriminatorFromRequiredVars();
                     final boolean resort = sortVarsByDefaultValue();
@@ -6222,6 +6412,92 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         return false;
+    }
+
+    /**
+     * Whether the model is the base of a classic allOf inheritance: it carries
+     * a discriminator but is not a oneOf or anyOf union, and at least one
+     * schema maps to it through the discriminator (explicit mapping or the
+     * implicit schema name of a child that composes it with allOf).
+     */
+    static boolean isClassicDiscriminatorBase(final CodegenModel model) {
+        return model.discriminator != null
+                && model.oneOf.isEmpty()
+                && model.anyOf.isEmpty()
+                && model.discriminator.getMappedModels() != null
+                && !model.discriminator.getMappedModels().isEmpty();
+    }
+
+    /**
+     * Hook for a language that needs more than the shared markers on a classic
+     * allOf child, called once per child after the markers are set. Default
+     * no-op.
+     *
+     * @param child the subtype model
+     * @param base the discriminated base model it composes
+     */
+    protected void decorateClassicDiscriminatorChild(
+            final CodegenModel child, final CodegenModel base) {
+        // no-op; languages with constructors that chain to the base override.
+    }
+
+    /**
+     * Marks classic allOf inheritance for the templates (issue #104). The
+     * base gets {@code x-allof-base}; each mapped child that composes the
+     * base (its {@code parent} is the base) gets {@code x-allof-child}, and
+     * every property of the child that the base already declares gets
+     * {@code x-inherited} in each of the child's property lists, so a
+     * template can leave it to the base while the flattened lists stay
+     * complete for languages that repeat the fields.
+     */
+    void markClassicDiscriminatorInheritance(final Map<String, ModelsMap> allModels) {
+        final Map<String, CodegenModel> byClass = new HashMap<>();
+        for (final ModelsMap modelsMap : allModels.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                byClass.put(modelMap.getModel().classname, modelMap.getModel());
+            }
+        }
+        for (final CodegenModel base : byClass.values()) {
+            if (!isClassicDiscriminatorBase(base)) {
+                continue;
+            }
+            final Set<String> baseProps = new HashSet<>();
+            for (final CodegenProperty p : base.vars) {
+                baseProps.add(p.baseName);
+            }
+            boolean any = false;
+            for (final CodegenDiscriminator.MappedModel mapped :
+                    base.discriminator.getMappedModels()) {
+                final CodegenModel child = byClass.get(mapped.getModelName());
+                if (child == null || !base.classname.equals(child.parent)) {
+                    continue;
+                }
+                any = true;
+                child.vendorExtensions.put("x-allof-child", true);
+                child.vendorExtensions.put("x-allof-base-name", base.classname);
+                child.vendorExtensions.put(
+                        "x-allof-base-filename", toModelFilename(base.classname));
+                child.vendorExtensions.put(
+                        "x-allof-discriminator-property",
+                        base.discriminator.getPropertyBaseName());
+                decorateClassicDiscriminatorChild(child, base);
+                for (final List<CodegenProperty> list : List.of(
+                        child.vars, child.allVars, child.requiredVars,
+                        child.optionalVars, child.readWriteVars)) {
+                    if (list == null) {
+                        continue;
+                    }
+                    for (final CodegenProperty p : list) {
+                        if (baseProps.contains(p.baseName)) {
+                            p.vendorExtensions.put("x-inherited", true);
+                        }
+                    }
+                }
+            }
+            if (any) {
+                base.vendorExtensions.put("x-allof-base", true);
+            }
+        }
     }
 
     /**

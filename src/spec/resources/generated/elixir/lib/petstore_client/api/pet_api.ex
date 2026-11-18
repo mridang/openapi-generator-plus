@@ -293,6 +293,13 @@ defmodule PetstoreClient.Api.PetApi do
     * `{:ok, Pet}` on success.
     * `{:error, exception}` on failure.
 
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
+
   """
   @spec add_pet(
           t(),
@@ -390,7 +397,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -412,6 +420,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, [Photo]}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec add_pet_photos(
@@ -539,7 +554,8 @@ defmodule PetstoreClient.Api.PetApi do
       "multipart/form-data",
       "[Photo]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -692,7 +708,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "PetTreatment",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -712,6 +729,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
 
   """
   @spec delete_pet(
@@ -847,7 +871,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       nil,
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -870,6 +895,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec download_pet_document(
@@ -1015,7 +1047,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1150,7 +1183,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "[Pet]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1171,6 +1205,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, [Pet]}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
 
   ## See also
 
@@ -1371,7 +1412,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "[Pet]",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1532,7 +1574,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1693,7 +1736,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1715,6 +1759,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec get_pet_avatar(
@@ -1830,7 +1881,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -1852,6 +1904,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec get_pet_avatar_thumbnail(
@@ -1972,7 +2031,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -2004,6 +2064,15 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, Pet}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @deprecated "This operation is deprecated."
@@ -2143,7 +2212,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -2335,7 +2405,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -2357,6 +2428,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, PetPassport}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec get_pet_passport(
@@ -2472,7 +2550,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "PetPassport",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -2495,6 +2574,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, binary()}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec get_pet_photo(
@@ -2640,7 +2726,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "binary()",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -2663,6 +2750,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, String.t()}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec get_pet_summary(
@@ -2866,7 +2960,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "String.t()",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -3248,7 +3343,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -3404,7 +3500,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -3427,6 +3524,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec set_pet_avatar(
@@ -3558,7 +3662,8 @@ defmodule PetstoreClient.Api.PetApi do
       content_type,
       nil,
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -3581,6 +3686,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, nil}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec set_pet_avatar_thumbnail(
@@ -3717,7 +3829,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       nil,
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -3739,6 +3852,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, ApiResponse}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec set_pet_preferences(
@@ -3880,7 +4000,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/x-www-form-urlencoded",
       "ApiResponse",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -3901,6 +4022,15 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, Pet}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 400: `PetstoreClient.Errors.BadRequestError`
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec update_pet(
@@ -4024,7 +4154,8 @@ defmodule PetstoreClient.Api.PetApi do
       "application/json",
       "Pet",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -4046,6 +4177,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, ApiResponse}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec upload_pet_certificate(
@@ -4167,7 +4305,8 @@ defmodule PetstoreClient.Api.PetApi do
       "multipart/form-data",
       "ApiResponse",
       auth,
-      call
+      call,
+      %{}
     )
   end
 
@@ -4189,6 +4328,13 @@ defmodule PetstoreClient.Api.PetApi do
 
     * `{:ok, ApiResponse}` on success.
     * `{:error, exception}` on failure.
+
+  ## Errors
+
+  The failure is one of these errors, by the status of the response. A status that is not listed
+  gives the error of its status class, such as `PetstoreClient.Errors.ClientError`.
+
+    * HTTP 404: `PetstoreClient.Errors.NotFoundError`
 
   """
   @spec upload_pet_document(
@@ -4379,7 +4525,8 @@ defmodule PetstoreClient.Api.PetApi do
       content_type,
       "ApiResponse",
       auth,
-      call
+      call,
+      %{}
     )
   end
 end

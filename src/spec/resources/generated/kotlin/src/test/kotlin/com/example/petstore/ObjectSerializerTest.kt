@@ -409,6 +409,17 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerializationobject301 an allOf subtype writes its discriminator value when serialized")
+        fun carSubtypeWritesItsDiscriminator() {
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .Car(plate = "AB-12", doorCount = 4),
+                )
+            assertTrue(json.contains("\"vehicleType\":\"car\""), "discriminator must be written, got: $json")
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject072 a DryFood subtype serialized on its own writes its discriminator")
         fun dryFoodSubtypeWritesItsDiscriminator() {
             val json =

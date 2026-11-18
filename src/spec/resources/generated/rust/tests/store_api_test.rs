@@ -355,7 +355,7 @@ async fn test_bhv_operations_110_store_api_get_order_by_id_picks_the_status_spec
                     | (418, ApiErrorKind::ClientError(_))
                     | (422, ApiErrorKind::UnprocessableEntity(_))
                     | (500, ApiErrorKind::InternalServerError(_))
-                    | (502, ApiErrorKind::ServerError(_))
+                    | (502, ApiErrorKind::BadGateway(_))
             ),
             "status {}: unexpected kind {:?}",
             status,

@@ -202,16 +202,19 @@ void main() {
 
   group('BaseApi', () {
     test('error dispatch', () async {
+      // The Chasm mock serves only these status routes. Every status-to-exception
+      // pair is pinned without a server by bhv errors 006 in the api error test.
       final testCases = <int, Type>{
         400: BadRequestException,
         401: UnauthorizedException,
         403: ForbiddenException,
         404: NotFoundException,
         409: ConflictException,
+        418: ClientException,
         422: UnprocessableEntityException,
         429: TooManyRequestsException,
         500: InternalServerErrorException,
-        502: ServerException,
+        502: BadGatewayException,
       };
 
       for (final entry in testCases.entries) {
@@ -3398,6 +3401,34 @@ void main() {
         throwsA(isA<NetworkTimeoutException>()
             .having((e) => e.requestMethod, 'requestMethod', 'GET')
             .having((e) => e.requestPath, 'requestPath', '/items')),
+      );
+    });
+
+    test('bhv errors 205 a decode failure of a response carries the status, the headers and the raw body', () async {
+      final client = _ScriptedApiClient([
+        ApiHttpResponse(
+          statusCode: 200,
+          body: '[1, 2',
+          headers: {'content-type': 'application/json'},
+        ),
+      ], maxRetries: 0);
+      final api = _RecordingApi(client);
+
+      await expectLater(
+        api.invokeApiForResult<Map<String, dynamic>>(
+          method: 'GET',
+          path: '/items/7?token=secret',
+          returnType: 'Map<String, dynamic>',
+          deserialize: (body) =>
+              deserialize<Map<String, dynamic>>(body, (json) => json)!,
+        ),
+        throwsA(isA<SerializationException>()
+            .having((e) => e.statusCode, 'statusCode', 200)
+            .having((e) => e.responseHeaders?['content-type'], 'content-type',
+                'application/json')
+            .having((e) => e.responseBody, 'responseBody', '[1, 2')
+            .having((e) => e.requestMethod, 'requestMethod', 'GET')
+            .having((e) => e.requestPath, 'requestPath', '/items/7')),
       );
     });
 

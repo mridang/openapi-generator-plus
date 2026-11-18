@@ -43,6 +43,19 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
+    /**
+     * The 501 type is not named {@code NotImplementedException}: that name is
+     * {@code System.NotImplementedException}, which every file importing both
+     * namespaces would see as ambiguous.
+     */
+    @Override
+    protected String statusClassName(String stem) {
+        if ("NotImplemented".equals(stem)) {
+            return "NotImplementedStatusException";
+        }
+        return super.statusClassName(stem);
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterCSharpCodegen.class);
 
     /** One entry per per-scheme authenticator, read by {@code SchemeAuthenticatorTest}. */
@@ -405,6 +418,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("default_api_client.mustache", invokerFolder, "DefaultApiClient.cs"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".cs"),
             new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.cs"),
+            new SupportingFileSpec("errors/ErrorFactory.mustache", errorsFolder, "ErrorFactory.cs"),
             new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.cs"),
             new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.cs"),
             new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.cs"),
@@ -415,6 +429,17 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.cs"),
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.cs"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.cs"),
+            new SupportingFileSpec("errors/PaymentRequiredException.mustache", errorsFolder, "PaymentRequiredException.cs"),
+            new SupportingFileSpec("errors/MethodNotAllowedException.mustache", errorsFolder, "MethodNotAllowedException.cs"),
+            new SupportingFileSpec("errors/RequestTimeoutException.mustache", errorsFolder, "RequestTimeoutException.cs"),
+            new SupportingFileSpec("errors/GoneException.mustache", errorsFolder, "GoneException.cs"),
+            new SupportingFileSpec("errors/PayloadTooLargeException.mustache", errorsFolder, "PayloadTooLargeException.cs"),
+            new SupportingFileSpec("errors/UnsupportedMediaTypeException.mustache", errorsFolder, "UnsupportedMediaTypeException.cs"),
+            new SupportingFileSpec("errors/LockedException.mustache", errorsFolder, "LockedException.cs"),
+            new SupportingFileSpec("errors/NotImplementedStatusException.mustache", errorsFolder, "NotImplementedStatusException.cs"),
+            new SupportingFileSpec("errors/BadGatewayException.mustache", errorsFolder, "BadGatewayException.cs"),
+            new SupportingFileSpec("errors/ServiceUnavailableException.mustache", errorsFolder, "ServiceUnavailableException.cs"),
+            new SupportingFileSpec("errors/GatewayTimeoutException.mustache", errorsFolder, "GatewayTimeoutException.cs"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.cs"),
             new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.cs"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.cs"),
@@ -1151,6 +1176,19 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
 
     /** {@inheritDoc} */
     @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, sourceFolder, packageName.replace(".", "/"), "Errors", className + ".cs")
+                .toString();
+    }
+
+    /** {@inheritDoc} */
+    @Override
     protected String getOptionsFilePath(String operationId, String optionsClassName) {
         return Path.of(
                         outputFolder,
@@ -1351,6 +1389,11 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
     private static void markGuardedRequiredProperties(final CodegenModel model) {
         boolean any = false;
         for (final CodegenProperty property : model.vars) {
+            if (Boolean.TRUE.equals(property.vendorExtensions.get("x-inherited"))) {
+                // A classic allOf child reads an inherited property through its base,
+                // whose OnDeserialized owns the check (the backing field is private to it).
+                continue;
+            }
             final boolean hasDefault =
                     property.defaultValue != null && !property.defaultValue.isEmpty();
             final boolean referenceTyped =

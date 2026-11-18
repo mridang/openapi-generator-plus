@@ -10,7 +10,9 @@ from petstore_client.models.account import Account as Account
 from petstore_client.models.api_response import ApiResponse as ApiResponse
 from petstore_client.models.availability import Availability as Availability
 from petstore_client.models.binary_vault import BinaryVault as BinaryVault
+from petstore_client.models.car import Car as Car
 from petstore_client.models.category import Category as Category
+from petstore_client.models.circle import Circle as Circle
 from petstore_client.models.color import Color as Color
 from petstore_client.models.defaults import Defaults as Defaults
 from petstore_client.models.department import Department as Department
@@ -19,6 +21,7 @@ from petstore_client.models.edge_cases import EdgeCases as EdgeCases
 from petstore_client.models.employee import Employee as Employee
 from petstore_client.models.error import Error as Error
 from petstore_client.models.medication import Medication as Medication
+from petstore_client.models.member_not_found import MemberNotFound as MemberNotFound
 from petstore_client.models.metadata import Metadata as Metadata
 from petstore_client.models.order import Order as Order
 from petstore_client.models.pet import Pet as Pet
@@ -33,6 +36,8 @@ from petstore_client.models.photo_metadata_location import (
     PhotoMetadataLocation as PhotoMetadataLocation,
 )
 from petstore_client.models.priority import Priority as Priority
+from petstore_client.models.project_not_found import ProjectNotFound as ProjectNotFound
+from petstore_client.models.rejected_request import RejectedRequest as RejectedRequest
 from petstore_client.models.required_nullable import (
     RequiredNullable as RequiredNullable,
 )
@@ -51,6 +56,9 @@ from petstore_client.models.set_pet_avatar_request import (
 from petstore_client.models.set_pet_avatar_thumbnail_request import (
     SetPetAvatarThumbnailRequest as SetPetAvatarThumbnailRequest,
 )
+from petstore_client.models.shape import Shape as Shape
+from petstore_client.models.square import Square as Square
+from petstore_client.models.state_conflict import StateConflict as StateConflict
 from petstore_client.models.stock_item import StockItem as StockItem
 from petstore_client.models.strict_tag import StrictTag as StrictTag
 from petstore_client.models.surgery import Surgery as Surgery
@@ -58,4 +66,10 @@ from petstore_client.models.swatch import Swatch as Swatch
 from petstore_client.models.tag import Tag as Tag
 from petstore_client.models.treatment_record import TreatmentRecord as TreatmentRecord
 from petstore_client.models.tree_node import TreeNode as TreeNode
+from petstore_client.models.truck import Truck as Truck
+from petstore_client.models.unexpected_failure import (
+    UnexpectedFailure as UnexpectedFailure,
+)
+from petstore_client.models.upstream_failure import UpstreamFailure as UpstreamFailure
+from petstore_client.models.vehicle import Vehicle as Vehicle
 from petstore_client.models.wet_food import WetFood as WetFood

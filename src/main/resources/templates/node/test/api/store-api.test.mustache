@@ -6,7 +6,7 @@ import { Configuration } from '../../src/configuration{{importFileExtension}}';
 import { DefaultApiClient } from '../../src/default-api-client{{importFileExtension}}';
 import { TransportOptions } from '../../src/transport-options{{importFileExtension}}';
 import { Account, Availability, Defaults, DefaultsModeEnum, Order, OrderStatusEnum, Category, PhotoMetadata, Priority, Reservation, ReservationReceipt, Swatch, TreeNode } from '../../src/models/index{{importFileExtension}}';
-import { BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, SerializationError, ServerError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
+import { BadGatewayError, BadRequestError, ClientError, ConflictError, ForbiddenError, InternalServerError, NotFoundError, SerializationError, UnauthorizedError, UnprocessableEntityError } from '../../src/errors/index{{importFileExtension}}';
 import { uuid, type UUID } from '../../src/brand{{importFileExtension}}';
 import { Temporal } from 'temporal-polyfill';
 
@@ -526,7 +526,7 @@ describe('StoreApi error dispatch through the typed status routes', () => {
     [418, ClientError],
     [422, UnprocessableEntityError],
     [500, InternalServerError],
-    [502, ServerError],
+    [502, BadGatewayError],
   ])('bhv operations 110 getOrderById picks the status-specific error for status %i', async (status, expected) => {
     const statusApi = new StoreApi(
       new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),

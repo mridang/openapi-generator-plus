@@ -126,7 +126,7 @@ class StoreApiTest {
                     409 to "ConflictException",
                     418 to "ClientException",
                     422 to "UnprocessableEntityException",
-                    502 to "ServerException",
+                    502 to "BadGatewayException",
                 )
             for ((status, expected) in cases) {
                 val config = Configuration.builder().baseUrl("${getBaseUrl()}/test/status/$status").build()

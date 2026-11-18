@@ -147,6 +147,17 @@ test('bhv errors 003 every status-specific error keeps an optional cause', funct
     \PetstoreClient\Errors\ConflictException::class,
     \PetstoreClient\Errors\UnprocessableEntityException::class,
     \PetstoreClient\Errors\TooManyRequestsException::class,
+    \PetstoreClient\Errors\PaymentRequiredException::class,
+    \PetstoreClient\Errors\MethodNotAllowedException::class,
+    \PetstoreClient\Errors\RequestTimeoutException::class,
+    \PetstoreClient\Errors\GoneException::class,
+    \PetstoreClient\Errors\PayloadTooLargeException::class,
+    \PetstoreClient\Errors\UnsupportedMediaTypeException::class,
+    \PetstoreClient\Errors\LockedException::class,
+    \PetstoreClient\Errors\NotImplementedException::class,
+    \PetstoreClient\Errors\BadGatewayException::class,
+    \PetstoreClient\Errors\ServiceUnavailableException::class,
+    \PetstoreClient\Errors\GatewayTimeoutException::class,
     \PetstoreClient\Errors\InternalServerErrorException::class,
 ]);
 
@@ -163,6 +174,17 @@ test('every typed API error extends the base ApiException', function (): void {
         new \PetstoreClient\Errors\ConflictException('conflict'),
         new \PetstoreClient\Errors\UnprocessableEntityException('unprocessable'),
         new \PetstoreClient\Errors\TooManyRequestsException('slow down'),
+        new \PetstoreClient\Errors\PaymentRequiredException('slow down'),
+        new \PetstoreClient\Errors\MethodNotAllowedException('slow down'),
+        new \PetstoreClient\Errors\RequestTimeoutException('slow down'),
+        new \PetstoreClient\Errors\GoneException('slow down'),
+        new \PetstoreClient\Errors\PayloadTooLargeException('slow down'),
+        new \PetstoreClient\Errors\UnsupportedMediaTypeException('slow down'),
+        new \PetstoreClient\Errors\LockedException('slow down'),
+        new \PetstoreClient\Errors\NotImplementedException('slow down'),
+        new \PetstoreClient\Errors\BadGatewayException('slow down'),
+        new \PetstoreClient\Errors\ServiceUnavailableException('slow down'),
+        new \PetstoreClient\Errors\GatewayTimeoutException('slow down'),
         new \PetstoreClient\Errors\ClientException(418, 'client error'),
         new \PetstoreClient\Errors\InternalServerErrorException('server error'),
         new \PetstoreClient\Errors\ServerException(503, 'server error'),
@@ -230,14 +252,87 @@ test('bhv errors 006 fromResponse maps every status to its exception', function 
     [409, \PetstoreClient\Errors\ConflictException::class],
     [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
     [429, \PetstoreClient\Errors\TooManyRequestsException::class],
+    [402, \PetstoreClient\Errors\PaymentRequiredException::class],
+    [405, \PetstoreClient\Errors\MethodNotAllowedException::class],
+    [408, \PetstoreClient\Errors\RequestTimeoutException::class],
+    [410, \PetstoreClient\Errors\GoneException::class],
+    [413, \PetstoreClient\Errors\PayloadTooLargeException::class],
+    [415, \PetstoreClient\Errors\UnsupportedMediaTypeException::class],
+    [423, \PetstoreClient\Errors\LockedException::class],
+    [501, \PetstoreClient\Errors\NotImplementedException::class],
+    [502, \PetstoreClient\Errors\BadGatewayException::class],
+    [503, \PetstoreClient\Errors\ServiceUnavailableException::class],
+    [504, \PetstoreClient\Errors\GatewayTimeoutException::class],
     [418, \PetstoreClient\Errors\ClientException::class],
     [500, \PetstoreClient\Errors\InternalServerErrorException::class],
-    [503, \PetstoreClient\Errors\ServerException::class],
+    [599, \PetstoreClient\Errors\ServerException::class],
     // 302 is below the client range and 600 above the server range: neither
     // is a ClientException or a ServerException, both are the base type.
     [302, ApiException::class],
     [600, ApiException::class],
 ]);
+
+test('bhv errors 201 an error is retryable exactly for the statuses the client retries', function (int $status, bool $retryable): void {
+    expect(ApiException::fromResponse($status, [], null)->isRetryable())->toBe($retryable);
+})->with([
+    [408, true],
+    [409, true],
+    [429, true],
+    [500, true],
+    [502, true],
+    [503, true],
+    [504, true],
+    [599, true],
+    [400, false],
+    [401, false],
+    [403, false],
+    [404, false],
+    [422, false],
+    [501, false],
+    [302, false],
+]);
+
+test('bhv errors 202 an error exposes the x-request-id response header as its request id', /** @param array<string, string>|null $headers */ function (?array $headers, ?string $expected): void {
+    expect(ApiException::fromResponse(500, $headers, null)->getRequestId())->toBe($expected);
+})->with([
+    [['X-Request-ID' => 'abc'], 'abc'],
+    [['x-request-id' => 'abc'], 'abc'],
+    [['other' => 'abc'], null],
+    [[], null],
+    [null, null],
+]);
+
+test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default', function (int $status, string $expected): void {
+    $factory = static fn (string $name): \Closure =>
+        /** @param array<string, string>|null $h */
+        static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, $name, $h, $b);
+    $factories = ['404' => $factory('exact'), '4XX' => $factory('range'), 'default' => $factory('default')];
+
+    expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
+})->with([
+    [404, 'exact'],
+    [418, 'range'],
+    [502, 'default'],
+]);
+
+test('bhv errors 203 a status without a factory keeps the status exception', function (): void {
+    /** @param array<string, string>|null $h */
+    $other = static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, 'other', $h, $b);
+
+    expect(ApiException::fromResponse(502, [], '{}', 'GET', '/x', ['404' => $other])::class)
+        ->toBe(\PetstoreClient\Errors\BadGatewayException::class);
+    expect(ApiException::fromResponse(404, [], '{}', 'GET', '/x', [])::class)
+        ->toBe(\PetstoreClient\Errors\NotFoundException::class);
+});
+
+test('bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause', function (): void {
+    $ex = \PetstoreClient\Errors\UnexpectedFailureException::fromErrorResponse(400, [], '[1, 2', 'GET', '/x');
+
+    expect($ex::class)->toBe(ApiException::fromResponse(400, [], '[1, 2', 'GET', '/x')::class);
+    expect($ex->getResponseBody())->toBe('[1, 2');
+    expect($ex->getStatusCode())->toBe(400);
+    expect($ex->getPrevious())->toBeInstanceOf(SerializationException::class);
+});
 
 test('bhv errors 007 fromResponse carries the request method and the path without its query string', function (int $status, string $expected): void {
     $ex = ApiException::fromResponse($status, [], '{}', 'get', 'https://api.example.com/v2/items/7?token=secret#top');
@@ -254,8 +349,19 @@ test('bhv errors 007 fromResponse carries the request method and the path withou
     [418, \PetstoreClient\Errors\ClientException::class],
     [422, \PetstoreClient\Errors\UnprocessableEntityException::class],
     [429, \PetstoreClient\Errors\TooManyRequestsException::class],
+    [402, \PetstoreClient\Errors\PaymentRequiredException::class],
+    [405, \PetstoreClient\Errors\MethodNotAllowedException::class],
+    [408, \PetstoreClient\Errors\RequestTimeoutException::class],
+    [410, \PetstoreClient\Errors\GoneException::class],
+    [413, \PetstoreClient\Errors\PayloadTooLargeException::class],
+    [415, \PetstoreClient\Errors\UnsupportedMediaTypeException::class],
+    [423, \PetstoreClient\Errors\LockedException::class],
+    [501, \PetstoreClient\Errors\NotImplementedException::class],
+    [502, \PetstoreClient\Errors\BadGatewayException::class],
+    [503, \PetstoreClient\Errors\ServiceUnavailableException::class],
+    [504, \PetstoreClient\Errors\GatewayTimeoutException::class],
     [500, \PetstoreClient\Errors\InternalServerErrorException::class],
-    [503, \PetstoreClient\Errors\ServerException::class],
+    [599, \PetstoreClient\Errors\ServerException::class],
     [302, ApiException::class],
 ]);
 
@@ -284,7 +390,7 @@ test('a bare path or a query only target reduces to a path', function (string $t
 ]);
 
 test('bhv errors 005 fromResponse leaves the error body null when the body is not JSON', function (): void {
-    $ex = ApiException::fromResponse(502, [], '<html>bad gateway</html>');
+    $ex = ApiException::fromResponse(599, [], '<html>bad gateway</html>');
 
     expect($ex::class)->toBe(\PetstoreClient\Errors\ServerException::class);
     expect($ex->getResponseBody())->toBe('<html>bad gateway</html>');
@@ -323,6 +429,17 @@ test('every error type lives in the Errors namespace under the root', function (
     \PetstoreClient\Errors\ConflictException::class,
     \PetstoreClient\Errors\UnprocessableEntityException::class,
     \PetstoreClient\Errors\TooManyRequestsException::class,
+    \PetstoreClient\Errors\PaymentRequiredException::class,
+    \PetstoreClient\Errors\MethodNotAllowedException::class,
+    \PetstoreClient\Errors\RequestTimeoutException::class,
+    \PetstoreClient\Errors\GoneException::class,
+    \PetstoreClient\Errors\PayloadTooLargeException::class,
+    \PetstoreClient\Errors\UnsupportedMediaTypeException::class,
+    \PetstoreClient\Errors\LockedException::class,
+    \PetstoreClient\Errors\NotImplementedException::class,
+    \PetstoreClient\Errors\BadGatewayException::class,
+    \PetstoreClient\Errors\ServiceUnavailableException::class,
+    \PetstoreClient\Errors\GatewayTimeoutException::class,
     \PetstoreClient\Errors\InternalServerErrorException::class,
     \PetstoreClient\Errors\NetworkException::class,
     \PetstoreClient\Errors\NetworkTimeoutException::class,

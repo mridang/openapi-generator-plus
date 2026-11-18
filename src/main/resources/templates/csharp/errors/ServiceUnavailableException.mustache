@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 503 Service Unavailable.
+/// </summary>
+public class ServiceUnavailableException : ServerException
+{
+    public ServiceUnavailableException()
+        : this("Service Unavailable") { }
+
+    public ServiceUnavailableException(string message)
+        : this(message, null, null, null) { }
+
+    public ServiceUnavailableException(string message, Exception innerException)
+        : base(503, message, innerException) { }
+
+    public ServiceUnavailableException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(503, message, responseHeaders, responseBody, errorBody) { }
+}

@@ -414,6 +414,7 @@ public class PetApi extends BaseApi {
    * @param pet Create a new pet in the store (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public Pet addPet(Pet pet) {
     return addPet(pet, null);
@@ -429,6 +430,7 @@ public class PetApi extends BaseApi {
    * @param pet Create a new pet in the store (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Pet> addPetWithHttpInfo(Pet pet) {
     return addPetWithHttpInfo(pet, null);
@@ -441,6 +443,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public Pet addPet(Pet pet, @Nullable AddPetOptions options) {
     return requireBody(addPetWithHttpInfo(pet, options), "addPet");
@@ -453,6 +456,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Pet> addPetWithHttpInfo(Pet pet, @Nullable AddPetOptions options) {
     if (pet == null) {
@@ -481,6 +485,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("apiKeyHeader", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -492,6 +497,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return {@code List<Photo>}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public List<Photo> addPetPhotos(Long petId, AddPetPhotosOptions options) {
     return requireBody(addPetPhotosWithHttpInfo(petId, options), "addPetPhotos");
@@ -505,6 +511,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code List<Photo>}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<List<Photo>> addPetPhotosWithHttpInfo(Long petId, AddPetPhotosOptions options) {
     if (petId == null) {
@@ -551,6 +558,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -649,6 +657,7 @@ public class PetApi extends BaseApi {
         null,
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -661,6 +670,7 @@ public class PetApi extends BaseApi {
    *
    * @param petId Pet id to delete (required)
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public void deletePet(Long petId) {
     deletePet(petId, null);
@@ -676,6 +686,7 @@ public class PetApi extends BaseApi {
    * @param petId Pet id to delete (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Void> deletePetWithHttpInfo(Long petId) {
     return deletePetWithHttpInfo(petId, null);
@@ -687,6 +698,7 @@ public class PetApi extends BaseApi {
    * @param petId Pet id to delete (required)
    * @param options options for query, header, form, and cookie parameters
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public void deletePet(Long petId, @Nullable DeletePetOptions options) {
     deletePetWithHttpInfo(petId, options);
@@ -699,6 +711,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   public ApiResult<Void> deletePetWithHttpInfo(Long petId, @Nullable DeletePetOptions options) {
     if (petId == null) {
@@ -759,6 +772,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("adminBasic", "machineAuth"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -773,6 +787,7 @@ public class PetApi extends BaseApi {
    * @param documentId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public InputStream downloadPetDocument(Long petId, Long documentId) {
     return downloadPetDocument(petId, documentId, null);
@@ -789,6 +804,7 @@ public class PetApi extends BaseApi {
    * @param documentId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(Long petId, Long documentId) {
     return downloadPetDocumentWithHttpInfo(petId, documentId, null);
@@ -803,6 +819,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public InputStream downloadPetDocument(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
@@ -819,6 +836,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<InputStream> downloadPetDocumentWithHttpInfo(
       Long petId, Long documentId, @Nullable DownloadPetDocumentOptions options) {
@@ -863,6 +881,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -950,6 +969,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -962,6 +982,7 @@ public class PetApi extends BaseApi {
    *
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   @Deprecated
   public List<Pet> findPetsByStatus() {
@@ -977,6 +998,7 @@ public class PetApi extends BaseApi {
    *
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    */
   @Deprecated
   public ApiResult<List<Pet>> findPetsByStatusWithHttpInfo() {
@@ -989,6 +1011,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return {@code List<Pet>}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @deprecated This operation is deprecated. Find out more about filtering
    * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
    */
@@ -1003,6 +1026,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code List<Pet>}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
    * @deprecated This operation is deprecated. Find out more about filtering
    * @see <a href="https://example.com/docs/filtering">Find out more about filtering</a>
    */
@@ -1071,6 +1095,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1197,6 +1222,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1323,6 +1349,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1336,6 +1363,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public InputStream getPetAvatar(Long petId) {
     return getPetAvatar(petId, null);
@@ -1351,6 +1379,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<InputStream> getPetAvatarWithHttpInfo(Long petId) {
     return getPetAvatarWithHttpInfo(petId, null);
@@ -1363,6 +1392,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public InputStream getPetAvatar(Long petId, @Nullable GetPetAvatarOptions options) {
     return requireBody(getPetAvatarWithHttpInfo(petId, options), "getPetAvatar");
@@ -1375,6 +1405,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<InputStream> getPetAvatarWithHttpInfo(
       Long petId, @Nullable GetPetAvatarOptions options) {
@@ -1410,6 +1441,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1423,6 +1455,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @return {@code byte[]}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public byte[] getPetAvatarThumbnail(Long petId) {
     return getPetAvatarThumbnail(petId, null);
@@ -1438,6 +1471,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @return the API result wrapping {@code byte[]}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(Long petId) {
     return getPetAvatarThumbnailWithHttpInfo(petId, null);
@@ -1451,6 +1485,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code byte[]}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public byte[] getPetAvatarThumbnail(Long petId, @Nullable GetPetAvatarThumbnailOptions options) {
     return requireBody(getPetAvatarThumbnailWithHttpInfo(petId, options), "getPetAvatarThumbnail");
@@ -1464,6 +1499,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code byte[]}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<byte[]> getPetAvatarThumbnailWithHttpInfo(
       Long petId, @Nullable GetPetAvatarThumbnailOptions options) {
@@ -1499,6 +1535,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1510,6 +1547,8 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    * @deprecated This operation is deprecated.
    */
   @Deprecated
@@ -1525,6 +1564,8 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    * @deprecated This operation is deprecated.
    */
   @Deprecated
@@ -1543,6 +1584,8 @@ public class PetApi extends BaseApi {
    *     breed ID: {@code 42}
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Deprecated
   public Pet getPetById(Long petId) {
@@ -1560,6 +1603,8 @@ public class PetApi extends BaseApi {
    *     breed ID: {@code 42}
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   @Deprecated
   public ApiResult<Pet> getPetByIdWithHttpInfo(Long petId) {
@@ -1575,6 +1620,8 @@ public class PetApi extends BaseApi {
    * @param server the server to send the request to, or {@code null} for the default
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    * @deprecated This operation is deprecated.
    */
   @Deprecated
@@ -1592,6 +1639,8 @@ public class PetApi extends BaseApi {
    * @param server the server to send the request to, or {@code null} for the default
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    * @deprecated This operation is deprecated.
    */
   @Deprecated
@@ -1635,6 +1684,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1724,6 +1774,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1737,6 +1788,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @return {@code PetPassport}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public PetPassport getPetPassport(Long petId) {
     return getPetPassport(petId, null);
@@ -1752,6 +1804,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @return the API result wrapping {@code PetPassport}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<PetPassport> getPetPassportWithHttpInfo(Long petId) {
     return getPetPassportWithHttpInfo(petId, null);
@@ -1766,6 +1819,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code PetPassport}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public PetPassport getPetPassport(Long petId, @Nullable GetPetPassportOptions options) {
     return requireBody(getPetPassportWithHttpInfo(petId, options), "getPetPassport");
@@ -1780,6 +1834,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code PetPassport}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<PetPassport> getPetPassportWithHttpInfo(
       Long petId, @Nullable GetPetPassportOptions options) {
@@ -1815,6 +1870,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1829,6 +1885,7 @@ public class PetApi extends BaseApi {
    * @param photoId (required)
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public InputStream getPetPhoto(Long petId, Long photoId) {
     return getPetPhoto(petId, photoId, null);
@@ -1845,6 +1902,7 @@ public class PetApi extends BaseApi {
    * @param photoId (required)
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<InputStream> getPetPhotoWithHttpInfo(Long petId, Long photoId) {
     return getPetPhotoWithHttpInfo(petId, photoId, null);
@@ -1859,6 +1917,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public InputStream getPetPhoto(Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
     return requireBody(getPetPhotoWithHttpInfo(petId, photoId, options), "getPetPhoto");
@@ -1873,6 +1932,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code InputStream}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<InputStream> getPetPhotoWithHttpInfo(
       Long petId, Long photoId, @Nullable GetPetPhotoOptions options) {
@@ -1917,6 +1977,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -1929,6 +1990,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return {@code String}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public String getPetSummary(Long petId, LocalDate asOf, GetPetSummaryOptions options) {
     return requireBody(getPetSummaryWithHttpInfo(petId, asOf, options), "getPetSummary");
@@ -1943,6 +2005,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code String}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<String> getPetSummaryWithHttpInfo(
       Long petId, LocalDate asOf, GetPetSummaryOptions options) {
@@ -2027,6 +2090,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2213,6 +2277,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2338,6 +2403,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2351,6 +2417,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @param body (required)
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void setPetAvatar(Long petId, InputStream body) {
     setPetAvatar(petId, body, null);
@@ -2367,6 +2434,7 @@ public class PetApi extends BaseApi {
    * @param body (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> setPetAvatarWithHttpInfo(Long petId, InputStream body) {
     return setPetAvatarWithHttpInfo(petId, body, null);
@@ -2380,6 +2448,7 @@ public class PetApi extends BaseApi {
    * @param body (required)
    * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void setPetAvatar(Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
     setPetAvatarWithHttpInfo(petId, body, options);
@@ -2398,6 +2467,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void setPetAvatar(
       Long petId,
@@ -2421,6 +2491,7 @@ public class PetApi extends BaseApi {
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId,
@@ -2439,6 +2510,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> setPetAvatarWithHttpInfo(
       Long petId, InputStream body, @Nullable SetPetAvatarOptions options) {
@@ -2505,6 +2577,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2518,6 +2591,7 @@ public class PetApi extends BaseApi {
    * @param petId (required)
    * @param setPetAvatarThumbnailRequest (required)
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void setPetAvatarThumbnail(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
@@ -2535,6 +2609,7 @@ public class PetApi extends BaseApi {
    * @param setPetAvatarThumbnailRequest (required)
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId, SetPetAvatarThumbnailRequest setPetAvatarThumbnailRequest) {
@@ -2549,6 +2624,7 @@ public class PetApi extends BaseApi {
    * @param setPetAvatarThumbnailRequest (required)
    * @param options options carrying the per-call timeout, retry count and headers
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public void setPetAvatarThumbnail(
       Long petId,
@@ -2566,6 +2642,7 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping no body
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Void> setPetAvatarThumbnailWithHttpInfo(
       Long petId,
@@ -2608,6 +2685,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2620,6 +2698,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResponse setPetPreferences(Long petId, SetPetPreferencesOptions options) {
     return requireBody(setPetPreferencesWithHttpInfo(petId, options), "setPetPreferences");
@@ -2634,6 +2713,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<ApiResponse> setPetPreferencesWithHttpInfo(
       Long petId, SetPetPreferencesOptions options) {
@@ -2690,6 +2770,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2704,6 +2785,8 @@ public class PetApi extends BaseApi {
    * @param pet Pet object that needs to be updated (required)
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public Pet updatePet(Long petId, Pet pet) {
     return updatePet(petId, pet, null);
@@ -2720,6 +2803,8 @@ public class PetApi extends BaseApi {
    * @param pet Pet object that needs to be updated (required)
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Pet> updatePetWithHttpInfo(Long petId, Pet pet) {
     return updatePetWithHttpInfo(petId, pet, null);
@@ -2733,6 +2818,8 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public Pet updatePet(Long petId, Pet pet, @Nullable UpdatePetOptions options) {
     return requireBody(updatePetWithHttpInfo(petId, pet, options), "updatePet");
@@ -2746,6 +2833,8 @@ public class PetApi extends BaseApi {
    * @param options options carrying the per-call timeout, retry count and headers
    * @return the API result wrapping {@code Pet}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.BadRequestException on HTTP 400
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<Pet> updatePetWithHttpInfo(
       Long petId, Pet pet, @Nullable UpdatePetOptions options) {
@@ -2785,6 +2874,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2796,6 +2886,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResponse uploadPetCertificate(Long petId, UploadPetCertificateOptions options) {
     return requireBody(uploadPetCertificateWithHttpInfo(petId, options), "uploadPetCertificate");
@@ -2809,6 +2900,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<ApiResponse> uploadPetCertificateWithHttpInfo(
       Long petId, UploadPetCertificateOptions options) {
@@ -2851,6 +2943,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 
@@ -2863,6 +2956,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResponse uploadPetDocument(Long petId, UploadPetDocumentOptions options) {
     return requireBody(uploadPetDocumentWithHttpInfo(petId, options), "uploadPetDocument");
@@ -2881,6 +2975,7 @@ public class PetApi extends BaseApi {
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @return {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResponse uploadPetDocument(
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
@@ -2901,6 +2996,7 @@ public class PetApi extends BaseApi {
    * @param requestContentType the request content-type to send, or {@code null} for the default
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options, @Nullable String requestContentType) {
@@ -2916,6 +3012,7 @@ public class PetApi extends BaseApi {
    * @param options options for query, header, form, and cookie parameters
    * @return the API result wrapping {@code ApiResponse}
    * @throws ApiException if fails to make API call
+   * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   public ApiResult<ApiResponse> uploadPetDocumentWithHttpInfo(
       Long petId, UploadPetDocumentOptions options) {
@@ -3000,6 +3097,7 @@ public class PetApi extends BaseApi {
         resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
         callTimeout,
         callMaxRetries,
+        null,
         null);
   }
 

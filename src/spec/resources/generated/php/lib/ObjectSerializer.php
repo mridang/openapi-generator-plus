@@ -1129,6 +1129,24 @@ class ObjectSerializer
             return $result;
         }
 
+        /* A classic allOf base (a schema with a discriminator that subtypes
+         * compose with allOf) decodes to the subtype its discriminator value
+         * names. subtypeClass() throws on a missing, non-string or unknown
+         * value, and returns the class itself for a subtype, so the recursion
+         * stops at the subtype. A payload that is not a JSON object falls
+         * through to the normal path, which reports it. */
+        if (class_exists($class) && method_exists($class, 'subtypeClass')) {
+            $payload = !$decoded && is_string($data)
+                ? json_decode($data, true, self::JSON_DECODE_DEPTH)
+                : $data;
+            if (is_array($payload)) {
+                $subtype = $class::subtypeClass($payload);
+                if ($subtype !== $class) {
+                    return self::deserializeInternal($data, $subtype, $httpHeaders, $decoded);
+                }
+            }
+        }
+
         /* Gap AU-residual: a oneOf/anyOf composed model carries a static
          * build() + a getActualInstance() accessor instead of
          * SerializedName-decorated typed properties. Routing it through the

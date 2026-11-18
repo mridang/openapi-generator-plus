@@ -13,6 +13,8 @@ tags:
       url: https://example.com/docs/pets
   - name: store
     description: Access to Petstore orders
+  - name: problems
+    description: Operations that declare typed error responses
 servers:
   - url: /api/v3
     description: Relative URL (no variables)
@@ -1509,6 +1511,171 @@ paths:
   # Served by chasm; filtered out of SDK generation by DropInternalOperationsRule
   # (each operation carries x-internal: true). Echo, delay, compression,
   # redirects, error statuses, multi-value headers, text/empty bodies.
+  # Declared error responses: two operations that each declare a 404 with a
+  # DIFFERENT schema, one status range per range operation, a default response,
+  # and one schema declared under two statuses.
+  /projects/{projectId}:
+    get:
+      tags: [problems]
+      summary: Read a project, declaring a 404 with its own schema
+      operationId: getProject
+      security: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The project was found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+        '404':
+          description: The project does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectNotFound'
+
+  /members/{memberId}:
+    get:
+      tags: [problems]
+      summary: Read a member, declaring a 404 with a different schema
+      operationId: getMember
+      security: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The member was found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+        '404':
+          description: The member does not exist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberNotFound'
+
+  /ranges/{rangeId}:
+    get:
+      tags: [problems]
+      summary: Read a range, declaring one schema for every 4XX status
+      operationId: getRange
+      security: []
+      parameters:
+        - name: rangeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The range was found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+        '4XX':
+          description: The request was rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RejectedRequest'
+
+  /upstreams/{upstreamId}:
+    get:
+      tags: [problems]
+      summary: Read an upstream, declaring one schema for every 5XX status
+      operationId: getUpstream
+      security: []
+      parameters:
+        - name: upstreamId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The upstream answered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+        '5XX':
+          description: The upstream failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpstreamFailure'
+
+  /fallbacks/{fallbackId}:
+    get:
+      tags: [problems]
+      summary: Read a fallback, declaring a default response
+      operationId: getFallback
+      security: []
+      parameters:
+        - name: fallbackId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The fallback was found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+        default:
+          description: Any other failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnexpectedFailure'
+
+  /locks/{lockId}:
+    put:
+      tags: [problems]
+      summary: Take a lock, declaring one schema under two statuses
+      operationId: takeLock
+      security: []
+      parameters:
+        - name: lockId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The lock was taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Result'
+        '409':
+          description: The lock is in a conflicting state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateConflict'
+        '423':
+          description: The lock is held elsewhere
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateConflict'
+
   /test/echo:
     parameters: []
     get:    { operationId: testEchoGet,    x-internal: true, tags: [test], security: [], x-chasm-echo: true, responses: { '200': { description: Echo of the request as JSON envelope, content: { application/json: { schema: { type: object } } } } } }
@@ -2114,6 +2281,78 @@ components:
               type: string
               format: email
 
+    # Classic allOf inheritance: a base schema with a discriminator and children that
+    # compose it. Vehicle uses an explicit mapping, Shape the implicit schema-name one.
+    Vehicle:
+      type: object
+      required:
+        - vehicleType
+        - plate
+      properties:
+        vehicleType:
+          type: string
+        plate:
+          type: string
+      discriminator:
+        propertyName: vehicleType
+        mapping:
+          car: '#/components/schemas/Car'
+          truck: '#/components/schemas/Truck'
+
+    Car:
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          required:
+            - doorCount
+          properties:
+            doorCount:
+              type: integer
+              format: int32
+
+    Truck:
+      allOf:
+        - $ref: '#/components/schemas/Vehicle'
+        - type: object
+          properties:
+            payloadKg:
+              type: integer
+              format: int32
+
+    Shape:
+      type: object
+      required:
+        - shapeType
+      properties:
+        shapeType:
+          type: string
+        label:
+          type: string
+      discriminator:
+        propertyName: shapeType
+
+    Circle:
+      allOf:
+        - $ref: '#/components/schemas/Shape'
+        - type: object
+          required:
+            - radius
+          properties:
+            radius:
+              type: number
+              format: double
+
+    Square:
+      allOf:
+        - $ref: '#/components/schemas/Shape'
+        - type: object
+          required:
+            - side
+          properties:
+            side:
+              type: number
+              format: double
+
     Photo:
       type: object
       properties:
@@ -2579,3 +2818,57 @@ components:
       properties:
         ok:
           type: boolean
+
+    ProjectNotFound:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    MemberNotFound:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        detail:
+          type: string
+
+    RejectedRequest:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    UpstreamFailure:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    UnexpectedFailure:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+
+    StateConflict:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string

@@ -28,6 +28,7 @@ import java.util.Set;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
@@ -433,6 +434,17 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             new SupportingFileSpec("errors/forbidden_exception.mustache", errorsDir, "forbidden_exception.dart"),
             new SupportingFileSpec("errors/not_found_exception.mustache", errorsDir, "not_found_exception.dart"),
             new SupportingFileSpec("errors/conflict_exception.mustache", errorsDir, "conflict_exception.dart"),
+            new SupportingFileSpec("errors/payment_required_exception.mustache", errorsDir, "payment_required_exception.dart"),
+            new SupportingFileSpec("errors/method_not_allowed_exception.mustache", errorsDir, "method_not_allowed_exception.dart"),
+            new SupportingFileSpec("errors/request_timeout_exception.mustache", errorsDir, "request_timeout_exception.dart"),
+            new SupportingFileSpec("errors/gone_exception.mustache", errorsDir, "gone_exception.dart"),
+            new SupportingFileSpec("errors/payload_too_large_exception.mustache", errorsDir, "payload_too_large_exception.dart"),
+            new SupportingFileSpec("errors/unsupported_media_type_exception.mustache", errorsDir, "unsupported_media_type_exception.dart"),
+            new SupportingFileSpec("errors/locked_exception.mustache", errorsDir, "locked_exception.dart"),
+            new SupportingFileSpec("errors/not_implemented_exception.mustache", errorsDir, "not_implemented_exception.dart"),
+            new SupportingFileSpec("errors/bad_gateway_exception.mustache", errorsDir, "bad_gateway_exception.dart"),
+            new SupportingFileSpec("errors/service_unavailable_exception.mustache", errorsDir, "service_unavailable_exception.dart"),
+            new SupportingFileSpec("errors/gateway_timeout_exception.mustache", errorsDir, "gateway_timeout_exception.dart"),
             new SupportingFileSpec("errors/unprocessable_entity_exception.mustache", errorsDir, "unprocessable_entity_exception.dart"),
             new SupportingFileSpec("errors/too_many_requests_exception.mustache", errorsDir, "too_many_requests_exception.dart"),
             new SupportingFileSpec("errors/internal_server_error_exception.mustache", errorsDir, "internal_server_error_exception.dart"),
@@ -774,6 +786,86 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
     }
 
     /**
+     * Realises a classic allOf base and its children (S4) for the Dart template. The shared pass
+     * marks them with {@code x-} keys; this pass copies what the template reads under names
+     * without the prefix, lists the subtypes a base decodes to (only children that compose it, so
+     * a mapping to an unrelated schema never becomes a return of the wrong type), adds the imports
+     * each side needs, and records the class that declares each property's enum, so an inherited
+     * enum keeps the base's type.
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(final Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        final Map<String, CodegenModel> byName = new HashMap<>();
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                byName.put(modelMap.getModel().classname, modelMap.getModel());
+            }
+        }
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                final boolean isBase = Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"));
+                final boolean isChild = Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-child"));
+                final String parent = isChild
+                        ? String.valueOf(model.vendorExtensions.get("x-allof-base-name"))
+                        : model.classname;
+                model.vendorExtensions.put("dartAllOfBase", isBase);
+                model.vendorExtensions.put("dartAllOfChild", isChild);
+                if (isChild) {
+                    model.vendorExtensions.put("dartAllOfParent", parent);
+                    model.imports.add(parent);
+                }
+                for (final CodegenProperty prop : model.vars) {
+                    final boolean inherited = isChild
+                            && Boolean.TRUE.equals(prop.vendorExtensions.get("x-inherited"));
+                    prop.vendorExtensions.put("dartInherited", inherited);
+                    prop.vendorExtensions.put("dartOwner", inherited ? parent : model.classname);
+                }
+                if (isBase && model.discriminator != null) {
+                    final List<Map<String, String>> subtypes = new ArrayList<>();
+                    for (final CodegenDiscriminator.MappedModel mapped
+                            : model.discriminator.getMappedModels()) {
+                        final CodegenModel child = byName.get(mapped.getModelName());
+                        if (child == null
+                                || !Boolean.TRUE.equals(child.vendorExtensions.get("x-allof-child"))
+                                || !model.classname.equals(
+                                        String.valueOf(child.vendorExtensions.get("x-allof-base-name")))) {
+                            continue;
+                        }
+                        final Map<String, String> entry = new HashMap<>();
+                        entry.put("mappingName", mapped.getMappingName());
+                        entry.put("modelName", child.classname);
+                        subtypes.add(entry);
+                        model.imports.add(child.classname);
+                    }
+                    model.vendorExtensions.put("dartSubtypes", subtypes);
+                }
+                if (isBase || isChild) {
+                    refreshDartImports(modelMap, model);
+                }
+            }
+        }
+        return result;
+    }
+
+    /** Rebuilds the {@code dartImports} context of a model after its imports changed. */
+    private void refreshDartImports(final ModelMap modelMap, final CodegenModel model) {
+        final List<Map<String, String>> importList = new ArrayList<>();
+        for (final String importName : model.imports) {
+            if (!languageSpecificPrimitives.contains(importName)
+                    && !typeMapping.containsValue(importName)) {
+                final Map<String, String> entry = new HashMap<>();
+                entry.put("classname", importName);
+                entry.put("filename", toModelFilename(importName));
+                importList.add(entry);
+            }
+        }
+        modelMap.put("dartImports", importList);
+        modelMap.put("hasDartImports", !importList.isEmpty());
+    }
+
+    /**
      * Gives a property whose {@code $ref} to an enum carries a sibling {@code default} (an OAS
      * 3.1 keyword next to the reference, F866) the same default a component default gets: the
      * shared generator records it as {@code siblingDefault}, and the property has no default of
@@ -1111,6 +1203,7 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
             final List<CodegenOperation> ops =
                     (List<CodegenOperation>) operations.get("operation");
             if (ops != null) {
+                final Map<String, Map<String, String>> errorImports = new java.util.LinkedHashMap<>();
                 for (final CodegenOperation op : ops) {
                     if (op.vendorExtensions == null) {
                         op.vendorExtensions = new HashMap<>();
@@ -1134,7 +1227,20 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                                 serverBeforeOptions((List<Map<String, Object>>) sigArgs));
                     }
                     op.vendorExtensions.put("op", opDeco);
+                    final Object declared = opDeco.get("errorSchemaResponses");
+                    if (declared instanceof List) {
+                        for (final Object row : (List<Object>) declared) {
+                            final String className = (String) ((Map<String, Object>) row).get("schemaClassName");
+                            errorImports.computeIfAbsent(className, name -> {
+                                final Map<String, String> entry = new HashMap<>();
+                                entry.put("className", name);
+                                entry.put("classFilename", NamingConvention.SNAKE_CASE.apply(name));
+                                return entry;
+                            });
+                        }
+                    }
                 }
+                objs.put("errorImports", new ArrayList<>(errorImports.values()));
             }
         }
 
@@ -1462,6 +1568,19 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                         + NamingConvention.SNAKE_CASE.apply(getAuthenticatorTypeName())
                         + ".dart");
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_exception.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "lib", "src", "errors", NamingConvention.SNAKE_CASE.apply(className) + ".dart")
+                .toString();
     }
 
     /** {@inheritDoc} */

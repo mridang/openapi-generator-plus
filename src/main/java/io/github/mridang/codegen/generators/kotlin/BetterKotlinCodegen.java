@@ -525,6 +525,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("root_exception.mustache", errorsFolder, rootErrorName("Exception") + ".kt"),
             new SupportingFileSpec("api_error.mustache", errorsFolder, "ApiException.kt"),
+            new SupportingFileSpec("errors/ErrorFactory.mustache", errorsFolder, "ErrorFactory.kt"),
             new SupportingFileSpec("errors/SerializationException.mustache", errorsFolder, "SerializationException.kt"),
             new SupportingFileSpec("errors/OAuth2ServerException.mustache", errorsFolder, "OAuth2ServerException.kt"),
             new SupportingFileSpec("errors/OAuth2TokenException.mustache", errorsFolder, "OAuth2TokenException.kt"),
@@ -535,6 +536,17 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.kt"),
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.kt"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.kt"),
+            new SupportingFileSpec("errors/PaymentRequiredException.mustache", errorsFolder, "PaymentRequiredException.kt"),
+            new SupportingFileSpec("errors/MethodNotAllowedException.mustache", errorsFolder, "MethodNotAllowedException.kt"),
+            new SupportingFileSpec("errors/RequestTimeoutException.mustache", errorsFolder, "RequestTimeoutException.kt"),
+            new SupportingFileSpec("errors/GoneException.mustache", errorsFolder, "GoneException.kt"),
+            new SupportingFileSpec("errors/PayloadTooLargeException.mustache", errorsFolder, "PayloadTooLargeException.kt"),
+            new SupportingFileSpec("errors/UnsupportedMediaTypeException.mustache", errorsFolder, "UnsupportedMediaTypeException.kt"),
+            new SupportingFileSpec("errors/LockedException.mustache", errorsFolder, "LockedException.kt"),
+            new SupportingFileSpec("errors/NotImplementedException.mustache", errorsFolder, "NotImplementedException.kt"),
+            new SupportingFileSpec("errors/BadGatewayException.mustache", errorsFolder, "BadGatewayException.kt"),
+            new SupportingFileSpec("errors/ServiceUnavailableException.mustache", errorsFolder, "ServiceUnavailableException.kt"),
+            new SupportingFileSpec("errors/GatewayTimeoutException.mustache", errorsFolder, "GatewayTimeoutException.kt"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.kt"),
             new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.kt"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.kt"),
@@ -1198,6 +1210,19 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
             from = end;
         }
         return false;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, sourceFolder, invokerPackage.replace('.', '/'), "errors", className + ".kt")
+                .toString();
     }
 
     /** {@inheritDoc} */

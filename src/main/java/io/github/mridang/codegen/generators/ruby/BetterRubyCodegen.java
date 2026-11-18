@@ -54,6 +54,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterRubyCodegen extends AbstractBetterCodegen implements WithTypeSignatureSupport {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterRubyCodegen.class);
 
     private static final String DEFAULT_GEM_VERSION = "1.0.0";
@@ -319,6 +324,17 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("errors/forbidden_error.mustache", errorsPath, "forbidden_error.rb"),
             new SupportingFileSpec("errors/not_found_error.mustache", errorsPath, "not_found_error.rb"),
             new SupportingFileSpec("errors/conflict_error.mustache", errorsPath, "conflict_error.rb"),
+            new SupportingFileSpec("errors/payment_required_error.mustache", errorsPath, "payment_required_error.rb"),
+            new SupportingFileSpec("errors/method_not_allowed_error.mustache", errorsPath, "method_not_allowed_error.rb"),
+            new SupportingFileSpec("errors/request_timeout_error.mustache", errorsPath, "request_timeout_error.rb"),
+            new SupportingFileSpec("errors/gone_error.mustache", errorsPath, "gone_error.rb"),
+            new SupportingFileSpec("errors/payload_too_large_error.mustache", errorsPath, "payload_too_large_error.rb"),
+            new SupportingFileSpec("errors/unsupported_media_type_error.mustache", errorsPath, "unsupported_media_type_error.rb"),
+            new SupportingFileSpec("errors/locked_error.mustache", errorsPath, "locked_error.rb"),
+            new SupportingFileSpec("errors/not_implemented_error.mustache", errorsPath, "not_implemented_error.rb"),
+            new SupportingFileSpec("errors/bad_gateway_error.mustache", errorsPath, "bad_gateway_error.rb"),
+            new SupportingFileSpec("errors/service_unavailable_error.mustache", errorsPath, "service_unavailable_error.rb"),
+            new SupportingFileSpec("errors/gateway_timeout_error.mustache", errorsPath, "gateway_timeout_error.rb"),
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsPath, "unprocessable_entity_error.rb"),
             new SupportingFileSpec("errors/too_many_requests_error.mustache", errorsPath, "too_many_requests_error.rb"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsPath, "internal_server_error.rb"),
@@ -1739,6 +1755,26 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
     @Override
     protected boolean mintsOptionsForEveryOperation() {
         return true;
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        final String modulePath =
+                NamingConvention.SNAKE_CASE.apply(moduleName.replaceAll("::", "/"));
+        return Path.of(
+                        getOutputDir(),
+                        LIB_FOLDER,
+                        modulePath,
+                        "errors",
+                        NamingConvention.SNAKE_CASE.apply(className) + ".rb")
+                .toString();
     }
 
     /** {@inheritDoc} */

@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.UnprocessableEntityError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `UnprocessableEntityError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec unprocessable_entity?(term()) :: boolean()
+  def unprocessable_entity?(term), do: ApiError.specialises?(term, __MODULE__)
 end

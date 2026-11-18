@@ -1,0 +1,26 @@
+{{>api_info}}
+
+namespace {{packageName}}.Errors;
+
+/// <summary>
+/// Exception for HTTP 413 Payload Too Large.
+/// </summary>
+public class PayloadTooLargeException : ClientException
+{
+    public PayloadTooLargeException()
+        : this("Payload Too Large") { }
+
+    public PayloadTooLargeException(string message)
+        : this(message, null, null, null) { }
+
+    public PayloadTooLargeException(string message, Exception innerException)
+        : base(413, message, innerException) { }
+
+    public PayloadTooLargeException(
+        string message,
+        Dictionary<string, string>? responseHeaders = null,
+        string? responseBody = null,
+        object? errorBody = null
+    )
+        : base(413, message, responseHeaders, responseBody, errorBody) { }
+}

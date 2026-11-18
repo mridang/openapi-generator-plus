@@ -1,0 +1,7 @@
+{{>api_info}}
+package errors
+
+// PaymentRequiredError is the error for HTTP 402 Payment Required.
+type PaymentRequiredError struct {
+	ClientError
+}

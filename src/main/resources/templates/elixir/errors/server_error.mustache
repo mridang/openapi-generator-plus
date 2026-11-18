@@ -50,7 +50,11 @@ defmodule {{moduleName}}.Errors.ServerError do
 
   @family [
     {{moduleName}}.Errors.ServerError,
-    {{moduleName}}.Errors.InternalServerError
+    {{moduleName}}.Errors.InternalServerError,
+    {{moduleName}}.Errors.NotImplementedError,
+    {{moduleName}}.Errors.BadGatewayError,
+    {{moduleName}}.Errors.ServiceUnavailableError,
+    {{moduleName}}.Errors.GatewayTimeoutError
   ]
 
   @doc """
@@ -58,6 +62,6 @@ defmodule {{moduleName}}.Errors.ServerError do
   specialise it, `false` otherwise.
   """
   @spec server_error?(term()) :: boolean()
-  def server_error?(%module{}), do: module in @family
+  def server_error?(%module{} = error), do: module in @family or ApiError.specialises?(error, __MODULE__)
   def server_error?(_term), do: false
 end

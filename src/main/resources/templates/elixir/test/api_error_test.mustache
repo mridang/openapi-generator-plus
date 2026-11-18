@@ -197,6 +197,17 @@ defmodule {{moduleName}}.ApiErrorTest do
       {{moduleName}}.Errors.ConflictError,
       {{moduleName}}.Errors.UnprocessableEntityError,
       {{moduleName}}.Errors.TooManyRequestsError,
+      {{moduleName}}.Errors.PaymentRequiredError,
+      {{moduleName}}.Errors.MethodNotAllowedError,
+      {{moduleName}}.Errors.RequestTimeoutError,
+      {{moduleName}}.Errors.GoneError,
+      {{moduleName}}.Errors.PayloadTooLargeError,
+      {{moduleName}}.Errors.UnsupportedMediaTypeError,
+      {{moduleName}}.Errors.LockedError,
+      {{moduleName}}.Errors.NotImplementedError,
+      {{moduleName}}.Errors.BadGatewayError,
+      {{moduleName}}.Errors.ServiceUnavailableError,
+      {{moduleName}}.Errors.GatewayTimeoutError,
       {{moduleName}}.Errors.ServerError,
       {{moduleName}}.Errors.InternalServerError,
       {{moduleName}}.Errors.NetworkError,
@@ -348,6 +359,77 @@ defmodule {{moduleName}}.ApiErrorTest do
     assert body.name == "Cat"
   end
 
+  test "bhv errors 201 an error is retryable exactly for the statuses the client retries" do
+    for status <- [408, 409, 429, 500, 502, 503, 504, 599] do
+      error = {{moduleName}}.Errors.ApiError.from_response(status, %{}, nil)
+      assert {{moduleName}}.Errors.ApiError.retryable?(error), "status #{status}"
+    end
+
+    for status <- [400, 401, 403, 404, 422, 501, 302] do
+      error = {{moduleName}}.Errors.ApiError.from_response(status, %{}, nil)
+      refute {{moduleName}}.Errors.ApiError.retryable?(error), "status #{status}"
+    end
+  end
+
+  test "bhv errors 202 an error exposes the x-request-id header as its request id" do
+    from = fn headers -> {{moduleName}}.Errors.ApiError.from_response(500, headers, nil) end
+
+    assert {{moduleName}}.Errors.ApiError.request_id(from.(%{"X-Request-ID" => "abc"})) == "abc"
+    assert {{moduleName}}.Errors.ApiError.request_id(from.(%{"x-request-id" => "abc"})) == "abc"
+    assert {{moduleName}}.Errors.ApiError.request_id(from.(%{"other" => "abc"})) == nil
+    assert {{moduleName}}.Errors.ApiError.request_id({{moduleName}}.Errors.ApiError.exception(message: "no response")) == nil
+  end
+
+  defmodule ExactFactory do
+    def from_error_response(status, headers, body),
+      do: {{moduleName}}.Errors.ApiError.exception(message: "exact", status_code: status, response_headers: headers, response_body: body)
+  end
+
+  defmodule RangeFactory do
+    def from_error_response(status, headers, body),
+      do: {{moduleName}}.Errors.ApiError.exception(message: "range", status_code: status, response_headers: headers, response_body: body)
+  end
+
+  defmodule DefaultFactory do
+    def from_error_response(status, headers, body),
+      do: {{moduleName}}.Errors.ApiError.exception(message: "default", status_code: status, response_headers: headers, response_body: body)
+  end
+
+  test "bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default" do
+    errors = %{"404" => ExactFactory, "4XX" => RangeFactory, "default" => DefaultFactory}
+    from = fn status, map -> {{moduleName}}.Errors.ApiError.from_response(status, %{}, "{}", map) end
+
+    assert from.(404, errors).message == "exact"
+    assert from.(418, errors).message == "range"
+    assert from.(502, errors).message == "default"
+    assert %{{moduleName}}.Errors.BadGatewayError{} = from.(502, %{})
+    assert %{{moduleName}}.Errors.NotFoundError{} = from.(404, %{"5XX" => RangeFactory})
+  end
+{{#hasErrorSchemas}}
+{{#errorSchemas}}
+{{#-first}}
+
+  test "bhv errors 204 a body that does not match its declared error schema leaves the status error with the raw body and a cause" do
+    error = {{moduleName}}.Errors.{{{className}}}.from_error_response({{sampleStatus}}, %{}, "[1, 2")
+
+    assert error.__struct__ == {{moduleName}}.Errors.ApiError.from_response({{sampleStatus}}, %{}, "[1, 2").__struct__
+    assert error.response_body == "[1, 2"
+    assert error.status_code == {{sampleStatus}}
+    assert %{{moduleName}}.Errors.SerializationError{} = error.cause
+  end
+
+  test "the error of a declared error schema is an ApiError and every error above it" do
+    error = {{moduleName}}.Errors.{{{className}}}.exception(%{})
+
+    assert {{moduleName}}.Errors.ApiError.api_error?(error)
+    assert {{moduleName}}.Errors.ApiError.specialises?(error, {{moduleName}}.Errors.{{{parentClassName}}})
+    assert {{moduleName}}.Errors.{{{className}}}.typed_error_body(error) == nil
+    assert {{moduleName}}.Errors.{{errorPrefix}}Error.{{errorPrefixSnake}}_error?(error)
+  end
+{{/-first}}
+{{/errorSchemas}}
+{{/hasErrorSchemas}}
+
   describe "SDK error grouping" do
     test "bhv errors 025 ApiError, a typed error and the Serialization error are all recognised" do
       api_error = {{moduleName}}.Errors.ApiError.exception(status_code: 500, message: "boom")
@@ -405,6 +487,17 @@ defmodule {{moduleName}}.ApiErrorTest do
             {{moduleName}}.Errors.ConflictError,
             {{moduleName}}.Errors.UnprocessableEntityError,
             {{moduleName}}.Errors.TooManyRequestsError,
+            {{moduleName}}.Errors.PaymentRequiredError,
+            {{moduleName}}.Errors.MethodNotAllowedError,
+            {{moduleName}}.Errors.RequestTimeoutError,
+            {{moduleName}}.Errors.GoneError,
+            {{moduleName}}.Errors.PayloadTooLargeError,
+            {{moduleName}}.Errors.UnsupportedMediaTypeError,
+            {{moduleName}}.Errors.LockedError,
+            {{moduleName}}.Errors.NotImplementedError,
+            {{moduleName}}.Errors.BadGatewayError,
+            {{moduleName}}.Errors.ServiceUnavailableError,
+            {{moduleName}}.Errors.GatewayTimeoutError,
             {{moduleName}}.Errors.InternalServerError,
             {{moduleName}}.Errors.ClientError,
             {{moduleName}}.Errors.ServerError
@@ -474,9 +567,20 @@ defmodule {{moduleName}}.ApiErrorTest do
             {409, {{moduleName}}.Errors.ConflictError},
             {422, {{moduleName}}.Errors.UnprocessableEntityError},
             {429, {{moduleName}}.Errors.TooManyRequestsError},
+            {402, {{moduleName}}.Errors.PaymentRequiredError},
+            {405, {{moduleName}}.Errors.MethodNotAllowedError},
+            {408, {{moduleName}}.Errors.RequestTimeoutError},
+            {410, {{moduleName}}.Errors.GoneError},
+            {413, {{moduleName}}.Errors.PayloadTooLargeError},
+            {415, {{moduleName}}.Errors.UnsupportedMediaTypeError},
+            {423, {{moduleName}}.Errors.LockedError},
+            {501, {{moduleName}}.Errors.NotImplementedError},
+            {502, {{moduleName}}.Errors.BadGatewayError},
+            {503, {{moduleName}}.Errors.ServiceUnavailableError},
+            {504, {{moduleName}}.Errors.GatewayTimeoutError},
             {418, {{moduleName}}.Errors.ClientError},
             {500, {{moduleName}}.Errors.InternalServerError},
-            {503, {{moduleName}}.Errors.ServerError},
+            {599, {{moduleName}}.Errors.ServerError},
             {302, {{moduleName}}.Errors.ApiError},
             # A status outside 400-599 is neither a ClientError nor a
             # ServerError: the 5xx arm stops at 599, so 600 is an ApiError.

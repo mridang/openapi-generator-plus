@@ -26,6 +26,9 @@ class ComposedSchemaTest {
       new TypeReference<PetWithOwner>() {}.getType();
   private static final java.lang.reflect.Type PET_FOOD_TYPE =
       new TypeReference<PetFood>() {}.getType();
+  private static final java.lang.reflect.Type VEHICLE_TYPE =
+      new TypeReference<Vehicle>() {}.getType();
+  private static final java.lang.reflect.Type SHAPE_TYPE = new TypeReference<Shape>() {}.getType();
   private static final java.lang.reflect.Type PET_TREATMENT_TYPE =
       new TypeReference<PetTreatment>() {}.getType();
   private static final java.lang.reflect.Type TREATMENT_RECORD_TYPE =
@@ -75,6 +78,64 @@ class ComposedSchemaTest {
 
       assertThat(decoded.asMedication()).isPresent();
       assertThat(serializer.serialize(decoded)).contains("aspirin");
+    }
+  }
+
+  @Nested
+  @DisplayName("allOf with discriminator: Vehicle and Shape")
+  class AllOfDiscriminatorTests {
+
+    @Test
+    @DisplayName("bhvUnions301 the base decodes to the subtype its explicit mapping names")
+    void bhvUnions301ExplicitMappingDecodesTheSubtype() {
+      String json = "{\"vehicleType\":\"car\",\"plate\":\"AB-12\",\"doorCount\":4}";
+      Vehicle result = Objects.requireNonNull(serializer.deserialize(json, VEHICLE_TYPE));
+
+      assertThat(result).isInstanceOf(Car.class);
+      assertThat(result.plate).isEqualTo("AB-12");
+      assertThat(((Car) result).doorCount).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("bhvUnions302 the base decodes to the subtype its implicit schema name names")
+    void bhvUnions302ImplicitMappingDecodesTheSubtype() {
+      String json = "{\"shapeType\":\"Circle\",\"radius\":1.5}";
+      Shape result = Objects.requireNonNull(serializer.deserialize(json, SHAPE_TYPE));
+
+      assertThat(result).isInstanceOf(Circle.class);
+      assertThat(((Circle) result).radius).isEqualTo(1.5);
+    }
+
+    @Test
+    @DisplayName("bhvUnions303 an unknown discriminator value fails and the error names it")
+    void bhvUnions303UnknownDiscriminatorNamesTheValue() {
+      String json = "{\"vehicleType\":\"boat\",\"plate\":\"B-1\"}";
+      assertThatThrownBy(() -> serializer.deserialize(json, VEHICLE_TYPE))
+          .isExactlyInstanceOf(SerializationException.class)
+          .satisfies(
+              thrown -> {
+                Throwable root = thrown;
+                while (root.getCause() != null) {
+                  root = root.getCause();
+                }
+                assertThat(root.getMessage()).contains("boat");
+              });
+    }
+
+    @Test
+    @DisplayName("bhvUnions304 a payload without its discriminator fails")
+    void bhvUnions304MissingDiscriminatorFails() {
+      String json = "{\"plate\":\"AB-12\"}";
+      assertThatThrownBy(() -> serializer.deserialize(json, VEHICLE_TYPE))
+          .isExactlyInstanceOf(SerializationException.class);
+    }
+
+    @Test
+    @DisplayName("bhvSerializationObject301 a subtype writes its discriminator value")
+    void bhvSerializationObject301SubtypeWritesItsDiscriminator() {
+      Car car = new Car("AB-12", 4);
+
+      assertThat(serializer.serialize(car)).contains("\"vehicleType\":\"car\"");
     }
   }
 

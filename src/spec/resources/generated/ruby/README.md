@@ -101,6 +101,8 @@ options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000,
 
 An `ApiError` (and every subclass, `NetworkError` included) carries `status_code`, `response_headers`, `response_body`, `error_body`, `request_method` and `request_path`, the path of the request without its query string. The message names them as `Request: GET /items/1` after the status code line.
 
+An operation that declares an error response with a schema raises a class of its own for it: one error class per distinct schema, named after the schema with an `Error` suffix, subclassing the class of the status it is declared under (`4XX` gives `ClientError`, `5XX` gives `ServerError`, `default` gives `ApiError`). Its `error_body` is the decoded schema object, and the same status can be a different class in two operations. A body that does not match the schema never hides the real error: the status error is raised with the raw body and the decoding failure as its `cause`. `retryable?` is true for the statuses the client itself retries and `request_id` is the `x-request-id` response header. A response body that cannot be decoded raises a `SerializationError` carrying `status_code`, `response_headers`, `response_body`, `request_method` and `request_path`.
+
 ### Raw responses
 
 Every operation has a `<operation>_with_http_info` variant returning an `ApiResult` with `status_code`, `headers` (a frozen copy, lower-cased names) and `data`.

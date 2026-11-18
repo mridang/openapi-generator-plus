@@ -392,6 +392,22 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/required}}
 {{/vars}}
   ]);
+{{#vendorExtensions.x-allof-base}}
+
+  /**
+   * The discriminator of this base type and the subtype each of its values
+   * names. `ObjectSerializer.deserialize` reads the property and decodes into
+   * the mapped subtype, so decoding this type returns the subtype.
+   */
+  static readonly DISCRIMINATOR_PROPERTY = '{{discriminator.propertyBaseName}}';
+  static readonly DISCRIMINATOR_MAPPING: Record<string, string> = {
+{{#discriminator}}
+{{#mappedModels}}
+    '{{mappingName}}': '{{modelName}}'{{^-last}},{{/-last}}
+{{/mappedModels}}
+{{/discriminator}}
+  };
+{{/vendorExtensions.x-allof-base}}
 {{#hasWireRename}}
 
   /**
@@ -409,6 +425,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/hasWireRename}}
 
 {{#vars}}
+{{^vendorExtensions.x-skip-redeclare}}
 {{#description}}
   /**
    * {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
@@ -660,6 +677,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   readonly {{name}}{{^required}}?{{/required}}{{#required}}{{^defaultValue}}{{^vendorExtensions.siblingDefaultIsEnum}}!{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}}{{/required}}: {{#isEnum}}{{classname}}{{enumName}}{{/isEnum}}{{^isEnum}}{{{dataType}}}{{/isEnum}}{{#required}}{{#isNullable}} | null{{/isNullable}}{{/required}}{{#defaultValue}} = {{{.}}}{{/defaultValue}}{{^defaultValue}}{{#vendorExtensions.siblingDefaultIsEnum}} = {{{vendorExtensions.siblingDefaultEnumType}}}.{{{vendorExtensions.siblingDefaultEnumVar}}}{{/vendorExtensions.siblingDefaultIsEnum}}{{/defaultValue}};
 {{^-last}}
 {{/-last}}
+{{/vendorExtensions.x-skip-redeclare}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
 
@@ -1315,7 +1333,7 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(a: unknown, b: unknown, decimal = false): boolean {
+  protected static __deepEquals(a: unknown, b: unknown, decimal = false): boolean {
     if (a === b) {
       return true;
     }

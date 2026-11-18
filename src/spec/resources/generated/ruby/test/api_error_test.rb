@@ -175,7 +175,9 @@ describe Petstore::Client::Errors::ApiError do
     %w[
       OpenAPIError ApiError ClientError ServerError BadRequestError UnauthorizedError
       ForbiddenError NotFoundError ConflictError UnprocessableEntityError TooManyRequestsError
-      InternalServerError NetworkError NetworkTimeoutError SerializationError
+      PaymentRequiredError MethodNotAllowedError RequestTimeoutError GoneError PayloadTooLargeError
+      UnsupportedMediaTypeError LockedError NotImplementedError BadGatewayError ServiceUnavailableError
+      GatewayTimeoutError InternalServerError NetworkError NetworkTimeoutError SerializationError
       OAuth2ServerError OAuth2TokenError
     ].each do |name|
       klass = Petstore::Client::Errors.const_get(name, false)
@@ -192,9 +194,20 @@ describe Petstore::Client::Errors::ApiError do
     409 => Petstore::Client::Errors::ConflictError,
     422 => Petstore::Client::Errors::UnprocessableEntityError,
     429 => Petstore::Client::Errors::TooManyRequestsError,
+    402 => Petstore::Client::Errors::PaymentRequiredError,
+    405 => Petstore::Client::Errors::MethodNotAllowedError,
+    408 => Petstore::Client::Errors::RequestTimeoutError,
+    410 => Petstore::Client::Errors::GoneError,
+    413 => Petstore::Client::Errors::PayloadTooLargeError,
+    415 => Petstore::Client::Errors::UnsupportedMediaTypeError,
+    423 => Petstore::Client::Errors::LockedError,
+    501 => Petstore::Client::Errors::NotImplementedError,
+    502 => Petstore::Client::Errors::BadGatewayError,
+    503 => Petstore::Client::Errors::ServiceUnavailableError,
+    504 => Petstore::Client::Errors::GatewayTimeoutError,
     418 => Petstore::Client::Errors::ClientError,
     500 => Petstore::Client::Errors::InternalServerError,
-    503 => Petstore::Client::Errors::ServerError,
+    599 => Petstore::Client::Errors::ServerError,
     302 => Petstore::Client::Errors::ApiError
   }.each do |status, expected|
     it "bhv_errors_006 from_response maps #{status} to #{expected.name.split('::').last}" do
@@ -363,5 +376,52 @@ describe Petstore::Client::Errors::ApiError do
 
     raised = assert_raises(Petstore::Client::Errors::SerializationError) { err.typed_error_body('Category') }
     _(raised).must_be_instance_of(Petstore::Client::Errors::SerializationError)
+  end
+
+  it 'bhv_errors_201 an error is retryable exactly for the statuses the client retries' do
+    [408, 409, 429, 500, 502, 503, 504, 599].each do |status|
+      assert_predicate Petstore::Client::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"
+    end
+    [400, 401, 403, 404, 422, 501, 302].each do |status|
+      refute_predicate Petstore::Client::Errors::ApiError.from_response(status, {}, nil), :retryable?, "status #{status}"
+    end
+  end
+
+  it 'bhv_errors_202 an error exposes the x-request-id response header as its request id' do
+    errors = Petstore::Client::Errors
+
+    _(errors::ApiError.from_response(500, { 'X-Request-ID' => 'abc' }, nil).request_id).must_equal 'abc'
+    _(errors::ApiError.from_response(500, { 'x-request-id' => 'abc' }, nil).request_id).must_equal 'abc'
+    assert_nil(errors::ApiError.from_response(500, { 'other' => 'abc' }, nil).request_id)
+    assert_nil(errors::ApiError.new('no response').request_id)
+  end
+
+  it 'bhv_errors_203 the error factory of an operation is chosen by exact status, then range, then default' do
+    errors = Petstore::Client::Errors
+    tagged = lambda do |tag|
+      Class.new do
+        define_singleton_method(:from_error_response) do |status, headers, body, **|
+          errors::ApiError.new(status_code: status, message: tag, response_headers: headers, response_body: body)
+        end
+      end
+    end
+    schemas = { '404' => tagged.call('exact'), '4XX' => tagged.call('range'), 'default' => tagged.call('default') }
+    from = ->(status, declared) { errors::ApiError.from_response(status, {}, '{}', error_schemas: declared) }
+
+    _(from.call(404, schemas).detail_message).must_equal 'exact'
+    _(from.call(418, schemas).detail_message).must_equal 'range'
+    _(from.call(502, schemas).detail_message).must_equal 'default'
+    _(from.call(502, {})).must_be_instance_of errors::BadGatewayError
+    _(from.call(404, nil)).must_be_instance_of errors::NotFoundError
+  end
+
+  it 'bhv_errors_204 a body that does not match its declared error schema leaves the status error with the raw body and a cause' do
+    err = Petstore::Client::Errors::UnexpectedFailureError.from_error_response(400, {}, '[1, 2')
+    status = Petstore::Client::Errors::ApiError.from_response(400, {}, '[1, 2')
+
+    _(err).must_be_instance_of status.class
+    _(err.response_body).must_equal '[1, 2'
+    _(err.status_code).must_equal 400
+    _(err.cause).must_be_kind_of Petstore::Client::Errors::SerializationError
   end
 end

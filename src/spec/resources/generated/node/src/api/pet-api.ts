@@ -235,6 +235,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Pet
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async addPet(
     pet: DeepInput<Pet>,
@@ -260,6 +261,7 @@ export class PetApi extends BaseApi {
    * Add a new pet to the store (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async addPetWithHttpInfo(
     pet: DeepInput<Pet>,
@@ -300,6 +302,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<Photo>
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async addPetPhotos(
     petId: number,
@@ -330,6 +333,7 @@ export class PetApi extends BaseApi {
    * Add photos to the pet's gallery (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async addPetPhotosWithHttpInfo(
     petId: number,
@@ -485,6 +489,7 @@ export class PetApi extends BaseApi {
    * @param options.apiKey Session cookie used for authentication (optional)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async deletePet(
     petId: number,
@@ -498,6 +503,7 @@ export class PetApi extends BaseApi {
    * Deletes a pet (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    */
   async deletePetWithHttpInfo(
     petId: number,
@@ -571,6 +577,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Buffer
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async downloadPetDocument(
     petId: number,
@@ -602,6 +609,7 @@ export class PetApi extends BaseApi {
    * Download a vet document (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async downloadPetDocumentWithHttpInfo(
     petId: number,
@@ -754,6 +762,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Array<Pet>
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    * @deprecated This operation is deprecated.
    * @see {@link https://example.com/docs/filtering} Find out more about filtering
    */
@@ -784,6 +793,7 @@ export class PetApi extends BaseApi {
    * Finds Pets by status (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
    * @deprecated This operation is deprecated.
    */
   async findPetsByStatusWithHttpInfo(
@@ -1046,6 +1056,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Buffer
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetAvatar(
     petId: number,
@@ -1074,6 +1085,7 @@ export class PetApi extends BaseApi {
    * Get the pet's profile photo (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetAvatarWithHttpInfo(
     petId: number,
@@ -1124,6 +1136,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Buffer
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetAvatarThumbnail(
     petId: number,
@@ -1150,6 +1163,7 @@ export class PetApi extends BaseApi {
    * Get the pet's avatar thumbnail as base64 (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetAvatarThumbnailWithHttpInfo(
     petId: number,
@@ -1202,6 +1216,8 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Pet
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    * @deprecated This operation is deprecated.
    */
   async getPetById(
@@ -1233,6 +1249,8 @@ export class PetApi extends BaseApi {
    * Find pet by ID (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    * @deprecated This operation is deprecated.
    */
   async getPetByIdWithHttpInfo(
@@ -1407,6 +1425,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return PetPassport
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetPassport(
     petId: number,
@@ -1435,6 +1454,7 @@ export class PetApi extends BaseApi {
    * Get the pet's passport (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetPassportWithHttpInfo(
     petId: number,
@@ -1486,6 +1506,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Buffer
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetPhoto(
     petId: number,
@@ -1516,6 +1537,7 @@ export class PetApi extends BaseApi {
    * Get a photo or its metadata (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetPhotoWithHttpInfo(
     petId: number,
@@ -1589,6 +1611,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return string
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetSummary(
     petId: number,
@@ -1621,6 +1644,7 @@ export class PetApi extends BaseApi {
    * Get a <plain> \"text\" summary & it's short (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async getPetSummaryWithHttpInfo(
     petId: number,
@@ -2056,6 +2080,7 @@ export class PetApi extends BaseApi {
    * @param requestContentType optional request Content-Type; one of image/jpeg, image/png, application/json. Defaults to the first declared type (image/jpeg) when omitted.
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async setPetAvatar(
     petId: number,
@@ -2075,6 +2100,7 @@ export class PetApi extends BaseApi {
    * Set the pet's profile photo (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async setPetAvatarWithHttpInfo(
     petId: number,
@@ -2152,6 +2178,7 @@ export class PetApi extends BaseApi {
    * @param setPetAvatarThumbnailRequest  (required)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async setPetAvatarThumbnail(
     petId: number,
@@ -2169,6 +2196,7 @@ export class PetApi extends BaseApi {
    * Set the pet's avatar thumbnail as base64 (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async setPetAvatarThumbnailWithHttpInfo(
     petId: number,
@@ -2231,6 +2259,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async setPetPreferences(
     petId: number,
@@ -2261,6 +2290,7 @@ export class PetApi extends BaseApi {
    * Update a pet's notification preferences (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async setPetPreferencesWithHttpInfo(
     petId: number,
@@ -2336,6 +2366,8 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return Pet
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    */
   async updatePet(
     petId: number,
@@ -2366,6 +2398,8 @@ export class PetApi extends BaseApi {
    * Update an existing pet (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws BadRequestError on HTTP 400
+   * @throws NotFoundError on HTTP 404
    */
   async updatePetWithHttpInfo(
     petId: number,
@@ -2424,6 +2458,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async uploadPetCertificate(
     petId: number,
@@ -2455,6 +2490,7 @@ export class PetApi extends BaseApi {
    * Upload the pet's adoption certificate (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async uploadPetCertificateWithHttpInfo(
     petId: number,
@@ -2525,6 +2561,7 @@ export class PetApi extends BaseApi {
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async uploadPetDocument(
     petId: number,
@@ -2557,6 +2594,7 @@ export class PetApi extends BaseApi {
    * Attach a vet document or health record (with HTTP info)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @throws {ApiError} if fails to make API call
+   * @throws NotFoundError on HTTP 404
    */
   async uploadPetDocumentWithHttpInfo(
     petId: number,

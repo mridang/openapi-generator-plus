@@ -33,6 +33,10 @@ class OperationDecoratorTest {
      */
     private static final List<String> OP_KEYS = List.of(
             "effectiveConsumes",
+            "errorResponses",
+            "hasErrorResponses",
+            "errorSchemaResponses",
+            "hasErrorSchemaResponses",
             "effectiveProduces",
             "optionsClassName",
             "serverClassName",
@@ -115,6 +119,62 @@ class OperationDecoratorTest {
         assertEquals("none", deco.get("requestBodyKind"));
         assertEquals("model", deco.get("returnKind"));
         assertEquals(true, deco.get("hasReturnType"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void declaredErrorResponsesBecomeRowsAndTheSpecLevelSchemaList() {
+        final AbstractBetterCodegen codegen = new BetterJavaCodegen();
+        final CodegenOperation op = bareOperation();
+        op.httpMethod = "GET";
+        op.path = "/things/{id}";
+        op.responses = new ArrayList<>();
+        op.responses.add(response("200", "Thing", true));
+        op.responses.add(response("404", "ThingMissing", true));
+        op.responses.add(response("0", "Fallback", true));
+        op.responses.add(response("5XX", "plain", false));
+        codegen.populateOperationDecorators(op);
+
+        final Map<String, Object> deco = decorator(op);
+        final List<Map<String, Object>> rows =
+                (List<Map<String, Object>>) Objects.requireNonNull(deco.get("errorResponses"));
+        assertEquals(List.of("404", "5XX", "default"), rows.stream().map(r -> r.get("status")).collect(java.util.stream.Collectors.toList()));
+        assertEquals("NotFoundException", rows.get(0).get("statusClassName"));
+        assertEquals("ThingMissingException", rows.get(0).get("schemaClassName"));
+        assertEquals(false, rows.get(1).get("hasSchema"));
+        assertEquals(true, deco.get("hasErrorResponses"));
+        assertEquals(2, ((List<?>) Objects.requireNonNull(deco.get("errorSchemaResponses"))).size());
+        final List<Map<String, Object>> schemas =
+                (List<Map<String, Object>>) Objects.requireNonNull(codegen.additionalProperties().get("errorSchemas"));
+        assertEquals(List.of("ThingMissing", "Fallback"), schemas.stream().map(s -> s.get("schemaName")).collect(java.util.stream.Collectors.toList()));
+        assertEquals("ApiException", schemas.get(1).get("parentClassName"));
+        assertEquals("thing_missing_exception", schemas.get(0).get("classFilename"));
+        assertEquals("not_found_exception", schemas.get(0).get("parentFilename"));
+        assertEquals(false, schemas.get(0).get("parentIsApi"));
+        assertEquals(true, schemas.get(1).get("parentIsApi"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void errorSuffixFollowsTheLanguageConvention() {
+        assertEquals("Exception", ((AbstractBetterCodegen) new BetterJavaCodegen()).errorSuffix());
+        assertEquals("Error", ((AbstractBetterCodegen) new io.github.mridang.codegen.generators.ruby.BetterRubyCodegen()).errorSuffix());
+    }
+
+    @Test
+    void csharpNamesTheNotImplementedStatusClassAwayFromTheSystemOne() {
+        final AbstractBetterCodegen csharp = new io.github.mridang.codegen.generators.csharp.BetterCSharpCodegen();
+        assertEquals("NotImplementedStatusException", csharp.statusClassName("NotImplemented"));
+        assertEquals("NotFoundException", csharp.statusClassName("NotFound"));
+        assertEquals("NotImplementedException", ((AbstractBetterCodegen) new BetterJavaCodegen()).statusClassName("NotImplemented"));
+    }
+
+    private static org.openapitools.codegen.CodegenResponse response(String code, String dataType, boolean model) {
+        final org.openapitools.codegen.CodegenResponse r = new org.openapitools.codegen.CodegenResponse();
+        r.code = code;
+        r.dataType = dataType;
+        r.isModel = model;
+        return r;
     }
 
     @SuppressWarnings("unchecked")

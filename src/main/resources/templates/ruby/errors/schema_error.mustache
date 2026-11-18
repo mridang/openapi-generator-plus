@@ -1,0 +1,47 @@
+# frozen_string_literal: true
+
+{{> api_info}}
+module {{moduleName}}
+  module Errors
+    # Error for a response whose body is a {{schemaName}}, declared under HTTP
+    # {{#statuses}}{{.}}{{^-last}}, {{/-last}}{{/statuses}}. Its #error_body is the decoded {{schemaName}}.
+    class {{className}} < ::{{moduleName}}::Errors::{{parentClassName}}
+      # Builds the error for a response, decoding the body as {{schemaName}}. A body
+      # that does not match the schema never hides the real error: the result is
+      # then the status error of ApiError.from_response with the raw body, and
+      # the decoding failure as its +cause+.
+      #
+      # @param status_code [Integer] the HTTP status code of the response
+      # @param headers [Hash{String => String}, nil] the response headers
+      # @param body [String, nil] the raw response body
+      # @param request_method [String, nil] the HTTP method of the request
+      # @param request_path [String, nil] the path of the request; a query string is dropped
+      # @return [ApiError] a {{className}}, or the status error when the body does not decode
+      def self.from_error_response(status_code, headers, body, request_method: nil, request_path: nil)
+        status = ApiError.from_response(
+          status_code, headers, body, request_method: request_method, request_path: request_path
+        )
+        return status if body.nil? || body.empty?
+
+        decoded = ::{{moduleName}}::ObjectSerializer.deserialize(body, '{{schemaName}}')
+        raise SerializationError, 'Error body is empty' if decoded.nil?
+
+        new(
+{{#parentIsFamily}}
+          status_code: status_code,
+{{/parentIsFamily}}
+          message: status.detail_message,
+          response_body: body,
+          response_headers: headers,
+          error_body: decoded,
+          request_method: request_method,
+          request_path: request_path
+        )
+      rescue SerializationError => e
+        ApiError.status_fallback(
+          status_code, headers, body, e, request_method: request_method, request_path: request_path
+        )
+      end
+    end
+  end
+end

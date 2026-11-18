@@ -22,18 +22,25 @@ import (
 // registered by the application instead. If no propagator has been registered
 // with SetTraceContextPropagator, this function silently no-ops.
 //
+// The ctx argument is the call context of the operation. It is handed to the
+// propagator, so a span carried by it reaches the traceparent and tracestate
+// headers. A nil ctx is treated as context.Background().
+//
 // The headers argument is the mutable map of request headers.
 //
 // The propagator injects into a scratch map, and only its non-empty entries
 // reach headers. The W3C propagator always writes tracestate, empty or not,
 // and an empty tracestate header is not what the other SDKs send.
-func InjectTraceContext(headers map[string]string) {
+func InjectTraceContext(ctx context.Context, headers map[string]string) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	propagate := traceContextPropagator.Load()
 	if propagate == nil {
 		return
 	}
 	injected := make(map[string]string)
-	(*propagate)(context.Background(), injected)
+	(*propagate)(ctx, injected)
 	for key, value := range injected {
 		if value != "" {
 			headers[key] = value
@@ -53,17 +60,15 @@ var traceContextPropagator atomic.Pointer[TraceContextPropagatorFunc]
 // SetTraceContextPropagator sets the function used to inject trace context
 // headers. Pass nil to disable trace context injection.
 //
-// API operations take no context.Context, so the ctx handed to the propagator is
-// always context.Background(): it never carries the caller's span. The
-// propagator must therefore supply the context itself, for example from a span
-// the application tracks:
+// The ctx handed to the propagator is the call context of the operation, so it
+// carries the caller's span:
 //
 //	import (
 //		"go.opentelemetry.io/otel/propagation"
 //	)
 //
-//	petstore.SetTraceContextPropagator(func(_ context.Context, headers map[string]string) {
-//		propagation.TraceContext{}.Inject(activeSpanContext(), propagation.MapCarrier(headers))
+//	petstore.SetTraceContextPropagator(func(ctx context.Context, headers map[string]string) {
+//		propagation.TraceContext{}.Inject(ctx, propagation.MapCarrier(headers))
 //	})
 func SetTraceContextPropagator(fn TraceContextPropagatorFunc) {
 	if fn == nil {

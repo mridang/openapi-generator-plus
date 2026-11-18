@@ -38,6 +38,7 @@ from petstore_client.api_client import ApiClient
 from petstore_client.auth.authenticator import Authenticator
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.errors import ApiException, NetworkException, OpenAPIException
+from petstore_client.errors.bad_gateway_exception import BadGatewayException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.server_exception import ServerException
 from petstore_client.errors.bad_request_exception import BadRequestException
@@ -186,7 +187,7 @@ class TestExceptionDispatch:
             (429, TooManyRequestsException),
             (418, ClientException),
             (500, InternalServerErrorException),
-            (502, ServerException),
+            (502, BadGatewayException),
         ],
     )
     async def test_bhv_errors_037_throws_correct_exception(
@@ -1748,6 +1749,29 @@ class TestContentTypeDeserialization:
                 "application/json",
                 "Pet",
             )
+
+    async def test_bhv_errors_205_a_decode_failure_carries_the_response_and_the_request(
+        self,
+    ) -> None:
+        client = MalformedJsonApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        with pytest.raises(SerializationException) as excinfo:
+            await stub.call(
+                "GET",
+                "/test/echo?page=2",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                "object",
+            )
+        assert excinfo.value.status_code == 200
+        assert excinfo.value.response_headers == {"Content-Type": "application/json"}
+        assert excinfo.value.response_body == '{"id": 1, '
+        assert excinfo.value.request_method == "GET"
+        assert excinfo.value.request_path == "/test/echo"
 
     async def test_unexpected_content_type_names_the_operation(self) -> None:
         client = PlainTextApiClient()

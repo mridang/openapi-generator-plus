@@ -7,11 +7,21 @@
 
 import json
 import re
-from typing import Any, Dict, Mapping, Optional, Type, TypeVar
+from typing import Any, Callable, Dict, Mapping, Optional, Type, TypeVar
 
 from petstore_client.transport_options import _is_sensitive_header
 
 T = TypeVar("T")
+
+# Builds the exception for one error schema an operation declares: it takes
+# the status code, the response headers, the raw body, the request method and
+# the request path. An operation hands the factories of its own declared error
+# responses to ``ApiException.from_response``, which picks the one for the
+# status that arrived.
+ErrorFactory = Callable[
+    [int, Optional[Mapping[str, str]], Optional[str], Optional[str], Optional[str]],
+    "ApiException",
+]
 
 # Most bytes of the response body that ``str(error)`` renders; the full body
 # stays on ``response_body``.
@@ -138,11 +148,19 @@ class ApiException(OpenAPIException):
         body: Optional[str],
         request_method: Optional[str] = None,
         request_path: Optional[str] = None,
+        error_schemas: Optional[Mapping[str, ErrorFactory]] = None,
     ) -> "ApiException":
         """Build the exception that a non-2xx response with this status raises.
 
         This is the one status-to-exception mapping in the SDK: the API
         classes and the OpenID Connect discovery both use it.
+
+        When ``error_schemas`` has a factory for the status (an exact status
+        first, then a ``4XX`` or ``5XX`` range, then ``default``), the factory
+        builds the exception of that error schema. A body that does not match
+        the schema never hides the real error: the factory then returns the
+        status exception with the raw body and the decoding failure as its
+        cause. Without a factory the result is the status exception.
 
         Args:
             status_code: The HTTP status code of the response.
@@ -151,6 +169,9 @@ class ApiException(OpenAPIException):
             request_method: The HTTP method of the request, if known.
             request_path: The path of the request, query string stripped,
                 if known.
+            error_schemas: The operation's error factories by declared status
+                (``'404'``, ``'4XX'``, ``'default'``), or ``None`` when it
+                declares none.
 
         Returns:
             The status-specific subclass where there is one (for example
@@ -158,6 +179,16 @@ class ApiException(OpenAPIException):
             for any other 4xx, :class:`ServerException` for any other 5xx, and
             :class:`ApiException` for everything else.
         """
+        if error_schemas is not None:
+            factory = error_schemas.get(str(status_code))
+            if factory is None and 400 <= status_code < 500:
+                factory = error_schemas.get("4XX")
+            if factory is None and 500 <= status_code < 600:
+                factory = error_schemas.get("5XX")
+            if factory is None:
+                factory = error_schemas.get("default")
+            if factory is not None:
+                return factory(status_code, headers, body, request_method, request_path)
         message = f"API returned status code {status_code}"
         # An empty header map is a real (if unusual) error response and is
         # passed through as an empty dict; ``None`` means no response arrived
@@ -188,6 +219,17 @@ class ApiException(OpenAPIException):
             409: ConflictException,
             422: UnprocessableEntityException,
             429: TooManyRequestsException,
+            402: PaymentRequiredException,
+            405: MethodNotAllowedException,
+            408: RequestTimeoutException,
+            410: GoneException,
+            413: PayloadTooLargeException,
+            415: UnsupportedMediaTypeException,
+            423: LockedException,
+            501: NotImplementedException,
+            502: BadGatewayException,
+            503: ServiceUnavailableException,
+            504: GatewayTimeoutException,
             500: InternalServerErrorException,
         }
         specific = by_status.get(status_code)
@@ -229,6 +271,59 @@ class ApiException(OpenAPIException):
             request_method=request_method,
             request_path=request_path,
         )
+
+    @staticmethod
+    def _decode_error_body(body: str, clazz: Type[T]) -> T:
+        """Decode a response body as the schema an operation declares for an
+        error status.
+
+        Raises:
+            SerializationException: If the body does not match the schema.
+        """
+        # Imported lazily: see :meth:`from_response`.
+        from petstore_client.object_serializer import ObjectSerializer
+
+        decoded = ObjectSerializer().deserialize(body, clazz)
+        if decoded is None:
+            raise SerializationException("Error body is empty")
+        return decoded
+
+    @staticmethod
+    def _status_fallback(
+        status_code: int,
+        headers: Optional[Mapping[str, str]],
+        body: Optional[str],
+        request_method: Optional[str],
+        request_path: Optional[str],
+        cause: BaseException,
+    ) -> "ApiException":
+        """The status exception for a response whose body did not match its
+        declared schema: the one :meth:`from_response` gives, with the raw body
+        and the decoding failure as its cause."""
+        fallback = ApiException.from_response(
+            status_code, headers, body, request_method, request_path
+        )
+        if fallback.__cause__ is None:
+            fallback.__cause__ = cause
+        return fallback
+
+    @property
+    def is_retryable(self) -> bool:
+        """Whether repeating the request can succeed: the status is 408, 409,
+        429 or a 5xx other than 501, the statuses the client itself retries."""
+        status = self._status_code
+        return status in (408, 409, 429) or (500 <= status <= 599 and status != 501)
+
+    @property
+    def request_id(self) -> Optional[str]:
+        """The request id the server sent in the ``x-request-id`` response
+        header, or ``None`` when the header is absent."""
+        if not self._response_headers:
+            return None
+        for name, value in self._response_headers.items():
+            if name.lower() == "x-request-id":
+                return str(value)
+        return None
 
     def get_typed_error_body(self, clazz: Type[T]) -> Optional[T]:
         """Deserialize the response body into a typed object.
@@ -294,6 +389,23 @@ from petstore_client.errors.unprocessable_entity_exception import (
     UnprocessableEntityException,
 )
 from petstore_client.errors.too_many_requests_exception import TooManyRequestsException
+from petstore_client.errors.payment_required_exception import PaymentRequiredException
+from petstore_client.errors.method_not_allowed_exception import (
+    MethodNotAllowedException,
+)
+from petstore_client.errors.request_timeout_exception import RequestTimeoutException
+from petstore_client.errors.gone_exception import GoneException
+from petstore_client.errors.payload_too_large_exception import PayloadTooLargeException
+from petstore_client.errors.unsupported_media_type_exception import (
+    UnsupportedMediaTypeException,
+)
+from petstore_client.errors.locked_exception import LockedException
+from petstore_client.errors.not_implemented_exception import NotImplementedException
+from petstore_client.errors.bad_gateway_exception import BadGatewayException
+from petstore_client.errors.service_unavailable_exception import (
+    ServiceUnavailableException,
+)
+from petstore_client.errors.gateway_timeout_exception import GatewayTimeoutException
 from petstore_client.errors.internal_server_error_exception import (
     InternalServerErrorException,
 )
@@ -302,6 +414,14 @@ from petstore_client.errors.network_timeout_exception import NetworkTimeoutExcep
 from petstore_client.errors.serialization_exception import SerializationException
 from petstore_client.errors.oauth2_server_exception import OAuth2ServerException
 from petstore_client.errors.oauth2_token_exception import OAuth2TokenException
+from petstore_client.errors.unexpected_failure_exception import (
+    UnexpectedFailureException,
+)
+from petstore_client.errors.member_not_found_exception import MemberNotFoundException
+from petstore_client.errors.project_not_found_exception import ProjectNotFoundException
+from petstore_client.errors.rejected_request_exception import RejectedRequestException
+from petstore_client.errors.upstream_failure_exception import UpstreamFailureException
+from petstore_client.errors.state_conflict_exception import StateConflictException
 
 __all__ = [
     "OpenAPIException",
@@ -315,10 +435,28 @@ __all__ = [
     "ConflictException",
     "UnprocessableEntityException",
     "TooManyRequestsException",
+    "PaymentRequiredException",
+    "MethodNotAllowedException",
+    "RequestTimeoutException",
+    "GoneException",
+    "PayloadTooLargeException",
+    "UnsupportedMediaTypeException",
+    "LockedException",
+    "NotImplementedException",
+    "BadGatewayException",
+    "ServiceUnavailableException",
+    "GatewayTimeoutException",
     "InternalServerErrorException",
     "NetworkException",
     "NetworkTimeoutException",
     "SerializationException",
     "OAuth2ServerException",
     "OAuth2TokenException",
+    "ErrorFactory",
+    "UnexpectedFailureException",
+    "MemberNotFoundException",
+    "ProjectNotFoundException",
+    "RejectedRequestException",
+    "UpstreamFailureException",
+    "StateConflictException",
 ]

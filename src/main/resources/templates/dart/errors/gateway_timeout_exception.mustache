@@ -1,0 +1,15 @@
+{{>api_info}}
+import 'server_exception.dart';
+
+/// Exception for HTTP 504 Gateway Timeout.
+class GatewayTimeoutException extends ServerException {
+  const GatewayTimeoutException({
+    super.message = '',
+    super.responseBody,
+    super.responseHeaders,
+    super.errorBody,
+    super.cause,
+    super.requestMethod,
+    super.requestPath,
+  }) : super(statusCode: 504);
+}

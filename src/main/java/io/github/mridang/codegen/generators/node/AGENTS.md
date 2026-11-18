@@ -16,7 +16,7 @@ The node generator (`node-plus`) emits a TypeScript SDK that runs on Node 22 or 
 | Path | What lives there | Edit this to change |
 |---|---|---|
 | `generators/node/BetterNodeCodegen.java` | type mapping (branded types, Temporal), defaults, enum naming, supporting-file list, per-operation Options classes, scheme authenticators, barrel files | type mapping, enum members, which files are emitted |
-| `templates/node/errors/*.mustache` | the error tree (`*Error` suffix, ES2022 `{ cause }` options bag) | error classes and messages |
+| `templates/node/errors/*.mustache` | the error tree (`*Error` suffix, ES2022 `{ cause }` options bag) | error classes and messages; `schema-error.mustache` renders one `<Model>Error` per declared error schema, a subclass of the status error (`ClientError<Model>`, `NotFoundError<Model>`, ...) so `errorBody` is typed through the existing generic |
 | `templates/node/auth/**` | authenticators and `auth/oauth/*` token manager, flows, OIDC | auth behaviour |
 | `templates/node/abstract_api_client.mustache`, `default_api_client.mustache`, `web_api_client.mustache`, `transport_options.mustache` | redirects, timeout budget, decompression, cancellation, proxy and TLS, the two transports | transport options and wire behaviour |
 | `templates/node/object_serializer.mustache`, `value_serializer.mustache`, `base_api.mustache` | JSON decode and encode, path, query, header and form encoding, multipart | serialization |
@@ -81,7 +81,8 @@ Test: golden README and `test/metadata.test.mustache`.
 Rule: the allOf parent with a discriminator is a base class that subtypes extend; a model reused in two unions is never re-parented, unions are type aliases or interfaces.
 Why: a class has one parent. Inheritance only where the schema is allOf plus discriminator.
 Where: `models/model.mustache`, `BetterNodeCodegen.setsDiscriminatorDefaultOnChildren`, `demotesDiscriminatorFromRequiredVars`.
-Test: `test/composed-schema.test.mustache`.
+Landed (#104): the base class carries `DISCRIMINATOR_PROPERTY` and `DISCRIMINATOR_MAPPING`, and `ObjectSerializer.deserialize` routes a decode of the base (own static property, since subtypes inherit statics) to the subtype the value names; a missing or unlisted value throws `SerializationError` naming it. Not done: a property typed as the base inside another model is still decoded as the base by class-transformer (`@Type`), not routed.
+Test: `test/composed-schema.test.mustache` (bhv unions 301-304, bhv serializationobject 301).
 
 ### Required plus nullable keeps the key (S5, D66, 2026-11-16)
 Rule: decode rejects a missing key and keeps an explicit `null`; encode always writes the key, `null` when unset.

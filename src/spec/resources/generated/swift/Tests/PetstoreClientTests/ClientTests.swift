@@ -1063,6 +1063,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     let client = try Client(authenticator: authenticator)
 
     _ = client.pet
+    _ = client.problems
     _ = client.store
   }
 }

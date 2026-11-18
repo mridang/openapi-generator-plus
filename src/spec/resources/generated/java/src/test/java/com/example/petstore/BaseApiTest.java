@@ -29,6 +29,7 @@ import com.example.petstore.auth.ApiKeyLocation;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.BadGatewayException;
 import com.example.petstore.errors.BadRequestException;
 import com.example.petstore.errors.ClientException;
 import com.example.petstore.errors.ConflictException;
@@ -36,6 +37,7 @@ import com.example.petstore.errors.ForbiddenException;
 import com.example.petstore.errors.InternalServerErrorException;
 import com.example.petstore.errors.NotFoundException;
 import com.example.petstore.errors.OpenAPIException;
+import com.example.petstore.errors.SerializationException;
 import com.example.petstore.errors.ServerException;
 import com.example.petstore.errors.TooManyRequestsException;
 import com.example.petstore.errors.UnauthorizedException;
@@ -424,7 +426,7 @@ class BaseApiTest {
           Arguments.of(429, TooManyRequestsException.class),
           Arguments.of(418, ClientException.class),
           Arguments.of(500, InternalServerErrorException.class),
-          Arguments.of(502, ServerException.class));
+          Arguments.of(502, BadGatewayException.class));
     }
 
     @ParameterizedTest
@@ -622,6 +624,40 @@ class BaseApiTest {
       // from the always-present ApiHttpResponse.body() — it must never be
       // null (empty string for a no-body response).
       assertNotNull(result.rawBody());
+    }
+
+    @Test
+    void bhvErrors205ADecodeFailureCarriesTheStatusHeadersRawBodyAndRequestWithoutItsQuery() {
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(
+                  200, "{\"ok\":", Map.of("content-type", "application/json", "x-test", "yes"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      var ex =
+          assertThrows(
+              SerializationException.class,
+              () ->
+                  testApi.callForResult(
+                      "GET",
+                      "http://localhost/test/echo?limit=2",
+                      new HashMap<>(),
+                      new HashMap<>(),
+                      null,
+                      new String[] {"application/json"},
+                      "application/json",
+                      JSON_NODE_TYPE,
+                      null));
+      assertEquals(200, ex.getStatusCode());
+      assertNotNull(ex.getResponseHeaders());
+      assertEquals("yes", ex.getResponseHeaders().get("x-test"));
+      assertEquals("{\"ok\":", ex.getResponseBody());
+      assertEquals("GET", ex.getRequestMethod());
+      assertEquals("/test/echo", ex.getRequestPath());
     }
 
     @Test

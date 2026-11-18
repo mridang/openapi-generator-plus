@@ -6,7 +6,7 @@ The twelve SDKs are deliberately alike. They have the same entry class, the same
 
 ## How it works
 
-Generation has two steps. First the specification is normalized: an optional set of rules standardizes the document so that every language sees the same input (JSON as the only content type, path filtering, handling of empty request bodies, and custom rules written in JavaScript). Then a language generator (`java-plus`, `node-plus` and so on) renders the SDK from templates. The SDK produced for a language is checked against a committed copy of the output, compiled, linted and exercised by tests against a mock server before a change is accepted.
+Generation has two steps. First the specification is normalized: an optional set of rules standardizes the document so that every language sees the same input (JSON as the only content type, filtering by path, HTTP method or tag, handling of empty request bodies, and custom rules written in JavaScript). Then a language generator (`java-plus`, `node-plus` and so on) renders the SDK from templates. The SDK produced for a language is checked against a committed copy of the output, compiled, linted and exercised by tests against a mock server before a change is accepted.
 
 The pipeline, the normalizer rules and the standard shape of a generated SDK are described in [docs/how-it-works.md](docs/how-it-works.md).
 
@@ -44,7 +44,7 @@ The key arguments are:
 * `--input-spec`: the path to your OpenAPI specification.
 * `--output`: the directory the SDK is written to.
 * `--config`: an optional YAML file of generator options. Each language accepts its own options, which are listed on its page.
-* `--openapi-normalizer "RULE=VALUE,..."`: an optional string that configures the normalizer rules.
+* `--openapi-normalizer "RULE=VALUE,..."`: an optional string that configures the normalizer rules. Besides `FILTER_PATHS` (regular expressions, comma-separated), operations can be filtered with `FILTER_METHODS`, `EXCLUDE_METHODS`, `FILTER_TAGS` and `EXCLUDE_TAGS`, each taking a `|`-separated list, for example `FILTER_METHODS=get|head,EXCLUDE_TAGS=admin|internal`. See the rule table in [docs/how-it-works.md](docs/how-it-works.md).
 
 Two options are accepted by every generator:
 

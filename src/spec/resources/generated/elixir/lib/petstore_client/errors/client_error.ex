@@ -63,7 +63,14 @@ defmodule PetstoreClient.Errors.ClientError do
     PetstoreClient.Errors.NotFoundError,
     PetstoreClient.Errors.ConflictError,
     PetstoreClient.Errors.UnprocessableEntityError,
-    PetstoreClient.Errors.TooManyRequestsError
+    PetstoreClient.Errors.TooManyRequestsError,
+    PetstoreClient.Errors.PaymentRequiredError,
+    PetstoreClient.Errors.MethodNotAllowedError,
+    PetstoreClient.Errors.RequestTimeoutError,
+    PetstoreClient.Errors.GoneError,
+    PetstoreClient.Errors.PayloadTooLargeError,
+    PetstoreClient.Errors.UnsupportedMediaTypeError,
+    PetstoreClient.Errors.LockedError
   ]
 
   @doc """
@@ -71,6 +78,8 @@ defmodule PetstoreClient.Errors.ClientError do
   specialise it, `false` otherwise.
   """
   @spec client_error?(term()) :: boolean()
-  def client_error?(%module{}), do: module in @family
+  def client_error?(%module{} = error),
+    do: module in @family or ApiError.specialises?(error, __MODULE__)
+
   def client_error?(_term), do: false
 end

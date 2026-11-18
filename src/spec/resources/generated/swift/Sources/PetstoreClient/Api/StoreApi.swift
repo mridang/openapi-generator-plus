@@ -76,12 +76,20 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - orderId: ID of the order to delete
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   public func deleteOrder(orderId: Int64, options: DeleteOrderOptions? = nil) async throws {
     let result = try await deleteOrderWithHTTPInfo(orderId: orderId, options: options)
     _ = result
   }
 
   /// Performs the deleteOrder operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   public func deleteOrderWithHTTPInfo(orderId: Int64, options: DeleteOrderOptions? = nil)
     async throws -> ApiResult<Void>
   {
@@ -432,6 +440,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - orderId: ID of order to return
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   public func getOrderById(orderId: Int64, options: GetOrderByIdOptions? = nil) async throws
     -> Order
   {
@@ -448,6 +460,10 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the getOrderById operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
+  ///   - ``NotFoundError`` on HTTP 404
   public func getOrderByIdWithHTTPInfo(orderId: Int64, options: GetOrderByIdOptions? = nil)
     async throws -> ApiResult<Order>
   {
@@ -797,6 +813,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   /// - Parameters:
   ///   - order: The request body.
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func placeOrder(order: Order? = nil, options: PlaceOrderOptions? = nil) async throws
     -> Order
   {
@@ -813,6 +832,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the placeOrder operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func placeOrderWithHTTPInfo(order: Order? = nil, options: PlaceOrderOptions? = nil)
     async throws -> ApiResult<Order>
   {
@@ -848,6 +870,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   ///
   /// - Parameters:
   ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func reserveStock(options: ReserveStockOptions? = nil) async throws -> ReserveStockResponse
   {
     let result = try await reserveStockWithHTTPInfo(options: options)
@@ -863,6 +888,9 @@ public final class StoreApi: BaseApi, @unchecked Sendable {
   }
 
   /// Performs the reserveStock operation and returns the full API result.
+  ///
+  /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+  ///   - ``BadRequestError`` on HTTP 400
   public func reserveStockWithHTTPInfo(options: ReserveStockOptions? = nil) async throws
     -> ApiResult<ReserveStockResponse>
   {

@@ -9,6 +9,7 @@
 package com.example.petstore;
 
 import com.example.petstore.api.PetApi;
+import com.example.petstore.api.ProblemsApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.auth.AdminBasicAuthenticator;
 import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
@@ -98,6 +99,9 @@ public final class Client implements AutoCloseable {
   /** API operations for the PetApi group. */
   public final PetApi pet;
 
+  /** API operations for the ProblemsApi group. */
+  public final ProblemsApi problems;
+
   /** API operations for the StoreApi group. */
   public final StoreApi store;
 
@@ -146,6 +150,7 @@ public final class Client implements AutoCloseable {
 
     Configuration config = Configuration.builder().baseUrl(host).build();
     this.pet = new PetApi(apiClient, config, authenticator, schemeAuthenticators);
+    this.problems = new ProblemsApi(apiClient, config, authenticator, schemeAuthenticators);
     this.store = new StoreApi(apiClient, config, authenticator, schemeAuthenticators);
   }
 

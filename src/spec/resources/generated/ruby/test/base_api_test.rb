@@ -159,7 +159,7 @@ describe Petstore::Client::Api::BaseApi do
     429 => Petstore::Client::Errors::TooManyRequestsError,
     418 => Petstore::Client::Errors::ClientError,
     500 => Petstore::Client::Errors::InternalServerError,
-    502 => Petstore::Client::Errors::ServerError
+    502 => Petstore::Client::Errors::BadGatewayError
   }.each do |status, error_class|
     it "bhv_errors_037 raises #{error_class} for status #{status}" do
       err = assert_raises(error_class) do
@@ -186,11 +186,11 @@ describe Petstore::Client::Api::BaseApi do
     '/test/status/418/pet/1' => Petstore::Client::Errors::ClientError,
     '/test/status/422/pet/1' => Petstore::Client::Errors::UnprocessableEntityError,
     '/test/status/500/pet/1' => Petstore::Client::Errors::InternalServerError,
-    '/test/status/502/pet/1' => Petstore::Client::Errors::ServerError,
+    '/test/status/502/pet/1' => Petstore::Client::Errors::BadGatewayError,
     '/test/status/404/store/order/1' => Petstore::Client::Errors::NotFoundError,
     '/test/status/422/store/order/1' => Petstore::Client::Errors::UnprocessableEntityError,
     '/test/status/500/store/order/1' => Petstore::Client::Errors::InternalServerError,
-    '/test/status/502/store/order/1' => Petstore::Client::Errors::ServerError
+    '/test/status/502/store/order/1' => Petstore::Client::Errors::BadGatewayError
   }.each do |path, error_class|
     it "bhv_errors_027 maps #{path} to #{error_class}" do
       err = assert_raises(error_class) do
@@ -1187,6 +1187,24 @@ describe Petstore::Client::Api::BaseApi do
     _(err.request_path).must_equal '/v1/items/7'
     _(err.message).must_include("\nRequest: GET /v1/items/7")
     _(err.message).wont_include('secret')
+  end
+
+  it 'bhv_errors_205 a decode failure of a response carries the status, the headers and the raw body' do
+    response = Petstore::Client::ApiHttpResponse.new(
+      status_code: 200, body: 'not json', headers: { 'Content-Type' => 'text/plain', 'X-Trace' => 'abc' }
+    )
+    config = Petstore::Client::Configuration.builder.base_url('https://example.test/v1').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+
+    err = assert_raises(Petstore::Client::Errors::SerializationError) do
+      test_api.call(:get, '/items/7?token=secret', {}, {}, nil, ['application/json'], 'application/json', 'Object')
+    end
+
+    _(err.status_code).must_equal 200
+    _(err.response_headers['X-Trace']).must_equal 'abc'
+    _(err.response_body).must_equal 'not json'
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/v1/items/7'
   end
 
   it 'names the request on a failure that never reached the server' do

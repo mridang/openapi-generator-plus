@@ -1,0 +1,7 @@
+{{#vendorExtensions.op.hasErrorResponses}}
+    ///
+    /// - Throws: ``ApiError`` when the call fails. The errors this operation declares:
+{{#vendorExtensions.op.errorResponses}}
+    ///   - ``{{#hasSchema}}{{{schemaClassName}}}{{/hasSchema}}{{^hasSchema}}{{{statusClassName}}}{{/hasSchema}}`` on HTTP {{status}}{{#hasSchema}} with a ``{{{schemaName}}}`` body{{/hasSchema}}
+{{/vendorExtensions.op.errorResponses}}
+{{/vendorExtensions.op.hasErrorResponses}}

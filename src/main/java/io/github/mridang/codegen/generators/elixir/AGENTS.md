@@ -34,7 +34,7 @@ The `elixir-plus` generator (`BetterElixirCodegen`) emits a Mix project: a `lib/
 | Receiver | The api struct is the first argument of every operation | No instance methods. |
 | Optional arguments | Trailing optional arguments (server override, content-type selector, refresh URL) fold into one `opts` keyword list, validated with `Keyword.validate!` | Function arity and keyword lists are the language's way to take options. |
 | Required operation options | A missing required option raises `ArgumentError` at call time; options structs do not use `@enforce_keys` | `@enforce_keys` would raise a `KeyError` when the struct is built, so the error would differ from the other SDKs. |
-| Error hierarchy | No inheritance: `api_error?/1` is the is-a predicate and `exceptions/0` lists the hierarchy for `rescue` clauses | Exceptions are plain structs. |
+| Error hierarchy | No inheritance: `api_error?/1`, `client_error?/1`, `server_error?/1` and one predicate per status error (`not_found?/1`) are the is-a predicates, `exceptions/0` lists the hierarchy for `rescue` clauses, and the error generated for a declared error schema names the errors above it in `__ancestors__/0`, which `ApiError.specialises?/2` reads. An operation passes its own `%{status => error module}` map to `ApiError.from_response/4`; `retryable?/1` and `request_id/1` take any error of the family | Exceptions are plain structs. |
 | Union models | oneOf/anyOf `build` returns the matched variant (anyOf may return an `AnyOfComposite` struct); there is no wrapper object, so `actual_instance`/`matched_instances` are module functions | Elixir has no wrapper class to hold a value. |
 | Authenticators | A behaviour plus `__using__/1`; the token manager is an Agent started by `start_link/1` and stopped by `Client.close/1` (optional `close/1` callback); `NO_AUTH` is a unique atom | OTP conventions; no implementation inheritance. |
 | Sync only | One `get_auth_headers`, no async variant | The HTTP client is synchronous. |
@@ -53,7 +53,7 @@ Rule: Elixir follows the shared decisions S1 to S16 (strict containers, content 
 
 ### allOf with a discriminator flattens into each struct (S4, 2026-11-16)
 
-Rule: intended. Each subtype is a flat struct; the base module carries a dispatch function that reads the discriminator, and a behaviour declares the shared accessors. A model reused in two unions is never re-parented. Why: structs cannot inherit; a class-style parent was rejected. Where: `models/model.mustache`, `BetterElixirCodegen` (`setsDiscriminatorDefaultOnChildren` already fills the discriminator default on subtypes). The behaviour and the allOf flattening are not in the template yet. Test: `test/composed_schema_test.mustache`.
+Rule: intended. Each subtype is a flat struct; the base module carries a dispatch function that reads the discriminator, and a behaviour declares the shared accessors. A model reused in two unions is never re-parented. Why: structs cannot inherit; a class-style parent was rejected. Where: `models/model.mustache`, `BetterElixirCodegen` (`setsDiscriminatorDefaultOnChildren` already fills the discriminator default on subtypes). The base module's `build/1` dispatches a payload to the subtype its mapping names (`hasChildren` plus `discriminator` gate it), and `ObjectSerializer.convert_to_type/2` routes to it. The shared behaviour for accessors is not in the template yet. Test: `test/composed_schema_test.mustache`.
 
 ### Required plus nullable (S5, D66, 2026-11-16)
 

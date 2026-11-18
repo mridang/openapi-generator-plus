@@ -77,12 +77,16 @@ module Petstore::Client
       # @param options [DeleteOrderOptions] per-call options: the optional timeout, headers and max_retries
       # @return [nil]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def delete_order(order_id, options = nil)
         delete_order_with_http_info(order_id, options).data
       end
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def delete_order_with_http_info(order_id, options = nil)
         if order_id.nil?
           raise ArgumentError,
@@ -380,6 +384,8 @@ module Petstore::Client
       # @param options [GetOrderByIdOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Order]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_order_by_id(order_id, options = nil)
         result = get_order_by_id_with_http_info(order_id, options)
         # This operation declares a non-void return type. When the server
@@ -400,6 +406,8 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
+      # @raise [::Petstore::Client::Errors::NotFoundError] on HTTP 404
       def get_order_by_id_with_http_info(order_id, options = nil)
         if order_id.nil?
           raise ArgumentError,
@@ -701,6 +709,7 @@ module Petstore::Client
       # @param options [PlaceOrderOptions] per-call options: the optional timeout, headers and max_retries
       # @return [Order]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def place_order(order = nil, options = nil)
         result = place_order_with_http_info(order, options)
         # This operation declares a non-void return type. When the server
@@ -721,6 +730,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def place_order_with_http_info(order = nil, options = nil)
         path = '/store/order'
         # @type var query_params: Hash[String, untyped]
@@ -750,6 +760,7 @@ module Petstore::Client
       # @param options [ReserveStockOptions] per-call options: the optional timeout, headers and max_retries
       # @return [ReserveStockResponse]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def reserve_stock(options = nil)
         result = reserve_stock_with_http_info(options)
         # This operation declares a non-void return type. When the server
@@ -770,6 +781,7 @@ module Petstore::Client
 
       # @return [ApiResult]
       # @raise [ApiError] if fails to make API call
+      # @raise [::Petstore::Client::Errors::BadRequestError] on HTTP 400
       def reserve_stock_with_http_info(options = nil)
         path = '/store/reservation'
         # @type var query_params: Hash[String, untyped]

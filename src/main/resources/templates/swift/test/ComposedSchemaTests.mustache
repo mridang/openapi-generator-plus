@@ -178,6 +178,43 @@ import Testing
         #expect(list.asDataList?.count == 1)
     }
 
+    // MARK: - allOf with a discriminator: Vehicle and Shape
+
+    @Test func testBhvUnions301VehicleExplicitMappingDecodesTheSubtype() throws {
+        let json = Data("{\"vehicleType\":\"car\",\"plate\":\"AB-12\",\"doorCount\":4}".utf8)
+        let vehicle = try JSONDecoder().decode(Vehicle.self, from: json)
+        let car = try #require(vehicle.asCar)
+        #expect(car.plate == "AB-12")
+        #expect(car.doorCount == 4)
+    }
+
+    @Test func testBhvUnions302ShapeImplicitMappingDecodesTheSubtype() throws {
+        let json = Data("{\"shapeType\":\"Circle\",\"radius\":1.5}".utf8)
+        let shape = try JSONDecoder().decode(Shape.self, from: json)
+        let circle = try #require(shape.asCircle)
+        #expect(circle.radius == 1.5)
+    }
+
+    @Test func testBhvUnions303VehicleUnknownDiscriminatorNamesTheValue() {
+        let error = #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize(
+                "{\"vehicleType\":\"boat\",\"plate\":\"B-1\"}", as: Vehicle.self)
+        }
+        let cause = String(describing: error?.cause)
+        #expect(cause.contains("boat"))
+    }
+
+    @Test func testBhvUnions304VehicleMissingDiscriminatorFails() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"plate\":\"AB-12\"}", as: Vehicle.self)
+        }
+    }
+
+    @Test func testBhvSerializationobject301CarWritesItsDiscriminator() throws {
+        let json = try ObjectSerializer.serialize(Car(plate: "AB-12", doorCount: 4))
+        #expect(json.contains("\"vehicleType\":\"car\""))
+    }
+
     // MARK: - anyOf without discriminator: PetTreatment
 
     @Test func testBhvUnions014PetTreatmentDeserializeMedication() throws {

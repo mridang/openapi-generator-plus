@@ -127,6 +127,10 @@ public class BaseApi: @unchecked Sendable {
     /// Per-call retry limit, from the operation's options; nil keeps the
     /// transport's own and 0 turns retries off.
     var maxRetries: Int? = nil
+    /// The error factories of the error schemas the operation declares, by
+    /// declared status (`404`, `4XX`, `default`); nil for an operation that
+    /// declares none, which then gets the plain status error.
+    var errorSchemas: [String: ErrorFactory]? = nil
   }
 
   /// Sends one prepared request through the client. The SDK's own transport
@@ -168,6 +172,19 @@ public class BaseApi: @unchecked Sendable {
   /// - Returns: The raw HTTP response.
   /// - Throws: ``ApiError`` if the API call fails.
   func invokeAPI(_ params: InvokeAPIParams) async throws -> ApiHttpResponse {
+    return try await invokeAPIWithPath(params).response
+  }
+
+  /// As ``invokeAPI(_:)``, and also returns the path of the request that was
+  /// sent (query string left out), so a failure to decode the response can
+  /// name the request it answered.
+  ///
+  /// - Parameter params: The invocation parameters.
+  /// - Returns: The raw HTTP response and the request path.
+  /// - Throws: ``ApiError`` if the API call fails.
+  private func invokeAPIWithPath(_ params: InvokeAPIParams) async throws -> (
+    response: ApiHttpResponse, requestPath: String
+  ) {
     try Self.validatePerCall(timeout: params.timeout, maxRetries: params.maxRetries)
     var requestURL = params.path
     if !requestURL.hasPrefix("http://") && !requestURL.hasPrefix("https://") {
@@ -322,11 +339,12 @@ public class BaseApi: @unchecked Sendable {
         headers: response.headers,
         body: response.body,
         requestMethod: params.method,
-        requestPath: ApiError.pathOfRequestURL(requestURL)
+        requestPath: ApiError.pathOfRequestURL(requestURL),
+        errorSchemas: params.errorSchemas
       )
     }
 
-    return response
+    return (response, ApiError.pathOfRequestURL(requestURL))
   }
 
   /// Invoke an API operation and return the full result including status code,
@@ -343,7 +361,7 @@ public class BaseApi: @unchecked Sendable {
   func invokeAPIForResult<T: Decodable>(_ params: InvokeAPIParams, as type: T.Type) async throws
     -> ApiResult<T>
   {
-    let response = try await invokeAPI(params)
+    let (response, requestPath) = try await invokeAPIWithPath(params)
     let responseContentType =
       response.headers.first(where: {
         $0.key.caseInsensitiveCompare("content-type") == .orderedSame
@@ -351,44 +369,50 @@ public class BaseApi: @unchecked Sendable {
     let isJsonResponse =
       responseContentType.isEmpty || headerSelector.isJsonMime(responseContentType)
     var data: T? = nil
-    if type == Data.self && !isJsonResponse {
-      /* Binary transport (`format: binary`, e.g. image/jpeg, octet-stream):
-         the transport base64-encodes binary response bodies into the
-         String `response.body`, so decode it back to the original bytes
-         here (mirroring the other SDKs). Fall back to the raw utf8 bytes
-         if the body isn't valid base64 (e.g. a server that wrote raw
-         bytes), so we never lose the payload.
-      
-         A `format: byte` response carried as `application/json` is NOT
-         handled here — it is a JSON string literal (`"dGVzdC1pbWFnZQ=="`)
-         and must be JSON-parsed before base64-decoding. That case falls
-         through to the JSON branch below, where Foundation's JSONDecoder
-         decodes the quoted base64 string into `Data` automatically. */
-      data =
-        (Data(base64Encoded: response.body) ?? response.body.data(using: .utf8) ?? Data()) as? T
-    } else if type == Data.self,
-      let first = response.body.drop(while: { $0.isWhitespace }).first,
-      first == "{" || first == "["
-    {
-      /* A binary operation answered with a JSON document (content
-         negotiation): the caller gets its raw bytes, never a decode error. */
-      data = Data(response.body.utf8) as? T
-    } else if !response.body.isEmpty {
-      /* Default to JSON when Content-Type is missing — matches the other
-         11 SDKs which all assume JSON for empty/missing Content-Type. Some
-         servers strip Content-Type from JSON responses. */
-      if isJsonResponse {
-        data = try ObjectSerializer.deserialize(response.body, as: type)
-      } else if type == String.self {
-        data = response.body as? T
-      } else {
-        let mediaType =
-          responseContentType.split(separator: ";").first
-          .map { $0.trimmingCharacters(in: .whitespaces) } ?? responseContentType
-        throw SerializationError(
-          message: "Unexpected response Content-Type '\(mediaType)' for "
-            + "\(params.operation): expected a JSON body")
+    do {
+      if type == Data.self && !isJsonResponse {
+        /* Binary transport (`format: binary`, e.g. image/jpeg, octet-stream):
+           the transport base64-encodes binary response bodies into the
+           String `response.body`, so decode it back to the original bytes
+           here (mirroring the other SDKs). Fall back to the raw utf8 bytes
+           if the body isn't valid base64 (e.g. a server that wrote raw
+           bytes), so we never lose the payload.
+        
+           A `format: byte` response carried as `application/json` is NOT
+           handled here — it is a JSON string literal (`"dGVzdC1pbWFnZQ=="`)
+           and must be JSON-parsed before base64-decoding. That case falls
+           through to the JSON branch below, where Foundation's JSONDecoder
+           decodes the quoted base64 string into `Data` automatically. */
+        data =
+          (Data(base64Encoded: response.body) ?? response.body.data(using: .utf8) ?? Data()) as? T
+      } else if type == Data.self,
+        let first = response.body.drop(while: { $0.isWhitespace }).first,
+        first == "{" || first == "["
+      {
+        /* A binary operation answered with a JSON document (content
+           negotiation): the caller gets its raw bytes, never a decode error. */
+        data = Data(response.body.utf8) as? T
+      } else if !response.body.isEmpty {
+        /* Default to JSON when Content-Type is missing — matches the other
+           11 SDKs which all assume JSON for empty/missing Content-Type. Some
+           servers strip Content-Type from JSON responses. */
+        if isJsonResponse {
+          data = try ObjectSerializer.deserialize(response.body, as: type)
+        } else if type == String.self {
+          data = response.body as? T
+        } else {
+          let mediaType =
+            responseContentType.split(separator: ";").first
+            .map { $0.trimmingCharacters(in: .whitespaces) } ?? responseContentType
+          throw SerializationError(
+            message: "Unexpected response Content-Type '\(mediaType)' for "
+              + "\(params.operation): expected a JSON body")
+        }
       }
+    } catch let error as SerializationError {
+      throw error.withResponse(
+        statusCode: response.statusCode, headers: response.headers, body: response.body,
+        requestMethod: params.method, requestPath: requestPath)
     }
     return ApiResult<T>(
       statusCode: response.statusCode,
@@ -410,8 +434,15 @@ public class BaseApi: @unchecked Sendable {
   func invokeAPIForResult<T: Sendable>(
     _ params: InvokeAPIParams, decodingByStatus decode: (ApiHttpResponse) throws -> T?
   ) async throws -> ApiResult<T> {
-    let response = try await invokeAPI(params)
-    let data: T? = response.body.isEmpty ? nil : try decode(response)
+    let (response, requestPath) = try await invokeAPIWithPath(params)
+    let data: T?
+    do {
+      data = response.body.isEmpty ? nil : try decode(response)
+    } catch let error as SerializationError {
+      throw error.withResponse(
+        statusCode: response.statusCode, headers: response.headers, body: response.body,
+        requestMethod: params.method, requestPath: requestPath)
+    }
     return ApiResult<T>(
       statusCode: response.statusCode,
       data: data,

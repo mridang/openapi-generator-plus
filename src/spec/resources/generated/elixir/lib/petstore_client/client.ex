@@ -44,6 +44,7 @@ defmodule PetstoreClient.Client do
           authenticator: term() | nil,
           schemes: %{optional(String.t()) => term()},
           pet: PetstoreClient.Api.PetApi.t(),
+          problems: PetstoreClient.Api.ProblemsApi.t(),
           store: PetstoreClient.Api.StoreApi.t()
         }
 
@@ -51,6 +52,7 @@ defmodule PetstoreClient.Client do
     :api_client,
     :authenticator,
     :pet,
+    :problems,
     :store,
     schemes: %{}
   ]
@@ -134,6 +136,8 @@ defmodule PetstoreClient.Client do
       authenticator: authenticator,
       schemes: credentials,
       pet: PetstoreClient.Api.PetApi.new(api_client, config, authenticator, credentials),
+      problems:
+        PetstoreClient.Api.ProblemsApi.new(api_client, config, authenticator, credentials),
       store: PetstoreClient.Api.StoreApi.new(api_client, config, authenticator, credentials)
     }
   end

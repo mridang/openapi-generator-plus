@@ -18,6 +18,7 @@ import com.example.petstore.TraceContextUtil;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.HttpAwareAuthenticator;
 import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.ErrorFactory;
 import com.example.petstore.errors.SerializationException;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -251,6 +252,61 @@ public abstract class BaseApi {
       @Nullable Integer timeoutMillis,
       @Nullable Integer maxRetries,
       @Nullable BiFunction<Integer, String, T> successDecoder) {
+    return invokeApiForResult(
+        operationId,
+        method,
+        path,
+        queryParams,
+        headerParams,
+        body,
+        accepts,
+        contentType,
+        returnType,
+        auth,
+        timeoutMillis,
+        maxRetries,
+        successDecoder,
+        null);
+  }
+
+  /**
+   * Invoke an API operation with the factories of the error schemas it declares.
+   *
+   * @param <T> the return type
+   * @param operationId operation id, named in serialization errors
+   * @param method HTTP method (GET, POST, PUT, DELETE, etc.)
+   * @param path URL path (with path params already substituted)
+   * @param queryParams query parameters
+   * @param headerParams custom header parameters
+   * @param body request body (model object or null)
+   * @param accepts acceptable response content types
+   * @param contentType request content type
+   * @param returnType return type for deserialization (null for void)
+   * @param auth the credential for the scheme the operation requires, or {@code NO_AUTH}
+   * @param timeoutMillis end-to-end timeout in milliseconds for this call, or {@code null}
+   * @param maxRetries retry count for this call, or {@code null} to use the transport's
+   * @param successDecoder decodes a non-empty success body from its status code and raw text, or
+   *     {@code null} to decode with {@code returnType}
+   * @param errorSchemas the operation's error factories by declared status ({@code 404}, {@code
+   *     4XX}, {@code default}), or {@code null} when it declares none
+   * @return ApiResult containing deserialized data, status code, raw body, and headers
+   * @throws ApiException if the API call fails
+   */
+  protected <T> ApiResult<T> invokeApiForResult(
+      String operationId,
+      String method,
+      String path,
+      Map<String, Object> queryParams,
+      Map<String, String> headerParams,
+      @Nullable Object body,
+      String[] accepts,
+      String contentType,
+      @Nullable Type returnType,
+      @Nullable Authenticator auth,
+      @Nullable Integer timeoutMillis,
+      @Nullable Integer maxRetries,
+      @Nullable BiFunction<Integer, String, T> successDecoder,
+      @Nullable Map<String, ErrorFactory> errorSchemas) {
 
     String url;
     if (path.startsWith("http://") || path.startsWith("https://")) {
@@ -404,82 +460,96 @@ public abstract class BaseApi {
 
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
       throw ApiException.fromResponse(
-          method, path, response.statusCode(), response.headers(), response.body());
+          method, path, response.statusCode(), response.headers(), response.body(), errorSchemas);
     }
 
     T data = null;
-    if (successDecoder != null && response.body() != null && !response.body().isEmpty()) {
-      data = successDecoder.apply(response.statusCode(), response.body());
-    } else if (returnType != null && response.body() != null && !response.body().isEmpty()) {
-      String responseContentType = "";
-      if (response.headers() != null) {
-        for (Map.Entry<String, String> entry : response.headers().entrySet()) {
-          if (entry.getKey().equalsIgnoreCase("content-type")) {
-            responseContentType = entry.getValue();
-            break;
+    try {
+      if (successDecoder != null && response.body() != null && !response.body().isEmpty()) {
+        data = successDecoder.apply(response.statusCode(), response.body());
+      } else if (returnType != null && response.body() != null && !response.body().isEmpty()) {
+        String responseContentType = "";
+        if (response.headers() != null) {
+          for (Map.Entry<String, String> entry : response.headers().entrySet()) {
+            if (entry.getKey().equalsIgnoreCase("content-type")) {
+              responseContentType = entry.getValue();
+              break;
+            }
           }
         }
-      }
-      boolean binaryReturnType = returnType == InputStream.class || returnType == byte[].class;
-      if (binaryReturnType) {
-        /* Binary return types (InputStream / byte[]) must never be
-         * JSON-deserialized. The transport base64-encodes the body
-         * for non-text content types and leaves text content types
-         * (including JSON) as a decoded string, so recover the raw
-         * bytes accordingly before wrapping. */
-        byte[] rawBytes;
-        if (!isTextResponseContentType(responseContentType)) {
-          rawBytes = java.util.Base64.getDecoder().decode(response.body());
-        } else if (returnType == byte[].class && headerSelector.isJsonMime(responseContentType)) {
-          /* A top-level `format: byte` value carried as application/json
-           * arrives as a JSON string literal (e.g. "dGVzdA==", quotes
-           * included). The transport leaves JSON bodies as a decoded
-           * string, so we must JSON-parse the literal first and then
-           * base64-decode the inner string to recover the raw bytes —
-           * returning neither the quoted literal's UTF-8 bytes nor the
-           * still-encoded base64 string. */
-          rawBytes = objectSerializer.deserialize(response.body(), byte[].class);
-        } else {
-          rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
-        }
-        if (returnType == InputStream.class) {
-          /* Cast to the type variable T is guarded by the runtime
-           * check above (returnType == InputStream.class),
-           * so it is provably safe; javac cannot see this, hence the
-           * method-level @SuppressWarnings("unchecked"). */
-          T streamBody = (T) new ByteArrayInputStream(rawBytes);
-          data = streamBody;
-        } else {
-          /* Guarded by returnType == byte[].class above. */
-          T bytesBody = (T) rawBytes;
-          data = bytesBody;
-        }
-      } else if (!responseContentType.isEmpty()
-          && !headerSelector.isJsonMime(responseContentType)) {
-        /* Non-JSON, non-binary response: only a String return type
-         * can carry a text-class body verbatim. Anything else is a
-         * serialization error naming the Content-Type, never an
-         * unchecked cast into the model slot. */
-        if (returnType != String.class) {
-          String mediaType = responseContentType;
-          int semi = mediaType.indexOf(';');
-          if (semi >= 0) {
-            mediaType = mediaType.substring(0, semi);
+        boolean binaryReturnType = returnType == InputStream.class || returnType == byte[].class;
+        if (binaryReturnType) {
+          /* Binary return types (InputStream / byte[]) must never be
+           * JSON-deserialized. The transport base64-encodes the body
+           * for non-text content types and leaves text content types
+           * (including JSON) as a decoded string, so recover the raw
+           * bytes accordingly before wrapping. */
+          byte[] rawBytes;
+          if (!isTextResponseContentType(responseContentType)) {
+            rawBytes = java.util.Base64.getDecoder().decode(response.body());
+          } else if (returnType == byte[].class && headerSelector.isJsonMime(responseContentType)) {
+            /* A top-level `format: byte` value carried as application/json
+             * arrives as a JSON string literal (e.g. "dGVzdA==", quotes
+             * included). The transport leaves JSON bodies as a decoded
+             * string, so we must JSON-parse the literal first and then
+             * base64-decode the inner string to recover the raw bytes —
+             * returning neither the quoted literal's UTF-8 bytes nor the
+             * still-encoded base64 string. */
+            rawBytes = objectSerializer.deserialize(response.body(), byte[].class);
+          } else {
+            rawBytes = response.body().getBytes(StandardCharsets.UTF_8);
           }
-          throw new SerializationException(
-              "Unexpected response Content-Type '"
-                  + mediaType.trim()
-                  + "' for "
-                  + getClass().getSimpleName()
-                  + "."
-                  + operationId
-                  + ": expected a JSON body");
+          if (returnType == InputStream.class) {
+            /* Cast to the type variable T is guarded by the runtime
+             * check above (returnType == InputStream.class),
+             * so it is provably safe; javac cannot see this, hence the
+             * method-level @SuppressWarnings("unchecked"). */
+            T streamBody = (T) new ByteArrayInputStream(rawBytes);
+            data = streamBody;
+          } else {
+            /* Guarded by returnType == byte[].class above. */
+            T bytesBody = (T) rawBytes;
+            data = bytesBody;
+          }
+        } else if (!responseContentType.isEmpty()
+            && !headerSelector.isJsonMime(responseContentType)) {
+          /* Non-JSON, non-binary response: only a String return type
+           * can carry a text-class body verbatim. Anything else is a
+           * serialization error naming the Content-Type, never an
+           * unchecked cast into the model slot. */
+          if (returnType != String.class) {
+            String mediaType = responseContentType;
+            int semi = mediaType.indexOf(';');
+            if (semi >= 0) {
+              mediaType = mediaType.substring(0, semi);
+            }
+            throw new SerializationException(
+                "Unexpected response Content-Type '"
+                    + mediaType.trim()
+                    + "' for "
+                    + getClass().getSimpleName()
+                    + "."
+                    + operationId
+                    + ": expected a JSON body");
+          }
+          T rawBody = (T) response.body();
+          data = rawBody;
+        } else {
+          data = objectSerializer.deserialize(response.body(), returnType);
         }
-        T rawBody = (T) response.body();
-        data = rawBody;
-      } else {
-        data = objectSerializer.deserialize(response.body(), returnType);
       }
+    } catch (SerializationException decodeFailure) {
+      /* errors205: a body that does not decode raises the SerializationException
+       * of the decode, now carrying the response that held it, so a caller can see
+       * the status, the headers, the raw body and the request that drew it. */
+      throw new SerializationException(
+          String.valueOf(decodeFailure.getMessage()),
+          decodeFailure,
+          response.statusCode(),
+          response.headers(),
+          response.body(),
+          method,
+          path);
     }
     return new ApiResult<>(
         response.statusCode(),

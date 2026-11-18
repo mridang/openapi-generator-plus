@@ -1,5 +1,6 @@
 {{>api_info}}
 
+use std::collections::HashMap;
 use std::fmt;
 
 /// Error returned when serialization or deserialization fails.
@@ -7,12 +8,79 @@ use std::fmt;
 pub struct SerializationError {
     message: String,
     cause: Option<Box<dyn std::error::Error + Send + Sync>>,
+    /// The response and request a decoding failure belongs to, boxed so the
+    /// error stays small in every `Result` that carries it.
+    context: Option<Box<DecodeContext>>,
+}
+
+/// The response whose body could not be decoded, and the request that drew it.
+#[derive(Debug, Default)]
+struct DecodeContext {
+    status_code: u16,
+    response_headers: HashMap<String, String>,
+    response_body: String,
+    request_method: Option<String>,
+    request_path: Option<String>,
 }
 
 impl SerializationError {
     /// Creates a new serialization error with an optional underlying cause.
     pub fn new(message: String, cause: Option<Box<dyn std::error::Error + Send + Sync>>) -> Self {
-        Self { message, cause }
+        Self {
+            message,
+            cause,
+            context: None,
+        }
+    }
+
+    /// Records the response whose body could not be decoded: its status, its
+    /// headers and its raw body.
+    pub(crate) fn with_response(
+        mut self,
+        status_code: u16,
+        headers: &HashMap<String, String>,
+        body: &str,
+    ) -> Self {
+        let context = self.context.get_or_insert_with(Default::default);
+        context.status_code = status_code;
+        context.response_headers = headers.clone();
+        context.response_body = body.to_string();
+        self
+    }
+
+    /// Records the request the response belongs to: the HTTP method and the
+    /// path, cut at the first `?` or `#` so a query string never reaches the error.
+    pub(crate) fn with_request(mut self, method: &str, path: &str) -> Self {
+        let context = self.context.get_or_insert_with(Default::default);
+        context.request_method = Some(method.to_string());
+        context.request_path = Some(crate::errors::api_error::request_path_of(path));
+        self
+    }
+
+    /// The status of the response that could not be decoded, or `None` when the
+    /// failure did not come from a response.
+    pub fn status_code(&self) -> Option<u16> {
+        self.context.as_ref().map(|c| c.status_code)
+    }
+
+    /// The headers of the response that could not be decoded, if any.
+    pub fn response_headers(&self) -> Option<&HashMap<String, String>> {
+        self.context.as_ref().map(|c| &c.response_headers)
+    }
+
+    /// The raw body of the response that could not be decoded, if any.
+    pub fn response_body(&self) -> Option<&str> {
+        self.context.as_ref().map(|c| c.response_body.as_str())
+    }
+
+    /// The HTTP method of the request whose response could not be decoded, if known.
+    pub fn request_method(&self) -> Option<&str> {
+        self.context.as_ref().and_then(|c| c.request_method.as_deref())
+    }
+
+    /// The path of that request, without its query string, if known.
+    pub fn request_path(&self) -> Option<&str> {
+        self.context.as_ref().and_then(|c| c.request_path.as_deref())
     }
 
     /// Returns the human-readable error message.

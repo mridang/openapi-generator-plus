@@ -369,4 +369,60 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert restored.owner_name == original.owner_name
     end
   end
+
+  # -- allOf with a discriminator: Vehicle (explicit mapping) and Shape (schema name) --
+
+  describe "allOf with a discriminator Vehicle and Shape" do
+    test "bhv unions 301 an allOf base decodes to the subtype its explicit mapping names" do
+      json = ~s({"vehicleType":"car","plate":"AB-12","doorCount":4})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "Vehicle")
+
+      assert %PetstoreClient.Models.Car{} = result
+      assert result.plate == "AB-12"
+      assert result.door_count == 4
+
+      truck =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"vehicleType":"truck","plate":"T-1"}),
+          "Vehicle"
+        )
+
+      assert %PetstoreClient.Models.Truck{} = truck
+    end
+
+    test "bhv unions 302 an allOf base decodes to the subtype its implicit schema name names" do
+      json = ~s({"shapeType":"Circle","radius":1.5})
+      result = PetstoreClient.ObjectSerializer.deserialize(json, "Shape")
+
+      assert %PetstoreClient.Models.Circle{} = result
+      assert result.radius == 1.5
+    end
+
+    test "bhv unions 303 an unknown allOf discriminator value fails and the error names it" do
+      json = ~s({"vehicleType":"boat","plate":"B-1"})
+
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "Vehicle")
+        end
+
+      assert err.message =~ "boat"
+    end
+
+    test "bhv unions 304 an allOf base payload without its discriminator fails" do
+      json = ~s({"plate":"AB-12"})
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(json, "Vehicle")
+      end
+    end
+
+    test "bhv serializationobject 301 an allOf subtype writes its discriminator value when serialized" do
+      json = ~s({"plate":"AB-12","doorCount":4})
+      car = PetstoreClient.ObjectSerializer.deserialize(json, "Car")
+      serialized = PetstoreClient.ObjectSerializer.serialize(car)
+
+      assert serialized =~ ~s("vehicleType":"car")
+    end
+  end
 end

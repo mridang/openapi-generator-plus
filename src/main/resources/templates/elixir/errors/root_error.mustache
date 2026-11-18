@@ -41,6 +41,8 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
        │   │       (and the {{moduleName}}.Errors.ClientError grouping)
        │   ├─ 5xx: InternalServerError(500)
        │   │       (and the {{moduleName}}.Errors.ServerError grouping)
+       │   ├─ one error per declared error schema, named from the schema's model
+       │   │   and specialising the status error of the status it is declared under
        │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
        ├─ {{moduleName}}.Errors.SerializationError  (every encode/decode failure)
        ├─ {{moduleName}}.Errors.OAuth2ServerError  (token endpoint returned 4xx/5xx)
@@ -62,12 +64,24 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
     {{moduleName}}.Errors.ConflictError,
     {{moduleName}}.Errors.UnprocessableEntityError,
     {{moduleName}}.Errors.TooManyRequestsError,
+    {{moduleName}}.Errors.PaymentRequiredError,
+    {{moduleName}}.Errors.MethodNotAllowedError,
+    {{moduleName}}.Errors.RequestTimeoutError,
+    {{moduleName}}.Errors.GoneError,
+    {{moduleName}}.Errors.PayloadTooLargeError,
+    {{moduleName}}.Errors.UnsupportedMediaTypeError,
+    {{moduleName}}.Errors.LockedError,
+    {{moduleName}}.Errors.NotImplementedError,
+    {{moduleName}}.Errors.BadGatewayError,
+    {{moduleName}}.Errors.ServiceUnavailableError,
+    {{moduleName}}.Errors.GatewayTimeoutError,
     {{moduleName}}.Errors.InternalServerError,
     {{moduleName}}.Errors.NetworkError,
     {{moduleName}}.Errors.NetworkTimeoutError,
     {{moduleName}}.Errors.SerializationError,
     {{moduleName}}.Errors.OAuth2ServerError,
-    {{moduleName}}.Errors.OAuth2TokenError
+    {{moduleName}}.Errors.OAuth2TokenError{{#errorSchemas}},
+    {{moduleName}}.Errors.{{className}}{{/errorSchemas}}
   ]
 
   @type t ::
@@ -81,12 +95,24 @@ defmodule {{moduleName}}.Errors.{{errorPrefix}}Error do
           | {{moduleName}}.Errors.ConflictError.t()
           | {{moduleName}}.Errors.UnprocessableEntityError.t()
           | {{moduleName}}.Errors.TooManyRequestsError.t()
+          | {{moduleName}}.Errors.PaymentRequiredError.t()
+          | {{moduleName}}.Errors.MethodNotAllowedError.t()
+          | {{moduleName}}.Errors.RequestTimeoutError.t()
+          | {{moduleName}}.Errors.GoneError.t()
+          | {{moduleName}}.Errors.PayloadTooLargeError.t()
+          | {{moduleName}}.Errors.UnsupportedMediaTypeError.t()
+          | {{moduleName}}.Errors.LockedError.t()
+          | {{moduleName}}.Errors.NotImplementedError.t()
+          | {{moduleName}}.Errors.BadGatewayError.t()
+          | {{moduleName}}.Errors.ServiceUnavailableError.t()
+          | {{moduleName}}.Errors.GatewayTimeoutError.t()
           | {{moduleName}}.Errors.InternalServerError.t()
           | {{moduleName}}.Errors.NetworkError.t()
           | {{moduleName}}.Errors.NetworkTimeoutError.t()
           | {{moduleName}}.Errors.SerializationError.t()
           | {{moduleName}}.Errors.OAuth2ServerError.t()
-          | {{moduleName}}.Errors.OAuth2TokenError.t()
+          | {{moduleName}}.Errors.OAuth2TokenError.t(){{#errorSchemas}}
+          | {{moduleName}}.Errors.{{className}}.t(){{/errorSchemas}}
 
   @doc """
   Returns the canonical list of every exception module this SDK can

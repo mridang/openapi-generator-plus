@@ -29,4 +29,79 @@ namespace PetstoreClient\Errors;
  */
 final class SerializationException extends OpenAPIException
 {
+    /** The HTTP status of the response that could not be decoded, or null for an outgoing value. */
+    private ?int $statusCode = null;
+
+    /**
+     * The headers of the response that could not be decoded.
+     *
+     * @var array<string, string>|null
+     */
+    private ?array $responseHeaders = null;
+
+    /** The raw body of the response that could not be decoded. */
+    private ?string $responseBody = null;
+
+    /** The HTTP method of the request the response answered. */
+    private ?string $requestMethod = null;
+
+    /** The path of the request the response answered, without its query string. */
+    private ?string $requestPath = null;
+
+    /**
+     * The same failure with the response it came from attached: the status, the headers and the
+     * raw body, and the method and path of the request, without its query string.
+     *
+     * @param array<string, string> $responseHeaders the response headers
+     */
+    public function withResponse(
+        int $statusCode,
+        array $responseHeaders,
+        string $responseBody,
+        string $requestMethod,
+        string $requestPath
+    ): self {
+        $copy = new self($this->getMessage(), $this->getCode(), $this->getPrevious());
+        $copy->statusCode = $statusCode;
+        $copy->responseHeaders = $responseHeaders;
+        $copy->responseBody = $responseBody;
+        $copy->requestMethod = strtoupper($requestMethod);
+        $copy->requestPath = ApiException::pathWithoutQuery($requestPath);
+
+        return $copy;
+    }
+
+    /** The HTTP status of the response that could not be decoded, or null for an outgoing value. */
+    public function getStatusCode(): ?int
+    {
+        return $this->statusCode;
+    }
+
+    /**
+     * The headers of the response that could not be decoded, or null for an outgoing value.
+     *
+     * @return array<string, string>|null
+     */
+    public function getResponseHeaders(): ?array
+    {
+        return $this->responseHeaders;
+    }
+
+    /** The raw body of the response that could not be decoded, or null for an outgoing value. */
+    public function getResponseBody(): ?string
+    {
+        return $this->responseBody;
+    }
+
+    /** The HTTP method of the request the response answered, or null for an outgoing value. */
+    public function getRequestMethod(): ?string
+    {
+        return $this->requestMethod;
+    }
+
+    /** The path of the request the response answered, without its query string, or null. */
+    public function getRequestPath(): ?string
+    {
+        return $this->requestPath;
+    }
 }

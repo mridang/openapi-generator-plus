@@ -1299,9 +1299,9 @@ final class PetApiTests {
     ("pet/1", 403, "ForbiddenError"), ("pet/1", 404, "NotFoundError"),
     ("pet/1", 409, "ConflictError"), ("pet/1", 418, "ClientError"),
     ("pet/1", 422, "UnprocessableEntityError"), ("pet/1", 500, "InternalServerError"),
-    ("pet/1", 502, "ServerError"),
+    ("pet/1", 502, "BadGatewayError"),
     ("store/order/1", 404, "NotFoundError"), ("store/order/1", 422, "UnprocessableEntityError"),
-    ("store/order/1", 500, "InternalServerError"), ("store/order/1", 502, "ServerError"),
+    ("store/order/1", 500, "InternalServerError"), ("store/order/1", 502, "BadGatewayError"),
   ])
   func testBhvOperations110TypedStatusRoutesMapToTheirErrorType(
     route: String, status: Int, typeName: String

@@ -46,7 +46,32 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings("unused")
 public class BetterElixirCodegen extends AbstractBetterCodegen {
 
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterElixirCodegen.class);
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        final String pkg = Optional.ofNullable((String) additionalProperties.get("packageName"))
+                .orElse(packageName);
+        return Path.of(
+                        outputFolder,
+                        "lib",
+                        pkg,
+                        "errors",
+                        org.openapitools.codegen.utils.StringUtils.underscore(className) + ".ex")
+                .toString();
+    }
 
     /**
      * The generated per-scheme authenticators that read an environment variable, with the
@@ -346,6 +371,17 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/forbidden_error.mustache", errorsDir, "forbidden_error.ex"),
             new SupportingFileSpec("errors/not_found_error.mustache", errorsDir, "not_found_error.ex"),
             new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "conflict_error.ex"),
+            new SupportingFileSpec("errors/payment_required_error.mustache", errorsDir, "payment_required_error.ex"),
+            new SupportingFileSpec("errors/method_not_allowed_error.mustache", errorsDir, "method_not_allowed_error.ex"),
+            new SupportingFileSpec("errors/request_timeout_error.mustache", errorsDir, "request_timeout_error.ex"),
+            new SupportingFileSpec("errors/gone_error.mustache", errorsDir, "gone_error.ex"),
+            new SupportingFileSpec("errors/payload_too_large_error.mustache", errorsDir, "payload_too_large_error.ex"),
+            new SupportingFileSpec("errors/unsupported_media_type_error.mustache", errorsDir, "unsupported_media_type_error.ex"),
+            new SupportingFileSpec("errors/locked_error.mustache", errorsDir, "locked_error.ex"),
+            new SupportingFileSpec("errors/not_implemented_error.mustache", errorsDir, "not_implemented_error.ex"),
+            new SupportingFileSpec("errors/bad_gateway_error.mustache", errorsDir, "bad_gateway_error.ex"),
+            new SupportingFileSpec("errors/service_unavailable_error.mustache", errorsDir, "service_unavailable_error.ex"),
+            new SupportingFileSpec("errors/gateway_timeout_error.mustache", errorsDir, "gateway_timeout_error.ex"),
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "unprocessable_entity_error.ex"),
             new SupportingFileSpec("errors/too_many_requests_error.mustache", errorsDir, "too_many_requests_error.ex"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "internal_server_error.ex"),

@@ -52,6 +52,11 @@ The codegen class `BetterKotlinCodegen.java` owns type mapping, reserved words, 
 
 Status words: "implemented" means the template or codegen already does it; "pending" means the owner decided it and the kotlin templates have not caught up, so a diff that moves toward it is correct and a diff that moves away is not.
 
+### Typed errors per declared schema (issue 123, issue 131 item F03)
+Rule: kotlin generates one `open class <Model>Exception` per distinct declared error schema in the errors package, extending the status class of its status (every status class is `open`); each operation passes its own `{status -> ErrorFactory}` map as `errorSchemas` to `invokeApiForResult`, and `ApiException.fromResponse` picks the exact status, then the range, then `default`. The schema class overrides `errorBody` covariantly (`ApiException` is not generic); a body that does not decode gives the status class with the raw body and the failure as `cause`. `isRetryable` and `requestId` are properties of `ApiException`. A response body that cannot be decoded raises a `SerializationException` carrying `statusCode`, `responseHeaders`, `responseBody`, `requestMethod` and `requestPath` (no query).
+Where: `api_error.mustache`, `errors/SchemaException.mustache`, `errors/ErrorFactory.mustache`, `errors/SerializationException.mustache`, `base_api.mustache`, `api/api.mustache`.
+Test: generated `ApiExceptionTest` (errors201 to errors204) and `BaseApiTest` (errors205).
+
 ### Out of scope: callbacks, webhooks, XML, Link Objects, mutual TLS (S11, 2026-11-16)
 Rule: kotlin does not generate callbacks and webhooks (#53), XML bodies and `nodeType` (#70), Link Objects (#78) or mutual TLS (#90), and the README says so.
 Why: owner closed those backlog issues as out of scope for all twelve; do not flag their absence.
@@ -92,7 +97,7 @@ Test: none (absence); the petstore declares no such keyword.
 Rule: the discriminated parent becomes a sealed interface, each subtype is a flattened data class that lists the common fields, and the subtype carries the discriminator. A model reused in two unions must not be re-parented: inheritance (here, the sealed interface) is only for the allOf-with-discriminator parent, and plain unions use interfaces or sealed types.
 Why: an `open data class` does not compile, which is why kotlin cannot inherit like java, csharp, node, python, ruby, php and dart. `model.mustache` renders the discriminated parent (`isDiscriminatedBase`) as a sealed interface with a discriminator-reading serializer, and each subtype lists the common fields and implements it. Discriminated oneOf keeps its hand-written wrapper (`actualInstance` plus a serializer reading the discriminator).
 Where: `models/model.mustache`.
-Test: the discriminated fixtures in the petstore (`DryFood`, `WetFood`, `PetFood`) through `ComposedSchemaTest` and `ObjectSerializerTest`.
+Test: the discriminated fixtures in the petstore (`DryFood`, `WetFood`, `PetFood`) through `ComposedSchemaTest` and `ObjectSerializerTest`; the allOf fixtures `Vehicle` and `Shape` (bhv unions 301-304 in `ComposedSchemaTest`, bhv serializationobject 301 in `ObjectSerializerTest`).
 
 ### Required and nullable (S5, D66, 2026-11-16) - implemented
 Rule: a required nullable property is `T?` with no default; the key must be present on decode (missing is an error), an explicit null is legal and kept, and encode always writes the key as null when unset.

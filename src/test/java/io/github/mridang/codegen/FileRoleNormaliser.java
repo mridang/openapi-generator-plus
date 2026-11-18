@@ -124,6 +124,10 @@ final class FileRoleNormaliser {
     Map<String, String> rubyAliases = new LinkedHashMap<>();
     rubyAliases.put("petstore", "client");
     ALIASES.put("ruby", rubyAliases);
+    Map<String, String> csharpAliases = new LinkedHashMap<>();
+    csharpAliases.put("notimplementedstatus", "notimplemented");
+    csharpAliases.put("notimplementedstatusexception", "notimplementedexception");
+    ALIASES.put("csharp", csharpAliases);
 
     Map<String, String> shared = new LinkedHashMap<>();
     shared.put(".editorconfig", "editor settings shared by every language");

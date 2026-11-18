@@ -89,6 +89,14 @@ class BetterDartCodegenTest {
   }
 
   @Test
+  void aDeclaredErrorSchemaIsWrittenUnderTheErrorsFolderInSnakeCase() {
+    final BetterDartCodegen codegen = new BetterDartCodegen();
+    assertThat(codegen.errorSchemaTemplate()).isEqualTo("errors/schema_exception.mustache");
+    assertThat(codegen.errorSchemaFilePath("ProjectNotFoundException"))
+        .endsWith("lib/src/errors/project_not_found_exception.dart");
+  }
+
+  @Test
   void aSiblingDefaultOnAnEnumReferenceBecomesThePropertyDefault() {
     final CodegenProperty property = new CodegenProperty();
     property.isEnumRef = true;

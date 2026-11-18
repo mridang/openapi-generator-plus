@@ -162,7 +162,7 @@ export class Surgery {
    * nested value's own `equals` method when it exposes one (generated
    * models do), so equality stays value-based all the way down.
    */
-  private static __deepEquals(
+  protected static __deepEquals(
     a: unknown,
     b: unknown,
     decimal = false,

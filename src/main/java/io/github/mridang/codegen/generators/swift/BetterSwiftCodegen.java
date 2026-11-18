@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -23,10 +24,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenComposedSchemas;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -44,6 +48,11 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("unused")
 public class BetterSwiftCodegen extends AbstractBetterCodegen {
+
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterSwiftCodegen.class);
 
@@ -613,6 +622,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("indirect.mustache", srcDir, "Indirect.swift"),
             new SupportingFileSpec("errors/root_error.mustache", errorsDir, rootErrorName("Error") + ".swift"),
             new SupportingFileSpec("errors/api_error.mustache", errorsDir, "ApiError.swift"),
+            new SupportingFileSpec("errors/error_factory.mustache", errorsDir, "ErrorFactory.swift"),
             new SupportingFileSpec("errors/client_error.mustache", errorsDir, "ClientError.swift"),
             new SupportingFileSpec("errors/server_error.mustache", errorsDir, "ServerError.swift"),
             new SupportingFileSpec("errors/bad_request_error.mustache", errorsDir, "BadRequestError.swift"),
@@ -620,6 +630,17 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/forbidden_error.mustache", errorsDir, "ForbiddenError.swift"),
             new SupportingFileSpec("errors/not_found_error.mustache", errorsDir, "NotFoundError.swift"),
             new SupportingFileSpec("errors/conflict_error.mustache", errorsDir, "ConflictError.swift"),
+            new SupportingFileSpec("errors/payment_required_error.mustache", errorsDir, "PaymentRequiredError.swift"),
+            new SupportingFileSpec("errors/method_not_allowed_error.mustache", errorsDir, "MethodNotAllowedError.swift"),
+            new SupportingFileSpec("errors/request_timeout_error.mustache", errorsDir, "RequestTimeoutError.swift"),
+            new SupportingFileSpec("errors/gone_error.mustache", errorsDir, "GoneError.swift"),
+            new SupportingFileSpec("errors/payload_too_large_error.mustache", errorsDir, "PayloadTooLargeError.swift"),
+            new SupportingFileSpec("errors/unsupported_media_type_error.mustache", errorsDir, "UnsupportedMediaTypeError.swift"),
+            new SupportingFileSpec("errors/locked_error.mustache", errorsDir, "LockedError.swift"),
+            new SupportingFileSpec("errors/not_implemented_error.mustache", errorsDir, "NotImplementedError.swift"),
+            new SupportingFileSpec("errors/bad_gateway_error.mustache", errorsDir, "BadGatewayError.swift"),
+            new SupportingFileSpec("errors/service_unavailable_error.mustache", errorsDir, "ServiceUnavailableError.swift"),
+            new SupportingFileSpec("errors/gateway_timeout_error.mustache", errorsDir, "GatewayTimeoutError.swift"),
             new SupportingFileSpec("errors/unprocessable_entity_error.mustache", errorsDir, "UnprocessableEntityError.swift"),
             new SupportingFileSpec("errors/too_many_requests_error.mustache", errorsDir, "TooManyRequestsError.swift"),
             new SupportingFileSpec("errors/internal_server_error.mustache", errorsDir, "InternalServerError.swift"),
@@ -1045,6 +1066,44 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     }
 
     /**
+     * Realises a classic allOf base (a schema with a discriminator that its
+     * children compose with allOf) as a union of its subtypes, as go does. A
+     * Swift struct cannot be subclassed, so decoding the base must return the
+     * subtype its discriminator names; the mapped subtypes become the base's
+     * oneOf set and its typed variants, and the union template's discriminator
+     * branch does the dispatch and rejects an unknown or missing value (S4,
+     * issue #104).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(final Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+                    realiseClassicBaseAsUnion(model);
+                }
+            }
+        }
+        return result;
+    }
+
+    private static void realiseClassicBaseAsUnion(final CodegenModel base) {
+        final Set<String> variants = new LinkedHashSet<>();
+        final List<CodegenProperty> typed = new ArrayList<>();
+        for (final CodegenDiscriminator.MappedModel mapped : base.discriminator.getMappedModels()) {
+            if (variants.add(mapped.getModelName())) {
+                final CodegenProperty variant = new CodegenProperty();
+                variant.dataType = mapped.getModelName();
+                typed.add(variant);
+            }
+        }
+        base.oneOf = variants;
+        base.setComposedSchemas(new CodegenComposedSchemas(List.of(), typed, List.of(), null));
+        nameUnionVariants(base);
+    }
+
+    /**
      * Gives every oneOf and anyOf variant a camelCase-ready name for the typed
      * {@code from<Variant>}, {@code is<Variant>} and {@code as<Variant>}
      * members of the union wrapper: the variant type with every non-letter and
@@ -1227,6 +1286,19 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         /* F857: no per-operation authenticator. An operation uses the credential the client
          * holds for the scheme its spec names, so the Options object has no `auth` field. */
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "Sources", packageName, "Errors", className + ".swift")
+                .toString();
     }
 
     /** {@inheritDoc} */

@@ -130,12 +130,16 @@ module Petstore::Client
       attr_reader error_body: untyped
       attr_reader request_method: String?
       attr_reader request_path: String?
-      def self.from_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def self.from_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?, ?error_schemas: Hash[String, untyped]?) -> ApiError
+      def self.declared_error_class: (Hash[String, untyped]?, Integer) -> untyped
+      def self.status_fallback: (Integer, Hash[String, String]?, String?, Exception, ?request_method: String?, ?request_path: String?) -> ApiError
       def self.parse_error_body: (String?) -> untyped
       def initialize: (?untyped) -> void
       def detail_message: () -> String
       def message: () -> String
       def typed_error_body: (untyped) -> untyped
+      def retryable?: () -> bool
+      def request_id: () -> String?
       MAX_RENDERED_BODY_BYTES: Integer
       CREDENTIAL_RESPONSE_HEADERS: Array[String]
 
@@ -168,6 +172,50 @@ module Petstore::Client
       def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
     end
 
+    class PaymentRequiredError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class MethodNotAllowedError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class RequestTimeoutError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class GoneError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class PayloadTooLargeError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class UnsupportedMediaTypeError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class LockedError < ClientError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class NotImplementedError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class BadGatewayError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class ServiceUnavailableError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
+    class GatewayTimeoutError < ServerError
+      def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
+    end
+
     class UnprocessableEntityError < ClientError
       def initialize: (?message: String?, ?response_body: String?, ?response_headers: Hash[String, String]?, ?error_body: untyped, ?request_method: String?, ?request_path: String?) -> void
     end
@@ -192,7 +240,43 @@ module Petstore::Client
 
     class SerializationError < ::Petstore::Client::Errors::OpenAPIError
       attr_reader cause: Exception?
+      attr_reader status_code: Integer?
+      attr_reader response_headers: Hash[String, String]?
+      attr_reader response_body: String?
+      attr_reader request_method: String?
+      attr_reader request_path: String?
       def initialize: (String, ?Exception?) -> void
+      def with_response: (status_code: Integer, headers: Hash[String, String]?, body: String?, request_method: String?, request_path: String?) -> SerializationError
+    end
+
+    class UnexpectedFailureError < ApiError
+      def self.from_error_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def error_body: () -> ::Petstore::Client::Models::UnexpectedFailure
+    end
+
+    class MemberNotFoundError < NotFoundError
+      def self.from_error_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def error_body: () -> ::Petstore::Client::Models::MemberNotFound
+    end
+
+    class ProjectNotFoundError < NotFoundError
+      def self.from_error_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def error_body: () -> ::Petstore::Client::Models::ProjectNotFound
+    end
+
+    class RejectedRequestError < ClientError
+      def self.from_error_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def error_body: () -> ::Petstore::Client::Models::RejectedRequest
+    end
+
+    class UpstreamFailureError < ServerError
+      def self.from_error_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def error_body: () -> ::Petstore::Client::Models::UpstreamFailure
+    end
+
+    class StateConflictError < ClientError
+      def self.from_error_response: (Integer, Hash[String, String]?, String?, ?request_method: String?, ?request_path: String?) -> ApiError
+      def error_body: () -> ::Petstore::Client::Models::StateConflict
     end
 
     class OAuth2TokenError < ::Petstore::Client::Errors::OpenAPIError
@@ -501,6 +585,7 @@ module Petstore::Client
 
   class Petstore
     attr_reader pet: Api::PetApi
+    attr_reader problems: Api::ProblemsApi
     attr_reader store: Api::StoreApi
     @api_client: DefaultApiClient
     def initialize: (?Auth::Authenticator?, ?TransportOptions?, ?pet_store_basic: Auth::Authenticator?, ?admin_basic: Auth::Authenticator?, ?pet_store_bearer: Auth::Authenticator?, ?service_token: Auth::Authenticator?, ?api_key_header: Auth::Authenticator?, ?internal_api_key: Auth::Authenticator?, ?api_key_query: Auth::Authenticator?, ?session_cookie: Auth::Authenticator?, ?machine_auth: Auth::Authenticator?, ?legacy_auth: Auth::Authenticator?, ?user_auth: Auth::Authenticator?, ?browser_auth: Auth::Authenticator?, ?sso_auth: Auth::Authenticator?) -> void
@@ -520,13 +605,14 @@ module Petstore::Client
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
       def scheme_authenticator: (*String) -> Auth::Authenticator?
-      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped) -> ApiResult[untyped]
+      def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
       def authenticated_headers: (Hash[String, String], untyped) -> Hash[String, String]
       def dispatch_request: (Symbol, String, Hash[String, String], untyped, ^() -> Hash[String, String], ?Hash[Symbol, untyped]) -> ApiHttpResponse
       def replayable_body?: (untyped) -> bool
-      def throw_api_error: (ApiHttpResponse, Symbol, String) -> void
+      def decode_success_body: (ApiHttpResponse, String, String?) -> untyped
+      def throw_api_error: (ApiHttpResponse, Symbol, String, ?Hash[String, untyped]?) -> void
       def request_path_of: (String) -> String
       def merge_call_headers: (Hash[String, String], untyped) -> void
       def transport_call_options: (untyped) -> Hash[Symbol, untyped]

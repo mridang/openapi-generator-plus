@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,11 +24,13 @@ import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
+import org.openapitools.codegen.model.ModelsMap;
 import org.openapitools.codegen.model.OperationsMap;
 import org.openapitools.codegen.utils.ModelUtils;
 import org.slf4j.Logger;
@@ -43,6 +46,26 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("unused")
 public class BetterGoCodegen extends AbstractBetterCodegen {
+
+    @Override
+    protected String errorSuffix() {
+        return "Error";
+    }
+
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(
+                        outputFolder,
+                        "pkg",
+                        "errors",
+                        org.openapitools.codegen.utils.StringUtils.underscore(className) + ".go")
+                .toString();
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BetterGoCodegen.class);
 
@@ -606,6 +629,28 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "errors/not_found_error.mustache", "pkg/errors", "not_found_error.go"),
                 new SupportingFileSpec(
                         "errors/conflict_error.mustache", "pkg/errors", "conflict_error.go"),
+                new SupportingFileSpec(
+                        "errors/payment_required_error.mustache", "pkg/errors", "payment_required_error.go"),
+                new SupportingFileSpec(
+                        "errors/method_not_allowed_error.mustache", "pkg/errors", "method_not_allowed_error.go"),
+                new SupportingFileSpec(
+                        "errors/request_timeout_error.mustache", "pkg/errors", "request_timeout_error.go"),
+                new SupportingFileSpec(
+                        "errors/gone_error.mustache", "pkg/errors", "gone_error.go"),
+                new SupportingFileSpec(
+                        "errors/payload_too_large_error.mustache", "pkg/errors", "payload_too_large_error.go"),
+                new SupportingFileSpec(
+                        "errors/unsupported_media_type_error.mustache", "pkg/errors", "unsupported_media_type_error.go"),
+                new SupportingFileSpec(
+                        "errors/locked_error.mustache", "pkg/errors", "locked_error.go"),
+                new SupportingFileSpec(
+                        "errors/not_implemented_error.mustache", "pkg/errors", "not_implemented_error.go"),
+                new SupportingFileSpec(
+                        "errors/bad_gateway_error.mustache", "pkg/errors", "bad_gateway_error.go"),
+                new SupportingFileSpec(
+                        "errors/service_unavailable_error.mustache", "pkg/errors", "service_unavailable_error.go"),
+                new SupportingFileSpec(
+                        "errors/gateway_timeout_error.mustache", "pkg/errors", "gateway_timeout_error.go"),
                 new SupportingFileSpec(
                         "errors/unprocessable_entity_error.mustache",
                         "pkg/errors",
@@ -1314,6 +1359,33 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                     "clientId", "clientSecret", "redirectUri", "nil");
         }
         return List.of();
+    }
+
+    /**
+     * A classic allOf base is realised as a union of its subtypes: Go structs
+     * cannot be subclassed, and a flat base struct could not hold the subtype
+     * a discriminator names. Once the shared pass has marked the base, its
+     * mapped subtypes become its {@code oneOf} set, so the union template
+     * emits the wrapper, the per-subtype accessors and the discriminator
+     * dispatch that rejects an unknown value (S4, issue #104).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(final Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+                    final Set<String> variants = new LinkedHashSet<>();
+                    for (final CodegenDiscriminator.MappedModel mapped :
+                            model.discriminator.getMappedModels()) {
+                        variants.add(mapped.getModelName());
+                    }
+                    model.oneOf = variants;
+                }
+            }
+        }
+        return result;
     }
 
     /**

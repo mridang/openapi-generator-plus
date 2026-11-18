@@ -1,0 +1,27 @@
+{{>api_info}}
+
+import { ApiError } from './api-error{{importFileExtension}}';
+import type { ApiErrorOptions } from './api-error{{importFileExtension}}';
+import { ClientError } from './client-error{{importFileExtension}}';
+
+/**
+ * Exception for HTTP 402 Payment Required.
+ */
+export class PaymentRequiredError<T = unknown> extends ClientError<T> {
+  constructor(
+    message: string = '',
+    responseHeaders: Record<string, string> | null = null,
+    responseBody: string | null = null,
+    errorBody: T | null = null,
+    options?: ApiErrorOptions
+  ) {
+    super(402, message, responseHeaders, responseBody, errorBody, options);
+    this.name = 'PaymentRequiredError';
+  }
+}
+
+ApiError.registerStatusError(
+  402,
+  (_statusCode, message, headers, body, errorBody, options) =>
+    new PaymentRequiredError(message, headers, body, errorBody, options)
+);

@@ -414,6 +414,17 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("errors/ForbiddenException.mustache", errorsFolder, "ForbiddenException.php"),
             new SupportingFileSpec("errors/NotFoundException.mustache", errorsFolder, "NotFoundException.php"),
             new SupportingFileSpec("errors/ConflictException.mustache", errorsFolder, "ConflictException.php"),
+            new SupportingFileSpec("errors/PaymentRequiredException.mustache", errorsFolder, "PaymentRequiredException.php"),
+            new SupportingFileSpec("errors/MethodNotAllowedException.mustache", errorsFolder, "MethodNotAllowedException.php"),
+            new SupportingFileSpec("errors/RequestTimeoutException.mustache", errorsFolder, "RequestTimeoutException.php"),
+            new SupportingFileSpec("errors/GoneException.mustache", errorsFolder, "GoneException.php"),
+            new SupportingFileSpec("errors/PayloadTooLargeException.mustache", errorsFolder, "PayloadTooLargeException.php"),
+            new SupportingFileSpec("errors/UnsupportedMediaTypeException.mustache", errorsFolder, "UnsupportedMediaTypeException.php"),
+            new SupportingFileSpec("errors/LockedException.mustache", errorsFolder, "LockedException.php"),
+            new SupportingFileSpec("errors/NotImplementedException.mustache", errorsFolder, "NotImplementedException.php"),
+            new SupportingFileSpec("errors/BadGatewayException.mustache", errorsFolder, "BadGatewayException.php"),
+            new SupportingFileSpec("errors/ServiceUnavailableException.mustache", errorsFolder, "ServiceUnavailableException.php"),
+            new SupportingFileSpec("errors/GatewayTimeoutException.mustache", errorsFolder, "GatewayTimeoutException.php"),
             new SupportingFileSpec("errors/UnprocessableEntityException.mustache", errorsFolder, "UnprocessableEntityException.php"),
             new SupportingFileSpec("errors/TooManyRequestsException.mustache", errorsFolder, "TooManyRequestsException.php"),
             new SupportingFileSpec("errors/InternalServerErrorException.mustache", errorsFolder, "InternalServerErrorException.php"),
@@ -1477,6 +1488,24 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         injectAuthFieldContext(op, context);
         context.put("authImport", invokerPackage + "\\Auth\\" + getAuthenticatorTypeName());
         return renderOptionsTemplate("api/options.mustache", context);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaModelName(String dataType) {
+        return dataType.substring(dataType.lastIndexOf('\\') + 1);
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/SchemaException.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(outputFolder, SRC_BASE_PATH, "Errors", className + ".php").toString();
     }
 
     /** {@inheritDoc} */
