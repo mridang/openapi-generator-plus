@@ -1,6 +1,8 @@
 defmodule PetstoreClient.Api.BaseApiTest do
   use ExUnit.Case, async: true
 
+  require OpenTelemetry.Tracer, as: Tracer
+
   defmodule TestAuthenticator do
     use PetstoreClient.Auth.BaseAuthenticator
 
@@ -3244,5 +3246,82 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert error.response_body == "not json"
     assert error.request_method == "GET"
     assert error.request_path == "/things"
+  end
+
+  # Trace context from the caller's process
+
+  defp base_api_traceparent(span_ctx) do
+    "00-#{:otel_span.hex_trace_id(span_ctx)}-#{:otel_span.hex_span_id(span_ctx)}-01"
+  end
+
+  defp start_tracing do
+    Application.load(:opentelemetry)
+    Application.put_env(:opentelemetry, :traces_exporter, :none)
+    Application.put_env(:opentelemetry, :processors, [{:otel_simple_processor, %{}}])
+    {:ok, _} = Application.ensure_all_started(:opentelemetry)
+    :otel_simple_processor.set_exporter(:otel_exporter_pid, self())
+  end
+
+  # Calls one operation in the current process and returns the headers the
+  # transport received.
+  defp echo_headers do
+    {:ok, name} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+
+    _result =
+      PetstoreClient.Api.BaseApi.invoke_api(
+        state,
+        :get,
+        "/test/echo",
+        %{},
+        %{},
+        nil,
+        ["application/json"],
+        "application/json",
+        nil
+      )
+
+    headers = CapturingHeadersApiClient.captured_headers(name)
+    Agent.stop(name)
+    headers
+  end
+
+  test "bhv tracing 013 an operation sends the traceparent of the span active in the caller context" do
+    start_tracing()
+
+    Tracer.with_span "caller" do
+      headers = echo_headers()
+      assert headers["traceparent"] == base_api_traceparent(Tracer.current_span_ctx())
+    end
+  end
+
+  test "bhv tracing 015 concurrent operations each send the traceparent of their own caller span" do
+    start_tracing()
+
+    results =
+      1..6
+      |> Enum.map(fn _ ->
+        Task.async(fn ->
+          Tracer.with_span "caller" do
+            Process.sleep(10)
+            {echo_headers()["traceparent"], base_api_traceparent(Tracer.current_span_ctx())}
+          end
+        end)
+      end)
+      |> Enum.map(&Task.await/1)
+
+    for {sent, expected} <- results, do: assert(sent == expected)
+    assert results |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> length() == 6
+  end
+
+  test "bhv tracing 016 an operation with no active span sends no traceparent after an earlier call had one" do
+    start_tracing()
+
+    Tracer.with_span "caller" do
+      assert Map.has_key?(echo_headers(), "traceparent")
+    end
+
+    refute Map.has_key?(echo_headers(), "traceparent")
   end
 end

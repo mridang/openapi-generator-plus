@@ -51,6 +51,15 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.parallel.Isolated;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.ContextPropagators;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -2020,6 +2029,105 @@ class BaseApiTest {
             byte[] bytes = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
             String decoded = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
             assertEquals("ok", decoded);
+        }
+    }
+
+    /* The tests replace the global OpenTelemetry instance, so the group runs
+     * isolated from every other test. */
+    @Nested
+    @Isolated
+    @DisplayName("TraceContextFromCaller")
+    class TraceContextFromCaller {
+
+        private SdkTracerProvider tracerProvider;
+
+        @org.junit.jupiter.api.BeforeEach
+        void registerTracing() {
+            GlobalOpenTelemetry.resetForTest();
+            tracerProvider = SdkTracerProvider.builder().build();
+            OpenTelemetrySdk.builder()
+                    .setTracerProvider(tracerProvider)
+                    .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                    .buildAndRegisterGlobal();
+        }
+
+        @org.junit.jupiter.api.AfterEach
+        void resetTracing() {
+            tracerProvider.close();
+            GlobalOpenTelemetry.resetForTest();
+        }
+
+        private Span newSpan() {
+            return GlobalOpenTelemetry.getTracer("trace-context-test").spanBuilder("caller").startSpan();
+        }
+
+        private String expected(Span span) {
+            return "00-" + span.getSpanContext().getTraceId() + "-"
+                    + span.getSpanContext().getSpanId() + "-"
+                    + span.getSpanContext().getTraceFlags().asHex();
+        }
+
+        private Map<String, String> callUnder(Span span) throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Scope scope = span == null ? Context.root().makeCurrent() : span.makeCurrent();
+            try {
+                testApi.call("GET", "/test/echo", new HashMap<>(), new HashMap<>(), null,
+                        new String[] {"application/json"}, "application/json", null, null);
+            } finally {
+                scope.close();
+            }
+            return client.capturedHeaders;
+        }
+
+        @Test
+        @DisplayName("bhvTracing013 an operation sends the traceparent of the span active in the caller's context")
+        void bhvTracing013OperationSendsTheTraceparentOfTheCallersSpan() throws ApiException {
+            Span span = newSpan();
+            try {
+                assertEquals(expected(span), callUnder(span).get("traceparent"));
+            } finally {
+                span.end();
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing015 concurrent operations each send the traceparent of their own caller's span")
+        void bhvTracing015ConcurrentOperationsSendTheirOwnCallersTraceparent() throws Exception {
+            var pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+            Span first = newSpan();
+            Span second = newSpan();
+            try {
+                var barrier = new java.util.concurrent.CyclicBarrier(2);
+                var one = pool.submit(() -> {
+                    barrier.await();
+                    return callUnder(first);
+                });
+                var two = pool.submit(() -> {
+                    barrier.await();
+                    return callUnder(second);
+                });
+                assertEquals(expected(first), one.get().get("traceparent"));
+                assertEquals(expected(second), two.get().get("traceparent"));
+            } finally {
+                pool.shutdownNow();
+                first.end();
+                second.end();
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing016 an operation called with no active span sends no traceparent")
+        void bhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() throws ApiException {
+            Span span = newSpan();
+            try {
+                assertEquals(expected(span), callUnder(span).get("traceparent"));
+            } finally {
+                span.end();
+            }
+            Map<String, String> headers = callUnder(null);
+            assertFalse(headers.containsKey("traceparent"));
+            assertFalse(headers.containsKey("tracestate"));
         }
     }
 

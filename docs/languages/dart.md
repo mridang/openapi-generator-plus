@@ -94,3 +94,5 @@ These are ideas from a review of the type mapping against current Dart. None is 
 - Move the `oneOf` wrappers to sealed classes with pattern matching, which Dart has had since 3.0. The current wrapper cannot be switched exhaustively. This is a public API change.
 - Offer a streaming path for uploads and downloads, using `ByteStream` from `package:http`, which needs no new dependency.
 - The `iso8601_duration.dart` file name is misleading, since it holds protobuf-JSON helpers around `Duration`. The generator's AGENTS file also describes an SDK-owned duration class that does not exist.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. The hook runs in the operation's own zone, after the credential await, so a hook that reads the zone's context sees the caller's span; the base-api tests prove this with a zone value.

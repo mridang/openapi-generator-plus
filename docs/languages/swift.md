@@ -110,3 +110,5 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - `URL` for `uri`. The review recommends keeping `String`, because `URL` parsing differs between Apple platforms and Linux and rejects link templates.
 - Renaming `ISO8601Duration.swift`, since the wire form it handles is protobuf-JSON and not ISO 8601.
 - An unknown-case fallback on enums for forward compatibility.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. The hook runs in the operation's own task after the credential await, so a task-local context is intact; the base-api tests prove this with a test-owned `@TaskLocal`.

@@ -111,3 +111,5 @@ These are proposals from a review of the type mapping against current .NET. None
 - Map `ipv4` and `ipv6` to `System.Net.IPAddress` with a custom converter, or keep `string` for parity with the other SDKs.
 - Do not adopt the union types of C# 15 now: they need .NET 11, a short-support release, and would push the floor well above the oldest supported runtime.
 - Keep `TimeSpan` with the protobuf-JSON converter for durations, and document that ISO-8601 calendar durations are unsupported.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. Reads `Activity.Current` through `DistributedContextPropagator.Current`; the header path has no thread hand-off.

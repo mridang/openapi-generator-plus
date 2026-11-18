@@ -3058,3 +3058,195 @@ async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_
         headers.get("Cookie")
     );
 }
+
+// -- Trace context of the caller --
+//
+// These tests install the OpenTelemetry SDK and are compiled with the
+// `opentelemetry` feature: run the suite with `--all-features`.
+
+#[cfg(feature = "opentelemetry")]
+mod caller_trace_context {
+    use super::*;
+    use opentelemetry::trace::{FutureExt, TraceContextExt, Tracer, TracerProvider as _};
+    use opentelemetry_sdk::propagation::TraceContextPropagator;
+    use opentelemetry_sdk::trace::{Sampler, SdkTracerProvider};
+
+    /// Starts a real span and returns the context that makes it active together
+    /// with the traceparent that span must produce.
+    fn start_span() -> (opentelemetry::Context, String) {
+        opentelemetry::global::set_text_map_propagator(TraceContextPropagator::new());
+        let provider = SdkTracerProvider::builder()
+            .with_sampler(Sampler::AlwaysOn)
+            .build();
+        let span = provider
+            .tracer("caller-trace-context-test")
+            .start_with_context("request", &opentelemetry::Context::new());
+        let cx = opentelemetry::Context::new().with_span(span);
+        let span_context = cx.span().span_context().clone();
+        let traceparent = format!(
+            "00-{}-{}-01",
+            span_context.trace_id(),
+            span_context.span_id()
+        );
+        (cx, traceparent)
+    }
+
+    /// An authenticator that suspends once before it answers, so the headers
+    /// are finished only after the call has been polled again.
+    struct SuspendingAuthenticator;
+
+    struct SuspendOnce(bool);
+
+    impl std::future::Future for SuspendOnce {
+        type Output = ();
+
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            cx: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<()> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                cx.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        }
+    }
+
+    impl petstore::auth::Authenticator for SuspendingAuthenticator {
+        fn host(&self) -> &str {
+            "http://localhost"
+        }
+
+        fn auth_headers<'a>(
+            &'a self,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+        {
+            Box::pin(async move {
+                SuspendOnce(false).await;
+                HashMap::new()
+            })
+        }
+    }
+
+    fn pet_api(
+        client: &Arc<CapturingApiClient>,
+        auth: Option<Arc<dyn petstore::auth::Authenticator>>,
+    ) -> PetApi {
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        PetApi::new(client.clone(), config, auth)
+    }
+
+    fn pet() -> Pet {
+        Pet::new("TestPet".to_string(), HashSet::new())
+    }
+
+    fn captured_traceparent(client: &CapturingApiClient) -> Option<String> {
+        client
+            .captured_headers
+            .lock()
+            .unwrap()
+            .get("traceparent")
+            .cloned()
+    }
+
+    #[tokio::test]
+    async fn test_bhv_tracing_013_base_api_operation_sends_traceparent_of_the_callers_span() {
+        let (cx, traceparent) = start_span();
+        let client = Arc::new(CapturingApiClient::new());
+        let api = pet_api(&client, None);
+
+        api.add_pet(pet(), Some(&AddPetOptions::new()))
+            .with_context(cx)
+            .await
+            .expect("the call succeeds");
+
+        assert_eq!(captured_traceparent(&client), Some(traceparent));
+    }
+
+    #[test]
+    fn test_bhv_tracing_014_base_api_span_reaches_traceparent_when_headers_wait_on_credentials() {
+        let (cx, traceparent) = start_span();
+        let client = Arc::new(CapturingApiClient::new());
+        let api = pet_api(&client, Some(Arc::new(SuspendingAuthenticator)));
+        let mut call = Box::pin(api.add_pet(pet(), Some(&AddPetOptions::new())));
+
+        /* The first poll runs under the caller's context and stops at the
+         * credentials. The context is then detached, and the call is finished
+         * on another thread that has no span of its own. */
+        let mut task_cx = std::task::Context::from_waker(std::task::Waker::noop());
+        {
+            let _guard = cx.attach();
+            assert!(call.as_mut().poll(&mut task_cx).is_pending());
+        }
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .expect("a runtime");
+        std::thread::scope(|scope| {
+            scope
+                .spawn(|| runtime.block_on(call))
+                .join()
+                .expect("the thread finishes")
+                .expect("the call succeeds");
+        });
+
+        assert_eq!(captured_traceparent(&client), Some(traceparent));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_bhv_tracing_015_base_api_concurrent_operations_send_their_own_traceparent() {
+        let (first_cx, first_traceparent) = start_span();
+        let (second_cx, second_traceparent) = start_span();
+        let first_client = Arc::new(CapturingApiClient::new());
+        let second_client = Arc::new(CapturingApiClient::new());
+        let first_api = pet_api(&first_client, Some(Arc::new(SuspendingAuthenticator)));
+        let second_api = pet_api(&second_client, Some(Arc::new(SuspendingAuthenticator)));
+
+        let first = tokio::spawn(
+            async move { first_api.add_pet(pet(), Some(&AddPetOptions::new())).await }
+                .with_context(first_cx),
+        );
+        let second = tokio::spawn(
+            async move { second_api.add_pet(pet(), Some(&AddPetOptions::new())).await }
+                .with_context(second_cx),
+        );
+        first.await.expect("joins").expect("the call succeeds");
+        second.await.expect("joins").expect("the call succeeds");
+
+        assert_ne!(first_traceparent, second_traceparent);
+        assert_eq!(captured_traceparent(&first_client), Some(first_traceparent));
+        assert_eq!(
+            captured_traceparent(&second_client),
+            Some(second_traceparent)
+        );
+    }
+
+    #[tokio::test]
+    async fn test_bhv_tracing_016_base_api_operation_without_active_span_sends_no_traceparent() {
+        let (cx, _) = start_span();
+        let client = Arc::new(CapturingApiClient::new());
+        let api = pet_api(&client, None);
+        api.add_pet(pet(), Some(&AddPetOptions::new()))
+            .with_context(cx)
+            .await
+            .expect("the call succeeds");
+        assert!(captured_traceparent(&client).is_some());
+
+        let second_client = Arc::new(CapturingApiClient::new());
+        let second_api = pet_api(&second_client, None);
+        second_api
+            .add_pet(pet(), Some(&AddPetOptions::new()))
+            .await
+            .expect("the call succeeds");
+
+        assert_eq!(captured_traceparent(&second_client), None);
+        assert!(!second_client
+            .captured_headers
+            .lock()
+            .unwrap()
+            .contains_key("tracestate"));
+    }
+}

@@ -464,3 +464,5 @@ Test: `test/object-serializer.test.mustache` (`validation happens at decode, nev
 
 ### Surface rules after round 4
 The transitional F830 rows for node are gone (the conditions are met). The idiom differences that remain: the trailing `requestOptions` in the optional-parameter list, no Options interface for an operation without parameters of its own, the `ClientCredentials` type and the credentials constructor shape, the `schemeAuthenticators` argument of an API class, and the absent per-call `auth` member (dropped by the other languages in their own adopt branches). F1085 (private keys in the shared fixture) is a shared change and is not done here.
+
+- Trace context from the caller (#136): `injectTraceContext` reads `context.active()`; async context follows `await` when the application registers an async-local-storage context manager (`context.with(ctx, fn)`) (D95).

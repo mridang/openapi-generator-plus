@@ -452,3 +452,5 @@ The first command runs the Python specs end to end (client tests, ruff format, r
 - Never use a 1 ms total timeout in tests; use 1000 ms, or it expires during connect under load and raises a network error.
 - Output JSON is compact (no spaces), matching the other SDKs; the Makefile `format` target must keep the `ruff check --select F401,F811 --fix` step before `ruff format`.
 - Run the whole existing Python suite after any change, not just the new test: a non-ASCII multipart field name broke `TestMultipartFieldNameUtf8`. Check `docker ps -q | wc -l` before a run; above 20 leaked chasm or squid containers cause exit 137 and `409 not running`.
+
+- Trace context from the caller (#136): `inject` reads the `ContextVar` context of the awaiting task (`use_span` or `context.attach`); headers are built in the coroutine, not offloaded (D95).

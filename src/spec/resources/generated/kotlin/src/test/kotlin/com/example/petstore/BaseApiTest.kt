@@ -18,11 +18,27 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.HttpTimeoutCapability
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import io.opentelemetry.api.GlobalOpenTelemetry
+import io.opentelemetry.api.trace.Span
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator
+import io.opentelemetry.context.Context
+import io.opentelemetry.context.Scope
+import io.opentelemetry.context.propagation.ContextPropagators
+import io.opentelemetry.sdk.OpenTelemetrySdk
+import io.opentelemetry.sdk.trace.SdkTracerProvider
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.ThreadContextElement
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.parallel.Isolated
+import kotlin.coroutines.CoroutineContext
 
 class BaseApiTest {
     class TestableApi(
@@ -2121,6 +2137,132 @@ class BaseApiTest {
         fun returnsNullWhenThereIsNoResponseBody() {
             val ex = BadRequestException("boom", emptyMap(), "", null)
             assertNull(ex.getTypedErrorBody<com.example.petstore.models.Category>())
+        }
+    }
+
+    /** Makes an OpenTelemetry context current on whichever thread runs the coroutine. */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    class CallerContextElement(
+        private val callerContext: Context,
+    ) : ThreadContextElement<Scope> {
+        companion object Key : CoroutineContext.Key<CallerContextElement>
+
+        override val key: CoroutineContext.Key<CallerContextElement> get() = Key
+
+        override fun updateThreadContext(context: CoroutineContext): Scope = callerContext.makeCurrent()
+
+        override fun restoreThreadContext(
+            context: CoroutineContext,
+            oldState: Scope,
+        ) = oldState.close()
+    }
+
+    class HoppingAuthenticator : Authenticator {
+        override fun getHost(): String = ""
+
+        override suspend fun getAuthHeaders(): Map<String, String> = withContext(Dispatchers.Default) { emptyMap() }
+
+        override fun getQueryParams(): Map<String, String> = emptyMap()
+
+        override fun getCookieParams(): Map<String, String> = emptyMap()
+    }
+
+    /* The tests replace the global OpenTelemetry instance, so the group runs
+     * isolated from every other test. */
+    @Nested
+    @Isolated
+    @DisplayName("TraceContextFromCaller")
+    inner class TraceContextFromCaller {
+        private lateinit var tracerProvider: SdkTracerProvider
+
+        @org.junit.jupiter.api.BeforeEach
+        fun registerTracing() {
+            GlobalOpenTelemetry.resetForTest()
+            tracerProvider = SdkTracerProvider.builder().build()
+            OpenTelemetrySdk
+                .builder()
+                .setTracerProvider(tracerProvider)
+                .setPropagators(ContextPropagators.create(W3CTraceContextPropagator.getInstance()))
+                .buildAndRegisterGlobal()
+        }
+
+        @org.junit.jupiter.api.AfterEach
+        fun resetTracing() {
+            tracerProvider.close()
+            GlobalOpenTelemetry.resetForTest()
+        }
+
+        private fun newSpan(): Span = GlobalOpenTelemetry.getTracer("trace-context-test").spanBuilder("caller").startSpan()
+
+        private fun expected(span: Span): String =
+            "00-${span.spanContext.traceId}-${span.spanContext.spanId}-${span.spanContext.traceFlags.asHex()}"
+
+        private suspend fun callUnder(
+            span: Span?,
+            auth: Authenticator? = null,
+        ): Map<String, String> {
+            val client = CapturingApiClient()
+            val callerContext = if (span == null) Context.root() else Context.root().with(span)
+            withContext(CallerContextElement(callerContext)) {
+                TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth)
+            }
+            return client.capturedHeaders
+        }
+
+        @Test
+        @DisplayName("bhvTracing013 an operation sends the traceparent of the span active in the caller's context")
+        fun bhvTracing013OperationSendsTheTraceparentOfTheCallersSpan() {
+            val span = newSpan()
+            try {
+                val headers = runBlocking { callUnder(span) }
+                assertEquals(expected(span), headers["traceparent"])
+            } finally {
+                span.end()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing014 the span still reaches traceparent when building the headers first waits on the credentials")
+        fun bhvTracing014SpanReachesTraceparentAfterWaitingOnCredentials() {
+            val span = newSpan()
+            try {
+                val headers = runBlocking(Dispatchers.Default) { callUnder(span, HoppingAuthenticator()) }
+                assertEquals(expected(span), headers["traceparent"])
+            } finally {
+                span.end()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing015 concurrent operations each send the traceparent of their own caller's span")
+        fun bhvTracing015ConcurrentOperationsSendTheirOwnCallersTraceparent() {
+            val first = newSpan()
+            val second = newSpan()
+            try {
+                val headers =
+                    runBlocking(Dispatchers.Default) {
+                        listOf(first, second).map { span -> async { callUnder(span, HoppingAuthenticator()) } }.awaitAll()
+                    }
+                assertEquals(expected(first), headers[0]["traceparent"])
+                assertEquals(expected(second), headers[1]["traceparent"])
+            } finally {
+                first.end()
+                second.end()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvTracing016 an operation called with no active span sends no traceparent")
+        fun bhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() {
+            val span = newSpan()
+            try {
+                assertEquals(expected(span), runBlocking { callUnder(span) }["traceparent"])
+            } finally {
+                span.end()
+            }
+            val headers = runBlocking { callUnder(null) }
+            assertFalse(headers.containsKey("traceparent"))
+            assertFalse(headers.containsKey("tracestate"))
         }
     }
 }

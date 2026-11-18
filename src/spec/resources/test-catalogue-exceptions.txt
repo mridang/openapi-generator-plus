@@ -124,3 +124,9 @@ swift | transport020 | the test needs a URLProtocol stub, which FoundationNetwor
 swift | transport040 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | transport046 | the test needs a URLProtocol stub, which FoundationNetworking on Linux does not support, so it is compiled out on Linux (where the Docker suite runs) and runs on Apple platforms only
 swift | options034 | the Apple-platform variant of the proxy test; on Linux the SDK rejects a proxy with a configuration error, which the Linux variant testSettingProxyRaisesOnLinux covers (it carries no catalogue id)
+java | tracing014 | the call is blocking and builds the headers on the caller's thread, so no suspension or thread change can happen before the span is read; tracing013 covers the path
+php | tracing014 | PHP runs one request at a time and has no suspension point in the header path; tracing013 covers the path
+php | tracing015 | PHP runs one request at a time in one process, so two operations cannot be in flight together
+ruby | tracing014 | the call is blocking and builds the headers on the caller's thread; tracing013 covers the path
+go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
+elixir | tracing014 | the headers are built in the calling process with no hand-off; tracing013 covers the path

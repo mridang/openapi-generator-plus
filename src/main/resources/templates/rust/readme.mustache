@@ -213,7 +213,7 @@ before it reaches you; `Content-Encoding: identity` passes through.
 ### Logging and tracing
 
 The crate does not log. With the `opentelemetry` feature each request carries the
-W3C `traceparent` of the current span; otherwise inject your own through
+W3C `traceparent` of the span that is current when you call the operation; to hand a span to a call, wrap the call in `.with_context(cx)` (`opentelemetry::trace::FutureExt`). Without the feature, inject your own through
 `TransportOptions` default headers, or wrap the calls in your own spans.
 
 ### Versioning and supported Rust

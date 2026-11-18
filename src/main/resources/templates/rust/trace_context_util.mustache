@@ -5,8 +5,7 @@ use std::collections::HashMap;
 /// Utility for injecting W3C Trace Context headers (`traceparent`, `tracestate`)
 /// into outgoing API requests when OpenTelemetry is available.
 ///
-/// Injects the current OpenTelemetry trace context into the given (mutable)
-/// headers map. When the `opentelemetry` feature is enabled, this function uses
+/// Injects the trace context of the caller into the request headers. When the `opentelemetry` feature is enabled, this function uses
 /// the globally configured `TextMapPropagator` to inject the current span's
 /// trace context.
 ///
@@ -30,13 +29,50 @@ use std::collections::HashMap;
 ///
 /// global::set_text_map_propagator(TraceContextPropagator::new());
 /// ```
+#[cfg(test)]
 pub fn inject_trace_context(headers: &mut HashMap<String, String>) {
-    inject_trace_context_impl(headers);
+    TraceContext::capture().inject(headers);
+}
+
+/// The trace context of the caller, read once where the call starts.
+///
+/// An operation reads the OpenTelemetry context on its first poll, which runs
+/// in the caller's task on the caller's thread, and injects that value on every
+/// attempt. The context is a thread-local, so reading it again after an `.await`
+/// could find the context of another task when the runtime has moved the call
+/// to another thread. Without the `opentelemetry` feature it holds nothing.
+pub(crate) struct TraceContext {
+    #[cfg(feature = "opentelemetry")]
+    context: opentelemetry::Context,
+}
+
+impl TraceContext {
+    /// Reads the context that is current for the caller.
+    pub(crate) fn capture() -> Self {
+        TraceContext {
+            #[cfg(feature = "opentelemetry")]
+            context: opentelemetry::Context::current(),
+        }
+    }
+
+    /// Injects the captured context into the headers; a no-op without the
+    /// `opentelemetry` feature.
+    pub(crate) fn inject(&self, headers: &mut HashMap<String, String>) {
+        #[cfg(feature = "opentelemetry")]
+        inject_context(&self.context, headers);
+        #[cfg(not(feature = "opentelemetry"))]
+        {
+            /* No-op: OpenTelemetry integration requires the "opentelemetry"
+             * feature. Enable it in Cargo.toml to activate trace context
+             * propagation. */
+            let _ = headers;
+        }
+    }
 }
 
 #[cfg(feature = "opentelemetry")]
-fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
-    use opentelemetry::{global, Context};
+fn inject_context(cx: &opentelemetry::Context, headers: &mut HashMap<String, String>) {
+    use opentelemetry::global;
 
     struct HeaderInjector<'a>(&'a mut HashMap<String, String>);
 
@@ -50,16 +86,9 @@ fn inject_trace_context_impl(headers: &mut HashMap<String, String>) {
         }
     }
 
-    let cx = Context::current();
     global::get_text_map_propagator(|propagator| {
-        propagator.inject_context(&cx, &mut HeaderInjector(headers));
+        propagator.inject_context(cx, &mut HeaderInjector(headers));
     });
-}
-
-#[cfg(not(feature = "opentelemetry"))]
-fn inject_trace_context_impl(_headers: &mut HashMap<String, String>) {
-    /* No-op: OpenTelemetry integration requires the "opentelemetry" feature.
-     * Enable it in Cargo.toml to activate trace context propagation. */
 }
 
 /* These tests live in-crate (rather than under tests/) because

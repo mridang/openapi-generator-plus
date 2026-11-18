@@ -117,3 +117,5 @@ These are proposals from a review of the type mapping against current Kotlin. No
 - Emit a sealed interface with data class variants for unions that have no discriminator, instead of the `actualInstance` wrapper.
 - Offer a streaming type (Ktor `ByteReadChannel` or a kotlinx-io `Source`) for binary bodies as an additional overload.
 - Raise the Kotlin floor from 2.2.0 to 2.4.0, which the review says would make `kotlin.uuid.Uuid` stable and remove the opt-in. This is not required, and it is the owner's decision.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. Reads the thread-local `Context.current()`; across a coroutine thread change the caller must install the span with a `ThreadContextElement` (`Context.asContextElement()`); the base-api test defines its own element, so no dependency is added.

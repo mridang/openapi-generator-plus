@@ -413,3 +413,5 @@ Recorded, not implemented here:
 - No `//` comments under `lib/` or in templates (`DartFormattingSpec`); use `///` doc comments or `/* */`. A Mustache `{{! }}` comment ends at the first `}}`, so never put `{{#items}}` inside one.
 - Set and `uniqueItems` changes need both deserialization (`.toList()` versus Set) and serialization updated. Changing a type mapping (`date` to `DateTime`) needs the generated tests changed together. `Uint8List` is a `List<int>`, so `isNot(isA<List>)` is wrong.
 - Never rely on a Java field default for names (`packageName = "petstore_client"` leaked the fixture name). Dart cannot skip brotli or zstd in pure Dart: skip those tests with a reason.
+
+- Trace context from the caller (#136): the hook runs in the operation's own zone, after the credential await, so a hook that reads the zone's context sees the caller's span; the base-api tests prove this with a zone value (D95).

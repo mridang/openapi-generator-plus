@@ -118,3 +118,5 @@ These are proposals from a review of the type mapping against current PHP. None 
 - Map decimals to `\BcMath\Number`. This needs `ext-bcmath` and would raise the floor from 8.3 to 8.4, so it waits for that floor. Until then the type stays `float`.
 - Map `format: uri` to `\Uri\Rfc3986\Uri` only once the floor reaches 8.5. Until then it stays `string`.
 - Keep `\DateTimeImmutable` for `time` and `\DateInterval` for durations: the review found no newer PHP type for either.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `Globals::propagator()->inject` uses the current context (`$span->activate()`); one request at a time, so no hand-off.

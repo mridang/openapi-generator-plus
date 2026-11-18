@@ -493,3 +493,5 @@ Test: `ObjectSerializerTest` (`constructionNeverValidatesTheValuesItIsGiven`, `c
 
 ### Not adopted in round 4
 F1085 (generated TLS test material) is shared and out of scope for java.
+
+- Trace context from the caller (#136): reads `Context.current()` on the caller's thread (`span.makeCurrent()`); the call is blocking, so no hand-off precedes the read (D95).

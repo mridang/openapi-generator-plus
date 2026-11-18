@@ -104,3 +104,5 @@ The SDK already depends on `temporal-polyfill` and uses it for `format: time` an
 - Offer an opt-in `bigint` (or string) for int64 values beyond `Number.MAX_SAFE_INTEGER` through the same mechanism, but not as the default, because that would break arithmetic.
 - Accept and return `Uint8Array` instead of `Buffer` for `byte` and `binary`, so fetch-only runtimes do not need Workers' `nodejs_compat`. A `Buffer` would still be assignable. This is a public type change.
 - A streaming download, and `Blob` or `ReadableStream` uploads, would need a new response type.
+
+Trace context: a request carries the span active in the context of the call, never one the SDK builds itself. `injectTraceContext` reads `context.active()`; async context follows `await` when the application registers an async-local-storage context manager (`context.with(ctx, fn)`).

@@ -394,6 +394,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D92 | Returned headers drop Content-Encoding and Content-Length whenever the body was decoded. | Headers describe the body the caller receives. |
 | D93 | dart `findPetsBornOn` doc comment says the date is a `DateTime` passed through `stringifyDate`. | Doc truth. |
 | D94 | Verified fixed, locks exist: non-string date-time rejected, bare null body is absent, non-object where a model is expected is `SerializationError`, exact wire names only, NaN/Infinity rejected, numeric-only additionalProperties encodes an object, swift truncates sub-millisecond, empty `User-Agent` sent as given, ruby form bodies use `stringify`, an auth query param replaces a same-named operation param. | No action. |
+| D95 | Trace context comes from the caller's context: go takes it as the `ctx` argument of `InjectTraceContext`; every other SDK reads the ambient OpenTelemetry context at the injection point, in the caller's thread, task, fiber, process or zone. No SDK builds its own context. Tests tracing013 to tracing016 in every `BaseApi` test. | Forced only by go having no ambient context. |
 
 ### Forced divergences (FD): do not align these away
 
@@ -417,7 +418,7 @@ Each is required by a named language feature; collapsing it reintroduces a bug. 
 - **FD-16 unsupported Content-Encoding raises** in every manual decompressor (never returns still-encoded bytes); node, swift and dart-web pass through (the runtime owns decoding and the header may survive). A chained coding is rejected uniformly. An empty body passes through for any coding in all twelve. csharp decodes deflate as zlib via `ZLibStream`; elixir does not fall back to raw deflate; php/ruby/java/kotlin raise when the optional br/zstd library is absent.
 - **FD-17 go and swift hard-fail a non-string `access_token`/`refresh_token`** (typed decoders); the other ten ignore the bad field. Borderline-forced.
 - **FD-18 dart operations take an explicit `options` argument without a default**; do not special-case some operations.
-- **FD-19 csharp uses the BCL `DistributedContextPropagator`** for trace context (W3C) and types OIDC endpoints as `System.Uri` (rejects non-absolute); dart, swift and go register the propagator through a hook because no optional dependency can be detected at run time.
+- **FD-19 csharp uses the BCL `DistributedContextPropagator`** for trace context (W3C) and types OIDC endpoints as `System.Uri` (rejects non-absolute); dart, swift and go register the propagator through a hook because no optional dependency can be detected at run time; the hook runs in the caller's context (D95).
 - **FD-20 swift's authorize URL** keeps `URLComponents` encoding (`*!'()` literal, literal `+`); the other eleven use `-._~` literal.
 - **FD-21 python maps `date-time` model fields to `OffsetDateTime`** (aware datetime serialised `.SSS+00:00`), not bare `AwareDatetime`; `typeMapping` stays `AwareDatetime`.
 - **FD-22 elixir** `:server` override is emitted only on operations that declare `servers:` and resolves through the typed variant module's `url/1`; elixir flags deprecated fields in `@moduledoc` and omits per-field docs.

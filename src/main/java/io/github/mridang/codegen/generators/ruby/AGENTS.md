@@ -499,3 +499,5 @@ Every item of the wave-2 work list and of the owner decisions of 2026-11-17, wit
 - Retry tests: the default 10 s budget ends retrying before a 60 s Retry-After, so give the test a 300 s budget. Never use a 1 ms total timeout (use 1000 ms) and do not assert an absent User-Agent (Net::HTTP injects one).
 - A local formatter exit 17 or 55 unformatted files is a Docker gem-fetch network timeout; grep the regen log for `failed after` and rerun instead of editing code. Keep-list the house `Rakefile`, `Steepfile` and `.rubocop.yml` or regeneration clobbers them.
 - Check `docker ps -q | wc -l` before a run; leaked chasm or squid containers cause exit 137 and setup flakes. A flake (`apk add`, `bundle install`) is rerun, not patched.
+
+- Trace context from the caller (#136): `OpenTelemetry.propagation.inject` reads `OpenTelemetry::Context.current` on the caller's thread (`Context.with_current`); no thread or fiber is created on the header path (D95).
