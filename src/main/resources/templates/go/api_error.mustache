@@ -181,6 +181,45 @@ func (e *ApiError) Cause() error {
 	return e.cause
 }
 
+// IsRetryable reports whether the client retries a request that fails with this
+// error's status: 408, 409, 429 and every 5xx except 501. It looks at the status
+// alone, so a failure with no response (status 0) is never reported as retryable
+// here.
+func (e *ApiError) IsRetryable() bool {
+	return IsRetryableStatus(e.statusCode)
+}
+
+// IsRetryableStatus reports whether the client retries a request answered with
+// this HTTP status: 408, 409, 429 and every 5xx except 501.
+func IsRetryableStatus(status int) bool {
+	switch status {
+	case 408, 409, 429:
+		return true
+	case 501:
+		return false
+	default:
+		return status >= 500 && status <= 599
+	}
+}
+
+// RequestID returns the value of the x-request-id response header, matched
+// without regard to case, or an empty string when the response carried none or
+// the failure produced no response.
+func (e *ApiError) RequestID() string {
+	for name, value := range e.responseHeaders {
+		if strings.EqualFold(name, "x-request-id") {
+			return value
+		}
+	}
+	return ""
+}
+
+// apiError gives the shared ApiError of any error in the tree, so a helper can
+// set the request or the cause on it whichever level the value is.
+func (e *ApiError) apiError() *ApiError {
+	return e
+}
+
 // Unwrap returns the underlying cause, enabling errors.Is / errors.As
 // to traverse the chain. Returns nil when ApiError was produced from a
 // non-wrapped failure (e.g. a non-2xx HTTP response).
@@ -324,16 +363,11 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 		// parse failure errorBody stays nil and the raw body is still retained.
 		_ = unmarshalErrorBody([]byte(body), &errorBody)
 	}
-	base := ApiError{
-		statusCode:      statusCode,
-		msg:             fmt.Sprintf("API returned status code %d", statusCode),
-		responseBody:    body,
-		responseHeaders: headers,
-		errorBody:       errorBody,
-	}
+	base := newApiErrorBase(statusCode, headers, body)
+	base.errorBody = errorBody
 
 	if statusCode >= 400 && statusCode < 500 {
-		clientErr := ClientError{ApiError: base}
+		clientErr := newClientErrorFromBase(base)
 		switch statusCode {
 		case 400:
 			return &BadRequestError{ClientError: clientErr}
@@ -369,7 +403,7 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 	}
 
 	if statusCode >= 500 && statusCode < 600 {
-		serverErr := ServerError{ApiError: base}
+		serverErr := newServerErrorFromBase(base)
 		switch statusCode {
 		case 500:
 			return &InternalServerError{ServerError: serverErr}
@@ -386,5 +420,67 @@ func FromResponse(statusCode int, headers map[string]string, body string) error 
 		}
 	}
 
-	return &base
+	apiErr := newApiErrorFromBase(base)
+	return &apiErr
+}
+
+// newApiErrorBase builds the ApiError state every error of a response shares,
+// with the default message and no parsed body.
+func newApiErrorBase(statusCode int, headers map[string]string, body string) ApiError {
+	return ApiError{
+		statusCode:      statusCode,
+		msg:             fmt.Sprintf("API returned status code %d", statusCode),
+		responseBody:    body,
+		responseHeaders: headers,
+	}
+}
+
+// newApiErrorFromBase, newClientErrorFromBase and newServerErrorFromBase wrap
+// the shared state in the status family a typed error subclasses.
+func newApiErrorFromBase(base ApiError) ApiError {
+	return base
+}
+
+func newClientErrorFromBase(base ApiError) ClientError {
+	return ClientError{ApiError: base}
+}
+
+func newServerErrorFromBase(base ApiError) ServerError {
+	return ServerError{ApiError: base}
+}
+
+// ErrorFactory builds the error of one declared error schema for a response.
+// An operation hands the factories of its own declared error responses to
+// FromResponseWith, which picks the one for the status that arrived.
+type ErrorFactory func(method, path string, statusCode int, headers map[string]string, body string) error
+
+// FromResponseWith is FromResponse for an operation that declares error
+// responses: factories maps a declared status ("404"), range ("4XX", "5XX") or
+// "default" to the factory of its schema, and the first match wins in that
+// order. A status with no factory, or a nil map, gives the plain status error.
+// The method and path of the request are recorded on the result, the path
+// without its query string.
+func FromResponseWith(method, path string, statusCode int, headers map[string]string, body string, factories map[string]ErrorFactory) error {
+	if len(factories) > 0 {
+		keys := []string{fmt.Sprintf("%d", statusCode), fmt.Sprintf("%dXX", statusCode/100), "default"}
+		for _, key := range keys {
+			if factory, ok := factories[key]; ok && factory != nil {
+				return factory(method, path, statusCode, headers, body)
+			}
+		}
+	}
+	return statusFallback(method, path, statusCode, headers, body, nil)
+}
+
+// statusFallback is the plain status error of a response with the request
+// recorded and, when the body did not match its declared schema, the decoding
+// failure as its cause. The raw body stays on the error.
+func statusFallback(method, path string, statusCode int, headers map[string]string, body string, cause error) error {
+	failure := FromResponse(statusCode, headers, body)
+	if holder, ok := failure.(interface{ apiError() *ApiError }); ok {
+		apiErr := holder.apiError()
+		apiErr.cause = cause
+		apiErr.AttachRequest(method, path)
+	}
+	return failure
 }

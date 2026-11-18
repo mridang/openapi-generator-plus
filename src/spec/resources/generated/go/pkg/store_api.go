@@ -165,7 +165,7 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -173,7 +173,7 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -184,7 +184,7 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.CreateAccount: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.CreateAccount: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -202,6 +202,10 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param orderId: ID of the order to delete
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
+//   - HTTP 404: *NotFoundError
 //
 // DELETE /store/order/{orderId}
 func (a *StoreApi) DeleteOrder(ctx context.Context, orderId int64, callOptions ...RequestOption) error {
@@ -362,7 +366,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -370,7 +374,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -381,7 +385,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetBySwatch: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetBySwatch: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -478,7 +482,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -486,7 +490,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -497,7 +501,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetDefaults: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetDefaults: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -594,7 +598,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -602,7 +606,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -613,7 +617,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetDepartment: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetDepartment: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -711,7 +715,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -719,7 +723,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -730,7 +734,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetGroupedCategories: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetGroupedCategories: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -828,7 +832,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -836,7 +840,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -847,7 +851,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetInventory: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetInventory: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -945,7 +949,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -953,7 +957,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -964,7 +968,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetMatrix: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetMatrix: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -982,6 +986,10 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param orderId: ID of order to return
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
+//   - HTTP 404: *NotFoundError
 //
 // GET /store/order/{orderId}
 func (a *StoreApi) GetOrderById(ctx context.Context, orderId int64, callOptions ...RequestOption) (*Order, error) {
@@ -1070,7 +1078,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1078,7 +1086,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1089,7 +1097,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetOrderById: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetOrderById: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1194,7 +1202,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1202,7 +1210,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1213,7 +1221,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetOrderByTrackingId: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetOrderByTrackingId: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1314,7 +1322,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1322,7 +1330,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1333,7 +1341,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetStockItem: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetStockItem: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1430,7 +1438,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1438,7 +1446,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1449,7 +1457,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetSwatch: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetSwatch: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1547,7 +1555,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1555,7 +1563,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1566,7 +1574,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetSwatchGroups: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetSwatchGroups: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1664,7 +1672,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1672,7 +1680,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1683,7 +1691,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetTimestampGroups: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetTimestampGroups: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1780,7 +1788,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1788,7 +1796,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1799,7 +1807,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetTree: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetTree: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
@@ -1816,6 +1824,9 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
 //
 // POST /store/order
 func (a *StoreApi) PlaceOrder(ctx context.Context, order *Order, callOptions ...RequestOption) (*Order, error) {
@@ -1896,7 +1907,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -1904,7 +1915,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -1915,7 +1926,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.PlaceOrder: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.PlaceOrder: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -1933,6 +1944,9 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 //
 // param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
 // param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// Declared errors:
+//   - HTTP 400: *BadRequestError
 //
 // POST /store/reservation
 func (a *StoreApi) ReserveStock(ctx context.Context, callOptions ...RequestOption) (*ReserveStockResponse, error) {
@@ -2036,7 +2050,7 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := decodeSuccess(response.StatusCode, []byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "POST", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2044,7 +2058,7 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "POST", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2055,7 +2069,7 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.ReserveStock: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.ReserveStock: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
 		}
 		dataPtr = &data
 	}
@@ -2177,7 +2191,7 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 				 * negotiation): the caller gets its raw bytes. */
 				*bytesPtr = []byte(response.Body)
 			} else if err := deserialize([]byte(response.Body), &data); err != nil {
-				return nil, err
+				return nil, attachResponseContext(err, response, "GET", path)
 			}
 		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
 			/* Binary return type: the transport base64-encoded the body so it
@@ -2185,7 +2199,7 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 			 * to the original raw bytes for the caller. */
 			decoded, decErr := decodeBinaryResponse(response.Body)
 			if decErr != nil {
-				return nil, decErr
+				return nil, attachResponseContext(decErr, response, "GET", path)
 			}
 			*bytesPtr = decoded
 		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
@@ -2196,7 +2210,7 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
-			return nil, newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.SearchStore: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil)
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.SearchStore: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
 		}
 		dataPtr = &data
 	}
