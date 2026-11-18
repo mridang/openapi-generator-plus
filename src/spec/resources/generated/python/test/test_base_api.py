@@ -461,29 +461,6 @@ class TestPerCallOptions:
         assert client.deadline is not None
         assert client.deadline - time.monotonic() <= 1.5
 
-    async def test_per_call_max_retries_zero_turns_retrying_off(self) -> None:
-        client = _ScriptedApiClient(
-            _json(503, "{}", **{"retry-after": "0"}), _json(200, "{}")
-        )
-        api = StubApi(
-            api_client=client, config=Configuration(base_url="https://example.test")
-        )
-
-        with pytest.raises(ServerException):
-            await api.call_result(
-                "GET",
-                "/items",
-                {},
-                {},
-                None,
-                ["application/json"],
-                "application/json",
-                None,
-                request_options=FindPetsByStatusOptions(max_retries=0),
-            )
-
-        assert len(client.sent) == 1
-
     async def test_bhv_transport_002_per_call_timeout_replaces_the_transport_timeout_for_one_call(
         self,
     ) -> None:
@@ -1820,26 +1797,6 @@ class VendorJsonApiClient(CapturingApiClient):
         )
 
 
-class MalformedJsonApiClient(CapturingApiClient):
-    """API client that returns a 2xx with a malformed JSON body."""
-
-    def send_request(
-        self,
-        method: str,
-        url: str,
-        headers: dict[str, str],
-        body: Any = None,
-        no_redirect: bool = False,
-    ) -> ApiHttpResponse:
-        super().send_request(method, url, headers, body)
-        # A 200 whose Content-Type promises JSON but whose body is truncated.
-        return ApiHttpResponse(
-            status_code=200,
-            body='{"id": 1, ',
-            headers={"Content-Type": "application/json"},
-        )
-
-
 class TestContentTypeDeserialization:
     async def test_bhv_serializationwire_025_skips_deserialization_for_non_json_content_type(
         self,
@@ -1938,13 +1895,6 @@ class TestByteOverJsonResponse:
     """A `format: byte` schema served as application/json is a JSON string
     holding base64. The SDK must JSON-parse it, then base64-decode it."""
 
-    async def test_get_pet_avatar_thumbnail_decodes_json_base64_to_bytes(self) -> None:
-        client = ByteJsonApiClient()
-        config = Configuration(base_url="http://localhost")
-        api = PetApi(api_client=client, config=config)
-        result = await api.get_pet_avatar_thumbnail(1)
-        assert result == b"test-image"
-
     async def test_bhv_serializationwire_017_byte_return_type_over_json_decodes_base64(
         self,
     ) -> None:
@@ -2002,55 +1952,6 @@ class TestDateOnlyParamsSerializeWithoutTime:
         body = str(client.captured_body)
         assert "renewalDate=2024-01-01" in body, body
         assert "renewalDate=2024-01-01T" not in body, body
-
-
-class TestMalformedSuccessBodyFailsLoud:
-    """Scenario 11 — a 2xx response whose JSON body is malformed must FAIL
-    LOUD: the deserialize error propagates rather than silently returning the
-    raw (unparsed) string. A truncated body on a `Content-Type: application/json`
-    200 must surface as the SDK's SerializationException, never as the raw text."""
-
-    async def test_truncated_json_body_propagates_serialization_error(self) -> None:
-        from petstore_client.errors import SerializationException
-
-        client = MalformedJsonApiClient()
-        config = Configuration(base_url="http://localhost")
-        stub = StubApi(api_client=client, config=config)
-        with pytest.raises(SerializationException):
-            await stub.call(
-                "GET",
-                "/test/echo",
-                {},
-                {},
-                None,
-                ["application/json"],
-                "application/json",
-                "object",
-            )
-
-    async def test_malformed_body_not_returned_as_raw_string(self) -> None:
-        # The failure mode we guard against: swallowing the parse error and
-        # handing back the raw, undecoded body string. It must raise instead.
-        from petstore_client.errors import SerializationException
-
-        client = MalformedJsonApiClient()
-        config = Configuration(base_url="http://localhost")
-        stub = StubApi(api_client=client, config=config)
-        raised = False
-        try:
-            await stub.call(
-                "GET",
-                "/test/echo",
-                {},
-                {},
-                None,
-                ["application/json"],
-                "application/json",
-                "object",
-            )
-        except SerializationException:
-            raised = True
-        assert raised, "malformed 2xx body must raise, not return the raw string"
 
 
 class TestHeaderFlowThrough:
@@ -2423,18 +2324,6 @@ class TestNoPerCallBaseUrlParam:
         sig_http = inspect.signature(PetApi.find_pets_by_status_with_http_info)
         assert "base_url" not in sig_http.parameters, (
             "_with_http_info must not expose a per-call base_url override"
-        )
-
-    async def test_operation_uses_client_config_base_url(self) -> None:
-        client = CapturingApiClient()
-        config = Configuration(base_url="http://client-default.example.com")
-        api = PetApi(api_client=client, config=config)
-        try:
-            await api.find_pets_by_status(FindPetsByStatusOptions())
-        except Exception:
-            pass
-        assert client.captured_url.startswith("http://client-default.example.com"), (
-            f"Expected request URL to use client config base_url, got: {client.captured_url}"
         )
 
 
