@@ -41,6 +41,18 @@ def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
 
 
 class TestOAuth2AuthorizationCodeAuthenticator:
+    def test_bhv_misc_077_a_generated_pkce_challenge_is_43_characters_and_differs_per_call(
+        self,
+    ) -> None:
+        first = parse_qs(
+            urlparse(_create_authenticator().build_authorization_url()).query
+        )["code_challenge"][0]
+        second = parse_qs(
+            urlparse(_create_authenticator().build_authorization_url()).query
+        )["code_challenge"][0]
+        assert len(first) == 43
+        assert first != second
+
     def test_bhv_authoauthtwoauthcode_006_builds_authorization_url_with_required_params(
         self,
     ) -> None:

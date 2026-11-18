@@ -714,6 +714,28 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
+  void bhvMisc059ANonFiniteLifetimeIsNotCachedSoTheNextCallFetches() {
+    AtomicInteger callCount = new AtomicInteger(0);
+    ApiClient client =
+        (method, url, headers, body) -> {
+          int n = callCount.incrementAndGet();
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"inf" + n + "\",\"expires_in\":\"Infinity\"}", Map.of());
+        };
+    OAuth2TokenManager manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    Map<String, String> params = new HashMap<>();
+    params.put("grant_type", "client_credentials");
+
+    String first = manager.getAccessToken("https://auth.example.com/token", params);
+    String second = manager.getAccessToken("https://auth.example.com/token", params);
+
+    assertEquals("inf1", first);
+    assertEquals("inf2", second);
+    assertEquals(2, callCount.get());
+  }
+
+  @Test
   void bhvAuthOauthTwoTokenMgr011ExpiresInNegativeSkipsCaching() {
     // D1: a negative expires_in (e.g. -1) must not produce a future expiry
     // via underflow. The manager must mark the token as immediately stale

@@ -601,6 +601,15 @@ class TestObjectValuedParameters:
 
 
 class TestValueSerializerBehaviours:
+    def test_bhv_misc_084_a_set_optional_scalar_is_sent_in_every_location(self) -> None:
+        assert str(ValueSerializer.serialize(7, 'path', 'integer')) == '7'
+        assert str(ValueSerializer.serialize(7, 'header', 'integer')) == '7'
+        assert str(ValueSerializer.serialize(7, 'cookie', 'integer')) == '7'
+        assert str(ValueSerializer.serialize(7, 'query', 'integer')) == '7'
+
+    def test_bhv_misc_086_an_element_holding_json_text_is_not_decoded_again(self) -> None:
+        assert '{"a":1}' in str(ValueSerializer.serialize(['{"a":1}'], 'query', 'array'))
+
     def test_bhv_serialization_008_a_content_parameter_is_encoded_once_for_its_location(self) -> None:
         assert ValueSerializer.encode_content('filter', '{"a":1}', 'path') == '%7B%22a%22%3A1%7D'
         assert ValueSerializer.encode_content('filter', '{"a":1}', 'query') == '{"a":1}'

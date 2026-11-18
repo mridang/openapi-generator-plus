@@ -385,6 +385,21 @@ describe("StoreApi response shapes", () => {
     }
   });
 
+  test("bhv misc 048 an undeclared success status decodes as the union return type", async () => {
+    const { api: mockApi, close } = await createMockServer(
+      202,
+      "application/json",
+      '{"reservationId":7,"quantity":2}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(7);
+    } finally {
+      close();
+    }
+  });
+
   test("bhv operations 154 a 201 body that only fits the 200 schema is refused", async () => {
     const { api: mockApi, close } = await createMockServer(
       201,
