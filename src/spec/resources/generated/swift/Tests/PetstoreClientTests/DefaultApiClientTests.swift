@@ -81,6 +81,18 @@ import Testing
       #expect(response.statusCode == 407)
     }
 
+    /* Credentials written into the proxy URL are accepted, and the request goes through the authenticating proxy. */
+    @Test func testBhvOptions052ProxyUrlWithCredentialsIsAccepted() async throws {
+      try await setUpContainers()
+      let transport = try TransportOptionsBuilder().proxy("http://user:pass@\(proxyAuthHostPort)")
+        .build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      let response = try await client.sendRequest(
+        method: "GET", url: chasmInternalHttpUrl + "/test/echo", headers: [:], body: nil)
+      #expect(response.statusCode == 200)
+      #expect(response.body.contains("\"method\""))
+    }
+
     @Test func testBhvTransport015MakesHttpRequestThroughProxy() async throws {
       let transport = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
       let client = makeClient(transport: transport) { _ in
@@ -509,7 +521,7 @@ import Testing
     }
 
     /* A different port is a different origin, even on the same host. */
-    @Test func testRedirectToDifferentPortDropsCredentialHeaders() async throws {
+    @Test func testBhvRedirects033RedirectToDifferentPortDropsCredentialHeaders() async throws {
       let followUp = try await headersOnSecondHop(redirectingTo: "https://example.com:8443/landing")
       #expect(followUp["X-API-Key"] == nil)
       #expect(followUp["Cookie"] == nil)

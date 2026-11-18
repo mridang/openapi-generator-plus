@@ -247,7 +247,7 @@ import Testing
     }
   }
 
-  @Test func testErrorDispatch401() async throws {
+  @Test func testBhvErrors071ErrorDispatch401() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 401
     mockClient.responseBody = "{\"error\":\"unauthorized\"}"
