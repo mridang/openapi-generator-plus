@@ -642,7 +642,7 @@ class TestSuccessDeserialization:
         assert result is not None
         assert "hello world" in result
 
-    async def test_binary_return_type_gets_the_raw_bytes_of_a_json_body(
+    async def test_bhv_serializationwire_060_binary_return_type_gets_the_raw_bytes_of_a_json_body(
         self, api: Any
     ) -> None:
         # A binary operation that also declares application/json (content
@@ -1551,6 +1551,46 @@ class TestBodySerialization:
         wire = str(client.captured_body)
         assert wire == "full+name=Ada+Lovelace"
         assert "%20" not in wire
+
+    async def test_bhv_serializationwire_057_form_urlencoded_body_keeps_only_unreserved_literal(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        config = Configuration(base_url="http://localhost")
+        stub = StubApi(api_client=client, config=config)
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"nickname": "a~b*c!d'e(f)g"},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert str(client.captured_body) == "nickname=a~b%2Ac%21d%27e%28f%29g"
+
+    async def test_bhv_serializationparam_122_allow_reserved_query_value_keeps_reserved_chars_on_the_wire(
+        self,
+    ) -> None:
+        from petstore_client.value_serializer import AllowReservedValue
+
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        value = ":/?@!$()*+,;~'"
+        await stub.call(
+            "GET",
+            "/x",
+            {"revision": AllowReservedValue(value)},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/x?revision=" + value
 
     async def test_bhv_serializationwire_053_form_array_field_serializes_as_repeated_keys(
         self,
@@ -2608,7 +2648,9 @@ class TestOperationServerVariants:
 
         assert server.get_url() == expected
 
-    def test_a_value_outside_the_variable_enum_is_rejected(self) -> None:
+    def test_bhv_servers_020_a_value_outside_the_variable_enum_is_rejected(
+        self,
+    ) -> None:
         from petstore_client.api.pet_api import GetStagingPetInfoServerEnvironment
 
         with pytest.raises(ValueError, match="'production' is not a valid"):

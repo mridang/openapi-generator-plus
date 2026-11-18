@@ -11,6 +11,7 @@ from urllib.parse import quote
 
 from pydantic import BaseModel
 
+from .errors.serialization_exception import SerializationException
 from .object_serializer import ObjectSerializer
 
 
@@ -370,6 +371,7 @@ class ValueSerializer:
         )
         pairs: List[Tuple[str, str]] = []
         for key, item in fields.items():
+            cls._refuse_object_leaf(param_name, key, item)
             text = ObjectSerializer.stringify(item)
             if location == "path":
                 pairs.append(
@@ -426,5 +428,20 @@ class ValueSerializer:
             else value
         )
         for key, val in fields.items():
+            ValueSerializer._refuse_object_leaf(param_name, key, val)
             result[f"{param_name}[{key}]"] = ObjectSerializer.stringify(val)
         return result
+
+    @staticmethod
+    def _refuse_object_leaf(param_name: str, key: Any, item: Any) -> None:
+        """Refuse a property whose value is itself an object.
+
+        A nested object has no styled wire form, so ``stringify`` would write
+        its Python repr. The other SDKs refuse it with a serialization error,
+        and so does this one.
+        """
+        if isinstance(item, (BaseModel, dict)):
+            raise SerializationException(
+                f"Parameter '{param_name}' property '{key}' is an object; "
+                "a nested object cannot be written as a styled parameter"
+            )
