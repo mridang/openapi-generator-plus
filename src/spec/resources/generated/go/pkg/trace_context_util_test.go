@@ -287,7 +287,7 @@ func TestBhvMisc002_TraceContextUtil_CallerPropagatorIsUsedAndExistingHeadersAre
 	t.Cleanup(func() { SetTraceContextPropagator(nil) })
 
 	headers := map[string]string{"X-Keep": "1"}
-	InjectTraceContext(headers)
+	InjectTraceContext(context.Background(), headers)
 	if headers["X-Keep"] != "1" {
 		t.Errorf("expected the existing header kept, got %v", headers)
 	}
