@@ -45,6 +45,17 @@ class TestMetadataTypedAdditionalProperties:
         data = json.loads(serialized)
         assert data.get("createdAt") is not None
 
+    def test_bhv_misc_093_numeric_additional_property_names_are_written_as_object_members(
+        self,
+    ) -> None:
+        metadata = ObjectSerializer().deserialize(
+            '{"404":"missing","7":"seven"}', "Metadata"
+        )
+        assert metadata is not None
+        data = json.loads(ObjectSerializer().serialize(metadata))
+        assert data["404"] == "missing"
+        assert data["7"] == "seven"
+
     def test_bhv_models_009_additional_properties_are_a_string_keyed_map_of_the_value_type(
         self,
     ) -> None:
