@@ -2400,3 +2400,4 @@ langphp057 | A call hook given to the client is passed to every API group.
 langphp058 | A composite authenticator applies the headers, query parameters and cookies of every member.
 langphp059 | A composite authenticator takes its host from its first member.
 langphp060 | A composite authenticator with no members is refused.
+langphp061 | An anyOf variant with only numeric additional properties serializes as an object.
