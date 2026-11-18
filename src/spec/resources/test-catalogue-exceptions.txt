@@ -454,6 +454,11 @@ kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPh
 ||||||| e6c85ecf4
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
 swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
+swift | misc030 | the SDK takes only a relative timeout per call and has no absolute deadline argument, so a deadline cannot already have passed when a call starts
+swift | misc033 | the test certificates are one CA and one server leaf, so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
+swift | misc038 | the Swift suite starts no TLS listener of its own and its unit tests stub the transport, so there is no server certificate for the platform trust store to refuse
+swift | misc044 | contradicts transport030: a Content-Encoding of gzip that does not match its body is an ApiError, pinned by testBhvTransport030, so a gzip header without the gzip signature cannot also be returned as the plain body
+swift | misc047 | a union wrapper holds only a declared variant and is built only from one, so a value that is not a variant cannot be constructed; an empty union is nil (testBhvUnions042), so the compile-time guarantee covers both cases
 ||||||| 68cea441c
 ||||||| f49b9353e
 csharp | misc007 | the generated code checks no path parameter for nil, and the options null check runs first, so the error names options and never the path parameter
@@ -488,3 +493,7 @@ dart | misc033 | the suite ships a single server certificate with no root and in
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
 dart | misc044 | the Dart client raises on a body that declares gzip but fails to decode, as bhv transport 073 pins, so it never returns that body as plain content
 dart | misc047 | PetFood.toJson passes a value that is not one of its variants through unchanged instead of raising, so no serialization error names the union
+python | misc052 | Python passes per-call options as keyword arguments, so giving the same option twice is a syntax error rather than a runtime choice, and no list of options exists to resolve
+python | misc056 | the Python proxy setter takes None to clear a proxy and rejects an empty string as a URL with no scheme (TransportOptions builder raises ValueError), so an empty string cannot clear a proxy
+python | misc065 | Python takes each scheme credential as its own keyword argument and copies them into a dict inside the constructor, so no caller-owned map exists that could change after the API is built
+python | misc074 | Python sends one credential per operation, the first configured scheme its requirement lists (BaseApi._scheme_authenticator), so an alternative that names two schemes sends only one

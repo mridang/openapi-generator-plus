@@ -1331,6 +1331,66 @@ class TestAuthInjection:
         )
         assert client.captured_headers.get("X-Client-Auth") == "client-level-token"
 
+    async def test_bhv_misc_061_an_authenticator_asked_during_a_call_sees_the_callers_context(
+        self,
+    ) -> None:
+        from contextvars import ContextVar
+
+        marker: ContextVar[str] = ContextVar("marker", default="")
+        seen: list[str] = []
+
+        class ContextAuth(StubAuthenticator):
+            def get_auth_headers(self) -> dict[str, str]:
+                seen.append(marker.get())
+                return {"X-Context": "from-context"}
+
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client,
+            config=Configuration(base_url="http://localhost"),
+            authenticator=ContextAuth(),
+        )
+        marker.set("caller-marker")
+
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert seen == ["caller-marker"]
+        assert client.captured_headers.get("X-Context") == "from-context"
+
+    async def test_bhv_misc_064_an_operation_that_declares_no_security_never_sends_the_client_credential(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        client_auth = StubAuthenticator(headers={"X-Client-Auth": "client-level-token"})
+        stub = StubApi(
+            api_client=client,
+            config=Configuration(base_url="http://localhost"),
+            authenticator=client_auth,
+        )
+
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            NO_AUTH,
+        )
+
+        assert "X-Client-Auth" not in client.captured_headers
+
     async def test_bhv_authintegration_018_a_configured_client_authenticator_is_applied_to_a_secured_operation(
         self, chasm_http_url: Any
     ) -> None:
