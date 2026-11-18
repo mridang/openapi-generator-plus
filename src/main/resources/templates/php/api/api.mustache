@@ -273,6 +273,15 @@ class {{classname}} extends BaseApi
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
         }
 {{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        /* Required nullable query param: a null value is sent as the key with an
+         * empty value, so the required key is always on the wire. */
+        if ($options->{{paramName}} === null) {
+            $queryParams['{{baseName}}'] = '';
+        } else {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}}));
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.op.optionsParamRequired}}
         /* Optional allowEmptyValue query param: allowEmptyValue means the server
@@ -639,6 +648,15 @@ class {{classname}} extends BaseApi
             $queryParams = array_merge($queryParams, ValueSerializer::serializeDeepObject('{{baseName}}', $options->{{paramName}}));
         }
 {{/vendorExtensions.param.queryDeepObject}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        /* Required nullable query param: a null value is sent as the key with an
+         * empty value, so the required key is always on the wire. */
+        if ($options->{{paramName}} === null) {
+            $queryParams['{{baseName}}'] = '';
+        } else {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, '{{baseName}}', ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'query', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}null{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStr}}));
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
 {{#vendorExtensions.op.optionsParamRequired}}
         /* Optional allowEmptyValue query param: allowEmptyValue means the server

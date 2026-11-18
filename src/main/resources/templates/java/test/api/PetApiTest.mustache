@@ -27,6 +27,7 @@ import {{apiPackage}}.options.AddPetOptions;
 import {{apiPackage}}.options.DeletePetOptions;
 import {{apiPackage}}.options.SetPetPreferencesOptions;
 import {{apiPackage}}.options.GetPetByNameOptions;
+import {{apiPackage}}.options.GetPetByNoteOptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -668,6 +669,39 @@ class PetApiTest {
         petApi.getPetByName("rex", new GetPetByNameOptions("cats", "corr-1"));
 
         assertThat(capturing.capturedUrl).contains("category=cats");
+    }
+
+    @Test
+    void bhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
+
+        assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
+    }
+
+    @Test
+    void bhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetByNote(new GetPetByNoteOptions(null, null));
+
+        assertThat(capturing.capturedUrl).endsWith("?note=&rank=");
+    }
+
+    @Test
+    void bhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
+
+        assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
     }
 
     @Test

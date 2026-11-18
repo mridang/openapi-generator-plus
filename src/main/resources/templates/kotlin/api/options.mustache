@@ -50,7 +50,7 @@ class {{className}}(
 {{/description}}
 {{/hasPluralExamples}}
 {{/deprecated}}
-    val {{paramName}}: {{{dataType}}},
+    val {{paramName}}: {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}},
 {{/requiredParams}}
 {{#optionalParams}}
 {{#deprecated}}

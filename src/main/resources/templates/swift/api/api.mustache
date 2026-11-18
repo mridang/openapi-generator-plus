@@ -157,12 +157,12 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 {{#queryParams}}
 {{#required}}
 {{#isString}}
-        guard !options.{{paramName}}.isEmpty else {
+        guard {{^vendorExtensions.param.queryRequiredNullable}}!options.{{paramName}}.isEmpty{{/vendorExtensions.param.queryRequiredNullable}}{{#vendorExtensions.param.queryRequiredNullable}}options.{{paramName}}?.isEmpty != true{{/vendorExtensions.param.queryRequiredNullable}} else {
             throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isString}}
 {{#isDate}}
-        guard !options.{{paramName}}.isEmpty else {
+        guard {{^vendorExtensions.param.queryRequiredNullable}}!options.{{paramName}}.isEmpty{{/vendorExtensions.param.queryRequiredNullable}}{{#vendorExtensions.param.queryRequiredNullable}}options.{{paramName}}?.isEmpty != true{{/vendorExtensions.param.queryRequiredNullable}} else {
             throw ConfigurationError.invalidArgument("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
         }
 {{/isDate}}
@@ -245,6 +245,14 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
 
         {{#queryParams.0}}var{{/queryParams.0}}{{^queryParams.0}}let{{/queryParams.0}} queryParams: OrderedParams<Any?> = [:]
 {{#queryParams}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if let val = options.{{paramName}} {
+            queryParams["{{baseName}}"] = ValueSerializer.maybeAllowReserved(ValueSerializer.serializeStyled("{{baseName}}", value: val, location: "query", schemaType: "{{{dataType}}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}), allowReserved: {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+        } else {
+            queryParams["{{baseName}}"] = ""
+        }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
 {{#isAllowEmptyValue}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
@@ -333,6 +341,7 @@ public final class {{classname}}: BaseApi, @unchecked Sendable {
         }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{/queryParams}}
 
         {{#headerParams.0}}var{{/headerParams.0}}{{^headerParams.0}}{{#hasCookieParams}}var{{/hasCookieParams}}{{^hasCookieParams}}let{{/hasCookieParams}}{{/headerParams.0}} headerParams: [String: String] = [:]

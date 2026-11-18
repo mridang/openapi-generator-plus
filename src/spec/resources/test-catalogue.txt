@@ -1005,7 +1005,7 @@ serializationwire053 | #1 array form field emits repeated keys
 retries026 | Waits for a Retry-After given in seconds
 authapikey018 | Rejects a CR in a header API key value at construction
 authoauthtwoimplicit014 | Rejects a non-ASCII access token with the RFC 7230 message
-operations125 | Raises the language's argument error, naming the required query param category, when it is nil
+operations125 | Raises the language's argument error, naming the required query param category, when it is nil | multi
 errors044 | Every error lives in src/errors and the package root exports it
 serializationparam104 | EncodeContentCookie keeps only the unreserved set literal
 config017 | Configuration is immutable
@@ -1426,3 +1426,6 @@ serializationobject412 | A type: number value the native decimal cannot hold fai
 serializationparam104 | A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
 serializationparam105 | An ipv4 or ipv6 query, header and path parameter is written in the same canonical text as a body field | multi
 serializationparam106 | A type: number parameter given as the language's exact decimal is written in plain notation with no exponent and no float widening | multi
+operations157 | A null required nullable query parameter is sent as the key with an empty value
+operations158 | Every null required nullable query parameter is sent as an empty value in declaration order
+operations159 | A non-null required nullable query parameter is sent with its value

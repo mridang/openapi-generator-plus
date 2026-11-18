@@ -56,6 +56,8 @@ Closing a client is safe to do twice. A request that is already in flight finish
 
 A property that is optional and nullable is the language's own optional type, and an absent value and an explicit `null` are sent the same way, as absent, in every language except TypeScript. A property that is required and nullable is always written, as `null` when it has no value. A three-state type for PATCH-style APIs may come later.
 
+A query parameter that is required and nullable is kept the same way: when its value is `null` the key is still sent, with an empty value (`?note=`), never dropped, in every language. Its Options field is the language's nullable type with no default, so the caller must still state it. An empty string for a required nullable string parameter is still refused, and a required parameter that is not nullable still refuses `null`. Header, cookie, form, `content` and `deepObject` parameters keep their current behaviour.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

@@ -20,7 +20,7 @@ class {{className}} {
   @Deprecated('This parameter is deprecated.')
 {{/deprecated}}
 {{#required}}
-  final {{{dataType}}} {{name}};
+  final {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}} {{name}};
 {{/required}}
 {{^required}}
   final {{{dataType}}}? {{name}};

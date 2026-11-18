@@ -1134,6 +1134,51 @@ async fn test_bhv_operations_065_pet_api_get_pet_by_name_required_query_on_wire(
     );
 }
 
+#[tokio::test]
+async fn test_bhv_operations_157_pet_api_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNoteOptions::new(None, Some(3));
+    let _ = api.get_pet_by_note(Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains(" /pet/byNote?note=&rank=3 "),
+        "expected the query note=&rank=3, got request line: {}",
+        request_line
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_operations_158_pet_api_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNoteOptions::new(None, None);
+    let _ = api.get_pet_by_note(Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains(" /pet/byNote?note=&rank= "),
+        "expected the query note=&rank=, got request line: {}",
+        request_line
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_operations_159_pet_api_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = GetPetByNoteOptions::new(Some("a b".to_string()), Some(3));
+    let _ = api.get_pet_by_note(Some(&opts)).await;
+
+    let request = rx.recv().expect("expected a captured request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        request_line.contains(" /pet/byNote?note=a%20b&rank=3 "),
+        "expected the query note=a%20b&rank=3, got request line: {}",
+        request_line
+    );
+}
+
 /* D28: the REQUIRED header `X-Correlation-Id` is guarded like the required
  * query parameter: an empty value is refused before any request is sent. */
 #[tokio::test]

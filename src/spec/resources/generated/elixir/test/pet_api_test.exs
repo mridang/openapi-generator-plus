@@ -1944,6 +1944,76 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "bhv operations 125 get_pet_by_note sends a null required nullable query parameter as an empty value" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.get_pet_by_note_with_http_info(
+        api,
+        %PetstoreClient.Api.Options.GetPetByNoteOptions{note: nil, rank: 3}
+      )
+
+    assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=&rank=3")
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 126 get_pet_by_note sends every null required nullable query parameter in declaration order" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.get_pet_by_note_with_http_info(
+        api,
+        %PetstoreClient.Api.Options.GetPetByNoteOptions{note: nil, rank: nil}
+      )
+
+    assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=&rank=")
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 127 get_pet_by_note sends a non-null required nullable query parameter with its value" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.get_pet_by_note_with_http_info(
+        api,
+        %PetstoreClient.Api.Options.GetPetByNoteOptions{note: "a b", rank: 3}
+      )
+
+    assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=a%20b&rank=3")
+
+    Agent.stop(name)
+  end
+
+  test "bhv operations 128 get_pet_by_name refuses a nil required query parameter that is not nullable" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'category' when calling PetApi\.get_pet_by_name/,
+                 fn ->
+                   PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
+                     api,
+                     "rex",
+                     %PetstoreClient.Api.Options.GetPetByNameOptions{
+                       category: nil,
+                       x_correlation_id: "c-1"
+                     }
+                   )
+                 end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
   # allowEmptyValue-omitted-key: find_pets_by_status declares an OPTIONAL query
   # param `status` with allowEmptyValue:true. allowEmptyValue means the server
   # tolerates an empty value IF the caller sends the key — it does NOT oblige the

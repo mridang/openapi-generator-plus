@@ -1230,7 +1230,7 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
      */
     private static String toElixirTypespec(CodegenParameter p, String moduleName) {
         final String base = elixirBaseType(p, moduleName);
-        return p.required ? base : base + " | nil";
+        return p.required && !isRequiredNullableQuery(p) ? base : base + " | nil";
     }
 
     private static String elixirBaseType(CodegenParameter p, String moduleName) {

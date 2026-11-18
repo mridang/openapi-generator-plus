@@ -1119,6 +1119,69 @@ func TestBhvOperations064_PetApi_GetPetByNameKeepsANameThatOnlyContainsDots(t *t
 }
 
 // An allowReserved query value keeps its reserved characters but always percent-encodes #.
+func TestBhvOperations125_PetApi_GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	rank := int32(3)
+	if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Rank: &rank}); err != nil {
+		t.Fatalf("GetPetByNote failed: %v", err)
+	}
+	if query != "note=&rank=3" {
+		t.Errorf("expected the query %q, got %q", "note=&rank=3", query)
+	}
+}
+
+func TestBhvOperations126_PetApi_GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{}); err != nil {
+		t.Fatalf("GetPetByNote failed: %v", err)
+	}
+	if query != "note=&rank=" {
+		t.Errorf("expected the query %q, got %q", "note=&rank=", query)
+	}
+}
+
+func TestBhvOperations127_PetApi_GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		query = r.URL.RawQuery
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	note := "a b"
+	rank := int32(3)
+	if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Note: &note, Rank: &rank}); err != nil {
+		t.Fatalf("GetPetByNote failed: %v", err)
+	}
+	if query != "note=a%20b&rank=3" {
+		t.Errorf("expected the query %q, got %q", "note=a%20b&rank=3", query)
+	}
+}
+
 func TestBhvOperations066_PetApi_GetPetTagPercentEncodesAHashInAnAllowReservedValue(t *testing.T) {
 	t.Parallel()
 	var query string

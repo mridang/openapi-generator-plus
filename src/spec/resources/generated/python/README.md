@@ -170,7 +170,7 @@ The package version follows semantic versioning; the clients, Options objects, m
 
 ### Behaviours to know
 
-- Optional and nullable: an optional property that is absent and one that is `null` both read as `None`, and `None` is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it.
+- Optional and nullable: an optional property that is absent and one that is `null` both read as `None`, and `None` is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it. A required nullable query parameter is kept the same way: when its value is `None` the key is still sent, with an empty value (`?key=`).
 - Unknown values fail loudly: an enum value or a discriminator value the SDK does not know raises `SerializationException` and names the value; it is never coerced to a default.
 - Repeated response headers are joined into one value with `, ` in `headers` and `response_headers` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
 - Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `urllib3.PoolManager` for those calls.

@@ -30,7 +30,7 @@ public sealed class {{className}}
         (Go/Python/Ruby/Elixir). See AGENTS.md. }}
     /// <remarks>This parameter is deprecated.</remarks>
 {{/deprecated}}
-    public required {{{dataType}}} {{pascalParamName}} { get; init; }
+    public required {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}} {{pascalParamName}} { get; init; }
 {{/required}}
 {{^required}}
 {{#description}}

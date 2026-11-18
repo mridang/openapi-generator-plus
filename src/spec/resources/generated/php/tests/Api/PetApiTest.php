@@ -13,6 +13,7 @@ use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\FindPetsByStatusOptions;
 use PetstoreClient\Api\Options\GetPetByNameOptions;
+use PetstoreClient\Api\Options\GetPetByNoteOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
 use PetstoreClient\Api\Options\GetPetTagOptions;
 use PetstoreClient\Api\Options\SetPetPreferencesOptions;
@@ -1552,6 +1553,42 @@ test('bhv operations 065 get pet by name sends the required query param when sup
 
     expect($result)->not->toBeNull();
     expect($captured->headers)->not->toBeEmpty();
+});
+
+test('bhv operations 125 get pet by note sends a null required nullable query parameter as an empty value', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetByNoteWithHttpInfo(new GetPetByNoteOptions(note: null, rank: 3));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the URL matters. */
+    }
+
+    expect($captured->url)->toEndWith('?note=&rank=3');
+});
+
+test('bhv operations 126 get pet by note sends every null required nullable query parameter in declaration order', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetByNoteWithHttpInfo(new GetPetByNoteOptions(note: null, rank: null));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the URL matters. */
+    }
+
+    expect($captured->url)->toEndWith('?note=&rank=');
+});
+
+test('bhv operations 127 get pet by note sends a non null required nullable query parameter with its value', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+
+    try {
+        $api->getPetByNoteWithHttpInfo(new GetPetByNoteOptions(note: 'a b', rank: 3));
+    } catch (\Throwable) {
+        /* The canned reply is not the operation's model; only the URL matters. */
+    }
+
+    expect($captured->url)->toEndWith('?note=a%20b&rank=3');
 });
 
 test('bhv operations 056 get pet summary throws when required cookie param is empty', function (): void {

@@ -271,9 +271,16 @@ class {{classname}}(BaseApi):
 {{/bodyParam}}
 {{#queryParams}}
 {{#required}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if options is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
+            raise ValueError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
+
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
         if options is None or options.{{paramName}} is None{{#isString}} or options.{{paramName}} == ''{{/isString}}:
             raise ValueError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}")
 
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{/required}}
 {{/queryParams}}
 {{#headerParams}}
@@ -324,6 +331,12 @@ class {{classname}}(BaseApi):
         if options is not None and options.{{paramName}} is not None:
             query_params['{{baseName}}'] = ValueSerializer.encode_content('{{baseName}}', self._object_serializer.serialize(options.{{paramName}}), 'query')
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+        if options is not None and options.{{paramName}} is None:
+            query_params['{{baseName}}'] = ''
+        else:
+            query_params.update(ValueSerializer.query_entries('{{baseName}}', ValueSerializer.maybe_allow_reserved(ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}}), {{#vendorExtensions.param.allowReserved}}True{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}False{{/vendorExtensions.param.allowReserved}})))
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyledAllowEmpty}}
         if options is not None and options.{{paramName}} is not None:
             query_params.update(ValueSerializer.query_entries('{{baseName}}', ValueSerializer.maybe_allow_reserved(ValueSerializer.serialize_styled('{{baseName}}', options.{{paramName}}, 'query', '{{dataType}}', {{#collectionFormat}}'{{collectionFormat}}'{{/collectionFormat}}{{^collectionFormat}}None{{/collectionFormat}}, '{{style}}', {{vendorExtensions.isExplodeStrCap}}), {{#vendorExtensions.param.allowReserved}}True{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}False{{/vendorExtensions.param.allowReserved}})))

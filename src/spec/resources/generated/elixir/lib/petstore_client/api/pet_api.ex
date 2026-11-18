@@ -2318,6 +2318,8 @@ defmodule PetstoreClient.Api.PetApi do
     # required-nested-param-validation: this query param is REQUIRED. A nil
     # Options struct, a nil value, or an empty string is treated as missing and
     # raises before any HTTP call rather than silently omitting the parameter.
+    # A required nullable param is the exception: a nil value is sent as an
+    # empty value, so only a nil Options struct or an empty string is refused.
     if is_nil(options) or is_nil(options.category) or options.category == "" do
       raise ArgumentError,
             "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
@@ -2392,6 +2394,172 @@ defmodule PetstoreClient.Api.PetApi do
         header_params
       end
 
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "Pet",
+      auth,
+      call,
+      %{}
+    )
+  end
+
+  @doc """
+  Look up a pet by note (required query parameters whose value may be null)
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, Pet}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_pet_by_note(t(), PetstoreClient.Api.Options.GetPetByNoteOptions.t(), keyword()) ::
+          {:ok, PetstoreClient.Models.Pet.t()} | {:error, Exception.t()}
+  def get_pet_by_note(%__MODULE__{} = api, options, opts \\ []) do
+    case get_pet_by_note_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for get_pet_by_note but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_pet_by_note`. Raises on error.
+  """
+  @spec get_pet_by_note!(t(), PetstoreClient.Api.Options.GetPetByNoteOptions.t(), keyword()) ::
+          PetstoreClient.Models.Pet.t()
+  def get_pet_by_note!(%__MODULE__{} = api, options, opts \\ []) do
+    case get_pet_by_note(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_pet_by_note` but returns the full `ApiResult`.
+  """
+  @spec get_pet_by_note_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetPetByNoteOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  def get_pet_by_note_with_http_info(%__MODULE__{} = api, options, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
+    # required-nested-param-validation: this query param is REQUIRED. A nil
+    # Options struct, a nil value, or an empty string is treated as missing and
+    # raises before any HTTP call rather than silently omitting the parameter.
+    # A required nullable param is the exception: a nil value is sent as an
+    # empty value, so only a nil Options struct or an empty string is refused.
+    if is_nil(options) or options.note == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'note' when calling PetApi.get_pet_by_note"
+    end
+
+    # required-nested-param-validation: this query param is REQUIRED. A nil
+    # Options struct, a nil value, or an empty string is treated as missing and
+    # raises before any HTTP call rather than silently omitting the parameter.
+    # A required nullable param is the exception: a nil value is sent as an
+    # empty value, so only a nil Options struct or an empty string is refused.
+    if is_nil(options) or options.rank == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'rank' when calling PetApi.get_pet_by_note"
+    end
+
+    path = "/pet/byNote"
+    query_params = []
+
+    query_params =
+      if is_nil(options.note) do
+        query_params ++ [{"note", ""}]
+      else
+        query_params ++
+          [
+            {"note",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "note",
+                 options.note,
+                 :query,
+                 "String.t()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      end
+
+    query_params =
+      if is_nil(options.rank) do
+        query_params ++ [{"rank", ""}]
+      else
+        query_params ++
+          [
+            {"rank",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "rank",
+                 options.rank,
+                 :query,
+                 "integer()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      end
+
+    header_params = %{}
     request_body = nil
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(

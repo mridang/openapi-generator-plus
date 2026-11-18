@@ -21,6 +21,7 @@ from .get_pet_avatar_thumbnail_options import (
 )
 from .get_pet_by_id_options import GetPetByIdOptions as GetPetByIdOptions
 from .get_pet_by_name_options import GetPetByNameOptions as GetPetByNameOptions
+from .get_pet_by_note_options import GetPetByNoteOptions as GetPetByNoteOptions
 from .get_pet_passport_options import GetPetPassportOptions as GetPetPassportOptions
 from .get_pet_photo_options import GetPetPhotoOptions as GetPetPhotoOptions
 from .get_pet_summary_options import GetPetSummaryOptions as GetPetSummaryOptions

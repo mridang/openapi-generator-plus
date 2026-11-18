@@ -967,6 +967,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             param.put("name", optionsFieldName(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            param.put("requiredNullable", isRequiredNullableQuery(p));
             param.put("isReader", "io.Reader".equals(p.dataType));
             // A parameter declared `deprecated: true` in the spec must carry that
             // signal onto its Options field. The native CodegenParameter.deprecated

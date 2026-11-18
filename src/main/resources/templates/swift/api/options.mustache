@@ -10,7 +10,7 @@ public struct {{className}}: Sendable {
     @available(*, deprecated, message: "This parameter is deprecated.")
 {{/deprecated}}
 {{#required}}
-    public let {{name}}: {{{dataType}}}
+    public let {{name}}: {{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}}
 {{/required}}
 {{^required}}
     public let {{name}}: {{{dataType}}}?
@@ -26,7 +26,7 @@ public struct {{className}}: Sendable {
     /// call; 0 turns retries off and nil keeps the transport's value.
     public let maxRetries: Int?
 
-    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}, {{/params}}timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil) {
+    public init({{#params}}{{name}}: {{#required}}{{{dataType}}}{{#requiredNullable}}?{{/requiredNullable}}{{/required}}{{^required}}{{{dataType}}}? = nil{{/required}}, {{/params}}timeout: Int? = nil, headers: [String: String]? = nil, maxRetries: Int? = nil) {
 {{#params}}
         self.{{name}} = {{name}}
 {{/params}}

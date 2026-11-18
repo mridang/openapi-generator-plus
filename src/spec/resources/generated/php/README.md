@@ -223,7 +223,7 @@ breaks `format: int64` schema validation against strict mock servers
 
 ### Optional and nullable are one
 
-A property that is not required is `null` when the response leaves it out and when it carries an explicit `null`; the model cannot tell the two apart. A property that is required and nullable keeps an explicit `null` and is written as `null` when unset.
+A property that is not required is `null` when the response leaves it out and when it carries an explicit `null`; the model cannot tell the two apart. A property that is required and nullable keeps an explicit `null` and is written as `null` when unset. A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
 ### Unknown values fail loudly
 

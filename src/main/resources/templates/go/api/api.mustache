@@ -218,7 +218,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 {{#queryParams}}
 {{#required}}
 {{#isString}}
-	if options.{{nameInPascalCase}} == "" {
+	if {{#vendorExtensions.param.queryRequiredNullable}}options.{{nameInPascalCase}} != nil && *options.{{nameInPascalCase}} == ""{{/vendorExtensions.param.queryRequiredNullable}}{{^vendorExtensions.param.queryRequiredNullable}}options.{{nameInPascalCase}} == ""{{/vendorExtensions.param.queryRequiredNullable}} {
 		return nil, fmt.Errorf("%w '%s' when calling {{classname}}.{{operationId}}", ErrMissingRequiredParameter, "{{paramName}}")
 	}
 {{/isString}}
@@ -346,6 +346,16 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		queryParams["{{baseName}}"] = string(jsonBytes)
 	}
 {{/vendorExtensions.param.queryContent}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+	/* Required nullable query param: the Options field is a pointer. A nil
+	 * pointer is sent as the key with an empty value; a typed nil pointer must
+	 * not reach serializeStyled inside an any, so it is tested here. */
+	if options.{{nameInPascalCase}} == nil {
+		queryParams["{{baseName}}"] = ""
+	} else {
+		queryParams["{{baseName}}"] = maybeAllowReserved(serializeStyled("{{baseName}}", options.{{nameInPascalCase}}, "query", "{{{dataType}}}", "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", "{{style}}", {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}})
+	}
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#vendorExtensions.param.queryStyled}}
 {{#required}}
 	/* Required query param: the Options field is a non-pointer value, so it is

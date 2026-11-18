@@ -4039,6 +4039,18 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return cp;
     }
 
+    /**
+     * True for a query parameter that is both required and nullable (its
+     * decorator kind is {@code requiredNullable}). Options renderers that
+     * build their own parameter maps use it to type the field as nullable.
+     */
+    protected static boolean isRequiredNullableQuery(CodegenParameter p) {
+        final Object decorator =
+                p.vendorExtensions == null ? null : p.vendorExtensions.get("param");
+        return decorator instanceof Map
+                && Boolean.TRUE.equals(((Map<?, ?>) decorator).get("queryRequiredNullable"));
+    }
+
     /** Runs {@link #populateParameterDecorators} over every entry of a list. */
     private void populateParameterDecoratorsForList(List<CodegenParameter> params) {
         if (params == null) {
@@ -4102,11 +4114,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put("serializationMode", deriveSerializationMode(param));
 
         // Phase 1.5 — Query-parameter serialization strategy. Captures the
-        // four mutually-exclusive query-param emission branches that every
+        // five mutually-exclusive query-param emission branches that every
         // language's api template currently expresses as a nested
         // {{#isDeepObject}}/{{#content}}/{{#isAllowEmptyValue}} cascade:
         //   "deepObject"        — explode an object into bracketed keys
         //   "content"           — serialize via the content media-type codec
+        //   "requiredNullable"  — required and nullable: RFC 6570 style
+        //                         serialization, emit "" when the value is null
         //   "styledAllowEmpty"  — RFC 6570 style serialization, emit "" when
         //                         the value is absent (allowEmptyValue:true)
         //   "styled"            — RFC 6570 style serialization, omit when absent
@@ -4120,6 +4134,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         d.put(
                 "queryStyledAllowEmpty",
                 "styledAllowEmpty".equals(querySerializationKind));
+        d.put(
+                "queryRequiredNullable",
+                "requiredNullable".equals(querySerializationKind));
         d.put("queryStyled", "styled".equals(querySerializationKind));
 
         // G1 — allowReserved (OAS): when true, RFC-3986 reserved characters in
@@ -4468,10 +4485,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
     /**
      * Classifies a query parameter's emission strategy into one of
-     * {@code "deepObject" | "content" | "styledAllowEmpty" | "styled"}.
+     * {@code "deepObject" | "content" | "requiredNullable" | "styledAllowEmpty"
+     * | "styled"}.
      * Mirrors the precedence of the nested template cascade exactly:
      * deepObject wins over content, content wins over the styled branches,
-     * and {@code allowEmptyValue} only distinguishes the two styled cases.
+     * a required nullable parameter (its null is sent as an empty value) wins
+     * over {@code allowEmptyValue}, and {@code allowEmptyValue} only
+     * distinguishes the two remaining styled cases.
      */
     private static String deriveQuerySerializationKind(CodegenParameter param) {
         if (param.isDeepObject) {
@@ -4479,6 +4499,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         }
         if (param.getContent() != null && !param.getContent().isEmpty()) {
             return "content";
+        }
+        if (param.isQueryParam && param.required && param.isNullable) {
+            return "requiredNullable";
         }
         if (param.isAllowEmptyValue) {
             return "styledAllowEmpty";
@@ -5244,6 +5267,13 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             List<CodegenOperation> ops, Map<String, Object> objs) {
         final List<Map<String, String>> optionsImports = new ArrayList<>();
         for (final CodegenOperation op : ops) {
+            // The Options template of a language reads the parameter decorators
+            // (a required nullable parameter is typed as nullable), so they are
+            // attached to the location lists before the file is rendered.
+            populateParameterDecoratorsForList(op.queryParams);
+            populateParameterDecoratorsForList(op.headerParams);
+            populateParameterDecoratorsForList(op.formParams);
+            populateParameterDecoratorsForList(op.cookieParams);
             final List<CodegenParameter> optionsParams = collectOptionsParams(op);
             // Authed operations always get an Options class minted (even with
             // no query/header/form/cookie params) because the class carries

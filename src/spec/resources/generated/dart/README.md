@@ -320,7 +320,7 @@ The SDK's `ClientException` (every 4xx response) has the same name as
 A property that is optional, a property that is nullable and one that is both
 are all `T?`, so a missing key and an explicit `null` read the same after
 decoding. A required property that is nullable keeps its key mandatory on
-decode, and encoding always writes it (`null` when unset).
+decode, and encoding always writes it (`null` when unset). A required nullable query parameter is kept the same way: when its value is `null` the key is still sent, with an empty value (`?key=`).
 
 ### Unknown enum values and discriminators fail loudly
 

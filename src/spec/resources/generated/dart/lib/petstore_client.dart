@@ -153,6 +153,7 @@ export 'src/api/options/get_pet_avatar_options.dart';
 export 'src/api/options/get_pet_avatar_thumbnail_options.dart';
 export 'src/api/options/get_pet_by_id_options.dart';
 export 'src/api/options/get_pet_by_name_options.dart';
+export 'src/api/options/get_pet_by_note_options.dart';
 export 'src/api/options/get_pet_passport_options.dart';
 export 'src/api/options/get_pet_photo_options.dart';
 export 'src/api/options/get_pet_summary_options.dart';

@@ -1086,6 +1086,99 @@ void main() {
     );
 
     test(
+      'bhv operations 125 getPetByNote sends a null required nullable query parameter as an empty value',
+      () async {
+        String? capturedQuery;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetByNote(
+            const GetPetByNoteOptions(note: null, rank: 3),
+          );
+
+          expect(capturedQuery, 'note=&rank=3');
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
+      'bhv operations 126 getPetByNote sends every null required nullable query parameter in declaration order',
+      () async {
+        String? capturedQuery;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetByNote(
+            const GetPetByNoteOptions(note: null, rank: null),
+          );
+
+          expect(capturedQuery, 'note=&rank=');
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
+      'bhv operations 127 getPetByNote sends a non-null required nullable query parameter with its value',
+      () async {
+        String? capturedQuery;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetByNote(
+            const GetPetByNoteOptions(note: 'a b', rank: 3),
+          );
+
+          expect(capturedQuery, 'note=a%20b&rank=3');
+        } finally {
+          await server.close(force: true);
+        }
+      },
+    );
+
+    test(
       'bhv operations 066 getPetTag percent-encodes # in an allowReserved value',
       () async {
         String? capturedQuery;

@@ -199,6 +199,7 @@ the inner type and stores `Some(value)`.
   decode to `None`, and `None` is left out when the model is written. Only a
   required nullable property keeps the difference: its key must be present when
   decoding and is written as `null` when the value is `None`.
+  A required nullable query parameter is kept the same way: when its value is `None` the key is still sent, with an empty value (`?key=`).
 - **Unknown values fail loudly.** A string that is not one of an enum's values,
   and a discriminator value that is not in the mapping, make decoding fail with a
   `SerializationError` that names the value; they are never replaced by a

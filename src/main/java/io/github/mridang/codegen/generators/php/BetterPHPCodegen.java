@@ -1454,6 +1454,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 hasAnyDocTypes = true;
             }
             param.put("required", p.required);
+            param.put("requiredNullable", isRequiredNullableQuery(p));
             // Thread the native CodegenParameter deprecated flag into the
             // options render context so the corresponding constructor-promoted
             // property can carry an `@deprecated` PHPDoc tag, mirroring the

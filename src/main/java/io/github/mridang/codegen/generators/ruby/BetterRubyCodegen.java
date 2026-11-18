@@ -1685,7 +1685,11 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
         final String rbsType = qualifyRbsModelType(toRbsType(p.dataType), p);
         final boolean upload = p.isFile || p.isBinary
                 || (p.items != null && (p.items.isFile || p.items.isBinary));
-        return upload ? rbsType.replaceAll("\\bFile\\b", "(::IO | ::StringIO)") : rbsType;
+        final String type =
+                upload ? rbsType.replaceAll("\\bFile\\b", "(::IO | ::StringIO)") : rbsType;
+        // A required nullable query parameter keeps its keyword required but
+        // accepts nil: the RBS type is the nullable form of the type.
+        return isRequiredNullableQuery(p) ? type + "?" : type;
     }
 
     /**

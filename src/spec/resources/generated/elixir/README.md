@@ -159,7 +159,7 @@ A model is a struct, and a struct never changes in place. Make a changed copy wi
 
 ### Behaviours that differ from what you may expect
 
-- An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept.
+- An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 - An enum value or a discriminator value the SDK does not know raises a `SerializationError` instead of passing through, so a spec that is out of date fails loudly.
 - A response header that repeats arrives as one entry in `headers`, its values joined with `, ` and its name in lower case.
 - Request and response bodies are held in memory. Streaming a body is not supported; to stream, pass your own transport through `req_options`.

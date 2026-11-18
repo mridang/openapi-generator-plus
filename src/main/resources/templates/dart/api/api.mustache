@@ -180,7 +180,9 @@ class {{classname}} extends BaseApi {
 {{/isUuid}}{{/isString}}{{/required}}{{/pathParams}}
 {{#queryParams}}{{#required}}
 {{#vendorExtensions.op.optionsParamRequired}}
+{{^vendorExtensions.param.queryRequiredNullable}}
     ArgumentError.checkNotNull(options.{{paramName}}, '{{paramName}}');
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{#isString}}{{^isUuid}}
     if (options.{{paramName}} == '') {
       throw ArgumentError("Missing the required parameter '{{paramName}}' when calling {{classname}}.{{operationId}}");
@@ -283,6 +285,14 @@ class {{classname}} extends BaseApi {
 
     final queryParams = <String, Object?>{};
 {{#queryParams}}
+{{#vendorExtensions.param.queryRequiredNullable}}
+    if (options.{{paramName}} == null) {
+      queryParams['{{baseName}}'] = '';
+    } else {
+      queryParams['{{baseName}}'] = maybeAllowReserved(serializeStyled('{{baseName}}', {{#isDate}}(options.{{paramName}} == null ? null : stringifyDate(options.{{paramName}}!)){{/isDate}}{{^isDate}}{{#isArray}}{{#items.isDate}}stringifyDates(options.{{paramName}}){{/items.isDate}}{{^items.isDate}}options.{{paramName}}{{/items.isDate}}{{/isArray}}{{^isArray}}options.{{paramName}}{{/isArray}}{{/isDate}},'query', '{{{dataType}}}', '{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}', '{{style}}', {{isExplode}}), {{#vendorExtensions.param.allowReserved}}true{{/vendorExtensions.param.allowReserved}}{{^vendorExtensions.param.allowReserved}}false{{/vendorExtensions.param.allowReserved}});
+    }
+{{/vendorExtensions.param.queryRequiredNullable}}
+{{^vendorExtensions.param.queryRequiredNullable}}
 {{#isAllowEmptyValue}}
 {{#vendorExtensions.op.optionsParamRequired}}
 {{#required}}
@@ -347,6 +357,7 @@ class {{classname}} extends BaseApi {
     }
 {{/vendorExtensions.op.optionsParamRequired}}
 {{/isAllowEmptyValue}}
+{{/vendorExtensions.param.queryRequiredNullable}}
 {{/queryParams}}
 
     final headerParams = <String, String>{};

@@ -1725,6 +1725,7 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
             param.put("name", NamingConvention.SNAKE_CASE.apply(p.paramName));
             param.put("dataType", p.dataType);
             param.put("required", p.required);
+            param.put("requiredNullable", isRequiredNullableQuery(p));
             // Propagate the spec-level deprecation flag so the options template
             // can emit `#[deprecated]` on the corresponding field/accessor,
             // mirroring how model properties and operations already mark

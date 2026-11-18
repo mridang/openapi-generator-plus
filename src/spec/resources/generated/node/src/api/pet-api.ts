@@ -26,6 +26,7 @@ import type { AddPetPhotosOptions } from "./options/add-pet-photos-options.js";
 import type { DeletePetOptions } from "./options/delete-pet-options.js";
 import type { FindPetsByStatusOptions } from "./options/find-pets-by-status-options.js";
 import type { GetPetByNameOptions } from "./options/get-pet-by-name-options.js";
+import type { GetPetByNoteOptions } from "./options/get-pet-by-note-options.js";
 import type { GetPetSummaryOptions } from "./options/get-pet-summary-options.js";
 import type { GetPetTagOptions } from "./options/get-pet-tag-options.js";
 import type { SetPetPreferencesOptions } from "./options/set-pet-preferences-options.js";
@@ -1414,6 +1415,104 @@ export class PetApi extends BaseApi {
       false,
       "model",
       "getPetByName",
+      requestOptions,
+    );
+  }
+
+  /**
+   * Look up a pet by note (required query parameters whose value may be null)
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.note  (required)
+   * @param options.rank  (required)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return Pet
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetByNote(
+    options: GetPetByNoteOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Pet> {
+    const getPetByNoteResult = await this.getPetByNoteWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getPetByNoteResult.data == null) {
+      throw new ApiError(
+        getPetByNoteResult.statusCode,
+        "Expected a response body for getPetByNote but received none",
+        getPetByNoteResult.headers,
+        getPetByNoteResult.rawBody,
+        null,
+      );
+    }
+    return getPetByNoteResult.data as Pet;
+  }
+
+  /**
+   * Look up a pet by note (required query parameters whose value may be null) (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async getPetByNoteWithHttpInfo(
+    options: GetPetByNoteOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Pet>> {
+    if (options?.note === "") {
+      throw new TypeError(
+        "Missing the required parameter 'note' when calling PetApi.getPetByNote",
+      );
+    }
+    const path = `/pet/byNote`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.note == null) {
+      queryParams["note"] = "";
+    } else {
+      queryParams["note"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "note",
+          options.note,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    if (options?.rank == null) {
+      queryParams["rank"] = "";
+    } else {
+      queryParams["rank"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "rank",
+          options.rank,
+          "query",
+          "number",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Pet)!,
+      this.resolveSchemeAuth(["petStoreBasic", "petStoreBearer"]),
+      false,
+      "model",
+      "getPetByNote",
       requestOptions,
     );
   }

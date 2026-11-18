@@ -26,6 +26,7 @@ import com.example.petstore.api.options.GetPetAvatarOptions
 import com.example.petstore.api.options.GetPetAvatarThumbnailOptions
 import com.example.petstore.api.options.GetPetByIdOptions
 import com.example.petstore.api.options.GetPetByNameOptions
+import com.example.petstore.api.options.GetPetByNoteOptions
 import com.example.petstore.api.options.GetPetPassportOptions
 import com.example.petstore.api.options.GetPetPhotoOptions
 import com.example.petstore.api.options.GetPetSummaryOptions
@@ -1084,6 +1085,73 @@ class PetApi : BaseApi {
             "application/json",
             schemeAuthenticator("petStoreBasic", "petStoreBearer"),
             "PetApi.getPetByName",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+        )
+    }
+
+    /**
+     * Look up a pet by note (required query parameters whose value may be null)
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return Pet
+     * @throws ApiException if fails to make API call
+     */
+    suspend fun getPetByNote(options: GetPetByNoteOptions): Pet =
+        getPetByNoteWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getPetByNote but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [getPetByNote] but returns the full [ApiResult] (status code, headers and body). */
+    suspend fun getPetByNoteWithHttpInfo(options: GetPetByNoteOptions): ApiResult<Pet> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
+        require(options.note?.isNotEmpty() != false) {
+            "Missing the required parameter 'note' when calling PetApi.getPetByNote"
+        }
+        var path = "/pet/byNote"
+        val queryParams = mutableMapOf<String, Any?>()
+        val noteValue = options.note
+        if (noteValue == null) {
+            queryParams["note"] = ""
+        } else {
+            ValueSerializer.putQuery(
+                queryParams,
+                "note",
+                ValueSerializer.serializeStyled("note", noteValue, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val rankValue = options.rank
+        if (rankValue == null) {
+            queryParams["rank"] = ""
+        } else {
+            ValueSerializer.putQuery(
+                queryParams,
+                "rank",
+                ValueSerializer.serializeStyled("rank", rankValue, "query", "Int", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Pet>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
+            "PetApi.getPetByNote",
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,

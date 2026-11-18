@@ -90,6 +90,8 @@ Why: it is the one reading of OpenAPI that distinguishes required from nullable.
 Where: `models/model.mustache` (constructor and decode), `object_serializer.mustache` (serialize keeps the key).
 Test: `test/object-serializer.test.mustache`.
 
+Query side (D95): the Options field was already `T | null`; the guard no longer refuses `null` for a required nullable query parameter and the emission sends `''`. An omitted key and `undefined` are indistinguishable from `null` at run time (`== null`), so both send the key with an empty value.
+
 ### `uniqueItems` order is left unspecified (S6, 2026-11-16)
 Rule: a `Set` is sent in its insertion order; the README says so. Do not sort. This supersedes the sorted-wire proposal D69.
 Why: the owner decided that sets are sent in each language's natural collection order.

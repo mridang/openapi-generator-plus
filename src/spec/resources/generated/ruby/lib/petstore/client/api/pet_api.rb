@@ -944,6 +944,83 @@ module Petstore::Client
         )
       end
 
+      # Look up a pet by note (required query parameters whose value may be null)
+      # @param options [GetPetByNoteOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [Pet]
+      # @raise [ApiError] if fails to make API call
+      def get_pet_by_note(options)
+        result = get_pet_by_note_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for get_pet_by_note but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_pet_by_note_with_http_info(options)
+        if options.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'note' when calling PetApi.get_pet_by_note"
+        end
+
+        if options.note == ''
+          raise ArgumentError,
+                "Missing the required parameter 'note' when calling PetApi.get_pet_by_note"
+        end
+
+        if options.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'rank' when calling PetApi.get_pet_by_note"
+        end
+
+        path = '/pet/byNote'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        if options.note.nil?
+          query_params['note'] = ''
+        else
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'note', options.note, 'String', nil, 'form', true,
+              false
+            )
+          )
+        end
+        if options.rank.nil?
+          query_params['rank'] = ''
+        else
+          query_params.merge!(
+            ::Petstore::Client::ValueSerializer.query_entries(
+              'rank', options.rank, 'Integer', nil, 'form', true,
+              false
+            )
+          )
+        end
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'Pet',
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
+          operation_id: 'PetApi.get_pet_by_note',
+          request_options: options
+        )
+      end
+
       # Get the pet's passport
       # Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
       # @param pet_id [Integer]

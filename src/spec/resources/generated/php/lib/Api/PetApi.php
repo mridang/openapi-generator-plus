@@ -32,6 +32,7 @@ use PetstoreClient\Api\Options\GetPetAvatarOptions;
 use PetstoreClient\Api\Options\GetPetAvatarThumbnailOptions;
 use PetstoreClient\Api\Options\GetPetByIdOptions;
 use PetstoreClient\Api\Options\GetPetByNameOptions;
+use PetstoreClient\Api\Options\GetPetByNoteOptions;
 use PetstoreClient\Api\Options\GetPetPassportOptions;
 use PetstoreClient\Api\Options\GetPetPhotoOptions;
 use PetstoreClient\Api\Options\GetPetSummaryOptions;
@@ -1259,6 +1260,90 @@ class PetApi extends BaseApi
             false,
         );
         $headerParams['X-Correlation-Id'] = $headerValue;
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\Pet::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+        );
+        return $result;
+    }
+
+    /**
+     * Look up a pet by note (required query parameters whose value may be null)
+     * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getPetByNote(GetPetByNoteOptions $options): \PetstoreClient\Models\Pet
+    {
+        $apiResult = $this->getPetByNoteWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for getPetByNote but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Pet $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\Pet>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getPetByNoteWithHttpInfo(GetPetByNoteOptions $options): ApiResult
+    {
+        if ($options->note === '') {
+            throw new \InvalidArgumentException("Missing the required parameter 'note' when calling PetApi.getPetByNote");
+        }
+        $path = '/pet/byNote';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        /* Required nullable query param: a null value is sent as the key with an
+         * empty value, so the required key is always on the wire. */
+        if ($options->note === null) {
+            $queryParams['note'] = '';
+        } else {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'note', ValueSerializer::serializeStyled('note', $options->note, 'query', 'string', null, 'form', true));
+        }
+        /* Required nullable query param: a null value is sent as the key with an
+         * empty value, so the required key is always on the wire. */
+        if ($options->rank === null) {
+            $queryParams['rank'] = '';
+        } else {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'rank', ValueSerializer::serializeStyled('rank', $options->rank, 'query', 'int', null, 'form', true));
+        }
+        $headerParams = [];
         $requestBody = null;
 
         /** @var ApiResult<\PetstoreClient\Models\Pet> $result */
