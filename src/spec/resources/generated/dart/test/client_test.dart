@@ -385,6 +385,25 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 073 the client provides a generated wrapper class for every security scheme the spec declares',
+      () {
+        expect(AdminBasicAuthenticator, isNotNull);
+        expect(ApiKeyHeaderAuthenticator, isNotNull);
+        expect(ApiKeyQueryAuthenticator, isNotNull);
+        expect(BrowserAuthImplicitAuthenticator, isNotNull);
+        expect(InternalApiKeyAuthenticator, isNotNull);
+        expect(LegacyAuthPasswordAuthenticator, isNotNull);
+        expect(MachineAuthClientCredentialsAuthenticator, isNotNull);
+        expect(PetStoreBasicAuthenticator, isNotNull);
+        expect(PetStoreBearerAuthenticator, isNotNull);
+        expect(ServiceTokenAuthenticator, isNotNull);
+        expect(SessionCookieAuthenticator, isNotNull);
+        expect(SsoAuthAuthenticator, isNotNull);
+        expect(UserAuthAuthorizationCodeAuthenticator, isNotNull);
+      },
+    );
+
     test('bhv lifecycle 001 API groups are accessible', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',
