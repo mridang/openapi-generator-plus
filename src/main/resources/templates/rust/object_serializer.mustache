@@ -1135,6 +1135,16 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationobject_191_an_int64_above_the_double_range_keeps_every_digit_when_decoded() {
+        let wide: Option<i64> = object_serializer::deserialize(b"9007199254740993")
+            .expect("an int64 above the double range must deserialize");
+        assert_eq!(Some(9007199254740993), wide);
+        let max: Option<i64> = object_serializer::deserialize(b"9223372036854775807")
+            .expect("i64::MAX must deserialize");
+        assert_eq!(Some(i64::MAX), max);
+    }
+
+    #[test]
     fn test_deserialize_json_to_map() {
         let input = br#"{"name":"example","age":3}"#;
 
@@ -1639,6 +1649,13 @@ mod tests {
     fn test_bhv_serializationobject_091_stringify_integer_returns_string_representation() {
         assert_eq!(object_serializer::stringify(&42_i32), "42");
         assert_eq!(object_serializer::stringify(&-7_i64), "-7");
+    }
+
+    #[test]
+    fn test_bhv_serializationobject_190_a_long_is_stringified_to_its_exact_decimal_digits() {
+        assert_eq!(object_serializer::stringify(&9007199254740993_i64), "9007199254740993");
+        assert_eq!(object_serializer::stringify(&i64::MAX), "9223372036854775807");
+        assert_eq!(object_serializer::stringify(&i64::MIN), "-9223372036854775808");
     }
 
     #[test]

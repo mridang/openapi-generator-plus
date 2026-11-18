@@ -996,6 +996,54 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_retries_030_retry_backoff_jitter_takes_at_most_a_quarter_off_the_delay() {
+        use std::time::Duration;
+        for attempt in 0..5u32 {
+            let base_ms = 500u64 * (1u64 << attempt);
+            for _ in 0..50 {
+                let delay = retry_delay(attempt, None);
+                assert!(
+                    delay >= Duration::from_millis(base_ms * 3 / 4),
+                    "attempt {}: {:?}",
+                    attempt,
+                    delay
+                );
+                assert!(
+                    delay <= Duration::from_millis(base_ms),
+                    "attempt {}: {:?}",
+                    attempt,
+                    delay
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_retries_041_backoff_starts_at_half_a_second_and_is_capped_at_eight_seconds() {
+        use std::time::Duration;
+        for _ in 0..50 {
+            let first = retry_delay(0, None);
+            assert!(first <= Duration::from_millis(500), "{:?}", first);
+            assert!(first >= Duration::from_millis(375), "{:?}", first);
+            for attempt in 4..=12u32 {
+                let delay = retry_delay(attempt, None);
+                assert!(
+                    delay <= Duration::from_millis(8_000),
+                    "attempt {}: {:?}",
+                    attempt,
+                    delay
+                );
+                assert!(
+                    delay >= Duration::from_millis(6_000),
+                    "attempt {}: {:?}",
+                    attempt,
+                    delay
+                );
+            }
+        }
+    }
+
+    #[test]
     fn test_bhv_retries_023_retry_after_replaces_the_backoff_and_is_capped_at_sixty_seconds() {
         use std::time::Duration;
         assert_eq!(
@@ -1385,6 +1433,117 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(2, client.calls());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_033_the_last_network_error_is_reported_once_the_retries_are_spent() {
+        let client = ScriptedClient::custom(200, true, 2);
+        let api = api_for(client.clone());
+
+        let err = api
+            .invoke_api(call_params(CallOptions::default()))
+            .await
+            .expect_err("every attempt fails");
+
+        assert!(
+            err.downcast_ref::<crate::errors::NetworkError>().is_some(),
+            "{err}"
+        );
+        assert_eq!(3, client.calls());
+    }
+
+    /// Answers 503 with `Retry-After: 0` twice, then 200, and records the body of every request.
+    struct BodyRecordingClient {
+        bodies: std::sync::Mutex<Vec<Option<Vec<u8>>>>,
+    }
+
+    impl BodyRecordingClient {
+        fn answer(
+            &self,
+            body: Option<&RequestBody>,
+        ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
+            let mut bodies = self.bodies.lock().unwrap();
+            bodies.push(match body {
+                Some(RequestBody::Bytes(bytes)) => Some(bytes.clone()),
+                _ => None,
+            });
+            let mut headers = HashMap::new();
+            let status = if bodies.len() < 3 {
+                headers.insert("retry-after".to_string(), "0".to_string());
+                503
+            } else {
+                200
+            };
+            Ok(ApiHttpResponse::new(status, "{}".to_string(), headers))
+        }
+    }
+
+    impl ApiClient for BodyRecordingClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            body: Option<&RequestBody>,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = self.answer(body);
+            Box::pin(async move { outcome })
+        }
+
+        fn send_request_with_options(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            body: Option<&RequestBody>,
+            _options: &crate::api_client::RequestOptions,
+        ) -> std::pin::Pin<
+            Box<
+                dyn std::future::Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            let outcome = self.answer(body);
+            Box::pin(async move { outcome })
+        }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_retries_034_a_string_body_is_sent_again_unchanged_on_every_retry() {
+        let client = Arc::new(BodyRecordingClient {
+            bodies: std::sync::Mutex::new(Vec::new()),
+        });
+        let config = ConfigurationBuilder::new()
+            .base_url("http://localhost")
+            .build();
+        let api = BaseApi::new(client.clone(), config, None);
+        let params = InvokeApiParams {
+            body: Some(b"plain text body".to_vec()),
+            content_type: "text/plain",
+            ..call_params(CallOptions {
+                max_retries: Some(2),
+                ..CallOptions::default()
+            })
+        };
+
+        api.invoke_api(params)
+            .await
+            .expect("the third attempt succeeds");
+
+        let bodies = client.bodies.lock().unwrap();
+        assert_eq!(3, bodies.len());
+        for sent in bodies.iter() {
+            assert_eq!(Some(b"plain text body".to_vec()), *sent);
+        }
     }
 
     #[tokio::test]

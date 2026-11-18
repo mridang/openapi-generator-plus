@@ -1430,7 +1430,7 @@ mod tests {
      * traffics in `reqwest::Url`, so it can only be exercised in-crate. A
      * default port written out must not make the same origin look foreign. */
     #[test]
-    fn test_same_origin_treats_an_explicit_default_port_as_the_same_origin() {
+    fn test_bhv_redirects_030_same_origin_treats_an_explicit_default_port_as_the_same_origin() {
         let parse = |s: &str| reqwest::Url::parse(s).unwrap();
         assert!(same_origin(
             &parse("https://example.com/a"),
@@ -1447,7 +1447,7 @@ mod tests {
     }
 
     #[test]
-    fn test_same_origin_rejects_a_different_scheme_host_or_port() {
+    fn test_bhv_redirects_034_same_origin_rejects_a_different_scheme_host_or_port() {
         let parse = |s: &str| reqwest::Url::parse(s).unwrap();
         assert!(!same_origin(
             &parse("https://example.com/a"),

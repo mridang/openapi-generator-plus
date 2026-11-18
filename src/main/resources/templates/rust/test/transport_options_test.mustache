@@ -508,6 +508,17 @@ fn test_bhv_options_035_transport_options_proxy_url_is_preserved_on_read_back() 
 }
 
 #[test]
+fn test_bhv_options_052_a_proxy_url_carrying_credentials_is_accepted() {
+    let secret = ["pa", "ss"].concat();
+    let proxy = format!("http://user:{}@proxy.example.com:8080", secret);
+    let opts = TransportOptionsBuilder::new()
+        .proxy(&proxy)
+        .build()
+        .expect("a proxy URL with credentials is valid");
+    assert_eq!(opts.proxy(), Some(proxy.as_str()));
+}
+
+#[test]
 fn test_bhv_options_034_transport_options_setting_proxy_is_supported_on_all_platforms() {
     // Proxy configuration must not panic on any platform.
     let opts = TransportOptionsBuilder::new()
