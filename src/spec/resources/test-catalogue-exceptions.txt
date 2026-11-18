@@ -1,3 +1,9 @@
+dart | transport083 | The Dart client returns plain Futures and exposes no cancellation token, so an in-flight request cannot be aborted from outside
+dart | transport084 | The Dart client exposes no call handle, so an in-flight request cannot be cancelled through a handle or by dropping it
+dart | transport085 | The Dart client has no cancellation token or signal to supply, so a timeout is the only way to end a request early
+dart | transport091 | Dart request bodies are in-memory values, so the SDK never takes a caller-owned upload stream that it could leave open
+dart | transport093 | A TLS server fixture needs a committed private key, which the repository secret scanning rejects, so no CA mismatch can be served
+dart | serialization129 | Dart Duration stops at microseconds, so a nanosecond-precision duration cannot be constructed
 # language | behaviour id | specific reason
 php | headers002 | selectHeaders takes a typed string content type, so a nil value cannot reach it; the empty-string default is covered by bhv headers 001
 php | headers005 | selectHeaders takes a typed array of accept values, so a nil value cannot reach it; the empty array is covered by bhv headers 004
