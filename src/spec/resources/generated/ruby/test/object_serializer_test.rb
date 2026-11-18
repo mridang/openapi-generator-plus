@@ -859,6 +859,10 @@ describe Petstore::Client::ObjectSerializer do
       _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(item))).must_equal('priority' => 1)
     end
 
+    it 'bhv_serializationobject_183 handles null' do
+      _(Petstore::Client::ObjectSerializer.deserialize(nil, 'Pet')).must_be_nil
+    end
+
     it 'keeps nil array elements (only hashes filter)' do
       json = Petstore::Client::ObjectSerializer.serialize([1, nil, 3])
       _(JSON.parse(json)).must_equal [1, nil, 3]
@@ -895,7 +899,7 @@ describe Petstore::Client::ObjectSerializer do
     # Types::String.enum. An unknown wire value must surface the SDK
     # (de)serialization error rather than silently coercing to a default or
     # an "unknown" sentinel.
-    it 'raises SerializationError when an inline model enum has an unknown value' do
+    it 'bhv_serializationobject_182 raises SerializationError for an unknown inline enum value on deserialize' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
       _(proc {
         Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')

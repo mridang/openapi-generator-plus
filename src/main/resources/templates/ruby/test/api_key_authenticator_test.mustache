@@ -95,7 +95,7 @@ describe {{moduleName}}::Auth::ApiKeyAuthenticator do
     }).must_raise ArgumentError
   end
 
-  it 'rejects CR in a header key at construction' do
+  it 'bhv_authapikey_018 rejects CR in a header key at construction' do
     _(-> {
       {{moduleName}}::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', "abc\rdef", {{moduleName}}::Auth::ApiKeyLocation::HEADER

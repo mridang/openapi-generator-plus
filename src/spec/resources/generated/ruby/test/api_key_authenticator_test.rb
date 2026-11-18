@@ -100,7 +100,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     }).must_raise ArgumentError
   end
 
-  it 'rejects CR in a header key at construction' do
+  it 'bhv_authapikey_018 rejects CR in a header key at construction' do
     _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
         'https://api.example.com', 'X-API-Key', "abc\rdef", Petstore::Client::Auth::ApiKeyLocation::HEADER

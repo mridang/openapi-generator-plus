@@ -56,6 +56,16 @@ end
 describe 'Metadata', 'with' do
   parallelize_me!
 
+  it 'bhv_models_012 inspect dumps the fields and the additional properties map' do
+    metadata = Petstore::Client::Models::Metadata.new(
+      created_at: Time.utc(2024, 1, 1, 0, 0, 0),
+      additional_properties: { 'customField' => 'a' }
+    )
+
+    _(metadata.inspect).must_include 'additional_properties'
+    _(metadata.inspect).must_include 'customField'
+  end
+
   it 'returns a copy with the changes applied and leaves the receiver as it was' do
     original = Petstore::Client::Models::Metadata.new(
       created_at: Time.utc(2024, 1, 1, 0, 0, 0),

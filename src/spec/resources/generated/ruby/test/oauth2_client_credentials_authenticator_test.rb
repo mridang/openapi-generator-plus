@@ -76,6 +76,11 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(client.last_body).must_include 'client_secret=my_client_secret'
   end
 
+  it 'bhv_authoauthtwoclientcred_016 sends the token request parameters in a fixed order' do
+    auth.auth_headers
+    _(client.last_body).must_equal 'grant_type=client_credentials&client_id=my_client_id&client_secret=my_client_secret&scope=read+write'
+  end
+
   it 'bhv_authoauthtwoclientcred_013 sends scopes' do
     auth.auth_headers
     _(client.last_body).must_include 'scope=read+write'

@@ -233,7 +233,7 @@ describe Petstore::Client::Configuration do
     _(first.base_url).must_equal(second.base_url)
   end
 
-  it 'configuration is frozen' do
+  it 'bhv_config_017 configuration is immutable' do
     config = Petstore::Client::Configuration.builder
       .default_header('X-Key', 'value')
       .build

@@ -187,7 +187,7 @@ describe {{moduleName}}::HeaderSelector do
       _(@header_selector.send(:select_accept_header, ['', nil])).must_equal('')
     end
 
-    it 'returns empty string for empty array' do
+    it 'bhv_headers_027 returns empty string for empty accept array' do
       _(@header_selector.send(:select_accept_header, [])).must_equal('')
     end
 

@@ -156,7 +156,11 @@ module Petstore::Client
           # "invalid JSON" error. Surface the real failure instead, as the
           # same typed error an API call with that status raises.
           status = response.status_code.to_i
-          raise ::Petstore::Client::Errors::ApiError.from_response(status, response.headers, response.body) if status < 200 || status >= 300
+          if status < 200 || status >= 300
+            raise ::Petstore::Client::Errors::ApiError.from_response(status, response.headers, response.body,
+                                                                     request_method: 'GET',
+                                                                     request_path: URI.parse(@openid_connect_url).path)
+          end
 
           discovery = parse_discovery(response.body)
           authorization_endpoint = discovery['authorization_endpoint']

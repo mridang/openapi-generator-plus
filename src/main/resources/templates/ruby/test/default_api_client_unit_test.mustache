@@ -156,6 +156,11 @@ describe 'DefaultApiClientUnit' do
     _(encoder.encode({ 'q' => 'a b' })).must_equal 'q=a%20b'
   end
 
+  it 'bhv_serializationparam_107 a query value keeps only the unreserved set literal and percent-encodes the sub-delimiters' do
+    encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
+    _(encoder.encode({ 'q' => "a~*!'()" })).must_equal 'q=a~%2A%21%27%28%29'
+  end
+
   it 'bhv_transport_054 sends GET request and returns response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/echo') { [200, { 'content-type' => 'application/json' }, '{"method":"GET"}'] }
@@ -987,6 +992,21 @@ describe 'DefaultApiClientUnit' do
   # A utf-16 body that DOES carry a byte-order mark must still honor the BOM:
   # a little-endian BOM (FF FE) followed by LE-encoded "Tag" decodes correctly,
   # confirming the big-endian default applies only to the BOM-less case.
+  it 'bhv_serializationwire_054 decodes a little-endian BOM utf-16 body as little-endian' do
+    le_bom_bytes = ("\xFF\xFE".b + "\x48\x00\x69\x00".b)
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/utf16-le') do
+        [200, { 'content-type' => 'text/plain; charset=utf-16' }, le_bom_bytes]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/utf16-le', {}, nil)
+      _(response.body).must_equal 'Hi'
+    end
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_030 honors the BOM for utf-16 response body with an explicit BOM' do
     le_bom_bytes = ("\xFF\xFE".b + "\x54\x00\x61\x00\x67\x00".b)
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -2129,7 +2149,8 @@ describe 'DefaultApiClientUnit' do
   # The stub answers every attempt through +respond+ (called with the attempt
   # number), the recorded pauses replace real sleeping, and +envs+ keeps each
   # attempt's request.
-  def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, random: nil, &respond)
+  def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, random: nil,
+                      call_max_retries: nil, &respond)
     envs = []
     delays = []
     # The request body as sent: the stub rewrites env.body with the response.
@@ -2150,7 +2171,8 @@ describe 'DefaultApiClientUnit' do
     outcome = nil
     client.stub(:build_connection, stub_connection(stubs)) do
       outcome = begin
-        client.send_request(verb, 'http://localhost/r', headers, body, retry_headers: retry_headers)
+        client.send_request(verb, 'http://localhost/r', headers, body, retry_headers: retry_headers,
+                                                                       max_retries: call_max_retries)
       rescue {{moduleName}}::Errors::NetworkError => e
         e
       end
@@ -2206,8 +2228,57 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_retries_027 backs off by doubling from half a second and never waits more than eight seconds' do
+    _outcome, _envs, delays = run_retry_probe(options: {{moduleName}}::TransportOptions.builder.max_retries(7).build) do
+      [503, {}, 'busy']
+    end
+
+    ceilings = [0.5, 1.0, 2.0, 4.0, 8.0, 8.0, 8.0]
+    _(delays.length).must_equal 7
+    ceilings.zip(delays).each do |ceiling, delay|
+      _(delay).must_be :<=, ceiling
+      _(delay).must_be :>=, ceiling * 0.75
+    end
+  end
+
+  it 'bhv_retries_028 cancelling the caller during the wait stops the retrying' do
+    envs = []
+    waiting = Queue.new
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.get('/r') do |env|
+          envs << env
+          [503, {}, 'busy']
+        end
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.max_retries(5).build)
+    client.define_singleton_method(:pause) do |_seconds|
+      waiting << true
+      sleep
+    end
+    caller_thread = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      caller_thread = Thread.new { client.send_request('GET', 'http://localhost/r', {}, nil) }
+      waiting.pop
+      caller_thread.kill
+      caller_thread.join
+    end
+
+    _(envs.length).must_equal 1
+  end
+
   it 'bhv_retries_018 sends once and never pauses when max_retries is 0' do
     outcome, envs, delays = run_retry_probe(options: single_attempt) { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'bhv_retries_014 a per-call max_retries of 0 disables the retries the transport allows' do
+    options = {{moduleName}}::TransportOptions.builder.max_retries(3).build
+    outcome, envs, delays = run_retry_probe(options: options, call_max_retries: 0) { [503, {}, 'busy'] }
 
     _(outcome.status_code).must_equal 503
     _(envs.length).must_equal 1
@@ -2221,7 +2292,7 @@ describe 'DefaultApiClientUnit' do
     _(envs.length).must_equal 2
   end
 
-  it 'bhv_retries_014 waits as long as a Retry-After header in seconds says' do
+  it 'bhv_retries_026 waits as long as a Retry-After header in seconds says' do
     _outcome, _envs, delays = run_retry_probe(&ok_after(1, [429, { 'retry-after' => '3' }, 'slow down']))
 
     _(delays).must_equal [3.0]
