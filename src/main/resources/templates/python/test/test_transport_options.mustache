@@ -169,7 +169,7 @@ class TestTransportOptions:
         with pytest.raises(ValueError):
             dataclasses.replace(valid, proxy='socks5://proxy.example.com:1080')
 
-    def test_constructing_directly_with_a_valid_proxy_is_accepted(self) -> None:
+    def test_bhv_options_067_constructing_directly_with_a_valid_proxy_is_accepted(self) -> None:
         assert TransportOptions(proxy='https://proxy.example.com:3128').proxy == (
             'https://proxy.example.com:3128'
         )
@@ -375,14 +375,14 @@ class TestProxyUrlValidation:
 
 
 class TestTransportOptionsRepr:
-    def test_repr_masks_the_proxy_password(self) -> None:
+    def test_bhv_options_065_repr_masks_the_proxy_password(self) -> None:
         opts = TransportOptions.builder().proxy('http://user:s3cret@proxy.example.com:3128').build()
 
         assert 's3cret' not in repr(opts)
         assert 's3cret' not in str(opts)
         assert "proxy='http://user:***@proxy.example.com:3128'" in repr(opts)
 
-    def test_repr_keeps_a_proxy_without_userinfo(self) -> None:
+    def test_bhv_options_066_repr_keeps_a_proxy_without_userinfo(self) -> None:
         opts = TransportOptions.builder().proxy('http://proxy.example.com:3128').build()
 
         assert "proxy='http://proxy.example.com:3128'" in repr(opts)

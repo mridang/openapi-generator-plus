@@ -154,7 +154,7 @@ class TestProxyWithCredentials:
         proxy_headers = {k.lower(): v for k, v in _proxy_manager(client).proxy_headers.items()}
         assert proxy_headers.get('proxy-authorization') == 'Basic YWxpY2U6czNjcmV0'
 
-    def test_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
+    def test_bhv_transport_076_proxy_with_percent_encoded_credentials_are_decoded(self) -> None:
         import base64
 
         # Reserved characters in the userinfo are percent-encoded in the URL

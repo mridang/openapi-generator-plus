@@ -160,7 +160,7 @@ class TestExceptionHierarchy:
         assert err.status_code == 0
         assert NetworkException(message='refused').status_code == 0
 
-    def test_defaults_status_code_to_0_when_no_http_response_was_received(self) -> None:
+    def test_bhv_errors_084_defaults_status_code_to_0_when_no_http_response_was_received(self) -> None:
         assert ApiException().status_code == 0
         assert ApiException(message='connection reset').status_code == 0
 
@@ -439,7 +439,7 @@ class TestApiErrorRendering:
 
         assert str(err) == "bad gateway\nHTTP status code: 502"
 
-    def test_omits_the_status_line_when_no_response_arrived(self) -> None:
+    def test_bhv_errors_074_omits_the_status_line_when_no_response_arrived(self) -> None:
         err = ApiException(status_code=0, message="boom")
 
         assert str(err) == "boom"

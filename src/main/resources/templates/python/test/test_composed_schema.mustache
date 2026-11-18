@@ -309,7 +309,7 @@ class TestOneOfNonDiscriminatorValidator:
         assert restored is not None
         assert restored.actual_instance == raw
 
-    def test_first_variant_match_returns_value(self) -> None:
+    def test_bhv_unions_037_first_variant_match_returns_value(self) -> None:
         req = SetPetAvatarThumbnailRequest(actual_instance=b'avatar-bytes')
         assert req.actual_instance == b'avatar-bytes'
 
@@ -326,7 +326,7 @@ class TestOneOfNonDiscriminatorValidator:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"unrelated": 1}', ReserveStockResponse)
 
-    def test_the_constructor_keeps_a_value_no_variant_accepts(self) -> None:
+    def test_bhv_unions_039_the_constructor_keeps_a_value_no_variant_accepts(self) -> None:
         """F316: building a wrapper never validates; decoding does."""
         value = object()
 

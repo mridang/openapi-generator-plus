@@ -49,7 +49,7 @@ class TestMetadataTypedAdditionalProperties:
         assert metadata is not None
         assert hasattr(metadata, 'additional_properties')
 
-    def test_wire_key_named_additional_properties_with_dict_value_preserved(self) -> None:
+    def test_bhv_models_023_wire_key_named_additional_properties_with_dict_value_preserved(self) -> None:
         # M11 — a real wire property literally named `additional_properties`
         # whose value is itself a dict must NOT be mistaken for the internal
         # capture bucket and dropped. The internal bucket is distinguished by
@@ -318,7 +318,7 @@ class TestReadmeAndSkillsText:
 
 class TestOptionsImmutability:
 
-    def test_options_are_frozen(self) -> None:
+    def test_bhv_options_063_options_are_frozen(self) -> None:
         # Per-operation Options classes are frozen dataclasses so a caller
         # cannot mutate an Options instance after constructing it.
         from {{packageName}}.api.options.find_pets_by_status_options import (
@@ -341,7 +341,7 @@ class TestOptionsPerCallSettings:
 
         return FindPetsByStatusOptions
 
-    def test_the_per_call_settings_default_to_the_clients(self) -> None:
+    def test_bhv_options_055_the_per_call_settings_default_to_the_clients(self) -> None:
         options = self._options()()
 
         assert options.timeout is None
@@ -349,7 +349,7 @@ class TestOptionsPerCallSettings:
         assert options.max_retries is None
 
     @pytest.mark.parametrize('timeout', [0, -5, True, '10'])
-    def test_a_timeout_below_one_millisecond_or_not_a_number_is_rejected(self, timeout: Any) -> None:
+    def test_bhv_options_057_a_timeout_below_one_millisecond_or_not_a_number_is_rejected(self, timeout: Any) -> None:
         with pytest.raises(ValueError, match='timeout'):
             self._options()(timeout=timeout)
 

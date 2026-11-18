@@ -36,7 +36,7 @@ class TestServerVariable:
 
         assert 'dev' not in var.enum_values
 
-    def test_enum_values_cannot_be_changed_through_the_list_they_were_built_from(self) -> None:
+    def test_bhv_servers_026_enum_values_cannot_be_changed_through_the_list_they_were_built_from(self) -> None:
         allowed = ['prod', 'staging']
         var = ServerVariable(default_value='prod', enum_values=allowed)
 

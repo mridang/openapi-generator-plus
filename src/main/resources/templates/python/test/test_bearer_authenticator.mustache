@@ -154,7 +154,7 @@ class TestBearerTokenProvider:
         with pytest.raises(ValueError, match='not both'):
             BearerAuthenticator(host='https://api.example.com', token='xyz', token_provider=lambda: 'abc')
 
-    def test_the_provider_is_not_shown_in_the_repr(self) -> None:
+    def test_bhv_auth_016_the_provider_is_not_shown_in_the_repr(self) -> None:
         auth = BearerAuthenticator(host='https://api.example.com', token_provider=lambda: 'secret-value')
 
         assert 'secret-value' not in repr(auth)

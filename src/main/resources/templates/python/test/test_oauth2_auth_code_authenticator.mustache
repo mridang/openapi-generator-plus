@@ -207,7 +207,7 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
-    def test_authorize_url_separates_scopes_with_percent_20(self) -> None:
+    def test_bhv_auth_014_authorize_url_separates_scopes_with_percent_20(self) -> None:
         url = _create_authenticator().build_authorization_url()
 
         assert _without_pkce(url) == (
@@ -530,7 +530,7 @@ class TestPkce:
 
         assert 'code_verifier' not in _form_of(mock_client.send_request.call_args)
 
-    def test_the_verifier_is_spent_by_a_successful_exchange(self) -> None:
+    def test_bhv_auth_020_the_verifier_is_spent_by_a_successful_exchange(self) -> None:
         auth = _create_authenticator()
         mock_client = MagicMock()
         mock_client.send_request.return_value = _code_reply(
