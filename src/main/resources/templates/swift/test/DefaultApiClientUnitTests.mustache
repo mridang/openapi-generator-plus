@@ -2518,4 +2518,33 @@ private final class UnitStubURLProtocol: URLProtocol {
         #expect(message.hasPrefix(prefix))
         #expect(message.count > prefix.count)
     }
+
+    /* Invalid bytes in the declared charset decode with each bad byte replaced by U+FFFD. */
+    @Test func testBhvMisc095InvalidBytesInTheDeclaredCharsetDecodeAsReplacementCharacters() {
+        let bytes = Data([0x61, 0xFF, 0x62, 0xFE])
+        #expect(DefaultApiClient.decodeText(bytes, contentType: "text/plain; charset=utf-8") == "a\u{FFFD}b\u{FFFD}")
+    }
+
+    /* A text part carries only its Content-Disposition, with no transfer encoding or content type. */
+    @Test func testBhvMisc096ATextPartCarriesOnlyItsContentDisposition() throws {
+        let body = String(decoding: try DefaultApiClient.buildMultipartBody(["title": "hello"], boundary: "boundary"), as: UTF8.self)
+        #expect(body.contains("--boundary\r\nContent-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n"))
+        #expect(!body.contains("Content-Transfer-Encoding"))
+        #expect(!body.contains("Content-Type"))
+    }
+
+    /* Each element of an array field is sent as its own part, in the order given. */
+    @Test func testBhvMisc097EachArrayElementIsItsOwnPartInOrder() throws {
+        let body = String(decoding: try DefaultApiClient.buildMultipartBody(["tags": ["a", "b"], "name": "x"], boundary: "boundary"), as: UTF8.self)
+        #expect(body.components(separatedBy: "name=\"tags\"").count - 1 == 2)
+        #expect(body.components(separatedBy: "name=\"name\"").count - 1 == 1)
+        #expect(body.range(of: "\r\n\r\na\r\n")!.lowerBound < body.range(of: "\r\n\r\nb\r\n")!.lowerBound)
+    }
+
+    /* A non-ASCII filename has one plain fallback and one RFC 5987 extended form. */
+    @Test func testBhvMisc099ANonAsciiFilenameHasOneFallbackAndAnExtendedForm() throws {
+        let value = try DefaultApiClient.buildContentDisposition(name: "upload", filename: "résumé.pdf")
+        #expect(value.components(separatedBy: "filename=").count - 1 == 1)
+        #expect(value.contains("filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"))
+    }
 }

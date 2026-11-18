@@ -812,3 +812,16 @@ describe('ValueSerializer', () => {
     });
   });
 });
+
+describe('ValueSerializer misc behaviours', () => {
+  it('bhv misc 107 a scalar form query parameter keeps its string value', () => {
+    expect(ValueSerializer.serializeStyled('filter', 'x', 'query', 'string', null, 'form', true)).toBe('x');
+  });
+
+  it('bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out', () => {
+    expect(ValueSerializer.toWireMap('filter', { a: '1', c: undefined, b: '2' })).toEqual([
+      ['a', '1'],
+      ['b', '2'],
+    ]);
+  });
+});

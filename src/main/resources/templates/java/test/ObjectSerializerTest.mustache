@@ -3547,4 +3547,52 @@ class ObjectSerializerTest {
     private <T> T decode(String json, Class<T> type) {
         return java.util.Objects.requireNonNull(serializer.deserialize(json, type));
     }
+
+
+    @Test
+    void bhvMisc085UuidTextNotInCanonicalFormIsRefusedWhenBuilt() {
+        assertThrows(IllegalArgumentException.class, () -> UUID.fromString("0123456789abcdef0123456789abcdef"));
+        assertThrows(IllegalArgumentException.class, () -> UUID.fromString("not-a-uuid"));
+    }
+
+    @Test
+    void bhvMisc086ContainerElementHoldingJsonTextIsNotDecodedASecondTime() {
+        java.lang.reflect.Type listOfDateTimes =
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<java.time.OffsetDateTime>>() {}.getType();
+        assertThrows(SerializationException.class,
+                () -> serializer.deserialize("[\"\\\"2024-01-15T10:00:00Z\\\"\"]", listOfDateTimes));
+    }
+
+    @Test
+    void bhvMisc087DecimalInLooselyBuiltBodyIsWrittenAsBareJsonNumber() {
+        assertEquals("{\"weightKg\":12.5}",
+                ObjectSerializer.stringify(java.util.Map.of("weightKg", new java.math.BigDecimal("12.5"))));
+    }
+
+    @Test
+    void bhvMisc088DecimalDecodedFromTextKeepsTheDecimalPlacesItWasWrittenWith() {
+        java.math.BigDecimal value = serializer.deserialize("\"1.50\"", java.math.BigDecimal.class);
+        assertEquals(2, value.scale());
+    }
+
+    @Test
+    void bhvMisc089UtcDateTimeIsWrittenInCanonicalFormDirectlyAndInListAndMap() {
+        java.time.OffsetDateTime when = java.time.OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+        assertEquals("\"2024-01-02T03:04:05.000+00:00\"", ObjectSerializer.stringify(when));
+        assertEquals("[\"2024-01-02T03:04:05.000+00:00\"]", ObjectSerializer.stringify(java.util.List.of(when)));
+        assertEquals("{\"at\":\"2024-01-02T03:04:05.000+00:00\"}", ObjectSerializer.stringify(java.util.Map.of("at", when)));
+    }
+
+    @Test
+    void bhvMisc090DurationWithFractionalSecondsIsWrittenInProtobufWireForm() {
+        assertEquals("1.500s", ObjectSerializer.stringify(Duration.ofMillis(1500)));
+    }
+
+    @Test
+    void bhvMisc094FreeFormJsonObjectIsWrittenWithItsMembersAndValuesUnchanged() {
+        java.util.Map<String, Object> payload = new java.util.LinkedHashMap<>();
+        payload.put("ownerId", 198772);
+        payload.put("at", "2024-01-15T10:30:00Z");
+        assertEquals("{\"ownerId\":198772,\"at\":\"2024-01-15T10:30:00Z\"}", ObjectSerializer.stringify(payload));
+    }
 }

@@ -38,6 +38,7 @@ import (
 	pkgerrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -4092,5 +4093,117 @@ func TestBhvMisc285_DefaultApiClientUnit_AnUnsupportedContentEncodingIsRefusedWi
 	}
 	if !strings.Contains(err.Error(), "unsupported Content-Encoding 'x-unknown'") {
 		t.Errorf("expected the exact unsupported-encoding message, got %q", err.Error())
+	}
+}
+
+func TestBhvMisc182_DefaultApiClientUnit_RemovingAHeaderMatchesEverySpellingOfItsName(t *testing.T) {
+	t.Parallel()
+	for _, spelling := range []string{"Authorization", "authorization", "AUTHORIZATION"} {
+		var leaked atomic.Bool
+		target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("Authorization") != "" {
+				leaked.Store(true)
+			}
+			w.WriteHeader(http.StatusOK)
+		}))
+		origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, target.URL+"/", http.StatusTemporaryRedirect)
+		}))
+		transport, err := NewTransportOptionsBuilder().FollowRedirects(true).DefaultHeader(spelling, "Bearer secret").Build()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		client := NewDefaultApiClient(transport)
+		_, _ = client.SendRequest(http.MethodGet, origin.URL+"/", nil, nil)
+		_ = client.Close()
+		origin.Close()
+		target.Close()
+		if leaked.Load() {
+			t.Errorf("expected the %s header to be removed across the redirect", spelling)
+		}
+	}
+}
+
+func TestBhvMisc183_DefaultApiClientUnit_ClosingAClientWithNothingToReleaseSucceeds(t *testing.T) {
+	t.Parallel()
+	client := &Client{}
+	if err := client.Close(); err != nil {
+		t.Errorf("expected Close to succeed, got %v", err)
+	}
+}
+
+func TestBhvMisc184_DefaultApiClientUnit_CloseDoesNotWaitForOrCancelAnInFlightRequest(t *testing.T) {
+	t.Parallel()
+	release := make(chan struct{})
+	served := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		close(served)
+		<-release
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	client := NewDefaultApiClient(nil)
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.SendRequest(http.MethodGet, server.URL+"/", nil, nil)
+		done <- err
+	}()
+	<-served
+	if err := client.Close(); err != nil {
+		t.Fatalf("expected Close to return at once, got %v", err)
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Errorf("expected the in-flight request to finish, got %v", err)
+	}
+}
+
+func TestBhvMisc186_DefaultApiClientUnit_CACertBundleWithReadyMadeConnectionIsRejectedAtBuild(t *testing.T) {
+	t.Parallel()
+	_, err := NewTransportOptionsBuilder().HttpClient(&http.Client{}).CACertPath("/tmp/ca.pem").Build()
+	if !errors.Is(err, ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict, got %v", err)
+	}
+}
+
+func TestBhvMisc187_DefaultApiClientUnit_ClientTakesHostAndTokenFromTheEnvironment(t *testing.T) {
+	var mu sync.Mutex
+	var got string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		got = r.Header.Get("Authorization")
+		mu.Unlock()
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", server.URL)
+	t.Setenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN", "env-token")
+
+	client, err := NewClientWithToken("", "", nil)
+	if err != nil {
+		t.Fatalf("expected the client to take its host and token from the environment, got %v", err)
+	}
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	mu.Lock()
+	defer mu.Unlock()
+	if got != "Bearer env-token" {
+		t.Errorf("expected the environment token to be sent, got %q", got)
+	}
+}
+
+func TestBhvMisc188_DefaultApiClientUnit_ReportsClosedOnlyAfterCloseIsCalled(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	client := NewDefaultApiClient(nil)
+
+	if _, err := client.SendRequest(http.MethodGet, server.URL+"/", nil, nil); errors.Is(err, ErrClientClosed) {
+		t.Fatal("expected a client that was never closed to accept requests")
+	}
+	_ = client.Close()
+	if _, err := client.SendRequest(http.MethodGet, server.URL+"/", nil, nil); !errors.Is(err, ErrClientClosed) {
+		t.Errorf("expected ErrClientClosed after Close, got %v", err)
 	}
 }
