@@ -366,37 +366,40 @@ describe("ApiKeyAuthenticator", () => {
     [ApiKeyLocation.HEADER, "X-Api-Key"],
     [ApiKeyLocation.QUERY, "api_key"],
     [ApiKeyLocation.COOKIE, "SESSION_ID"],
-  ])("%s location rejects CR, LF and NUL", (location, name) => {
-    for (const value of ["abc\rdef", "abc\ndef", "abc\0def"]) {
-      expect(
-        () =>
-          new ApiKeyAuthenticator(
-            "https://api.example.com",
-            name,
-            value,
-            location,
-          ),
-      ).toThrow(TypeError);
-      expect(
-        () =>
-          new ApiKeyAuthenticator(
-            "https://api.example.com",
-            name,
-            value,
-            location,
-          ),
-      ).toThrow(
-        `API key value for '${name}' contains forbidden control characters (CR/LF/NUL)`,
-      );
-    }
-  });
+  ])(
+    "bhv langnode 007 %s location rejects CR, LF and NUL",
+    (location, name) => {
+      for (const value of ["abc\rdef", "abc\ndef", "abc\0def"]) {
+        expect(
+          () =>
+            new ApiKeyAuthenticator(
+              "https://api.example.com",
+              name,
+              value,
+              location,
+            ),
+        ).toThrow(TypeError);
+        expect(
+          () =>
+            new ApiKeyAuthenticator(
+              "https://api.example.com",
+              name,
+              value,
+              location,
+            ),
+        ).toThrow(
+          `API key value for '${name}' contains forbidden control characters (CR/LF/NUL)`,
+        );
+      }
+    },
+  );
 
   it.each([
     [ApiKeyLocation.HEADER, "X-Api-Key"],
     [ApiKeyLocation.QUERY, "api_key"],
     [ApiKeyLocation.COOKIE, "SESSION_ID"],
   ])(
-    "%s location rejects an empty or whitespace key with the exact message",
+    "bhv langnode 008 %s location rejects an empty or whitespace key with the exact message",
     (location, name) => {
       for (const value of ["", "   ", " \t\n\v\f\r"]) {
         expect(
@@ -501,7 +504,7 @@ describe("ApiKeyAuthenticator", () => {
     });
 
     it.each([undefined, ""])(
-      "fails when it is built with no key and the variable is %p",
+      "bhv misc 205 fails when it is built with no key and the variable is %p",
       (value) => {
         if (value === undefined) {
           delete process.env[variable];
