@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.BadRequestError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `BadRequestError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec bad_request?(term()) :: boolean()
+  def bad_request?(term), do: ApiError.specialises?(term, __MODULE__)
 end

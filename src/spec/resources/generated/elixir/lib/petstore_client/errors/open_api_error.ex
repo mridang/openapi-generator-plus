@@ -47,6 +47,8 @@ defmodule PetstoreClient.Errors.OpenAPIError do
        │   │       (and the PetstoreClient.Errors.ClientError grouping)
        │   ├─ 5xx: InternalServerError(500)
        │   │       (and the PetstoreClient.Errors.ServerError grouping)
+       │   ├─ one error per declared error schema, named from the schema's model
+       │   │   and specialising the status error of the status it is declared under
        │   └─ no response: NetworkError, NetworkTimeoutError (status 0)
        ├─ PetstoreClient.Errors.SerializationError  (every encode/decode failure)
        ├─ PetstoreClient.Errors.OAuth2ServerError  (token endpoint returned 4xx/5xx)
@@ -84,7 +86,13 @@ defmodule PetstoreClient.Errors.OpenAPIError do
     PetstoreClient.Errors.NetworkTimeoutError,
     PetstoreClient.Errors.SerializationError,
     PetstoreClient.Errors.OAuth2ServerError,
-    PetstoreClient.Errors.OAuth2TokenError
+    PetstoreClient.Errors.OAuth2TokenError,
+    PetstoreClient.Errors.UnexpectedFailureError,
+    PetstoreClient.Errors.MemberNotFoundError,
+    PetstoreClient.Errors.ProjectNotFoundError,
+    PetstoreClient.Errors.RejectedRequestError,
+    PetstoreClient.Errors.UpstreamFailureError,
+    PetstoreClient.Errors.StateConflictError
   ]
 
   @type t ::
@@ -115,6 +123,12 @@ defmodule PetstoreClient.Errors.OpenAPIError do
           | PetstoreClient.Errors.SerializationError.t()
           | PetstoreClient.Errors.OAuth2ServerError.t()
           | PetstoreClient.Errors.OAuth2TokenError.t()
+          | PetstoreClient.Errors.UnexpectedFailureError.t()
+          | PetstoreClient.Errors.MemberNotFoundError.t()
+          | PetstoreClient.Errors.ProjectNotFoundError.t()
+          | PetstoreClient.Errors.RejectedRequestError.t()
+          | PetstoreClient.Errors.UpstreamFailureError.t()
+          | PetstoreClient.Errors.StateConflictError.t()
 
   @doc """
   Returns the canonical list of every exception module this SDK can

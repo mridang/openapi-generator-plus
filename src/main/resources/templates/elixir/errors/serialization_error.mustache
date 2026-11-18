@@ -3,9 +3,29 @@
 defmodule {{moduleName}}.Errors.SerializationError do
   @moduledoc """
   Exception raised when serialization or deserialization fails.
+
+  When the failure is a response body that cannot be decoded, the error also carries the response
+  (`status_code`, `response_headers` and `response_body`, the raw body) and the request
+  (`request_method` and `request_path`, without the query string).
   """
 
-  @type t :: %__MODULE__{message: String.t(), cause: Exception.t() | nil}
+  @type t :: %__MODULE__{
+          message: String.t(),
+          cause: Exception.t() | nil,
+          status_code: integer() | nil,
+          response_headers: %{optional(String.t()) => String.t()} | nil,
+          response_body: String.t() | nil,
+          request_method: String.t() | nil,
+          request_path: String.t() | nil
+        }
 
-  defexception [:message, :cause]
+  defexception [
+    :message,
+    :cause,
+    :status_code,
+    :response_headers,
+    :response_body,
+    :request_method,
+    :request_path
+  ]
 end

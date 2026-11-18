@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.NotImplementedError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `NotImplementedError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec not_implemented?(term()) :: boolean()
+  def not_implemented?(term), do: ApiError.specialises?(term, __MODULE__)
 end

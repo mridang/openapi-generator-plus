@@ -54,4 +54,11 @@ defmodule PetstoreClient.Errors.GatewayTimeoutError do
   @impl true
   def message(%__MODULE__{} = error),
     do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `GatewayTimeoutError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec gateway_timeout?(term()) :: boolean()
+  def gateway_timeout?(term), do: ApiError.specialises?(term, __MODULE__)
 end

@@ -47,4 +47,11 @@ defmodule {{moduleName}}.Errors.MethodNotAllowedError do
 
   @impl true
   def message(%__MODULE__{} = error), do: ApiError.message(struct(ApiError, Map.from_struct(error)))
+
+  @doc """
+  Returns `true` if `term` is a `MethodNotAllowedError` or an error generated for a declared error schema that
+  specialises it, `false` otherwise.
+  """
+  @spec method_not_allowed?(term()) :: boolean()
+  def method_not_allowed?(term), do: ApiError.specialises?(term, __MODULE__)
 end
