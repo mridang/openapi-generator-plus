@@ -134,7 +134,7 @@ void main() {
       );
     });
 
-    test('a rejected password never appears in the ArgumentError', () {
+    test('bhv misc 017 a rejected password never appears in the ArgumentError', () {
       Object? thrown;
       try {
         BasicAuthenticator(
@@ -154,7 +154,7 @@ void main() {
       expect(error.toString(), isNot(contains('s3c')));
     });
 
-    test('a rejected username never appears in the ArgumentError', () {
+    test('bhv langdart 021 a rejected username never appears in the ArgumentError', () {
       Object? thrown;
       try {
         BasicAuthenticator(
@@ -252,7 +252,7 @@ void main() {
         expect(() => build('ali:ce', 's3cret'), throwsArgumentError);
       });
 
-      test('$name prints its own name with the password masked', () {
+      test('bhv misc 190 $name prints its own name with the password masked', () {
         expect(
           build('alice', 's3cret').toString(),
           equals(

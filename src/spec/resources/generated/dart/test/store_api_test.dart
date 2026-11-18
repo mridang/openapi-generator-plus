@@ -54,7 +54,7 @@ void main() {
 
   group('StoreApi', () {
     test(
-      'searchStore expands a uniqueItems query array into repeated pairs',
+      'bhv langdart 004 searchStore expands a uniqueItems query array into repeated pairs',
       () async {
         String? query;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -373,10 +373,13 @@ void main() {
      * `default` must be initialised to that default variant, so a
      * default-constructed model serialises the default on the wire
      * (`"status":"placed"`) like the other SDKs — rather than omitting it. */
-    test('default-constructed Order serializes the default status', () {
-      final json = Order().toJson();
-      expect(json['status'], equals('placed'));
-    });
+    test(
+      'bhv langdart 005 default-constructed Order serializes the default status',
+      () {
+        final json = Order().toJson();
+        expect(json['status'], equals('placed'));
+      },
+    );
 
     test('bhv operations 102 getInventory', () async {
       final api = _newStoreApiForIntegration();
@@ -565,57 +568,63 @@ void main() {
       '{"available":null}',
       '{"available":true}',
     ]) {
-      test('getInventory rejects the wrong-typed element $bad', () async {
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        server.listen((request) {
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write(bad)
-            ..close();
-        });
+      test(
+        'bhv langdart 006 getInventory rejects the wrong-typed element $bad',
+        () async {
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          server.listen((request) {
+            request.response
+              ..statusCode = 200
+              ..headers.contentType = ContentType.json
+              ..write(bad)
+              ..close();
+          });
 
-        try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+          try {
+            final config = ConfigurationBuilder()
+                .baseUrl('http://localhost:${server.port}')
+                .build();
+            final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-          await expectLater(
-            api.getInventory(null),
-            throwsA(isA<SerializationException>()),
-          );
-        } finally {
-          await server.close();
-        }
-      });
+            await expectLater(
+              api.getInventory(null),
+              throwsA(isA<SerializationException>()),
+            );
+          } finally {
+            await server.close();
+          }
+        },
+      );
     }
 
     for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
-      test('getMatrix rejects the wrong-typed element $bad', () async {
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        server.listen((request) {
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write(bad)
-            ..close();
-        });
+      test(
+        'bhv langdart 007 getMatrix rejects the wrong-typed element $bad',
+        () async {
+          final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+          server.listen((request) {
+            request.response
+              ..statusCode = 200
+              ..headers.contentType = ContentType.json
+              ..write(bad)
+              ..close();
+          });
 
-        try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+          try {
+            final config = ConfigurationBuilder()
+                .baseUrl('http://localhost:${server.port}')
+                .build();
+            final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-          await expectLater(
-            api.getMatrix(null),
-            throwsA(isA<SerializationException>()),
-          );
-        } finally {
-          await server.close();
-        }
-      });
+            await expectLater(
+              api.getMatrix(null),
+              throwsA(isA<SerializationException>()),
+            );
+          } finally {
+            await server.close();
+          }
+        },
+      );
     }
 
     /* recursive-container-deserialize: getSwatchGroups returns
