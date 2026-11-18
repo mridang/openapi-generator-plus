@@ -3563,5 +3563,96 @@ describe('DefaultApiClient misc cause and redirects', () => {
       await client.close();
       await new Promise<void>((resolve) => srv.close(() => resolve()));
     }
+||||||| e3b1f22a2
+describe('DefaultApiClient multipart parts and bodies (misc behaviours)', () => {
+  function captureMultipartBody(): Promise<{
+    url: string;
+    getBody: () => string;
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let chunks: Buffer[] = [];
+      const srv = http.createServer((req, res) => {
+        chunks = [];
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
+        req.on('end', () => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end('{"ok":true}');
+        });
+      });
+      srv.listen(0, '127.0.0.1', () => {
+        const addr = srv.address() as { port: number };
+        resolve({
+          url: `http://127.0.0.1:${addr.port}/upload`,
+          getBody: () => Buffer.concat(chunks).toString('binary'),
+          close: () => srv.close(),
+        });
+      });
+    });
+  }
+
+  it('bhv misc 096 a text part carries only its Content-Disposition', async () => {
+    const { url, getBody, close } = await captureMultipartBody();
+    try {
+      await new DefaultApiClient().sendRequest('POST', url, {}, { title: 'hello' });
+      const body = getBody();
+      expect(body).toContain('Content-Disposition: form-data; name="title"\r\n\r\nhello\r\n');
+      expect(body).not.toContain('Content-Transfer-Encoding');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv misc 097 each array element is its own part in the order given', async () => {
+    const { url, getBody, close } = await captureMultipartBody();
+    try {
+      await new DefaultApiClient().sendRequest('POST', url, {}, { tags: ['a', 'b'], name: 'x' });
+      const body = getBody();
+      expect(body.split('name="tags"').length - 1).toBe(2);
+      expect(body.indexOf('\r\n\r\na\r\n')).toBeLessThan(body.indexOf('\r\n\r\nb\r\n'));
+      expect(body.split('name="name"').length - 1).toBe(1);
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv misc 098 a caller-supplied stream used as a multipart part is read into the body and never closed', async () => {
+    const { url, getBody, close } = await captureMultipartBody();
+    try {
+      const stream = new Blob(['hello'], { type: 'text/plain' });
+      await new DefaultApiClient().sendRequest('POST', url, {}, { upload: stream });
+      expect(getBody()).toContain('hello');
+      expect(await stream.text()).toBe('hello');
+    } finally {
+      close();
+    }
+  });
+
+  it('bhv misc 101 a multipart source that cannot be read fails the call instead of sending an empty payload', async () => {
+    const realFetch = global.fetch;
+    let sent = false;
+    global.fetch = (async () => {
+      sent = true;
+      return new Response('{}', { status: 200 });
+    }) as unknown as typeof fetch;
+    class UnreadableSource extends Blob {
+      arrayBuffer(): Promise<ArrayBuffer> {
+        return Promise.reject(new Error('source gone'));
+      }
+    }
+    try {
+      await expect(
+        new DefaultApiClient().sendRequest('POST', 'http://api.example/up', {}, { file: new UnreadableSource(['x']) }),
+      ).rejects.toThrow();
+      expect(sent).toBe(false);
+    } finally {
+      global.fetch = realFetch;
+    }
+  });
+
+  it('bhv misc 095 bytes invalid in the declared charset decode to U+FFFD replacement characters', () => {
+    expect(
+      DefaultApiClient.decodeBody(Buffer.from([0x61, 0xff, 0x62, 0xfe]), 'text/plain; charset=utf-8'),
+    ).toBe('a�b�');
   });
 });
