@@ -2361,3 +2361,128 @@ func TestBhvConfig025_PetApi_EmptyBaseUrlEnvironmentValueIsTreatedAsUnset(t *tes
 		t.Errorf("expected construction to fail naming the missing variable, got %v %v", client, err)
 	}
 }
+
+// Each operation sends only the credential of the scheme it names in its security requirement.
+func TestBhvAuth043_PetApi_AddPetSendsOnlyTheSchemeItNames(t *testing.T) {
+	t.Parallel()
+	var gotKey, gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey, gotAuth = r.Header.Get("X-API-Key"), r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	header, _ := auth.NewApiKeyHeaderAuthenticator(server.URL, "header-key")
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer, ApiKeyHeader: header}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	pet := models.NewPet("OrderDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotKey != "header-key" || gotAuth != "" {
+		t.Errorf("expected only the api key header, got key %q and authorization %q", gotKey, gotAuth)
+	}
+}
+
+// A credential supplied for an operation's scheme replaces a default Authorization header set on the client.
+func TestBhvAuth045_PetApi_SchemeCredentialReplacesADefaultAuthorizationHeader(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "scheme-token")
+	opts, err := petstore.NewTransportOptionsBuilder().DefaultHeader("Authorization", "Bearer default-token").Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	pet := models.NewPet("OrderDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if gotAuth != "Bearer scheme-token" {
+		t.Errorf("expected the scheme credential to replace the default header, got %q", gotAuth)
+	}
+}
+
+// An operation that inherits the document-level security receives the client's authenticator on the wire.
+func TestBhvAuth046_PetApi_InheritedSecurityReceivesTheClientAuthenticator(t *testing.T) {
+	t.Parallel()
+	var gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "client-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	if gotAuth != "Bearer client-token" {
+		t.Errorf("expected the client authenticator on the inherited operation, got %q", gotAuth)
+	}
+}
+
+// When an operation lists several schemes, the client uses the first one it holds and sends no scheme credential when it holds none.
+func TestBhvAuth047_PetApi_AddPetUsesTheFirstHeldSchemeAndSendsNoneWhenItHoldsNone(t *testing.T) {
+	t.Parallel()
+	var gotKey, gotAuth string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotKey, gotAuth = r.Header.Get("X-API-Key"), r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	admin, _ := auth.NewAdminBasicAuthenticator(server.URL, "admin", "secret")
+
+	// addPet accepts apiKeyHeader then petStoreBearer. Holding only the second sends it.
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pet := models.NewPet("OrderDog", models.Set[string]{"http://example.com/o.jpg"})
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	_ = client.Close()
+	if gotAuth != "Bearer bearer-token" {
+		t.Errorf("expected the first held accepted scheme, got %q", gotAuth)
+	}
+
+	// Holding only a scheme that addPet does not accept sends no credential at all.
+	gotKey, gotAuth = "", ""
+	client, err = petstore.NewClientWithCredentials(server.URL, petstore.Credentials{AdminBasic: admin}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Pet.AddPet(context.Background(), *pet, nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	_ = client.Close()
+	if gotKey != "" || gotAuth != "" {
+		t.Errorf("expected no scheme credential, got key %q and authorization %q", gotKey, gotAuth)
+	}
+}
