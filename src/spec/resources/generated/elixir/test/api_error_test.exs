@@ -53,6 +53,18 @@ defmodule PetstoreClient.ApiErrorTest do
            ) == default <> "\nHTTP status code: 500"
   end
 
+  test "bhv errors 064 an empty message renders the default text, like a missing one" do
+    default = "Error message: the server returns an error"
+
+    assert PetstoreClient.Errors.ApiError.message(
+             PetstoreClient.Errors.ApiError.exception(message: "")
+           ) == default
+
+    assert PetstoreClient.Errors.ApiError.message(
+             PetstoreClient.Errors.ApiError.exception(status_code: 500)
+           ) == default <> "\nHTTP status code: 500"
+  end
+
   test "bhv errors 024 the message renders the message, status, headers and body" do
     full =
       PetstoreClient.Errors.ApiError.exception(
@@ -87,7 +99,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert PetstoreClient.Errors.ApiError.message(bare) == "boom"
   end
 
-  test "the message cuts a long response body at 1 KiB and counts the bytes left out" do
+  test "bhv errors 065 the message cuts a long response body at 1 KiB and counts the bytes left out" do
     body = String.duplicate("a", 3_000)
 
     err =
@@ -317,7 +329,7 @@ defmodule PetstoreClient.ApiErrorTest do
                "Token request failed with status 400: invalid_grant -- refresh token expired"
     end
 
-    test "names the raw body when the response is not an OAuth2 error object" do
+    test "bhv authoauthtwotokenmgr 047 an OAuth2 server error without an error code names the status and the raw body" do
       err =
         PetstoreClient.Errors.OAuth2ServerError.exception(
           status_code: 502,
@@ -539,7 +551,16 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.ApiError.api_error?(err)
     end
 
-    test "a 429 is a TooManyRequestsError and a ClientError" do
+    test "bhv errors 061 a bad request error is a client error, an API error and an OpenAPI error" do
+      err = PetstoreClient.Errors.ApiError.from_response(400, %{}, nil)
+
+      assert %PetstoreClient.Errors.BadRequestError{} = err
+      assert PetstoreClient.Errors.ClientError.client_error?(err)
+      assert PetstoreClient.Errors.ApiError.api_error?(err)
+      assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+    end
+
+    test "bhv errors 066 a 429 is a TooManyRequestsError and a ClientError" do
       err = PetstoreClient.Errors.ApiError.from_response(429, %{"retry-after" => "3"}, nil)
 
       assert %PetstoreClient.Errors.TooManyRequestsError{status_code: 429} = err

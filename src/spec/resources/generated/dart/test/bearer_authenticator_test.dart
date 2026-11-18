@@ -10,6 +10,20 @@ import 'package:petstore_client/petstore_client.dart';
 
 void main() {
   group('BearerAuthenticator', () {
+    test(
+      'bhv authscheme 009 a credential passed explicitly wins over its environment variable',
+      () {
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          token: 'explicit',
+          environmentVariable: 'OTHER_TOKEN',
+          environment: {'OTHER_TOKEN': 'fromenv'},
+        );
+
+        expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+      },
+    );
+
     test('bhv authbearer 018 an explicit token wins over the environment', () {
       final auth = BearerAuthenticator(
         host: '/api/v3',
@@ -24,6 +38,67 @@ void main() {
 
     test(
       'bhv authbearer 025 the environment variable is read once, at construction',
+      () {
+        final environment = {
+          BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
+        };
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          environment: environment,
+        );
+
+        environment[BearerAuthenticator.defaultEnvironmentVariable] = 'changed';
+
+        expect(auth.authHeaders()['Authorization'], equals('Bearer fromenv'));
+      },
+    );
+
+    test(
+      'bhv lifecycle 028 an explicit host and token win over the environment',
+      () {
+        final auth = BearerAuthenticator(
+          host: 'https://explicit.example.com',
+          token: 'explicit',
+          environment: {
+            BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
+          },
+        );
+
+        expect(auth.host(), equals('https://explicit.example.com'));
+        expect(auth.authHeaders()['Authorization'], equals('Bearer explicit'));
+      },
+    );
+
+    test(
+      'bhv lifecycle 032 a token passed to the client is preferred to the one in the environment',
+      () {
+        final auth = BearerAuthenticator(
+          host: '/api/v3',
+          token: 'passed',
+          environment: {
+            BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
+          },
+        );
+
+        expect(auth.authHeaders()['Authorization'], equals('Bearer passed'));
+      },
+    );
+
+    test(
+      'bhv authbearer 028 a bearer token containing CRLF is rejected at construction',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            token: 'tok\r\nInjected: yes',
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv lifecycle 025 the environment variable is read once, at construction',
       () {
         final environment = {
           BearerAuthenticator.defaultEnvironmentVariable: 'fromenv',
@@ -64,6 +139,25 @@ void main() {
         ),
       );
     });
+
+    test(
+      'bhv authscheme 010 an empty environment value counts as unset and fails naming the variable',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: '/api/v3',
+            environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(BearerAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      },
+    );
 
     test('no token anywhere fails when the authenticator is built', () {
       expect(

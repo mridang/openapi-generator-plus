@@ -1094,9 +1094,33 @@ public class DefaultApiClientUnitTest
     [InlineData("http://origin.example.com/start", "http://origin.example.com:80/landed")]
     [InlineData("https://origin.example.com/start", "https://origin.example.com:443/landed")]
     [InlineData("http://origin.example.com:80/start", "http://origin.example.com/landed")]
-    public async Task BhvRedirects030RedirectToExplicitDefaultPortPreservesAuthorization(string start, string landed)
-
     public async Task BhvRedirects037RedirectToExplicitDefaultPortPreservesAuthorization(string start, string landed)
+    {
+        /* An implicit and an explicit default port name the same origin, so the
+           credentials must not be stripped as if the redirect were cross-origin. */
+        var handler = new RedirectingHandler(
+            firstStatus: HttpStatusCode.RedirectKeepVerb,
+            location: new Uri(landed));
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "GET",
+            new Uri(start),
+            new Dictionary<string, string>
+            {
+                { "Authorization", "Bearer secret" },
+            },
+            null
+        );
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.True(handler.Requests[1].Headers.Contains("Authorization"));
+    }
+
+    [Theory]
+    [InlineData("http://origin.example.com/start", "http://origin.example.com:80/landed")]
+    [InlineData("https://origin.example.com/start", "https://origin.example.com:443/landed")]
+    [InlineData("http://origin.example.com:80/start", "http://origin.example.com/landed")]
+    public async Task BhvRedirects030RedirectToExplicitDefaultPortPreservesAuthorization(string start, string landed)
     {
         /* An implicit and an explicit default port name the same origin, so the
            credentials must not be stripped as if the redirect were cross-origin. */

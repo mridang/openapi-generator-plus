@@ -56,6 +56,22 @@ class _CloseTrackingClient extends http.BaseClient {
   }
 }
 
+/* Answers every send with a redirect whose body is the given stream, so a test
+ * can see whether the SDK reads that body off before it refuses the hop. */
+class _RedirectBodyClient extends http.BaseClient {
+  _RedirectBodyClient(this._body);
+
+  final Stream<List<int>> _body;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      http.StreamedResponse(
+        _body,
+        307,
+        headers: {'location': 'http://example.com/insecure'},
+      );
+}
+
 void main() {
   group('DefaultApiClientUnit', () {
     test(
@@ -2438,7 +2454,25 @@ void main() {
     );
 
     test(
-      'a custom CA replaces the system trust store instead of adding to it',
+      'bhv transport 064 the intermediate response of a refused redirect is released',
+      () async {
+        var bodyRead = false;
+        final body = StreamController<List<int>>(
+          onListen: () => bodyRead = true,
+        );
+        final client = _OwnedTransportClient(_RedirectBodyClient(body.stream));
+        final call = client.sendRequest('POST', 'https://example.com/secure', {
+          'Content-Type': 'application/json',
+        }, '{"secret":"value"}');
+        await body.sink.close();
+
+        await expectLater(call, throwsA(isA<ApiException>()));
+        expect(bodyRead, isTrue);
+      },
+    );
+
+    test(
+      'bhv transport 065 a configured CA bundle replaces the system trust store instead of adding to it',
       () {
         final source = File(
           '${Directory.current.path}/lib/src/default_api_client_io.dart',
@@ -3552,6 +3586,44 @@ void main() {
           expect(landed, equals(['GET', 'GET', 'GET', 'GET', 'HEAD']));
         } finally {
           await server.close(force: true);
+        }
+      },
+    );
+  });
+
+  group('Redirect to an explicit default port', () {
+    test(
+      'bhv redirects 037 a redirect to the explicit default port of the same origin keeps Authorization',
+      () async {
+        final second = <String, String?>{};
+        final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        proxy.listen((request) {
+          if (request.uri.path == '/start') {
+            request.response
+              ..statusCode = 302
+              ..headers.set('Location', 'http://origin.test:80/landed')
+              ..close();
+            return;
+          }
+          second['authorization'] = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final transport = TransportOptionsBuilder()
+              .proxy('http://127.0.0.1:${proxy.port}')
+              .followRedirects(true)
+              .build();
+          final resp = await DefaultApiClient(transportOptions: transport)
+              .sendRequest('GET', 'http://origin.test/start', {
+                'Authorization': 'Bearer caller-secret',
+              }, null);
+          expect(resp.statusCode, equals(200));
+          expect(second['authorization'], equals('Bearer caller-secret'));
+        } finally {
+          await proxy.close();
         }
       },
     );

@@ -249,6 +249,22 @@ class SchemeAuthenticatorTest {
       assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
     }
 
+    void bhvLifecycle028AnExplicitHostAndTokenWinOverTheEnvironment() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(
+              "https://explicit.example.com", "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
+      assertEquals("https://explicit.example.com", auth.getHost());
+      assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvLifecycle032ATokenPassedInPlaceIsPreferredToTheEnvironment() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(
+              HOST, "passed-token", Map.of(TOKEN_VARIABLE, "env-token"));
+      assertEquals("Bearer passed-token", auth.getAuthHeaders().get("Authorization"));
+    }
+
     @Test
     void anEmptyArgumentCountsAsNotPassed() {
       PetStoreBearerAuthenticator auth =
@@ -334,6 +350,19 @@ class SchemeAuthenticatorTest {
       PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, null, environment);
       environment.put(TOKEN_VARIABLE, "second");
       assertEquals("Bearer first", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    void bhvAuthScheme011AnEmptyServiceTokenVariableIsUnsetAndNamesIt() {
+      Map<String, String> environment =
+          Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN", "");
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new ServiceTokenAuthenticator(HOST, null, environment));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage())
+              .contains("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"),
+          ex.getMessage());
     }
 
     @Test
@@ -482,6 +511,20 @@ class SchemeAuthenticatorTest {
               + "pass it or set the "
               + API_KEY_VARIABLE
               + " environment variable",
+          ex.getMessage());
+    }
+
+    @Test
+    void bhvAuthScheme012AnEmptyInternalApiKeyVariableIsUnsetAndNamesIt() {
+      Map<String, String> environment =
+          Map.of("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY", "");
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new InternalApiKeyAuthenticator("https://api.example.com", null, environment));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage())
+              .contains("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"),
           ex.getMessage());
     }
 

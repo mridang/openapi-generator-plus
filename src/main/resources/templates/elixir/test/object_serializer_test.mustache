@@ -380,6 +380,7 @@ defmodule {{moduleName}}.ObjectSerializerTest do
   describe "stringify/1" do
     test "bhv serializationobject 190 a long is stringified to its exact decimal digits" do
       assert {{moduleName}}.ObjectSerializer.stringify(9_223_372_036_854_775_807) == "9223372036854775807"
+    end
 
     test "bhv serializationobject 199 a datetime keeps its subseconds when stringified" do
       dt = ~U[2024-01-01 12:30:45.123Z]

@@ -275,6 +275,15 @@ describe Petstore::Client::Errors::ApiError do
   end
 
   it 'bhv_errors_056 from_response treats a status at or above 600 as the base ApiError' do
+
+  it 'bhv_errors_071 a 401 response surfaces as an UnauthorizedError' do
+    err = Petstore::Client::Errors::ApiError.from_response(401, { 'x-request-id' => 'abc' }, '{"code":7}')
+
+    _(err).must_be_instance_of(Petstore::Client::Errors::UnauthorizedError)
+    _(err.status_code).must_equal(401)
+  end
+
+  it 'from_response treats a status at or above 600 as the base ApiError' do
     # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
     # base ApiError, never ServerError.
     err = Petstore::Client::Errors::ApiError.from_response(600, { 'x-request-id' => 'abc' }, nil)
@@ -394,7 +403,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_007 records the request method and path without the query string' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
-                                                           request_method: 'get', request_path: '/items/1?token=abc')
+                                                         request_method: 'get', request_path: '/items/1?token=abc')
 
     _(err.request_method).must_equal 'GET'
     _(err.request_path).must_equal '/items/1'
@@ -402,7 +411,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_011 names the request in the message and in the request fields' do
     err = Petstore::Client::Errors::ApiError.from_response(404, {}, nil,
-                                                           request_method: 'delete', request_path: '/items/1')
+                                                         request_method: 'delete', request_path: '/items/1')
 
     _(err.request_method).must_equal 'DELETE'
     _(err.request_path).must_equal '/items/1'
@@ -411,7 +420,7 @@ describe Petstore::Client::Errors::ApiError do
 
   it 'bhv_errors_026 renders the request on its own line and never carries the query string' do
     err = Petstore::Client::Errors::ApiError.from_response(500, {}, nil,
-                                                           request_method: 'get', request_path: '/items?api_key=secret')
+                                                         request_method: 'get', request_path: '/items?api_key=secret')
 
     _(err.message.split("\n")).must_include 'Request: GET /items'
     _(err.message).wont_include 'secret'

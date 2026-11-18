@@ -67,6 +67,26 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
           "ApiClient has been closed and can no longer send requests"))
   }
 
+  /* A request after close fails before any task is created on the caller's session. */
+  @Test func testBhvLifecycle035ARequestAfterCloseFailsWithoutReachingTheTransport() async throws {
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let transport = try TransportOptionsBuilder().session(session).build()
+    let client = try Client(authenticator: authenticator, transportOptions: transport)
+    client.close()
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await client.store.getInventory()
+    }
+    #expect(
+      error
+        == ConfigurationError.invalidState(
+          "ApiClient has been closed and can no longer send requests"))
+    let tasks: [URLSessionTask] = await withCheckedContinuation { continuation in
+      session.getAllTasks { continuation.resume(returning: $0) }
+    }
+    #expect(tasks.isEmpty)
+  }
+
   /* Closing the client never invalidates a session the caller supplied. */
   @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
     let probe = InvalidationProbe()
@@ -212,7 +232,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
   }
 
-  @Test func testExplicitArgumentsWinOverTheEnvironment() async throws {
+  @Test func testBhvLifecycle028ExplicitArgumentsWinOverTheEnvironment() async throws {
     let client = try environmentClient(
       host: "https://explicit.example.com", token: "explicit-token",
       environment: [
@@ -225,6 +245,50 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   @Test func testBhvAuthbearer019AnEmptyEnvironmentValueCountsAsUnset() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
+    ) {
+      _ = try self.environmentClient(environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
+      ])
+    }
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
+      )
+    ) {
+      _ = try self.environmentClient(environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "",
+      ])
+    }
+  }
+
+  @Test func testBhvLifecycle032ATokenPassedToTheClientBeatsTheEnvironmentToken() async throws {
+    let client = try environmentClient(
+      token: "explicit-token",
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
+      ])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+  }
+
+  @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+    }
+    #expect(
+      error
+        == ConfigurationError.invalidArgument(
+          "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
+        ))
+  }
+
+  @Test func testAnEmptyEnvironmentValueCountsAsUnset() {
     #expect(
       throws: ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
@@ -374,6 +438,20 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testPetStoreBasicAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try PetStoreBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "",
+        ])
+    }
+  }
+
   @Test func testBhvAuthscheme001AdminBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
@@ -428,6 +506,20 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testAdminBasicAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try AdminBasicAuthenticator(
+        host: "https://api.example.com", username: nil, password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "",
+        ])
+    }
+  }
+
   @Test func testBhvAuthscheme001PetStoreBearerAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
@@ -461,6 +553,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(throws: missing) {
       _ = try PetStoreBearerAuthenticator(
         host: "https://api.example.com", token: nil, environment: [:])
+    }
+  }
+
+  @Test func testPetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try PetStoreBearerAuthenticator(
+        host: "https://api.example.com", token: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": ""])
     }
   }
 
@@ -522,6 +625,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testServiceTokenAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try ServiceTokenAuthenticator(
+        host: "https://api.example.com", token: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": ""])
+    }
+  }
+
   @Test func testBhvAuthscheme001ApiKeyHeaderAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
@@ -569,6 +683,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try ApiKeyHeaderAuthenticator(
+        host: "https://api.example.com", apiKey: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": ""])
+    }
+  }
+
   @Test func testBhvAuthscheme001InternalApiKeyAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
@@ -602,6 +727,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(throws: missing) {
       _ = try InternalApiKeyAuthenticator(
         host: "https://api.example.com", apiKey: nil, environment: [:])
+    }
+  }
+
+  @Test func testInternalApiKeyAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try InternalApiKeyAuthenticator(
+        host: "https://api.example.com", apiKey: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": ""])
     }
   }
 
@@ -663,6 +799,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try ApiKeyQueryAuthenticator(
+        host: "https://api.example.com", apiKey: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": ""])
+    }
+  }
+
   @Test func testBhvAuthscheme001SessionCookieAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
   {
@@ -700,6 +847,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   @Test func testBhvAuthscheme007SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try SessionCookieAuthenticator(
+        host: "https://api.example.com", apiKey: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": ""])
+    }
+  }
+
+  @Test func testSessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY environment variable"
     )
@@ -768,6 +926,20 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testMachineAuthClientCredentialsAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try MachineAuthClientCredentialsAuthenticator(
+        host: "https://api.example.com", clientId: nil, clientSecret: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET": "",
+        ])
+    }
+  }
+
   @Test
   func testBhvAuthscheme001LegacyAuthPasswordAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
@@ -810,6 +982,23 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       _ = try LegacyAuthPasswordAuthenticator(
         host: "https://api.example.com", clientId: nil, clientSecret: nil, username: nil,
         password: nil, environment: [:])
+    }
+  }
+
+  @Test func testLegacyAuthPasswordAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try LegacyAuthPasswordAuthenticator(
+        host: "https://api.example.com", clientId: nil, clientSecret: nil, username: nil,
+        password: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD": "",
+        ])
     }
   }
 
@@ -891,6 +1080,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
+  @Test func testUserAuthAuthorizationCodeAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try UserAuthAuthorizationCodeAuthenticator(
+        host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI": "",
+        ])
+    }
+  }
+
   @Test
   func testBhvAuthscheme001BrowserAuthImplicitAuthenticatorReadsItsCredentialsFromTheEnvironment()
     throws
@@ -925,6 +1129,17 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(throws: missing) {
       _ = try BrowserAuthImplicitAuthenticator(
         host: "https://api.example.com", clientId: nil, environment: [:])
+    }
+  }
+
+  @Test func testBrowserAuthImplicitAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try BrowserAuthImplicitAuthenticator(
+        host: "https://api.example.com", clientId: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": ""])
     }
   }
 
@@ -979,6 +1194,21 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   }
 
   @Test func testBhvAuthscheme008SsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset() {
+    let missing = ConfigurationError.invalidArgument(
+      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID environment variable"
+    )
+    #expect(throws: missing) {
+      _ = try SsoAuthAuthenticator(
+        host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
+        environment: [
+          "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET": "",
+          "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI": "",
+        ])
+    }
+  }
+
+  @Test func testSsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID environment variable"
     )

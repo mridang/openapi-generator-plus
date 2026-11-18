@@ -20,7 +20,9 @@ import io.ktor.http.headersOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
@@ -105,6 +107,25 @@ class DefaultApiClientTest {
             val response =
                 runBlocking {
                     client.sendRequest("GET", "$chasmUrl/test/echo", emptyMap(), null)
+                }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("GET", json.get("method").asText())
+        }
+
+        @Test
+        @DisplayName("bhvTransport062 verifySsl=false accepts an address the certificate does not name")
+        fun verifySslFalseAcceptsAnAddressTheCertificateDoesNotName() {
+            val transport =
+                TransportOptions
+                    .builder()
+                    .proxy(SquidContainer.getProxyUrl())
+                    .verifySsl(false)
+                    .build()
+            val client = DefaultApiClient(transport)
+            val response =
+                runBlocking {
+                    client.sendRequest("GET", "${ChasmContainer.getInternalHttpsAddressUrl()}/test/echo", emptyMap(), null)
                 }
             assertEquals(200, response.statusCode)
             val json = ObjectMapper().readTree(response.body)
@@ -196,7 +217,7 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("trusts every certificate in a multi-certificate CA bundle")
+        @DisplayName("bhvTransport066 trusts every certificate in a multi-certificate CA bundle")
         fun trustsEveryCertificateInBundle(
             @org.junit.jupiter.api.io.TempDir tempDir: java.nio.file.Path,
         ) {
@@ -205,6 +226,13 @@ class DefaultApiClientTest {
             bundle.writeText(ca.resolveSibling("server.pem").readText() + ca.readText())
             val issuers = loadCaCertTrustManager(bundle.absolutePath).acceptedIssuers
             assertEquals(2, issuers.size, "both bundle certificates must be trust anchors")
+        }
+
+        @Test
+        @DisplayName("bhvTransport065 a configured CA bundle replaces the system trust store instead of adding to it")
+        fun configuredCaBundleReplacesTheSystemTrustStore() {
+            val issuers = loadCaCertTrustManager(caCertPath).acceptedIssuers
+            assertEquals(1, issuers.size, "only the configured certificate is trusted, the system roots are not added")
         }
 
         @Test
@@ -339,6 +367,36 @@ class DefaultApiClientTest {
             assertInstanceOf(com.example.petstore.errors.NetworkException::class.java, ex)
             assertEquals(0, ex.statusCode)
             assertNotNull(ex.cause, "the transport exception must be kept as the cause")
+        }
+
+        @Test
+        @DisplayName("bhvTransport060 cancelling an in-flight call aborts the request without reporting a timeout")
+        fun cancellingTheCallAbortsTheSlowEndpoint() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient(TransportOptions.builder().timeout(30_000L).build())
+            var caught: Throwable? = null
+            val startedAt = System.nanoTime()
+            runBlocking {
+                val job =
+                    launch {
+                        try {
+                            client.sendRequest("GET", "$chasmUrl/test/slow", emptyMap(), null)
+                        } catch (e: Throwable) {
+                            caught = e
+                            throw e
+                        }
+                    }
+                delay(300)
+                job.cancel()
+                job.join()
+            }
+            val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
+            assertInstanceOf(kotlinx.coroutines.CancellationException::class.java, caught)
+            assertFalse(
+                caught is com.example.petstore.errors.NetworkTimeoutException,
+                "a cancellation must not be reported as a timeout: $caught",
+            )
+            assertTrue(elapsedMs < 5_000, "the request was not aborted promptly: $elapsedMs ms")
         }
 
         @Test
@@ -1162,6 +1220,7 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("bhvRedirects030 an explicit default port is the same origin as the implicit one")
+        @DisplayName("bhvRedirects037 a redirect to the explicit default port of the same origin keeps the Authorization header")
         fun redirectToExplicitDefaultPortPreservesAuthorization() {
             assertTrue(
                 sameOrigin(java.net.URI("https://host/x"), java.net.URI("https://host:443/y")),

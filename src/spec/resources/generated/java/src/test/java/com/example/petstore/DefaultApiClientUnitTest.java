@@ -1292,7 +1292,7 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  void caCertBundleTrustsEveryCertificateInTheFile() throws Exception {
+  void bhvTransport066CaCertBundleTrustsEveryCertificateInTheFile() throws Exception {
     // Two distinct certificates (taken from the JDK's own trust anchors) in
     // one PEM bundle: a root plus an intermediate, or two roots during a CA
     // rotation, must all be trusted, not just the first.
@@ -1325,6 +1325,35 @@ class DefaultApiClientUnitTest {
     TransportOptions transport =
         TransportOptions.builder().caCertPath(bundle.getAbsolutePath()).build();
     assertNotNull(new DefaultApiClient(transport));
+  }
+
+  @Test
+  void bhvTransport065ConfiguredCaBundleReplacesTheSystemTrustStore() throws Exception {
+    javax.net.ssl.TrustManagerFactory system =
+        javax.net.ssl.TrustManagerFactory.getInstance(
+            javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+    system.init((java.security.KeyStore) null);
+    javax.net.ssl.X509TrustManager manager =
+        (javax.net.ssl.X509TrustManager) system.getTrustManagers()[0];
+    java.security.cert.X509Certificate[] issuers = manager.getAcceptedIssuers();
+    assertTrue(issuers.length >= 2, "the JDK trust store should hold at least two roots");
+    String pem =
+        "-----BEGIN CERTIFICATE-----\n"
+            + Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII))
+                .encodeToString(issuers[0].getEncoded())
+            + "\n-----END CERTIFICATE-----\n";
+    java.io.File bundle = java.io.File.createTempFile("ca-only", ".pem");
+    bundle.deleteOnExit();
+    java.nio.file.Files.write(bundle.toPath(), pem.getBytes(StandardCharsets.US_ASCII));
+
+    java.security.KeyStore trustStore =
+        DefaultApiClient.buildPinnedTrustStore(bundle.getAbsolutePath());
+
+    assertEquals(1, trustStore.size());
+    assertNotNull(trustStore.getCertificateAlias(issuers[0]));
+    assertNull(
+        trustStore.getCertificateAlias(issuers[1]),
+        "a system root must not be added beside the configured CA");
   }
 
   @Test
@@ -1390,6 +1419,31 @@ class DefaultApiClientUnitTest {
     String part = renderMultipartPart("blob", stream);
     assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
     assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
+  }
+
+  @Test
+  void bhvTransport061CallerSuppliedStreamIsLeftOpenAfterTheBodyIsSent() throws Exception {
+    java.util.concurrent.atomic.AtomicBoolean closed =
+        new java.util.concurrent.atomic.AtomicBoolean();
+    java.io.InputStream body =
+        new java.io.ByteArrayInputStream("payload".getBytes(StandardCharsets.UTF_8)) {
+          @Override
+          public void close() throws java.io.IOException {
+            closed.set(true);
+            super.close();
+          }
+        };
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(200, ""), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("PUT", urlOf(scripted), Map.of(), body);
+      assertEquals(200, response.statusCode());
+      assertEquals(1, hits.get());
+      assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
+    } finally {
+      scripted.stop(0);
+    }
   }
 
   @Test
@@ -2881,6 +2935,59 @@ class DefaultApiClientUnitTest {
 
   @Test
   void bhvRetries032StreamBodyIsNeverRetried() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest(
+                  "PUT",
+                  urlOf(scripted),
+                  Map.of(),
+                  new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}));
+      assertEquals(503, response.statusCode());
+      assertEquals(1, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  void bhvRetries042TimeoutIsNotRetried() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      var accepted = new java.util.concurrent.atomic.AtomicInteger();
+      List<java.net.Socket> held = new java.util.concurrent.CopyOnWriteArrayList<>();
+      Thread acceptor =
+          new Thread(
+              () -> {
+                try {
+                  while (true) {
+                    held.add(silent.accept());
+                    accepted.incrementAndGet();
+                  }
+                } catch (IOException closed) {
+                  // The server socket is closed: the test is over.
+                }
+              });
+      acceptor.setDaemon(true);
+      acceptor.start();
+      try {
+        DefaultApiClient client =
+            new DefaultApiClient(TransportOptions.builder().timeout(1000).maxRetries(3).build());
+        String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkTimeoutException.class,
+            () -> client.sendRequest("GET", url, Map.of(), null));
+        assertEquals(1, accepted.get(), "a timeout is never retried");
+      } finally {
+        for (java.net.Socket socket : held) {
+          socket.close();
+        }
+      }
+    }
+  }
+
+  @Test
+  void streamBodyIsNeverRetried() throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
     HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
     try {

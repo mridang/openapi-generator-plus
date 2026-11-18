@@ -166,3 +166,15 @@ func TestBhvSerializationparam107_BaseApi_EncodeQueryValue_EncodesStarBangQuoteA
 		t.Errorf("encodeQueryValue = %q, want %q", got, want)
 	}
 }
+
+func TestBhvSerializationwire057_BaseApi_FormUrlencodedKeepsOnlyTheUnreservedSetLiteral(t *testing.T) {
+	t.Parallel()
+	body := map[string]any{"nickname": "a~b*c!d'e(f)g"}
+	wire, err := serializeBodyOrdered(body, "application/x-www-form-urlencoded", false, []string{"nickname"})
+	if err != nil {
+		t.Fatalf("serializeBodyOrdered returned error: %v", err)
+	}
+	if got, want := string(wire), "nickname=a~b%2Ac%21d%27e%28f%29g"; got != want {
+		t.Errorf("expected %q, got %q", want, got)
+	}
+}

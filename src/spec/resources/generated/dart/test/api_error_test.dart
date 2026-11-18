@@ -194,8 +194,63 @@ void main() {
   });
 
   group('exception hierarchy', () {
+    test('bhv errors 058 a 400 response maps to the bad request error', () {
+      final err = ApiException.fromResponse(400, const {}, null);
+
+      expect(err, isA<BadRequestException>());
+    });
+
+    test('bhv errors 059 a 403 response maps to the forbidden error', () {
+      final err = ApiException.fromResponse(403, const {}, null);
+
+      expect(err, isA<ForbiddenException>());
+    });
+
+    test('bhv errors 060 a 404 response maps to the not found error', () {
+      final err = ApiException.fromResponse(404, const {}, null);
+
+      expect(err, isA<NotFoundException>());
+    });
+
     test(
-      'BadRequestException is ClientException, ApiException and OpenAPIException',
+      'bhv errors 066 a 429 response becomes a too-many-requests error that is a client error',
+      () {
+        final err = ApiException.fromResponse(429, const {}, null);
+
+        expect(err, isA<TooManyRequestsException>());
+        expect(err, isA<ClientException>());
+      },
+    );
+
+    test('bhv errors 067 a 409 response becomes a conflict error', () {
+      final err = ApiException.fromResponse(409, const {}, null);
+
+      expect(err, isA<ConflictException>());
+    });
+
+    test(
+      'bhv errors 068 a 422 response becomes an unprocessable entity error',
+      () {
+        final err = ApiException.fromResponse(422, const {}, null);
+
+        expect(err, isA<UnprocessableEntityException>());
+      },
+    );
+
+    test('bhv errors 069 a 500 response becomes an internal server error', () {
+      final err = ApiException.fromResponse(500, const {}, null);
+
+      expect(err, isA<InternalServerErrorException>());
+    });
+
+    test('bhv errors 070 a 502 response becomes a server error', () {
+      final err = ApiException.fromResponse(502, const {}, null);
+
+      expect(err, isA<ServerException>());
+    });
+
+    test(
+      'bhv errors 061 BadRequestException is ClientException, ApiException and OpenAPIException',
       () {
         const err = BadRequestException(message: 'bad request');
 
@@ -549,6 +604,25 @@ void main() {
       },
     );
 
+    test(
+      'bhv errors 065 cuts a long response body at 1 KiB and counts the bytes left out',
+      () {
+        final err = ApiException(
+          statusCode: 502,
+          message: 'bad gateway',
+          responseBody: 'a' * 3000,
+        );
+
+        expect(
+          err.toString(),
+          equals(
+            'bad gateway\nHTTP status code: 502\nResponse body: ${'a' * 1024}... (1976 more bytes)',
+          ),
+        );
+        expect(err.responseBody?.length, equals(3000));
+      },
+    );
+
     test('caps the rendered body and says how much was left out', () {
       final body = 'x' * 1030;
       final err = ApiException(
@@ -711,6 +785,29 @@ void main() {
         );
       },
     );
+
+    test(
+      'bhv errors 064 an empty error message renders the default text, like a missing one',
+      () {
+        const empty = ApiException(statusCode: 0, message: '');
+        const missing = BadRequestException();
+
+        expect(
+          empty.toString(),
+          equals('Error message: the server returns an error'),
+        );
+        expect(missing.message, equals(''));
+      },
+    );
+
+    test('an empty message renders the generic line', () {
+      const err = ApiException(statusCode: 0, message: '');
+
+      expect(
+        err.toString(),
+        equals('Error message: the server returns an error'),
+      );
+    });
 
     test(
       'bhv errors 010 a scalar JSON error body is exposed but not deserializable into a model',

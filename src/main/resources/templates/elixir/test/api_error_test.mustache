@@ -43,6 +43,16 @@ defmodule {{moduleName}}.ApiErrorTest do
   end
 
   test "bhv errors 051 an empty error message falls back to the generic error line" do
+    default = "Error message: the server returns an error"
+
+    assert {{moduleName}}.Errors.ApiError.message(
+             {{moduleName}}.Errors.ApiError.exception(message: "")
+           ) == default
+
+    assert {{moduleName}}.Errors.ApiError.message(
+             {{moduleName}}.Errors.ApiError.exception(status_code: 500)
+           ) == default <> "\nHTTP status code: 500"
+  end
 
   test "bhv errors 064 an empty message renders the default text, like a missing one" do
     default = "Error message: the server returns an error"

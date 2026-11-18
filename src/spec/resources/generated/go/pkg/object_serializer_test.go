@@ -717,7 +717,7 @@ func TestBhvSerializationobject142_ObjectSerializer_ToHeaderValue_String(t *test
 	}
 }
 
-func TestObjectSerializer_ToHeaderValue_StringSlice(t *testing.T) {
+func TestBhvSerializationobject210_ObjectSerializer_ToHeaderValue_StringSlice(t *testing.T) {
 	t.Parallel()
 	result := toHeaderValue([]string{"a", "b", "c"})
 	if result != "a,b,c" {
@@ -821,7 +821,7 @@ func TestObjectSerializer_Stringify_Int(t *testing.T) {
 	}
 }
 
-func TestObjectSerializer_Stringify_Int64(t *testing.T) {
+func TestBhvSerializationobject211_ObjectSerializer_Stringify_Int64(t *testing.T) {
 	t.Parallel()
 	result := stringify(int64(9999999999))
 	if result != "9999999999" {
@@ -2070,7 +2070,7 @@ func TestBhvSerializationobject092_ObjectSerializer_PriorityEnum_DeserializesFro
 	}
 }
 
-func TestObjectSerializer_PriorityEnum_RejectsUnknownNumber(t *testing.T) {
+func TestBhvSerializationobject193_ObjectSerializer_PriorityEnum_RejectsUnknownNumber(t *testing.T) {
 	t.Parallel()
 	var p models.Priority
 	if err := deserialize([]byte("99"), &p); err == nil {
@@ -3305,5 +3305,240 @@ func TestBhvSerializationobject189_ObjectSerializer_Deserialize_MutuallyRecursiv
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected the nested JSON to round-trip, got %s", data)
+	}
+}
+
+// A hyphenated enum member is written with its declared wire spelling.
+func TestBhvSerializationobject194_ObjectSerializer_Serialize_HyphenatedEnumKeepsItsWireValue(t *testing.T) {
+	t.Parallel()
+	onHold := models.AvailabilityOnHold
+	data, err := serialize(models.StockItem{Priority: models.PriorityNumber1, Availability: &onHold})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"availability":"on-hold"`) {
+		t.Errorf("expected the hyphenated wire value, got %s", data)
+	}
+}
+
+// An explicit wire value replaces the default that the model declares.
+func TestBhvSerializationobject196_ObjectSerializer_Deserialize_ExplicitValueReplacesTheDefault(t *testing.T) {
+	t.Parallel()
+	var defaults models.Defaults
+	if err := deserialize([]byte(`{"retries":7}`), &defaults); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if defaults.Retries == nil || *defaults.Retries != 7 {
+		t.Errorf("expected the wire value 7 to replace the default 3, got %v", defaults.Retries)
+	}
+}
+
+// The subseconds of a date-time are kept when it is stringified.
+func TestBhvSerializationobject199_ObjectSerializer_Stringify_KeepsSubsecondsOfADateTime(t *testing.T) {
+	t.Parallel()
+	dt, err := time.Parse(time.RFC3339Nano, "2024-01-01T12:30:45.123+00:00")
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	if got := stringify(dt); !strings.Contains(got, ".123") {
+		t.Errorf("expected the .123 subseconds kept, got %s", got)
+	}
+}
+
+// A serialize failure carries the canonical prefix and the encoder's detail.
+func TestBhvSerializationobject200_ObjectSerializer_Serialize_FailureCarriesThePrefixAndTheDetail(t *testing.T) {
+	t.Parallel()
+	_, err := serialize(math.NaN())
+	if err == nil {
+		t.Fatal("expected a serialize error for NaN")
+	}
+	if !strings.HasPrefix(err.Error(), "failed to serialize object to JSON: ") {
+		t.Errorf("expected the canonical prefix, got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "unsupported value") {
+		t.Errorf("expected the encoder detail, got %q", err.Error())
+	}
+}
+
+// A null field is left out of the wire object while the other fields are kept.
+func TestBhvSerializationobject202_ObjectSerializer_Serialize_NullFieldIsOmittedAndTheRestKept(t *testing.T) {
+	t.Parallel()
+	name := "Dogs"
+	data, err := serialize(models.Category{Name: &name})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.Contains(string(data), `"id"`) {
+		t.Errorf("expected the null id to be omitted, got %s", data)
+	}
+	if !strings.Contains(string(data), `"name":"Dogs"`) {
+		t.Errorf("expected the non-null name kept, got %s", data)
+	}
+}
+
+// An extra key survives a full deserialize then serialize round trip.
+func TestBhvSerializationobject205_ObjectSerializer_RoundTrip_ExtraKeySurvives(t *testing.T) {
+	t.Parallel()
+	var meta models.Metadata
+	if err := deserialize([]byte(`{"region":"eu"}`), &meta); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := serialize(meta)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"region":"eu"`) {
+		t.Errorf("expected the extra key to survive the round trip, got %s", data)
+	}
+}
+
+// Two vaults whose label maps differ only in a key are unequal.
+func TestBhvSerializationobject206_ObjectSerializer_BinaryVault_DifferingMapKeyIsUnequal(t *testing.T) {
+	t.Parallel()
+	left := models.BinaryVault{Labels: &map[string][]byte{"first": {7, 8}}}
+	right := models.BinaryVault{Labels: &map[string][]byte{"second": {7, 8}}}
+	if left.Equal(right) {
+		t.Error("expected a differing map key to make the vaults unequal")
+	}
+}
+
+// A non-standard base64 byte value is rejected on decode.
+func TestBhvSerializationobject207_ObjectSerializer_Deserialize_NonStandardBase64IsRejected(t *testing.T) {
+	t.Parallel()
+	for _, text := range []string{"dGVzdA", "dGVz dA==", "-_8=", "!!!!"} {
+		var vault models.BinaryVault
+		err := deserialize([]byte(`{"seal":"`+text+`"}`), &vault)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", text, err, err)
+		}
+	}
+}
+
+// Hostile enum wire strings are written exactly and decode back to their member.
+func TestBhvSerializationobject208_ObjectSerializer_HostileEnumWireValuesRoundTripExactly(t *testing.T) {
+	t.Parallel()
+	members := []models.Availability{models.AvailabilityOclock, models.AvailabilityAB, models.AvailabilityEq, models.AvailabilityX}
+	for _, member := range members {
+		want, err := json.Marshal(string(member))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		got, err := serialize(member)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(got) != string(want) {
+			t.Errorf("expected the wire string %s, got %s", want, got)
+		}
+		var back models.Availability
+		if err := deserialize(got, &back); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if back != member {
+			t.Errorf("expected %q to decode back, got %q", member, back)
+		}
+	}
+}
+
+// A copy of a model replaces only the given field and leaves the original as it was.
+func TestBhvSerializationobject209_ObjectSerializer_Copy_ReplacesOnlyTheGivenField(t *testing.T) {
+	t.Parallel()
+	id := int64(7)
+	name := "Dogs"
+	original := models.Category{Id: &id, Name: &name}
+	copied := original.WithName("Cats")
+	if copied.Name == nil || *copied.Name != "Cats" {
+		t.Errorf("expected the copy renamed to Cats, got %v", copied.Name)
+	}
+	if copied.Id == nil || *copied.Id != 7 {
+		t.Errorf("expected the copy to keep id 7, got %v", copied.Id)
+	}
+	if original.Name == nil || *original.Name != "Dogs" {
+		t.Errorf("expected the original to stay Dogs, got %v", original.Name)
+	}
+}
+
+// A sub-0.0001s or negative duration is written as plain decimal digits.
+func TestBhvSerializationobject212_ObjectSerializer_Stringify_SmallAndNegativeDurationsAreNotScientific(t *testing.T) {
+	t.Parallel()
+	cases := map[time.Duration]string{
+		10 * time.Microsecond:  "0.000010s",
+		time.Nanosecond:        "0.000000001s",
+		-10 * time.Microsecond: "-0.000010s",
+	}
+	for d, want := range cases {
+		if got := stringify(models.Duration(d)); got != want {
+			t.Errorf("expected %s for %v, got %s", want, d, got)
+		}
+	}
+}
+
+// A required nullable property that has a value is written as given.
+func TestBhvSerializationobject218_ObjectSerializer_Serialize_RequiredNullableWithAValueIsWrittenAsGiven(t *testing.T) {
+	t.Parallel()
+	note := "x"
+	data, err := serialize(models.RequiredNullable{Note: &note})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != `{"note":"x"}` {
+		t.Errorf("expected the value written as given, got %s", data)
+	}
+}
+
+// A time value keeps its milliseconds when it is written.
+func TestBhvSerializationobject219_ObjectSerializer_Stringify_KeepsTheMilliseconds(t *testing.T) {
+	t.Parallel()
+	at := time.Date(2024, 1, 1, 9, 0, 0, 250000000, time.UTC)
+	if got := stringify(at); !strings.Contains(got, "T09:00:00.250") {
+		t.Errorf("expected the milliseconds kept, got %s", got)
+	}
+}
+
+// Each base64 element of a byte array decodes to its raw bytes.
+func TestBhvSerializationobject221_ObjectSerializer_Deserialize_EachBase64ShardDecodesToRawBytes(t *testing.T) {
+	t.Parallel()
+	var vault models.BinaryVault
+	if err := deserialize([]byte(`{"shards":["AQID","/wCA"]}`), &vault); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if vault.Shards == nil || len(*vault.Shards) != 2 {
+		t.Fatalf("expected two shards, got %v", vault.Shards)
+	}
+	shards := *vault.Shards
+	if string(shards[0]) != string([]byte{1, 2, 3}) {
+		t.Errorf("expected the first shard as raw bytes, got %v", shards[0])
+	}
+	if string(shards[1]) != string([]byte{255, 0, 128}) {
+		t.Errorf("expected the second shard as raw bytes, got %v", shards[1])
+	}
+}
+
+// Each raw byte element of an array is written as base64 in the wire array.
+func TestBhvSerializationobject222_ObjectSerializer_Serialize_EachByteShardIsWrittenAsBase64(t *testing.T) {
+	t.Parallel()
+	first := []byte{1, 2, 3}
+	second := []byte{255, 0, 128}
+	shards := [][]byte{first, second}
+	data, err := serialize(models.BinaryVault{Shards: &shards})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"shards":["AQID","/wCA"]`) {
+		t.Errorf("expected each shard written as base64, got %s", data)
+	}
+}
+
+// The content cookie value is the serializer's JSON, percent encoded.
+func TestBhvSerializationobject224_ObjectSerializer_EncodeContentCookieValue_IsTheJSONPercentEncoded(t *testing.T) {
+	t.Parallel()
+	name := "a b"
+	raw, err := serialize(models.Category{Name: &name})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := encodeContentCookieValue(raw); got != "%7B%22name%22%3A%22a%20b%22%7D" {
+		t.Errorf("expected the JSON percent encoded, got %s", got)
 	}
 }
