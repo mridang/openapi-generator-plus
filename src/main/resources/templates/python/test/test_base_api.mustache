@@ -1292,6 +1292,15 @@ class TestBodySerialization:
         assert client.captured_body is parts
         assert client.captured_headers['Content-Type'] == declared
 
+    async def test_bhv_misc_179_a_form_urlencoded_body_sends_its_content_type(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'))
+
+        await stub.call('POST', '/test/echo', {}, {}, {'name': 'alice'},
+                        ['application/json'], 'application/x-www-form-urlencoded', None)
+
+        assert client.captured_headers['Content-Type'] == 'application/x-www-form-urlencoded'
+
     async def test_bhv_misc_178_a_declared_multipart_content_type_reaches_the_transport_unchanged(self) -> None:
         client = CapturingApiClient()
         stub = StubApi(api_client=client, config=Configuration(base_url='http://localhost'))
@@ -2948,9 +2957,11 @@ class _ScriptedPool:
     def __init__(self, *replies: Any) -> None:
         self.replies = list(replies)
         self.calls = 0
+        self.seen_headers: list[Any] = []
 
     def request(self, *args: Any, **kwargs: Any) -> Any:
         self.calls += 1
+        self.seen_headers.append(kwargs.get('headers'))
         reply = self.replies.pop(0)
         if isinstance(reply, BaseException):
             raise reply
@@ -3118,6 +3129,26 @@ class TestRetryOutcomesAndBodyReplay:
             await api_post_text(_pool_api(pool), '{"a":1}')
 
         assert pool.calls == 1
+
+    async def test_bhv_misc_181_a_header_value_is_sent_exactly_as_serialised_without_percent_encoding(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(_OK)
+        api = _retry_api(server)
+
+        await api.call('GET', '/x', {}, {'X-Raw': 'a b%20c/d'}, None, ['application/json'], 'application/json', None)
+
+        assert server.requests[0]['x-raw'] == 'a b%20c/d'
+
+    async def test_bhv_misc_182_removing_a_header_matches_every_spelling_of_its_name(self) -> None:
+        for spelling in ('Authorization', 'authorization', 'AUTHORIZATION'):
+            pool = _ScriptedPool(_FakeResponse(302, {'location': 'https://other.example.test/'}), _FakeResponse(200, {}, b'{}'))
+            api = _pool_api(pool, max_retries=0)
+
+            await api.call('GET', '/x', {}, {spelling: 'Bearer secret'}, None, ['application/json'], 'application/json', None)
+
+            sent = {str(name).lower() for name in pool.seen_headers[1]}
+            assert 'authorization' not in sent, spelling
 
 
 async def api_post_text(api: StubApi, text: str) -> Any:
