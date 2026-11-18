@@ -824,3 +824,103 @@ async fn test_bhv_authoauthtwoauthcode_032_code_exchange_body_uses_the_fixed_par
         client.last_body().expect("should have body")
     );
 }
+
+/// The authorization URL separates scopes with `%20` and never with a plus sign.
+#[tokio::test]
+async fn test_bhv_auth_014_authorization_url_separates_scopes_with_percent_20() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(url.contains("scope=read%20write"), "{}", url);
+    assert!(!url.contains('+'), "{}", url);
+}
+
+/// The authorization URL lists its parameters in one fixed order on every build.
+#[tokio::test]
+async fn test_bhv_auth_019_authorization_url_lists_its_parameters_in_one_order() {
+    let auth = create_authenticator();
+
+    let url = auth.build_authorization_url("s");
+    let query = url.split_once('?').expect("a query string").1;
+    let names: Vec<&str> = query
+        .split('&')
+        .map(|pair| pair.split('=').next().unwrap_or(""))
+        .collect();
+
+    assert_eq!(
+        vec![
+            "response_type",
+            "client_id",
+            "redirect_uri",
+            "scope",
+            "state",
+            "code_challenge",
+            "code_challenge_method"
+        ],
+        names,
+        "{}",
+        url
+    );
+}
+
+/// The PKCE verifier is sent with the first successful exchange and never with a refresh.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_020_the_verifier_is_sent_only_with_the_first_exchange() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(
+        r#"{"access_token":"tok2","refresh_token":"ref2","expires_in":3600}"#,
+        200,
+    );
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    let _ = auth.build_authorization_url("s");
+
+    auth.exchange_code("auth-code-xyz")
+        .await
+        .expect("should succeed");
+    let exchange_body = client.last_body().expect("should have body");
+    assert!(
+        exchange_body.contains("code_verifier="),
+        "{}",
+        exchange_body
+    );
+
+    assert!(auth.invalidate_access_token().await);
+    auth.try_auth_headers()
+        .await
+        .expect("the refresh grant succeeds");
+    let refresh_body = client.last_body().expect("should have body");
+    assert!(
+        refresh_body.contains("grant_type=refresh_token"),
+        "{}",
+        refresh_body
+    );
+    assert!(!refresh_body.contains("code_verifier"), "{}", refresh_body);
+}
+
+/// A failed first exchange records no session, so the code is still reported as not exchanged.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_028_a_failed_first_exchange_leaves_the_session_unexchanged() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("auth-code-xyz")
+        .await
+        .expect_err("the exchange is rejected");
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("no session was recorded");
+
+    assert_eq!(
+        err.downcast_ref::<OAuth2AuthorizationCodeError>(),
+        Some(&OAuth2AuthorizationCodeError::CodeNotExchanged)
+    );
+}

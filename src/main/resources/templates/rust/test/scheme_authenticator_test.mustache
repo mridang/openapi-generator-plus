@@ -1,6 +1,7 @@
 {{>api_info}}
 
 use {{packageName}}::auth::Authenticator;
+use {{packageName}}::auth::BearerAuthenticator;
 use {{packageName}}::ConfigurationError;
 
 /* F862: every per-scheme authenticator reads its credentials from the
@@ -36,6 +37,12 @@ fn invalid_argument_text<T>(result: Result<T, ConfigurationError>) -> String {
         Err(other) => panic!("expected InvalidArgument, got {:?}", other),
         Ok(_) => panic!("expected InvalidArgument, got an authenticator"),
     }
+}
+#[test]
+fn test_bhv_auth_007_a_generic_authenticator_built_without_credentials_reads_no_environment() {
+    with_variables(&[("AUTH_UNREAD_TOKEN", Some("value-that-must-not-be-read"))], || {
+        assert!(BearerAuthenticator::new("https://api.example.com", "").is_err());
+    });
 }
 {{#perSchemeAuthEntries}}
 
@@ -75,6 +82,20 @@ mod {{module}} {
         let unusable: Vec<(&str, Option<&str>)> = vec![{{#envParams}}("{{envName}}", Some("bad\r\nvalue")), {{/envParams}}];
         with_variables(&unusable, || {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_auth_003_an_empty_environment_value_counts_as_unset_and_the_next_source_is_used() {
+        with_variables(&empty_all(), || {
+            assert!({{className}}::new({{{explicitArgs}}}).is_ok());
+        });
+    }
+
+    #[test]
+    fn test_bhv_auth_004_built_with_no_argument_and_no_environment_is_refused() {
+        with_variables(&unset_all(), || {
+            assert!({{className}}::new({{{bareArgs}}}).is_err());
         });
     }
 {{/explicitWinsOnce}}
@@ -275,6 +296,16 @@ mod {{module}} {
         );
     }
 
+{{#bearerIdOnce}}
+    #[test]
+    fn test_bhv_auth_023_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
+        with_variables(&set_all(), || {
+            let text = invalid_argument_text({{className}}::new("https://api.example.com", Some("")));
+            assert!(!text.contains("{{firstEnvName}}"), "{}", text);
+        });
+    }
+{{/bearerIdOnce}}
+{{^bearerIdOnce}}
     #[test]
     fn test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
         with_variables(&set_all(), || {
@@ -282,6 +313,7 @@ mod {{module}} {
             assert!(!text.contains("{{firstEnvName}}"), "{}", text);
         });
     }
+{{/bearerIdOnce}}
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_a_token_provider_is_called_for_every_request() {
