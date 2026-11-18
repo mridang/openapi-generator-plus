@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import {{invokerPackage}}.ApiClient;
 import {{invokerPackage}}.ApiHttpResponse;
@@ -748,5 +749,82 @@ class OpenIdConnectAuthenticatorTest {
         assertEquals("Bearer at2", auth.getAuthHeaders().get("Authorization"));
         assertEquals("refresh_token", formField(posts.get(1), "grant_type"));
         assertEquals("rt", formField(posts.get(1), "refresh_token"));
+    }
+
+    @Test
+    void bhvMisc070ADiscoveryDocumentThatIsNotAnObjectKeepsNoCauseAndHidesItsBody() {
+        ApiClient client = (method, url, headers, body) ->
+                new ApiHttpResponse(200, "[\"leaked-body\"]", Map.of());
+
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        SerializationException ex = assertThrowsExactly(
+                SerializationException.class,
+                () -> auth.buildAuthorizationUrl(null));
+        assertEquals("OIDC discovery document is not a JSON object", ex.getMessage());
+        assertNull(ex.getCause());
+        assertFalse(ex.getMessage().contains("leaked-body"));
+    }
+
+    @Test
+    void bhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce() {
+        ApiClient client = (method, url, headers, body) -> new ApiHttpResponse(200,
+                "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                Map.of());
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+
+        String url = auth.buildAuthorizationUrl("s");
+        String query = url.substring(url.indexOf('?') + 1);
+
+        assertEquals("S256", formField(query, "code_challenge_method"));
+        assertTrue(java.util.Objects.requireNonNull(formField(query, "code_challenge"))
+                .matches("[A-Za-z0-9_-]{43}"), url);
+        assertFalse(query.contains("nonce"), url);
+    }
+
+    @Test
+    void bhvMisc076ACallDuringTheCodeExchangeReusesTheDiscoveredConfiguration() throws Exception {
+        var gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        var gate = new java.util.concurrent.CountDownLatch(1);
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        ApiClient client = (method, url, headers, body) -> {
+            if ("GET".equals(method)) {
+                gets.incrementAndGet();
+                return new ApiHttpResponse(200,
+                        "{\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                                + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                        Map.of());
+            }
+            entered.countDown();
+            try {
+                gate.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+            return new ApiHttpResponse(200,
+                    "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}", Map.of());
+        };
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+        auth.buildAuthorizationUrl("s");
+
+        Thread exchange = new Thread(() -> {
+            try {
+                auth.exchangeCode("oidc-code");
+            } catch (ApiException e) {
+                throw new IllegalStateException(e);
+            }
+        });
+        exchange.start();
+        assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+        String url = auth.buildAuthorizationUrl("s");
+        gate.countDown();
+        exchange.join(5000);
+
+        assertEquals(1, gets.get(), "the call during the exchange reused the discovered configuration");
+        assertTrue(url.contains("code_challenge="), url);
     }
 }

@@ -3876,3 +3876,21 @@ class TestEnumMemberNames:
             .name
             == "Last"
         )
+
+
+class TestStringDefaultAndCollectionCopy:
+    def test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal(
+        self,
+    ) -> None:
+        from petstore_client.models.defaults import Defaults
+
+        filled = ObjectSerializer().deserialize("{}", Defaults)
+        assert filled.greeting == 'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b'
+
+    def test_bhv_misc_139_a_collection_passed_into_a_model_is_copied(self) -> None:
+        from petstore_client.models.binary_vault import BinaryVault
+
+        source = [b"\x04\x05"]
+        vault = BinaryVault(seal=b"\x01", shards=source)
+        source.append(b"\x06")
+        assert vault.shards == [b"\x04\x05"]
