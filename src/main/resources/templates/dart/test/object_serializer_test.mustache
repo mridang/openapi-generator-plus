@@ -55,6 +55,14 @@ void main() {
       );
     });
 
+    test('bhv misc 111 a set of unique strings is written in code point order', () {
+      final wire = wireList<String>(
+        {'pear', 'Apple', 'apple'},
+        {'pear', 'Apple', 'apple'},
+      );
+      expect(wire, ['Apple', 'apple', 'pear']);
+    });
+
     test('bhv misc 113 a string form shows the contents of list, map and byte fields', () {
       final text = BinaryVault(
         seal: Uint8List.fromList([1, 2, 3]),
@@ -2318,6 +2326,83 @@ void main() {
       expect(Priority.number1.value, equals(1));
       expect(Priority.number2.value, equals(2));
       expect(Priority.number3.value, equals(3));
+    });
+
+    test('bhv misc 137 a generated enum lists its declared values and refuses any other', () {
+      expect(Separator.values.map((e) => e.value).toList(),
+          equals([' ', '@@', 'a-b', 'a_b']));
+      expect(() => Separator.fromJson('nope'), throwsArgumentError);
+    });
+
+    test('bhv misc 138 converting an enum member to text yields its wire value', () {
+      expect(Separator.ab.toString(), equals('a-b'));
+      expect(Separator.ab2.toString(), equals('a_b'));
+    });
+
+    test('bhv misc 140 deserializing a model without a required property fails with an error that names it', () {
+      expect(
+        () => Account.fromJson({'id': 7}),
+        throwsA(isA<SerializationException>()
+            .having((e) => e.message, 'message', contains('username'))),
+      );
+    });
+
+    test('bhv misc 141 a model built without a defaulted property holds the default', () {
+      const model = Defaults();
+
+      expect(model.retries, equals(3));
+      expect(model.greeting,
+          equals('it\'s "quoted" \\ back\tslash\nnext \$USD #{x} a*/b'));
+    });
+
+    test('bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries', () {
+      final meta = Metadata.fromJson(<String, dynamic>{'note': 'x', 'owner': 'ann'});
+
+      expect(meta.additionalProperties['note'], equals('x'));
+      expect(meta.additionalProperties.keys.toList(), equals(['note', 'owner']));
+    });
+
+    test('bhv misc 143 a copy keeps the additional properties and compares equal to the original', () {
+      final original = Metadata.fromJson(<String, dynamic>{'customField': 'a'});
+      final copy = original.copyWith();
+
+      expect(copy.additionalProperties, equals({'customField': 'a'}));
+      expect(copy, equals(original));
+    });
+
+    test('bhv misc 144 validating a model refuses a string given for a numeric field', () {
+      expect(
+        () => deserialize<Defaults>('{"retries":"3"}', Defaults.fromJson),
+        throwsA(isA<SerializationException>()),
+      );
+    });
+
+    test('bhv misc 147 a nested model is shared, not cloned, by a copy', () {
+      const error = ModelError(code: 1);
+      const original = EdgeCases(lastError: error);
+
+      expect(original.copyWith(cutoff: 'later').lastError, same(error));
+    });
+
+    test('bhv misc 148 the copy serializes like the original with the change applied', () {
+      final copy = const Category(id: 1, name: 'Dogs').copyWith(name: 'Cats');
+
+      expect(jsonDecode(serialize(copy)), equals({'id': 1, 'name': 'Cats'}));
+    });
+
+    test('bhv misc 150 a model is equal to itself', () {
+      const category = Category(id: 1, name: 'Dogs');
+
+      expect(category, equals(category));
+    });
+
+    test('bhv misc 151 a model holding a map compares equal when the maps hold the same entries and unequal when any entry differs', () {
+      final first = Metadata.fromJson(<String, dynamic>{'a': '1', 'b': '2'});
+      final same = Metadata.fromJson(<String, dynamic>{'a': '1', 'b': '2'});
+      final differs = Metadata.fromJson(<String, dynamic>{'a': '1', 'b': '3'});
+
+      expect(first, equals(same));
+      expect(first, isNot(equals(differs)));
     });
 
     test('bhv models 024 a newly built model leaves its optional properties unset', () {

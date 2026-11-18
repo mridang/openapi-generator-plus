@@ -48,6 +48,50 @@ internal data class MetadataHolder(
     val byKey: Map<String, com.example.petstore.models.Metadata>? = null,
 )
 
+@Serializable
+internal data class DecimalAmountHolder(
+    @Serializable(with = StringDecimalSerializer::class)
+    @SerialName("amount")
+    val amount: java.math.BigDecimal,
+)
+
+@Serializable
+internal data class WireNamedHolder(
+    @SerialName("owner_id")
+    val ownerId: Long? = null,
+)
+
+@Serializable
+internal data class BytesHolder(
+    @SerialName("blob")
+    val blob: ByteArray,
+)
+
+@Serializable
+internal data class EmailHolder(
+    @SerialName("contact")
+    val contact: String,
+)
+
+@Serializable
+internal data class OrderHolder(
+    @SerialName("order")
+    val order: com.example.petstore.models.Order? = null,
+)
+
+@Serializable
+internal data class UniqueHolder(
+    @SerialName("tags")
+    val tags: Set<String>,
+)
+
+@Serializable
+internal data class DayHolder(
+    @SerialName("day")
+    @Contextual
+    val day: LocalDate,
+)
+
 class ObjectSerializerTest {
     private val serializer = ObjectSerializer()
 
@@ -3498,6 +3542,182 @@ class ObjectSerializerTest {
         fun hostileDescriptionStaysAComment() {
             val source = modelSource("Tier")
             assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n    @SerialName(\"l\")"))
+        }
+    }
+
+    @Nested
+    @DisplayName("wire forms and key matching")
+    inner class WireFormAndKeyTests {
+        @Test
+        @DisplayName("bhvMisc085 a UUID that is not in canonical form is refused with a type error")
+        fun bhvMisc085NonCanonicalUuidIsRefused() {
+            assertThrows(IllegalArgumentException::class.java) {
+                Uuid.parse("550e8400-e29b-41d4-a716-44665544000")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<UuidHolder>("{\"id\":\"550e8400-e29b-41d4-a716-44665544000\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc086 a list element that holds JSON text is written as a string, not decoded again")
+        fun bhvMisc086JsonTextElementIsNotDecodedTwice() {
+            assertEquals("[\"{\\\"a\\\":1}\"]", serializer.serialize(listOf("{\"a\":1}")))
+        }
+
+        @Test
+        @DisplayName("bhvMisc087 a decimal in a loosely built body is written as a bare JSON number")
+        fun bhvMisc087LooselyBuiltDecimalIsBareNumber() {
+            val json = serializer.serialize(mapOf("amount" to java.math.BigDecimal("12.50")))
+            assertTrue(json.contains("\"amount\":12.50"), "got: $json")
+        }
+
+        @Test
+        @DisplayName("bhvMisc088 a decimal decoded from text keeps the decimal places it was written with")
+        fun bhvMisc088DecodedDecimalKeepsItsScale() {
+            val holder = serializer.deserialize<DecimalAmountHolder>("{\"amount\":\"12.50\"}")
+            assertEquals(2, holder!!.amount.scale())
+        }
+
+        @Test
+        @DisplayName("bhvMisc089 a date-time is written in canonical form inside a list, set and map")
+        fun bhvMisc089DateTimeCanonicalInsideCollections() {
+            val at = OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, ZoneOffset.UTC)
+            val canonical = "\"2024-01-15T10:30:00.000Z\""
+            assertTrue(serializer.serialize(listOf(at)).contains(canonical))
+            assertTrue(serializer.serialize(setOf(at)).contains(canonical))
+            assertTrue(serializer.serialize(mapOf("k" to at)).contains(canonical))
+        }
+
+        @Test
+        @DisplayName("bhvMisc092 properties are matched only by their wire name, never by the attribute name")
+        fun bhvMisc092PropertiesMatchOnlyByWireName() {
+            val byWireName = serializer.deserialize<WireNamedHolder>("{\"owner_id\":5}")
+            assertEquals(5L, byWireName!!.ownerId)
+            val byAttributeName = serializer.deserialize<WireNamedHolder>("{\"ownerId\":5}")
+            assertNull(byAttributeName!!.ownerId)
+        }
+
+        @Test
+        @DisplayName("bhvMisc093 additional properties with numeric names are written as JSON object members")
+        fun bhvMisc093NumericAdditionalPropertiesAreObjectMembers() {
+            val alone = serializer.serialize(serializer.deserialize<com.example.petstore.models.Metadata>("{\"1\":\"x\"}"))
+            assertTrue(alone.contains("\"1\":\"x\""), "got: $alone")
+            val beside =
+                serializer.serialize(
+                    serializer.deserialize<com.example.petstore.models.Metadata>("{\"createdAt\":\"2024-01-01T00:00:00Z\",\"2\":\"y\"}"),
+                )
+            assertTrue(beside.contains("\"2\":\"y\""), "got: $beside")
+            assertTrue(beside.contains("\"createdAt\""), "got: $beside")
+        }
+    }
+
+    @Nested
+    @DisplayName("duration wire form")
+    inner class DurationWireFormTests {
+        @Test
+        @DisplayName("bhvMisc090 a duration writes its fractional seconds in the protobuf-style wire form")
+        fun bhvMisc090DurationWritesFractionalSecondsOnTheWire() {
+            val json = serializer.serialize(mapOf("wait" to java.time.Duration.ofMillis(1500)))
+            assertTrue(json.contains("\"wait\":\"1.500s\""), "got: $json")
+        }
+    }
+
+    @Nested
+    @DisplayName("model copies, collections and key matching")
+    inner class ModelCopyAndCollectionTests {
+        @Test
+        @DisplayName("bhvMisc102 a binary field keeps exactly the bytes it was given through copying")
+        fun bhvMisc102BinaryFieldKeepsItsBytes() {
+            val bytes = byteArrayOf(0, 1, -1, 127)
+            assertArrayEquals(bytes, BytesHolder(bytes).copy().blob)
+        }
+
+        @Test
+        @DisplayName("bhvMisc103 rejecting undeclared keys on one strict model leaves other models accepting them")
+        fun bhvMisc103StrictRejectionIsPerModel() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<ContextualStrict>("{\"ts\":\"2024-01-15T10:30:00Z\",\"extra\":1}")
+            }
+            assertNotNull(serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc104 a string field declared with the email format decodes without being validated")
+        fun bhvMisc104EmailFormatIsNotValidated() {
+            val holder = serializer.deserialize<EmailHolder>("{\"contact\":\"not-an-address\"}")
+            assertEquals("not-an-address", holder!!.contact)
+        }
+
+        @Test
+        @DisplayName("bhvMisc106 a null element in an array body keeps its position when serialized")
+        fun bhvMisc106NullArrayElementKeepsPosition() {
+            assertEquals("[\"a\",null,\"b\"]", serializer.serialize(listOf("a", null, "b")))
+        }
+
+        @Test
+        @DisplayName("bhvMisc109 decoding an object validates its nested objects with the same rules")
+        fun bhvMisc109NestedObjectIsValidated() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<OrderHolder>("{\"order\":{\"quantity\":1.5}}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc110 a date that is not a calendar date is refused with a serialization error")
+        fun bhvMisc110ImpossibleCalendarDateIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<DayHolder>("{\"day\":\"2024-02-30\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc111 a collection of unique strings is written in code point order")
+        fun bhvMisc111UniqueStringsAreWrittenSorted() {
+            assertEquals("[\"a\",\"b\"]", serializer.serialize(setOf("b", "a")))
+        }
+
+        @Test
+        @DisplayName("bhvMisc112 decoding an array that must be unique keeps one copy of each repeated element")
+        fun bhvMisc112RepeatedElementsCollapseToOne() {
+            val holder = serializer.deserialize<UniqueHolder>("{\"tags\":[\"a\",\"a\",\"b\"]}")
+            assertEquals(2, holder!!.tags.size)
+        }
+
+        @Test
+        @DisplayName("bhvMisc115 serializing a bare string yields a quoted JSON string")
+        fun bhvMisc115BareStringIsQuoted() {
+            assertEquals("\"hi\"", serializer.serialize("hi"))
+        }
+
+        @Test
+        @DisplayName("bhvMisc117 serializing an absent value writes the JSON literal null")
+        fun bhvMisc117AbsentValueIsNull() {
+            assertEquals("null", serializer.serialize(null))
+        }
+
+        @Test
+        @DisplayName("bhvMisc118 the exact-case property is decoded when a differently cased duplicate is present")
+        fun bhvMisc118ExactCaseKeyWins() {
+            val holder = serializer.deserialize<WireNamedHolder>("{\"owner_id\":5,\"OWNER_ID\":9}")
+            assertEquals(5L, holder!!.ownerId)
+        }
+
+        @Test
+        @DisplayName("bhvMisc119 two keys that differ only by an escape sequence are one key, and the last value wins")
+        fun bhvMisc119EscapedKeyMatchesAndLastValueWins() {
+            val holder = serializer.deserialize<WireNamedHolder>("{\"owner_id\":5,\"owner\\u005fid\":9}")
+            assertEquals(9L, holder!!.ownerId)
+        }
+    }
+
+    @Nested
+    @DisplayName("object without a declared schema")
+    inner class UndeclaredObjectTests {
+        @Test
+        @DisplayName("bhvMisc121 an object with no declared schema is written as a JSON object of its properties")
+        fun bhvMisc121UndeclaredObjectIsWrittenAsJsonObject() {
+            assertEquals("{\"k\":\"v\"}", serializer.serialize(mapOf("k" to "v")))
         }
     }
 }

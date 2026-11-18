@@ -264,6 +264,31 @@ describe("BearerAuthenticator", () => {
       });
     });
 
+    it("bhv misc 194 a provider token is sent under the same Bearer prefix rule as a static token", async () => {
+      for (const token of [
+        "bearer abc",
+        "BEARER xyz",
+        "Bearer Bearer xyz",
+        "bearerxyz",
+      ]) {
+        const fromStatic = new BearerAuthenticator(
+          "https://api.example.com",
+          token,
+        ).getAuthHeaders();
+        const fromProvider = await new BearerAuthenticator(
+          "https://api.example.com",
+          () => token,
+        ).getAuthHeadersAsync();
+        expect(fromProvider).toEqual(fromStatic);
+      }
+    });
+
+    it("bhv misc 204 a missing bearer token fails at construction, before any request is made", () => {
+      delete process.env[variable];
+      expect(() => new BearerAuthenticator("https://api.example.com")).toThrow(
+        TypeError,
+      );
+    });
     it("bhv langnode 030 a provider may return a promise", async () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
@@ -483,5 +508,12 @@ describe("BearerAuthenticator token provider results", () => {
       throw failure;
     });
     await expect(auth.getAuthHeadersAsync()).rejects.toBe(failure);
+  });
+});
+
+describe("BearerAuthenticator misc behaviours", () => {
+  it("bhv misc 174 a bearer token containing a line break is refused on use", () => {
+    const auth = new BearerAuthenticator("https://api.example.com", "abc\ndef");
+    expect(() => auth.getAuthHeaders()).toThrow();
   });
 });

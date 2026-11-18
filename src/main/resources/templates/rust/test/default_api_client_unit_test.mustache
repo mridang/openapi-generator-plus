@@ -3448,3 +3448,39 @@ async fn test_bhv_misc_054_per_call_headers_are_copied_so_later_changes_do_not_r
     let head = head.recv().expect("no request captured");
     assert_eq!(Some("one".to_string()), head_header(&head, "x-trace"), "{}", head);
 }
+
+#[tokio::test]
+async fn test_bhv_misc_126_a_head_request_redirected_by_303_is_followed_as_head() {
+    let (base_url, head) = start_redirect_server(303);
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    client
+        .send_request("HEAD", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no follow-up request captured");
+    assert!(head.starts_with("HEAD /next "), "{}", head);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_133_a_300_or_305_response_is_returned_as_it_is_even_with_a_location() {
+    for status in [300u16, 305] {
+        let (base_url, head) = start_redirect_server(status);
+        let transport = TransportOptionsBuilder::new()
+            .follow_redirects(true)
+            .build().expect("valid transport options");
+        let client = DefaultApiClient::new(Some(transport));
+
+        let response = client
+            .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+            .await
+            .expect("unexpected error");
+
+        assert_eq!(status, response.status_code());
+        assert!(head.recv_timeout(std::time::Duration::from_millis(300)).is_err(), "status {} was followed", status);
+    }
+}

@@ -111,6 +111,42 @@ defmodule {{moduleName}}.ComposedSchemaTest do
       assert Jason.decode!({{moduleName}}.ObjectSerializer.serialize(wrapped))["foodType"] == "dry"
     end
 
+  test "bhv unions 047 an empty discriminator value raises a SerializationError with a message rather than falling through" do
+    err =
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(~s({"foodType":"","weightKg":2.5}), "PetFood")
+      end
+
+    assert err.message != ""
+  end
+
+  test "bhv unions 044 each variant has a typed factory and a typed predicate that identify the variant it was built from" do
+    dry = %{{moduleName}}.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+    wet = %{{moduleName}}.Models.WetFood{volume_ml: 400}
+
+    assert {{moduleName}}.Models.PetFood.dry_food?({{moduleName}}.Models.PetFood.from_dry_food(dry))
+    refute {{moduleName}}.Models.PetFood.wet_food?({{moduleName}}.Models.PetFood.from_dry_food(dry))
+    assert {{moduleName}}.Models.PetFood.wet_food?({{moduleName}}.Models.PetFood.from_wet_food(wet))
+    refute {{moduleName}}.Models.PetFood.dry_food?({{moduleName}}.Models.PetFood.from_wet_food(wet))
+  end
+
+  test "bhv unions 045 union values built from the same data compare equal whether decoded or built by a factory" do
+    json = ~s({"foodType":"dry","weightKg":2.5})
+    built = {{moduleName}}.Models.PetFood.from_dry_food(%{{moduleName}}.Models.DryFood{weight_kg: 2.5, food_type: "dry"})
+
+    assert {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood") == {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+    assert built == {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood")
+  end
+
+    test "bhv misc 292 serializing a union value emits the bare variant payload with no wrapper envelope" do
+      dry = %{{moduleName}}.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wrapped = {{moduleName}}.Models.PetFood.from_dry_food(dry)
+      json = {{moduleName}}.ObjectSerializer.serialize(wrapped)
+
+      assert Jason.decode!(json) == %{"foodType" => "dry", "weightKg" => 2.5}
+      assert {{moduleName}}.ObjectSerializer.deserialize(json, "PetFood") == wrapped
+    end
+
     test "bhv unions 033 an unknown, missing or empty discriminator fails with the SDK's serialization error" do
       for json <- [
             ~s({"foodType":"raw","calories":300}),

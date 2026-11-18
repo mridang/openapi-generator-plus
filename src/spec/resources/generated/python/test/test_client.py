@@ -225,6 +225,19 @@ class TestClientCredentials:
                 "https://arg.example.com", "arg-token", token_provider=lambda: "live"
             )
 
+    def test_bhv_misc_187_a_client_built_without_host_or_token_takes_both_from_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "https://env.example.com"
+        )
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
+
+        client = Client()
+
+        assert _host(client) == "https://env.example.com"
+        assert _authorization(client) == "Bearer env-token"
+
 
 class TestClientSchemeCredentials:
     """F857: one optional credential per security scheme, named after the scheme."""
@@ -243,6 +256,15 @@ class TestClientSchemeCredentials:
         )
 
         assert _host(client) == "https://default.example.com"
+
+    def test_bhv_misc_206_a_client_built_with_only_a_default_authenticator_takes_its_host(
+        self,
+    ) -> None:
+        client = Client(
+            authenticator=BearerAuthenticator("https://only-default.example.com", "tok")
+        )
+
+        assert _host(client) == "https://only-default.example.com"
 
     def test_bhv_lifecycle_015_the_client_takes_one_keyword_argument_per_security_scheme(
         self,
@@ -599,6 +621,20 @@ class TestClientClose:
 
         assert pool.clears == 1
 
+    async def test_bhv_misc_184_close_returns_without_waiting_for_a_running_request(
+        self,
+    ) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        request = asyncio.ensure_future(_send(client))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+
+        assert not request.done()
+        pool.finish.set()
+        assert (await request).status_code == 200
+
 
 class _OwnedPool(urllib3.PoolManager):
     cleared = False
@@ -862,3 +898,27 @@ class TestMocking:
         via_protocol.close()
 
         assert fake.closed == 2
+
+
+class TestClientCloseState:
+    def test_bhv_misc_183_closing_a_client_with_nothing_to_release_succeeds(
+        self,
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        client.close()
+
+    def test_bhv_misc_188_a_client_reports_closed_only_after_close(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        before = client._closed
+
+        client.close()
+
+        assert before is False
+        assert client._closed is True
+
+    def test_bhv_misc_203_closing_an_already_closed_client_does_nothing(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        client.close()
+
+        client.close()

@@ -615,6 +615,91 @@ class TestDefaultApiClientUnit:
         body = json.loads(response.body)
         assert "proxy-authorization" not in body["headers"]
 
+    def test_bhv_misc_273_the_request_id_is_a_uuid_v4_when_enabled_and_omitted_when_disabled(
+        self,
+    ) -> None:
+        import uuid
+
+        enabled = DefaultApiClient(
+            TransportOptions.builder().inject_request_id(True).build()
+        )
+        body = json.loads(
+            enabled.send_request("GET", f"{self.base_url}/echo", {}, None).body
+        )
+        assert uuid.UUID(body["headers"]["x-request-id"]).version == 4
+
+        disabled = DefaultApiClient(
+            TransportOptions.builder().inject_request_id(False).build()
+        )
+        body = json.loads(
+            disabled.send_request("GET", f"{self.base_url}/echo", {}, None).body
+        )
+        assert "x-request-id" not in body["headers"]
+
+    def test_bhv_misc_299_a_caller_header_overrides_the_transport_default_of_the_same_role(
+        self,
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        response = client.send_request(
+            "GET", f"{self.base_url}/echo", {"User-Agent": "caller-agent"}, None
+        )
+        assert json.loads(response.body)["headers"]["user-agent"] == "caller-agent"
+
+    def test_bhv_transport_083_cancelling_the_handle_during_a_request_raises_cancelled(
+        self,
+    ) -> None:
+        import urllib3
+        from petstore_client.default_api_client import RequestHandle
+
+        handle = RequestHandle()
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                handle.cancel()
+                raise urllib3.exceptions.ProtocolError("Connection aborted.")
+
+        client = DefaultApiClient(
+            TransportOptions.builder().build(), pool_manager=_Pool()
+        )
+        with pytest.raises(RuntimeError, match="cancelled"):
+            client.send_request("GET", "https://example.com/x", {}, None, handle=handle)
+
+    def test_bhv_transport_085_a_timeout_raises_the_network_timeout_while_an_unfired_handle_is_held(
+        self,
+    ) -> None:
+        import urllib3
+        from petstore_client.default_api_client import RequestHandle
+        from petstore_client.errors import NetworkTimeoutException
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                raise urllib3.exceptions.ReadTimeoutError(
+                    None, "https://example.com/x", "timed out"
+                )
+
+        handle = RequestHandle()
+        client = DefaultApiClient(
+            TransportOptions.builder().build(), pool_manager=_Pool()
+        )
+        with pytest.raises(NetworkTimeoutException):
+            client.send_request("GET", "https://example.com/x", {}, None, handle=handle)
+        assert not handle.cancelled
+
+    def test_bhv_transport_090_repeated_response_headers_keep_every_value(self) -> None:
+        from urllib3._collections import HTTPHeaderDict
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(
+                    200, HTTPHeaderDict([("x-multi", "a"), ("x-multi", "b")])
+                )
+
+        client = DefaultApiClient(
+            TransportOptions.builder().build(), pool_manager=_Pool()
+        )
+        response = client.send_request("GET", "https://example.com/x", {}, None)
+        assert response.headers["x-multi"] == "a, b"
+
 
 class TestCharsetDecoding:
     """Verify response body decoding honors the Content-Type charset."""
@@ -868,6 +953,13 @@ class TestMultipartFilenameSanitization:
             DefaultApiClient()._build_multipart_body(
                 {"upload": UnreadableSource()}, "boundary"
             )
+
+    def test_bhv_serialization_124_a_non_ascii_filename_has_an_ascii_fallback_and_an_rfc5987_form(
+        self,
+    ) -> None:
+        ascii_fallback, rfc5987 = _sanitize_multipart_filename("日本.pdf")
+        assert ascii_fallback.isascii()
+        assert rfc5987 == "UTF-8''%E6%97%A5%E6%9C%AC.pdf"
 
 
 class TestMultipartFieldNameUtf8:
@@ -2320,6 +2412,22 @@ class TestNetworkErrors:
         assert excinfo.value.status_code == 0
         assert isinstance(excinfo.value.__cause__, urllib3.exceptions.MaxRetryError)
 
+    def test_bhv_misc_282_a_dropped_connection_keeps_the_transport_error_as_the_cause(
+        self,
+    ) -> None:
+        import urllib3
+
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                raise urllib3.exceptions.ProtocolError("Connection aborted.")
+
+        client = DefaultApiClient(
+            TransportOptions.builder().max_retries(0).build(), pool_manager=_Pool()
+        )
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert isinstance(excinfo.value.__cause__, urllib3.exceptions.ProtocolError)
+
 
 class TestNetworkErrorMessageKeepsTheQueryOut:
     def test_bhv_errors_078_a_query_parameter_api_key_is_not_copied_into_the_message(
@@ -2423,6 +2531,24 @@ class TestCaCertPathFailsFast:
             ValueError, match='failed to read CA certificate from "/nonexistent/ca.pem"'
         ):
             DefaultApiClient(transport)
+
+    def test_bhv_misc_270_a_missing_ca_file_is_rejected_even_with_verification_disabled(
+        self,
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(False)
+            .ca_cert_path("/nonexistent/ca.pem")
+            .build()
+        )
+        with pytest.raises(ValueError, match="/nonexistent/ca.pem"):
+            DefaultApiClient(transport)
+
+    def test_bhv_misc_298_a_malformed_proxy_url_is_rejected_with_an_invalid_proxy_error(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError):
+            TransportOptions.builder().proxy("ftp://proxy.example.com").build()
 
 
 class TestApiKeyHeaderStrippedOnCrossOrigin:
@@ -2575,6 +2701,40 @@ class TestRedirectToNonHttpScheme:
         with pytest.raises(ApiException):
             client.send_request("GET", "https://example.com/start", {}, None)
         assert redirect.released
+
+    def test_bhv_misc_265_a_non_http_redirect_is_an_api_error_not_a_network_error(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException, NetworkException
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                return _FakeResp(302, {"location": "file:///etc/passwd"})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        client = DefaultApiClient(transport, pool_manager=_Pool())
+        with pytest.raises(ApiException) as excinfo:
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert not isinstance(excinfo.value, NetworkException)
+        assert excinfo.value.status_code == 302
+
+    def test_bhv_misc_285_an_undecodable_content_encoding_is_refused_with_the_exact_message(
+        self,
+    ) -> None:
+        class _Pool:
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                return _FakeResp(200, {"content-encoding": "br"})
+
+        client = DefaultApiClient(
+            TransportOptions.builder().build(), pool_manager=_Pool()
+        )
+        with pytest.raises(ValueError) as excinfo:
+            client.send_request("GET", "https://example.com/x", {}, None)
+        assert str(excinfo.value) == "Unsupported Content-Encoding 'br'"
 
 
 class TestZstdDecompression:

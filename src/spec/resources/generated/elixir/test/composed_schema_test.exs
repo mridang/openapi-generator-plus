@@ -117,6 +117,63 @@ defmodule PetstoreClient.ComposedSchemaTest do
                "dry"
     end
 
+    test "bhv unions 047 an empty discriminator value raises a SerializationError with a message rather than falling through" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(
+            ~s({"foodType":"","weightKg":2.5}),
+            "PetFood"
+          )
+        end
+
+      assert err.message != ""
+    end
+
+    test "bhv unions 044 each variant has a typed factory and a typed predicate that identify the variant it was built from" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wet = %PetstoreClient.Models.WetFood{volume_ml: 400}
+
+      assert PetstoreClient.Models.PetFood.dry_food?(
+               PetstoreClient.Models.PetFood.from_dry_food(dry)
+             )
+
+      refute PetstoreClient.Models.PetFood.wet_food?(
+               PetstoreClient.Models.PetFood.from_dry_food(dry)
+             )
+
+      assert PetstoreClient.Models.PetFood.wet_food?(
+               PetstoreClient.Models.PetFood.from_wet_food(wet)
+             )
+
+      refute PetstoreClient.Models.PetFood.dry_food?(
+               PetstoreClient.Models.PetFood.from_wet_food(wet)
+             )
+    end
+
+    test "bhv unions 045 union values built from the same data compare equal whether decoded or built by a factory" do
+      json = ~s({"foodType":"dry","weightKg":2.5})
+
+      built =
+        PetstoreClient.Models.PetFood.from_dry_food(%PetstoreClient.Models.DryFood{
+          weight_kg: 2.5,
+          food_type: "dry"
+        })
+
+      assert PetstoreClient.ObjectSerializer.deserialize(json, "PetFood") ==
+               PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+
+      assert built == PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+    end
+
+    test "bhv misc 292 serializing a union value emits the bare variant payload with no wrapper envelope" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wrapped = PetstoreClient.Models.PetFood.from_dry_food(dry)
+      json = PetstoreClient.ObjectSerializer.serialize(wrapped)
+
+      assert Jason.decode!(json) == %{"foodType" => "dry", "weightKg" => 2.5}
+      assert PetstoreClient.ObjectSerializer.deserialize(json, "PetFood") == wrapped
+    end
+
     test "bhv unions 033 an unknown, missing or empty discriminator fails with the SDK's serialization error" do
       for json <- [
             ~s({"foodType":"raw","calories":300}),
