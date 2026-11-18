@@ -2042,3 +2042,6 @@ langpython099 | Skills error handling example passes real arguments.
 langpython100 | Zero retries is allowed.
 langpython101 | The options object carries the per call settings.
 langpython102 | Instances differing only in additional properties are not equal.
+langpython103 | Omitting the token url raises.
+langpython104 | Credentials cannot be reassigned.
+langpython105 | A client-credentials OAuth2 authenticator compares by identity, so equal settings never compare equal.
