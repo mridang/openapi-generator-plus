@@ -3386,6 +3386,45 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public async Task BhvMisc152AnAlreadyAbortedCallRejectsWithoutSendingTheRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            cts.Token
+        ));
+        Assert.False(handler.Entered.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task BhvMisc153ACallLevelCancelSignalAbortsTheSameInFlightRequest()
+    {
+        var handler = new SignallingHangingHandler();
+        var client = new DefaultApiClient(new HttpClient(handler));
+        using var callSource = new CancellationTokenSource();
+        Task<ApiHttpResponse> pending = client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/slow"),
+            new Dictionary<string, string>(),
+            null,
+            false,
+            callSource.Token
+        );
+        await handler.Entered.Task;
+        await callSource.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+    }
+
+    [Fact]
     public async Task BhvTransport085TimeoutStaysDistinctFromCancellationWhenATokenIsSupplied()
     {
         var client = new DefaultApiClient(
@@ -4113,6 +4152,213 @@ public class DefaultApiClientUnitTest
             };
             response.Content.Headers.TryAddWithoutValidation("Content-Type", _contentType);
             return Task.FromResult(response);
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc217ABinaryBodyAndAStreamBodyAreSentAsTheirOwnBytes()
+    {
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        _ = await SendGet(client, body: Encoding.UTF8.GetBytes("hello"), method: "POST");
+        _ = await SendGet(client, body: new MemoryStream(Encoding.UTF8.GetBytes("hello")), method: "POST");
+
+        Assert.Equal(new[] { "hello", "hello" }, handler.Bodies);
+    }
+
+    [Fact]
+    public async Task BhvMisc218APerCallHeaderReplacesTheConfiguredHeaderWithoutADuplicate()
+    {
+        HttpRequestMessage? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req;
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions.Builder().DefaultHeader("X-Trace", "configured").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { ["X-Trace"] = "per-call" },
+            null);
+
+        Assert.Equal(new[] { "per-call" }, sent!.Headers.GetValues("X-Trace").ToArray());
+    }
+
+    [Fact]
+    public async Task BhvMisc219AnOperationWithSeveralServersSendsItsRequestToTheChosenServer()
+    {
+        var chosen = Servers.Server1.GetUrl();
+        var handler = new SequenceHandler(_ => Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri(chosen + "/retry"),
+            new Dictionary<string, string>(),
+            null);
+
+        Assert.Equal("GET " + chosen + "/retry", Assert.Single(handler.Requests));
+    }
+
+    [Fact]
+    public async Task BhvMisc220AFullResponseKeepsItsStatusAndItsBodyText()
+    {
+        var client = new DefaultApiClient(
+            CreateMockHttpClient(HttpStatusCode.OK, "{\"label\":\"ok\"}"),
+            TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal("{\"label\":\"ok\"}", response.Body);
+    }
+
+    [Fact]
+    public async Task BhvMisc221ACredentialIsSentInTheApiKeyHeaderAndNeverAsBearer()
+    {
+        string[] apiKeyHeaderNames =
+        [
+            {{#apiKeyHeaderNames}}"{{name}}", {{/apiKeyHeaderNames}}
+        ];
+        string apiKeyHeader = apiKeyHeaderNames[0];
+        HttpRequestMessage? sent = null;
+        var handler = new CapturingHandler(req =>
+        {
+            sent = req;
+            return Task.CompletedTask;
+        });
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string> { [apiKeyHeader] = "secret" },
+            null);
+
+        Assert.Equal("secret", sent!.Headers.GetValues(apiKeyHeader).Single());
+        Assert.Null(sent.Headers.Authorization);
+    }
+
+    [Fact]
+    public async Task BhvMisc222A201WithAnEmptyBodyReturnsNoDataWithoutAnError()
+    {
+        var client = new DefaultApiClient(
+            CreateMockHttpClient(HttpStatusCode.Created, ""),
+            TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(201, response.StatusCode);
+        Assert.Equal("", response.Body);
+    }
+
+    [Fact]
+    public async Task BhvMisc223ASeeOtherFollowUpDropsTheBodyWhileA307ForwardsItUnchanged()
+    {
+        var seeOther = new RedirectingHandler(HttpStatusCode.SeeOther, new Uri("http://origin.example.com/landed"));
+        var seeOtherClient = new DefaultApiClient(new HttpClient(seeOther), TransportOptions.Builder().Build());
+        await SendGet(seeOtherClient, body: "payload", method: "POST");
+
+        Assert.Null(seeOther.Requests[1].Content);
+
+        var temporary = new RedirectingHandler(HttpStatusCode.TemporaryRedirect, new Uri("http://origin.example.com/landed"));
+        var temporaryClient = new DefaultApiClient(new HttpClient(temporary), TransportOptions.Builder().Build());
+        await SendGet(temporaryClient, body: "payload", method: "POST");
+
+        Assert.Equal("payload", Encoding.UTF8.GetString(temporary.Bodies[1]));
+    }
+
+    [Fact]
+    public async Task BhvMisc224ATransportDefaultHeaderIsNotSentToAnotherOriginAfterARedirect()
+    {
+        var handler = new RedirectingHandler(HttpStatusCode.Redirect, new Uri("http://other.example.com/dest"));
+        var transport = TransportOptions.Builder().DefaultHeader("X-Custom", "custom-value").Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await SendGet(client);
+
+        Assert.Equal(2, handler.Requests.Count);
+        Assert.False(handler.Requests[1].Headers.Contains("X-Custom"));
+    }
+
+    [Fact]
+    public async Task BhvMisc225AThreeXxWithoutLocationIsReturnedAsTheFinalResponse()
+    {
+        var handler = new ScriptedRedirectHandler(
+            [(HttpStatusCode.Redirect, null)]);
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(302, response.StatusCode);
+        Assert.Single(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvMisc226AFollowedRedirectReturnsTheFinalOkResponse()
+    {
+        var handler = new RedirectingHandler(HttpStatusCode.Redirect, new Uri("http://origin.example.com/landed"));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc227ADroppedConnectionBeforeAnyResponseIsRetried()
+    {
+        var handler = new DropThenAnswerHandler();
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Attempts);
+    }
+
+    [Fact]
+    public async Task BhvMisc228AnUnparseableRetryAfterIsIgnoredAndTheNormalBackoffIsUsed()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(429, "soon-ish") : Respond(200, null));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().Build());
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvMisc229APerCallMaxRetriesCanRetryWhenTheClientHasNone()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(new HttpClient(handler), TransportOptions.Builder().MaxRetries(0).Build());
+
+        _ = await SendWithCallOptions(client, null, 2);
+
+        Assert.Equal(3, handler.Requests.Count);
+    }
+
+    private sealed class DropThenAnswerHandler : HttpMessageHandler
+    {
+        public int Attempts { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Attempts++;
+            if (Attempts == 1)
+            {
+                throw new HttpRequestException("connection dropped");
+            }
+            return Task.FromResult(Respond(200, null));
         }
     }
 
