@@ -2010,3 +2010,5 @@ langswift065 | A value that construction accepts but that is not an absolute URI
 langswift066 | An integer beyond the 64-bit range is rejected at decode
 langswift067 | A nested array of integers with a wrongly typed element is rejected
 langswift068 | A server configuration description defaults to an empty string
+langswift069 | A server variable stores its default value
+langswift070 | A server variable with an enum default resolves to that default
