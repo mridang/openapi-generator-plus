@@ -2564,3 +2564,16 @@ langnode033 | An asynchronous token provider is refused by the synchronous heade
 langnode034 | Every hook sees the same headers, so a later hook sees an earlier hook's edit
 langnode035 | A failing observer does not stop the other observers
 langnode036 | An error thrown by start propagates unchanged
+langnode037 | A client built with an authenticator, default transport and a client-level signal works
+langnode038 | The client options hand the call hook to every API object
+langnode039 | An operation uses the credential of the scheme its spec names
+langnode040 | A request already running finishes after close
+langnode041 | Generated usage notes import every symbol from the published package
+langnode042 | Generated usage notes import only values the entry point exports
+langnode043 | Generated usage notes show error handling with real arguments
+langnode044 | The generated README documents schema constraints, uniqueItems order and cancellation
+langnode045 | The generated README opens with a quick start that installs the package by name
+langnode046 | The generated README lists the features that are not generated
+langnode047 | The generated docs cancel through the per-call signal only
+langnode048 | The generated docs show how to stub the transport with a canned fetch
+langnode049 | An empty API key is rejected at construction
