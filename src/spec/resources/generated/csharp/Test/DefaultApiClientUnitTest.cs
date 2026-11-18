@@ -5161,6 +5161,206 @@ public class DefaultApiClientUnitTest
         Assert.Equal("aGk=", response.Body);
     }
 
+    private sealed class SlowRedirectHandler : HttpMessageHandler
+    {
+        public int Hops { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken
+        )
+        {
+            Hops++;
+            await Task.Delay(150, cancellationToken);
+            var response = new HttpResponseMessage(HttpStatusCode.Redirect);
+            response.Headers.Location = new Uri("http://origin.example.com/next");
+            return response;
+        }
+    }
+
+    [Fact]
+    public async Task BhvRedirects047ARefusalInOneRequestDoesNotChangeAConcurrentRequest()
+    {
+        var refused = new DefaultApiClient(
+            new HttpClient(
+                new RedirectingHandler(HttpStatusCode.Redirect, new Uri("file:///etc/passwd"))
+            )
+        );
+        var succeeding = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
+
+        var failing = Assert.ThrowsAsync<ApiException>(() => SendGet(refused));
+        var ok = SendGet(succeeding);
+        await Task.WhenAll(failing, ok);
+
+        Assert.Equal(200, (await ok).StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvRedirects054ARedirectChainPastTheTimeoutFailsWithOneBudgetAcrossAllHops()
+    {
+        var handler = new SlowRedirectHandler();
+        var transport = TransportOptions
+            .Builder()
+            .Timeout(300)
+            .MaxRedirects(10)
+            .MaxRetries(0)
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await Assert.ThrowsAnyAsync<NetworkException>(() => SendGet(client));
+
+        Assert.InRange(handler.Hops, 2, 3);
+    }
+
+    [Fact]
+    public async Task BhvRedirects055ARedirectToANonHttpSchemeIsRefusedWithAnError()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.Redirect,
+            new Uri("gopher://example.com/1")
+        );
+        var client = new DefaultApiClient(new HttpClient(handler));
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() => SendGet(client));
+
+        Assert.Contains("Refusing to follow redirect", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvRedirects056AnOptOutRequestSendsNoTransportDefaultHeadersAndTheNextOneSendsThem()
+    {
+        var sent = new List<HttpRequestMessage>();
+        var handler = new CapturingHandler(req =>
+        {
+            sent.Add(req);
+            return Task.CompletedTask;
+        });
+        var transport = TransportOptions
+            .Builder()
+            .DefaultHeader("X-Custom", "custom-value")
+            .Build();
+        var client = new DefaultApiClient(new HttpClient(handler), transport);
+
+        await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null,
+            true,
+            CancellationToken.None
+        );
+        await SendGet(client);
+
+        Assert.False(sent[0].Headers.Contains("X-Custom"));
+        Assert.True(sent[1].Headers.Contains("X-Custom"));
+    }
+
+    [Fact]
+    public async Task BhvRetries046ARequestBodyIsResentUnchangedOn307WhenTheSchemeIsKept()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.TemporaryRedirect,
+            new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        await SendGet(client, body: new byte[] { 1, 2, 3 }, method: "POST");
+
+        Assert.Equal(new byte[] { 1, 2, 3 }, handler.Bodies[1]);
+    }
+
+    [Fact]
+    public async Task BhvRetries047ARetryWaitThatWouldOverrunTheTimeoutIsNotTaken()
+    {
+        var handler = new SequenceHandler(_ => Respond(429, "10"));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+
+        var response = await SendWithCallOptions(client, 300, 5);
+
+        Assert.Equal(429, response.StatusCode);
+        Assert.Single(handler.Requests);
+        Assert.True(
+            watch.Elapsed < TimeSpan.FromSeconds(5),
+            "the overrunning wait must not be taken"
+        );
+    }
+
+    [Fact]
+    public async Task BhvRetries048TheDefaultClientRetriesA503AndReturnsTheLaterSuccess()
+    {
+        var handler = new SequenceHandler(n => n == 0 ? Respond(503, "0") : Respond(200, null));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Equal(2, handler.Requests.Count);
+    }
+
+    [Fact]
+    public async Task BhvRetries049MaxRetriesAllowsThatManyRetriesAfterTheFirstAttempt()
+    {
+        var handler = new SequenceHandler(_ => Respond(503));
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().MaxRetries(4).Build()
+        );
+
+        var response = await SendGet(client);
+
+        Assert.Equal(503, response.StatusCode);
+        Assert.Equal(5, handler.Requests.Count);
+    }
+
+    [Fact]
+    public void BhvRetries050AHttpDateRetryAfterWaitsUntilThatDate()
+    {
+        var now = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var date = now.AddSeconds(30)
+            .ToString("R", System.Globalization.CultureInfo.InvariantCulture);
+
+        Assert.Equal(
+            TimeSpan.FromSeconds(30),
+            DefaultApiClient.RetryDelay(0, Header(date), now, 0)
+        );
+    }
+
+    [Fact]
+    public async Task BhvRetries051ABodyIsRefusedWith307WhenARedirectDowngradesHttpsToHttp()
+    {
+        var handler = new RedirectingHandler(
+            HttpStatusCode.TemporaryRedirect,
+            new Uri("http://origin.example.com/landed")
+        );
+        var client = new DefaultApiClient(
+            new HttpClient(handler),
+            TransportOptions.Builder().Build()
+        );
+
+        var ex = await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://origin.example.com/start"),
+                new Dictionary<string, string>(),
+                new byte[] { 1, 2, 3 },
+                false,
+                CancellationToken.None
+            )
+        );
+
+        Assert.Equal(307, ex.StatusCode);
+    }
+
     private static byte[] GzipBytes(string text)
     {
         using var compressed = new MemoryStream();

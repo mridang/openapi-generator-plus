@@ -874,6 +874,17 @@ public static class ObjectSerializerTest
             Assert.Contains("\"id\":0", json, StringComparison.Ordinal);
             Assert.Contains("\"name\":\"\"", json, StringComparison.Ordinal);
         }
+
+        [Fact]
+        public void BhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeysBesideTheDeclaredFields()
+        {
+            var json = new ObjectSerializer().Serialize(
+                new Freeform { Label = "x", AdditionalProperties = new() { ["extra"] = "y" } });
+
+            using var document = System.Text.Json.JsonDocument.Parse(json);
+            Assert.Equal("x", document.RootElement.GetProperty("label").GetString());
+            Assert.Equal("y", document.RootElement.GetProperty("extra").GetString());
+        }
     }
 
     public class DeserializeTests
@@ -981,6 +992,56 @@ public static class ObjectSerializerTest
             var restored = serializer.Deserialize<List<Freeform>>(serializer.Serialize(original));
 
             Assert.Equal("y", restored!.Single().AdditionalProperties["extra"].ToString());
+        }
+
+        [Fact]
+        public void BhvSerialization068ABuiltModelIsNotValidatedSoBadValuesAreKept()
+        {
+            var model = new Defaults { Retries = -5, Mode = (Defaults.ModeEnum)999, Label = null };
+
+            Assert.Equal(-5, model.Retries);
+            Assert.Equal((Defaults.ModeEnum)999, model.Mode);
+            Assert.Null(model.Label);
+        }
+
+        [Fact]
+        public void BhvSerialization069ASchemaConstraintIsNotEnforcedOnDecode()
+        {
+            var decoded = new ObjectSerializer().Deserialize<Defaults>("{\"retries\":-1,\"label\":\"\"}");
+
+            Assert.Equal(-1, decoded!.Retries);
+        }
+
+        [Fact]
+        public void BhvSerialization070AJsonNullIsAcceptedWhereAFieldIsOptionalAndDecodesToNull()
+        {
+            var decoded = new ObjectSerializer().Deserialize<Defaults>("{\"label\":null}");
+
+            Assert.Null(decoded!.Label);
+        }
+
+        [Fact]
+        public void BhvSerialization072UndeclaredKeysAreSkippedWithoutAnError()
+        {
+            var decoded = new ObjectSerializer().Deserialize<Defaults>(
+                "{\"unknown\":1,\"other\":{\"deep\":[true,null]},\"label\":\"kept\"}");
+
+            Assert.Equal("kept", decoded!.Label);
+        }
+
+        [Fact]
+        public void BhvSerialization074NestedArraysSerializeBackToTheShapeTheyWereDecodedFrom()
+        {
+            var serializer = new ObjectSerializer();
+            var decoded = serializer.Deserialize<List<List<int>>>("[[1,2],[3]]");
+
+            Assert.Equal("[[1,2],[3]]", serializer.Serialize(decoded));
+        }
+
+        [Fact]
+        public void BhvSerialization075AnEnumValueDecodesFromItsWireCasingToTheMember()
+        {
+            Assert.Equal(Availability.OnHold, new ObjectSerializer().Deserialize<Availability>("\"on-hold\""));
         }
     }
 
