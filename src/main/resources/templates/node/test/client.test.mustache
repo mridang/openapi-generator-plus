@@ -58,7 +58,7 @@ describe('{{clientClassName}}', () => {
     expect(client).toBeDefined();
   });
 
-  test('construct with authenticator, default transport and a client-level signal', () => {
+  test('bhv langnode 037 construct with authenticator, default transport and a client-level signal', () => {
     const controller = new AbortController();
 
     const client = new {{clientClassName}}(authenticator, undefined, { signal: controller.signal });
@@ -68,7 +68,7 @@ describe('{{clientClassName}}', () => {
     expect({{clientClassName}}.withAuthenticator(authenticator, undefined, { signal: controller.signal })).toBeDefined();
   });
 
-  test('the client options hand the call hook to the API objects', async () => {
+  test('bhv langnode 038 the client options hand the call hook to the API objects', async () => {
     const stub = (async () =>
       new Response('{"id":1,"name":"x","photoUrls":[]}', {
         status: 200,
@@ -232,7 +232,7 @@ describe('{{clientClassName}}', () => {
       return { transport: TransportOptions.builder().fetch(stub).build(), seen };
     }
 
-    test('an operation uses the credential of the scheme its spec names', async () => {
+    test('bhv langnode 039 an operation uses the credential of the scheme its spec names', async () => {
       const { transport, seen } = recordingTransport();
       const client = new {{clientClassName}}({ petStoreBearer: new PetStoreBearerAuthenticator(host, 'bearer-token') }, transport);
 
@@ -402,7 +402,7 @@ describe('{{clientClassName}}', () => {
       return { transport: TransportOptions.builder().fetch(stub).build(), started: startedPromise, release, calls: () => calls };
     }
 
-    test('a request already running finishes after close()', async () => {
+    test('bhv langnode 040 a request already running finishes after close()', async () => {
       const { transport, started, release } = gatedFetch();
       const client = new {{clientClassName}}(closable, transport);
 
@@ -434,7 +434,7 @@ describe('{{clientClassName}}', () => {
       await expect(client.close()).resolves.toBeUndefined();
     });
 
-    test('close() does not wait for a request that is still running', async () => {
+    test('bhv misc 184 close() does not wait for a request that is still running', async () => {
       const { transport, started, release } = gatedFetch();
       const client = new {{clientClassName}}(closable, transport);
       const pending = client.pet.getPetById(1);
@@ -551,7 +551,7 @@ describe('scheme authenticators the spec declares', () => {
     ['InternalApiKeyAuthenticator', new InternalApiKeyAuthenticator(host, 'k-1'), 'header', { 'X-Internal-Key': 'k-1' }],
     ['ApiKeyQueryAuthenticator', new ApiKeyQueryAuthenticator(host, 'k-1'), 'query', { api_key: 'k-1' }],
     ['SessionCookieAuthenticator', new SessionCookieAuthenticator(host, 'k-1'), 'cookie', { SESSION_ID: 'k-1' }],
-  ])('%s emits its key in the declared location only', (_name, auth, location, expected) => {
+  ])('bhv misc 057 %s emits its key in the declared location only', (_name, auth, location, expected) => {
     expect(auth.getAuthHeaders()).toEqual(location === 'header' ? expected : {});
     expect(auth.getQueryParams()).toEqual(location === 'query' ? expected : {});
     expect(auth.getCookieParams()).toEqual(location === 'cookie' ? expected : {});
@@ -564,7 +564,7 @@ describe('scheme authenticators the spec declares', () => {
     ['InternalApiKeyAuthenticator', InternalApiKeyAuthenticator],
     ['ApiKeyQueryAuthenticator', ApiKeyQueryAuthenticator],
     ['SessionCookieAuthenticator', SessionCookieAuthenticator],
-  ])('%s rejects an empty key at construction', (_name, Wrapper) => {
+  ])('bhv langnode 049 %s rejects an empty key at construction', (_name, Wrapper) => {
     expect(() => new Wrapper(host, '')).toThrow(TypeError);
   });
 
@@ -728,12 +728,12 @@ describe('generated documentation', () => {
   const skills = fs.readFileSync(path.join(process.cwd(), 'SKILLS.md'), 'utf8');
   const imports = [...skills.matchAll(/import\s+(type\s+)?\{([^}]*)\}\s+from\s+['"]([^'"]+)['"]/g)];
 
-  test('SKILLS imports every symbol from the published package, never from a source path', () => {
+  test('bhv langnode 041 SKILLS imports every symbol from the published package, never from a source path', () => {
     expect(imports.length).toBeGreaterThan(0);
     expect(new Set(imports.map((m) => m[3]))).toEqual(new Set(['{{npmName}}']));
   });
 
-  test('SKILLS imports only values the package entry point exports', () => {
+  test('bhv langnode 042 SKILLS imports only values the package entry point exports', () => {
     const exported = new Set(Object.keys(entryPoint));
     const missing: string[] = [];
     for (const [, typeOnly, names] of imports) {
@@ -746,7 +746,7 @@ describe('generated documentation', () => {
     expect(missing).toEqual([]);
   });
 
-  test('SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm', () => {
+  test('bhv langnode 043 SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm', () => {
     const call = /const result = await client\.(\w+)\.(\w+)\((.*)\);/.exec(skills);
     expect(call?.[1]).toBe('{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}');
     expect(call?.[2]).toBe('{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{nickname}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}');
@@ -774,7 +774,7 @@ describe('generated documentation', () => {
     expect(configuration).toContain('`TransportOptions.builder().maxRetries(n)`');
   });
 
-  test('README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client', () => {
+  test('bhv langnode 044 README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
 
     expect(readme).toContain('### Schema constraints');
@@ -787,7 +787,7 @@ describe('generated documentation', () => {
     expect(readme).not.toContain('no cancellation API');
   });
 
-  test('README opens with a quick start that installs the package by name and catches ApiError', () => {
+  test('bhv langnode 045 README opens with a quick start that installs the package by name and catches ApiError', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
 
     expect(readme).toContain('## Quick start');
@@ -796,7 +796,7 @@ describe('generated documentation', () => {
     expect(readme).toContain('[SKILLS.md](SKILLS.md)');
   });
 
-  test('README lists the features that are not generated', () => {
+  test('bhv langnode 046 README lists the features that are not generated', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
 
     expect(readme).toContain('### XML bodies and `nodeType`');
@@ -804,7 +804,7 @@ describe('generated documentation', () => {
     expect(readme).toContain('### Mutual TLS');
   });
 
-  test('README and SKILLS cancel through the per-call signal, never a Configuration signal', () => {
+  test('bhv langnode 047 README and SKILLS cancel through the per-call signal, never a Configuration signal', () => {
     const readme = fs.readFileSync(path.join(process.cwd(), 'README.md'), 'utf8');
 
     expect(readme).not.toContain('Configuration.builder().signal');
@@ -813,7 +813,7 @@ describe('generated documentation', () => {
     expect(readme).toContain('{ signal: controller.signal }');
   });
 
-  test('SKILLS Testing shows how to stub the transport with a canned fetch', () => {
+  test('bhv langnode 048 SKILLS Testing shows how to stub the transport with a canned fetch', () => {
     expect(skills).toContain('TransportOptions.builder().fetch(stub).build()');
   });
 
