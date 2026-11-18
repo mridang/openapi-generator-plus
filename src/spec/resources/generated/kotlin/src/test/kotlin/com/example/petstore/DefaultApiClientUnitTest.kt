@@ -4193,7 +4193,15 @@ class DefaultApiClientUnitTest {
                         attempts++
                         throw java.io.IOException("connection reset")
                     }
-                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                val apiClient =
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    )
                 assertThrows(com.example.petstore.errors.NetworkException::class.java) {
                     runBlocking {
                         apiClient.sendRequest(method, "http://localhost/write", emptyMap(), "{}")
@@ -4209,8 +4217,14 @@ class DefaultApiClientUnitTest {
                 }
             assertThrows(com.example.petstore.errors.NetworkException::class.java) {
                 runBlocking {
-                    DefaultApiClient(HttpClient(queryEngine) { followRedirects = false })
-                        .sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
+                    DefaultApiClient(
+                        HttpClient(queryEngine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
                 }
             }
             assertTrue(queryAttempts > 1, "QUERY attempts: $queryAttempts")
@@ -4229,8 +4243,14 @@ class DefaultApiClientUnitTest {
             var response: ApiHttpResponse? = null
             runBlocking {
                 response =
-                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
-                        .sendRequest("GET", "http://localhost/read", emptyMap(), null)
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("GET", "http://localhost/read", emptyMap(), null)
             }
             assertEquals(2, attempts)
             assertEquals(200, response!!.statusCode)
@@ -4330,8 +4350,14 @@ class DefaultApiClientUnitTest {
                 }
             assertThrows(com.example.petstore.errors.NetworkException::class.java) {
                 runBlocking {
-                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
-                        .sendRequest("GET", "https://localhost/secure", emptyMap(), null)
+                    DefaultApiClient(
+                        HttpClient(engine) { followRedirects = false },
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(2)
+                            .build(),
+                    ).sendRequest("GET", "https://localhost/secure", emptyMap(), null)
                 }
             }
             assertEquals(1, attempts)

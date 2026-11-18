@@ -4,6 +4,13 @@ package {{invokerPackage}}.auth.oauth
 
 import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.ApiHttpResponse
+import {{invokerPackage}}.DefaultApiClient
+import {{invokerPackage}}.TransportOptions
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import {{invokerPackage}}.errors.OAuth2ServerException
 import {{invokerPackage}}.errors.OAuth2TokenException
@@ -70,6 +77,24 @@ class OAuth2TokenManagerTest {
                 cancelled = true
             }
         }
+    }
+
+    @Test
+    @DisplayName("bhvMisc172 a token request is sent once and not retried when the server answers 503")
+    fun bhvMisc172TokenRequestIsNotRetriedOn503() {
+        var attempts = 0
+        val engine = MockEngine { _ ->
+            attempts++
+            respond("{\"error\":\"temporarily_unavailable\"}", HttpStatusCode.ServiceUnavailable, headersOf("Content-Type", "application/json"))
+        }
+        val manager = OAuth2TokenManager()
+        manager.apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(2).build())
+        assertThrows(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals(1, attempts)
     }
 
     @Test

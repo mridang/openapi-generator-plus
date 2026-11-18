@@ -3894,7 +3894,7 @@ class DefaultApiClientUnitTest {
                     attempts++
                     throw java.io.IOException("connection reset")
                 }
-                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(2).build())
                 assertThrows({{invokerPackage}}.errors.NetworkException::class.java) {
                     runBlocking {
                         apiClient.sendRequest(method, "http://localhost/write", emptyMap(), "{}")
@@ -3909,7 +3909,7 @@ class DefaultApiClientUnitTest {
             }
             assertThrows({{invokerPackage}}.errors.NetworkException::class.java) {
                 runBlocking {
-                    DefaultApiClient(HttpClient(queryEngine) { followRedirects = false })
+                    DefaultApiClient(HttpClient(queryEngine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(2).build())
                         .sendRequest("QUERY", "http://localhost/search", emptyMap(), "{}")
                 }
             }
@@ -3927,7 +3927,7 @@ class DefaultApiClientUnitTest {
             }
             var response: ApiHttpResponse? = null
             runBlocking {
-                response = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                response = DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(2).build())
                     .sendRequest("GET", "http://localhost/read", emptyMap(), null)
             }
             assertEquals(2, attempts)
@@ -4023,7 +4023,7 @@ class DefaultApiClientUnitTest {
             }
             assertThrows({{invokerPackage}}.errors.NetworkException::class.java) {
                 runBlocking {
-                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().timeout(null).maxRetries(2).build())
                         .sendRequest("GET", "https://localhost/secure", emptyMap(), null)
                 }
             }
