@@ -2595,6 +2595,42 @@ describe {{moduleName}}::ObjectSerializer, 'wire contract for scalars, container
     }).must_raise({{moduleName}}::Errors::SerializationError)
   end
 
+  it 'bhv_serialization_072 undeclared keys are passed over without error, one or several, scalar or nested' do
+    json = '{"createdAt":"2024-01-01T00:00:00Z","rogue":"x","nested":{"a":[1,{"b":null}]},"count":2}'
+    meta = {{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata')
+
+    _(meta).must_be_kind_of {{moduleName}}::Models::Metadata
+  end
+
+  it 'bhv_serialization_068 a model built in code keeps a wrong-typed value as given and raises nothing' do
+    account = {{moduleName}}::Models::Account.new(username: 123)
+
+    _(account.username).must_equal 123
+  end
+
+  it 'bhv_serialization_112 a password property is masked in the inspect form and not on the wire' do
+    account = {{moduleName}}::Models::Account.new(username: 'ann', password: 'p-secret-value')
+
+    _(account.inspect).wont_include 'p-secret-value'
+    _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(account))['password']).must_equal 'p-secret-value'
+  end
+
+  it 'bhv_serialization_115 an integral JSON number decoded as a floating-point type becomes a float' do
+    value = {{moduleName}}::ObjectSerializer.deserialize('3', 'Float')
+
+    _(value).must_be_kind_of Float
+    _(value).must_equal 3.0
+  end
+
+  it 'bhv_serialization_116 a keyword-named property keeps its exact wire key on serialize and deserialize' do
+    edge = {{moduleName}}::ObjectSerializer.deserialize('{"class":"c","null":"n","true":true}', 'EdgeCases')
+    written = JSON.parse({{moduleName}}::ObjectSerializer.serialize(edge))
+
+    _(written['class']).must_equal 'c'
+    _(written['null']).must_equal 'n'
+    _(written['true']).must_equal true
+  end
+
   it 'bhv_misc_287 a wire key named additional_properties is kept as an undeclared extra' do
     meta = {{moduleName}}::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","additional_properties":"x"}', 'Metadata')
 
@@ -2619,6 +2655,66 @@ describe {{moduleName}}::ObjectSerializer, 'wire contract for scalars, container
     again = {{moduleName}}::ObjectSerializer.deserialize(wire, 'Metadata')
 
     _(again.additional_properties).must_equal('extra' => { 'k' => { 'n' => 1 } })
+  end
+
+  it 'bhv_misc_234 a model in a list keeps its undeclared extras through serialize and deserialize' do
+    items = {{moduleName}}::ObjectSerializer.deserialize('[{"createdAt":"2024-01-01T00:00:00Z","extra":"y"}]', 'Array<Metadata>')
+    again = {{moduleName}}::ObjectSerializer.deserialize({{moduleName}}::ObjectSerializer.serialize(items), 'Array<Metadata>')
+
+    _(again.first.additional_properties).must_equal('extra' => 'y')
+  end
+
+  it 'bhv_misc_235 a duration with fractional seconds keeps its fraction when serialized' do
+    json = {{moduleName}}::ObjectSerializer.serialize({ 'ttl' => ISO8601::Duration.new('PT1.5S') })
+
+    _(JSON.parse(json)['ttl']).must_equal('1.500s')
+  end
+
+  it 'bhv_misc_242 a read-only property is not sent on the wire' do
+    json = JSON.parse({{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Account.new(id: 7, username: 'u')))
+
+    _(json).wont_include 'id'
+  end
+
+  it 'bhv_misc_243 an absent optional array field decodes to nil, not to an empty list' do
+    values = {{moduleName}}::ObjectSerializer.deserialize('{}', '{{moduleName}}::Models::NativeValues')
+
+    _(values.addresses).must_be_nil
+  end
+
+  it 'bhv_misc_244 a body with a leading byte-order mark decodes into the model' do
+    category = {{moduleName}}::ObjectSerializer.deserialize("﻿{\"id\":1,\"name\":\"Dogs\"}", 'Category')
+
+    _(category).must_be_kind_of {{moduleName}}::Models::Category
+    _(category.id).must_equal 1
+  end
+
+  it 'bhv_misc_245 a time of day in a plain object is serialized as a JSON string' do
+    json = JSON.parse({{moduleName}}::ObjectSerializer.serialize({ 'at' => Tod::TimeOfDay.new(10, 20, 30) }))
+
+    _(json).must_equal('at' => '10:20:30')
+  end
+
+  it 'bhv_misc_246 a negative whole-second protobuf duration string parses to a negative duration' do
+    edge = {{moduleName}}::ObjectSerializer.deserialize('{"retryAfter":"-3s"}', 'EdgeCases')
+
+    _(edge.retry_after.to_seconds).must_equal(-3)
+  end
+
+  it 'bhv_misc_247 a UUID string with the wrong segment lengths raises SerializationError' do
+    _(proc {
+      {{moduleName}}::ObjectSerializer.deserialize('{"identifier":"1234-5678-1234-5678-1234567890"}', 'TestFormatModel')
+    }).must_raise({{moduleName}}::Errors::SerializationError)
+  end
+
+  it 'bhv_misc_248 a duration with days is formatted as a seconds string' do
+    _({{moduleName}}::ObjectSerializer.stringify(ISO8601::Duration.new('P1D'))).must_equal('86400s')
+  end
+
+  it 'bhv_misc_249 a free-form object keeps its object and integer entries on a round trip' do
+    model = {{moduleName}}::ObjectSerializer.deserialize('{"label":"x","nested":{"a":1},"count":2}', 'Object')
+
+    _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(model))).must_equal('label' => 'x', 'nested' => { 'a' => 1 }, 'count' => 2)
   end
 
   it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do

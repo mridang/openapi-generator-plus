@@ -3943,4 +3943,224 @@ class DefaultApiClientUnitTest {
             )
         }
     }
+
+    @Nested
+    @DisplayName("declared multipart subtype")
+    inner class DeclaredMultipartSubtype {
+        @Test
+        @DisplayName("bhvMisc100 a declared multipart subtype is kept and gets a boundary")
+        fun bhvMisc100DeclaredMultipartSubtypeIsKept() {
+            var contentType: String? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    contentType = request.body.contentType.toString()
+                })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/mixed"),
+                    linkedMapOf<String, Any?>("note" to "x"),
+                )
+            }
+            assertTrue(contentType!!.startsWith("multipart/mixed; boundary="), contentType)
+        }
+    }
+
+    @Nested
+    @DisplayName("redirect and header rules for chunk four")
+    inner class RedirectStatusAndHeaderRules {
+        @Test
+        @DisplayName("bhvMisc124 a request body is not replayed across a 301 redirect from https to http")
+        fun bhvMisc124BodyIsNotReplayedAcross301Downgrade() {
+            val engine =
+                MockEngine { request ->
+                    if (request.url.protocol.name == "https") {
+                        respond("", HttpStatusCode.MovedPermanently, headersOf("Location", "http://localhost/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            assertThrows(ApiException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://localhost/start", emptyMap(), "payload")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc125 a 307 redirect that keeps the same scheme is followed with its body")
+        fun bhvMisc125SameSchemeTemporaryRedirectIsFollowed() {
+            val engine =
+                MockEngine { request ->
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.TemporaryRedirect, headersOf("Location", "https://localhost/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            var response: ApiHttpResponse? = null
+            runBlocking {
+                response =
+                    DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                        .sendRequest("POST", "https://localhost/start", emptyMap(), "payload")
+            }
+            assertEquals(200, response!!.statusCode)
+        }
+
+        @Test
+        @DisplayName("bhvMisc126 a HEAD request that receives a 303 redirect is followed as HEAD")
+        fun bhvMisc126HeadStaysHeadAcross303() {
+            val methods = mutableListOf<String>()
+            val engine =
+                MockEngine { request ->
+                    methods.add(request.method.value)
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.SeeOther, headersOf("Location", "http://localhost/next"))
+                    } else {
+                        respond("", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("HEAD", "http://localhost/start", emptyMap(), null)
+            }
+            assertEquals(listOf("HEAD", "HEAD"), methods)
+        }
+
+        @Test
+        @DisplayName("bhvMisc127 a query-only Location keeps the redirected path and replaces the query")
+        fun bhvMisc127QueryOnlyLocationKeepsPath() {
+            var lastUrl: io.ktor.http.Url? = null
+            val engine =
+                MockEngine { request ->
+                    if (request.url.encodedPath == "/items") {
+                        respond("", HttpStatusCode.Found, headersOf("Location", "?page=2"))
+                    } else {
+                        lastUrl = request.url
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/items?page=1", emptyMap(), null)
+            }
+            assertEquals("/items", lastUrl!!.encodedPath)
+            assertEquals("page=2", lastUrl!!.encodedQuery)
+        }
+
+        @Test
+        @DisplayName("bhvMisc130 credentials removed by a cross-origin hop are not restored when the chain returns to the origin")
+        fun bhvMisc130RemovedCredentialsStayRemoved() {
+            val authorizations = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    authorizations.add(request.headers["Authorization"])
+                    when (request.url.encodedPath) {
+                        "/a" -> respond("", HttpStatusCode.Found, headersOf("Location", "http://127.0.0.1/b"))
+                        "/b" -> respond("", HttpStatusCode.Found, headersOf("Location", "http://localhost/c"))
+                        else -> respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/a", mapOf("Authorization" to "Bearer t"), null)
+            }
+            assertNull(authorizations.last())
+        }
+
+        @Test
+        @DisplayName(
+            "bhvMisc132 a header the caller sets for one call is stripped on a cross-origin redirect when it looks like a credential",
+        )
+        fun bhvMisc132CallerCredentialHeaderIsStrippedAcrossOrigins() {
+            val sessionTokens = mutableListOf<String?>()
+            val engine =
+                MockEngine { request ->
+                    sessionTokens.add(request.headers["X-Session-Token"])
+                    if (request.url.encodedPath == "/start") {
+                        respond("", HttpStatusCode.Found, headersOf("Location", "http://127.0.0.1/next"))
+                    } else {
+                        respond("ok", HttpStatusCode.OK)
+                    }
+                }
+            runBlocking {
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/start", mapOf("X-Session-Token" to "s3cret"), null)
+            }
+            assertNull(sessionTokens.last())
+        }
+
+        @Test
+        @DisplayName("bhvMisc133 a 300 or 305 response is returned as it is, even with a Location header")
+        fun bhvMisc133MultipleChoicesAndUseProxyAreNotFollowed() {
+            for (status in listOf(HttpStatusCode.MultipleChoices, HttpStatusCode.UseProxy)) {
+                val engine =
+                    MockEngine { _ ->
+                        respond("", status, headersOf("Location", "http://localhost/next"))
+                    }
+                var response: ApiHttpResponse? = null
+                runBlocking {
+                    response =
+                        DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                            .sendRequest("GET", "http://localhost/start", emptyMap(), null)
+                }
+                assertEquals(status.value, response!!.statusCode)
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("cancellation before and during a call")
+    inner class CancelledBeforeSendTests {
+        @Test
+        @DisplayName("bhvMisc152 a call whose coroutine is already cancelled fails without sending the request")
+        fun bhvMisc152CancelledCallIsNeverSent() {
+            var sent = false
+            val engine =
+                MockEngine { _ ->
+                    sent = true
+                    respond("ok", HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val cancelled = kotlinx.coroutines.Job().apply { cancel() }
+            assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+                runBlocking {
+                    kotlinx.coroutines.withContext(cancelled) {
+                        apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                    }
+                }
+            }
+            assertFalse(sent)
+        }
+
+        @Test
+        @DisplayName("bhvMisc153 cancelling the call's coroutine cancels the same in-flight request")
+        fun bhvMisc153CancellingTheCallCancelsTheInFlightRequest() {
+            val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val outcome = kotlinx.coroutines.CompletableDeferred<String>()
+            val engine =
+                MockEngine { _ ->
+                    started.complete(Unit)
+                    try {
+                        kotlinx.coroutines.awaitCancellation()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        outcome.complete("cancelled")
+                        throw e
+                    }
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine))
+            runBlocking {
+                val call =
+                    launch {
+                        apiClient.sendRequest("GET", "http://localhost/never", emptyMap(), null)
+                    }
+                started.await()
+                call.cancel()
+                call.join()
+                assertEquals("cancelled", outcome.await())
+            }
+        }
+    }
 }

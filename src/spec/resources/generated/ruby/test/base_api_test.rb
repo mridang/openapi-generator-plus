@@ -426,6 +426,27 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_headers['Cookie']).must_equal 'session=abc123'
   end
 
+  it 'bhv_misc_236 a date-only value is written as yyyy-mm-dd with no time in query and header' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'bornAfter' => Date.new(2024, 1, 1) }, { 'Report-Date' => Date.new(2024, 1, 1) },
+                  nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_include 'bornAfter=2024-01-01'
+    _(client.captured_url).wont_include '2024-01-01T'
+    _(client.captured_headers['Report-Date']).must_equal '2024-01-01'
+  end
+
+  it 'bhv_misc_239 an operation query parameter is serialized when no authenticator is configured' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'q' => 'a b' }, {}, nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_equal 'http://localhost/test/echo?q=a%20b'
+  end
+
   it 'bhv_authintegration_017 sets Cookie header from auth cookies' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build

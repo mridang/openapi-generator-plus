@@ -3269,4 +3269,13 @@ class BaseApiTest {
 
         assertEquals("hello", result);
     }
+
+    @Test
+    void bhvMisc159A401IsReplayedOnceWhenAnAuthenticatorCanSupplyFreshCredentials() throws ApiException {
+        var client = new ScriptedApiClient(401, 200);
+        var auth = new RotatingTokenAuthenticator(true);
+        callWith(client, auth, "{}", "application/json");
+        assertEquals(2, client.sentHeaders.size());
+        assertEquals(1, auth.invalidations);
+    }
 }

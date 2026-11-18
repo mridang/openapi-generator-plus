@@ -4382,4 +4382,219 @@ class DefaultApiClientUnitTest {
           String.valueOf(failure.get()));
     }
   }
+
+  @Test
+  void bhvMisc160AnErrorThatIsNotANetworkFailureIsNeverRetried() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(400, "{}"), hits);
+    try {
+      assertEquals(
+          400,
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(1, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc161ANonIdempotentRequestIsSentOnceWhenTheConnectionDropsAndQueryIsIdempotent()
+      throws Exception {
+    for (String method : List.of("POST", "PATCH")) {
+      try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+        java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+        String url = "http://127.0.0.1:" + silent.getLocalPort() + "/write";
+        DefaultApiClient client =
+            new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+        assertThrowsExactly(
+            com.example.petstore.errors.NetworkException.class,
+            () -> client.sendRequest(method, url, Map.of(), "payload"));
+        assertEquals(1, accepted.get(), method + " must be sent exactly once");
+      }
+    }
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/query";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertThrowsExactly(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("QUERY", url, Map.of(), "payload"));
+      assertTrue(accepted.get() >= 2, "QUERY is idempotent and is replayed, saw " + accepted.get());
+    }
+  }
+
+  @Test
+  void bhvMisc162AnIdempotentRequestIsSentAgainExactlyOnceWhenTheConnectionDrops()
+      throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/read";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertThrowsExactly(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("GET", url, Map.of(), null));
+      assertEquals(2, accepted.get(), "an idempotent GET is sent a second time exactly once");
+    }
+  }
+
+  @Test
+  void bhvMisc164ARetryWhoseWaitFitsTheTimeoutBudgetIsSent() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(5000).build());
+      assertEquals(200, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc165ARequestBodyIsReplayedAcrossARedirectThatKeepsThePlainTextScheme() {
+    RecordingHttpClient transport = redirectingOnceTo(307, "http://api.example.invalid/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiHttpResponse response =
+        client.sendRequest(
+            "POST",
+            "http://api.example.invalid/start",
+            Map.of("Content-Type", "application/json"),
+            "{\"a\":1}");
+    assertEquals(200, response.statusCode());
+    assertEquals(2, transport.requests.size());
+    assertEquals("POST", transport.requests.get(1).method());
+  }
+
+  @Test
+  void bhvMisc166ACallThatDisablesItsDeadlineIsNotCutShortWhileItWaitsToRetry() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(null).build());
+      assertEquals(200, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(2, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc167ARetryableStatusIsAttemptedUpToTheLimitThenReturned() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(2).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(3, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc168WithNoRetrySettingAFailingRequestIsSentThreeTimesWithBackoffBetween()
+      throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    try {
+      long started = System.nanoTime();
+      new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      long elapsedMillis = (System.nanoTime() - started) / 1_000_000L;
+      assertEquals(3, hits.get());
+      assertTrue(
+          elapsedMillis >= 1100,
+          "two pauses of about half a second and one second, saw " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc169ThePauseBetweenRetriesStartsAtHalfASecondDoublesAndNeverExceedsEightSeconds() {
+    assertEquals(500, DefaultApiClient.backoffMillis(0, 0.0));
+    assertEquals(1000, DefaultApiClient.backoffMillis(1, 0.0));
+    assertEquals(8000, DefaultApiClient.backoffMillis(4, 0.0));
+    assertEquals(8000, DefaultApiClient.backoffMillis(10, 0.0));
+  }
+
+  @Test
+  void bhvMisc170ATlsFailureIsANetworkErrorAndIsNeverRetried() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "https://127.0.0.1:" + silent.getLocalPort() + "/read";
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrowsExactly(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("GET", url, Map.of(), null));
+      assertEquals(1, accepted.get(), "a TLS failure is not retried");
+    }
+  }
+
+  @Test
+  void bhvMisc171APerCallMaxRetriesAboveTheTransportLimitAppliesToThatCall() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n <= 2 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertEquals(503, client.sendRequest("GET", urlOf(scripted), Map.of(), null).statusCode());
+      assertEquals(1, hits.getAndSet(0));
+      assertEquals(
+          200, client.sendRequest("GET", urlOf(scripted), Map.of(), null, null, 2).statusCode());
+      assertEquals(3, hits.get());
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc173ABodyIsReplayedAcrossAnHttpsToHttpRedirectOnlyWhenItWasEmpty() {
+    RecordingHttpClient emptyTransport = redirectingOnceTo(307, "http://api.example.invalid/plain");
+    DefaultApiClient emptyClient =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(emptyTransport).followRedirects(true).build());
+    assertEquals(
+        200,
+        emptyClient
+            .sendRequest("POST", "https://api.example.invalid/start", Map.of(), "")
+            .statusCode());
+    assertEquals(2, emptyTransport.requests.size());
+
+    RecordingHttpClient fullTransport = redirectingOnceTo(307, "http://api.example.invalid/plain");
+    DefaultApiClient fullClient =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(fullTransport).followRedirects(true).build());
+    assertThrows(
+        com.example.petstore.errors.ApiException.class,
+        () ->
+            fullClient.sendRequest(
+                "POST", "https://api.example.invalid/start", Map.of(), "payload"));
+    assertEquals(1, fullTransport.requests.size());
+  }
+
+  @Test
+  void bhvMisc174AHeaderValueRefusedForALineBreakIsNeverRepeatedInTheError() {
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(new RecordingHttpClient()).build());
+    for (String value : List.of("a\r\nX-Evil: 1", "a\0X-Evil: 1")) {
+      IllegalArgumentException thrown =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () ->
+                  client.sendRequest(
+                      "GET", "http://127.0.0.1/echo", Map.of("X-Injected", value), null));
+      assertFalse(thrown.getMessage().contains("X-Evil"), thrown.getMessage());
+    }
+  }
 }

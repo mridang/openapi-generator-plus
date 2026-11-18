@@ -345,6 +345,20 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
+    test('bhv misc 226 With redirect following enabled, a 302 response is followed to its target and the final 200 response is returned to the caller', () async {
+      final transport = TransportOptionsBuilder()
+          .followRedirects(true)
+          .build();
+      final client = DefaultApiClient(transportOptions: transport);
+      final resp = await client.sendRequest(
+        'GET',
+        '$chasmHttpUrl/test/redirect/302',
+        {},
+        null,
+      );
+      expect(resp.statusCode, equals(200));
+    });
+
     test('bhv redirects 007 returns redirect response when disabled', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(false)

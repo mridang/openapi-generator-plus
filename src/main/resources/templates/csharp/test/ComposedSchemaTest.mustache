@@ -659,4 +659,48 @@ public class ComposedSchemaTest
         Assert.Equal("AQI=", document.RootElement[0].GetString());
         Assert.Equal("AwQ=", document.RootElement[1].GetString());
     }
+    [Fact]
+    public void BhvUnions044EachVariantHasATypedFactoryAndAccessorThatIdentifyIt()
+    {
+        var medication = new Medication { DrugName = "Amoxicillin", Dosage = "500mg" };
+        var wrapped = new PetTreatment(medication);
+
+        Assert.True(wrapped.IsMedication());
+        Assert.False(wrapped.IsSurgery());
+        Assert.Same(medication, wrapped.AsMedication());
+    }
+
+    [Fact]
+    public void BhvUnions045TwoUnionsBuiltFromTheSameDataCompareEqual()
+    {
+        var decoded = _serializer.Deserialize<PetTreatment>("{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}");
+        var built = new PetTreatment(new Medication { DrugName = "Amoxicillin", Dosage = "500mg" });
+
+        Assert.Equal(built, decoded);
+    }
+
+    [Fact]
+    public void BhvUnions046EveryMatchingVariantOfAnAnyOfReportsItself()
+    {
+        var treatment = new PetTreatment(new List<object>
+        {
+            new Medication { DrugName = "Amoxicillin", Dosage = "500mg" },
+            new Surgery { ProcedureName = "Spay" },
+        });
+
+        Assert.True(treatment.IsMedication());
+        Assert.True(treatment.IsSurgery());
+        Assert.Equal(2, treatment.MatchedInstances.Count);
+    }
+
+    [Fact]
+    public void BhvUnions047ADiscriminatorValueOutsideTheMappingRaisesAClearError()
+    {
+        foreach (var payload in new[] { "{\"shapeType\":\"triangle\"}", "{\"shapeType\":\"\"}" })
+        {
+            var ex = Assert.ThrowsAny<SerializationException>(() => _serializer.Deserialize<Shape>(payload));
+            Assert.Contains("discriminator", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
 }

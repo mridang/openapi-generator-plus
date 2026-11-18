@@ -510,3 +510,10 @@ describe("BearerAuthenticator token provider results", () => {
     await expect(auth.getAuthHeadersAsync()).rejects.toBe(failure);
   });
 });
+
+describe("BearerAuthenticator misc behaviours", () => {
+  it("bhv misc 174 a bearer token containing a line break is refused on use", () => {
+    const auth = new BearerAuthenticator("https://api.example.com", "abc\ndef");
+    expect(() => auth.getAuthHeaders()).toThrow();
+  });
+});
