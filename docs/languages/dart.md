@@ -21,7 +21,7 @@ The package compiles for the Dart VM, for Flutter, and for the web including Web
 | `string` with `format: date` | `DateTime` | Dart has no date-only type. The value is written as `YYYY-MM-DD` from the `DateTime`'s own year, month and day, so use a UTC value to be sure the day does not shift. |
 | `string` with `format: date-time` | `DateTime` | Must be an RFC 3339 string with an offset. Written in a canonical offset form. |
 | `string` with `format: time` | `String` | Validated as `HH:MM:SS` with optional fractional seconds. Dart has no time-of-day type outside Flutter. |
-| `string` with `format: duration` | `Duration` | The wire form is the protobuf-JSON form such as `3600s`. Helper functions in `iso8601_duration.dart` convert between the two, even though the file name says ISO 8601. |
+| `string` with `format: duration` | `Duration` | The wire form is the protobuf-JSON form such as `3600s`, limited to +-315576000000 seconds (a value beyond that is refused). Helper functions in `iso8601_duration.dart` convert between the two, even though the file name says ISO 8601. |
 | `string` with `format: uuid` | `UuidValue` | A class the SDK defines itself, which validates on construction. It deliberately shadows the type of the same name in `package:uuid`, whose `fromString` does not validate. |
 | `string` with `format: uri` | `String` | Checked as an absolute RFC 3986 URI when decoded. Not `Uri`, because `dart:core` `Uri` rewrites `[`, `]` and the apostrophe, which would change the text on a round trip. |
 | `string` with `format: email`, `hostname`, `ipv4`, `ipv6` | `String` | |

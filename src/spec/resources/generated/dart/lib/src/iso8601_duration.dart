@@ -25,6 +25,9 @@ library;
 
 import 'errors/serialization_exception.dart';
 
+/// Largest magnitude a `google.protobuf.Duration` may carry, in whole seconds.
+const int _kProtobufDurationMaxSeconds = 315576000000;
+
 /// Regex matching the `google.protobuf.Duration` JSON grammar.
 ///
 /// Groups: 1=sign, 2=whole seconds, 3=fractional digits.
@@ -36,7 +39,7 @@ final RegExp _protobufDurationPattern = RegExp(r'^(-)?(\d+)(?:\.(\d{1,9}))?s$');
 /// `-?\d+(\.\d{1,9})?s`. The fractional part is right-padded to nine
 /// digits to recover nanoseconds; sub-microsecond digits are truncated
 /// to fit [Duration]'s resolution. Throws [SerializationException] for
-/// malformed input.
+/// malformed input and for a magnitude beyond +-315576000000 seconds.
 Duration parseProtobufDuration(String input) {
   if (input.isEmpty) {
     throw const SerializationException('empty duration string');
@@ -47,8 +50,17 @@ Duration parseProtobufDuration(String input) {
   }
 
   final negative = match.group(1) == '-';
-  final wholeSeconds = int.parse(match.group(2)!);
+  final wholeSeconds = int.tryParse(match.group(2)!);
   final fracStr = match.group(3);
+  if (wholeSeconds == null ||
+      wholeSeconds > _kProtobufDurationMaxSeconds ||
+      (wholeSeconds == _kProtobufDurationMaxSeconds &&
+          fracStr != null &&
+          fracStr.contains(RegExp('[1-9]')))) {
+    throw SerializationException(
+      'protobuf-JSON duration is outside the range of +-315576000000 seconds: $input',
+    );
+  }
 
   int microseconds = 0;
   if (fracStr != null) {
