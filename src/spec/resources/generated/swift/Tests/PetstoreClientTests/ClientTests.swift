@@ -377,6 +377,47 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
   }
 
+  /* A token provider's value is the bearer credential on an authenticated request. */
+  @Test func testBhvMisc066ATokenProviderValueIsSentAsTheBearer() async throws {
+    let host = "https://provider-066.example.com"
+    let client = try Client(
+      authenticator: try BearerAuthenticator(host: host, tokenProvider: { "provider-token" }),
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "provider-066.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer provider-token")
+  }
+
+  /* When a token provider throws, the request fails with that same error. */
+  @Test func testBhvMisc067AProviderErrorIsTheRequestError() async throws {
+    let client = try Client(
+      authenticator: try BearerAuthenticator(
+        host: "https://provider-067.example.com", tokenProvider: { throw ProviderBoom() }),
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+
+    let error = await #expect(throws: ProviderBoom.self) {
+      _ = try await client.pet.getPetById(petId: 1)
+    }
+    #expect(error == ProviderBoom())
+  }
+
+  /* An empty token counts as not passed, so the environment supplies the credential. */
+  @Test func testBhvMisc068AnEmptyCredentialReadsTheEnvironment() async throws {
+    let client = try environmentClient(
+      host: "https://empty-068.example.com", token: "",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token"])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  }
+
+  private struct ProviderBoom: Error, Equatable {}
+
   // MARK: - Credentials of the scheme authenticators
 
   @Test func testBhvAuthscheme009ACredentialPassedExplicitlyWinsOverItsEnvironmentVariable() throws
@@ -1306,6 +1347,90 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     let client = try schemeClient(host: "https://transport.example.com", petStoreBearer: aware)
     defer { client.close() }
     #expect(aware.received)
+  }
+
+  /* A client credential that needs the HTTP transport is handed the client's own transport. */
+  @Test func testBhvMisc071AClientCredentialThatNeedsHttpReceivesTheClientsOwnTransport() throws {
+    let aware = SchemeTransportProbe()
+    let client = try Client(
+      authenticator: aware,
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+    #expect(aware.received)
+  }
+
+  /* Every API group holds the scheme credential the client was built with. */
+  @Test func testBhvMisc072EachApiGroupHoldsTheSchemeCredentialTheClientWasBuilt() throws {
+    let host = "https://groups-072.example.com"
+    let held = try PetStoreBearerAuthenticator(host: host, token: "bearer-token")
+    let client = try schemeClient(host: host, petStoreBearer: held)
+    defer { client.close() }
+    #expect(client.pet.schemeAuthenticators.values.contains { ($0 as AnyObject) === held })
+    #expect(client.store.schemeAuthenticators.values.contains { ($0 as AnyObject) === held })
+  }
+
+  /* The client provides a generated wrapper class for every security scheme the spec declares. */
+  @Test func testBhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+    let declared: [Any.Type] = [
+      PetStoreBasicAuthenticator.self,
+      AdminBasicAuthenticator.self,
+      PetStoreBearerAuthenticator.self,
+      ServiceTokenAuthenticator.self,
+      ApiKeyHeaderAuthenticator.self,
+      InternalApiKeyAuthenticator.self,
+      ApiKeyQueryAuthenticator.self,
+      SessionCookieAuthenticator.self,
+      MachineAuthClientCredentialsAuthenticator.self,
+      LegacyAuthPasswordAuthenticator.self,
+      UserAuthAuthorizationCodeAuthenticator.self,
+      BrowserAuthImplicitAuthenticator.self,
+      SsoAuthAuthenticator.self,
+    ]
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(PetStoreBasicAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(AdminBasicAuthenticator.self) })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(PetStoreBearerAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(ServiceTokenAuthenticator.self) }
+    )
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(ApiKeyHeaderAuthenticator.self) }
+    )
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(InternalApiKeyAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(ApiKeyQueryAuthenticator.self) })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(SessionCookieAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(MachineAuthClientCredentialsAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(LegacyAuthPasswordAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(UserAuthAuthorizationCodeAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(BrowserAuthImplicitAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(SsoAuthAuthenticator.self) })
   }
 
   // MARK: - Call hook
