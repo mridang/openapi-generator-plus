@@ -1030,4 +1030,95 @@ class ValueSerializerTest {
             )
         }
     }
+
+    @Nested
+    @DisplayName("wire contract parameter behaviours")
+    inner class WireContractParameterBehaviours {
+
+        @Test
+        @DisplayName("bhvSerialization005 a path value keeps unreserved characters literal and percent-encodes the rest")
+        fun pathValueKeepsUnreservedLiteralAndEncodesTheRest() {
+            assertEquals("a-._~b%20c%2Fd", ValueSerializer.serialize("a-._~b c/d", "path", "string", null))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization008 a content-typed parameter is JSON-encoded exactly once")
+        fun contentParameterIsJsonEncodedExactlyOnce() {
+            assertEquals("\"x\"", ValueSerializer.serializeContent("filter", "x", "query"))
+            assertEquals("{\"a\":\"b\"}", ValueSerializer.serializeContent("filter", mapOf("a" to "b"), "query"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization013 a set or array parameter in an unstyled, header or simple style is written as its items")
+        fun setOrArrayIsWrittenAsItsItems() {
+            assertEquals("x,y", ValueSerializer.serialize(listOf("x", "y"), "header", "array", null))
+            assertEquals("x,y", ValueSerializer.serialize(linkedSetOf("x", "y"), "header", "array", null))
+            assertEquals(
+                "1,2",
+                ValueSerializer.serializeStyled("ids", linkedSetOf(1, 2), "path", "array", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization014 a query parameter whose value is empty or unset produces no query entry")
+        fun emptyOrUnsetQueryParameterProducesNoEntry() {
+            assertNull(ValueSerializer.serialize(null, "query", "string", null))
+            val query = mutableMapOf<String, Any?>()
+            ValueSerializer.putQuery(query, "filter", null, false)
+            assertFalse(query.containsKey("filter"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization016 an object-valued parameter in a delimited style is alternating keys and values")
+        fun objectInSimpleStyleIsAlternatingKeysAndValues() {
+            assertEquals(
+                "a,1,b,2",
+                ValueSerializer.serializeStyled("p", mapOf("a" to "1", "b" to "2"), "path", "object", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization017 an object-valued parameter built from a model uses each wire name in declaration order")
+        fun modelObjectParameterUsesWireNamesInDeclarationOrder() {
+            val tag = {{modelPackage}}.Tag(id = 1L, name = "x")
+            assertEquals(
+                "id,1,name,x",
+                ValueSerializer.serializeStyled("p", tag, "path", "object", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization018 a nested object or array inside an object-valued parameter is refused")
+        fun nestedValueInsideObjectParameterIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                ValueSerializer.serializeStyled("p", mapOf("a" to mapOf("b" to 1)), "path", "object", null, "simple", false)
+            }
+            assertThrows(SerializationException::class.java) {
+                ValueSerializer.serializeStyled("p", mapOf("a" to listOf(1)), "path", "object", null, "simple", false)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization019 a null entry in a parameter map is left out of the serialized output")
+        fun nullEntryInParameterMapIsLeftOut() {
+            assertEquals(
+                "a,1",
+                ValueSerializer.serializeStyled("p", mapOf("a" to "1", "b" to null), "path", "object", null, "simple", false),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization040 a form-encoded value writes each date-time, duration, number and boolean in its canonical text")
+        fun formValuesAreWrittenInCanonicalText() {
+            val objects = ObjectSerializer()
+            assertEquals(
+                "2024-01-02T03:04:05.000+00:00",
+                objects.toFormValue(OffsetDateTime.parse("2024-01-02T03:04:05Z")),
+            )
+            assertEquals("3s", objects.toFormValue(java.time.Duration.ofSeconds(3)))
+            assertEquals("1.50", objects.toFormValue(java.math.BigDecimal("1.50")))
+            assertEquals("42", objects.toFormValue(42))
+            assertEquals("true", objects.toFormValue(true))
+        }
+    }
 }

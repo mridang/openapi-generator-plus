@@ -2708,4 +2708,309 @@ class ObjectSerializerTest {
             assertTrue(parsed.message!!.startsWith("Failed to deserialize JSON: "), parsed.message)
         }
     }
+
+    @Nested
+    @DisplayName("wire contract behaviours")
+    inner class WireContractBehaviours {
+
+        @Test
+        @DisplayName("bhvSerialization001 the text form of an enum member is exactly its declared wire value")
+        fun enumTextFormIsTheDeclaredWireValue() {
+            assertEquals("pending", {{modelPackage}}.Pet.StatusEnum.PENDING.value)
+            assertEquals("available", {{modelPackage}}.Pet.StatusEnum.AVAILABLE.value)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization002 an enum member held by a model is written as its exact wire string")
+        fun enumMemberHeldByModelIsWrittenAsWireString() {
+            val pet = {{modelPackage}}.Pet(name = "dog", status = {{modelPackage}}.Pet.StatusEnum.PENDING)
+            assertTrue(serializer.serialize(pet).contains("\"status\":\"pending\""), serializer.serialize(pet))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization003 a declared wire value decodes to the member carrying exactly that value")
+        fun declaredWireValueDecodesToItsMember() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"sold\"}")
+            assertEquals({{modelPackage}}.Pet.StatusEnum.SOLD, pet!!.status)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization004 an enum refuses a wire value outside its declared members")
+        fun enumRefusesAValueOutsideItsMembers() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"lost\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization021 equal content compares equal and hashes alike, and different content is distinct")
+        fun equalContentComparesEqualAndDistinctContentDoesNot() {
+            val a = {{modelPackage}}.Pet(name = "dog", status = {{modelPackage}}.Pet.StatusEnum.SOLD)
+            val b = {{modelPackage}}.Pet(name = "dog", status = {{modelPackage}}.Pet.StatusEnum.SOLD)
+            assertEquals(a, b)
+            assertEquals(a.hashCode(), b.hashCode())
+            assertNotEquals(a, {{modelPackage}}.Pet(name = "cat", status = {{modelPackage}}.Pet.StatusEnum.SOLD))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization022 a top-level JSON scalar decodes to a value of that scalar's own type")
+        fun topLevelScalarDecodesToItsOwnType() {
+            assertEquals("text", serializer.deserialize<String>("\"text\""))
+            assertEquals(7, serializer.deserialize<Int>("7"))
+            assertEquals(true, serializer.deserialize<Boolean>("true"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization023 a payload that is not well-formed JSON fails with the SDK serialization error")
+        fun malformedJsonFailsWithTheSdkError() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":1")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":1} trailing")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization024 brackets inside a JSON string do not count toward the depth limit")
+        fun bracketsInsideStringsDoNotCountTowardDepth() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"[[[[[[[[\",\"photoUrls\":[]}")
+            assertEquals("[[[[[[[[", pet!!.name)
+        }
+
+        @Test
+        @DisplayName("a payload nested past the depth limit is refused with the serialization error")
+        fun payloadNestedPastTheLimitIsRefused() {
+            val deep = "[".repeat(5000) + "]".repeat(5000)
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<Map<String, Int>>("{\"a\":$deep}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization025 typed leaves nested in a model decode to their own typed values")
+        fun typedLeavesNestedInAModelDecodeToTypedValues() {
+            val pet = serializer.deserialize<{{modelPackage}}.Pet>(
+                "{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"sold\",\"tags\":[{\"id\":3,\"name\":\"tag\"}]}",
+            )
+            assertEquals({{modelPackage}}.Pet.StatusEnum.SOLD, pet!!.status)
+            assertEquals("tag", pet.tags!![0].name)
+            assertEquals(3L, pet.tags!![0].id)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization026 a JSON object decodes to a map of its typed values, and an empty object to an empty map")
+        fun jsonObjectDecodesToAMapOfTypedValues() {
+            assertEquals(mapOf("a" to "b"), serializer.deserialize<Map<String, String>>("{\"a\":\"b\"}"))
+            assertEquals(emptyMap<String, String>(), serializer.deserialize<Map<String, String>>("{}"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization028 a JSON value of the wrong kind for a model, list or map is refused")
+        fun wrongKindForModelListOrMapIsRefused() {
+            assertThrows(SerializationException::class.java) { serializer.deserialize<{{modelPackage}}.Pet>("[]") }
+            assertThrows(SerializationException::class.java) { serializer.deserialize<List<Int>>("{}") }
+            assertThrows(SerializationException::class.java) { serializer.deserialize<Map<String, Int>>("[]") }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization029 a JSON value of the wrong kind for a scalar or enum field is refused")
+        fun wrongKindForScalarOrEnumIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":3}")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":\"3\"}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization030 a date-time field accepts only a string, so a number, boolean or array is refused")
+        fun dateTimeFieldAcceptsOnlyAString() {
+            for (value in listOf("1700000000", "true", "[]")) {
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.Order>("{\"shipDate\":$value}")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization031 a whole number at the 32-bit and 64-bit limits decodes exactly")
+        fun wholeNumbersAtTheLimitsDecodeExactly() {
+            assertEquals(Int.MIN_VALUE, serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":-2147483648}")!!.quantity)
+            assertEquals(Long.MIN_VALUE, serializer.deserialize<{{modelPackage}}.Order>("{\"id\":-9223372036854775808}")!!.id)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization032 an integer field refuses a number written with a fraction or exponent even when whole")
+        fun integerRefusesFractionOrExponent() {
+            for (value in listOf("2.0", "1e2")) {
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<{{modelPackage}}.Order>("{\"quantity\":$value}")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization033 each leaf of an integer array must be a plain integer in range")
+        fun integerArrayLeavesMustBePlainIntegersInRange() {
+            for (body in listOf("[[1.0]]", "[[3000000000]]", "[[true]]")) {
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<List<List<Int>>>(body)
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization034 a floating-point field decodes a finite number to its exact numeric value")
+        fun floatingPointDecodesFiniteNumbersExactly() {
+            assertEquals(0.1, serializer.deserialize<Double>("0.1"))
+            assertEquals(-3.0, serializer.deserialize<Double>("-3"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization035 the non-standard NaN and Infinity literals are refused when decoded")
+        fun nanAndInfinityLiteralsAreRefused() {
+            for (body in listOf("NaN", "Infinity", "-Infinity")) {
+                assertThrows(SerializationException::class.java) { serializer.deserialize<Double>(body) }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization036 a whole-number floating-point value is written with a decimal point")
+        fun wholeFloatingPointIsWrittenWithDecimalPoint() {
+            assertEquals("1.0", serializer.serialize(1.0))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization037 a decimal number is written with every significant digit")
+        fun decimalIsWrittenWithEverySignificantDigit() {
+            assertEquals(
+                "12345678901234567.890123",
+                serializer.serialize(java.math.BigDecimal("12345678901234567.890123")),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvSerialization038 a date-time with digits finer than a millisecond is truncated, never rounded up")
+        fun subMillisecondDateTimeIsTruncated() {
+            val dt = OffsetDateTime.parse("2024-01-01T12:30:45.123999+00:00")
+            assertEquals("2024-01-01T12:30:45.123+00:00", serializer.stringify(dt))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization039 a date-time is read from any RFC 3339 spelling to the same instant")
+        fun rfc3339SpellingsDecodeToTheSameInstant() {
+            val z = serializer.deserialize<OffsetDateTime>("\"2024-01-01T12:30:45Z\"")
+            val offset = serializer.deserialize<OffsetDateTime>("\"2024-01-01T12:30:45+00:00\"")
+            val fraction = serializer.deserialize<OffsetDateTime>("\"2024-01-01T12:30:45.000Z\"")
+            assertEquals(z!!.toInstant(), offset!!.toInstant())
+            assertEquals(z.toInstant(), fraction!!.toInstant())
+        }
+
+        @Test
+        @DisplayName("bhvSerialization041 a time string in hours, minutes and seconds parses to a time with those fields")
+        fun timeStringParsesToItsFields() {
+            assertEquals(java.time.LocalTime.of(11, 22, 33), serializer.deserialize<java.time.LocalTime>("\"11:22:33\""))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization042 a date-only string is passed through exactly as given")
+        fun dateOnlyStringIsPassedThroughExactly() {
+            assertEquals(LocalDate.of(2024, 2, 29), serializer.deserialize<LocalDate>("\"2024-02-29\""))
+            assertEquals("2024-02-29", serializer.stringify(LocalDate.of(2024, 2, 29)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization043 a time of day is written as hours, minutes and seconds")
+        fun timeOfDayIsWrittenAsHoursMinutesSeconds() {
+            assertEquals("09:05:07", serializer.stringify(java.time.LocalTime.of(9, 5, 7)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization045 a malformed time or duration string is refused rather than decoded to a wrong value")
+        fun malformedTimeOrDurationIsRefused() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<java.time.LocalTime>("\"25:00:00\"")
+            }
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<java.time.Duration>("\"ten seconds\"")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization046 a duration's fractional seconds use the shortest group of three, six or nine digits")
+        fun durationFractionUsesShortestGroup() {
+            assertEquals("1.500s", serializer.stringify(java.time.Duration.ofMillis(1500)))
+            assertEquals("1.500000001s", serializer.stringify(java.time.Duration.ofNanos(1500000001)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization048 a duration written on its own is its protobuf-JSON seconds string")
+        fun durationWrittenOnItsOwnIsSecondsString() {
+            assertEquals("90s", serializer.stringify(java.time.Duration.ofSeconds(90)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization050 a property whose name begins with a digit reads and writes under its exact wire name")
+        fun digitLeadingPropertyUsesItsWireName() {
+            val model = serializer.deserialize<DigitLeadingName>("{\"2fa\":\"code\"}")
+            assertEquals("code", model!!.twoFa)
+            assertEquals("{\"2fa\":\"code\"}", serializer.serialize(model))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization061 slash, angle brackets, ampersand and non-ASCII text are written literally")
+        fun slashAngleAmpersandAndNonAsciiAreLiteral() {
+            assertEquals("{\"k\":\"a/<b>&é\"}", serializer.serialize(mapOf("k" to "a/<b>&é")))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization064 a collection of unique values is written as a JSON array of its members")
+        fun uniqueCollectionIsWrittenAsArray() {
+            assertEquals("[\"a\",\"b\"]", serializer.serialize(linkedSetOf("a", "b")))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization065 a null inside an array or map of plain or timestamp values is kept as null")
+        fun nullInsideContainersIsKeptAsNull() {
+            assertEquals(listOf("a", null), serializer.deserialize<List<String?>>("[\"a\",null]"))
+            assertEquals(mapOf("a" to null), serializer.deserialize<Map<String, OffsetDateTime?>>("{\"a\":null}"))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization066 a null is refused for a property that is not declared nullable")
+        fun nullIsRefusedForANonNullableProperty() {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<{{modelPackage}}.Pet>("{\"name\":null,\"photoUrls\":[]}")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization009 a value that cannot be serialized raises the serialization error before any output")
+        fun unserializableValueRaisesBeforeAnyOutput() {
+            assertThrows(SerializationException::class.java) {
+                serializer.serialize(mapOf("a" to 1, "b" to Double.NaN))
+            }
+        }
+
+        @Test
+        @DisplayName("bhvSerialization012 keys of maps are written in ascending order so equal data writes identical output")
+        fun mapKeysAreWrittenInAscendingOrder() {
+            assertEquals("{\"a\":1,\"b\":2,\"c\":3}", serializer.serialize(linkedMapOf("c" to 3, "a" to 1, "b" to 2)))
+        }
+
+        @Test
+        @DisplayName("bhvSerialization062 a base64 string for a byte-typed value decodes to the raw bytes it encodes")
+        fun base64StringDecodesToRawBytes() {
+            assertArrayEquals(byteArrayOf(1, 2, 3), serializer.deserialize<ByteArray>("\"AQID\""))
+        }
+    }
 }
+
+// File-scoped fixture: a property whose wire name begins with a digit.
+@Serializable
+private data class DigitLeadingName(
+    @SerialName("2fa")
+    val twoFa: String? = null,
+)
