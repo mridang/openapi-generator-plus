@@ -540,3 +540,46 @@ test('bhv misc 049 a choice between one binary value and a list writes the list 
     expect($json)->toBe('["AQIDBA=="]');
     expect($json)->not->toContain('[1,2,3,4]');
 });
+
+test('bhv misc 291 a payload matching more than one variant decodes to the first declared one', function (): void {
+    $record = \PetstoreClient\Models\TreatmentRecord::build(['drugName' => 'a', 'procedureName' => 'b']);
+
+    expect($record->getActualInstance())->toBeInstanceOf(\PetstoreClient\Models\Surgery::class);
+});
+
+test('bhv misc 292 serializing a union wrapper writes the bare variant payload and reading it back restores it', function (): void {
+    $medication = new \PetstoreClient\Models\Medication('Amoxicillin', notes: 'from-medication');
+    $treatment = \PetstoreClient\Models\PetTreatment::fromMedication($medication);
+
+    $serialized = ObjectSerializer::serialize($treatment);
+
+    expect(json_decode($serialized, true))->toBe(json_decode(ObjectSerializer::serialize($medication), true));
+    $restored = ObjectSerializer::deserialize($serialized, \PetstoreClient\Models\PetTreatment::class);
+    expect($restored->getActualInstance()->drugName)->toBe('Amoxicillin');
+});
+
+test('bhv misc 294 a subtype payload that omits its discriminator is decoded as the variant named by the mapping value', function (): void {
+    $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+    $result = PetFood::build($data);
+    $instance = $result->getActualInstance();
+    expect($instance)->toBeInstanceOf(DryFood::class);
+    assert($instance instanceof DryFood);
+    expect($instance->foodType)->toBe('dry');
+});
+
+test('bhv misc 295 a oneOf with a byte string variant round trips through base64 encoding', function (): void {
+    // (1) SCALAR variant: constructed from raw bytes [0x01,0x02,0x03,0x04].
+    $raw = "\x01\x02\x03\x04";
+    $request = new SetPetAvatarThumbnailRequest($raw);
+    expect($request->getActualInstance())->toBe($raw);
+
+    // The wire value is the base64 STRING "AQIDBA==" — not a JSON int-array
+    // [1,2,3,4], not the raw bytes, not object garbage.
+    $json = ObjectSerializer::serialize($request);
+    expect($json)->toBe('"AQIDBA=="');
+
+    // Deserializing recovers exactly the original 4 bytes.
+    /** @var SetPetAvatarThumbnailRequest $restored */
+    $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    expect($restored->getActualInstance())->toBe($raw);
+});

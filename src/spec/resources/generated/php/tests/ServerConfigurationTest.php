@@ -224,3 +224,17 @@ test('bhv servers 028 a generated server and its variables cannot be changed aft
         (new \ReflectionProperty(ServerConfiguration::class, 'variables'))->setValue($server, $variables);
     })->toThrow(\Error::class);
 });
+
+test('bhv misc 297 server URL template variables are replaced with the supplied values when the URL is built, including several', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{region}.api.example.com:{port}/v{version}',
+        variables: [
+            'region' => new ServerVariable(defaultValue: 'eu', enumValues: ['eu', 'us']),
+            'port' => new ServerVariable(defaultValue: '8443'),
+            'version' => new ServerVariable(defaultValue: '1'),
+        ],
+    );
+
+    expect($server->getUrl(['region' => 'us', 'port' => '9443', 'version' => '2']))
+        ->toBe('https://us.api.example.com:9443/v2');
+});

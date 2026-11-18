@@ -96,5 +96,20 @@ void main() {
         expect(() => result.headers['x-other'] = 'v', throwsUnsupportedError);
       },
     );
+    test(
+      'bhv results 007 Data, raw body and headers are returned exactly as they were supplied',
+      () {
+        final result = ApiResult<Map<String, dynamic>>(
+          statusCode: 200,
+          data: {'id': 1},
+          rawBody: '{"id": 1}',
+          headers: {'Content-Type': 'application/json'},
+        );
+
+        expect(result.data, equals({'id': 1}));
+        expect(result.rawBody, equals('{"id": 1}'));
+        expect(result.headers, equals({'Content-Type': 'application/json'}));
+      },
+    );
   });
 }

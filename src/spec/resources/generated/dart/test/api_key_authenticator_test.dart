@@ -11,6 +11,20 @@ import 'package:petstore_client/petstore_client.dart';
 void main() {
   group('ApiKeyAuthenticator', () {
     test(
+      'bhv misc 189 the API-key query wrapper sends its key as the api_key query parameter',
+      () {
+        final auth = ApiKeyAuthenticator(
+          host: '/api/v3',
+          keyParamName: 'api_key',
+          apiKey: 'abc123',
+          location: ApiKeyLocation.query,
+        );
+
+        expect(auth.queryParams(), equals({'api_key': 'abc123'}));
+      },
+    );
+
+    test(
       'bhv serializationobject 187 an explicit key wins over the environment',
       () {
         final auth = ApiKeyAuthenticator(
