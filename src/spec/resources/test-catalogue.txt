@@ -1979,3 +1979,8 @@ langpython036 | Token is not leaked in repr.
 langpython037 | A refused password is named as the fault.
 langpython038 | Rejects ascii whitespace only token as empty.
 langpython039 | A bearer authenticator compares by identity, so two instances with equal tokens are unequal and hash apart.
+langpython040 | A chain of no hooks does nothing.
+langpython041 | A chain is a call hook.
+langpython042 | One failing observer does not stop the others.
+langpython043 | The response headers are lower cased and read only.
+langpython044 | No response means no headers rather than an empty map.
