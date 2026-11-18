@@ -209,6 +209,72 @@ describe Petstore::Client::Api::BaseApi do
     _(err.status_code).must_equal 418
   end
 
+  it 'bhv_errors_058 a 400 response maps to the bad request error' do
+    err = assert_raises(Petstore::Client::Errors::BadRequestError) do
+      api.call('GET', '/test/status/400', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 400
+  end
+
+  it 'bhv_errors_059 a 403 response maps to the forbidden error' do
+    err = assert_raises(Petstore::Client::Errors::ForbiddenError) do
+      api.call('GET', '/test/status/403', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 403
+  end
+
+  it 'bhv_errors_060 a 404 response maps to the not found error' do
+    err = assert_raises(Petstore::Client::Errors::NotFoundError) do
+      api.call('GET', '/test/status/404', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 404
+  end
+
+  it 'bhv_errors_066 a 429 response maps to the too-many-requests error, a client error' do
+    err = assert_raises(Petstore::Client::Errors::TooManyRequestsError) do
+      api.call('GET', '/test/status/429', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 429
+    assert_kind_of Petstore::Client::Errors::ClientError, err
+  end
+
+  it 'bhv_errors_067 a 409 response maps to the conflict error' do
+    err = assert_raises(Petstore::Client::Errors::ConflictError) do
+      api.call('GET', '/test/status/409', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 409
+  end
+
+  it 'bhv_errors_068 a 422 response maps to the unprocessable entity error' do
+    err = assert_raises(Petstore::Client::Errors::UnprocessableEntityError) do
+      api.call('GET', '/test/status/422', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 422
+  end
+
+  it 'bhv_errors_069 a 500 response maps to the internal server error' do
+    err = assert_raises(Petstore::Client::Errors::InternalServerError) do
+      api.call('GET', '/test/status/500', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 500
+  end
+
+  it 'bhv_errors_070 a 502 response maps to the server error' do
+    err = assert_raises(Petstore::Client::Errors::ServerError) do
+      api.call('GET', '/test/status/502', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err.status_code).must_equal 502
+  end
+
+  it 'bhv_errors_061 a bad request error is a client error, an API error and an OpenAPI error' do
+    err = assert_raises(Petstore::Client::Errors::BadRequestError) do
+      api.call('GET', '/test/status/400', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    assert_kind_of Petstore::Client::Errors::ClientError, err
+    assert_kind_of Petstore::Client::Errors::ApiError, err
+    assert_kind_of ::Petstore::Client::Errors::OpenAPIError, err
+  end
+
   # ── Error body parsing ──
 
   it 'bhv_errors_034 parses JSON error body' do
@@ -1207,6 +1273,18 @@ describe Petstore::Client::Api::BaseApi do
     _(err.request_method).must_equal 'POST'
     _(err.request_path).must_equal '/items'
     _(err.status_code).must_equal 0
+  end
+
+  it 'bhv_errors_057 a network failure error carries the request method and path' do
+    config = Petstore::Client::Configuration.builder.base_url('https://example.test').build
+    test_api = TestableApi.new(RaisingApiClient.new, config)
+
+    err = assert_raises(Petstore::Client::Errors::NetworkError) do
+      test_api.call(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+
+    _(err.request_method).must_equal 'GET'
+    _(err.request_path).must_equal '/items/7'
   end
 
   # ── Per-call request options ──

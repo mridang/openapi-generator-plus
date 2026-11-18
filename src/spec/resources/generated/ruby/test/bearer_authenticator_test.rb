@@ -77,6 +77,12 @@ describe Petstore::Client::Auth::BearerAuthenticator do
     }).must_raise ArgumentError
   end
 
+  it 'bhv_authbearer_028 rejects a bearer token containing CRLF at construction' do
+    _(lambda {
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "tok\r\nInjected: yes")
+    }).must_raise ArgumentError
+  end
+
   it 'rejects a non-ASCII token' do
     _(lambda {
       Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'ñoño')
