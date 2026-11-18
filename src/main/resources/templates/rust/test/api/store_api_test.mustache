@@ -669,6 +669,76 @@ async fn test_bhv_operations_139_store_api_time_query_keeps_non_zero_fractional_
 }
 
 /* options053: a per-call header is sent on the call that carries it and never on the next call. */
+/// Answers every connection with 503 and counts the requests it receives.
+fn new_store_api_for_always_503_mock(requests: Arc<Mutex<usize>>) -> StoreApi {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            *requests.lock().unwrap() += 1;
+            let response = "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let client = DefaultApiClient::new(None);
+    StoreApi::new(Arc::new(client), config, None)
+}
+
+/* misc296: with no retry setting, a failed request is retried twice (three requests). */
+#[tokio::test]
+async fn test_bhv_misc_296_by_default_a_failed_request_is_retried_twice_so_three_reach_the_wire() {
+    let requests = Arc::new(Mutex::new(0usize));
+    let api = new_store_api_for_always_503_mock(requests.clone());
+
+    let result = api.get_inventory(None).await;
+
+    assert!(result.is_err(), "the final 503 must surface as an error");
+    assert_eq!(*requests.lock().unwrap(), 3, "one attempt plus the two default retries");
+}
+
+/* misc299: a header the caller sets on a call replaces the transport default of the same name on the wire. */
+#[tokio::test]
+async fn test_bhv_misc_299_a_caller_header_overrides_the_transport_default_on_the_wire() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_lowercase());
+            let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+
+    let transport = TransportOptions::builder()
+        .default_header("X-Request-Source", "transport")
+        .build()
+        .expect("valid transport options");
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = StoreApi::new(Arc::new(DefaultApiClient::new(Some(transport))), config, None);
+    let opts = PlaceOrderOptions::new().header("X-Request-Source", "caller");
+
+    api.place_order(Some(Order::new()), Some(&opts))
+        .await
+        .expect("a 200 response must succeed");
+
+    let raw = rx.recv_timeout(std::time::Duration::from_secs(5)).expect("request captured");
+    assert!(raw.contains("x-request-source: caller"), "caller value missing: {raw}");
+    assert!(!raw.contains("x-request-source: transport"), "transport default leaked: {raw}");
+}
+
 #[tokio::test]
 async fn test_bhv_options_053_store_api_per_call_options_apply_to_that_call_only() {
     let client = Arc::new(RecordingApiClient::new());
