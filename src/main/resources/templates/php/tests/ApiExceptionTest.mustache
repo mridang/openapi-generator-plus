@@ -73,6 +73,13 @@ test('bhv errors 001 the string form caps the body, escapes control characters a
     expect($ex->getResponseBody())->toContain("tail\nforged: line");
 });
 
+test('bhv errors 047 an ApiException is a PHP Throwable and the branded SDK root', function (): void {
+    $ex = new ApiException(500, 'boom');
+
+    expect($ex)->toBeInstanceOf(\Throwable::class);
+    expect($ex)->toBeInstanceOf({{errorPrefix}}Exception::class);
+});
+
 test('a newline in the body is shown escaped, never as a line break', function (): void {
     $ex = new ApiException(500, 'boom', null, "one\r\ntwo");
 
@@ -436,6 +443,12 @@ test('bhv errors 002 every status exception carries the request context', functi
     '503' => [503],
 ]);
 
+test('bhv errors 048 a 418 response maps to the client exception', function (): void {
+    $ex = ApiException::fromResponse(418, [], '{}');
+
+    expect($ex)->toBeInstanceOf(\{{invokerPackage}}\Errors\ClientException::class);
+});
+
 test('bhv errors 011 fromResponse names the request in the message and the fields', function (): void {
     $ex = ApiException::fromResponse(404, null, null, 'get', '/items?x=1');
     expect($ex->getRequestMethod())->toBe('GET');
@@ -459,6 +472,23 @@ test('bhv errors 049 an oauth2 server error message names the status and the err
 
     expect($error->getMessage())->toBe('Token request failed with status 400: invalid_grant');
 });
+
+test('bhv errors 045 the OAuth2 errors are rooted at the branded base, not at ApiError', function (): void {
+    $error = new \{{invokerPackage}}\Errors\OAuth2ServerException(400, 'invalid_grant', null, null, '{}');
+
+    expect($error)->toBeInstanceOf({{errorPrefix}}Exception::class);
+    expect($error)->not->toBeInstanceOf(ApiException::class);
+});
+
+test('bhv errors 046 the OAuth2 message has three forms: a raw body, a code, and a code with a description', function (?string $code, ?string $description, string $rawBody, string $expected): void {
+    $error = new \{{invokerPackage}}\Errors\OAuth2ServerException(400, $code, $description, null, $rawBody);
+
+    expect($error->getMessage())->toBe($expected);
+})->with([
+    'raw body' => [null, null, 'server exploded', 'Token request failed with status 400: server exploded'],
+    'code' => ['invalid_grant', null, '{}', 'Token request failed with status 400: invalid_grant'],
+    'code with description' => ['invalid_grant', 'expired', '{}', 'Token request failed with status 400: invalid_grant -- expired'],
+]);
 
 test('bhv errors 058 a 400 response maps to the bad request error', function (): void {
     $ex = ApiException::fromResponse(400, [], '{}');

@@ -355,8 +355,12 @@ test('bhv serializationparam 087 simple scalar path is url encoded', function ()
 
 // -- serializeStyled: null style falls back to location default --
 
-test('null style behaves like simple for path', function (): void {
+test('bhv serializationparam 106 path with null style behaves like simple', function (): void {
     expect(ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false))->toBe('5');
+});
+
+test('bhv serializationparam 105 a form scalar serializes styled as its own value', function (): void {
+    expect(ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'form', true))->toBe('blue');
 });
 
 test('bhv serializationparam 035 empty style falls back', function (): void {

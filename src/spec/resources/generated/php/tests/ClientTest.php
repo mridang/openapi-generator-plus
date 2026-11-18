@@ -283,7 +283,7 @@ test('a supplied psr18 client receives the request from every api group', functi
     expect($stub->requests)->toHaveCount(count($clients));
 });
 
-test('a supplied psr18 client conflicts with sdk proxy and tls settings', function (TransportOptions $options): void {
+test('bhv lifecycle 024 a supplied psr18 client conflicts with sdk proxy and tls settings', function (TransportOptions $options): void {
     $factory = new Psr17Factory();
     $stub = new StubPsr18Client();
 

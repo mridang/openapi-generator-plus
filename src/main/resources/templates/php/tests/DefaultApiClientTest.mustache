@@ -758,6 +758,15 @@ test('bhv transport 063 proxy that requires credentials answers 407 when none ar
 
 // -- TLS verification enabled --
 
+test('bhv transport 059 an authenticating proxy refuses a request without credentials', function (): void {
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy((string) getenv('PROXY_AUTH_URL'))->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(407);
+});
+
 test('bhv transport 025 verify ssl true rejects a server certificate the system trust store does not know', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 

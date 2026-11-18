@@ -34,6 +34,19 @@ test('bhv servers 017 exposes the default value, description and enum values', f
     expect($variable->enumValues)->toBe(['v2', 'v3']);
 });
 
+test('bhv servers 018 enum values are exposed for validation', function (): void {
+    $variable = new ServerVariable(defaultValue: 'v3', enumValues: ['v2', 'v3']);
+
+    expect($variable->enumValues)->toContain('v2');
+    expect($variable->enumValues)->toContain('v3');
+});
+
+test('bhv servers 019 enum does not contain a value outside the allowed set', function (): void {
+    $variable = new ServerVariable(defaultValue: 'v3', enumValues: ['v2', 'v3']);
+
+    expect($variable->enumValues)->not->toContain('v9');
+});
+
 test('bhv servers 024 the enum values cannot be mutated', function (): void {
     $variable = new ServerVariable(defaultValue: 'v3', enumValues: ['v2', 'v3']);
 

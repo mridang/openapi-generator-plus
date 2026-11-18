@@ -174,7 +174,7 @@ function withBearerTokenEnvironment(?string $value, callable $body): void
     }
 }
 
-test('an explicit token wins over the environment', function (): void {
+test('bhv authbearer 018 an explicit token wins over the environment', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {
         $auth = new PetStoreBearerAuthenticator('https://api.example.com', 'explicit');
         expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer explicit');
@@ -195,7 +195,7 @@ test('bhv lifecycle 014 reads the token from the environment when none is passed
     });
 });
 
-test('the environment is read once, when the authenticator is built', function (): void {
+test('bhv lifecycle 025 reads the environment once, when the authenticator is built', function (): void {
     withBearerTokenEnvironment('first', function (): void {
         $auth = new PetStoreBearerAuthenticator('https://api.example.com');
         putenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN=second');
@@ -212,6 +212,13 @@ test('bhv authscheme 010 a missing or empty environment token fails naming the v
     'unset' => [null],
     'empty' => [''],
 ]);
+
+test('bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable', function (): void {
+    withBearerTokenEnvironment('', function (): void {
+        expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN');
+    });
+});
 
 test('a token provider wins over the environment', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {

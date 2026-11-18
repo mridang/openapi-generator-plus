@@ -245,6 +245,13 @@ test('bhv authscheme 009 an explicit api key wins over the environment', functio
     });
 });
 
+test('bhv serializationobject 187 an explicit api key wins over the environment', function (): void {
+    withApiKeyEnvironment('from-environment', function (): void {
+        $auth = new ApiKeyHeaderAuthenticator('https://api.example.com', 'explicit');
+        expect(sentApiKeys($auth))->toBe(['explicit']);
+    });
+});
+
 test('bhv authscheme 001 the api key is read from the environment when none is passed', function (): void {
     withApiKeyEnvironment('from-environment', function (): void {
         $auth = new ApiKeyHeaderAuthenticator('https://api.example.com');

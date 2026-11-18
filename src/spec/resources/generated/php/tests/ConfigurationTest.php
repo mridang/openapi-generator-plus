@@ -223,6 +223,14 @@ test('bhv config 014 default configuration is stateless', function (): void {
     expect($second->baseUrl)->toBe($first->baseUrl);
 });
 
+test('bhv config 023 repeated default configuration calls return an equal configuration with the same base url', function (): void {
+    $first = Configuration::defaultConfiguration();
+    $second = Configuration::defaultConfiguration();
+
+    expect($second)->toEqual($first);
+    expect($second->baseUrl)->toBe($first->baseUrl);
+});
+
 test('bhv config 022 mutating the returned default headers does not change the configuration', function (): void {
     $config = Configuration::builder()
         ->defaultHeader('X-Key', 'value')

@@ -193,3 +193,4 @@ swift | transport063 | On Linux FoundationNetworking cannot apply a proxy, so se
 swift | transport064 | URLSession releases the intermediate response of a refused redirect itself and a URLProtocol stub cannot observe that release (forced, F1140)
 swift | transport065 | On Linux FoundationNetworking cannot apply a custom CA, so caCertPath throws ConfigurationError.invalidCACertificate (testCaCertificateIsRefusedOnLinux) and the trust-store replacement cannot run in the Linux spec
 swift | transport066 | On Linux FoundationNetworking cannot apply a custom CA, so caCertPath throws ConfigurationError.invalidCACertificate (testCaCertificateIsRefusedOnLinux) and the bundle's certificates cannot be trusted in the Linux spec
+php | authoidc029 | PHP serves one request per process and has no lock around OIDC rediscovery, so no two callers ever share a cold discovery (php AGENTS, concurrency)

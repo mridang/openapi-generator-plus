@@ -736,7 +736,7 @@ test('bhv serializationwire 011 form optional null field is omitted', function (
     expect($captured->body)->not->toContain('tags');
 });
 
-test('form body encodes space as plus not percent twenty', function (): void {
+test('bhv serializationwire 055 form body encodes space as plus not percent twenty', function (): void {
     // Canonical behavior #3: a space inside a form-body value is encoded as
     // '+' (WHATWG application/x-www-form-urlencoded), never %20.
     [$api, $captured] = newBodyCapturingPetApi();
