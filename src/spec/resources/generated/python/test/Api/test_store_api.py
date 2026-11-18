@@ -611,7 +611,9 @@ class TestStoreApiContentParameters:
 
         assert seen["x_filter"] == '{"k":"v"}'
 
-    async def test_content_that_cannot_be_serialized_sends_no_request(self) -> None:
+    async def test_bhv_serialization_009_content_that_cannot_be_serialized_sends_no_request(
+        self,
+    ) -> None:
         api, seen = _capture_server()
 
         with pytest.raises(SerializationException):

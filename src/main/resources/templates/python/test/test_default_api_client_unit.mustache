@@ -1032,6 +1032,64 @@ class TestBodyReplayOnTlsDowngrade:
         assert len(pool.calls) == 2
 
 
+class TestRedirectKeepsTheRequestOnTheHop:
+    def test_bhv_redirects_038_a_307_keeps_the_method_body_and_content_type(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, kwargs.get('body'), dict(kwargs.get('headers') or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(307, {'location': 'https://example.com/landed'})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request(
+            'PUT',
+            'https://example.com/start',
+            {'Content-Type': 'application/json'},
+            '{"a":1}',
+        )
+        assert len(pool.calls) == 2
+        method, url, body, headers = pool.calls[1]
+        assert (method, url) == ('PUT', 'https://example.com/landed')
+        assert body == '{"a":1}'
+        assert headers.get('Content-Type') == 'application/json'
+
+    def test_bhv_redirects_039_a_bodyless_request_follows_an_https_to_http_redirect(self) -> None:
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                if len(self.calls) == 1:
+                    return _FakeResp(307, {'location': 'http://example.com/plain'})
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _Pool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request('GET', 'https://example.com/secure', {}, None)
+        assert pool.calls == [
+            ('GET', 'https://example.com/secure'),
+            ('GET', 'http://example.com/plain'),
+        ]
+
+
+class TestCallerPoolManagerRedirects:
+    def test_bhv_redirects_045_a_pool_manager_that_follows_redirects_is_refused(self) -> None:
+        pool = urllib3.PoolManager(retries=urllib3.Retry(redirect=5))
+        with pytest.raises(ValueError):
+            DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
+
+    def test_a_pool_manager_that_does_not_follow_redirects_is_accepted(self) -> None:
+        pool = urllib3.PoolManager(retries=urllib3.Retry(redirect=False))
+        client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
+        assert client is not None
+
+
 class TestContentLengthStrippedOnRedirect:
     """3.4: the 303-coerce-to-GET (and 301/302 method-demotion) branch must
     drop ``Content-Length`` along with the body, otherwise the follow-up

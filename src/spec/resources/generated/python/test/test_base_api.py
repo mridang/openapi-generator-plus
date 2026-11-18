@@ -771,6 +771,97 @@ class TestQuerySerialization:
         )
         assert client.captured_url == "http://localhost/test/echo?q=a%21%2A%27%28%29~"
 
+    async def test_bhv_serialization_006_a_query_value_with_an_ampersand_and_space_cannot_add_a_parameter(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"q": "a&admin=1 x"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?q=a%26admin%3D1%20x"
+
+    async def test_a_query_parameter_name_with_reserved_characters_is_percent_encoded(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"a b=c": "1"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?a%20b%3Dc=1"
+
+    async def test_bhv_serialization_007_a_literal_plus_sign_in_a_query_value_is_sent_as_percent_2b(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"q": "a+b"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?q=a%2Bb"
+
+    async def test_non_ascii_query_text_is_sent_as_percent_encoded_utf8(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "GET",
+            "/test/echo",
+            {"q": "\u00e9"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+        assert client.captured_url == "http://localhost/test/echo?q=%C3%A9"
+
+    async def test_non_ascii_form_text_is_sent_as_percent_encoded_utf8(self) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"name": "\u00e9"},
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert str(client.captured_body) == "name=%C3%A9"
+
     async def test_bhv_serializationwire_009_expands_array_query_params(self) -> None:
         client = CapturingApiClient()
         config = Configuration(base_url="http://localhost")
@@ -1742,6 +1833,54 @@ class TestBodySerialization:
         )
         wire = str(client.captured_body)
         assert wire == "nickname=rex&subscribed=true"
+
+    async def test_bhv_serialization_040_form_scalars_are_written_in_their_canonical_wire_text(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {
+                "at": datetime.datetime(
+                    2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                ),
+                "span": datetime.timedelta(seconds=90),
+                "ratio": 1.5,
+                "count": 7,
+                "subscribed": True,
+            },
+            ["application/json"],
+            "application/x-www-form-urlencoded",
+            None,
+        )
+        assert str(client.captured_body) == (
+            "at=2024-01-02T03%3A04%3A05.000%2B00%3A00&span=90s&ratio=1.5&count=7&subscribed=true"
+        )
+
+    async def test_bhv_serialization_010_the_declared_content_type_is_sent_with_no_charset_added(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        stub = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+        await stub.call(
+            "POST",
+            "/test/echo",
+            {},
+            {},
+            {"a": 1},
+            ["application/json"],
+            "application/vnd.api+json",
+            None,
+        )
+        assert client.captured_headers["Content-Type"] == "application/vnd.api+json"
 
     async def test_bhv_serializationwire_014_form_urlencoded_body_rejects_a_map_field(
         self,
@@ -2791,7 +2930,9 @@ class TestOperationServerVariants:
 
 
 class TestQueryParameterOrder:
-    async def test_allow_reserved_parameter_keeps_its_declared_position(self) -> None:
+    async def test_bhv_serialization_011_allow_reserved_parameter_keeps_its_declared_position(
+        self,
+    ) -> None:
         from petstore_client.value_serializer import AllowReservedValue
 
         client = CapturingApiClient()
@@ -2892,6 +3033,8 @@ def _retry_api(server: ScriptedServer, **options: Any) -> StubApi:
         builder.max_retries(options["max_retries"])
     if "timeout" in options:
         builder.timeout(options["timeout"])
+    if "inject_request_id" in options:
+        builder.inject_request_id(options["inject_request_id"])
     return StubApi(
         api_client=DefaultApiClient(builder.build()),
         config=Configuration(base_url=server.url),
@@ -3129,6 +3272,17 @@ class TestAutomaticRetries:
         )
 
         assert [r["authorization"] for r in server.requests] == ["Bearer fixed"] * 3
+
+    async def test_bhv_retries_044_every_retry_carries_a_request_id_that_differs_from_the_attempts_before_it(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, _SOON, "{}"), (503, _SOON, "{}"), _OK)
+
+        await _get(_retry_api(server, max_retries=2, inject_request_id=True))
+
+        ids = [r["x-request-id"] for r in server.requests]
+        assert len(ids) == 3
+        assert len(set(ids)) == 3
 
     async def test_bhv_retries_034_a_string_body_is_sent_again_unchanged(
         self, scripted: Any
