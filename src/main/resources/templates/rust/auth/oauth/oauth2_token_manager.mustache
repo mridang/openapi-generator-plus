@@ -521,16 +521,31 @@ fn parse_expires_in(value: Option<&serde_json::Value>) -> u64 {
         return f.floor() as u64;
     }
     if let Some(s) = value.as_str() {
-        let trimmed = s.trim();
-        if trimmed.is_empty() {
-            return 0;
-        }
-        if let Ok(f) = trimmed.parse::<f64>() {
-            if !f.is_finite() || f <= 0.0 {
-                return 0;
+        /* Only ASCII whitespace pads the value, and only a plain decimal
+         * (digits with at most one dot) is a lifetime: `1e3`, `0x10` and `NaN`
+         * are not, so the token is not cached. */
+        let trimmed = s.trim_matches(|c: char| matches!(c, ' ' | '\t' | '\n' | '\r' | '\x0c' | '\x0b'));
+        if is_plain_decimal(trimmed) {
+            if let Ok(f) = trimmed.parse::<f64>() {
+                if f.is_finite() && f > 0.0 {
+                    return f.floor() as u64;
+                }
             }
-            return f.floor() as u64;
         }
     }
     0
+}
+
+/// True when `s` is ASCII digits with at most one dot and at least one digit.
+fn is_plain_decimal(s: &str) -> bool {
+    let mut digits = 0usize;
+    let mut dots = 0usize;
+    for b in s.bytes() {
+        match b {
+            b'0'..=b'9' => digits += 1,
+            b'.' => dots += 1,
+            _ => return false,
+        }
+    }
+    digits > 0 && dots <= 1
 }
