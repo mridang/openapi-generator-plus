@@ -2631,4 +2631,62 @@ public class BaseApiTest
 
         Assert.Equal("hello", result);
     }
+
+    [Fact]
+    public async Task BhvMisc176ARequiredCookieParamIsSentInTheCookieHeaderWithItsValue()
+    {
+        var client = new CapturingApiClient();
+        var api = new PetApi(client, new Configuration("https://example.test"));
+
+        await api.DeletePetAsync(1L, new DeletePetOptions { ApiKey = "abc123" });
+
+        Assert.Equal("api_key=abc123", client.CapturedHeaders["Cookie"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc179AFormUrlencodedBodySendsItsFormContentType()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration("http://localhost"));
+
+        _ = await api.CallAsync<object>(
+            "/items/7", body: "name=x", contentType: "application/x-www-form-urlencoded");
+
+        Assert.Equal("application/x-www-form-urlencoded", client.CapturedHeaders["Content-Type"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc181AHeaderValueIsSentAsSerialisedWithoutPercentEncoding()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration(
+            "http://localhost", new Dictionary<string, string> { ["X-Trace"] = "a%20b c" }));
+
+        _ = await api.CallAsync<object>("/items/7");
+
+        Assert.Equal("a%20b c", client.CapturedHeaders["X-Trace"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc191AnAuthCookieWithAForbiddenCharacterRaisesAnArgumentError()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration("http://localhost"));
+        var auth = new ApiKeyAuthenticator("http://localhost", "session", "a;b", ApiKeyLocation.Cookie);
+
+        _ = await Assert.ThrowsAsync<ArgumentException>(() => api.CallAsync<object>("/items/7", auth: auth));
+    }
+
+    [Fact]
+    public async Task BhvMisc192AnAuthCookieOfLegalOctetsIsSentExactlyAsGiven()
+    {
+        var client = new CapturingApiClient();
+        var api = new HookedApi(client, new Configuration("http://localhost"));
+        var auth = new ApiKeyAuthenticator("http://localhost", "session", "a%20b=c", ApiKeyLocation.Cookie);
+
+        _ = await api.CallAsync<object>("/items/7", auth: auth);
+
+        Assert.Equal("session=a%20b=c", client.CapturedHeaders["Cookie"]);
+    }
+
 }
