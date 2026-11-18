@@ -2229,3 +2229,6 @@ langnode086 | Undeclared wire keys survive deserialization
 langnode087 | A constructed instance exposes its undeclared keys
 langnode088 | The undeclared-keys map is typed like an index signature
 langnode089 | The undeclared-keys map is not serialised as a data key
+langcsharp057 | The cancellation token defaults to none when none is supplied
+langcsharp058 | A supplied cancellation token is kept when the options are read back
+langcsharp059 | Supplying both a client and a handler together fails fast
