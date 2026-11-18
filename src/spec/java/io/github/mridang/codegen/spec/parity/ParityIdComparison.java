@@ -139,6 +139,9 @@ public final class ParityIdComparison {
 
     List<String> missing = new ArrayList<>();
     for (TestCatalogue.Behaviour behaviour : catalogue.all()) {
+      if (belongsToAnotherLanguage(behaviour.id(), language)) {
+        continue;
+      }
       boolean has = byId.containsKey(behaviour.id());
       boolean excepted = exceptions.allows(language, behaviour.id());
       if (!has && !excepted) {
@@ -207,5 +210,15 @@ public final class ParityIdComparison {
       line.append("\n  ... and ").append(items.size() - SAMPLE).append(" more");
     }
     problems.add(line.toString());
+  }
+
+  /**
+   * A behaviour id of the form {@code lang<language><nnn>}, for example {@code langjava001}, is a
+   * test that only makes sense in that one language (its own idioms or tooling), so every other
+   * language is neither missing it nor expected to except it.
+   */
+  static boolean belongsToAnotherLanguage(String id, String language) {
+    java.util.regex.Matcher m = java.util.regex.Pattern.compile("^lang([a-z]+?)\\d{3}$").matcher(id);
+    return m.matches() && !m.group(1).equals(language);
   }
 }
