@@ -345,8 +345,8 @@ class MetadataTest {
         // Gradle runs tests with the project root as the working directory.
         val source = java.io.File("src/main/kotlin").walk().first { it.name == "Account.kt" }.readText()
         assertTrue(source.contains("""<a href="https://example.com/docs/account">Account <docs> & "notes" it's here</a>"""), source)
-        assertFalse(source.contains("&lt;"), source)
-        assertFalse(source.contains("&amp;"), source)
+        assertFalse(source.contains("\u0026lt;"), source)
+        assertFalse(source.contains("\u0026amp;"), source)
     }
 
     @Test
@@ -410,6 +410,6 @@ class MetadataTest {
     fun keysNamedLikeMethodsAreKeptAsAdditionalProperties() {
         val metadata = ObjectSerializer().deserialize<Metadata>("{\"toString\":\"x\",\"hashCode\":1}")
         assertEquals("x", metadata!!.additionalProperties["toString"])
-        assertEquals(1, metadata.additionalProperties["hashCode"])
+        assertEquals(1L, metadata.additionalProperties["hashCode"])
     }
 }

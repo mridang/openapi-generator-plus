@@ -315,7 +315,8 @@ class ClientTest {
                 reached += 1
                 respond("{}")
             }
-        val client = Client(authenticator, TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build())
+        val transport = HttpClient(engine) { followRedirects = false }
+        val client = Client(authenticator, TransportOptions.builder().httpClient(transport).build())
         client.close()
 
         val ex =
@@ -498,7 +499,7 @@ class ClientTest {
             Client(
                 "https://api.example.com",
                 machineAuth = credential,
-                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine)).build(),
+                transportOptions = TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
             )
         assertEquals("Bearer tok", runBlocking { credential.getAuthHeaders()["Authorization"] })
         assertEquals(listOf("https://auth.example.com/oauth/token"), requested)

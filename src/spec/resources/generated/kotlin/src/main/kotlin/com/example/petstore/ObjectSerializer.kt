@@ -411,7 +411,9 @@ internal class ObjectSerializer(
                 obj
             }
         if (unwrapped == null) return "null"
-        if (unwrapped is Map<*, *> || unwrapped is List<*> || unwrapped is ByteArray) {
+        // A decimal is written as its exact digits, never through a Double.
+        if (unwrapped is BigDecimal) return unwrapped.toPlainString()
+        if (unwrapped is Map<*, *> || unwrapped is Collection<*> || unwrapped is ByteArray) {
             // Maps/lists round-trip through JsonElement. A bare byte array goes out as
             // its base64 string, as a format: byte property does. A free-form value the
             // caller deliberately set to null is preserved here (only object
@@ -589,8 +591,8 @@ internal class ObjectSerializer(
     fun toWireMap(value: Any?): Map<String, String>? {
         if (value == null) return null
         if (value is Map<*, *>) {
-            return value.entries.associate { (key, field) ->
-                if (field is Map<*, *>) {
+            return value.entries.filter { it.value != null }.associate { (key, field) ->
+                if (field is Map<*, *> || field is Collection<*>) {
                     throw SerializationException("Parameter field '$key' is a nested value; only flat objects can be encoded")
                 }
                 key.toString() to stringify(field)
@@ -712,7 +714,19 @@ internal class ObjectSerializer(
         if (depth > MAX_JSON_DEPTH) throw SerializationException("JSON nesting depth $depth exceeds limit $MAX_JSON_DEPTH")
         val decoded =
             try {
-                val target = json.serializersModule.serializer<T>()
+                // A format: byte scalar arrives as a base64 string; the built-in ByteArray
+                // serializer would expect a JSON int-array instead.
+                @Suppress("UNCHECKED_CAST")
+                val target =
+                    (
+                        if (T::class ==
+                            ByteArray::class
+                        ) {
+                            Base64ByteArraySerializer
+                        } else {
+                            json.serializersModule.serializer<T>()
+                        }
+                    ) as KSerializer<T>
                 val tree = json.parseToJsonElement(stripped)
                 validateScalarLeaves(tree, target.descriptor)
                 rejectUnevaluatedKeys(tree, target.descriptor)
@@ -1337,7 +1351,7 @@ internal class ObjectSerializer(
                             .sortedBy { it.key.toString() }
                             .associate { (k, v) -> k.toString() to toJsonElementStatic(v) },
                     )
-                is List<*> -> JsonArray(value.map { toJsonElementStatic(it) })
+                is Collection<*> -> JsonArray(value.map { toJsonElementStatic(it) })
                 else -> JsonPrimitive(value.toString())
             }
 

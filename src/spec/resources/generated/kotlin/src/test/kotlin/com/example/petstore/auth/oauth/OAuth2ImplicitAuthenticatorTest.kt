@@ -8,6 +8,7 @@
 package com.example.petstore.auth.oauth
 
 import com.example.petstore.auth.CredentialEnvironment
+import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -25,7 +26,7 @@ class OAuth2ImplicitAuthenticatorTest {
                 kotlinx.coroutines.coroutineScope {
                     (0 until 50)
                         .map { i ->
-                            kotlinx.coroutines.async(kotlinx.coroutines.Dispatchers.Default) {
+                            async(kotlinx.coroutines.Dispatchers.Default) {
                                 auth.setAccessToken("tok-$i")
                                 auth.getAuthHeaders()["Authorization"]
                             }

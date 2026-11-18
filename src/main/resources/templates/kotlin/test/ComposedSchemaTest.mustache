@@ -546,11 +546,11 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("bhvUnions025 tries variants in declaration order: an empty array is the byte variant, not the list")
+        @DisplayName("bhvUnions025 an empty array is the list variant, since a byte variant is only ever a base64 string")
         fun testVariantsAreTriedInDeclarationOrder() {
             val restored = json.decodeFromString<SetPetAvatarThumbnailRequest>("[]")
 
-            assertTrue(restored.actualInstance is ByteArray)
+            assertTrue(restored.actualInstance is List<*>)
         }
 
         @Test

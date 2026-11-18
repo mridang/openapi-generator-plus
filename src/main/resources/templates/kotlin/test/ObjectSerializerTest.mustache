@@ -2761,7 +2761,7 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("bhvSerialization002 an enum member held by a model is written as its exact wire string")
         fun enumMemberHeldByModelIsWrittenAsWireString() {
-            val pet = {{modelPackage}}.Pet(name = "dog", status = {{modelPackage}}.Pet.StatusEnum.PENDING)
+            val pet = {{modelPackage}}.Pet(name = "dog", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.PENDING)
             assertTrue(serializer.serialize(pet).contains("\"status\":\"pending\""), serializer.serialize(pet))
         }
 
@@ -2783,11 +2783,11 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("bhvSerialization021 equal content compares equal and hashes alike, and different content is distinct")
         fun equalContentComparesEqualAndDistinctContentDoesNot() {
-            val a = {{modelPackage}}.Pet(name = "dog", status = {{modelPackage}}.Pet.StatusEnum.SOLD)
-            val b = {{modelPackage}}.Pet(name = "dog", status = {{modelPackage}}.Pet.StatusEnum.SOLD)
+            val a = {{modelPackage}}.Pet(name = "dog", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.SOLD)
+            val b = {{modelPackage}}.Pet(name = "dog", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.SOLD)
             assertEquals(a, b)
             assertEquals(a.hashCode(), b.hashCode())
-            assertNotEquals(a, {{modelPackage}}.Pet(name = "cat", status = {{modelPackage}}.Pet.StatusEnum.SOLD))
+            assertNotEquals(a, {{modelPackage}}.Pet(name = "cat", photoUrls = emptySet(), status = {{modelPackage}}.Pet.StatusEnum.SOLD))
         }
 
         @Test

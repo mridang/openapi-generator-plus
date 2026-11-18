@@ -441,6 +441,7 @@ class {{classname}}(
       // decodes without error wins. A payload matching no variant is spec
       // drift and fails loud rather than yielding an empty wrapper.
       {{#composedSchemas.oneOf}}
+      {{^isByteArray}}
       try {
         return {{classname}}(
           strictJson.decodeFromJsonElement(
@@ -448,6 +449,7 @@ class {{classname}}(
       } catch (_: Exception) {
         // variant did not match; fall through to the next
       }
+      {{/isByteArray}}
       {{/composedSchemas.oneOf}}
       // Base64 fallback for format:byte variants. A base64 scalar arrives as a
       // JSON STRING and an array of base64 values as a JSON array of strings —
