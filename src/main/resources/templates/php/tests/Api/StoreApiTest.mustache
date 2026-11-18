@@ -47,7 +47,7 @@ function newStoreApiForMock(int $statusCode, string $requestContentType, string 
     return new StoreApi(apiClient: $client, config: $config);
 }
 
-test('data methods declare a native return type', function (string $method, string $expected): void {
+test('bhv langphp 026 data methods declare a native return type', function (string $method, string $expected): void {
     $returnType = (new \ReflectionMethod(StoreApi::class, $method))->getReturnType();
     expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
     assert($returnType instanceof \ReflectionNamedType);
@@ -134,7 +134,7 @@ test('bhv operations 096 an operation without parameters or security takes per c
     expect($captured->headers['X-Tenant'] ?? null)->toBe('t1');
 });
 
-test('an operation without parameters or security still runs with no options', function (): void {
+test('bhv misc 011 an operation without parameters or security still runs with no options', function (): void {
     [$api, $captured] = newHeaderCapturingStoreApi();
 
     $api->getInventory();
@@ -142,7 +142,7 @@ test('an operation without parameters or security still runs with no options', f
     expect($captured->headers)->not->toHaveKey('X-Tenant');
 });
 
-test('the options of an operation without parameters hold no auth field', function (): void {
+test('bhv operations 086 the options of an operation without parameters hold no auth field', function (): void {
     $options = new \ReflectionClass(GetInventoryOptions::class);
 
     expect($options->hasProperty('auth'))->toBeFalse();
@@ -151,7 +151,7 @@ test('the options of an operation without parameters hold no auth field', functi
     expect($options->hasProperty('maxRetries'))->toBeTrue();
 });
 
-test('a per call timeout and retry count of an operation without parameters must be valid', function (): void {
+test('bhv misc 055 a per call timeout and retry count of an operation without parameters must be valid', function (): void {
     expect(fn () => new GetInventoryOptions(timeout: 0))
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
     expect(fn () => new GetInventoryOptions(maxRetries: -1))
@@ -382,7 +382,7 @@ test('bhv unions 036 the status code selects the declared schema, so a 201 body 
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
-test('a multi 2xx result has a typed factory, test and accessor per variant', function (): void {
+test('bhv unions 044 a multi 2xx result has a typed factory, test and accessor per variant', function (): void {
     $reservation = new Reservation(reservationId: 7, quantity: 2);
     $union = ReserveStockResponse::fromReservation($reservation);
 
