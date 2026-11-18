@@ -754,3 +754,75 @@ test('bhv authoauthtwoauthcode 020 scheme wrapper sends the spec scopes and urls
     expect($url)->toStartWith('https://auth.example.com/authorize' . '?');
     expect($url)->toContain('scope=' . rawurlencode(implode(' ', ['pets:read', 'pets:write'])));
 });
+
+/**
+ * Builds the authenticator of the PKCE tests, with a known verifier in place of the random one.
+ */
+function makePkceAuthenticator(string $verifier): OAuth2AuthorizationCodeAuthenticator
+{
+    $authenticator = new OAuth2AuthorizationCodeAuthenticator(
+        'https://api.example.com',
+        'my-client-id',
+        'my-client-secret',
+        'https://auth.example.com/authorize',
+        'https://auth.example.com/token',
+        'https://app.example.com/callback',
+        ['read', 'write']
+    );
+    (new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier'))
+        ->setValue($authenticator, $verifier);
+
+    return $authenticator;
+}
+
+test('bhv auth 008 the s256 challenge matches the rfc 7636 appendix b value', function (): void {
+    $authenticator = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk');
+
+    expect($authenticator->buildAuthorizationUrl('s'))
+        ->toContain('code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
+});
+
+test('bhv auth 014 the authorization url encodes spaces between scopes as percent 20 and never as a plus', function (): void {
+    $url = makePkceAuthenticator('v')->buildAuthorizationUrl('s');
+
+    expect($url)->toContain('scope=read%20write');
+    expect($url)->not->toContain('+');
+});
+
+test('bhv auth 019 the authorization url lists its parameters in one fixed order and encoding', function (): void {
+    $url = makePkceAuthenticator('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')->buildAuthorizationUrl('s');
+
+    expect($url)->toBe(
+        'https://auth.example.com/authorize?response_type=code&client_id=my-client-id'
+        . '&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=s'
+        . '&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256'
+    );
+});
+
+test('bhv auth 020 the pkce verifier is sent with the first exchange and never with a refresh or a later exchange', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access1',
+        'refresh_token' => 'refresh1',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access2',
+        'refresh_token' => 'refresh2',
+        'expires_in' => 0,
+    ]), ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
+        'access_token' => 'access3',
+        'expires_in' => 3600,
+    ]), ['Content-Type' => 'application/json']));
+
+    $authenticator = makePkceAuthenticator('verifier-value');
+    $authenticator->setApiClient($client);
+    $authenticator->exchangeCode('first-code');
+    $authenticator->getAuthHeaders();
+    $authenticator->exchangeCode('second-code');
+
+    expect($client->capturedRequests[0]['body'] ?? '')->toContain('&code_verifier=verifier-value');
+    expect($client->capturedRequests[1]['body'] ?? '')->not->toContain('code_verifier');
+    expect($client->capturedRequests[2]['body'] ?? '')->not->toContain('code_verifier');
+});

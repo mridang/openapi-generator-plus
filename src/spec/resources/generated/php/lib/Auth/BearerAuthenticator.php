@@ -40,14 +40,19 @@ class BearerAuthenticator extends BaseAuthenticator
         if ($token !== null && $tokenProvider instanceof \Closure) {
             throw new \InvalidArgumentException('Pass either a bearer token or a token provider, not both');
         }
-        if ($token === null && !$tokenProvider instanceof \Closure) {
+        if ($token === null) {
+            /* Order: explicit token, then the environment variable, then the provider. A set
+             * variable wins over a provider; an empty or unset one falls through to it. */
             $token = static::environmentCredential('token');
-            if ($token === null) {
-                throw new \InvalidArgumentException(
-                    'Bearer token is required: pass a token or a token provider'
-                    . static::environmentHint('token')
-                );
+            if ($token !== null) {
+                $tokenProvider = null;
             }
+        }
+        if ($token === null && !$tokenProvider instanceof \Closure) {
+            throw new \InvalidArgumentException(
+                'Bearer token is required: pass a token or a token provider'
+                . static::environmentHint('token')
+            );
         }
         if ($token !== null) {
             $this->assertValidToken($token);

@@ -197,6 +197,16 @@ abstract class AbstractApiClient implements ApiClient
         $mergedHeaders = $noDefaultHeaders
             ? $headers
             : $this->mergeHeaders($this->transportOptions->defaultHeaders, $headers);
+        /* A CR, LF or NUL in a header value would end the header line early and let
+         * the rest be read as a forged header, so it is refused before the transport
+         * is touched. The value is never echoed: only the header name is named. */
+        foreach ($mergedHeaders as $headerName => $headerValue) {
+            if (is_string($headerValue) && preg_match("/[\r\n\0]/", $headerValue) === 1) {
+                throw new \InvalidArgumentException(
+                    "Header '$headerName' must not contain CR, LF, or NUL characters"
+                );
+            }
+        }
         /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
          * user-agent or x-request-id in any casing wins and is left as written. */
         $presentHeaders = array_change_key_case($mergedHeaders, CASE_LOWER);

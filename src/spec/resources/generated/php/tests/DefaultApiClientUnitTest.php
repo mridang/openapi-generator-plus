@@ -2849,3 +2849,13 @@ test('bhv lifecycle 036 closing a client a second time raises no error and relea
     expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/after-close', [], null))
         ->toThrow(\LogicException::class);
 });
+
+test('bhv headers 031 a header value with a carriage return or line feed is refused before the request is sent', function (string $value): void {
+    $client = new DefaultApiClient();
+
+    expect(fn () => $client->sendRequest('GET', 'http://example.com/echo', ['X-Bad' => $value], null))
+        ->toThrow(\InvalidArgumentException::class, 'X-Bad');
+})->with([
+    'a line feed' => ["a\nInjected: yes"],
+    'a carriage return and line feed' => ["a\r\nInjected: yes"],
+]);

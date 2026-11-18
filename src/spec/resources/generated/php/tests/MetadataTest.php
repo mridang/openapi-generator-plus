@@ -3,7 +3,10 @@
 declare(strict_types=1);
 
 use PetstoreClient\ObjectSerializer;
+use PetstoreClient\Models\Category;
+use PetstoreClient\Models\DryFood;
 use PetstoreClient\Models\Metadata;
+use PetstoreClient\Models\Priority;
 
 test('bhv models 008 serializes empty metadata', function (): void {
     $metadata = new Metadata();
@@ -187,4 +190,55 @@ test('bhv models 015 a with method carries the additional properties over to the
 
     expect($copy->additionalProperties->get('customField'))->toBe('hello');
     expect($metadata->createdAt)->toBeNull();
+});
+
+test('bhv models 016 a copy clears an optional field only when null is passed and keeps it on a copy of another field', function (): void {
+    $original = new Metadata(new \DateTime('2024-01-01T00:00:00+00:00'));
+
+    expect($original->withCreatedAt(null)->createdAt)->toBeNull();
+    expect($original->withAdditionalProperties(new \Ds\Map(['k' => 'v']))->createdAt)->toEqual($original->createdAt);
+    expect($original->createdAt)->not->toBeNull();
+});
+
+test('bhv models 018 models whose decimal fields differ only in trailing zeros compare equal', function (): void {
+    expect(new DryFood(weightKg: 1.50))->toEqual(new DryFood(weightKg: 1.5));
+    expect(ObjectSerializer::deserialize('{"weightKg":1.50}', DryFood::class))
+        ->toEqual(ObjectSerializer::deserialize('{"weightKg":1.5}', DryFood::class));
+});
+
+test('bhv models 019 two models with a different value in any field compare unequal', function (): void {
+    expect(new Category(id: 1, name: 'Dogs'))->not->toEqual(new Category(id: 1, name: 'Cats'));
+    expect(new Category(id: 1, name: 'Dogs'))->not->toEqual(new Category(id: 2, name: 'Dogs'));
+});
+
+test('bhv models 021 each member of an integer backed enum carries its declared number as its value', function (Priority $member, int $declared): void {
+    expect($member->value)->toBe($declared);
+})->with([
+    'NUMBER_1 is 1' => [Priority::NUMBER_1, 1],
+    'NUMBER_2 is 2' => [Priority::NUMBER_2, 2],
+    'NUMBER_3 is 3' => [Priority::NUMBER_3, 3],
+]);
+
+test('bhv models 022 a model whose schema allows undeclared properties reports that it does', function (): void {
+    expect((new \ReflectionClass(Metadata::class))->hasProperty('additionalProperties'))->toBeTrue();
+    expect((new Metadata())->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
+    expect((new \ReflectionClass(Category::class))->hasProperty('additionalProperties'))->toBeFalse();
+});
+
+test('bhv models 023 undeclared keys named like the sdk methods are kept as additional properties', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{"withCreatedAt":"x","withAdditionalProperties":"y"}', Metadata::class);
+
+    expect($metadata->createdAt)->toBeNull();
+    expect($metadata->additionalProperties->get('withCreatedAt'))->toBe('x');
+    expect($metadata->additionalProperties->get('withAdditionalProperties'))->toBe('y');
+});
+
+test('bhv models 024 a newly built model leaves its optional properties unset', function (): void {
+    $metadata = new Metadata();
+    $category = new Category();
+
+    expect($metadata->createdAt)->toBeNull();
+    expect($category->id)->toBeNull();
+    expect($category->name)->toBeNull();
 });
