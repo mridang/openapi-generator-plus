@@ -300,6 +300,15 @@ describe 'scheme authenticators' do
     end
   end
 
+  it 'bhv_auth_041 a value passed to the constructor takes precedence over the same variable' do
+    environment_schemes.each do |name, base, credentials|
+      env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
+      next unless base == 'BearerAuthenticator'
+
+      _(scheme_class(name).new('https://api.example.com', 'given', env: env).auth_headers).must_equal({ 'Authorization' => 'Bearer given' }, name)
+    end
+  end
+
   it 'bhv_authscheme_009 prefers the value given to the constructor to the variable' do
     environment_schemes.each do |name, base, credentials|
       env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }

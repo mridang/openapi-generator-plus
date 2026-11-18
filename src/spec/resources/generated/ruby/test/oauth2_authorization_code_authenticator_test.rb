@@ -212,6 +212,20 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.auth_headers['Authorization']).must_equal 'Bearer tok_two'
   end
 
+  it 'bhv_auth_053 exchanging a code discards the refresh token previously held' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+                                    ])
+    auth.api_client = client
+    manager = auth.instance_variable_get(:@token_manager)
+
+    auth.exchange_code('a')
+    _(manager.refresh_token).must_equal 'ref_one'
+    auth.exchange_code('b')
+    _(manager.refresh_token).must_be_nil
+  end
+
   it 'bhv_authoauthtwoauthcode_022 second exchange without a refresh_token drops the old refresh token' do
     client = FakeAuthCodeClient.new([
                                       { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
@@ -250,6 +264,37 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_014 getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
+  end
+
+  it 'bhv_auth_052 refuses to produce headers before any code was exchanged' do
+    err = assert_raises(RuntimeError) { auth.auth_headers }
+    _(err.message).must_equal 'Must call exchange_code() before making API requests'
+  end
+
+  it 'bhv_auth_048 builds the authorize URL at the declared address with the declared scopes' do
+    url = auth.build_authorization_url
+    _(url.split('?').first).must_equal 'https://auth.example.com/authorize'
+    _(url).must_include 'scope=read%20write'
+  end
+
+  it 'bhv_auth_054 a non-success token response raises an OAuth2 server error naming the status and body' do
+    auth.api_client = FakeAuthCodeClient.new([
+                                               { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 'code expired' } }
+                                             ])
+    err = _(-> { auth.exchange_code('a') }).must_raise Petstore::Client::Errors::OAuth2ServerError
+    _(err.message).must_include '400'
+    _(err.message).must_include 'invalid_grant'
+  end
+
+  it 'bhv_auth_055 a network failure during the token request reaches the caller unchanged' do
+    failing = Class.new do
+      def send_request(*_args, **_kwargs)
+        raise IOError, 'connection reset'
+      end
+    end
+    auth.api_client = failing.new
+    err = _(-> { auth.exchange_code('a') }).must_raise IOError
+    _(err.message).must_equal 'connection reset'
   end
 
   it 'bhv_authoauthtwoauthcode_030 refuses to produce headers before exchange_code was called' do

@@ -451,7 +451,7 @@ describe {{moduleName}}::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'key'
     end
 
-    it 'skips a scheme the client holds no credential for' do
+    it 'bhv_auth_047 skips a scheme the client holds no credential for' do
       api, client = api_with({ 'petStoreBearer' => credential('bearer') })
 
       add_pet(api)
@@ -509,6 +509,59 @@ describe {{moduleName}}::Api::BaseApi do
       end
 
       refute client.captured_headers.key?('X-Credential')
+    end
+
+    it 'bhv_auth_043 sends no credential of a scheme the operation does not name' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer') })
+
+      begin
+        api.delete_pet(1)
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      refute client.captured_headers.key?('X-Credential')
+    end
+
+    it 'bhv_auth_044 sends no credential on an operation that declares no security' do
+      client = CapturingApiClient.new
+      store_api = {{moduleName}}::Api::StoreApi.new(
+        client, {{moduleName}}::Configuration.builder.base_url('http://localhost').build, credential('default')
+      )
+
+      begin
+        store_api.get_inventory
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      refute client.captured_headers.key?('X-Credential')
+    end
+
+    it 'bhv_auth_045 a scheme credential replaces the default Authorization header of the client' do
+      api, client = api_with(
+        { 'petStoreBearer' => TestAuthenticator.new(headers: { 'Authorization' => 'Bearer scheme' }) },
+        TestAuthenticator.new(headers: { 'Authorization' => 'Bearer default' })
+      )
+
+      add_pet(api)
+
+      _(client.captured_headers['Authorization']).must_equal 'Bearer scheme'
+    end
+
+    it 'bhv_auth_046 an operation that inherits the document security receives the client authenticator' do
+      client = CapturingApiClient.new
+      pet_api = {{moduleName}}::Api::PetApi.new(
+        client, {{moduleName}}::Configuration.builder.base_url('http://localhost').build, credential('default')
+      )
+
+      begin
+        pet_api.get_pet_by_id(1)
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      _(client.captured_headers['X-Credential']).must_equal 'default'
     end
 
     it 'bhv_authintegration_011 has no per-call authenticator on any Options object' do
