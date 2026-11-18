@@ -157,47 +157,53 @@ void main() {
       );
     });
 
-    test('a rejected password never appears in the ArgumentError', () {
-      Object? thrown;
-      try {
-        BasicAuthenticator(
-          host: 'https://api.example.com',
-          username: 'alice',
-          password: 's3c\x00ret',
+    test(
+      'bhv misc 017 a rejected password never appears in the ArgumentError',
+      () {
+        Object? thrown;
+        try {
+          BasicAuthenticator(
+            host: 'https://api.example.com',
+            username: 'alice',
+            password: 's3c\x00ret',
+          );
+        } on ArgumentError catch (e) {
+          thrown = e;
+        }
+        final error = thrown as ArgumentError;
+        expect(
+          error.message,
+          equals(
+            'Basic auth password must not contain CR, LF, or NUL characters',
+          ),
         );
-      } on ArgumentError catch (e) {
-        thrown = e;
-      }
-      final error = thrown as ArgumentError;
-      expect(
-        error.message,
-        equals(
-          'Basic auth password must not contain CR, LF, or NUL characters',
-        ),
-      );
-      expect(error.invalidValue, isNull);
-      expect(error.toString(), isNot(contains('s3c')));
-    });
+        expect(error.invalidValue, isNull);
+        expect(error.toString(), isNot(contains('s3c')));
+      },
+    );
 
-    test('a rejected username never appears in the ArgumentError', () {
-      Object? thrown;
-      try {
-        BasicAuthenticator(
-          host: 'https://api.example.com',
-          username: 'ali:ce',
-          password: 's3cret',
+    test(
+      'bhv langdart 021 a rejected username never appears in the ArgumentError',
+      () {
+        Object? thrown;
+        try {
+          BasicAuthenticator(
+            host: 'https://api.example.com',
+            username: 'ali:ce',
+            password: 's3cret',
+          );
+        } on ArgumentError catch (e) {
+          thrown = e;
+        }
+        final error = thrown as ArgumentError;
+        expect(
+          error.message,
+          equals("Basic auth username must not contain ':' (RFC 7617 §2)"),
         );
-      } on ArgumentError catch (e) {
-        thrown = e;
-      }
-      final error = thrown as ArgumentError;
-      expect(
-        error.message,
-        equals("Basic auth username must not contain ':' (RFC 7617 §2)"),
-      );
-      expect(error.invalidValue, isNull);
-      expect(error.toString(), isNot(contains('ali:ce')));
-    });
+        expect(error.invalidValue, isNull);
+        expect(error.toString(), isNot(contains('ali:ce')));
+      },
+    );
 
     test('bhv authbasic 005 password is not leaked in default toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
@@ -286,7 +292,7 @@ void main() {
         expect(() => build('ali:ce', 's3cret'), throwsArgumentError);
       });
 
-      test('$name prints its own name with the password masked', () {
+      test('bhv misc 190 $name prints its own name with the password masked', () {
         expect(
           build('alice', 's3cret').toString(),
           equals(

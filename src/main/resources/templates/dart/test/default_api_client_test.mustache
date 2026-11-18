@@ -772,7 +772,7 @@ Future<void> main(List<String> args) async {
     // the typed limit error, while a non-redirecting request must still
     // succeed — proving the refusal is scoped to the offending request and
     // not stored on a shared error slot.
-    test('a too-many-redirects refusal stays on its own request (Wave E)',
+    test('bhv langdart 039 a too-many-redirects refusal stays on its own request (Wave E)',
         () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(true)
@@ -856,7 +856,7 @@ Future<void> main(List<String> args) async {
     });
 
     for (final coding in ['br', 'zstd']) {
-      test('refuses a $coding response it cannot decode', () async {
+      test('bhv langdart 040 refuses a $coding response it cannot decode', () async {
         final client = DefaultApiClient();
         await expectLater(
           client.sendRequest(

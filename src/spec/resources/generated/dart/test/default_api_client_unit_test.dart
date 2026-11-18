@@ -1387,7 +1387,7 @@ void main() {
     );
 
     test(
-      'deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
+      'bhv langdart 086 deflate Content-Encoding with non-deflate body surfaces ApiException, not crash',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -2077,7 +2077,7 @@ void main() {
     );
 
     test(
-      'the header-value ArgumentError never carries the secret value',
+      'bhv misc 174 the header-value ArgumentError never carries the secret value',
       () async {
         final client = DefaultApiClient();
         await expectLater(
@@ -2246,29 +2246,32 @@ void main() {
       },
     );
 
-    test('decodes a quoted charset="windows-1252" parameter', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.set('Content-Type', 'text/plain; charset="windows-1252"')
-          ..add(<int>[0x41, 0xE9])
-          ..close();
-      });
+    test(
+      'bhv langdart 041 decodes a quoted charset="windows-1252" parameter',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set('Content-Type', 'text/plain; charset="windows-1252"')
+            ..add(<int>[0x41, 0xE9])
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'GET',
-          'http://127.0.0.1:${server.port}/quoted',
-          {},
-          null,
-        );
-        expect(resp.body, equals('A\u00E9'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://127.0.0.1:${server.port}/quoted',
+            {},
+            null,
+          );
+          expect(resp.body, equals('A\u00E9'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test(
       'bhv serializationwire 033 decodes a charset=windows-1252 response body, including 0x80..0x9F',
@@ -2755,7 +2758,7 @@ void main() {
     );
 
     test(
-      'a server that never answers throws NetworkTimeoutException',
+      'bhv langdart 042 a server that never answers throws NetworkTimeoutException',
       () async {
         final sockets = <Socket>[];
         final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -3421,40 +3424,43 @@ void main() {
       },
     );
 
-    test('multipart array field sends one part per element', () async {
-      String body = '';
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) async {
-        body = await readBodyAsLatin1(request);
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+    test(
+      'bhv misc 097 multipart array field sends one part per element',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'POST',
-          'http://127.0.0.1:${server.port}/upload',
-          {},
-          {
-            'tags': ['alpha', 'beta', 'gamma'],
-            'counts': [7, true],
-          },
-        );
-        expect(RegExp('name="tags"').allMatches(body), hasLength(3));
-        expect(body, contains('\r\n\r\nalpha\r\n'));
-        expect(body, contains('\r\n\r\nbeta\r\n'));
-        expect(body, contains('\r\n\r\ngamma\r\n'));
-        expect(body.indexOf('alpha'), lessThan(body.indexOf('beta')));
-        expect(body.indexOf('beta'), lessThan(body.indexOf('gamma')));
-        expect(RegExp('name="counts"').allMatches(body), hasLength(2));
-        expect(body, contains('\r\n\r\n7\r\n'));
-        expect(body, contains('\r\n\r\ntrue\r\n'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {
+              'tags': ['alpha', 'beta', 'gamma'],
+              'counts': [7, true],
+            },
+          );
+          expect(RegExp('name="tags"').allMatches(body), hasLength(3));
+          expect(body, contains('\r\n\r\nalpha\r\n'));
+          expect(body, contains('\r\n\r\nbeta\r\n'));
+          expect(body, contains('\r\n\r\ngamma\r\n'));
+          expect(body.indexOf('alpha'), lessThan(body.indexOf('beta')));
+          expect(body.indexOf('beta'), lessThan(body.indexOf('gamma')));
+          expect(RegExp('name="counts"').allMatches(body), hasLength(2));
+          expect(body, contains('\r\n\r\n7\r\n'));
+          expect(body, contains('\r\n\r\ntrue\r\n'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test(
       'bhv serialization 060 a model sent as a multipart part declares application/json without a charset',
@@ -3542,30 +3548,33 @@ void main() {
       },
     );
 
-    test('multipart scalar field is still sent as a single part', () async {
-      String body = '';
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) async {
-        body = await readBodyAsLatin1(request);
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+    test(
+      'bhv langdart 043 multipart scalar field is still sent as a single part',
+      () async {
+        String body = '';
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          body = await readBodyAsLatin1(request);
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'POST',
-          'http://127.0.0.1:${server.port}/upload',
-          {},
-          {'note': 'hello'},
-        );
-        expect(RegExp('name="note"').allMatches(body), hasLength(1));
-        expect(body, contains('\r\n\r\nhello\r\n'));
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://127.0.0.1:${server.port}/upload',
+            {},
+            {'note': 'hello'},
+          );
+          expect(RegExp('name="note"').allMatches(body), hasLength(1));
+          expect(body, contains('\r\n\r\nhello\r\n'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test(
       'bhv retries 046 a Map multipart body is replayed intact across a 307 redirect',
@@ -4219,7 +4228,7 @@ void main() {
       final url = target[0] as String;
       final sent = target[1] as bool;
       test(
-        '$url ${sent ? 'carries' : 'does not carry'} the proxy credential',
+        'bhv misc 031 $url ${sent ? 'carries' : 'does not carry'} the proxy credential',
         () async {
           Map<String, String>? seen;
           final stub = MockClient((request) async {

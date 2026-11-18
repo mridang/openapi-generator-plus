@@ -839,21 +839,24 @@ void main() {
       },
     );
 
-    test('the client hands the call hook to every API group', () async {
-      final hook = _CountingHook();
-      final client = Client.withToken(
-        host: 'https://api.example.com',
-        accessToken: 'test-token',
-        transportOptions: TransportOptionsBuilder()
-            .httpClient(MockClient((_) async => http.Response('{}', 404)))
-            .build(),
-        callHook: hook,
-      );
+    test(
+      'bhv langdart 028 the client hands the call hook to every API group',
+      () async {
+        final hook = _CountingHook();
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'test-token',
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(MockClient((_) async => http.Response('{}', 404)))
+              .build(),
+          callHook: hook,
+        );
 
-      expect(client.pet.config.callHook, same(hook));
-      expect(client.problems.config.callHook, same(hook));
-      expect(client.store.config.callHook, same(hook));
-    });
+        expect(client.pet.config.callHook, same(hook));
+        expect(client.problems.config.callHook, same(hook));
+        expect(client.store.config.callHook, same(hook));
+      },
+    );
   });
 }
 

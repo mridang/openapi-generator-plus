@@ -181,12 +181,15 @@ void main() {
       },
     );
 
-    test('no token anywhere fails when the authenticator is built', () {
-      expect(
-        () => BearerAuthenticator(host: '/api/v3', environment: const {}),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'bhv langdart 022 no token anywhere fails when the authenticator is built',
+      () {
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', environment: const {}),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('bhv authbearer 026 a token and a provider together are refused', () {
       expect(
@@ -366,7 +369,7 @@ void main() {
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
     });
 
-    test('uppercase bearer prefix is stripped', () {
+    test('bhv misc 194 uppercase bearer prefix is stripped', () {
       final auth = BearerAuthenticator(host: '/api/v3', token: 'BEARER xyz');
 
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
@@ -529,18 +532,22 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => AdminBasicAuthenticator(host: '/api/v3', environment: const {}),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () =>
+                AdminBasicAuthenticator(host: '/api/v3', environment: const {}),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+              ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 AdminBasicAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -600,19 +607,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () =>
-              ApiKeyHeaderAuthenticator(host: '/api/v3', environment: const {}),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => ApiKeyHeaderAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY',
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 ApiKeyHeaderAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -672,19 +686,24 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () =>
-              ApiKeyQueryAuthenticator(host: '/api/v3', environment: const {}),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => ApiKeyQueryAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 ApiKeyQueryAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -744,21 +763,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => BrowserAuthImplicitAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => BrowserAuthImplicitAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID',
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 BrowserAuthImplicitAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -844,23 +868,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => InternalApiKeyAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains(
-                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => InternalApiKeyAuthenticator(
+              host: '/api/v3',
+              environment: const {},
+            ),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
+                ),
               ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 InternalApiKeyAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -924,21 +951,24 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => LegacyAuthPasswordAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => LegacyAuthPasswordAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 LegacyAuthPasswordAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1025,21 +1055,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => MachineAuthClientCredentialsAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => MachineAuthClientCredentialsAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID',
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 MachineAuthClientCredentialsAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1128,23 +1163,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => PetStoreBasicAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains(
-                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => PetStoreBasicAuthenticator(
+              host: '/api/v3',
+              environment: const {},
+            ),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
+                ),
               ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 PetStoreBasicAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1206,21 +1244,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => PetStoreBearerAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => PetStoreBearerAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN',
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 PetStoreBearerAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1280,19 +1323,24 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () =>
-              ServiceTokenAuthenticator(host: '/api/v3', environment: const {}),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => ServiceTokenAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 ServiceTokenAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1352,21 +1400,26 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => SessionCookieAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => SessionCookieAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains(
+                  'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY',
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 SessionCookieAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1428,18 +1481,21 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => SsoAuthAuthenticator(host: '/api/v3', environment: const {}),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => SsoAuthAuthenticator(host: '/api/v3', environment: const {}),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
+              ),
             ),
-          ),
-        );
-      });
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 SsoAuthAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1523,21 +1579,24 @@ void main() {
         },
       );
 
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => UserAuthAuthorizationCodeAuthenticator(
-            host: '/api/v3',
-            environment: const {},
-          ),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+      test(
+        'bhv langdart 023 fails to build naming the variable when none is set',
+        () {
+          expect(
+            () => UserAuthAuthorizationCodeAuthenticator(
+              host: '/api/v3',
+              environment: const {},
             ),
-          ),
-        );
-      });
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+              ),
+            ),
+          );
+        },
+      );
 
       test(
         'bhv authscheme 003 UserAuthAuthorizationCodeAuthenticator fails at construction naming the variable when its environment variable is empty',
@@ -1600,7 +1659,7 @@ void main() {
   );
 
   test(
-    'an unset environment variable and no other source fails at construction',
+    'bhv langdart 025 an unset environment variable and no other source fails at construction',
     () {
       expect(
         () => BearerAuthenticator(host: '/api/v3', environment: const {}),

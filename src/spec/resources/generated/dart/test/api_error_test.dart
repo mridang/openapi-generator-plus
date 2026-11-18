@@ -139,7 +139,7 @@ void main() {
     );
 
     test(
-      'getTypedErrorBody throws SerializationException for a JSON array body',
+      'bhv misc 015 getTypedErrorBody throws SerializationException for a JSON array body',
       () {
         const err = ApiException(
           statusCode: 500,
@@ -161,7 +161,7 @@ void main() {
     );
 
     test(
-      'getTypedErrorBody throws SerializationException for a type mismatch',
+      'bhv langdart 008 getTypedErrorBody throws SerializationException for a type mismatch',
       () {
         const err = ApiException(
           statusCode: 500,
@@ -846,22 +846,25 @@ void main() {
       },
     );
 
-    test('caps the rendered body and says how much was left out', () {
-      final body = 'x' * 1030;
-      final err = ApiException(
-        statusCode: 502,
-        message: 'bad gateway',
-        responseBody: body,
-      );
+    test(
+      'bhv misc 280 caps the rendered body and says how much was left out',
+      () {
+        final body = 'x' * 1030;
+        final err = ApiException(
+          statusCode: 502,
+          message: 'bad gateway',
+          responseBody: body,
+        );
 
-      expect(
-        err.toString(),
-        equals(
-          'bad gateway\nHTTP status code: 502\nResponse body: ${'x' * 1024}... (6 more bytes)',
-        ),
-      );
-      expect(err.responseBody, equals(body));
-    });
+        expect(
+          err.toString(),
+          equals(
+            'bad gateway\nHTTP status code: 502\nResponse body: ${'x' * 1024}... (6 more bytes)',
+          ),
+        );
+        expect(err.responseBody, equals(body));
+      },
+    );
 
     test(
       'bhv errors 075 does not cut a multi-byte character when capping the body',

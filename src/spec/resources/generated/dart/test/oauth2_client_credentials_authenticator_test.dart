@@ -59,7 +59,7 @@ OAuth2ClientCredentialsAuthenticator _createAuthenticator() {
 void main() {
   group('OAuth2ClientCredentialsAuthenticator', () {
     test(
-      'the synchronous authHeaders raises instead of returning no credentials',
+      'bhv langdart 059 the synchronous authHeaders raises instead of returning no credentials',
       () {
         expect(
           () => _createAuthenticator().authHeaders(),
@@ -363,22 +363,25 @@ void main() {
       },
     );
 
-    test('a server error without a JSON body keeps the raw body', () async {
-      final client = _FakeApiClient();
-      client.enqueue('oops', statusCode: 500);
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+    test(
+      'bhv langdart 060 a server error without a JSON body keeps the raw body',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('oops', statusCode: 500);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await expectLater(
-        auth.authHeadersAsync(),
-        throwsA(
-          isA<OAuth2ServerException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.code, 'code', isNull)
-              .having((e) => e.rawBody, 'rawBody', 'oops'),
-        ),
-      );
-    });
+        await expectLater(
+          auth.authHeadersAsync(),
+          throwsA(
+            isA<OAuth2ServerException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having((e) => e.code, 'code', isNull)
+                .having((e) => e.rawBody, 'rawBody', 'oops'),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoclientcred 014 the redacted repr shows the non-secret fields',
