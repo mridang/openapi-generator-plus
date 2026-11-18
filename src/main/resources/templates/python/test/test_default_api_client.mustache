@@ -622,7 +622,7 @@ class TestN1RedirectBodyReplayMatrix:
         assert pool.calls[1][0] == 'GET'
         assert pool.calls[1][2] is None
 
-    def test_301_and_302_keep_the_method_and_body_of_put_patch_and_delete(self) -> None:
+    def test_bhv_redirects_029_a_301_or_302_keeps_the_method_and_body_of_put_patch_and_delete(self) -> None:
         for status in (301, 302):
             for method in ('PUT', 'PATCH', 'DELETE'):
                 transport = TransportOptions.builder().follow_redirects(True).build()
@@ -641,7 +641,7 @@ class TestN1RedirectBodyReplayMatrix:
             assert pool.calls[1][0] == 'GET'
             assert pool.calls[1][2] is None
 
-    def test_303_turns_every_method_except_head_into_get(self) -> None:
+    def test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get(self) -> None:
         for method in ('POST', 'PUT', 'PATCH', 'DELETE'):
             transport = TransportOptions.builder().follow_redirects(True).build()
             pool = self._pool(303)

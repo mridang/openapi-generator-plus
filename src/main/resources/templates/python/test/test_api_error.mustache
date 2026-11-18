@@ -247,11 +247,17 @@ class TestFromResponse:
         assert err.response_body == '{"code":7}'
         assert err.error_body == {'code': 7}
 
-    def test_bhv_errors_048_418_throws_client_exception(self) -> None:
+    def test_bhv_errors_048_a_status_418_throws_client_exception(self) -> None:
         err = ApiException.from_response(418, None, None)
 
         assert type(err) is ClientException
         assert err.status_code == 418
+
+    def test_bhv_errors_071_a_401_response_surfaces_as_an_unauthorized_error(self) -> None:
+        err = ApiException.from_response(401, None, None)
+
+        assert type(err) is UnauthorizedException
+        assert err.status_code == 401
 
     def test_bhv_errors_058_a_400_response_maps_to_the_bad_request_error(self) -> None:
         err = ApiException.from_response(400, None, None)

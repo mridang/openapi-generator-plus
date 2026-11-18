@@ -179,6 +179,12 @@ class TestTransportOptions:
         opts = TransportOptions.builder().proxy(None).build()
         assert opts.proxy is None
 
+    def test_bhv_options_052_a_proxy_url_carrying_credentials_is_accepted(self) -> None:
+        proxy = 'http://proxy-user:' + 'not-a-real-secret' + '@proxy.example.com:3128'
+
+        assert TransportOptions(proxy=proxy).proxy == proxy
+        assert TransportOptions.builder().proxy(proxy).build().proxy == proxy
+
     def test_bhv_options_015_builder_methods_return_same_instance(self) -> None:
         builder = TransportOptions.builder()
 

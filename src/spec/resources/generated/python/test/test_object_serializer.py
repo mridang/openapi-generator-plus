@@ -539,6 +539,13 @@ class TestStringify:
     def test_bhv_serializationobject_110_none_returns_empty_string(self) -> None:
         assert ObjectSerializer.stringify(None) == ""
 
+    def test_bhv_serializationobject_190_a_long_is_stringified_to_its_exact_decimal_digits(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer.stringify(-9223372036854775808) == "-9223372036854775808"
+        )
+
     def test_bhv_serializationobject_211_an_int64_is_stringified_to_its_decimal_digits(
         self,
     ) -> None:
@@ -1406,7 +1413,9 @@ class TestDecodeValidates:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"name":123,"photoUrls":[]}', "Pet")
 
-    def test_an_unknown_enum_string_fails_loudly(self) -> None:
+    def test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode(
+        self,
+    ) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(
                 '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
@@ -2538,7 +2547,9 @@ class TestIntegerFieldBoundaries:
         assert type(excinfo.value) is SerializationException
         assert "Input should be a valid integer" in str(excinfo.value)
 
-    def test_int64_beyond_two_to_the_53_survives_a_round_trip(self) -> None:
+    def test_bhv_serializationobject_191_an_int64_above_two_to_the_53_keeps_every_digit_when_decoded(
+        self,
+    ) -> None:
         import json
 
         big = 9007199254740993

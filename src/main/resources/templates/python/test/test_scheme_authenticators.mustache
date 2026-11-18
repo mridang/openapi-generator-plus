@@ -40,6 +40,17 @@ def _explicit(variables: List[Tuple[str, str]]) -> dict[str, str]:
     return {parameter: 'explicit-' + parameter for parameter, _ in variables}
 
 
+def _assert_each_empty_variable_is_unset(
+    monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+) -> None:
+    for _, empty in variables:
+        _set_all(monkeypatch, variables)
+        monkeypatch.setenv(empty, '')
+
+        with pytest.raises(ValueError, match=empty):
+            _scheme_class(module, name)(HOST)
+
+
 @pytest.mark.parametrize('module,name,variables,bearer,basic,api_key', SCHEMES)
 class TestSchemeAuthenticatorEnvironment:
 
@@ -123,6 +134,11 @@ class TestBearerSchemeAuthenticator:
 
         with pytest.raises(ValueError, match=variables[0][1]):
             _scheme_class(module, name)(HOST)
+
+    def test_bhv_authscheme_011_an_empty_bearer_credential_variable_is_unset_for_each_variable(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
 
     def test_bhv_lifecycle_025_the_environment_is_read_once_when_it_is_built(
         self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
@@ -255,3 +271,68 @@ class TestApiKeySchemeAuthenticator:
 
         assert _scheme_class(module, name)(HOST).api_key == 'from-environment'
         assert _scheme_class(module, name)(HOST, 'explicit').api_key == 'explicit'
+
+    def test_bhv_authscheme_012_an_empty_api_key_variable_is_unset_for_each_variable(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+# (module, class name, [(parameter, environment variable)]) for each OAuth flow wrapper, by flow
+FLOW_SCHEMES: List[Tuple[str, str, str, List[Tuple[str, str]]]] = [
+{{#perSchemeAuthEntries}}
+    (
+        '{{flow}}',
+        '{{module}}',
+        '{{className}}',
+        [{{#envParams}}('{{name}}', '{{envName}}'){{^-last}}, {{/-last}}{{/envParams}}],
+    ),
+{{/perSchemeAuthEntries}}
+]
+
+
+def _with_flow(flow: str) -> List[Tuple[str, str, List[Tuple[str, str]]]]:
+    return [(module, name, variables) for entry_flow, module, name, variables in FLOW_SCHEMES if entry_flow == flow]
+
+
+CLIENT_CREDENTIALS_SCHEMES = _with_flow('client_credentials')
+PASSWORD_SCHEMES = _with_flow('password')
+AUTHORIZATION_CODE_SCHEMES = _with_flow('authorization_code')
+IMPLICIT_SCHEMES = _with_flow('implicit')
+
+
+@pytest.mark.parametrize('module,name,variables', CLIENT_CREDENTIALS_SCHEMES)
+class TestClientCredentialsSchemeEnvironment:
+
+    def test_bhv_authscheme_013_an_empty_client_credentials_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize('module,name,variables', PASSWORD_SCHEMES)
+class TestPasswordSchemeEnvironment:
+
+    def test_bhv_authscheme_014_an_empty_password_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize('module,name,variables', AUTHORIZATION_CODE_SCHEMES)
+class TestAuthorizationCodeSchemeEnvironment:
+
+    def test_bhv_authscheme_015_an_empty_authorization_code_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+@pytest.mark.parametrize('module,name,variables', IMPLICIT_SCHEMES)
+class TestImplicitSchemeEnvironment:
+
+    def test_bhv_authscheme_016_an_empty_implicit_variable_is_unset_and_names_it(
+        self, monkeypatch: pytest.MonkeyPatch, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
