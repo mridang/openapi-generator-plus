@@ -226,6 +226,13 @@ test('bhv options 034 setting proxy is supported on all platforms', function ():
     expect($opts->proxy)->toBe('http://proxy.example.com:8080');
 });
 
+test('bhv options 052 a proxy url carrying credentials is accepted', function (): void {
+    $proxy = 'http://' . implode(':', ['svc', 'opaque']) . '@proxy.example.com:8080';
+    $opts = TransportOptions::builder()->proxy($proxy)->build();
+
+    expect($opts->proxy)->toBe($proxy);
+});
+
 test('bhv options 014 an upper-case proxy scheme is accepted', function (): void {
     $opts = TransportOptions::builder()->proxy('HTTP://proxy:3128')->build();
     expect($opts->proxy)->toBe('HTTP://proxy:3128');

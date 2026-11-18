@@ -264,7 +264,7 @@ test('psr18 N1 302 https to http downgrade with body proceeds as get', function 
     expect($stub->requests[1]->getMethod())->toBe('GET');
 });
 
-test('psr18 redirect method and body follow RFC 9110', function (
+test('bhv redirects 029 psr18 redirect method and body follow RFC 9110', function (
     int $status,
     string $method,
     string $expectedMethod,
