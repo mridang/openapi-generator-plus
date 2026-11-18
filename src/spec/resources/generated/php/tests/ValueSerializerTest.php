@@ -80,7 +80,7 @@ namespace {
         expect(ValueSerializer::serializeStyled('id', 'a..b', 'path', 'string', null, 'simple', false))->toBe('a..b');
     });
 
-    test('path date time without date marker keeps full iso', function (): void {
+    test('bhv serialization 118 path date time without date marker keeps full iso', function (): void {
         $dt = new \DateTime('2024-01-15T10:30:45+00:00');
         $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');
         expect($result)->toBeString();
@@ -155,7 +155,7 @@ namespace {
         expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'csv'))->toBe('1,,3');
     });
 
-    test('query array multi keeps empty string for null element', function (): void {
+    test('bhv serializationparam 011 query array multi keeps empty string for null element', function (): void {
         expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'))->toBe(['1', '', '3']);
     });
 
@@ -534,18 +534,18 @@ namespace {
         expect(ValueSerializer::serializeStyled('d', $dt, 'query', '\\DateTime|date', null, null, false))->toBe('2024-01-01');
     });
 
-    test('header date only emits yyyy mm dd', function (): void {
+    test('bhv misc 236 header date only emits yyyy mm dd', function (): void {
         $dt = new \DateTime('2024-01-01T10:30:45+00:00');
         expect(ValueSerializer::serializeStyled('Report-Date', $dt, 'header', '\\DateTime|date', null, 'simple', false))->toBe('2024-01-01');
         expect(ValueSerializer::serializeStyled('Report-Date', $dt, 'header', '\\DateTime|date', null, null, false))->toBe('2024-01-01');
     });
 
-    test('cookie date only emits yyyy mm dd', function (): void {
+    test('bhv langphp 036 cookie date only emits yyyy mm dd', function (): void {
         $dt = new \DateTime('2024-01-01T10:30:45+00:00');
         expect(ValueSerializer::serializeStyled('c', $dt, 'cookie', '\\DateTime|date', null, 'form', true))->toBe('2024-01-01');
     });
 
-    test('query array of dates emits yyyy mm dd per item', function (): void {
+    test('bhv langphp 037 query array of dates emits yyyy mm dd per item', function (): void {
         $dates = [new \DateTime('2024-01-15T10:30:45+00:00'), new \DateTime('2024-02-01T23:59:59+00:00')];
         expect(ValueSerializer::serialize($dates, 'query', 'array|date', 'csv'))->toBe('2024-01-15,2024-02-01');
         expect(ValueSerializer::serialize($dates, 'query', 'array|date', 'multi'))->toBe(['2024-01-15', '2024-02-01']);
@@ -563,7 +563,7 @@ namespace {
         expect(ValueSerializer::serialize($dates, 'query', 'array', 'csv'))->toBe('2024-01-15T10:30:45.000+00:00');
     });
 
-    test('query date time without date marker keeps time', function (): void {
+    test('bhv langphp 038 query date time without date marker keeps time', function (): void {
         $dt = new \DateTime('2024-01-01T10:30:45+00:00');
         expect(ValueSerializer::serialize($dt, 'query', '\\DateTime'))->toContain('10:30:45');
     });
@@ -628,11 +628,11 @@ namespace {
         expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'csv'))->toBe('red,blue');
     });
 
-    test('query set with multi collection format expands to repeated values', function (): void {
+    test('bhv langphp 039 query set with multi collection format expands to repeated values', function (): void {
         expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'multi'))->toBe(['red', 'blue']);
     });
 
-    test('styled form exploded set expands to repeated values', function (): void {
+    test('bhv langphp 040 styled form exploded set expands to repeated values', function (): void {
         expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', true))->toBe(['blue', 'black']);
     });
 
