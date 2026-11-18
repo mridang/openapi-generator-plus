@@ -1996,3 +1996,16 @@ langswift051 | The expiry clock never goes backwards between two reads
 langswift052 | A token response with a zero or negative lifetime is stale immediately
 langswift053 | A token request body encodes non-ASCII form values as UTF-8
 langswift054 | A token with a huge lifetime is cached rather than refetched
+langswift055 | A non-exploded array query value joined with pipes separates its elements with vertical bars
+langswift056 | A list of strings converts to a list of strings unchanged
+langswift057 | A boundary date-time string passes through decode and encode unchanged
+langswift058 | A fractional number in a 64-bit integer field is rejected at decode
+langswift059 | A float literal inside a nested array of integers is rejected even when it has no fraction
+langswift060 | Plain integer literals, including negative zero, still decode into integer fields
+langswift061 | Number-looking text inside a string value is kept as text and not inspected
+langswift062 | A UUID round-trips through the platform codable encoding unchanged
+langswift063 | A duration string without its seconds suffix is rejected
+langswift064 | A duration string with a unit designator such as days is rejected
+langswift065 | A value that construction accepts but that is not an absolute URI is refused when decoded
+langswift066 | An integer beyond the 64-bit range is rejected at decode
+langswift067 | A nested array of integers with a wrongly typed element is rejected
