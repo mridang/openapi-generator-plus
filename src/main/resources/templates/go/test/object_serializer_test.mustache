@@ -4000,3 +4000,54 @@ func TestBhvSerialization025_ObjectSerializer_Deserialize_TypedLeavesDecodeToThe
 		t.Errorf("expected the nested model's typed duration, got %v", entry.RetryAfter)
 	}
 }
+
+// JSON nested deeper than the allowed depth is refused with a fixed error before parsing begins.
+func TestBhvSerialization071_ObjectSerializer_DeepNestingIsRefusedWithTheFixedError(t *testing.T) {
+	t.Parallel()
+	beyond := []byte(strings.Repeat("[", 1001) + strings.Repeat("]", 1001))
+	var deep any
+	err := deserialize(beyond, &deep)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) || !strings.Contains(err.Error(), "JSON nesting depth 1001 exceeds limit 1000") {
+		t.Errorf("expected the fixed depth error, got %T: %v", err, err)
+	}
+}
+
+// A duration written to its wire string and decoded back gives the same duration, for zero, negative,
+// sub-second, multi-day and extreme values.
+func TestBhvSerialization077_ObjectSerializer_DurationRoundTripsForEveryKindOfValue(t *testing.T) {
+	t.Parallel()
+	values := []models.Duration{
+		0,
+		models.Duration(-90 * time.Second),
+		models.Duration(250 * time.Millisecond),
+		models.Duration(3*24*time.Hour + time.Nanosecond),
+		models.Duration(1<<63 - 1),
+	}
+	for _, v := range values {
+		retry := v
+		data, err := serialize(models.EdgeCases{RetryAfter: &retry})
+		if err != nil {
+			t.Fatalf("%v: unexpected error: %v", v, err)
+		}
+		var decoded models.EdgeCases
+		if err := deserialize(data, &decoded); err != nil {
+			t.Fatalf("%v: unexpected error: %v", v, err)
+		}
+		if decoded.RetryAfter == nil || *decoded.RetryAfter != v {
+			t.Errorf("expected %v back, got %v", v, decoded.RetryAfter)
+		}
+	}
+}
+
+// Decoding a union value that matches none of its candidates raises a serialization error.
+func TestBhvSerialization076_Model_AUnionValueMatchingNoCandidateIsRefused(t *testing.T) {
+	t.Parallel()
+	var shape models.Shape
+	err := deserialize([]byte(`{"notAShape":true}`), &shape)
+	var serErr *SerializationError
+	if !errors.As(err, &serErr) {
+		t.Errorf("expected a *SerializationError for a value matching no candidate, got %T: %v", err, err)
+	}
+}
+

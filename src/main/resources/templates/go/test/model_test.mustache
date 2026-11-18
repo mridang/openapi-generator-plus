@@ -319,3 +319,148 @@ func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *test
 		t.Errorf("expected the receiver to keep the real password, got %q", *account.Password)
 	}
 }
+
+// Extra properties are written as top-level keys beside the declared fields.
+func TestBhvSerialization067_Model_AdditionalPropertiesAreWrittenAsTopLevelKeys(t *testing.T) {
+	t.Parallel()
+	meta := models.Metadata{AdditionalProperties: map[string]any{"owner": "team-a", "tier": 2}}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["owner"] != "team-a" || got["tier"] != float64(2) {
+		t.Errorf("expected the extra properties as top-level keys, got %s", data)
+	}
+	if _, nested := got["additionalProperties"]; nested {
+		t.Errorf("expected no nested additionalProperties key, got %s", data)
+	}
+}
+
+// Building a model in code never validates it: values are kept as given and nothing is raised.
+func TestBhvSerialization068_Model_BuildingAModelNeverValidatesIt(t *testing.T) {
+	t.Parallel()
+	empty := models.StockItem{}
+	if empty.Priority != 0 || empty.Availability != nil {
+		t.Errorf("expected the zero model kept as built, got %+v", empty)
+	}
+	item := models.NewStockItem(models.Priority(99)).WithAvailability(models.Availability("not-a-member"))
+	if item.Priority != models.Priority(99) || *item.Availability != "not-a-member" {
+		t.Errorf("expected the values kept as given, got %v %v", item.Priority, *item.Availability)
+	}
+}
+
+// Schema constraint keywords are not enforced on decode, so an out-of-bound value is accepted.
+func TestBhvSerialization069_Model_ConstraintKeywordsAreNotEnforced(t *testing.T) {
+	t.Parallel()
+	var order models.Order
+	if err := json.Unmarshal([]byte(`{"quantity":2147483647}`), &order); err != nil {
+		t.Fatalf("expected an out-of-bound quantity to be accepted, got %v", err)
+	}
+	if order.Quantity == nil || *order.Quantity != 2147483647 {
+		t.Errorf("expected the quantity kept as sent, got %v", order.Quantity)
+	}
+}
+
+// A JSON null is accepted where a field is optional and decodes to nil instead of failing.
+func TestBhvSerialization070_Model_ANullOnAnOptionalFieldDecodesToNil(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":1,"availability":null}`), &item); err != nil {
+		t.Fatalf("expected null on an optional field to be accepted, got %v", err)
+	}
+	if item.Availability != nil {
+		t.Errorf("expected the optional field decoded to nil, got %v", *item.Availability)
+	}
+}
+
+// Keys the model does not declare are skipped without error, whether one or several, scalar or nested.
+func TestBhvSerialization072_Model_UndeclaredKeysAreSkipped(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	payload := `{"priority":1,"unknownScalar":"x","unknownNumber":3,"unknownNested":{"a":[1,{"b":2}]},"unknownNull":null}`
+	if err := json.Unmarshal([]byte(payload), &item); err != nil {
+		t.Fatalf("expected the undeclared keys skipped, got %v", err)
+	}
+	if item.Priority != models.Priority(1) {
+		t.Errorf("expected the declared field decoded, got %v", item.Priority)
+	}
+}
+
+// A required field that is missing or null fails decoding with an error naming that field.
+func TestBhvSerialization073_Model_AMissingOrNullRequiredFieldNamesItself(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{`{"id":1}`, `{"id":1,"username":null}`} {
+		var account models.Account
+		err := json.Unmarshal([]byte(payload), &account)
+		if err == nil || !strings.Contains(err.Error(), "username") {
+			t.Errorf("%s: expected an error naming username, got %v", payload, err)
+		}
+	}
+}
+
+// Nested arrays serialize back to the same nested shape they were decoded from.
+func TestBhvSerialization074_Model_NestedArraysRoundTripToTheSameShape(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":1,"matrix":[[1,2],[3]]}`), &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	data, err := json.Marshal(item)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(data), `"matrix":[[1,2],[3]]`) {
+		t.Errorf("expected the nested shape kept, got %s", data)
+	}
+}
+
+// An enum value decodes from its wire casing to the matching member.
+func TestBhvSerialization075_Model_AnEnumValueDecodesFromItsWireCasing(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"on-hold"}`), &item); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if item.Availability == nil || *item.Availability != models.AvailabilityOnHold {
+		t.Errorf("expected the on-hold member, got %v", item.Availability)
+	}
+}
+
+// Copying a model with named changes returns a new instance with only those fields changed, leaves
+// the original untouched, and keeps unnamed fields and additional properties.
+func TestBhvSerialization079_Model_CopyChangesOnlyTheNamedFields(t *testing.T) {
+	t.Parallel()
+	original := models.Metadata{AdditionalProperties: map[string]any{"owner": "team-a"}}
+	changed := original.WithAdditionalProperties(map[string]any{"owner": "team-b"})
+	if changed.AdditionalProperties["owner"] != "team-b" {
+		t.Errorf("expected the copy to carry the change, got %v", changed.AdditionalProperties)
+	}
+	if original.AdditionalProperties["owner"] != "team-a" {
+		t.Errorf("expected the original untouched, got %v", original.AdditionalProperties)
+	}
+
+	item := models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilitySold)
+	copied := item.WithAvailability(models.AvailabilityOnHold)
+	if copied.Priority != item.Priority || *item.Availability != models.AvailabilitySold || *copied.Availability != models.AvailabilityOnHold {
+		t.Errorf("expected only availability changed, got %+v and %+v", item, copied)
+	}
+}
+
+// A value whose JSON type does not match the schema raises an error and is never coerced.
+func TestBhvSerialization081_Model_AWrongJsonTypeIsRefusedNotCoerced(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{`{"priority":"1"}`, `{"priority":1,"availability":1}`, `{"priority":1,"availability":{}}`} {
+		var item models.StockItem
+		if err := json.Unmarshal([]byte(payload), &item); err == nil {
+			t.Errorf("%s: expected a type mismatch to be refused", payload)
+		}
+	}
+	var order models.Order
+	if err := json.Unmarshal([]byte(`{"shipDate":{}}`), &order); err == nil {
+		t.Error("expected an object where a date-time is expected to be refused")
+	}
+}

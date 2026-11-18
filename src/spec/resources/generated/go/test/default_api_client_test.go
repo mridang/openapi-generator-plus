@@ -2623,6 +2623,7 @@ func TestBhvRedirects051_DefaultApiClient_A303TurnsAFollowUpIntoAGetExceptHead(t
 // Authorization header of every request it sees.
 type originRedirectRoundTripper struct {
 	location string
+	status   int
 	mu       sync.Mutex
 	seen     map[string]string
 }
@@ -2635,6 +2636,9 @@ func (rt *originRedirectRoundTripper) RoundTrip(req *http.Request) (*http.Respon
 	status := 200
 	if req.URL.Path == "/start" {
 		status = 302
+		if rt.status != 0 {
+			status = rt.status
+		}
 		header.Set("Location", rt.location)
 	}
 	return &http.Response{
@@ -2729,5 +2733,89 @@ func TestBhvRedirects047_DefaultApiClient_ConcurrentRedirectsDoNotInterfere(t *t
 	close(errs)
 	for msg := range errs {
 		t.Error(msg)
+	}
+}
+
+// A request body is resent unchanged when a 307 redirect keeps the same scheme.
+func TestBhvRetries046_DefaultApiClient_A307ResendsTheBodyWhenTheSchemeIsUnchanged(t *testing.T) {
+	t.Parallel()
+	gotMethod, gotBody := redirectSeenByTarget(t, 307, "POST", "payload")
+	if gotMethod != "POST" || gotBody != "payload" {
+		t.Errorf("expected the body resent unchanged, got %s %q", gotMethod, gotBody)
+	}
+}
+
+// A redirect whose target uses a scheme other than http or https is refused with an error.
+func TestBhvRedirects055_DefaultApiClient_ANonHttpSchemeTargetIsRefused(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/start", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", "gopher://example.com/x")
+		w.WriteHeader(302)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	opts, err := NewTransportOptionsBuilder().Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.SendRequest("GET", server.URL+"/start", nil, nil); err == nil || !strings.Contains(err.Error(), "refusing to follow redirect") {
+		t.Errorf("expected the non-http redirect refused, got %v", err)
+	}
+}
+
+// A redirect chain that runs past the timeout budget fails with a timeout error, and the budget is
+// shared across all hops rather than reset on each hop.
+func TestBhvRedirects054_DefaultApiClient_TheTimeoutBudgetIsSharedAcrossHops(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	mux.HandleFunc("/hop1", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(400 * time.Millisecond)
+		w.Header().Set("Location", "/hop2")
+		w.WriteHeader(302)
+	})
+	mux.HandleFunc("/hop2", func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(400 * time.Millisecond)
+		w.Header().Set("Location", "/hop3")
+		w.WriteHeader(302)
+	})
+	mux.HandleFunc("/hop3", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	budget := 700
+	opts, err := NewTransportOptionsBuilder().Timeout(&budget).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	_, err = client.SendRequest("GET", server.URL+"/hop1", nil, nil)
+	var timeoutErr *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeoutErr) {
+		t.Errorf("expected a NetworkTimeoutError once the shared budget is spent, got %T: %v", err, err)
+	}
+}
+
+// A 307 that downgrades https to http is refused when the request carries a body, failing with status 307.
+func TestBhvRetries051_DefaultApiClient_ABodyIsNotResentAcrossAnHttpsToHttpDowngrade(t *testing.T) {
+	t.Parallel()
+	rt := &originRedirectRoundTripper{location: "http://api.example.com/target", status: 307, seen: map[string]string{}}
+	opts, err := NewTransportOptionsBuilder().RoundTripper(rt).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(opts)
+	defer func() { _ = client.Close() }()
+
+	_, err = client.SendRequest("POST", "https://api.example.com/start", map[string]string{"Content-Type": "text/plain"}, []byte("payload"))
+	var apiErr *pkgerrors.ApiError
+	if !errors.As(err, &apiErr) || apiErr.StatusCode() != 307 || !strings.Contains(err.Error(), "refusing to replay request body across HTTPS->HTTP redirect") {
+		t.Errorf("expected a 307 refusal to replay the body, got %T: %v", err, err)
 	}
 }
