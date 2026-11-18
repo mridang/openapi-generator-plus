@@ -625,7 +625,7 @@ test('bhv serializationwire 049 multipart raw bytes part reuses field name as fi
     expect($capturedBody)->toContain('Content-Type: application/octet-stream');
 });
 
-test('multipart leaves a caller supplied stream open', function (): void {
+test('bhv transport 061 multipart leaves a caller supplied stream open', function (): void {
     $stream = fopen('php://temp', 'w+');
     expect($stream)->toBeResource();
     fwrite($stream, 'raw bytes');
@@ -927,6 +927,59 @@ test('bhv redirects 025 cross origin redirect strips credential looking and defa
     expect($seen)->not->toHaveKey('api-key');
     expect($seen)->not->toHaveKey('x-tenant');
     expect($seen['x-trace'] ?? null)->toBe('keep-me');
+});
+
+test('bhv redirects 037 a redirect to the explicit default port of the same origin keeps the authorization header', function (): void {
+    /* https://api.example.com and https://api.example.com:443 name the same origin, so the credential
+     * must not be stripped as if the hop were cross origin. */
+    $credential = 'Bearer ' . 'tok' . 'en-037';
+    $seen = [];
+    $hop = 0;
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$seen, &$hop): MockResponse {
+        $hop++;
+        if ($hop === 1) {
+            return new MockResponse('', [
+                'http_code' => 302,
+                'response_headers' => ['Location' => 'https://api.example.com:443/final'],
+            ]);
+        }
+        /** @var array<int, string> $lines */
+        $lines = $options['headers'] ?? [];
+        foreach ($lines as $line) {
+            $parts = explode(':', $line, 2);
+            if (count($parts) === 2) {
+                $seen[strtolower(trim($parts[0]))] = trim($parts[1]);
+            }
+        }
+        return new MockResponse('ok', ['http_code' => 200]);
+    });
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->followRedirects(true)->build());
+
+    $client->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => $credential], null);
+
+    expect($seen['authorization'] ?? null)->toBe($credential);
+});
+
+test('bhv transport 064 the intermediate response of a refused redirect is released', function (): void {
+    /* The probe flips its flag when the 3xx response object is destroyed, so the test observes the release itself. */
+    $probe = new \stdClass();
+    $probe->released = false;
+    $mock = new MockHttpClient(fn(): MockResponse => new class ('', ['http_code' => 302, 'response_headers' => ['Location' => 'ftp://example.com/next']], $probe) extends MockResponse {
+        public function __construct(string $body, array $info, private \stdClass $probe)
+        {
+            parent::__construct($body, $info);
+        }
+
+        public function __destruct()
+        {
+            $this->probe->released = true;
+        }
+    });
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->followRedirects(true)->build());
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/start', [], null))
+        ->toThrow(\PetstoreClient\Errors\ApiException::class);
+    expect($probe->released)->toBeTrue();
 });
 
 test('bhv redirects 012 cross origin redirect strips authorization and cookie', function (): void {
@@ -1380,7 +1433,7 @@ test('bhv transport 048 non-existent caCertPath throws even when verifySsl is fa
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {
+test('bhv transport 065 a configured caCertPath replaces the system trust directory instead of adding to it', function (): void {
     $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
     assert($key !== false);
     $csr = openssl_csr_new(['commonName' => 'only-ca'], $key);
@@ -2170,6 +2223,17 @@ test('a network error that persists is raised after the last attempt', function 
     expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/down', static fn (): array => [], null))
         ->toThrow(\PetstoreClient\Errors\NetworkException::class);
     expect(count($log))->toBe(3);
+});
+
+test('bhv retries 042 a timeout is not retried', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $timeout = new \Symfony\Component\HttpClient\Exception\TimeoutException('Idle timeout reached');
+    $client = retryTestClient([$timeout, 200], null, $log);
+
+    expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/slow', static fn (): array => [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect(count($log))->toBe(1);
 });
 
 test('bhv retries 006 a multipart body is never replayed', function (): void {

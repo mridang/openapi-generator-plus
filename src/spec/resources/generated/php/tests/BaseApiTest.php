@@ -1249,6 +1249,31 @@ test('bhv operations 004 an explicit Accept header parameter wins over the confi
         ->toContain('accept');
 });
 
+test('bhv headers 030 a default header in another case replaces the negotiated one instead of being sent beside it', function (): void {
+    $client = new CapturingApiClient();
+    $config = Configuration::builder()
+        ->baseUrl('http://localhost')
+        ->defaultHeader('accept', 'application/vnd.x+json')
+        ->build();
+    $testApi = new TestableApi($client, $config);
+    $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        null
+    );
+    $names = array_filter(
+        array_keys($client->capturedHeaders),
+        static fn (string $name): bool => strtolower($name) === 'accept',
+    );
+    expect(array_values($names))->toBe(['accept']);
+    expect($client->capturedHeaders['accept'] ?? null)->toBe('application/vnd.x+json');
+});
+
 test('bhv operations 001 a per call header replaces a default header of the same name', function (): void {
     $client = new CapturingApiClient();
     $config = Configuration::builder()

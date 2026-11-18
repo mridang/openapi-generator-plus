@@ -1940,7 +1940,7 @@ test('deep JSON within the depth cap decodes but past it is rejected', function 
 // which PHPStan honours. This matches the Ruby/Elixir language-bound half of
 // the finding. No runtime attribute assertion is possible here.
 
-test('deserialize PetFood rejects a malformed discriminator with SerializationException', function (string $json): void {
+test('bhv unions 035 deserialize PetFood rejects a malformed discriminator with SerializationException', function (string $json): void {
     /* The public entry point owns the error contract: the native
      * \InvalidArgumentException raised by the composed model's build() must
      * reach the caller wrapped as the SDK's SerializationException. */
@@ -1953,6 +1953,15 @@ test('deserialize PetFood rejects a malformed discriminator with SerializationEx
     'unknown value' => ['{"foodType":"raw","calories":300}'],
     'empty value' => ['{"foodType":"","weightKg":2.5}'],
     'non string value' => ['{"foodType":42,"weightKg":1.0}'],
+]);
+
+test('bhv unions 033 an unknown, missing or empty discriminator fails with the SDK serialization error', function (string $json): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize($json, \{{invokerPackage}}\Models\PetFood::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'unknown value' => ['{"foodType":"raw","calories":300}'],
+    'missing value' => ['{"weightKg":2.5}'],
+    'empty value' => ['{"foodType":"","weightKg":2.5}'],
 ]);
 
 // -- format: byte parameters are standard base64 on the wire --

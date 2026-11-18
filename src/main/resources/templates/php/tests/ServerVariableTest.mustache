@@ -33,3 +33,9 @@ test('bhv servers 017 exposes the default value, description and enum values', f
     expect($variable->description)->toBe('API version');
     expect($variable->enumValues)->toBe(['v2', 'v3']);
 });
+
+test('bhv servers 024 the enum values cannot be mutated', function (): void {
+    $variable = new ServerVariable(defaultValue: 'v3', enumValues: ['v2', 'v3']);
+
+    expect(fn (): mixed => $variable->enumValues[] = 'v4')->toThrow(\Error::class);
+});
