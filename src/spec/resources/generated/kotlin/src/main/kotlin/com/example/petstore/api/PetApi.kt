@@ -235,6 +235,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "addPet",
+            urlTemplate = "/pet",
         )
     }
 
@@ -303,6 +305,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "addPetPhotos",
+            urlTemplate = "/pet/{petId}/photos",
         )
     }
 
@@ -366,6 +370,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "addPetTreatment",
+            urlTemplate = "/pet/{petId}/treatment",
         )
     }
 
@@ -437,6 +443,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "deletePet",
+            urlTemplate = "/pet/{petId}",
         )
     }
 
@@ -505,6 +513,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "downloadPetDocument",
+            urlTemplate = "/pet/{petId}/documents/{documentId}",
         )
     }
 
@@ -562,6 +572,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "findPetsBornOn",
+            urlTemplate = "/pet/born-on/{bornOn}",
         )
     }
 
@@ -637,6 +649,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "findPetsByStatus",
+            urlTemplate = "/pet/findByStatus",
         )
     }
 
@@ -715,6 +729,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getExternalPetInfo",
+            urlTemplate = "/pet/{petId}/external",
         )
     }
 
@@ -793,6 +809,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getMultiServerPetInfo",
+            urlTemplate = "/pet/{petId}/multi",
         )
     }
 
@@ -852,6 +870,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetAvatar",
+            urlTemplate = "/pet/{petId}/avatar",
         )
     }
 
@@ -911,6 +931,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetAvatarThumbnail",
+            urlTemplate = "/pet/{petId}/avatar/thumbnail",
         )
     }
 
@@ -999,6 +1021,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetById",
+            urlTemplate = "/pet/{petId}",
         )
     }
 
@@ -1087,6 +1111,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetByName",
+            urlTemplate = "/pet/byName/{name}",
         )
     }
 
@@ -1146,6 +1172,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetPassport",
+            urlTemplate = "/pet/{petId}/passport",
         )
     }
 
@@ -1214,6 +1242,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetPhoto",
+            urlTemplate = "/pet/{petId}/photos/{photoId}",
         )
     }
 
@@ -1316,6 +1346,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetSummary",
+            urlTemplate = "/pet/{petId}/summary/{asOf}",
         )
     }
 
@@ -1456,6 +1488,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getPetTag",
+            urlTemplate = "/pet/{petId}/tag/{tagName}",
         )
     }
 
@@ -1534,6 +1568,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "getStagingPetInfo",
+            urlTemplate = "/pet/{petId}/staging",
         )
     }
 
@@ -1609,6 +1645,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "setPetAvatar",
+            urlTemplate = "/pet/{petId}/avatar",
         )
     }
 
@@ -1667,6 +1705,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "setPetAvatarThumbnail",
+            urlTemplate = "/pet/{petId}/avatar/thumbnail",
         )
     }
 
@@ -1746,6 +1786,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "setPetPreferences",
+            urlTemplate = "/pet/{petId}/preferences",
         )
     }
 
@@ -1811,6 +1853,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "updatePet",
+            urlTemplate = "/pet/{petId}",
         )
     }
 
@@ -1875,6 +1919,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "uploadPetCertificate",
+            urlTemplate = "/pet/{petId}/certificate",
         )
     }
 
@@ -1974,6 +2020,8 @@ class PetApi : BaseApi {
             callTimeout = callTimeout,
             callHeaders = callHeaders,
             callMaxRetries = callMaxRetries,
+            operationId = "uploadPetDocument",
+            urlTemplate = "/pet/{petId}/documents",
         )
     }
 }

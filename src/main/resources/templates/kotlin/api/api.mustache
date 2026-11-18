@@ -420,7 +420,9 @@ class {{classname}} : BaseApi {
                 "{{classname}}.{{operationId}}",
                 callTimeout = callTimeout,
                 callHeaders = callHeaders,
-                callMaxRetries = callMaxRetries{{#vendorExtensions.op.hasMultiple2xx}},
+                callMaxRetries = callMaxRetries,
+                operationId = "{{#lambda.kotlinString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.kotlinString}}",
+                urlTemplate = "{{#lambda.kotlinString}}{{{path}}}{{/lambda.kotlinString}}"{{#vendorExtensions.op.hasMultiple2xx}},
                 decodeSuccess = { status, text ->
                     when {
 {{#vendorExtensions.op.successResponses}}

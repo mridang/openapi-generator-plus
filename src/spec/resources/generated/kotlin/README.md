@@ -227,6 +227,30 @@ The SDK writes no logs. To see requests and responses, pass your own Ktor
 `TransportOptions.builder().httpClient(...)`; headers that carry credentials are
 masked in the string form of an exception.
 
+## Hooks and telemetry
+
+Every operation calls one small, optional hook around the call. The hook can edit the request headers before the send and observe the status or the error afterwards. With no hook set nothing changes, and the hook is the only seam for tracing.
+
+`start` runs once per operation call, however many sends happen inside it (retries, the one replay after a `401`), after the request headers are final and before the body is encoded. It receives the call (`operationId` as written in the spec, `method`, `urlTemplate`, the `url` without its query string and `serverAddress`) and the headers, which it may read and replace; what it sets is on every send of the call. It returns an observer, or nothing. The observer's `finish` runs exactly once, whatever way the call ends, with the `statusCode` (0 when no response arrived), the lower-cased response `headers` (nothing when no response arrived) and the very error the caller receives. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. A hook never changes the result or the error of a call, and it also runs when you supply your own transport. Several hooks are combined with `chain`, which starts them in the order given and finishes them in the reverse order.
+
+```kotlin
+val hook = CallHook { info, headers ->
+    headers["X-Request-Source"] = "reports"
+    CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
+}
+val client = Client.withToken("https://api.example.com", "token", callHook = hook)
+```
+
+The hook runs inline on the calling coroutine, so it must not block.
+
+The optional `OpenTelemetryCallHook` records one span, one request count and one duration value per call. It is built on the OpenTelemetry API package only; add `io.opentelemetry:opentelemetry-api` to your project to use it. The span is named with the operation id, has kind client and is a child of the active span; the hook injects `traceparent` itself. Attributes are `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure); the instruments are the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`), whose own count equals the counter. The instrumentation scope is `petstore-client` with the SDK version. Without a configured provider the hook does nothing.
+
+```kotlin
+val client = Client.withToken("https://api.example.com", "token", callHook = OpenTelemetryCallHook.create())
+```
+
+`OpenTelemetryCallHook.create(openTelemetry)` uses the instance you give it instead of the global one.
+
 ## Versioning
 
 The version in the build file (`1.0.0`) comes from the `artifactVersion`

@@ -6,7 +6,9 @@ import {{invokerPackage}}.ApiClient
 import {{invokerPackage}}.errors.ApiException
 import {{invokerPackage}}.ApiHttpResponse
 import {{invokerPackage}}.ApiResult
+import {{invokerPackage}}.CallInfo
 import {{invokerPackage}}.CallSettings
+import {{invokerPackage}}.CallTracker
 import {{invokerPackage}}.Configuration
 import {{invokerPackage}}.DefaultApiClient
 import {{invokerPackage}}.HeaderSelector
@@ -151,6 +153,8 @@ abstract class BaseApi {
      * @param callHeaders optional headers for this call only; they replace a header of the same name
      * @param callMaxRetries optional number of retries for this call only; `0` disables them
      * @param errorSchemas the operation's error factories by declared status, or null
+     * @param operationId the operation id exactly as written in the spec, told to the call hook
+     * @param urlTemplate the spec path template of the operation, told to the call hook
      * @return ApiHttpResponse containing status code, body, and headers
      * @throws ApiException if the API call fails
      */
@@ -167,6 +171,44 @@ abstract class BaseApi {
         callHeaders: Map<String, String>? = null,
         callMaxRetries: Int? = null,
         errorSchemas: Map<String, {{invokerPackage}}.errors.ErrorFactory>? = null,
+        operationId: String? = null,
+        urlTemplate: String? = null,
+    ): ApiHttpResponse {
+        val tracker = newCallTracker()
+        val response =
+            invokeApiTracked(
+                method, path, queryParams, headerParams, body, accepts, contentType, auth,
+                callTimeout, callHeaders, callMaxRetries, errorSchemas, operationId, urlTemplate, tracker,
+            )
+        tracker.finishOk(response.statusCode, response.headers)
+        return response
+    }
+
+    /** The tracker of one call: it runs the configured [CallHook], if any. */
+    @PublishedApi
+    internal fun newCallTracker(): CallTracker = CallTracker(config.callHook)
+
+    /**
+     * The request pipeline of [invokeApi]. The hook is started once the headers are final; every
+     * exit after that finishes it with the error, and the caller finishes it on success.
+     */
+    @PublishedApi
+    internal suspend fun invokeApiTracked(
+        method: String,
+        path: String,
+        queryParams: MutableMap<String, Any?>,
+        headerParams: MutableMap<String, String>,
+        body: Any?,
+        accepts: Array<String>,
+        contentType: String,
+        auth: Authenticator?,
+        callTimeout: Long? = null,
+        callHeaders: Map<String, String>? = null,
+        callMaxRetries: Int? = null,
+        errorSchemas: Map<String, {{invokerPackage}}.errors.ErrorFactory>?,
+        operationId: String?,
+        urlTemplate: String?,
+        tracker: CallTracker,
     ): ApiHttpResponse {
         require(callTimeout == null || callTimeout > 0) {
             "Invalid timeout: must be a positive number of milliseconds (got $callTimeout)"
@@ -255,120 +297,149 @@ abstract class BaseApi {
             }
         }
 
-        val requestBody: Any? =
-            if (body != null) {
-                when {
-                    (contentType.startsWith("image/") || "application/octet-stream" == contentType) &&
-                        body is Map<*, *> -> {
-                        // Raw-binary selection on an operation that ALSO declares a
-                        // multipart content type. The operation assembled the body as
-                        // a Map of form parts (the file plus optional metadata). A raw
-                        // octet-stream/image request has no multipart envelope, so we
-                        // must NOT forward that Map to the transport -- buildRequestBody
-                        // dispatches on `body is Map<*, *>` and would emit a
-                        // multipart/form-data body, contradicting the caller's explicit
-                        // content-type selection. Send the single binary part's raw
-                        // bytes instead; the text metadata parts have no place on the
-                        // wire for a raw stream and are dropped.
-                        extractBinaryPart(body)
-                    }
-                    body is ByteArray ||
-                        contentType.startsWith("image/") ||
-                        "application/octet-stream" == contentType -> body
-                    "multipart/form-data" == contentType && body is Map<*, *> -> body
-                    "text/plain" == contentType -> body.toString()
-                    "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
-                        val formParams = body as Map<String, Any?>
-                        val parts = mutableListOf<String>()
-                        for ((key, value) in formParams) {
-                            // Optional/absent fields are passed as null and must be
-                            // OMITTED from the wire body (parity rule 2), not encoded
-                            // as the literal string "null".
-                            if (value == null) continue
-                            if (value is Collection<*>) {
-                                // Array fields explode into repeated keys —
-                                // `tags=a&tags=b` (parity rule 1) — rather than a
-                                // single bracket-mangled `tags=[a, b]` value.
-                                for (item in value) {
-                                    if (item == null) continue
-                                    requireFormScalar(key, item)
-                                    parts.add("${encode(key)}=${encode(objectSerializer.stringify(item))}")
-                                }
-                            } else {
-                                requireFormScalar(key, value)
-                                parts.add("${encode(key)}=${encode(objectSerializer.stringify(value))}")
-                            }
+        tracker.start({ callInfo(method, operationId, urlTemplate, url) }, headers)
+        try {
+            val requestBody: Any? =
+                if (body != null) {
+                    when {
+                        (contentType.startsWith("image/") || "application/octet-stream" == contentType) &&
+                            body is Map<*, *> -> {
+                            // Raw-binary selection on an operation that ALSO declares a
+                            // multipart content type. The operation assembled the body as
+                            // a Map of form parts (the file plus optional metadata). A raw
+                            // octet-stream/image request has no multipart envelope, so we
+                            // must NOT forward that Map to the transport -- buildRequestBody
+                            // dispatches on `body is Map<*, *>` and would emit a
+                            // multipart/form-data body, contradicting the caller's explicit
+                            // content-type selection. Send the single binary part's raw
+                            // bytes instead; the text metadata parts have no place on the
+                            // wire for a raw stream and are dropped.
+                            extractBinaryPart(body)
                         }
-                        parts.joinToString("&")
+                        body is ByteArray ||
+                            contentType.startsWith("image/") ||
+                            "application/octet-stream" == contentType -> body
+                        "multipart/form-data" == contentType && body is Map<*, *> -> body
+                        "text/plain" == contentType -> body.toString()
+                        "application/x-www-form-urlencoded" == contentType && body is Map<*, *> -> {
+                            val formParams = body as Map<String, Any?>
+                            val parts = mutableListOf<String>()
+                            for ((key, value) in formParams) {
+                                // Optional/absent fields are passed as null and must be
+                                // OMITTED from the wire body (parity rule 2), not encoded
+                                // as the literal string "null".
+                                if (value == null) continue
+                                if (value is Collection<*>) {
+                                    // Array fields explode into repeated keys —
+                                    // `tags=a&tags=b` (parity rule 1) — rather than a
+                                    // single bracket-mangled `tags=[a, b]` value.
+                                    for (item in value) {
+                                        if (item == null) continue
+                                        requireFormScalar(key, item)
+                                        parts.add("${encode(key)}=${encode(objectSerializer.stringify(item))}")
+                                    }
+                                } else {
+                                    requireFormScalar(key, value)
+                                    parts.add("${encode(key)}=${encode(objectSerializer.stringify(value))}")
+                                }
+                            }
+                            parts.joinToString("&")
+                        }
+                        else -> objectSerializer.serialize(body)
                     }
-                    else -> objectSerializer.serialize(body)
-                }
-            } else {
-                null
-            }
-
-        if (requestBody == null) {
-            headers.remove("Content-Type")
-        }
-
-        val requestPath = requestPathOf(url)
-        val callSettings =
-            if (callTimeout != null || callMaxRetries != null) CallSettings(callTimeout, callMaxRetries) else null
-        suspend fun send(sentHeaders: Map<String, String>): ApiHttpResponse =
-            try {
-                if (callSettings != null) {
-                    withContext(callSettings) { apiClient.sendRequest(method, url, sentHeaders, requestBody) }
                 } else {
-                    apiClient.sendRequest(method, url, sentHeaders, requestBody)
+                    null
                 }
-            } catch (e: ApiException) {
-                // A failure the transport raised carries the request it belongs to.
-                if (e.requestMethod == null) {
-                    e.requestMethod = method
-                    e.requestPath = requestPath
-                }
-                throw e
+
+            if (requestBody == null) {
+                headers.remove("Content-Type")
             }
 
-        var response = send(headers)
+            val requestPath = requestPathOf(url)
+            val callSettings =
+                if (callTimeout != null || callMaxRetries != null) CallSettings(callTimeout, callMaxRetries) else null
+            suspend fun send(sentHeaders: Map<String, String>): ApiHttpResponse =
+                try {
+                    if (callSettings != null) {
+                        withContext(callSettings) { apiClient.sendRequest(method, url, sentHeaders, requestBody) }
+                    } else {
+                        apiClient.sendRequest(method, url, sentHeaders, requestBody)
+                    }
+                } catch (e: ApiException) {
+                    // A failure the transport raised carries the request it belongs to.
+                    if (e.requestMethod == null) {
+                        e.requestMethod = method
+                        e.requestPath = requestPath
+                    }
+                    throw e
+                }
 
-        if (response.statusCode == 401 && effectiveAuth is HttpAwareAuthenticator) {
-            // A cached OAuth2 token the API no longer accepts must not outlive this answer.
-            effectiveAuth.invalidateAccessToken()
-            /* The request is replayed once with a freshly obtained token (a refresh grant first when
-             * a refresh token is held). A multipart body is not replayed, and a re-authentication
-             * that fails leaves the 401 as the answer. A second 401 is reported as usual. Only the
-             * OAuth2 and OpenID Connect authenticators take part: API key, basic and bearer
-             * credentials are static, so a new attempt could not change the outcome. */
-            if (requestBody !is Map<*, *>) {
-                val freshAuthHeaders =
-                    try {
-                        effectiveAuth.getAuthHeaders()
-                    } catch (_: {{invokerPackage}}.errors.{{errorPrefix}}Exception) {
-                        null
+            var response = send(headers)
+
+            if (response.statusCode == 401 && effectiveAuth is HttpAwareAuthenticator) {
+                // A cached OAuth2 token the API no longer accepts must not outlive this answer.
+                effectiveAuth.invalidateAccessToken()
+                /* The request is replayed once with a freshly obtained token (a refresh grant first when
+                 * a refresh token is held). A multipart body is not replayed, and a re-authentication
+                 * that fails leaves the 401 as the answer. A second 401 is reported as usual. Only the
+                 * OAuth2 and OpenID Connect authenticators take part: API key, basic and bearer
+                 * credentials are static, so a new attempt could not change the outcome. */
+                if (requestBody !is Map<*, *>) {
+                    val freshAuthHeaders =
+                        try {
+                            effectiveAuth.getAuthHeaders()
+                        } catch (_: {{invokerPackage}}.errors.{{errorPrefix}}Exception) {
+                            null
+                        }
+                    if (freshAuthHeaders != null) {
+                        val replayHeaders = headers.toMutableMap()
+                        for (name in freshAuthHeaders.keys) {
+                            replayHeaders.keys.removeAll { it.equals(name, ignoreCase = true) }
+                        }
+                        replayHeaders.putAll(freshAuthHeaders)
+                        response = send(replayHeaders)
                     }
-                if (freshAuthHeaders != null) {
-                    val replayHeaders = headers.toMutableMap()
-                    for (name in freshAuthHeaders.keys) {
-                        replayHeaders.keys.removeAll { it.equals(name, ignoreCase = true) }
-                    }
-                    replayHeaders.putAll(freshAuthHeaders)
-                    response = send(replayHeaders)
                 }
             }
-        }
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-            throw ApiException.fromResponse(
-                response.statusCode,
-                response.headers,
-                response.body,
-                method,
-                requestPath,
-                errorSchemas,
-            )
-        }
+            if (response.statusCode < 200 || response.statusCode >= 300) {
+                throw ApiException.fromResponse(
+                    response.statusCode,
+                    response.headers,
+                    response.body,
+                    method,
+                    requestPath,
+                    errorSchemas,
+                )
+            }
 
-        return response
+            return response
+        } catch (e: Throwable) {
+            tracker.finishError(e)
+            throw e
+        }
+    }
+
+    /** What the hook is told about the call: the operation, the method, the URL and its host. */
+    private fun callInfo(
+        method: String,
+        operationId: String?,
+        urlTemplate: String?,
+        url: String,
+    ): CallInfo {
+        val stripped = url.substringBefore('#').substringBefore('?')
+        val host =
+            try {
+                java.net.URI(stripped).host.orEmpty()
+            } catch (_: java.net.URISyntaxException) {
+                ""
+            }
+        return CallInfo(
+            operationId.orEmpty(),
+            method.uppercase(),
+            urlTemplate.orEmpty(),
+            stripped,
+            host.removePrefix("[").removeSuffix("]").lowercase(),
+        )
     }
 
     /**
@@ -449,6 +520,8 @@ abstract class BaseApi {
      *   whose 2xx responses carry different schemas; when null the body is decoded as [T]
      * @param errorSchemas the operation's error factories by declared status (`404`, `4XX`,
      *   `default`), or null when it declares none
+     * @param operationId the operation id exactly as written in the spec, told to the call hook
+     * @param urlTemplate the spec path template of the operation, told to the call hook
      * @return ApiResult containing deserialized data, status code, raw body, and headers
      * @throws ApiException if the API call fails
      */
@@ -467,11 +540,14 @@ abstract class BaseApi {
         callMaxRetries: Int? = null,
         noinline decodeSuccess: ((Int, String) -> T?)? = null,
         errorSchemas: Map<String, {{invokerPackage}}.errors.ErrorFactory>? = null,
+        operationId: String? = null,
+        urlTemplate: String? = null,
     ): ApiResult<T> {
+        val tracker = newCallTracker()
         val response =
-            invokeApi(
+            invokeApiTracked(
                 method, path, queryParams, headerParams, body, accepts, contentType, auth,
-                callTimeout, callHeaders, callMaxRetries, errorSchemas,
+                callTimeout, callHeaders, callMaxRetries, errorSchemas, operationId, urlTemplate, tracker,
             )
         val responseContentType =
             response.headers.entries
@@ -481,71 +557,77 @@ abstract class BaseApi {
         // JSON or not, is ignored rather than cast or deserialized into Unit.
         val data: T? =
             try {
-                if (response.body.isNotEmpty() && decodeSuccess != null) {
-                    // Several 2xx responses with different schemas: the status code, not the
-                    // shape of the body, says which variant this body is.
-                    decodeSuccess(response.statusCode, response.body)
-                } else if (response.body.isNotEmpty() && T::class != Unit::class) {
-                    if (T::class == ByteArray::class) {
-                        // Binary return types must never be JSON-deserialized, even
-                        // when the negotiated response Content-Type is JSON (an
-                        // operation whose Accept set includes application/json can
-                        // still receive raw image bytes). Recover the raw bytes the
-                        // way the transport encoded them:
-                        //   * application/json: a top-level `format: byte` value is a
-                        //     JSON string literal ("dGVzdC1pbWFnZQ==") — JSON-parse to
-                        //     strip the quotes/escapes, then base64-decode the inner
-                        //     string to the raw bytes. Returning the quoted literal's
-                        //     UTF-8 bytes (with the `"`) or the un-decoded base64 text
-                        //     would both be wrong.
-                        //   * other text content types: the transport keeps the body
-                        //     as a decoded string, so the raw bytes are its UTF-8.
-                        //   * binary content types: base64-encoded by the transport.
-                        if (headerSelector.isJsonMime(responseContentType)) {
-                            val document = response.body.trimStart()
-                            if (document.startsWith("{") || document.startsWith("[")) {
-                                // A JSON document (content negotiation answered the
-                                // binary operation with its application/json variant):
-                                // the caller gets its raw bytes.
+                try {
+                    if (response.body.isNotEmpty() && decodeSuccess != null) {
+                        // Several 2xx responses with different schemas: the status code, not the
+                        // shape of the body, says which variant this body is.
+                        decodeSuccess(response.statusCode, response.body)
+                    } else if (response.body.isNotEmpty() && T::class != Unit::class) {
+                        if (T::class == ByteArray::class) {
+                            // Binary return types must never be JSON-deserialized, even
+                            // when the negotiated response Content-Type is JSON (an
+                            // operation whose Accept set includes application/json can
+                            // still receive raw image bytes). Recover the raw bytes the
+                            // way the transport encoded them:
+                            //   * application/json: a top-level `format: byte` value is a
+                            //     JSON string literal ("dGVzdC1pbWFnZQ==") — JSON-parse to
+                            //     strip the quotes/escapes, then base64-decode the inner
+                            //     string to the raw bytes. Returning the quoted literal's
+                            //     UTF-8 bytes (with the `"`) or the un-decoded base64 text
+                            //     would both be wrong.
+                            //   * other text content types: the transport keeps the body
+                            //     as a decoded string, so the raw bytes are its UTF-8.
+                            //   * binary content types: base64-encoded by the transport.
+                            if (headerSelector.isJsonMime(responseContentType)) {
+                                val document = response.body.trimStart()
+                                if (document.startsWith("{") || document.startsWith("[")) {
+                                    // A JSON document (content negotiation answered the
+                                    // binary operation with its application/json variant):
+                                    // the caller gets its raw bytes.
+                                    response.body.toByteArray(Charsets.UTF_8) as T
+                                } else {
+                                    val inner = objectSerializer.deserialize<String>(response.body) ?: ""
+                                    try {
+                                        java.util.Base64.getDecoder().decode(inner) as T
+                                    } catch (e: IllegalArgumentException) {
+                                        throw {{invokerPackage}}.errors.SerializationException(
+                                            "Invalid base64 value for a format: byte response", e)
+                                    }
+                                }
+                            } else if (isTextResponseContentType(responseContentType)) {
                                 response.body.toByteArray(Charsets.UTF_8) as T
                             } else {
-                                val inner = objectSerializer.deserialize<String>(response.body) ?: ""
-                                try {
-                                    java.util.Base64.getDecoder().decode(inner) as T
-                                } catch (e: IllegalArgumentException) {
-                                    throw {{invokerPackage}}.errors.SerializationException(
-                                        "Invalid base64 value for a format: byte response", e)
-                                }
+                                java.util.Base64.getDecoder().decode(response.body) as T
                             }
-                        } else if (isTextResponseContentType(responseContentType)) {
-                            response.body.toByteArray(Charsets.UTF_8) as T
+                        } else if (responseContentType.isNotEmpty() &&
+                            !headerSelector.isJsonMime(responseContentType)
+                        ) {
+                            // A non-JSON success body is returned verbatim only for a
+                            // String return type with a text-class Content-Type; any
+                            // other return type is a serialization error rather than
+                            // an unchecked cast.
+                            if (T::class == String::class && isTextResponseContentType(responseContentType)) {
+                                response.body as T
+                            } else {
+                                throw {{invokerPackage}}.errors.SerializationException(
+                                    "Unexpected response Content-Type '" +
+                                        responseContentType.substringBefore(';').trim() +
+                                        "' for " + operation + ": expected a JSON body")
+                            }
                         } else {
-                            java.util.Base64.getDecoder().decode(response.body) as T
-                        }
-                    } else if (responseContentType.isNotEmpty() &&
-                        !headerSelector.isJsonMime(responseContentType)
-                    ) {
-                        // A non-JSON success body is returned verbatim only for a
-                        // String return type with a text-class Content-Type; any
-                        // other return type is a serialization error rather than
-                        // an unchecked cast.
-                        if (T::class == String::class && isTextResponseContentType(responseContentType)) {
-                            response.body as T
-                        } else {
-                            throw {{invokerPackage}}.errors.SerializationException(
-                                "Unexpected response Content-Type '" +
-                                    responseContentType.substringBefore(';').trim() +
-                                    "' for " + operation + ": expected a JSON body")
+                            objectSerializer.deserialize<T>(response.body)
                         }
                     } else {
-                        objectSerializer.deserialize<T>(response.body)
+                        null
                     }
-                } else {
-                    null
+                } catch (e: {{invokerPackage}}.errors.SerializationException) {
+                    throw withResponseContext(e, response, method, path)
                 }
-            } catch (e: {{invokerPackage}}.errors.SerializationException) {
-                throw withResponseContext(e, response, method, path)
+            } catch (e: Throwable) {
+                tracker.finishError(e)
+                throw e
             }
+        tracker.finishOk(response.statusCode, response.headers)
         // The result owns a read-only copy: mutating the map the transport handed over
         // must never change what the caller already holds, and the caller cannot change it.
         return ApiResult(
