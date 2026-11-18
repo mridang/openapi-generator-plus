@@ -13,6 +13,14 @@ require 'petstore_client'
 describe Petstore::Client::Auth::BearerAuthenticator do
   parallelize_me!
 
+  it 'bhv_misc_017 a rejected credential is refused without echoing the value' do
+    secret = 'bad-token-value-42'
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', "bad\n#{secret}")
+    end
+    _(err.message).wont_include secret
+  end
+
   it 'bhv_authbearer_009 raw token is prefixed with Bearer' do
     auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'xyz')
     headers = auth.auth_headers
@@ -174,6 +182,14 @@ describe Petstore::Client::Auth::BearerAuthenticator do
       env["#{prefix}_TOKEN"] = 'second'
 
       _(auth.auth_headers['Authorization']).must_equal 'Bearer first'
+    end
+
+    it 'bhv_misc_067 a token provider that raises makes the request fail with that same error' do
+      boom = IOError.new('vault unavailable')
+      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', nil, token_provider: -> { raise boom })
+
+      err = _(-> { auth.auth_headers }).must_raise IOError
+      _(err).must_be_same_as boom
     end
 
     it 'bhv_misc_060 supplying both an API key and an API key provider is refused' do

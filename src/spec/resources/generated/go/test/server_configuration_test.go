@@ -509,3 +509,71 @@ func TestBhvMisc297_ServerConfiguration_EveryTemplateVariableIsReplacedWhenTheUR
 		t.Errorf("URL = %q, want %q", got, want)
 	}
 }
+
+func TestBhvMisc154_ServerConfiguration_EditingTheReturnedVariablesMapLeavesItUnchanged(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com",
+		"Test server",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("api", "", []string{"api", "staging"}),
+		},
+	)
+	vars := server.Variables()
+	vars["env"] = petstore.NewServerVariable("changed", "", []string{"changed"})
+	delete(vars, "env")
+	if got, err := server.URL(nil); err != nil || got != "https://api.example.com" {
+		t.Errorf("expected the configuration unchanged, got %q and %v", got, err)
+	}
+}
+
+func TestBhvMisc155_ServerConfiguration_AnUnsetEnumVariableIsRefusedNamingItsValues(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]petstore.ServerVariable{
+			"env": petstore.NewServerVariable("prod", "", []string{"api", "staging"}),
+		},
+	)
+	_, err := server.URL(nil)
+	want := "invalid server variable: invalid value 'prod' for server variable 'env'. Allowed values: [api, staging]"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected message %q, got %v", want, err)
+	}
+}
+
+func TestBhvMisc156_ServerConfiguration_AllServersKeepsDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	if len(petstore.AllServers) < 2 || petstore.AllServers[0] != petstore.Server1 || petstore.AllServers[1] != petstore.Server2 {
+		t.Error("expected AllServers to list Server1 then Server2 in declaration order")
+	}
+}
+
+func TestBhvMisc157_ServerConfiguration_ExplicitVariableValuesResolveIntoTheURL(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"",
+		map[string]petstore.ServerVariable{
+			"env":     petstore.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": petstore.NewServerVariable("v3", "", []string{"v2", "v3"}),
+		},
+	)
+	url, err := server.URL(map[string]string{"env": "staging", "version": "v2"})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://staging.example.com/api/v2"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}
+
+func TestBhvMisc158_ServerConfiguration_AFixedURLIsReportedUnchanged(t *testing.T) {
+	t.Parallel()
+	server := petstore.NewServerConfiguration("https://example.com/api/v1", "", map[string]petstore.ServerVariable{})
+	url, err := server.URL(nil)
+	if err != nil || url != "https://example.com/api/v1" {
+		t.Errorf("expected the fixed URL unchanged, got %q and %v", url, err)
+	}
+}

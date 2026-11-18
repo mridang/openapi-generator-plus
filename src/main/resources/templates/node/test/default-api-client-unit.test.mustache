@@ -339,6 +339,18 @@ describe('DefaultApiClient CA certificate fail-fast', () => {
     expect(() => new DefaultApiClient(TransportOptions.builder().caCertPath(missing).build())).toThrow(missing);
   });
 
+  it('bhv errors 098 a missing CA certificate names the certificate and wraps the not-found cause', () => {
+    const missing = path.join(os.tmpdir(), 'no-such-ca-errors-098.pem');
+    let caught: unknown;
+    try {
+      new DefaultApiClient(TransportOptions.builder().caCertPath(missing).build());
+    } catch (e) {
+      caught = e;
+    }
+    expect((caught as Error).message).toContain(missing);
+    expect(((caught as Error).cause as { code?: string }).code).toBe('ENOENT');
+  });
+
   it('bhv errors 041 throws TypeError at construction for a non-existent caCertPath', () => {
     // ca-cert-fail-fast: an explicitly configured CA certificate path that
     // cannot be read or parsed must fail fast at construction with a
@@ -3343,5 +3355,165 @@ describe('automatic retries and cancellation', () => {
 
     expect((error as Error).name).toBe('AbortError');
     expect(calls).toBe(1);
+  });
+});
+
+describe('DefaultApiClient misc transport behaviours', () => {
+  async function localServer(handler: http.RequestListener): Promise<{ url: string; close: () => Promise<void> }> {
+    const srv = http.createServer(handler);
+    await new Promise<void>((resolve) => srv.listen(0, '127.0.0.1', resolve));
+    const port = (srv.address() as net.AddressInfo).port;
+    return {
+      url: `http://127.0.0.1:${port}`,
+      close: () => new Promise<void>((resolve) => { srv.closeAllConnections(); srv.close(() => resolve()); }),
+    };
+  }
+
+  async function recordingProxy(seen: Array<string | undefined>): Promise<{ url: string; close: () => Promise<void> }> {
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(405);
+      res.end();
+    });
+    proxy.on('connect', (req, clientSocket, head) => {
+      seen.push(req.headers['proxy-authorization']);
+      const target = new URL(`http://${req.url!}`);
+      const upstream = net.connect(Number(target.port), target.hostname, () => {
+        clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        upstream.write(head);
+        clientSocket.pipe(upstream);
+        upstream.pipe(clientSocket);
+      });
+      clientSocket.on('error', () => upstream.destroy());
+      upstream.on('error', () => clientSocket.destroy());
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, '127.0.0.1', resolve));
+    const port = (proxy.address() as net.AddressInfo).port;
+    return {
+      url: `http://127.0.0.1:${port}`,
+      close: () => new Promise<void>((resolve) => { proxy.closeAllConnections(); proxy.close(() => resolve()); }),
+    };
+  }
+
+  it('bhv misc 031 a proxy URL without user information sends no proxy credential', async () => {
+    const seen: Array<string | undefined> = [];
+    const proxy = await recordingProxy(seen);
+    const client = new DefaultApiClient(TransportOptions.builder().proxy(proxy.url).build());
+    try {
+      const response = await client.sendRequest('GET', `${baseUrl}/echo`, {}, null);
+      expect(response.statusCode).toBe(200);
+      expect(seen).toEqual([undefined]);
+    } finally {
+      await client.close();
+      await proxy.close();
+    }
+  });
+
+  it('bhv misc 032 the raw response exposes status, body and headers under public names', async () => {
+    const local = await localServer((_req, res) => {
+      res.writeHead(201, { 'Content-Type': 'text/plain', 'X-Raw': 'yes' });
+      res.end('raw-body');
+    });
+    try {
+      const client = new DefaultApiClient(TransportOptions.builder().build());
+      const response = await client.sendRequest('GET', `${local.url}/x`, {}, null);
+      expect(response.statusCode).toBe(201);
+      expect(response.body).toBe('raw-body');
+      expect(response.headers['x-raw']).toBe('yes');
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('bhv misc 037 an undecoded body keeps its Content-Length header', async () => {
+    const local = await localServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'text/plain', 'Content-Length': '5' });
+      res.end('hello');
+    });
+    try {
+      const client = new DefaultApiClient(TransportOptions.builder().build());
+      const response = await client.sendRequest('GET', `${local.url}/x`, {}, null);
+      expect(response.headers['content-length']).toBe('5');
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('bhv misc 038 with no CA certificate configured, a server certificate outside the platform store is refused', async () => {
+    const client = new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+    await expect(client.sendRequest('GET', `${process.env['CHASM_HTTPS_URL']!}/test/echo`, {}, null)).rejects.toThrow();
+  });
+
+  it.each([
+    ['gzip', ''],
+    ['gzip', '0'],
+    ['deflate', ''],
+    ['deflate', '0'],
+  ])('bhv misc 039 a well-formed %s stream of %p is returned as its content, not treated as corrupt', async (encoding, content) => {
+    const plain = Buffer.from(content, 'utf-8');
+    const wire = encoding === 'gzip' ? zlib.gzipSync(plain) : zlib.deflateSync(plain);
+    const out = await DefaultApiClient.ensureDecoded(wire, encoding);
+    expect(out.toString('utf-8')).toBe(content);
+  });
+
+  it('bhv misc 040 response header names are returned in lower case', async () => {
+    const local = await localServer((_req, res) => {
+      res.writeHead(200, { 'X-Custom-Thing': 'v' });
+      res.end();
+    });
+    try {
+      const client = new DefaultApiClient(TransportOptions.builder().build());
+      const response = await client.sendRequest('GET', `${local.url}/x`, {}, null);
+      expect(response.headers['x-custom-thing']).toBe('v');
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('bhv misc 041 a request with a non-standard method is sent with its body intact', async () => {
+    let method = '';
+    let received = '';
+    const local = await localServer((req, res) => {
+      method = req.method ?? '';
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        received = Buffer.concat(chunks).toString('utf-8');
+        res.writeHead(200);
+        res.end();
+      });
+    });
+    try {
+      const client = new DefaultApiClient(TransportOptions.builder().build());
+      await client.sendRequest('PURGE', `${local.url}/x`, { 'Content-Type': 'text/plain' }, Buffer.from('payload'));
+      expect(method).toBe('PURGE');
+      expect(received).toBe('payload');
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('bhv misc 042 a custom fetch with verification disabled is refused at build, naming the setting', () => {
+    const customFetch = (async () => new Response('')) as unknown as typeof fetch;
+    expect(() => TransportOptions.builder().fetch(customFetch).verifySsl(false).build()).toThrow(/verifySsl\(false\)/);
+  });
+
+  it('bhv misc 043 an explicitly cleared user agent is omitted from the request', async () => {
+    const local = await localServer((req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ userAgent: req.headers['user-agent'] ?? null }));
+    });
+    try {
+      const client = new DefaultApiClient(TransportOptions.builder().userAgent(null).build());
+      const response = await client.sendRequest('GET', `${local.url}/x`, {}, null);
+      expect(JSON.parse(response.body)).toEqual({ userAgent: null });
+    } finally {
+      await local.close();
+    }
+  });
+
+  it('bhv misc 044 a body that declares gzip but lacks the gzip signature is returned as its plain body', async () => {
+    const plain = Buffer.from('{"userId":1}', 'utf-8');
+    const out = await DefaultApiClient.ensureDecoded(plain, 'gzip');
+    expect(out.toString('utf-8')).toBe('{"userId":1}');
   });
 });

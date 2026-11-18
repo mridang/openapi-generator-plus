@@ -1076,4 +1076,19 @@ defmodule PetstoreClient.DefaultApiClientTest do
     # chasm envelope exposes contentLength as a camelCase integer
     assert parsed["contentLength"] == 0
   end
+
+  test "bhv misc 038 with no CA configured a server certificate the platform trust store does not hold is refused" do
+    chasm_url = System.fetch_env!("CHASM_HTTPS_URL")
+    client = PetstoreClient.DefaultApiClient.new(PetstoreClient.TransportOptions.new())
+
+    assert_raise PetstoreClient.Errors.NetworkError, fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "#{chasm_url}/test/echo",
+        %{},
+        nil
+      )
+    end
+  end
 end

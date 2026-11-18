@@ -57,6 +57,43 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_misc_083 a query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written' do
+    _(sent_query('tag=a&tag=b&q=x%20y%2Bz')).must_equal 'tag=a&tag=b&q=x%20y%2Bz'
+  end
+
+  it 'bhv_misc_095 a response body with bytes invalid in its charset decodes with each bad byte replaced by U+FFFD' do
+    client = Petstore::Client::DefaultApiClient.new
+    _(client.send(:decode_text_body, "a\xFFb".b, 'text/plain; charset=utf-8')).must_equal 'a�b'
+  end
+
+  it 'bhv_misc_096 a multipart file part carries no Content-Transfer-Encoding header' do
+    client = Petstore::Client::DefaultApiClient.new
+    body = client.send(:build_multipart_body, { 'file' => StringIO.new('payload') }, 'b')
+    _(body).wont_include 'Content-Transfer-Encoding'
+  end
+
+  it 'bhv_misc_097 each element of a multipart array field is sent as its own part in the order given' do
+    client = Petstore::Client::DefaultApiClient.new
+    body = client.send(:build_multipart_body, { 'tag' => %w[first second] }, 'b')
+    _(body.scan('name="tag"').size).must_equal 2
+    _(body.index('first')).must_be :<, body.index('second')
+  end
+
+  it 'bhv_misc_098 a caller stream used as a multipart part is read into the body and never closed by the SDK' do
+    stream = StringIO.new('payload')
+    client = Petstore::Client::DefaultApiClient.new
+    client.send(:build_multipart_body, { 'file' => stream }, 'b')
+    _(stream.closed?).must_equal false
+  end
+
+  it 'bhv_misc_101 a multipart file whose source can no longer be read fails the call instead of sending an empty payload' do
+    file = Tempfile.new('part')
+    file.close
+    client = Petstore::Client::DefaultApiClient.new
+    _(proc { client.send(:build_multipart_body, { 'file' => file }, 'b') }).must_raise IOError
+    file.unlink
+  end
+
   it 'bhv_langruby_033 sends a method Faraday does not know, such as QUERY, with its body' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new
@@ -205,6 +242,33 @@ describe 'DefaultApiClientUnit' do
       _(response.status_code).must_equal 200
       _(response.body).must_include 'POST'
       _(response.body).must_include 'key'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_032 the raw response exposes its status code, body and headers under public names' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/raw') { [201, { 'x-raw' => 'yes' }, 'raw-body'] }
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/raw', {}, nil)
+      _(response.status_code).must_equal 201
+      _(response.body).must_equal 'raw-body'
+      _(response.headers['x-raw']).must_equal 'yes'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_040 response header names are returned in lower case' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/names') { [200, { 'X-Mixed-Case' => 'v' }, 'ok'] }
+    end
+    client = Petstore::Client::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/names', {}, nil)
+      _(response.headers['x-mixed-case']).must_equal 'v'
+      _(response.headers.keys.grep(/[A-Z]/)).must_be_empty
     end
     stubs.verify_stubbed_calls
   end
@@ -574,6 +638,21 @@ describe 'DefaultApiClientUnit' do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
     _(captured_body.to_s).must_include 'filename="a\\"b.txt"'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_036 a caller body part stays open after the request it was sent with fails' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') { raise Faraday::ConnectionFailed, 'connection refused' }
+    end
+    io = StringIO.new('payload')
+    client = Petstore::Client::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(Petstore::Client::Errors::NetworkError) do
+        client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+      end
+    end
+    _(io.closed?).must_equal false
     stubs.verify_stubbed_calls
   end
 
@@ -1869,6 +1948,60 @@ describe 'DefaultApiClientUnit' do
     file&.unlink
   end
 
+  it 'bhv_misc_033 a pinned CA file holding only the root accepts a server that also sends the intermediate' do
+    issue = lambda do |subject, key, signer, signer_key, ca:|
+      cert = OpenSSL::X509::Certificate.new
+      cert.version = 2
+      cert.serial = rand(2..2**31)
+      cert.subject = OpenSSL::X509::Name.parse("/CN=#{subject}")
+      cert.issuer = signer ? signer.subject : cert.subject
+      cert.public_key = key.public_key
+      cert.not_before = Time.now - 60
+      cert.not_after = Time.now + 3600
+      factory = OpenSSL::X509::ExtensionFactory.new(signer || cert, cert)
+      cert.add_extension(factory.create_extension('basicConstraints', ca ? 'CA:TRUE' : 'CA:FALSE', true))
+      cert.add_extension(factory.create_extension('subjectAltName', 'DNS:localhost,IP:127.0.0.1')) unless ca
+      cert.sign(signer_key || key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+      cert
+    end
+    root_key = OpenSSL::PKey::RSA.new(2048)
+    intermediate_key = OpenSSL::PKey::RSA.new(2048)
+    leaf_key = OpenSSL::PKey::RSA.new(2048)
+    root = issue.call('bhv-root-ca', root_key, nil, nil, ca: true)
+    intermediate = issue.call('bhv-intermediate-ca', intermediate_key, root, root_key, ca: true)
+    leaf = issue.call('localhost', leaf_key, intermediate, intermediate_key, ca: false)
+
+    tcp = TCPServer.new('127.0.0.1', 0)
+    port = tcp.addr[1]
+    context = OpenSSL::SSL::SSLContext.new
+    context.cert = leaf
+    context.key = leaf_key
+    context.extra_chain_cert = [intermediate]
+    tls = OpenSSL::SSL::SSLServer.new(tcp, context)
+    thread = Thread.new do
+      conn = tls.accept
+      conn.gets
+      while (line = conn.gets)
+        break if line.strip.empty?
+      end
+      conn.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+      conn.close
+    rescue StandardError
+      nil
+    end
+    file = Tempfile.new(['root', '.pem'])
+    file.write(root.to_pem)
+    file.close
+    transport = Petstore::Client::TransportOptions.builder.ca_cert_path(file.path).build
+
+    response = Petstore::Client::DefaultApiClient.new(transport).send_request('GET', "https://127.0.0.1:#{port}/ping", {}, nil)
+    _(response.status_code).must_equal 200
+  ensure
+    tls&.close
+    thread&.join(5)
+    file&.unlink
+  end
+
   it 'bhv_langruby_038 leaves the certificate store unset when no CA is configured' do
     ssl = Petstore::Client::DefaultApiClient.new.send(:build_connection).ssl
     _(ssl.cert_store).must_be_nil
@@ -2790,6 +2923,12 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
+  it 'bhv_errors_098 a missing CA certificate fails with an ArgumentError that wraps the not-found cause' do
+    transport = Petstore::Client::TransportOptions.builder.ca_cert_path('/nonexistent/bhv-ca-098.pem').build
+    err = assert_raises(ArgumentError) { Petstore::Client::DefaultApiClient.new(transport) }
+    _(err.message).must_include 'No such file or directory'
+  end
+
   it 'bhv_errors_083 names the CA certificate path that cannot be read, at construction' do
     path = '/nonexistent/bhv-ca.pem'
     transport = Petstore::Client::TransportOptions.builder.ca_cert_path(path).build
@@ -3094,5 +3233,123 @@ describe 'DefaultApiClientUnit' do
 
     _(seen).must_equal([['http://localhost/items', 'kept']] * 2)
     stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_124 refuses a 301 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do
+        [301, { 'location' => 'http://localhost/landing' }, '']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      _(proc {
+        client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+      }).must_raise Petstore::Client::Errors::ApiError
+    end
+  end
+
+  it 'bhv_misc_125 follows a 307 with the same method and body' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/redirect') { [307, { 'location' => '/final' }, ''] }
+      stub.post('/final') { [200, {}, 'final'] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'http://localhost/redirect', {}, 'body')
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  it 'bhv_misc_126 follows a 303 to a HEAD request as HEAD rather than GET' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.head('/see') { [303, { 'location' => '/other' }, ''] }
+      stub.head('/other') { [200, {}, ''] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:HEAD, 'http://localhost/see', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  it 'bhv_misc_127 a redirect that holds only a query keeps the path and replaces the query' do
+    queries = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/a/b') do |env|
+        queries << env.url.query
+        env.url.query == 'x=1' ? [302, { 'location' => '?y=2' }, ''] : [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/a/b?x=1', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+    _(queries).must_equal ['x=1', 'y=2']
+  end
+
+  it 'bhv_misc_130 a credential removed by a cross-origin hop is not restored when a later hop returns to the origin' do
+    seen = :unset
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.example.com/mid' }, ''] }
+      stub.get('/mid') { [302, { 'location' => 'http://localhost/end' }, ''] }
+      stub.get('/end') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)['authorization']
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', { 'Authorization' => 'Bearer abc' }, nil)
+    end
+    _(seen).must_be_nil
+  end
+
+  it 'bhv_misc_131 a supplied session follows redirects under the SDK redirect rules' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => '/landing' }, ''] }
+      stub.get('/landing') { [200, {}, 'landed'] }
+    end
+    supplied = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).connection(supplied).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    resp = client.send_request(:GET, 'http://localhost/start', {}, nil)
+    _(resp.status_code).must_equal 200
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.example.com/end' }, ''] }
+      stub.get('/end') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', { 'X-Call-Token' => 'abc' }, nil)
+    end
+    _(seen.keys).wont_include 'x-call-token'
+  end
+
+  it 'bhv_misc_133 a 300 response is returned as it is even when it carries a Location header' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/multi') { [300, { 'location' => '/elsewhere' }, ''] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/multi', {}, nil)
+      _(resp.status_code).must_equal 300
+    end
   end
 end

@@ -59,6 +59,32 @@ void main() {
       }
     });
 
+    test('bhv misc 057 an API key configured for one location is never sent at another location', () {
+      final auth = ApiKeyAuthenticator(
+        host: '{{{basePath}}}',
+        keyParamName: 'X-Api-Key',
+        apiKey: 'abc123',
+        location: ApiKeyLocation.header,
+      );
+
+      expect(auth.authHeaders(), equals({'X-Api-Key': 'abc123'}));
+      expect(auth.queryParams(), isEmpty);
+      expect(auth.cookieParams(), isEmpty);
+    });
+
+    test('bhv misc 060 supplying both an API key and an API key provider is refused', () {
+      expect(
+        () => ApiKeyAuthenticator(
+          host: '{{{basePath}}}',
+          keyParamName: 'X-Api-Key',
+          apiKey: 'explicit',
+          apiKeyProvider: () => 'b',
+          location: ApiKeyLocation.header,
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('bhv auth 005 the provider is asked on every request and a key with it is refused', () {
       var calls = 0;
       final auth = ApiKeyAuthenticator(

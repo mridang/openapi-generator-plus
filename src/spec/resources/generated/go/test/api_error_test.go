@@ -1727,3 +1727,28 @@ func TestBhvMisc025_PetApi_AClientErrorStatusFailsTheCall(t *testing.T) {
 		t.Errorf("expected the call to fail with the 404 API error, got %T: %v", err, err)
 	}
 }
+
+func TestBhvErrors093_ApiError_FromResponseExposesTheDecodedBodyBesideTheRawBody(t *testing.T) {
+	t.Parallel()
+	body := `{"code":"E1"}`
+	err := apierrors.FromResponse(422, nil, body)
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected an ApiError, got %T", err)
+	}
+	decoded, ok := apiErr.ErrorBody().(map[string]any)
+	if !ok || decoded["code"] != "E1" {
+		t.Errorf("expected the decoded error body, got %#v", apiErr.ErrorBody())
+	}
+	if apiErr.ResponseBody() != body {
+		t.Errorf("expected the raw body kept as received, got %q", apiErr.ResponseBody())
+	}
+}
+
+func TestBhvMisc095_ApiError_InvalidBytesInABodyRenderAsReplacementCharacters(t *testing.T) {
+	t.Parallel()
+	err := apierrors.FromResponse(500, nil, "a\xffb\xfe")
+	if !strings.Contains(err.Error(), "a�b�") {
+		t.Errorf("expected each invalid byte replaced by U+FFFD, got %q", err.Error())
+	}
+}

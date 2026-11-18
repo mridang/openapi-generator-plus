@@ -258,4 +258,40 @@ public class BearerAuthenticatorTest
             )
         );
     }
+
+    [Fact]
+    public void BhvMisc017ARejectedCredentialIsNeverEchoedInTheConstructionError()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "tok\u0001secret")
+        );
+
+        Assert.DoesNotContain("secret", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc066ATokenProviderValueIsSentAsTheBearerCredential()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("live"));
+
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer live", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc067AProviderErrorReachesTheCallerUnchanged()
+    {
+        var failure = new InvalidOperationException("provider boom");
+        var auth = new BearerAuthenticator(
+            "https://api.example.com",
+            _ => Task.FromException<string>(failure)
+        );
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Same(failure, thrown);
+    }
 }

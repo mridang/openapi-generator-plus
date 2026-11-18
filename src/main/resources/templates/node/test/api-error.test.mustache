@@ -36,6 +36,12 @@ import { Category } from '../src/models/index{{importFileExtension}}';
 
 describe('ApiError', () => {
   describe('basic shape', () => {
+    test('bhv errors 090 an error with no response keeps its response body and headers null', () => {
+      const err = new NetworkError('connection refused');
+      expect(err.responseHeaders).toBeNull();
+      expect(err.responseBody).toBeNull();
+    });
+
     test('bhv errors 004 exposes statusCode, responseBody, responseHeaders, errorBody', () => {
       const err = new ApiError(
         404,
@@ -128,6 +134,26 @@ describe('ApiError', () => {
   });
 
   describe('unified exception hierarchy', () => {
+    test('bhv errors 094 every error the SDK raises is the root error type', () => {
+      const raised = [
+        new ApiError(0, 'no response'),
+        ApiError.fromResponse(404, {}, null),
+        new NetworkError('connection refused'),
+        new SerializationError('boom'),
+        new OAuth2TokenError('no access_token'),
+        new OAuth2ServerError(400, 'invalid_grant', null, null, '{}'),
+      ];
+      for (const err of raised) {
+        expect(err).toBeInstanceOf({{errorPrefix}}Error);
+      }
+    });
+
+    test('bhv errors 095 a typed 4xx or 5xx error is matched by its status-class family', () => {
+      expect(new NotFoundError('gone')).toBeInstanceOf(ClientError);
+      expect(new InternalServerError('boom')).toBeInstanceOf(ServerError);
+      expect(new NotFoundError('gone')).not.toBeInstanceOf(ServerError);
+    });
+
     // The full extends chain a BadRequestError must satisfy:
     //   BadRequestError -> ClientError -> ApiError -> {{errorPrefix}}Error -> Error
     test('bhv errors 076 an error the SDK did not raise is not an SDK error, even when it wraps one', () => {
@@ -386,6 +412,15 @@ describe('ApiError', () => {
   });
 
   describe('status mapping', () => {
+    test('bhv errors 096 a status outside a class range is not classified into it, and 600 falls back to the base error', () => {
+      expect(ApiError.fromResponse(399, {}, null).constructor).toBe(ApiError);
+      expect(ApiError.fromResponse(600, {}, null).constructor).toBe(ApiError);
+    });
+
+    test.each([418, 425, 451])('bhv errors 097 an unrecognised 4xx status %i raises the generic client error', (status) => {
+      expect(ApiError.fromResponse(status, {}, null).constructor).toBe(ClientError);
+    });
+
     test('bhv errors 037 the thrown error is the exact class for its status', () => {
       expect(() => {
         throw ApiError.fromResponse(404, {}, null);
@@ -611,6 +646,47 @@ describe('ApiError', () => {
   });
 
   describe('toString', () => {
+    test('bhv errors 086 a body of exactly 1 KiB is shown whole and kept whole on the error', () => {
+      const body = 'x'.repeat(1024);
+      const err = new ApiError(502, 'bad gateway', {}, body, null);
+
+      expect(err.toString()).toBe(`bad gateway\nHTTP status code: 502\nResponse body: ${body}`);
+      expect(err.responseBody).toBe(body);
+    });
+
+    test('bhv errors 087 authorization, cookie and challenge headers are masked in the message', () => {
+      const err = new ApiError(
+        401,
+        'denied',
+        {
+          Authorization: 'Bearer t-1',
+          Cookie: 'sid=abc',
+          'Proxy-Authorization': 'Basic cHJveHk=',
+          'Proxy-Authenticate': 'Basic realm="proxy"',
+          'x-request-id': 'abc'
+        },
+        null,
+        null
+      );
+
+      expect(err.toString()).toBe(
+        'denied\nHTTP status code: 401\nResponse headers: {"Authorization":"***","Cookie":"***","Proxy-Authenticate":"***","Proxy-Authorization":"***","x-request-id":"abc"}'
+      );
+      expect(err.responseHeaders?.['Authorization']).toBe('Bearer t-1');
+    });
+
+    test('bhv errors 088 absent sections are left out of the message and the present ones are kept', () => {
+      expect(new ApiError(500, 'boom', {}, '', null).toString()).toBe('boom\nHTTP status code: 500');
+      expect(new ApiError(500, 'boom', { 'x-request-id': 'abc' }, null, null).toString()).toBe(
+        'boom\nHTTP status code: 500\nResponse headers: {"x-request-id":"abc"}'
+      );
+    });
+
+    test('bhv errors 089 an error with no message renders the default message text', () => {
+      const err = new ApiError(500, undefined as unknown as string);
+      expect(err.toString()).toBe('Error message: the server returns an error\nHTTP status code: 500');
+    });
+
     test('bhv errors 024 renders the message, status, headers and body', () => {
       const err = new ApiError(404, 'not found', { 'x-request-id': 'abc' }, '{"code":7}', null);
       expect(err.toString()).toBe(
@@ -773,4 +849,35 @@ describe('ApiError typed errors', () => {
 {{/-first}}
 {{/errorSchemas}}
 {{/hasErrorSchemas}}
+});
+
+describe('ApiError misc behaviours', () => {
+  test('bhv misc 015 a typed view of an error body that is valid JSON but not an object is refused with a SerializationError', () => {
+    const err = ApiError.fromResponse(400, {}, '[1,2]');
+    expect(() => err.getTypedErrorBody(Category)).toThrow(SerializationError);
+  });
+
+  test('bhv misc 016 the rendered error body is capped and states how many bytes were omitted', () => {
+    const rendered = new ApiError(500, 'boom', null, 'x'.repeat(5000), null).toString();
+    expect(rendered).toContain('more bytes');
+    expect(rendered.length).toBeLessThan(2000);
+  });
+
+  test('bhv misc 018 a token error with a non-JSON body exposes the status, no code and the raw text', () => {
+    const err = new OAuth2ServerError(500, null, null, null, 'upstream exploded');
+    expect(err.statusCode).toBe(500);
+    expect(err.code).toBeNull();
+    expect(err.rawBody).toBe('upstream exploded');
+  });
+
+  test('bhv misc 022 a server error is an instance of the SDK root error type and the server class', () => {
+    const err = ApiError.fromResponse(503, {}, '{}');
+    expect(err).toBeInstanceOf({{errorPrefix}}Error);
+    expect(err).toBeInstanceOf(ServerError);
+  });
+
+  test('bhv misc 023 an unmapped 5xx is the generic server error and an unmapped other status the base error', () => {
+    expect(ApiError.fromResponse(599, {}, null)).toBeInstanceOf(ServerError);
+    expect(ApiError.fromResponse(399, {}, null).constructor).toBe(ApiError);
+  });
 });

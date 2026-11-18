@@ -838,3 +838,14 @@ test('bhv transport 023 the default transport rejects a certificate from an untr
     expect(fn (): mixed => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
         ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
 });
+
+test('bhv misc 050 per call headers override the options object and an unset header falls through to it', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->defaultHeader('Accept', 'text/plain')->maxRetries(0)->build());
+
+    $overridden = $client->sendRequest('GET', $chasmUrl . '/test/echo', ['Accept' => 'application/json'], null);
+    $fallThrough = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect(json_decode($overridden->body, true)['headers']['accept'] ?? null)->toBe('application/json');
+    expect(json_decode($fallThrough->body, true)['headers']['accept'] ?? null)->toBe('text/plain');
+});

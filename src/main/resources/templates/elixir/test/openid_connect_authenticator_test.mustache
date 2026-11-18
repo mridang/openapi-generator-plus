@@ -443,6 +443,37 @@ defmodule {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticatorTest do
       assert err.status_code == 404
     end
 
+    test "bhv misc 070 a discovery document that is not a JSON object keeps no cause and does not repeat the body" do
+      fake_client = FakeApiClient.new([%{{moduleName}}.ApiHttpResponse{status_code: 200, body: "[1, 2]"}])
+      auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(create_authenticator(), fake_client)
+
+      err =
+        assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+          {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+        end
+
+      assert err.message == "OIDC discovery document is not a JSON object"
+      assert Map.get(err, :cause) == nil
+      refute err.message =~ "[1, 2]"
+    end
+
+    test "bhv misc 078 an OpenID Connect authorization URL carries an S256 PKCE challenge and no nonce" do
+      discovery =
+        Jason.encode!(%{
+          "issuer" => "https://auth.example.com",
+          "authorization_endpoint" => "https://auth.example.com/authorize",
+          "token_endpoint" => "https://auth.example.com/token"
+        })
+
+      fake_client = FakeApiClient.new([%{{moduleName}}.ApiHttpResponse{status_code: 200, body: discovery}])
+      auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(create_authenticator(), fake_client)
+
+      url = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.build_authorization_url(auth)
+
+      assert url =~ "code_challenge_method=S256"
+      refute url =~ "nonce="
+    end
+
     test "bhv authoidc 016 a malformed discovery document raises serialization error" do
       fake_client = FakeApiClient.new([%{{moduleName}}.ApiHttpResponse{status_code: 200, body: "[1, 2]"}])
       auth = {{moduleName}}.Auth.OAuth.OpenIdConnectAuthenticator.set_api_client(create_authenticator(), fake_client)

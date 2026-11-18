@@ -2370,6 +2370,21 @@ import Testing
         #expect(mockClient.lastHeaders["X-Extra"] == "1")
     }
 
+    /* A per-call timeout or retry count that is not valid is refused with an argument error, and nothing is sent. */
+    @Test func testBhvMisc055APerCallTimeoutOrRetryCountThatIsNotValidIsRefused() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        await #expect(throws: ConfigurationError.invalidTimeout(0)) {
+            _ = try await api.getInventory(options: GetInventoryOptions(timeout: 0))
+        }
+        await #expect(throws: ConfigurationError.invalidArgument("maxRetries must not be negative: -1")) {
+            _ = try await api.getInventory(options: GetInventoryOptions(maxRetries: -1))
+        }
+        #expect(mockClient.lastURL.isEmpty)
+    }
+
     @Test func testBhvOptions056AnOperationWithoutParametersValidatesItsPerCallSettings() async throws {
         let mockClient = MockApiClient()
         let config = ConfigurationBuilder().baseURL("https://example.com").build()

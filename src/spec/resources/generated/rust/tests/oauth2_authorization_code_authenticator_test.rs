@@ -1000,3 +1000,84 @@ async fn test_bhv_auth_053_exchanging_a_code_discards_a_previously_held_refresh_
         body
     );
 }
+
+#[tokio::test]
+async fn test_bhv_misc_058_the_configured_endpoint_and_redirect_uri_reach_the_url_unchanged() {
+    let auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://Auth.Example.com:443/authorize",
+        "https://auth.example.com/token",
+        "https://App.Example.com:443/callback",
+        vec!["read".to_string()],
+        "",
+    );
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.starts_with("https://Auth.Example.com:443/authorize?"),
+        "authorization url: {}",
+        url
+    );
+    assert!(
+        url.contains("redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcallback"),
+        "authorization url: {}",
+        url
+    );
+}
+
+#[test]
+fn test_bhv_misc_062_the_authorization_url_carries_the_declared_scopes() {
+    let auth = UserAuthAuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        Some("id"),
+        Some("secret"),
+        Some("https://app.example.com/callback"),
+    )
+    .unwrap();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.split(['?', '&'])
+            .any(|pair| pair == "scope=pets%3Aread%20pets%3Awrite"),
+        "authorization url: {}",
+        url
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_077_a_generated_pkce_verifier_is_43_unreserved_characters_and_differs_per_call(
+) {
+    let mut verifiers = Vec::new();
+    for _ in 0..2 {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client.clone());
+        auth.build_authorization_url("s");
+        auth.exchange_code("auth-code-xyz")
+            .await
+            .expect("should succeed");
+        let body = client.last_body().expect("should have body");
+        let verifier = body
+            .split('&')
+            .find_map(|p| p.strip_prefix("code_verifier="))
+            .expect("a code_verifier")
+            .to_string();
+        verifiers.push(verifier);
+    }
+    for verifier in &verifiers {
+        assert_eq!(43, verifier.len(), "RFC 7636 verifier length: {}", verifier);
+        assert!(
+            verifier
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-._~".contains(c)),
+            "verifier: {}",
+            verifier
+        );
+    }
+    assert_ne!(verifiers[0], verifiers[1]);
+}
