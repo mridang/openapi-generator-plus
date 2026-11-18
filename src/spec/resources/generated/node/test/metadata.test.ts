@@ -247,6 +247,24 @@ describe("Metadata", () => {
       expect(metadata.additionalProperties).toEqual({ customField: "hello" });
     });
 
+    test("bhv models 023 undeclared keys named like SDK methods are kept as additional properties, not treated as methods", () => {
+      const metadata = ObjectSerializer.deserialize(
+        { createdAt: "2024-01-01T00:00:00Z", equals: "x", toJSON: "y" },
+        Metadata,
+      ) as Metadata;
+      expect(metadata.additionalProperties).toEqual({
+        equals: "x",
+        toJSON: "y",
+      });
+      expect(typeof Metadata.prototype.equals).toBe("function");
+    });
+
+    test("bhv models 024 a newly built model leaves its optional properties unset", () => {
+      const metadata = new Metadata();
+      expect(metadata.createdAt).toBeUndefined();
+      expect(metadata.additionalProperties).toEqual({});
+    });
+
     test("exposes the undeclared keys of a constructed instance", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),

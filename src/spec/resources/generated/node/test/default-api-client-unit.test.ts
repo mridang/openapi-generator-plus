@@ -911,7 +911,7 @@ describe("DefaultApiClient.decodeBody charset handling", () => {
     ).toBe("é");
   });
 
-  it("handles quoted charset values", () => {
+  it("bhv serialization 055 handles quoted charset values", () => {
     const buf = Buffer.from([0xe9]);
     expect(
       DefaultApiClient.decodeBody(buf, 'text/plain; charset="ISO-8859-1"'),
@@ -2347,7 +2347,7 @@ describe("graceful close", () => {
     }
   });
 
-  it("releases the transport the SDK created only when the last running request completes", async () => {
+  it("bhv lifecycle 037 releases the transport the SDK created only when the last running request completes", async () => {
     const slow = await slowServer();
     const client = new DefaultApiClient(
       TransportOptions.builder().maxRetries(0).maxRedirects(2).build(),
@@ -2876,6 +2876,24 @@ describe("injected fetch (TransportOptions.fetch)", () => {
       "1",
     );
     await client.close();
+  });
+
+  it("bhv lifecycle 038 a caller-supplied fetch with no close operation is valid, and closing repeatedly succeeds while requests are sent", async () => {
+    let called = 0;
+    const customFetch = (async (): Promise<Response> => {
+      called++;
+      return new Response("{}");
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+
+    await client.sendRequest("GET", "http://example.invalid/", {}, null);
+    await client.sendRequest("GET", "http://example.invalid/", {}, null);
+    await expect(client.close()).resolves.toBeUndefined();
+    await expect(client.close()).resolves.toBeUndefined();
+
+    expect(called).toBe(2);
   });
 
   it("bhv redirects 037 a redirect to the explicit default port of the same origin keeps the Authorization header", async () => {

@@ -109,6 +109,16 @@ describe("Client", () => {
       );
     });
 
+    test("bhv config 025 an empty token variable counts as unset and construction names the variable", () => {
+      process.env[variable] = "";
+
+      expect(() => Client.withToken("/api/v3")).toThrow(
+        new TypeError(
+          `Bearer token is required: pass it explicitly or set ${variable}`,
+        ),
+      );
+    });
+
     test("bhv lifecycle 028 an explicit host and token win over the environment", async () => {
       process.env[variable] = "env-token";
       const seen: Array<{ url: string; authorization: string | undefined }> =
