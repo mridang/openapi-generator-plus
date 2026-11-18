@@ -233,6 +233,17 @@ class TestApiKeyAuthenticator:
 
 
 class TestApiKeyRedactedRepr:
+    def test_bhv_misc_190_the_printed_output_hides_the_secret(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='X-API-Key',
+            api_key='abc123',
+            location=ApiKeyLocation.HEADER,
+        )
+
+        assert 'abc123' not in str(auth)
+        assert 'abc123' not in repr(auth)
+
     def test_bhv_authapikey_012_repr_lists_the_non_secret_fields_and_masks_the_key(self) -> None:
         auth = ApiKeyAuthenticator(
             host="https://api.example.com",
@@ -249,6 +260,16 @@ class TestApiKeyRedactedRepr:
 
 
 class TestApiKeyLocationEmission:
+    def test_bhv_misc_189_the_query_wrapper_sends_the_key_as_the_api_key_parameter(self) -> None:
+        auth = ApiKeyAuthenticator(
+            host='https://api.example.com',
+            key_param_name='api_key',
+            api_key='abc123',
+            location=ApiKeyLocation.QUERY,
+        )
+
+        assert auth.get_query_params() == {'api_key': 'abc123'}
+
     @pytest.mark.parametrize(
         ("location", "headers", "query", "cookies"),
         [

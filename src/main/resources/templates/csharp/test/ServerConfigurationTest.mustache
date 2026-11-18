@@ -496,4 +496,29 @@ public class ServerConfigurationTest
         Assert.Same(Servers.Server2, Servers.All[2]);
     }
 
+    [Fact]
+    public void BhvMisc157ExplicitVariableValuesAreResolvedIntoTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.api.example.com/v{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("prod", null, []),
+                ["version"] = new ServerVariable("2", null, []),
+            });
+
+        Assert.Equal(
+            "https://staging.api.example.com/v5",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "staging", ["version"] = "5" }));
+    }
+
+    [Fact]
+    public void BhvMisc158AServerWithAFixedUrlReportsExactlyThatUrl()
+    {
+        var server = new ServerConfiguration("https://fixed.example.com/v1/items");
+
+        Assert.Equal("https://fixed.example.com/v1/items", server.GetUrl());
+    }
+
 }

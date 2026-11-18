@@ -841,6 +841,25 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "format:date parameter given a date-time" do
+    test "bhv misc 232 a string path parameter in the simple style percent-encodes slashes" do
+      assert PetstoreClient.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
+    end
+
+    test "bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included" do
+      result = PetstoreClient.ValueSerializer.serialize(~s({"a":1.5}), :cookie, "string")
+
+      assert result =~ "%7B"
+      assert result =~ "%3A"
+      refute result =~ ":"
+    end
+
+    test "bhv misc 236 a date-only value is written as yyyy-mm-dd with no time in query, header and cookie locations" do
+      date = ~D[2024-01-15]
+      assert PetstoreClient.ValueSerializer.serialize(date, :query, "string") == "2024-01-15"
+      assert PetstoreClient.ValueSerializer.serialize(date, :header, "string") == "2024-01-15"
+      assert PetstoreClient.ValueSerializer.serialize(date, :cookie, "string") == "2024-01-15"
+    end
+
     test "bhv serialization 044 a date-time given for a date parameter is written as its calendar date only" do
       assert PetstoreClient.ValueSerializer.serialize(
                ~U[2024-01-02 23:30:00Z],
