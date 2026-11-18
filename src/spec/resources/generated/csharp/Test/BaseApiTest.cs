@@ -334,6 +334,91 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc212A404And500ResponseRaiseTheMatchingErrorThroughTheApiLayer()
+    {
+        var notFound = new TestableApi(new StatusSequenceApiClient(404), "http://localhost");
+        await Assert.ThrowsAsync<NotFoundException>(() =>
+            notFound.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        var failed = new TestableApi(new StatusSequenceApiClient(500), "http://localhost");
+        await Assert.ThrowsAsync<InternalServerErrorException>(() =>
+            failed.CallAsync<object>(
+                "GET",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc209AVoidOperationIgnoresASuccessBodyThatIsTextOrANonObjectJson()
+    {
+        var textApi = new TestableApi(
+            new FixedBodyApiClient("Deleted", "text/plain"),
+            "http://localhost"
+        );
+        Assert.Null(
+            await textApi.CallAsyncWithNullReturnType(
+                "DELETE",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["text/plain"],
+                "application/json"
+            )
+        );
+
+        var numberApi = new TestableApi(
+            new FixedBodyApiClient("42", "application/json"),
+            "http://localhost"
+        );
+        Assert.Null(
+            await numberApi.CallAsyncWithNullReturnType(
+                "DELETE",
+                "/items/7",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+    }
+
+    private sealed class FixedBodyApiClient(string responseBody, string responseType) : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromResult(
+                new ApiHttpResponse(
+                    200,
+                    responseBody,
+                    new Dictionary<string, string> { { "Content-Type", responseType } }
+                )
+            );
+        }
+    }
+
+    [Fact]
     public async Task BhvErrors036AnApiErrorNamesTheRequestMethodAndPathWithoutTheQuery()
     {
         var client = new StatusSequenceApiClient(404);

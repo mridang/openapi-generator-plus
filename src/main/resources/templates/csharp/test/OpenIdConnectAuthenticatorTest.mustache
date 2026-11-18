@@ -298,6 +298,48 @@ public class OpenIdConnectAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvMisc199DiscoveryRunsAgainWhenTheCachedDocumentHasAZeroMaxAge()
+    {
+        var client = new CacheControlApiClient("max-age=0");
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await auth.BuildAuthorizationUrlAsync();
+        await auth.BuildAuthorizationUrlAsync();
+
+        Assert.Equal(2, client.GetRequestCount);
+    }
+
+    [Fact]
+    public async Task BhvMisc200ADiscoveryDocumentWhoseIssuerNamesAnotherServerIsRejected()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(
+            "{\"issuer\":\"https://evil.example.com\","
+                + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                + "\"token_endpoint\":\"https://auth.example.com/token\"}");
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        await Assert.ThrowsAsync<SerializationException>(() => auth.BuildAuthorizationUrlAsync());
+    }
+
+    [Fact]
+    public async Task BhvMisc201AFailedDiscoveryRequestReportsItsPathWithoutTheQueryString()
+    {
+        var client = new FakeApiClient();
+        client.Enqueue("down", statusCode: 503);
+
+        var auth = CreateAuthenticator();
+        auth.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAnyAsync<{{packageName}}.Errors.ServerException>(
+            () => auth.BuildAuthorizationUrlAsync());
+        Assert.DoesNotContain("?", ex.RequestPath ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BhvAuthoidc033DiscoveryFailureNamesTheRequestMethodAndPath()
     {
         var client = new FakeApiClient();
