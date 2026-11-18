@@ -791,3 +791,13 @@ fn test_bhv_misc_056_setting_the_proxy_to_an_empty_string_removes_an_earlier_pro
         .expect("valid transport options");
     assert_eq!(None, opts.proxy());
 }
+
+#[test]
+fn test_bhv_misc_134_a_zero_timeout_is_refused_at_build_with_a_configuration_error() {
+    let result = TransportOptionsBuilder::new().timeout(Some(0)).build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidTimeout(0))),
+        "expected InvalidTimeout(0), got {:?}",
+        result
+    );
+}

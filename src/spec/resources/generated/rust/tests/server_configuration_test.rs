@@ -408,3 +408,83 @@ fn test_bhv_servers_028_the_generated_server_list_is_a_fresh_copy_on_every_read(
         "a change to one list must not change the generated servers"
     );
 }
+
+#[test]
+fn test_bhv_misc_155_an_unset_enum_variable_with_a_disallowed_default_is_refused_naming_it() {
+    let variables = HashMap::from([(
+        "region".to_string(),
+        ServerVariable::new(
+            "apac".to_string(),
+            String::new(),
+            vec!["eu".to_string(), "us".to_string()],
+        ),
+    )]);
+    let server = ServerConfiguration::new(
+        "https://{region}.example.com".to_string(),
+        String::new(),
+        variables,
+    );
+    match server.url(&HashMap::new()) {
+        Err(ConfigurationError::InvalidServerVariable(message)) => {
+            assert!(message.contains("'region'"), "{message}")
+        }
+        other => panic!("expected InvalidServerVariable, got {other:?}"),
+    }
+}
+
+#[test]
+fn test_bhv_misc_157_explicit_variable_values_are_resolved_into_the_url() {
+    let variables = HashMap::from([
+        (
+            "env".to_string(),
+            ServerVariable::new("prod".to_string(), String::new(), vec![]),
+        ),
+        (
+            "version".to_string(),
+            ServerVariable::new("2".to_string(), String::new(), vec![]),
+        ),
+    ]);
+    let server = ServerConfiguration::new(
+        "https://{env}.api.example.com/v{version}".to_string(),
+        String::new(),
+        variables,
+    );
+    let overrides = HashMap::from([
+        ("env".to_string(), "prod".to_string()),
+        ("version".to_string(), "2".to_string()),
+    ]);
+    assert_eq!(
+        server.url(&overrides),
+        Ok("https://prod.api.example.com/v2".to_string())
+    );
+}
+
+#[test]
+fn test_bhv_misc_158_a_server_with_a_fixed_url_reports_exactly_that_url() {
+    let server = ServerConfiguration::new(
+        "https://fixed.example.com/v1/items".to_string(),
+        String::new(),
+        HashMap::new(),
+    );
+    assert_eq!(
+        server.url(&HashMap::new()),
+        Ok("https://fixed.example.com/v1/items".to_string())
+    );
+}
+
+#[test]
+fn test_bhv_misc_156_the_list_of_all_servers_keeps_the_declared_order() {
+    let all = petstore::servers::all_servers();
+    assert_eq!(
+        all[0].url_template(),
+        petstore::servers::server_0().url_template()
+    );
+    assert_eq!(
+        all[1].url_template(),
+        petstore::servers::server_1().url_template()
+    );
+    assert_eq!(
+        all[2].url_template(),
+        petstore::servers::server_2().url_template()
+    );
+}

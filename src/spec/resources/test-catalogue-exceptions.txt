@@ -1,0 +1,10 @@
+rust | misc129 | The HTTPS proxy tunnel is opened by the HTTP client per origin, and its CONNECT credential cannot be observed without a TLS-capable proxy fixture, which the Rust suite does not have.
+rust | misc135 | The Rust configuration builder takes a call hook and no cancellation handle; cancelling a call means dropping its future, so there is no handle to store.
+rust | misc145 | Rust returns a shared reference to the undeclared-key map, so the compiler forbids changing the model through a read; a copy exists only when the caller clones it.
+rust | misc147 | A Rust value owns its nested Box, so a clone always holds its own copy and never shares the nested object; sharing would need Rc, which the models do not use.
+rust | misc149 | Rust copies use typed with_* setters, so an attribute the model does not declare does not compile and cannot reach a copy at run time.
+rust | misc152 | Rust calls take no cancel-signal parameter; cancelling means dropping the future, so an already-aborted signal cannot be passed in.
+rust | misc153 | Rust calls and clients take no cancel-signal parameter; cancelling means dropping the future, so a signal shared by the client and a call cannot exist.
+rust | misc154 | The variables() accessor returns a shared reference, so the compiler refuses edits through it and no run-time test can reach the case.
+rust | misc163 | The Rust request body is Bytes or Multipart only; there is no one-shot stream body type, so a stream cannot be replayed or refused.
+rust | misc171 | The per-call retry override (CallOptions) is crate-private and RequestOptions has no retry field, so an application cannot raise the retry count above the transport limit for one call.

@@ -3166,3 +3166,4 @@ async fn test_bhv_errors_092_every_request_error_carries_method_and_path_and_a_t
     assert_eq!(Some("DELETE"), timeout.network_error().api_error().request_method());
     assert_eq!(Some("/pet/1"), timeout.network_error().api_error().request_path());
 }
+
