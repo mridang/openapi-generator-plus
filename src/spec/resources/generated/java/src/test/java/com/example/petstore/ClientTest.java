@@ -143,7 +143,7 @@ class ClientTest {
   }
 
   @Test
-  void bearerRejectsCrlfAndNonAscii() {
+  void bhvAuthBearer028BearerRejectsCrlfAndNonAscii() {
     // RFC 7230 §3.2.6 — Bearer tokens commonly arrive with trailing
     // newlines from .env / file reads, which would CRLF-inject the
     // Authorization header. Also reject non-ASCII to avoid silent

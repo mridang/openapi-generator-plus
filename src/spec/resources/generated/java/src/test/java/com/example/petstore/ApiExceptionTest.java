@@ -216,6 +216,16 @@ class ApiExceptionTest {
   }
 
   @Test
+  void bhvErrors061BadRequestIsAClientErrorAnApiErrorAndAnOpenApiError() {
+    com.example.petstore.errors.BadRequestException badRequest =
+        new com.example.petstore.errors.BadRequestException("bad request", Map.of(), null, null);
+
+    assertInstanceOf(com.example.petstore.errors.ClientException.class, badRequest);
+    assertInstanceOf(ApiException.class, badRequest);
+    assertInstanceOf(OpenAPIException.class, badRequest);
+  }
+
+  @Test
   void statusErrorConstructorsDefaultTheResponseContextToNull() {
     com.example.petstore.errors.BadRequestException badRequest =
         new com.example.petstore.errors.BadRequestException();
@@ -482,6 +492,16 @@ class ApiExceptionTest {
     }
     assertEquals(400, errors[1].getStatusCode());
     assertEquals(503, errors[10].getStatusCode());
+
+    com.example.petstore.errors.NetworkException network =
+        new com.example.petstore.errors.NetworkException("refused", cause, "PUT", "/a?q=1");
+    com.example.petstore.errors.NetworkTimeoutException timeout =
+        new com.example.petstore.errors.NetworkTimeoutException(
+            "timed out", cause, "PUT", "/a?q=1");
+    assertEquals("PUT", network.getRequestMethod());
+    assertEquals("/a", network.getRequestPath());
+    assertEquals("PUT", timeout.getRequestMethod());
+    assertEquals("/a", timeout.getRequestPath());
   }
 
   @Test
@@ -562,6 +582,31 @@ class ApiExceptionTest {
       assertNull(error.getEnclosingClass(), error.getName());
       assertTrue(OpenAPIException.class.isAssignableFrom(error), error.getName());
     }
+  }
+
+  @Test
+  void bhvErrors064AnEmptyMessageRendersTheDefaultTextLikeAMissingOne() {
+    ApiException empty = new ApiException(0, "", null, null);
+    ApiException missing = new ApiException(0, null, null, null);
+
+    assertEquals("Error message: the server returns an error", empty.toString());
+    assertEquals("Error message: the server returns an error", missing.toString());
+    assertEquals(
+        "Error message: the server returns an error\nHTTP status code: 502",
+        new ApiException(502, "", null, null).toString());
+  }
+
+  @Test
+  void bhvErrors065CutsALongResponseBodyAtOneKibAndCountsTheBytesLeftOut() {
+    String longBody = "a".repeat(3000);
+    ApiException ex = new ApiException(502, "bad gateway", Map.of(), longBody);
+
+    assertEquals(
+        "bad gateway\nHTTP status code: 502\nResponse body: "
+            + "a".repeat(1024)
+            + "... (1976 more bytes)",
+        ex.toString());
+    assertEquals(longBody, ex.getResponseBody());
   }
 
   @Test

@@ -218,6 +218,23 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
+    void bhvLifecycle028AnExplicitHostAndTokenWinOverTheEnvironment() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(
+              "https://explicit.example.com", "explicit", Map.of(TOKEN_VARIABLE, "env-token"));
+      assertEquals("https://explicit.example.com", auth.getHost());
+      assertEquals("Bearer explicit", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvLifecycle032ATokenPassedInPlaceIsPreferredToTheEnvironment() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(
+              HOST, "passed-token", Map.of(TOKEN_VARIABLE, "env-token"));
+      assertEquals("Bearer passed-token", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
     void anEmptyArgumentCountsAsNotPassed() {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(HOST, "", Map.of(TOKEN_VARIABLE, "env-token"));

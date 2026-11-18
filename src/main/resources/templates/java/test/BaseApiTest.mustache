@@ -431,6 +431,167 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvErrors058 400 throws BadRequestException")
+        void bhvErrors058Status400ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            BadRequestException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/400",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(400, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors059 403 throws ForbiddenException")
+        void bhvErrors059Status403ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            ForbiddenException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/403",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(403, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors060 404 throws NotFoundException")
+        void bhvErrors060Status404ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            NotFoundException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/404",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(404, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors066 429 throws TooManyRequestsException")
+        void bhvErrors066Status429ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            TooManyRequestsException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/429",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(429, ex.getStatusCode());
+            assertInstanceOf(ClientException.class, ex);
+        }
+
+        @Test
+        @DisplayName("bhvErrors067 409 throws ConflictException")
+        void bhvErrors067Status409ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            ConflictException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/409",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(409, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors068 422 throws UnprocessableEntityException")
+        void bhvErrors068Status422ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            UnprocessableEntityException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/422",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(422, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors069 500 throws InternalServerErrorException")
+        void bhvErrors069Status500ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            InternalServerErrorException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/500",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(500, ex.getStatusCode());
+        }
+
+        @Test
+        @DisplayName("bhvErrors070 502 throws ServerException")
+        void bhvErrors070Status502ThrowsTheMappedError() {
+            var ex =
+                    assertThrowsExactly(
+                            ServerException.class,
+                            () ->
+                                    api().call(
+                                            "GET",
+                                            "/test/status/502",
+                                            new HashMap<>(),
+                                            new HashMap<>(),
+                                            null,
+                                            new String[] {"application/json"},
+                                            "application/json",
+                                            null,
+                                            null));
+            assertEquals(502, ex.getStatusCode());
+        }
+
+        @Test
         @DisplayName("bhvErrors048 418 throws ClientException")
         void bhvErrors048Status418ThrowsClientException() {
             var ex =

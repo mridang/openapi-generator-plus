@@ -8,6 +8,8 @@
 
 package com.example.petstore.errors;
 
+import javax.annotation.Nullable;
+
 /**
  * Exception for a request that received no HTTP response: connection refused, DNS failure, TLS
  * failure, or connection reset. The status code is always 0 and the underlying transport exception
@@ -24,5 +26,21 @@ public class NetworkException extends ApiException {
    */
   public NetworkException(String message, Throwable cause) {
     super(message, cause);
+  }
+
+  /**
+   * Creates a new exception that records the request that failed.
+   *
+   * @param message the error message
+   * @param cause the underlying transport exception
+   * @param requestMethod the HTTP method of the request
+   * @param requestPath the path or URL of the request; a query string is stripped
+   */
+  public NetworkException(
+      String message,
+      Throwable cause,
+      @Nullable String requestMethod,
+      @Nullable String requestPath) {
+    super(0, message, null, null, null, cause, requestMethod, requestPath);
   }
 }
