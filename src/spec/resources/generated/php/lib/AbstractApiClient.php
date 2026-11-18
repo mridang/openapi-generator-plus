@@ -196,7 +196,7 @@ abstract class AbstractApiClient implements ApiClient
          * API) must not ride along. */
         $mergedHeaders = $noDefaultHeaders
             ? $headers
-            : array_merge($this->transportOptions->defaultHeaders, $headers);
+            : $this->mergeHeaders($this->transportOptions->defaultHeaders, $headers);
         /* Field names are case-insensitive (RFC 9110 section 5.1): a caller's
          * user-agent or x-request-id in any casing wins and is left as written. */
         $presentHeaders = array_change_key_case($mergedHeaders, CASE_LOWER);
@@ -525,6 +525,10 @@ abstract class AbstractApiClient implements ApiClient
             try {
                 $response = $this->sendRequest($method, $url, $headers(), $body);
                 $failure = null;
+            } catch (NetworkTimeoutException $e) {
+                /* A timeout is not retried: the call's time budget is already spent,
+                 * so the timeout is raised on the first attempt. */
+                throw $e;
             } catch (NetworkException $e) {
                 $response = null;
                 $failure = $e;
@@ -969,6 +973,28 @@ abstract class AbstractApiClient implements ApiClient
         }
 
         return implode('/', $output);
+    }
+
+    /**
+     * Merges header maps so that a name in any casing replaces the same name
+     * already present (RFC 9110 section 5.1): one field is never sent twice.
+     *
+     * @param array<string, string> $base
+     * @param array<string, string> $overrides
+     * @return array<string, string>
+     */
+    private function mergeHeaders(array $base, array $overrides): array
+    {
+        foreach ($overrides as $name => $value) {
+            foreach (array_keys($base) as $existing) {
+                if (strcasecmp((string) $existing, (string) $name) === 0) {
+                    unset($base[$existing]);
+                }
+            }
+            $base[$name] = $value;
+        }
+
+        return $base;
     }
 
     /**

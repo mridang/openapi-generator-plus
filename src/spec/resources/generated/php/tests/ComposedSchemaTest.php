@@ -34,7 +34,7 @@ test('bhv unions 013 one of deserializes wet food', function (): void {
     expect($instance->foodType)->toBe('wet');
 });
 
-test('a one of wrapper has a typed factory, test and accessor per variant', function (): void {
+test('bhv unions 034 a one of wrapper has a typed factory, test and accessor per variant', function (): void {
     $dry = new DryFood(weightKg: 2.5);
     $food = PetFood::fromDryFood($dry);
 
@@ -81,6 +81,21 @@ test('bhv unions 020 one of serializes dry food', function (): void {
     $serialized = ObjectSerializer::serialize($result->getActualInstance());
     expect($serialized)->not->toBeFalse();
     expect($serialized)->toContain('dry');
+});
+
+test('bhv unions 030 a subtype whose discriminator key is absent is filled with the mapping default', function (): void {
+    $food = ObjectSerializer::deserialize('{"weightKg":2.5}', DryFood::class);
+
+    expect($food->foodType)->toBe('dry');
+});
+
+test('bhv unions 032 a one of wrapper built from a variant serializes it with its discriminator', function (): void {
+    $dry = new DryFood(weightKg: 2.5);
+    $food = PetFood::fromDryFood($dry);
+
+    expect($food->getActualInstance())->toBe($dry);
+    $decoded = json_decode(ObjectSerializer::serialize($food), true);
+    expect($decoded['foodType'] ?? null)->toBe('dry');
 });
 
 // -- anyOf without discriminator: PetTreatment --
@@ -380,6 +395,15 @@ test('bhv unions 011 any of wrappers compare by value', function (): void {
     $first = PetTreatment::build($data);
     $second = PetTreatment::build($data);
     $other = PetTreatment::build(['drugName' => 'Aspirin']);
+
+    expect($first == $second)->toBeTrue();
+    expect($first == $other)->toBeFalse();
+});
+
+test('bhv unions 029 one of wrappers have value equality', function (): void {
+    $first = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    $second = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    $other = ObjectSerializer::deserialize('"BQYHCA=="', SetPetAvatarThumbnailRequest::class);
 
     expect($first == $second)->toBeTrue();
     expect($first == $other)->toBeFalse();
