@@ -784,3 +784,26 @@ fn test_bhv_serializationobject_179_whole_second_datetime_serializes_with_a_fixe
         "\"2024-01-01T12:30:45.000+02:00\""
     );
 }
+
+#[test]
+fn test_bhv_serializationobject_229_deserializing_a_map_of_models_returns_a_model_instance_for_each_value(
+) {
+    let json = r#"{"first":{"username":"ann","id":1},"second":{"username":"bob","id":2}}"#;
+    let map: std::collections::HashMap<String, petstore::models::Account> =
+        serde_json::from_str(json).expect("the map deserializes");
+    assert_eq!(map.len(), 2);
+    assert_eq!(map["first"].username, "ann");
+    assert_eq!(map["first"].id, Some(1));
+    assert_eq!(map["second"].username, "bob");
+    assert_eq!(map["second"].id, Some(2));
+}
+
+#[test]
+fn test_bhv_serializationobject_231_deserializing_a_payload_that_omits_optional_fields_leaves_them_unset(
+) {
+    let account: petstore::models::Account =
+        serde_json::from_str(r#"{"username":"ann"}"#).expect("the payload deserializes");
+    assert_eq!(account.username, "ann");
+    assert_eq!(account.id, None);
+    assert_eq!(account.password, None);
+}

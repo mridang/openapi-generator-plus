@@ -1391,6 +1391,18 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_serializationwire_061_multipart_filename_with_embedded_quote_is_backslash_escaped() {
+        let fields = [("a\"b.txt".to_string(), MultipartValue::Bytes(vec![0x01]))];
+        let body = serialize_multipart_body(&fields, "BOUNDARY").unwrap();
+        let body_str = String::from_utf8_lossy(&body);
+        assert!(
+            body_str.contains("filename=\"a\\\"b.txt\""),
+            "an embedded quote must be backslash-escaped in the part filename, got: {}",
+            body_str
+        );
+    }
+
+    #[test]
     fn test_bhv_serializationwire_039_multipart_file_part_content_type_png_from_extension() {
         let fields = [(
             "avatar.png".to_string(),

@@ -29,3 +29,16 @@ pub fn form_url_encode(s: &str) -> String {
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::form_url_encode;
+
+    #[test]
+    fn test_bhv_serializationwire_057_a_form_body_keeps_only_the_unreserved_set_literal() {
+        assert_eq!(
+            form_url_encode("Az09-_.~*!'() "),
+            "Az09-_.~%2A%21%27%28%29+"
+        );
+    }
+}
