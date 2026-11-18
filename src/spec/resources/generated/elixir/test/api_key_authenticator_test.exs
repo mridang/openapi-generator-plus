@@ -10,6 +10,14 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert headers["X-Api-Key"] == "abc123"
     end
 
+    test "bhv misc 057 an API key is sent only at the location it was configured for" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+
+      assert Enum.empty?(ApiKeyAuthenticator.query_params(auth))
+      assert Enum.empty?(ApiKeyAuthenticator.cookie_params(auth))
+      assert ApiKeyAuthenticator.auth_headers(auth)["X-Api-Key"] == "abc123"
+    end
+
     test "bhv authapikey 015 valid query key is emitted as a query param" do
       auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc123", :query)
       params = ApiKeyAuthenticator.query_params(auth)

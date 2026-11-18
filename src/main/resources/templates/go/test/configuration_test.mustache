@@ -434,3 +434,22 @@ func TestBhvLanggo030_Configuration_CallHookIsHeldByTheConfigurationAndNeverPrin
 		t.Error("expected no hook unless one is set")
 	}
 }
+
+func TestBhvMisc136_Configuration_TheDebugTextShowsTheBaseUrlAndTheNonSensitiveHeaders(t *testing.T) {
+	t.Parallel()
+	config := {{packageName}}.NewConfigurationBuilder().
+		BaseURL("https://api.example.test").
+		DefaultHeader("Authorization", "Bearer s3cret-value").
+		DefaultHeader("Accept", "application/json").
+		Build()
+	got := config.String()
+	if !strings.Contains(got, "https://api.example.test") {
+		t.Errorf("expected the base URL in the debug text, got %s", got)
+	}
+	if !strings.Contains(got, `"Accept": "application/json"`) {
+		t.Errorf("expected a non-sensitive header in the debug text, got %s", got)
+	}
+	if strings.Contains(got, "s3cret-value") {
+		t.Errorf("expected the credential masked in the debug text, got %s", got)
+	}
+}

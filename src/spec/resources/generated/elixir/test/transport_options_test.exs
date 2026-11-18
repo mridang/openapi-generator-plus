@@ -11,6 +11,10 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.ca_cert_path == nil
   end
 
+  test "bhv misc 051 an option the transport cannot apply is refused rather than ignored" do
+    assert_raise KeyError, fn -> PetstoreClient.TransportOptions.new(no_such_option: 1) end
+  end
+
   test "bhv options 052 a proxy URL carrying credentials is accepted" do
     credentials = "user:" <> "pass"
     proxy = "http://" <> credentials <> "@proxy.example.com:8080"
