@@ -566,3 +566,13 @@ class TestInvalidateAccessToken:
         refresh = _form_of(mock_client.send_request.call_args_list[1])
         assert refresh['grant_type'] == ['refresh_token']
         assert refresh['refresh_token'] == ['r1']
+
+
+class TestPkceAppendixB:
+    def test_bhv_auth_008_the_s256_challenge_matches_the_rfc_7636_appendix_b_value(self) -> None:
+        authenticator = _create_authenticator()
+        authenticator._pkce_verifier = 'dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk'
+
+        url = authenticator.build_authorization_url()
+
+        assert 'code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM' in url

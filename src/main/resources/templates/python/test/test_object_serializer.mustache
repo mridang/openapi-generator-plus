@@ -2268,3 +2268,13 @@ class TestObjectSerializerBehaviours:
 
     def test_bhv_serialization_061_slash_angle_brackets_ampersand_and_non_ascii_are_written_literally(self) -> None:
         assert 'a/b<&>é' in ObjectSerializer().serialize({'value': 'a/b<&>é'})
+
+
+class TestModelDefaultsAndRanges:
+    def test_bhv_models_024_a_new_model_leaves_its_optional_properties_unset(self) -> None:
+        assert Tag().id is None
+        assert Tag().name is None
+
+    def test_bhv_serialization_031_an_integer_at_the_top_of_its_range_decodes_exactly(self) -> None:
+        assert ObjectSerializer().deserialize('{"id": 2147483647}', Tag).id == 2147483647
+        assert ObjectSerializer().deserialize('{"id": 9223372036854775807}', Tag).id == 9223372036854775807

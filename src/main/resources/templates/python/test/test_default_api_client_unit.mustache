@@ -985,7 +985,7 @@ class TestBodyReplayOnTlsDowngrade:
             )
         assert len(pool.calls) == 1
 
-    def test_bhv_redirects_040_303_downgrade_with_body_is_allowed(self) -> None:
+    def test_bhv_redirects_040_a_303_downgrade_with_body_is_allowed(self) -> None:
         # 303 coerces to GET and drops the body, so plaintext replay is
         # not a concern. The Authorization-strip guard still runs.
         class _Pool:
@@ -1038,7 +1038,7 @@ class TestContentLengthStrippedOnRedirect:
     GET arrives advertising a Content-Length the server expects but the
     request never sends."""
 
-    def test_bhv_redirects_041_303_drops_content_length_when_body_is_dropped(self) -> None:
+    def test_bhv_redirects_041_a_303_drops_content_length_when_body_is_dropped(self) -> None:
         class _Pool:
             def __init__(self) -> None:
                 self.calls: list[Any] = []
@@ -1114,7 +1114,7 @@ class TestContentLengthStrippedOnRedirect:
         assert not any(k.lower() == "content-length" for k in calls[1][2]), \
             f"a demoted GET must not send Content-Length; got {calls[1][2]!r}"
 
-    def test_bhv_redirects_042_307_bodyless_post_keeps_the_zero_content_length(self) -> None:
+    def test_bhv_redirects_042_a_307_bodyless_post_keeps_the_zero_content_length(self) -> None:
         calls = self._redirect_once(307, "POST")
         assert calls[1][0] == "POST"
         assert calls[1][2]["Content-Length"] == "0"
@@ -2368,3 +2368,48 @@ class TestTransportBehaviours:
         assert method == 'GET'
         assert url == 'https://api.example.test/v1/pets?limit=2'
         assert kwargs['headers']['X-Caller'] == 'a'
+
+
+class TestRelativeRedirectTargets:
+    def test_bhv_redirects_043_a_relative_location_resolves_against_the_request_url(self) -> None:
+        resolved = DefaultApiClient._resolve_url('https://api.example.test/v1/pets/1', '../owners?id=2')
+
+        assert resolved == 'https://api.example.test/v1/owners?id=2'
+
+
+class TestDeadlineAndCancellationClassification:
+    def test_bhv_transport_068_a_call_with_an_already_cancelled_handle_sends_nothing(self) -> None:
+        from {{packageName}}.default_api_client import RequestHandle
+
+        class _Pool:
+            def request(self, *args: Any, **kwargs: Any) -> Any:
+                raise AssertionError("no request may be sent")
+
+        handle = RequestHandle()
+        handle.cancel()
+        client = DefaultApiClient(pool_manager=_Pool())
+
+        with pytest.raises(RuntimeError, match='cancelled'):
+            client.send_request('GET', 'https://example.com/x', {}, None, handle=handle)
+
+    def test_bhv_transport_072_a_connect_timeout_raises_the_timeout_error(self) -> None:
+        from {{packageName}}.errors import NetworkTimeoutException
+
+        class _Pool:
+            def request(self, *args: Any, **kwargs: Any) -> Any:
+                raise urllib3.exceptions.ConnectTimeoutError(None, 'connect timed out')
+
+        with pytest.raises(NetworkTimeoutException):
+            DefaultApiClient(pool_manager=_Pool()).send_request('GET', 'https://example.com/x', {}, None)
+
+    def test_an_unrelated_connection_failure_is_not_a_timeout(self) -> None:
+        from {{packageName}}.errors import NetworkException, NetworkTimeoutException
+
+        class _Pool:
+            def request(self, *args: Any, **kwargs: Any) -> Any:
+                raise urllib3.exceptions.NewConnectionError(None, 'connection refused')
+
+        with pytest.raises(NetworkException) as excinfo:
+            DefaultApiClient(pool_manager=_Pool()).send_request('GET', 'https://example.com/x', {}, None)
+
+        assert not isinstance(excinfo.value, NetworkTimeoutException)

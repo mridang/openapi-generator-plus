@@ -49,3 +49,11 @@ class TestServerVariable:
 
         assert isinstance(var.enum_values, tuple)
         assert not hasattr(var.enum_values, 'append')
+
+
+class TestServerVariableEquality:
+    def test_bhv_servers_027_two_variables_built_alike_are_equal(self) -> None:
+        first = ServerVariable(default_value='1', enum_values=['1', '2'])
+        second = ServerVariable(default_value='1', enum_values=['1', '2'])
+
+        assert first == second

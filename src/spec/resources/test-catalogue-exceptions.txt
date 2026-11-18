@@ -209,3 +209,6 @@ dart | authscheme016 | dart: its OAuth2 and OpenID Connect authenticators take t
 php | config024 | php has no process-wide default configuration by design (see the configuration behaviour that pins this)
 php | errors054 | php names the Content-Type but not the operation in a non-JSON error, because the operation id is not plumbed into invokeApi
 kotlin | lifecycle026 | kotlin builds a credential-less client by design (a host-only client sends no authentication)
+python | options058 | TransportOptions has no HTTP client field; a caller's HTTP client is the pool_manager argument of DefaultApiClient, which the client tests cover
+python | options059 | TransportOptions has no transport hook field, and the python client exposes no per-request hook to leave unset
+python | transport079 | urllib3 honours verify_ssl=False directly, so no client has to refuse it at construction because it cannot apply it

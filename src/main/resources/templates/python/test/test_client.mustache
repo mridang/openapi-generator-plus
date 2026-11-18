@@ -12,6 +12,7 @@ from {{packageName}}.auth.api_key_location import ApiKeyLocation
 from {{packageName}}.auth.bearer_authenticator import BearerAuthenticator
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+from {{packageName}}.default_api_client import DefaultApiClient
 from {{packageName}}.transport_options import TransportOptions
 
 
@@ -339,7 +340,7 @@ class TestClientClose:
 
         assert pool.clears == 1
 
-    async def test_a_second_close_does_nothing(self) -> None:
+    async def test_bhv_lifecycle_036_a_second_close_does_nothing(self) -> None:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
@@ -447,3 +448,11 @@ class TestClientPoolManager:
             {{clientClassName}}(
                 BearerAuthenticator('{{{basePath}}}', 'test-token'), transport, _OwnedPool()
             )
+
+
+class TestCallerTransportWithoutClose:
+    def test_bhv_lifecycle_038_a_caller_transport_without_close_is_valid_and_closing_twice_succeeds(self) -> None:
+        client = DefaultApiClient(pool_manager=object())
+
+        client.close()
+        client.close()

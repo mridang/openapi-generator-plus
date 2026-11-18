@@ -531,7 +531,7 @@ class TestRedirectSecurityGuards:
         assert 'x-custom-auth-key' not in followup
         assert followup['x-trace'] == 'keep'
 
-    def test_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(self) -> None:
+    def test_bhv_redirects_044_cross_origin_redirect_leaves_proxy_authorization_on_the_pool_manager(self) -> None:
         """The pool manager's proxy_headers authenticate the client to its
         proxy and are shared by every concurrent request, so a cross-origin
         redirect must never remove them, not even for the duration of the
