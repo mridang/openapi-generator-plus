@@ -726,6 +726,13 @@ describe Petstore::Client::ValueSerializer do
         .must_raise(Petstore::Client::Errors::SerializationError)
     end
 
+    it 'bhv_serialization_018 refuses a nested object or array inside an object-valued parameter' do
+      _ { Petstore::Client::ValueSerializer.serialize_styled('p', { 'a' => { 'b' => 1 } }, :query, 'object', nil, 'form', false) }
+        .must_raise(Petstore::Client::Errors::SerializationError)
+      _ { Petstore::Client::ValueSerializer.serialize_styled('p', { 'a' => [1, 2] }, :query, 'object', nil, 'form', false) }
+        .must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
     it 'bhv_serialization_016 flattens an object in a query by spaceDelimited and pipeDelimited style' do
       fields = { 'breed' => 'lab', 'min_age' => 3 }
       space = Petstore::Client::ValueSerializer.serialize_styled('c', fields, :query, 'Criteria', nil, 'spaceDelimited', false)

@@ -318,16 +318,16 @@ module Petstore::Client
       end
     end
 
-    # The text of one object property: an array is its items joined by commas. A
-    # property that is itself an object has no single text form, so it is refused
-    # rather than written as the object's Ruby inspect text.
+    # The text of one object property. A property that is itself an object or
+    # an array has no single text form in an object-valued parameter, so it is
+    # refused rather than written as a comma list or the Ruby inspect text.
     def self.object_field_text(key, field)
-      if field.is_a?(Hash) || field.class.const_defined?(:ATTRIBUTE_MAP)
+      if field.is_a?(Hash) || field.is_a?(Array) || field.class.const_defined?(:ATTRIBUTE_MAP)
         raise ::Petstore::Client::Errors::SerializationError.new(
-          "Property '#{key}' holds a nested object, which a parameter cannot carry", nil
+          "Property '#{key}' holds a nested object or array, which a parameter cannot carry", nil
         )
       end
-      field.is_a?(Array) ? field.map { |item| ObjectSerializer.stringify(item) }.join(',') : ObjectSerializer.stringify(field)
+      ObjectSerializer.stringify(field)
     end
 
     # Serialize a deepObject-style query parameter.
