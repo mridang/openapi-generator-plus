@@ -417,7 +417,7 @@ func TestBhvConfig026_Configuration_TheBuilderKeepsTheBaseUrl(t *testing.T) {
 	}
 }
 
-func TestConfiguration_CallHookIsHeldByTheConfigurationAndNeverPrinted(t *testing.T) {
+func TestBhvLanggo030_Configuration_CallHookIsHeldByTheConfigurationAndNeverPrinted(t *testing.T) {
 	t.Parallel()
 	hook := {{packageName}}.CallHookFunc(func(ctx context.Context, info {{packageName}}.CallInfo, headers map[string]string) ({{packageName}}.CallObserver, error) {
 		return nil, nil

@@ -62,7 +62,7 @@ func TestBhvResults001_ApiResult_NilDataForNoContentResponse(t *testing.T) {
 	}
 }
 
-func TestApiResult_HoldsStructData(t *testing.T) {
+func TestBhvLanggo011_ApiResult_HoldsStructData(t *testing.T) {
 	t.Parallel()
 	// ApiResult is generic over the deserialized body type, so it must carry
 	// arbitrary struct payloads, not just primitives.
