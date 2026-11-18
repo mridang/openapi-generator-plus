@@ -289,6 +289,9 @@ export class PetApi extends BaseApi {
       "model",
       "addPet",
       requestOptions,
+      undefined,
+      "addPet",
+      "/pet",
     );
   }
 
@@ -393,6 +396,9 @@ export class PetApi extends BaseApi {
       "model",
       "addPetPhotos",
       requestOptions,
+      undefined,
+      "addPetPhotos",
+      "/pet/{petId}/photos",
     );
   }
 
@@ -479,6 +485,9 @@ export class PetApi extends BaseApi {
       "model",
       "addPetTreatment",
       requestOptions,
+      undefined,
+      "addPetTreatment",
+      "/pet/{petId}/treatment",
     );
   }
 
@@ -566,6 +575,9 @@ export class PetApi extends BaseApi {
       undefined,
       "deletePet",
       requestOptions,
+      undefined,
+      "deletePet",
+      "/pet/{petId}",
     );
   }
 
@@ -669,6 +681,9 @@ export class PetApi extends BaseApi {
       "binary",
       "downloadPetDocument",
       requestOptions,
+      undefined,
+      "downloadPetDocument",
+      "/pet/{petId}/documents/{documentId}",
     );
   }
 
@@ -746,6 +761,9 @@ export class PetApi extends BaseApi {
       "model",
       "findPetsBornOn",
       requestOptions,
+      undefined,
+      "findPetsBornOn",
+      "/pet/born-on/{bornOn}",
     );
   }
 
@@ -877,6 +895,9 @@ export class PetApi extends BaseApi {
       "model",
       "findPetsByStatus",
       requestOptions,
+      undefined,
+      "findPetsByStatus",
+      "/pet/findByStatus",
     );
   }
 
@@ -961,6 +982,9 @@ export class PetApi extends BaseApi {
       "model",
       "getExternalPetInfo",
       requestOptions,
+      undefined,
+      "getExternalPetInfo",
+      "/pet/{petId}/external",
     );
   }
 
@@ -1046,6 +1070,9 @@ export class PetApi extends BaseApi {
       "model",
       "getMultiServerPetInfo",
       requestOptions,
+      undefined,
+      "getMultiServerPetInfo",
+      "/pet/{petId}/multi",
     );
   }
 
@@ -1126,6 +1153,9 @@ export class PetApi extends BaseApi {
       "binary",
       "getPetAvatar",
       requestOptions,
+      undefined,
+      "getPetAvatar",
+      "/pet/{petId}/avatar",
     );
   }
 
@@ -1204,6 +1234,9 @@ export class PetApi extends BaseApi {
       "model",
       "getPetAvatarThumbnail",
       requestOptions,
+      undefined,
+      "getPetAvatarThumbnail",
+      "/pet/{petId}/avatar/thumbnail",
     );
   }
 
@@ -1297,6 +1330,9 @@ export class PetApi extends BaseApi {
       "model",
       "getPetById",
       requestOptions,
+      undefined,
+      "getPetById",
+      "/pet/{petId}",
     );
   }
 
@@ -1415,6 +1451,9 @@ export class PetApi extends BaseApi {
       "model",
       "getPetByName",
       requestOptions,
+      undefined,
+      "getPetByName",
+      "/pet/byName/{name}",
     );
   }
 
@@ -1495,6 +1534,9 @@ export class PetApi extends BaseApi {
       "model",
       "getPetPassport",
       requestOptions,
+      undefined,
+      "getPetPassport",
+      "/pet/{petId}/passport",
     );
   }
 
@@ -1597,6 +1639,9 @@ export class PetApi extends BaseApi {
       "binary",
       "getPetPhoto",
       requestOptions,
+      undefined,
+      "getPetPhoto",
+      "/pet/{petId}/photos/{photoId}",
     );
   }
 
@@ -1745,6 +1790,9 @@ export class PetApi extends BaseApi {
       "string",
       "getPetSummary",
       requestOptions,
+      undefined,
+      "getPetSummary",
+      "/pet/{petId}/summary/{asOf}",
     );
   }
 
@@ -1985,6 +2033,9 @@ export class PetApi extends BaseApi {
       "model",
       "getPetTag",
       requestOptions,
+      undefined,
+      "getPetTag",
+      "/pet/{petId}/tag/{tagName}",
     );
   }
 
@@ -2069,6 +2120,9 @@ export class PetApi extends BaseApi {
       "model",
       "getStagingPetInfo",
       requestOptions,
+      undefined,
+      "getStagingPetInfo",
+      "/pet/{petId}/staging",
     );
   }
 
@@ -2168,6 +2222,9 @@ export class PetApi extends BaseApi {
       undefined,
       "setPetAvatar",
       requestOptions,
+      undefined,
+      "setPetAvatar",
+      "/pet/{petId}/avatar",
     );
   }
 
@@ -2243,6 +2300,9 @@ export class PetApi extends BaseApi {
       undefined,
       "setPetAvatarThumbnail",
       requestOptions,
+      undefined,
+      "setPetAvatarThumbnail",
+      "/pet/{petId}/avatar/thumbnail",
     );
   }
 
@@ -2356,6 +2416,9 @@ export class PetApi extends BaseApi {
       "model",
       "setPetPreferences",
       requestOptions,
+      undefined,
+      "setPetPreferences",
+      "/pet/{petId}/preferences",
     );
   }
 
@@ -2446,6 +2509,9 @@ export class PetApi extends BaseApi {
       "model",
       "updatePet",
       requestOptions,
+      undefined,
+      "updatePet",
+      "/pet/{petId}",
     );
   }
 
@@ -2542,6 +2608,9 @@ export class PetApi extends BaseApi {
       "model",
       "uploadPetCertificate",
       requestOptions,
+      undefined,
+      "uploadPetCertificate",
+      "/pet/{petId}/certificate",
     );
   }
 
@@ -2698,6 +2767,9 @@ export class PetApi extends BaseApi {
       "model",
       "uploadPetDocument",
       requestOptions,
+      undefined,
+      "uploadPetDocument",
+      "/pet/{petId}/documents",
     );
   }
 }

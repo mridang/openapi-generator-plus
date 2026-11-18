@@ -385,13 +385,20 @@ export class {{classname}} extends BaseApi {
       {{#bodyParam}}{{#isBinary}}true{{/isBinary}}{{^isBinary}}false{{/isBinary}}{{/bodyParam}}{{^bodyParam}}false{{/bodyParam}},
       {{#returnType}}'{{#returnProperty}}{{#isBinary}}binary{{/isBinary}}{{^isBinary}}{{#isFile}}binary{{/isFile}}{{^isFile}}{{#isByteArray}}model{{/isByteArray}}{{^isByteArray}}{{#isString}}{{^isEnumRef}}string{{/isEnumRef}}{{#isEnumRef}}model{{/isEnumRef}}{{/isString}}{{^isString}}model{{/isString}}{{/isByteArray}}{{/isFile}}{{/isBinary}}{{/returnProperty}}{{^returnProperty}}model{{/returnProperty}}'{{/returnType}}{{^returnType}}undefined{{/returnType}},
       '{{nickname}}',
-      requestOptions{{#vendorExtensions.op.hasErrorSchemaResponses}},
+      requestOptions,
+{{#vendorExtensions.op.hasErrorSchemaResponses}}
       {
 {{#vendorExtensions.op.errorSchemaResponses}}
         '{{{status}}}': (statusCode, responseHeaders, responseBody, request) =>
           {{{schemaClassName}}}.fromErrorResponse(statusCode, responseHeaders, responseBody, request){{^isLast}},{{/isLast}}
 {{/vendorExtensions.op.errorSchemaResponses}}
-      }{{/vendorExtensions.op.hasErrorSchemaResponses}}
+      },
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+{{^vendorExtensions.op.hasErrorSchemaResponses}}
+      undefined,
+{{/vendorExtensions.op.hasErrorSchemaResponses}}
+      {{#lambda.tsString}}{{#operationIdOriginal}}{{{operationIdOriginal}}}{{/operationIdOriginal}}{{^operationIdOriginal}}{{{operationId}}}{{/operationIdOriginal}}{{/lambda.tsString}},
+      {{#lambda.tsString}}{{{path}}}{{/lambda.tsString}}
     );
   }
   {{/operation}}

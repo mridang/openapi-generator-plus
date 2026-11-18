@@ -337,6 +337,12 @@ const cancellable = new {{clientClassName}}(authenticator, undefined, { signal: 
 
 Each operation has a `...WithHttpInfo` variant returning `ApiResult<T>` (`statusCode`, `data`, `rawBody`, `headers`). `timeout` is one end-to-end budget in positive milliseconds (default 10000; `null` waits indefinitely). `TransportOptions.builder().injectRequestId(true)` adds an `X-Request-ID` header to each request unless you set one.
 
+### Hooks and telemetry
+
+A call hook is one small, optional object that runs around every operation call. Before the request is sent it can read and edit the request headers, and when the call ends it is told the status or the error. A client with no hook does nothing extra. The hook runs once per call, however many sends happen inside it (transport retries, the one replay after a 401), and also when you supply the transport.
+
+`CallHook.start(info, headers)` may edit the headers and returns a `CallObserver` or nothing; `CallObserver.finish(outcome)` runs exactly once with `statusCode` (0 when no response arrived), the lower-cased `headers` (null when none arrived) and the `error`. Set it with `new {{clientClassName}}(authenticator, undefined, { callHook })` or `Configuration.builder().callHook(hook)`; combine hooks with `chain(...hooks)`. `createOpenTelemetryCallHook()` from `{{npmName}}/opentelemetry` records the span, the count and the duration histogram.
+
 ## API Methods
 
 Each API group is exposed as a typed property on the client (e.g., `client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`). API classes have methods that correspond to OpenAPI operations, accepting typed request parameters and returning typed response models.
