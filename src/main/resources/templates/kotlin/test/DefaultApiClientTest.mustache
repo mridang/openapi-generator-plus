@@ -810,6 +810,44 @@ class DefaultApiClientTest {
         }
 
         @Test
+        @DisplayName("bhvRedirects047 a refused redirect and a successful redirect in parallel requests do not affect each other")
+        fun bhvRedirects047ParallelRedirectOutcomesAreIndependent() {
+            val engine = MockEngine { req ->
+                when (req.url.host) {
+                    "refused.example.com" -> respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://refused.example.com/dest"),
+                    )
+                    "ok.example.com" -> if (req.url.encodedPath == "/x") {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "https://ok.example.com/dest"),
+                        )
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                    else -> respond("unexpected", HttpStatusCode.InternalServerError)
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val (refused, ok) = runBlocking {
+                val refusedCall = async {
+                    runCatching {
+                        apiClient.sendRequest("POST", "https://refused.example.com/x", emptyMap(), "body")
+                    }
+                }
+                val okCall = async { apiClient.sendRequest("POST", "https://ok.example.com/x", emptyMap(), "body") }
+                refusedCall.await() to okCall.await()
+            }
+            assertTrue(refused.isFailure, "a 307 that downgrades https to http with a body is refused")
+            assertEquals(200, ok.statusCode)
+            assertEquals("ok", ok.body)
+        }
+
+        @Test
         @DisplayName("bhvRedirects048 a 301 or 302 turns a POST follow-up into GET and keeps the method of every other request")
         fun bhvRedirects048MovedStatusesTurnPostIntoGet() {
             for (status in listOf(HttpStatusCode.MovedPermanently, HttpStatusCode.Found)) {
