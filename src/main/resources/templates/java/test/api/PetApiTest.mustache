@@ -1760,4 +1760,75 @@ class PetApiTest {
         assertThat(recording.sentRetries.get(0)).isNull();
         assertThat(recording.sentHeaders.get(0).get("X-Trace")).isNull();
     }
+
+    @Test
+    void bhvAuth043OperationSendsOnlyTheCredentialOfTheSchemeItNames() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        AdminBasicAuthenticator basic = new AdminBasicAuthenticator("http://localhost", "admin", "password");
+        PetStoreBearerAuthenticator bearer = new PetStoreBearerAuthenticator("http://localhost", "test-token");
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), null, Map.of("adminBasic", basic, "petStoreBearer", bearer));
+
+        mockedApi.deletePet(7L);
+
+        assertThat(sent.get("Authorization")).isEqualTo(basic.getAuthHeaders().get("Authorization"));
+        assertThat(sent.get("Authorization")).doesNotContain("test-token");
+    }
+
+    @Test
+    void bhvAuth044OperationWithNoSecurityRequirementSendsNoCredential() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        PetStoreBearerAuthenticator bearer = new PetStoreBearerAuthenticator("http://localhost", "test-token");
+        StoreApi mockedApi = new StoreApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), bearer);
+
+        mockedApi.deleteOrder(3L);
+
+        assertThat(sent.get("Authorization")).isNull();
+    }
+
+    @Test
+    void bhvAuth045CredentialOfTheOperationsSchemeReplacesTheDefaultAuthorizationHeader() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        AdminBasicAuthenticator basic = new AdminBasicAuthenticator("http://localhost", "admin", "password");
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build(), null, Map.of("adminBasic", basic));
+
+        mockedApi.deletePet(7L);
+
+        assertThat(sent.get("Authorization")).isEqualTo(basic.getAuthHeaders().get("Authorization"));
+        assertThat(sent.get("Authorization")).doesNotContain("default-token");
+    }
+
+    @Test
+    void bhvAuth047OperationSendsNoSchemeCredentialWhenItHoldsNone() throws Exception {
+        Map<String, String> sent = new HashMap<>();
+        ApiClient recording = (method, url, headers, body) -> {
+            sent.putAll(headers);
+            return new ApiHttpResponse(200, "", Map.of());
+        };
+        PetApi mockedApi = new PetApi(recording, Configuration.builder()
+                .baseUrl("http://localhost")
+                .build(), null, Map.of());
+
+        mockedApi.deletePet(7L);
+
+        assertThat(sent.get("Authorization")).isNull();
+    }
 }
