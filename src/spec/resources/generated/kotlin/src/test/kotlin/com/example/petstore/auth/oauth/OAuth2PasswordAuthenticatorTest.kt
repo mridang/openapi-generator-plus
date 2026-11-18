@@ -164,8 +164,8 @@ class OAuth2PasswordAuthenticatorTest {
     fun bhvAuth058RefreshGrantComesFirstWhenHeld() = bhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls()
 
     @Test
-    @DisplayName("bhvAuth057 a rejected refresh falls back to the original grant")
-    fun bhvAuth057RejectedRefreshFallsBackToTheOriginalGrant() = bhvAuthoauthtwopassword010RejectedRefreshReRunsThePasswordGrant()
+    @DisplayName("bhvLangkotlin054 a rejected refresh falls back to the original grant")
+    fun bhvLangkotlin054RejectedRefreshFallsBackToTheOriginalGrant() = bhvAuthoauthtwopassword010RejectedRefreshReRunsThePasswordGrant()
 
     @Test
     fun bhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls() {
@@ -466,7 +466,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperReadsEveryCredentialFromItsOwnVariable() {
+    fun bhvLangkotlin035GeneratedSchemeWrapperReadsEveryCredentialFromItsOwnVariable() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok","expires_in":3600}""")
         val env =

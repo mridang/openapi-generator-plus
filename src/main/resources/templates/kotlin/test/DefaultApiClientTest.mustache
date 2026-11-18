@@ -33,8 +33,8 @@ class DefaultApiClientTest {
     inner class InjectedTransport {
 
         @Test
-        @DisplayName("a caller-supplied HttpClient receives the request with the SDK user agent, and is never closed")
-        fun callerSuppliedClientReceivesTheRequest() {
+        @DisplayName("bhvTransport092 a caller-supplied HttpClient receives the request with the SDK user agent, and is never closed")
+        fun bhvTransport092CallerSuppliedClientReceivesTheRequest() {
             var seenUserAgent: String? = null
             var seenUrl: String? = null
             val engine = MockEngine { req ->
@@ -547,8 +547,8 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("an empty Location behaves like a missing one: the 3xx is returned with its body")
-        fun emptyLocationReturnsTheRedirect() {
+        @DisplayName("bhvLangkotlin022 an empty Location behaves like a missing one: the 3xx is returned with its body")
+        fun bhvLangkotlin022EmptyLocationReturnsTheRedirect() {
             var hopCount = 0
             val engine = MockEngine { _ ->
                 hopCount++
@@ -569,8 +569,8 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("a missing or unparseable Location returns the 3xx with its body")
-        fun unusableLocationReturnsTheRedirect() {
+        @DisplayName("bhvLangkotlin023 a missing or unparseable Location returns the 3xx with its body")
+        fun bhvLangkotlin023UnusableLocationReturnsTheRedirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport = TransportOptions.builder()
                 .followRedirects(true)
@@ -597,25 +597,6 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("bhvRedirects049 a 307 redirect repeats the request with the same method and body")
         fun bhvRedirects049RepeatsMethodAndBodyOn307() = redirect307PreservesMethodAndBody()
-
-        @Test
-        @DisplayName("307 preserves method and body (POST stays POST)")
-        fun redirect307PreservesMethodAndBody() {
-            val chasmUrl = ChasmContainer.getBaseUrl()
-            val client = DefaultApiClient()
-            val response = runBlocking {
-                client.sendRequest(
-                    "POST",
-                    "$chasmUrl/test/redirect/307",
-                    mapOf("Content-Type" to "application/json"),
-                    "hello-body"
-                )
-            }
-            assertEquals(200, response.statusCode)
-            val json = ObjectMapper().readTree(response.body)
-            assertEquals("POST", json.get("method").asText())
-            assertEquals("hello-body", json.get("body").asText())
-        }
 
         /**
          * T-new-3: multipart bodies must be replayed across 307 redirects per
@@ -1310,38 +1291,6 @@ class DefaultApiClientTest {
         @DisplayName("bhvRedirects053 Authorization is removed when the scheme changes between https and http on the same host")
         fun bhvRedirects053StripsAuthorizationOnSchemeChange() = httpsToHttpSameHostStripsAuthorization()
 
-        @Test
-        @DisplayName("https_to_http_same_host_strips_authorization")
-        fun httpsToHttpSameHostStripsAuthorization() {
-            assertFalse(
-                sameOrigin(
-                    java.net.URI("https://host:8443/x"),
-                    java.net.URI("http://host:8443/y")
-                ),
-                "https→http redirect MUST be cross-origin (TLS downgrade)"
-            )
-            assertFalse(
-                sameOrigin(
-                    java.net.URI("http://host:8080/x"),
-                    java.net.URI("https://host:8080/y")
-                ),
-                "http→https redirect MUST be cross-origin (scheme changes)"
-            )
-            assertTrue(
-                sameOrigin(
-                    java.net.URI("https://host:8443/x"),
-                    java.net.URI("https://host:8443/y")
-                ),
-                "same-scheme same-host same-port must be same-origin"
-            )
-            assertTrue(
-                sameOrigin(
-                    java.net.URI("https://host/x"),
-                    java.net.URI("https://host:443/y")
-                ),
-                "implicit default port must compare equal to explicit"
-            )
-        }
     }
 
     @Nested

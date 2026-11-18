@@ -2021,6 +2021,61 @@ langswift075 | A redirect chain that finishes inside the timeout budget complete
 ||||||| 33b2fa75d
 ||||||| f622b5d59
 ||||||| f30be4711
+||||||| f066f799c
+langkotlin001 | The generated scheme wrapper reads each of its credentials from its own environment variable
+langkotlin002 | A generated scheme wrapper with no credential of its own falls back to the authenticator it was built with
+langkotlin003 | An API key containing a line break or a NUL character is refused when the authenticator is built
+langkotlin004 | Two result values with equal fields compare equal and hash alike
+langkotlin005 | A transport failure raised end to end carries the request method and path that were sent
+langkotlin006 | A void operation ignores a success body that is JSON but not an object
+langkotlin007 | A generated basic scheme wrapper reads its user and password from its own variables
+langkotlin008 | A token made only of form feeds is rejected as empty
+langkotlin009 | A generated bearer scheme wrapper reads its token from its own environment variable
+langkotlin010 | A failing observer does not stop the other observers from being told the outcome
+langkotlin011 | A hook sees the request as edited by the hooks that ran before it
+langkotlin012 | A CA certificate path that does not exist raises an illegal argument error at build time
+langkotlin013 | A missing CA certificate file is rejected even when certificate verification is disabled
+langkotlin014 | A CA certificate file that holds no valid certificate raises an illegal argument error
+langkotlin015 | The built artifact declares a stable module name for consumers to depend on
+langkotlin016 | The factory helpers pass the configured call hook on to the client they build
+langkotlin017 | A composed wrapper serialises and deserialises back to an equal value
+langkotlin018 | A composed model missing a required property throws on decode
+langkotlin019 | A factory for a second variant wraps that variant and answers only its own accessor
+langkotlin020 | A union with no variant answers nothing from any accessor
+langkotlin021 | A hook set on the configuration is installed on the client the configuration builds
+langkotlin022 | A redirect with an empty Location header returns the redirect response itself
+langkotlin023 | A redirect whose Location header cannot be parsed returns the redirect response itself
+langkotlin024 | A 3xx status outside the redirect set is returned without following its Location
+langkotlin025 | Exactly the redirect statuses trigger a follow-up request, and no other status does
+langkotlin026 | A timeout raised by the structured-concurrency timeout helper is not wrapped again
+langkotlin027 | A cancelled job surfaces its own cancellation and is not wrapped in an SDK error
+langkotlin028 | A text plain media type is not treated as JSON
+langkotlin029 | A model additional properties are read and written through its own accessor
+langkotlin030 | The additional properties constructor parameter is kept when the model is copied
+langkotlin031 | The spec directory of the generated project is compiled, run and linted by its own build
+langkotlin032 | Every development dependency the generated tests use is declared in the project manifest
+langkotlin033 | Generated sources contain no HTML character entities
+langkotlin034 | A generated OAuth2 client credentials wrapper prefers its argument to its variable
+langkotlin035 | A generated OAuth2 password wrapper reads every credential from its own variable
+langkotlin036 | A non-finite expires_in value leaves the token stale
+langkotlin037 | A string value is serialised and deserialised as a plain string
+langkotlin038 | A null optional field is left out of the serialised object
+langkotlin039 | A bare number where a string field is declared throws on decode
+langkotlin040 | A quoted number where a long field is declared throws on decode
+langkotlin041 | A quoted number where an int field is declared throws on decode
+langkotlin042 | A float literal too large for its type is refused when a payload is decoded
+langkotlin043 | Undeclared keys are kept as additional properties inside a container element
+langkotlin044 | A strict JSON reader without the SDK module does not decode a contextual serializer
+langkotlin045 | A strict JSON reader with the SDK module decodes a contextual serializer
+langkotlin046 | Decimal values with different scales but equal value compare equal
+langkotlin047 | A variable default value drives the substituted server URL
+langkotlin048 | Two values with equal content compare equal
+langkotlin049 | A simple string parameter is sent without percent encoding
+langkotlin050 | A header carries the JSON body value verbatim
+langkotlin051 | A query value carries the raw JSON text
+langkotlin052 | The client routes each operation to the first declared scheme it holds a credential for
+langkotlin053 | A partial time value is sent in its shortened form
+langkotlin054 | A password grant wrapper whose refresh is rejected falls back to the original grant
 ||||||| 8dce4124f
 langdart001 | a path or query value holding reserved punctuation is refused before any request is sent
 langdart002 | operation prose from the spec appears verbatim in the generated documentation

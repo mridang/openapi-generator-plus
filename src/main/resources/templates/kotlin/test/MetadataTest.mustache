@@ -40,8 +40,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("additional properties are preserved")
-    fun testAdditionalProperties() {
+    @DisplayName("bhvLangkotlin029 additional properties are preserved")
+    fun bhvLangkotlin029TestAdditionalProperties() {
         val metadata = Metadata()
         metadata.additionalProperties["customField"] = "hello"
         metadata.additionalProperties["anotherField"] = "world"
@@ -59,8 +59,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("the additionalProperties bucket can be supplied at construction and copy() carries it")
-    fun testAdditionalPropertiesConstructorParameterAndCopy() {
+    @DisplayName("bhvLangkotlin030 the additionalProperties bucket can be supplied at construction and copy() carries it")
+    fun bhvLangkotlin030TestAdditionalPropertiesConstructorParameterAndCopy() {
         val metadata = Metadata(additionalProperties = mutableMapOf("k" to "v"))
         assertEquals("v", metadata.additionalProperties["k"])
 
@@ -330,8 +330,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("build.gradle.kts compiles, runs and lints the hand-written spec directory")
-    fun testSpecDirectoryIsCompiledRunAndLinted() {
+    @DisplayName("bhvLangkotlin031 build.gradle.kts compiles, runs and lints the hand-written spec directory")
+    fun bhvLangkotlin031TestSpecDirectoryIsCompiledRunAndLinted() {
         assertTrue(java.io.File("src/spec/kotlin").isDirectory, "src/spec/kotlin must exist")
         val manifest = java.io.File("build.gradle.kts").readText()
         val testSources = Regex("""val jvmTest by getting \{\s*kotlin\.srcDirs\(([^)]*)\)""").find(manifest)
@@ -349,8 +349,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("dev-dependency-drift: build.gradle.kts declares every dependency the generated tests need")
-    fun testDeclaredDevDependenciesAreInTheProjectManifest() {
+    @DisplayName("bhvLangkotlin032 dev-dependency-drift: build.gradle.kts declares every dependency the generated tests need")
+    fun bhvLangkotlin032TestDeclaredDevDependenciesAreInTheProjectManifest() {
         // A generated test may import a package that only the generator knows
         // about, and every real client keep-lists its own build.gradle.kts, so
         // the two silently drift apart and the suite dies at compile time with
@@ -399,8 +399,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("generated sources carry spec prose raw, never HTML-escaped")
-    fun testNoHtmlEntitiesInGeneratedSources() {
+    @DisplayName("bhvLangkotlin033 generated sources carry spec prose raw, never HTML-escaped")
+    fun bhvLangkotlin033TestNoHtmlEntitiesInGeneratedSources() {
         val sourceDir = java.io.File("src/main/kotlin")
         assertTrue(sourceDir.isDirectory, "generated source directory must exist")
         val entity = Regex("&(?:[A-Za-z]+|#[0-9]+|#[xX][0-9A-Fa-f]+);")

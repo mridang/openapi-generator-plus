@@ -322,8 +322,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("handles string")
-        fun handlesString() {
+        @DisplayName("bhvLangkotlin037 handles string")
+        fun bhvLangkotlin037HandlesString() {
             val json = serializer.serialize("hello")
             assertEquals("\"hello\"", json)
         }
@@ -340,8 +340,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("omits fields explicitly set to null (Gap 13: discard nulls)")
-        fun omitsNullFields() {
+        @DisplayName("bhvLangkotlin038 omits fields explicitly set to null (Gap 13: discard nulls)")
+        fun bhvLangkotlin038OmitsNullFields() {
             val category =
                 com.example.petstore.models
                     .Category(id = null, name = "Dogs")
@@ -421,8 +421,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a minimally-built model sends no key for its unset optional arrays")
-        fun unsetOptionalArraysAreNotSent() {
+        @DisplayName("bhvSerialization098 a minimally-built model sends no key for its unset optional arrays")
+        fun bhvSerialization098UnsetOptionalArraysAreNotSent() {
             // tags and location are optional arrays: left unset they must stay
             // null (omitted), not default to [] which would ride the wire as
             // "tags":[] / "location":[] (the other SDKs send neither key).
@@ -545,8 +545,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a list of byte arrays is written as base64 strings")
-        fun listOfByteArraysIsWrittenAsBase64() {
+        @DisplayName("bhvSerialization088 a list of byte arrays is written as base64 strings")
+        fun bhvSerialization088ListOfByteArraysIsWrittenAsBase64() {
             val json = serializer.serialize(listOf(byteArrayOf(1, 2, 3, 4)))
             assertEquals("[\"AQIDBA==\"]", json)
         }
@@ -563,8 +563,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a free-form JsonObject is written with its members unchanged")
-        fun jsonObjectValueIsWrittenUnchanged() {
+        @DisplayName("bhvMisc094 a free-form JsonObject is written with its members unchanged")
+        fun bhvMisc094JsonObjectValueIsWrittenUnchanged() {
             val payload =
                 kotlinx.serialization.json.buildJsonObject {
                     put("ownerId", kotlinx.serialization.json.JsonPrimitive(198772L))
@@ -690,8 +690,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("an absent optional array decodes to null, not an empty list")
-        fun absentOptionalArrayDecodesToNull() {
+        @DisplayName("bhvMisc243 an absent optional array decodes to null, not an empty list")
+        fun bhvMisc243AbsentOptionalArrayDecodesToNull() {
             val pet = serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"fido\",\"photoUrls\":[]}")
             assertNotNull(pet)
             assertNull(pet!!.tags)
@@ -983,8 +983,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("primitive-type-coercion-lenient: unquoted number scalar on a String field throws")
-        fun unquotedNumberScalarOnStringFieldThrows() {
+        @DisplayName("bhvLangkotlin039 primitive-type-coercion-lenient: unquoted number scalar on a String field throws")
+        fun bhvLangkotlin039UnquotedNumberScalarOnStringFieldThrows() {
             // Another isLenient=true coercion: a bare numeric token decoded into
             // a String field. Strict mode requires the value to be quoted.
             val json = "{\"name\":42}"
@@ -1097,8 +1097,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("quoted-scalar-into-numeric-field: {\"id\":\"42\"} on a Long field throws")
-        fun quotedScalarIntoLongFieldThrows() {
+        @DisplayName("bhvLangkotlin040 quoted-scalar-into-numeric-field: {\"id\":\"42\"} on a Long field throws")
+        fun bhvLangkotlin040QuotedScalarIntoLongFieldThrows() {
             // Residual kotlinx gap: even with isLenient=false the parser would
             // silently coerce the quoted "42" into the numeric id. The strict
             // per-field serializer rejects a JSON string for a numeric field,
@@ -1110,8 +1110,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("quoted-scalar-into-int-field: {\"quantity\":\"3\"} on an Int field throws")
-        fun quotedScalarIntoIntFieldThrows() {
+        @DisplayName("bhvLangkotlin041 quoted-scalar-into-int-field: {\"quantity\":\"3\"} on an Int field throws")
+        fun bhvLangkotlin041QuotedScalarIntoIntFieldThrows() {
             val json = "{\"quantity\":\"3\"}"
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<com.example.petstore.models.Order>(json)
@@ -1137,8 +1137,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("control: a valid typed payload still deserializes correctly")
-        fun validTypedPayloadRoundTrips() {
+        @DisplayName("bhvSerialization100 control: a valid typed payload still deserializes correctly")
+        fun bhvSerialization100ValidTypedPayloadRoundTrips() {
             val json = "{\"id\":42,\"petId\":7,\"quantity\":3,\"complete\":true}"
             val order = serializer.deserialize<com.example.petstore.models.Order>(json)
             assertNotNull(order)
@@ -1149,8 +1149,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("int32 accepts its bounds and rejects overflow and fractions")
-        fun int32BoundsOverflowAndFractions() {
+        @DisplayName("bhvMisc116 int32 accepts its bounds and rejects overflow and fractions")
+        fun bhvMisc116Int32BoundsOverflowAndFractions() {
             val max = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":2147483647}")
             assertEquals(Int.MAX_VALUE, max!!.quantity)
             val min = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":-2147483648}")
@@ -2216,8 +2216,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("F390: a float literal that overflows is refused rather than decoded as Infinity")
-        fun overflowingFloatLiteralIsRefused() {
+        @DisplayName("bhvLangkotlin042 F390: a float literal that overflows is refused rather than decoded as Infinity")
+        fun bhvLangkotlin042OverflowingFloatLiteralIsRefused() {
             assertThrows(kotlinx.serialization.SerializationException::class.java) {
                 kotlinx.serialization.json.Json
                     .decodeFromString(StrictFloatSerializer, "1e40")
@@ -2269,8 +2269,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("additionalProperties are captured on the elements of a list and map response")
-        fun containerElementAdditionalPropertiesAreCaptured() {
+        @DisplayName("bhvLangkotlin043 additionalProperties are captured on the elements of a list and map response")
+        fun bhvLangkotlin043ContainerElementAdditionalPropertiesAreCaptured() {
             val list = serializer.deserialize<List<com.example.petstore.models.Metadata>>("[{\"tier\":\"gold\"}]")!!
             assertEquals(mapOf<String, Any?>("tier" to "gold"), list[0].additionalProperties)
             val map = serializer.deserialize<Map<String, com.example.petstore.models.Metadata>>("{\"k\":{\"zone\":\"z1\"}}")!!
@@ -2561,8 +2561,8 @@ class ObjectSerializerTest {
         // ContextualStrict is declared at file scope: Kotlin prohibits a
         // (non-inner) nested class inside a JUnit @Nested inner class.
         @Test
-        @DisplayName("a bare strict Json without the contextual module fails on a @Contextual field")
-        fun bareStrictJsonMissesContextualSerializer() {
+        @DisplayName("bhvLangkotlin044 a bare strict Json without the contextual module fails on a @Contextual field")
+        fun bhvLangkotlin044BareStrictJsonMissesContextualSerializer() {
             // Reproduces the M7 defect: ignoreUnknownKeys = false alone, with no
             // serializersModule, cannot resolve the @Contextual OffsetDateTime.
             val bare =
@@ -2579,8 +2579,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a strict Json reusing the SDK contextual module decodes a @Contextual field")
-        fun strictJsonWithSdkModuleDecodesContextual() {
+        @DisplayName("bhvLangkotlin045 a strict Json reusing the SDK contextual module decodes a @Contextual field")
+        fun bhvLangkotlin045StrictJsonWithSdkModuleDecodesContextual() {
             // The fix: the strict decoder copies ObjectSerializer.contextualSerializersModule
             // into the strict Json, so the @Contextual OffsetDateTime resolves and
             // the unknown-key rejection still applies.
@@ -2639,8 +2639,8 @@ class ObjectSerializerTest {
                 .Pet(name = "fido", photoUrls = setOf("u"), weightKg = weightKg)
 
         @Test
-        @DisplayName("1.5 and 1.50 are equal and hash alike")
-        fun differentScalesAreEqual() {
+        @DisplayName("bhvLangkotlin046 the decimals 1.5 and 1.50 are equal and hash alike")
+        fun bhvLangkotlin046DifferentScalesAreEqual() {
             val a = petOf(java.math.BigDecimal("1.5"))
             val b = petOf(java.math.BigDecimal("1.50"))
             assertEquals(a, b)
@@ -2711,8 +2711,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("toString renders byte data by content, never an identity hash")
-        fun toStringRendersBytesByContent() {
+        @DisplayName("bhvMisc113 toString renders byte data by content, never an identity hash")
+        fun bhvMisc113ToStringRendersBytesByContent() {
             val text = vaultOf().toString()
 
             assertTrue(text.contains("seal=[1, 2, 3]"), text)
@@ -3030,8 +3030,8 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("a payload nested past the depth limit is refused with the serialization error")
-        fun payloadNestedPastTheLimitIsRefused() {
+        @DisplayName("bhvSerialization071 a payload nested past the depth limit is refused with the serialization error")
+        fun bhvSerialization071PayloadNestedPastTheLimitIsRefused() {
             val deep = "[".repeat(5000) + "]".repeat(5000)
             assertThrows(SerializationException::class.java) {
                 serializer.deserialize<Map<String, Int>>("{\"a\":$deep}")

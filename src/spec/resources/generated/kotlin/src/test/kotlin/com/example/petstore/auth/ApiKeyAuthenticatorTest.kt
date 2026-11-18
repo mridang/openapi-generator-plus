@@ -503,8 +503,8 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a security scheme's authenticator reads the variable of its own scheme")
-    fun schemeWrapperReadsItsOwnVariable() =
+    @DisplayName("bhvLangkotlin001 F862: a security scheme's authenticator reads the variable of its own scheme")
+    fun bhvLangkotlin001SchemeWrapperReadsItsOwnVariable() =
         runBlocking {
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY" to "from-env")
             val auth =
@@ -521,8 +521,8 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("F862: a scheme's authenticator uses its provider when neither argument nor variable is set")
-    fun schemeWrapperFallsBackToItsProvider() =
+    @DisplayName("bhvLangkotlin002 F862: a scheme's authenticator uses its provider when neither argument nor variable is set")
+    fun bhvLangkotlin002SchemeWrapperFallsBackToItsProvider() =
         runBlocking {
             val auth =
                 withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY" to "")) {
@@ -551,8 +551,8 @@ class ApiKeyAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("an API key that holds a line break or NUL is refused when built")
-    fun apiKeyWithLineBreakOrNulIsRefusedWhenBuilt() {
+    @DisplayName("bhvLangkotlin003 an API key that holds a line break or NUL is refused when built")
+    fun bhvLangkotlin003ApiKeyWithLineBreakOrNulIsRefusedWhenBuilt() {
         for (bad in listOf("abc\r\nInjected: yes", "abc\u0000")) {
             assertThrows(IllegalArgumentException::class.java) {
                 ApiKeyAuthenticator("https://api.example.com", "X-API-Key", bad, ApiKeyLocation.HEADER)

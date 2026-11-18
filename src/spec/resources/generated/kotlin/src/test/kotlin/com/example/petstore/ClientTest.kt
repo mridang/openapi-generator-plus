@@ -151,8 +151,8 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("missing CA cert surfaces IllegalArgumentException, not raw JDK exception")
-    fun missingCaCertThrowsIllegalArgumentException() {
+    @DisplayName("bhvLangkotlin012 missing CA cert surfaces IllegalArgumentException, not raw JDK exception")
+    fun bhvLangkotlin012MissingCaCertThrowsIllegalArgumentException() {
         // A custom CA cert path that does not exist is a configuration mistake,
         // not an API failure. Construction must fail fast with
         // IllegalArgumentException rather than a raw FileNotFoundException.
@@ -170,8 +170,8 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("missing CA cert is rejected even when verifySsl is false")
-    fun missingCaCertIsRejectedWhenVerifySslIsFalse() {
+    @DisplayName("bhvLangkotlin013 missing CA cert is rejected even when verifySsl is false")
+    fun bhvLangkotlin013MissingCaCertIsRejectedWhenVerifySslIsFalse() {
         val transport =
             TransportOptions
                 .builder()
@@ -187,8 +187,8 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("garbage CA cert surfaces IllegalArgumentException, not raw JDK exception")
-    fun invalidCaCertThrowsIllegalArgumentException(
+    @DisplayName("bhvLangkotlin014 garbage CA cert surfaces IllegalArgumentException, not raw JDK exception")
+    fun bhvLangkotlin014InvalidCaCertThrowsIllegalArgumentException(
         @TempDir tempDir: Path,
     ) {
         // A readable file whose contents are not a valid PEM certificate must
@@ -443,8 +443,8 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("the build declares a stable Automatic-Module-Name")
-    fun buildDeclaresAStableModuleName() {
+    @DisplayName("bhvLangkotlin015 the build declares a stable Automatic-Module-Name")
+    fun bhvLangkotlin015BuildDeclaresAStableModuleName() {
         val build = java.io.File("build.gradle.kts").readText()
         assertTrue(build.contains("\"Automatic-Module-Name\" to \"com.example.petstore\""))
     }
@@ -762,8 +762,8 @@ class ClientTest {
     }
 
     @Test
-    @DisplayName("the factories hand the hook to every API group")
-    fun theFactoriesHandOverTheHook() {
+    @DisplayName("bhvLangkotlin016 the factories hand the hook to every API group")
+    fun bhvLangkotlin016TheFactoriesHandOverTheHook() {
         val starts = mutableListOf<CallInfo>()
         val hook =
             CallHook { info, _ ->

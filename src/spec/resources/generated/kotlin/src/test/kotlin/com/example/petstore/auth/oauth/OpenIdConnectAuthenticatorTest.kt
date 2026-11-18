@@ -267,7 +267,7 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun malformedDiscoveryDocumentDoesNotEchoTheBody() {
+    fun bhvSerialization103MalformedDiscoveryDocumentDoesNotEchoTheBody() {
         // The parser's own message quotes an excerpt of its input, so neither
         // the message nor the cause may be kept.
         val client = FakeApiClient()
