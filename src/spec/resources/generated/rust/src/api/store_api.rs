@@ -134,6 +134,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Account",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -148,6 +149,11 @@ impl StoreApi {
     /// Delete purchase order by ID
     /// * `order_id`: ID of the order to delete
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn delete_order(
         &self,
         order_id: i64,
@@ -221,6 +227,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -367,6 +374,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Category",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -444,6 +452,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Defaults",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -522,6 +531,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Department",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -609,6 +619,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, Category>>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -695,6 +706,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "std::collections::HashMap<String, i32>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -774,6 +786,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Vec<Vec<i32>>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -790,6 +803,11 @@ impl StoreApi {
     /// Find purchase order by ID
     /// * `order_id`: ID of order to return
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_order_by_id(
         &self,
         order_id: i64,
@@ -878,6 +896,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Order",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -979,6 +998,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Order",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1088,6 +1108,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "StockItem",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1165,6 +1186,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Swatch",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1252,6 +1274,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, Swatch>>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1341,6 +1364,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Vec<std::collections::HashMap<String, crate::date_time::DateTime>>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1418,6 +1442,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "TreeNode",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1431,6 +1456,10 @@ impl StoreApi {
 
     /// Place an order for a pet
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn place_order(
         &self,
         order: Option<Order>,
@@ -1507,6 +1536,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Order",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1518,6 +1548,10 @@ impl StoreApi {
     /// Reserve stock, answering with the existing or a new reservation
     /// Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn reserve_stock(
         &self,
         options: Option<&ReserveStockOptions>,
@@ -1582,6 +1616,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "ReserveStockResponse",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather
@@ -1744,6 +1779,7 @@ impl StoreApi {
             content_type: request_content_type,
             return_type: "Vec<Order>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* security-none suppression: this operation is declared
              * `security: []` (explicitly unauthenticated). Pass the no-auth
              * sentinel — NOT None — so BaseApi suppresses auth entirely rather

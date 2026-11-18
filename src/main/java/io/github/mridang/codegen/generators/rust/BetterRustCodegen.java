@@ -9,7 +9,9 @@ import io.github.mridang.codegen.generators.AbstractBetterCodegen.SchemeAuthSpec
 import io.github.mridang.codegen.generators.BarrelFileEmitter;
 import io.github.mridang.codegen.generators.EnvVarNames;
 import io.github.mridang.codegen.generators.NamingConvention;
+import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Schema;
+import io.swagger.v3.oas.models.servers.Server;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -31,6 +33,7 @@ import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenResponse;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -1654,6 +1657,78 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                                 && !parameter.items.complexType.isEmpty()
                                 && !parameter.items.isDate
                                 && !parameter.items.isDateTime));
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaTemplate() {
+        return "errors/schema_error.mustache";
+    }
+
+    /** {@inheritDoc} */
+    @Override
+    protected String errorSchemaFilePath(String className) {
+        return Path.of(getOutputDir(), "src", "errors", NamingConvention.SNAKE_CASE.apply(className) + ".rs")
+                .toString();
+    }
+
+    /**
+     * Gives every distinct error schema the file stem of its error type ({@code snakeName}), for
+     * the {@code mod} declarations of the errors module.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        final Object schemas = objs.get("errorSchemas");
+        if (schemas instanceof List) {
+            for (final Object schema : (List<Object>) schemas) {
+                if (schema instanceof Map) {
+                    final Map<String, Object> row = (Map<String, Object>) schema;
+                    row.put(
+                            "snakeName",
+                            NamingConvention.SNAKE_CASE.apply(Objects.requireNonNull((String) row.get("className"))));
+                }
+            }
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    /**
+     * A response that names a model renamed by {@link #toModelName} (a schema called
+     * {@code Result}) still carries the raw schema name as its data type; every place that spells
+     * the return type or a declared error body then names the prelude item instead of the model.
+     */
+    @Override
+    public CodegenOperation fromOperation(
+            String path, String httpMethod, Operation operation, List<Server> servers) {
+        final CodegenOperation op = super.fromOperation(path, httpMethod, operation, servers);
+        op.returnType = renamePreludeModels(op.returnType);
+        op.returnBaseType = renamePreludeModels(op.returnBaseType);
+        if (op.responses != null) {
+            for (final CodegenResponse response : op.responses) {
+                response.dataType = renamePreludeModels(response.dataType);
+                response.baseType = renamePreludeModels(response.baseType);
+            }
+        }
+        return op;
+    }
+
+    /**
+     * Points every whole-word mention of a renamed prelude model in a type at the renamed model.
+     *
+     * @param type a Rust type such as {@code Result} or {@code Vec<Result>}, or null
+     * @return the type with each renamed model spelled as the generator names it
+     */
+    @Nullable
+    static String renamePreludeModels(@Nullable String type) {
+        if (type == null) {
+            return null;
+        }
+        String renamed = type;
+        for (final String prelude : RUST_PRELUDE_TYPES) {
+            renamed = renamed.replaceAll("(?<![\\w:])" + prelude + "(?![\\w<])", "Model" + prelude);
+        }
+        return renamed;
     }
 
     /** {@inheritDoc} */

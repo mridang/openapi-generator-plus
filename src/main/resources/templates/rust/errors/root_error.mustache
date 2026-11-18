@@ -1,21 +1,35 @@
 {{>api_info}}
 
-use crate::errors::api_error::{ApiError, ApiErrorKind};
+use crate::errors::api_error::{ApiError, ApiErrorInfo, ApiErrorKind};
+use crate::errors::bad_gateway_error::BadGatewayError;
 use crate::errors::bad_request_error::BadRequestError;
 use crate::errors::client_error::ClientError;
 use crate::errors::conflict_error::ConflictError;
 use crate::errors::forbidden_error::ForbiddenError;
+use crate::errors::gateway_timeout_error::GatewayTimeoutError;
+use crate::errors::gone_error::GoneError;
 use crate::errors::internal_server_error::InternalServerError;
+use crate::errors::locked_error::LockedError;
+use crate::errors::method_not_allowed_error::MethodNotAllowedError;
 use crate::errors::network_error::NetworkError;
 use crate::errors::network_timeout_error::NetworkTimeoutError;
 use crate::errors::not_found_error::NotFoundError;
-use crate::errors::server_error::ServerError;
-use crate::errors::unauthorized_error::UnauthorizedError;
-use crate::errors::too_many_requests_error::TooManyRequestsError;
-use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::errors::not_implemented_error::NotImplementedError;
 use crate::errors::oauth2_server_error::OAuth2ServerError;
 use crate::errors::oauth2_token_error::OAuth2TokenError;
+use crate::errors::payload_too_large_error::PayloadTooLargeError;
+use crate::errors::payment_required_error::PaymentRequiredError;
+use crate::errors::request_timeout_error::RequestTimeoutError;
 use crate::errors::serialization_error::SerializationError;
+use crate::errors::server_error::ServerError;
+use crate::errors::service_unavailable_error::ServiceUnavailableError;
+use crate::errors::too_many_requests_error::TooManyRequestsError;
+use crate::errors::unauthorized_error::UnauthorizedError;
+use crate::errors::unprocessable_entity_error::UnprocessableEntityError;
+use crate::errors::unsupported_media_type_error::UnsupportedMediaTypeError;
+{{#errorSchemas}}
+use crate::errors::{{snakeName}}::{{className}};
+{{/errorSchemas}}
 
 /// Branded root of the SDK error hierarchy.
 ///
@@ -82,6 +96,86 @@ impl {{errorPrefix}}Error for NetworkTimeoutError {}
 impl {{errorPrefix}}Error for SerializationError {}
 impl {{errorPrefix}}Error for OAuth2ServerError {}
 impl {{errorPrefix}}Error for OAuth2TokenError {}
+{{#errorSchemas}}
+impl {{errorPrefix}}Error for {{className}} {}
+{{/errorSchemas}}
+
+/// Implements [`ApiErrorInfo`] for the named 4xx wrappers, which reach their
+/// [`ApiError`] through the [`ClientError`] they wrap.
+macro_rules! api_error_info_through_client {
+    ($($wrapper:ty),+ $(,)?) => {
+        $(
+            impl ApiErrorInfo for $wrapper {
+                fn api_error(&self) -> &ApiError {
+                    self.client_error().api_error()
+                }
+            }
+        )+
+    };
+}
+
+/// Implements [`ApiErrorInfo`] for the named 5xx wrappers, which reach their
+/// [`ApiError`] through the [`ServerError`] they wrap.
+macro_rules! api_error_info_through_server {
+    ($($wrapper:ty),+ $(,)?) => {
+        $(
+            impl ApiErrorInfo for $wrapper {
+                fn api_error(&self) -> &ApiError {
+                    self.server_error().api_error()
+                }
+            }
+        )+
+    };
+}
+
+api_error_info_through_client!(
+    BadRequestError,
+    UnauthorizedError,
+    ForbiddenError,
+    NotFoundError,
+    ConflictError,
+    UnprocessableEntityError,
+    TooManyRequestsError,
+    PaymentRequiredError,
+    MethodNotAllowedError,
+    RequestTimeoutError,
+    GoneError,
+    PayloadTooLargeError,
+    UnsupportedMediaTypeError,
+    LockedError,
+);
+
+api_error_info_through_server!(
+    NotImplementedError,
+    BadGatewayError,
+    ServiceUnavailableError,
+    GatewayTimeoutError,
+    InternalServerError,
+);
+
+impl ApiErrorInfo for ClientError {
+    fn api_error(&self) -> &ApiError {
+        ClientError::api_error(self)
+    }
+}
+
+impl ApiErrorInfo for ServerError {
+    fn api_error(&self) -> &ApiError {
+        ServerError::api_error(self)
+    }
+}
+
+impl ApiErrorInfo for NetworkError {
+    fn api_error(&self) -> &ApiError {
+        NetworkError::api_error(self)
+    }
+}
+
+impl ApiErrorInfo for NetworkTimeoutError {
+    fn api_error(&self) -> &ApiError {
+        self.network_error().api_error()
+    }
+}
 
 /// Lets a caller match on the SDK's HTTP errors without downcasting by hand.
 ///
@@ -120,6 +214,11 @@ impl {{errorPrefix}}ErrorExt for dyn std::error::Error + Send + Sync + 'static {
         if let Some(e) = self.downcast_ref::<ApiError>() {
             return Some(e);
         }
+{{#errorSchemas}}
+        if let Some(e) = self.downcast_ref::<{{className}}>() {
+            return Some(ApiErrorInfo::api_error(e));
+        }
+{{/errorSchemas}}
         if let Some(e) = self.downcast_ref::<ClientError>() {
             return Some(e.api_error());
         }

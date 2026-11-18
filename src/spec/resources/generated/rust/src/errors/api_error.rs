@@ -76,6 +76,19 @@ pub(crate) enum TransportFailure {
     Timeout,
 }
 
+/// Builds the error for one error schema an operation declares. An operation
+/// hands the factories of its own declared error responses to
+/// [`ApiError::from_response_with`], which picks the one for the status that
+/// arrived. The arguments are the status code, the response headers, the raw
+/// response body, and the method and path of the request.
+pub type ErrorFactory = fn(
+    u16,
+    &HashMap<String, String>,
+    &str,
+    Option<&str>,
+    Option<&str>,
+) -> Box<dyn std::error::Error + Send + Sync>;
+
 /// Error returned when an API call fails, including the HTTP status code,
 /// response headers, and response body.
 #[derive(Debug, Clone)]
@@ -220,6 +233,61 @@ impl ApiError {
         request_method: Option<&str>,
         request_path: Option<&str>,
     ) -> Box<dyn std::error::Error + Send + Sync> {
+        Self::status_error(Self::for_response(
+            status_code,
+            headers,
+            body,
+            request_method,
+            request_path,
+        ))
+    }
+
+    /// Maps an HTTP response that was not a success to the error of the schema
+    /// its operation declares for the status.
+    ///
+    /// `factories` are the operation's own error factories by declared status:
+    /// an exact status such as `"404"`, then the range `"4XX"` or `"5XX"`, then
+    /// `"default"`. The factory of the first key that matches builds the error;
+    /// a status that none of the keys covers, and an operation with no
+    /// factories, give the error [`ApiError::from_response`] gives. A factory
+    /// whose schema the body does not match hands back that same status error
+    /// with the raw body and the decoding failure as its cause, so a body that
+    /// does not fit its schema never hides the real error.
+    pub fn from_response_with(
+        status_code: u16,
+        headers: &HashMap<String, String>,
+        body: &str,
+        request_method: Option<&str>,
+        request_path: Option<&str>,
+        factories: &[(&str, ErrorFactory)],
+    ) -> Box<dyn std::error::Error + Send + Sync> {
+        let range = match status_code {
+            400..=499 => Some("4XX"),
+            500..=599 => Some("5XX"),
+            _ => None,
+        };
+        let exact = status_code.to_string();
+        let factory = factories
+            .iter()
+            .find(|(key, _)| *key == exact)
+            .or_else(|| factories.iter().find(|(key, _)| Some(*key) == range))
+            .or_else(|| factories.iter().find(|(key, _)| *key == "default"))
+            .map(|(_, factory)| factory);
+        match factory {
+            Some(factory) => factory(status_code, headers, body, request_method, request_path),
+            None => Self::from_response(status_code, headers, body, request_method, request_path),
+        }
+    }
+
+    /// The [`ApiError`] for a response: the status, the headers and the raw
+    /// body, and the request when both its method and its path are known.
+    pub(crate) fn for_response(
+        status_code: u16,
+        headers: &HashMap<String, String>,
+        body: &str,
+        request_method: Option<&str>,
+        request_path: Option<&str>,
+    ) -> ApiError {
         let mut base_err = Self::new(
             status_code,
             match (request_method, request_path) {
@@ -242,6 +310,14 @@ impl ApiError {
             }
         }
 
+        base_err
+    }
+
+    /// Wraps an [`ApiError`] in the error type of its status: a named wrapper
+    /// where the status has one, [`ClientError`] or [`ServerError`] for any
+    /// other 4xx or 5xx, and the plain [`ApiError`] otherwise.
+    pub(crate) fn status_error(base_err: ApiError) -> Box<dyn std::error::Error + Send + Sync> {
+        let status_code = base_err.status_code;
         type Boxed = Box<dyn std::error::Error + Send + Sync>;
 
         if (400..500).contains(&status_code) {
@@ -292,6 +368,14 @@ impl ApiError {
         Box::new(base_err)
     }
 
+    /// Records why the response body could not be decoded as the schema its
+    /// operation declares, so the error keeps its status and raw body and
+    /// still names the cause through [`std::error::Error::source`].
+    pub(crate) fn with_cause(mut self, cause: Arc<dyn std::error::Error + Send + Sync>) -> Self {
+        self.source = Some(cause);
+        self
+    }
+
     /// The HTTP status code.
     pub fn status_code(&self) -> u16 {
         self.status_code
@@ -324,6 +408,20 @@ impl ApiError {
         self.request_path.as_deref()
     }
 
+    /// Whether repeating the request can succeed: the status is 408, 409, 429
+    /// or a 5xx other than 501, the statuses the client itself retries. The
+    /// answer depends on the status alone.
+    pub fn is_retryable(&self) -> bool {
+        is_retryable_status(self.status_code)
+    }
+
+    /// The request id the server sent in the `x-request-id` response header
+    /// (the header name is matched without regard to case), or `None` when the
+    /// header is absent.
+    pub fn request_id(&self) -> Option<&str> {
+        request_id_of(self.response_headers.as_ref())
+    }
+
     /// The parsed JSON error body, or `None` when the response carried no body
     /// or the body was not valid JSON.
     pub fn error_body(&self) -> Option<JsonValue> {
@@ -342,6 +440,21 @@ impl ApiError {
     ) -> Result<Option<T>, SerializationError> {
         deserialize_error_body(self.response_body.as_deref())
     }
+}
+
+/// Whether a response status is worth sending the request again for: 408, 409,
+/// 429 and every 5xx except 501. The one definition the client's retry loop and
+/// the error accessors share.
+pub(crate) fn is_retryable_status(status: u16) -> bool {
+    matches!(status, 408 | 409 | 429) || ((500..600).contains(&status) && status != 501)
+}
+
+/// The value of the `x-request-id` header, matched without regard to case.
+fn request_id_of(headers: Option<&HashMap<String, String>>) -> Option<&str> {
+    headers?
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case("x-request-id"))
+        .map(|(_, value)| value.as_str())
 }
 
 /// Returns `path` cut at the first `?` or `#`.
@@ -563,6 +676,16 @@ impl ApiErrorFields {
         self.response_headers.as_ref()
     }
 
+    /// Whether repeating the request can succeed; see [`ApiError::is_retryable`].
+    pub fn is_retryable(&self) -> bool {
+        is_retryable_status(self.status_code)
+    }
+
+    /// The `x-request-id` response header, or `None` when it is absent.
+    pub fn request_id(&self) -> Option<&str> {
+        request_id_of(self.response_headers.as_ref())
+    }
+
     /// Returns the parsed JSON error body, or `None` when the response carried no
     /// body or the body was not valid JSON.
     pub fn error_body(&self) -> Option<JsonValue> {
@@ -747,3 +870,55 @@ impl fmt::Display for ApiErrorKind {
 }
 
 impl std::error::Error for ApiErrorKind {}
+
+/// What every error built from an HTTP response offers, whichever type it is:
+/// the root [`ApiError`], a status type such as [`NotFoundError`](crate::errors::NotFoundError)
+/// or [`ClientError`](crate::errors::ClientError), or the error of a declared
+/// error schema. Each type wraps the one above it and reaches the root through
+/// [`api_error`](ApiErrorInfo::api_error); the other methods read from it, so a
+/// function that takes `&impl ApiErrorInfo` reads the same facts from any of them.
+pub trait ApiErrorInfo {
+    /// The [`ApiError`] at the root of this error.
+    fn api_error(&self) -> &ApiError;
+
+    /// The HTTP status code, or 0 when the request produced no response.
+    fn status_code(&self) -> u16 {
+        self.api_error().status_code()
+    }
+
+    /// The raw response body, if available.
+    fn response_body(&self) -> Option<&str> {
+        self.api_error().response_body()
+    }
+
+    /// The response headers, if available.
+    fn response_headers(&self) -> Option<&HashMap<String, String>> {
+        self.api_error().response_headers()
+    }
+
+    /// The HTTP method of the request that failed, when known.
+    fn request_method(&self) -> Option<&str> {
+        self.api_error().request_method()
+    }
+
+    /// The path of the request that failed, without its query string, when known.
+    fn request_path(&self) -> Option<&str> {
+        self.api_error().request_path()
+    }
+
+    /// Whether repeating the request can succeed; see [`ApiError::is_retryable`].
+    fn is_retryable(&self) -> bool {
+        self.api_error().is_retryable()
+    }
+
+    /// The `x-request-id` response header, or `None` when it is absent.
+    fn request_id(&self) -> Option<&str> {
+        self.api_error().request_id()
+    }
+}
+
+impl ApiErrorInfo for ApiError {
+    fn api_error(&self) -> &ApiError {
+        self
+    }
+}

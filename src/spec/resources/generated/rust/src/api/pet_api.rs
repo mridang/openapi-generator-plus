@@ -259,6 +259,10 @@ impl PetApi {
     /// Add a new pet to the store
     /// * `pet`: Create a new pet in the store
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn add_pet(
         &self,
         pet: Pet,
@@ -334,6 +338,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
              * client-level authenticator). */
@@ -346,6 +351,10 @@ impl PetApi {
     /// Add photos to the pet's gallery
     /// Uploads one or more photos with structured metadata. The metadata part is serialised as JSON within the multipart body.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn add_pet_photos(
         &self,
         pet_id: i64,
@@ -468,6 +477,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<Photo>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -577,6 +587,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "PetTreatment",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
              * client-level authenticator). */
@@ -592,6 +603,10 @@ impl PetApi {
     /// * `pet_id`: Pet id to delete
     /// * `api_key`: Session cookie used for authentication
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     pub async fn delete_pet(
         &self,
         pet_id: i64,
@@ -716,6 +731,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* Secured operation: pass the resolved per-call authenticator (or
              * None for no override, which lets BaseApi fall back to the
              * client-level authenticator). */
@@ -728,6 +744,10 @@ impl PetApi {
     /// Download a vet document
     /// Returns the raw document bytes as an octet-stream. The original MIME type is communicated via the Content-Type response header.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn download_pet_document(
         &self,
         pet_id: i64,
@@ -839,6 +859,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<u8>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -938,6 +959,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<Pet>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -954,6 +976,10 @@ impl PetApi {
     /// * `born_after`: Only return pets born on or after this date
     /// * `report_date`: Reference date for the report
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
     /// ### `status` — Available only
     /// Show only pets currently in stock
     /// ```json
@@ -1138,6 +1164,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<Pet>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1245,6 +1272,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1353,6 +1381,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1364,6 +1393,10 @@ impl PetApi {
     /// Get the pet's profile photo
     /// Returns the raw image bytes of the pet's current avatar.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_avatar(
         &self,
         pet_id: i64,
@@ -1450,6 +1483,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<u8>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1461,6 +1495,10 @@ impl PetApi {
     /// Get the pet's avatar thumbnail as base64
     /// Returns a compact base64-encoded thumbnail suitable for embedding directly in mobile UI without a separate image request.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
@@ -1550,6 +1588,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<u8>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1563,6 +1602,11 @@ impl PetApi {
     #[deprecated]
     /// * `pet_id`: ID of pet to return
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     /// ### `pet_id` — Small breed ID
     /// A common small-breed pet identifier
     /// ```json
@@ -1671,6 +1715,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1871,6 +1916,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1882,6 +1928,10 @@ impl PetApi {
     /// Get the pet's passport
     /// Returns a single JSON document combining the pet's profile with an embedded base64 thumbnail and base64-encoded scans of each passport page, suitable for mobile clients that prefer a single-request workflow.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_passport(
         &self,
         pet_id: i64,
@@ -1970,6 +2020,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "PetPassport",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -1981,6 +2032,10 @@ impl PetApi {
     /// Get a photo or its metadata
     /// Returns the raw image bytes or JSON metadata depending on the Accept header sent by the client.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_photo(
         &self,
         pet_id: i64,
@@ -2090,6 +2145,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Vec<u8>",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2104,6 +2160,10 @@ impl PetApi {
     /// * `session`: Session token: "a\<b\>" & it's required
     /// * `days`: Extra dates to summarise
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn get_pet_summary(
         &self,
         pet_id: i64,
@@ -2304,6 +2364,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "String",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2691,6 +2752,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2798,6 +2860,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2812,6 +2875,10 @@ impl PetApi {
     ///   `image/jpeg`, `image/png`, `application/json`; `None` sends the first declared one. Only the header changes:
     ///   the caller supplies a body the server accepts for the chosen type.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn set_pet_avatar(
         &self,
         pet_id: i64,
@@ -2921,6 +2988,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -2932,6 +3000,10 @@ impl PetApi {
     /// Set the pet's avatar thumbnail as base64
     /// Accepts either a single base64-encoded thumbnail or an array of candidates; the server selects the most suitable one.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn set_pet_avatar_thumbnail(
         &self,
         pet_id: i64,
@@ -3020,6 +3092,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3031,6 +3104,10 @@ impl PetApi {
     /// Update a pet's notification preferences
     /// Submits preferences as an application/x-www-form-urlencoded form. Used to exercise array-field (repeated-key) serialization and optional-field omission so the wire bytes are identical across every SDK.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn set_pet_preferences(
         &self,
         pet_id: i64,
@@ -3145,6 +3222,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "ApiResponse",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3157,6 +3235,11 @@ impl PetApi {
     /// * `pet_id`: ID of pet to update
     /// * `pet`: Pet object that needs to be updated
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 400: [`BadRequestError`](crate::errors::BadRequestError)
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn update_pet(
         &self,
         pet_id: i64,
@@ -3246,6 +3329,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "Pet",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3257,6 +3341,10 @@ impl PetApi {
     /// Upload the pet's adoption certificate
     /// Attaches a single adoption certificate document. No metadata fields are required alongside the file.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn upload_pet_certificate(
         &self,
         pet_id: i64,
@@ -3364,6 +3452,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "ApiResponse",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,
@@ -3378,6 +3467,10 @@ impl PetApi {
     ///   `multipart/form-data`, `application/octet-stream`; `None` sends the first declared one. Only the header changes:
     ///   the caller supplies a body the server accepts for the chosen type.
     /// * `options`: Options for query, header, form, and cookie parameters.
+    /// # Errors
+    ///
+    /// The error comes back boxed; downcast it to the type of the status that arrived.
+    /// * HTTP 404: [`NotFoundError`](crate::errors::NotFoundError)
     pub async fn upload_pet_document(
         &self,
         pet_id: i64,
@@ -3565,6 +3658,7 @@ impl PetApi {
             content_type: request_content_type,
             return_type: "ApiResponse",
             call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
             /* This operation inherits the global security requirement; pass
              * None so BaseApi falls back to the client-level authenticator. */
             auth: None,

@@ -315,7 +315,9 @@ public final class ErrorResponses {
      * distinct error schemas, in the order they are first seen. Each entry has
      * {@code schemaName}, {@code className}, {@code parentStem},
      * {@code parentClassName}, {@code ancestorClassNames} (the parent and every type above it, ending in the base
-     * type), {@code statuses} and {@code hasMultipleStatuses}.
+     * type), {@code parentIsFamily}, {@code parentIsApi}, {@code parentIsClient}, {@code parentIsServer},
+     * {@code parentUnderClient} (the parent is a specific 4xx status class), {@code parentUnderServer} (a
+     * specific 5xx status class), {@code statuses} and {@code hasMultipleStatuses}.
      *
      * @param operations the rows of every operation, from {@link #operationRows}
      * @param suffix the language's error suffix
@@ -370,6 +372,11 @@ public final class ErrorResponses {
             }
             schema.put("ancestorClassNames", ancestors);
             schema.put("parentIsFamily", API.equals(parent) || CLIENT.equals(parent) || SERVER.equals(parent));
+            schema.put("parentIsApi", API.equals(parent));
+            schema.put("parentIsClient", CLIENT.equals(parent));
+            schema.put("parentIsServer", SERVER.equals(parent));
+            schema.put("parentUnderClient", CLIENT.equals(parentStem(parent)));
+            schema.put("parentUnderServer", SERVER.equals(parentStem(parent)));
             schema.put("statuses", new ArrayList<>(e.getValue()));
             schema.put("hasMultipleStatuses", e.getValue().size() > 1);
             schema.put("sampleStatus", sampleStatus(e.getValue().iterator().next()));

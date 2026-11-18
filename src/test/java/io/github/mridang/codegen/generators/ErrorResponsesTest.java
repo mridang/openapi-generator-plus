@@ -194,4 +194,27 @@ class ErrorResponsesTest {
         assertEquals(List.of("ServerError", "ApiError"), schemas.get(1).get("ancestorClassNames"));
         assertEquals(List.of("ApiError"), schemas.get(2).get("ancestorClassNames"));
     }
+
+    @Test
+    void aSchemaSaysWhichFamilyItsParentStatusClassBelongsTo() {
+        final List<Map<String, Object>> schemas =
+                ErrorResponses.distinctSchemas(
+                        List.of(
+                                ErrorResponses.operationRows(
+                                        List.of(
+                                                d("404", "Gone"),
+                                                d("503", "Down"),
+                                                d("4XX", "Wide"),
+                                                d("5XX", "Broken"),
+                                                d("default", "Other")),
+                                        "Error")),
+                        "Error");
+        assertEquals(true, schemas.get(0).get("parentUnderClient"));
+        assertEquals(false, schemas.get(0).get("parentUnderServer"));
+        assertEquals(true, schemas.get(1).get("parentUnderServer"));
+        assertEquals(true, schemas.get(2).get("parentIsClient"));
+        assertEquals(true, schemas.get(3).get("parentIsServer"));
+        assertEquals(true, schemas.get(4).get("parentIsApi"));
+        assertEquals(false, schemas.get(4).get("parentUnderClient"));
+    }
 }

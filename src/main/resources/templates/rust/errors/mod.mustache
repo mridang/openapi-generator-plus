@@ -30,10 +30,13 @@ pub mod oauth2_server_error;
 pub mod oauth2_token_error;
 pub mod oauth2_authorization_code_error;
 pub mod configuration_error;
+{{#errorSchemas}}
+pub mod {{snakeName}};
+{{/errorSchemas}}
 
 pub use {{errorPrefixSnake}}_error::{{errorPrefix}}Error;
 pub use {{errorPrefixSnake}}_error::{{errorPrefix}}ErrorExt;
-pub use api_error::{ApiError, ApiErrorFields, ApiErrorKind};
+pub use api_error::{ApiError, ApiErrorFields, ApiErrorInfo, ApiErrorKind, ErrorFactory};
 pub use client_error::ClientError;
 pub use server_error::ServerError;
 pub use bad_request_error::BadRequestError;
@@ -62,3 +65,6 @@ pub use oauth2_server_error::OAuth2ServerError;
 pub use oauth2_token_error::OAuth2TokenError;
 pub use oauth2_authorization_code_error::OAuth2AuthorizationCodeError;
 pub use configuration_error::ConfigurationError;
+{{#errorSchemas}}
+pub use {{snakeName}}::{{className}};
+{{/errorSchemas}}
