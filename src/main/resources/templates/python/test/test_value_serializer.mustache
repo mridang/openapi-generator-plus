@@ -53,6 +53,16 @@ class TestValueSerializerPath:
     def test_bhv_misc_250_array_items_with_a_comma_keep_the_literal_separator_on_a_path(self) -> None:
         assert ValueSerializer.serialize(['a,b', 'c'], 'path', 'array', 'csv') == 'a%2Cb,c'
 
+    def test_bhv_misc_232_a_string_path_parameter_in_simple_style_percent_encodes_slashes(self) -> None:
+        assert ValueSerializer.serialize('a/b', 'path', 'string') == 'a%2Fb'
+
+    def test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded(self) -> None:
+        rendered = ValueSerializer.serialize('{"a":1.5}', 'cookie', 'string')
+
+        assert '%7B' in rendered
+        assert '%3A' in rendered
+        assert ':' not in rendered
+
 
 class TestValueSerializerQuery:
     def test_bhv_serializationparam_067_null_returns_none(self) -> None:

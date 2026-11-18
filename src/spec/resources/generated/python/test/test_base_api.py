@@ -360,6 +360,32 @@ class TestErrorBodyParsing:
             "error_body should not be None for JSON responses"
         )
 
+    async def test_bhv_misc_237_an_iso_8859_1_error_body_decodes_to_utf8_text(
+        self,
+    ) -> None:
+        pool = _ScriptedPool(
+            _FakeResponse(
+                404,
+                {"content-type": "application/json; charset=ISO-8859-1"},
+                "café".encode("latin-1"),
+            )
+        )
+        api = _pool_api(pool)
+
+        with pytest.raises(ApiException) as exc_info:
+            await api.call(
+                "GET",
+                "/x",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+
+        assert exc_info.value.response_body == "café"
+
 
 class TestErrorHeaders:
     """python-error-throw-headers-coerced-to-none: an error response with an
@@ -5371,6 +5397,105 @@ class TestRetryOutcomesAndBodyReplay:
             )
             is None
         )
+
+    async def test_bhv_misc_223_a_see_other_redirect_drops_the_body_of_the_follow_up(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((303, {"Location": "/y"}, "{}"), _OK)
+
+        await api_post_text(_retry_api(server), '{"a":1}')
+
+        assert len(server.requests) == 2
+        assert server.bodies[1] == ""
+
+    async def test_bhv_misc_224_transport_default_headers_are_not_sent_to_another_origin_after_a_redirect(
+        self,
+    ) -> None:
+        pool = _ScriptedPool(
+            _FakeResponse(302, {"location": "https://other.example.test/"}),
+            _FakeResponse(200, {}, b"{}"),
+        )
+        options = (
+            TransportOptions.builder()
+            .max_retries(0)
+            .follow_redirects(True)
+            .default_header("X-Api-Key", "secret")
+            .build()
+        )
+        api = StubApi(
+            api_client=DefaultApiClient(options, pool_manager=pool),
+            config=Configuration(base_url="https://example.test"),
+        )
+
+        await api.call(
+            "GET", "/x", {}, {}, None, ["application/json"], "application/json", None
+        )
+
+        sent = {str(name).lower() for name in pool.seen_headers[1]}
+        assert "x-api-key" not in sent
+
+    async def test_bhv_misc_225_a_3xx_without_a_location_is_returned_as_the_final_response(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((302, {}, "{}"))
+
+        result = await _retry_api(server).call_result(
+            "GET", "/x", {}, {}, None, ["application/json"], "application/json", None
+        )
+
+        assert result.status_code == 302
+
+    async def test_bhv_misc_226_a_302_is_followed_to_its_target_and_the_final_200_is_returned(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((302, {"Location": "/y"}, "{}"), _OK)
+
+        result = await _retry_api(server).call_result(
+            "GET", "/x", {}, {}, None, ["application/json"], "application/json", None
+        )
+
+        assert result.status_code == 200
+        assert len(server.requests) == 2
+
+    async def test_bhv_misc_227_a_connection_dropped_before_any_response_is_retried(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(None, _OK)
+
+        await _get(_retry_api(server, max_retries=1))
+
+        assert len(server.requests) == 2
+
+    async def test_bhv_misc_228_an_unparseable_retry_after_falls_back_to_the_normal_backoff(
+        self, scripted: Any
+    ) -> None:
+        server = scripted((503, {"Retry-After": "soon"}, "{}"), _OK)
+
+        await _get(_retry_api(server, max_retries=1))
+
+        assert len(server.requests) == 2
+
+    async def test_bhv_misc_229_a_per_call_max_retries_overrides_a_client_with_no_retries(
+        self, scripted: Any
+    ) -> None:
+        server = scripted(
+            (503, {"Retry-After": "0"}, "{}"), (503, {"Retry-After": "0"}, "{}"), _OK
+        )
+        api = _retry_api(server, max_retries=0)
+
+        await api.call_result(
+            "GET",
+            "/x",
+            {},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+            request_options=ReserveStockOptions(max_retries=2),
+        )
+
+        assert len(server.requests) == 3
 
 
 async def api_post_text(api: StubApi, text: str) -> Any:
