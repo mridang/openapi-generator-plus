@@ -35,6 +35,57 @@ end
 defmodule {{moduleName}}.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
+  describe "wire rules for models and values" do
+    test "bhv misc 215 an input object with no fields is filled with every declared default value" do
+      assert {{moduleName}}.ObjectSerializer.deserialize(~s({}), "Defaults") == %{{moduleName}}.Models.Defaults{}
+    end
+
+    test "bhv misc 230 a model with no extra properties writes exactly its declared keys, with no nested data key" do
+      json = {{moduleName}}.ObjectSerializer.serialize(%{{moduleName}}.Models.Account{id: 7, username: "u"})
+
+      assert json |> Jason.decode!() |> Map.keys() |> Enum.sort() == ["id", "username"]
+    end
+
+    test "bhv misc 231 a model built in code keeps a value of the wrong type, while decoding that value from JSON raises" do
+      assert %{{moduleName}}.Models.Account{id: "seven"}.id == "seven"
+
+      assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+        {{moduleName}}.ObjectSerializer.deserialize(~s({"id":"seven"}), "Account")
+      end
+    end
+
+    test "bhv misc 234 a model inside a list keeps its additional properties through serialize and deserialize" do
+      [meta] = {{moduleName}}.ObjectSerializer.deserialize(~s([{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}]), "[Metadata]")
+      assert meta.additional_properties["region"] == "eu"
+
+      [back] = {{moduleName}}.ObjectSerializer.deserialize({{moduleName}}.ObjectSerializer.serialize([meta]), "[Metadata]")
+      assert back.additional_properties["region"] == "eu"
+    end
+
+    test "bhv misc 235 a duration with fractional seconds keeps its fraction when serialized" do
+      assert {{moduleName}}.ObjectSerializer.stringify(Duration.new!(second: 1, microsecond: {500_000, 6})) == "1.500s"
+    end
+
+    test "bhv misc 243 an absent optional array field decodes to nil, not to an empty list" do
+      assert native_values(~s({})).addresses == nil
+    end
+
+    test "bhv misc 244 a body with a leading byte-order mark decodes into the model" do
+      category = {{moduleName}}.ObjectSerializer.deserialize(<<0xEF, 0xBB, 0xBF>> <> ~s({"id":1,"name":"Dogs"}), "Category")
+
+      assert %{{moduleName}}.Models.Category{} = category
+      assert category.id == 1
+    end
+  end
+
+  describe "failed serialization" do
+    test "bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix" do
+      assert_raise {{moduleName}}.Errors.SerializationError, ~r/^Failed to serialize object to JSON/, fn ->
+        {{moduleName}}.ObjectSerializer.serialize(self())
+      end
+    end
+  end
+
   describe "model documentation" do
     test "bhv serializationobject 227 a model externalDocs description is documented verbatim without HTML entities" do
       {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs({{moduleName}}.Models.Account)
