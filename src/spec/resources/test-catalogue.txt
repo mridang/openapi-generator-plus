@@ -1982,3 +1982,9 @@ langswift037 | A caller-supplied session still applies the redirect rules
 langswift038 | An explicit utf-16le charset label decodes without sniffing the byte order mark
 langswift039 | Parsing a CA certificate bundle reads every PEM block in it and ignores surrounding text
 langswift040 | A CA certificate in DER form is accepted and bytes that are not a certificate are rejected
+langswift041 | Copying a recursive model keeps its child and can clear it
+langswift042 | The README has each section the generated package promises
+langswift043 | The README names the request context that errors carry
+langswift044 | The README names the environment variable of every authentication scheme
+langswift045 | The README says every operation takes an options struct
+langswift046 | The README lists the license in the package section
