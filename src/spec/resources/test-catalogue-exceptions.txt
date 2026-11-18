@@ -608,3 +608,5 @@ go | misc153 | Go has no client-level cancellation signal: a context is passed t
 ||||||| 2c1a36607
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
 go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
+php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
+php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
