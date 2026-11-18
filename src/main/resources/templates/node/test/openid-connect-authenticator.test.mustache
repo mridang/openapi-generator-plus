@@ -55,7 +55,7 @@ describe('OpenIdConnectAuthenticator', () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test('the synchronous getAuthHeaders throws instead of returning unauthenticated headers', () => {
+  test('bhv auth 001 the synchronous getAuthHeaders throws instead of returning unauthenticated headers', () => {
     expect(() => authenticator.getAuthHeaders()).toThrow(
       'OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.'
     );
