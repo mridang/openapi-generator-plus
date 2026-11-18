@@ -2000,3 +2000,27 @@ langpython057 | The builder sets the call hook and the configuration reads it ba
 langpython058 | The string form does not print the call hook.
 langpython059 | The environment fills a value that was not passed.
 langpython060 | Strips credential named headers on a cross origin hop.
+langpython061 | Extracts charset parameter.
+langpython062 | Emoji name gets a single underscore.
+langpython063 | Text mode file is rejected not silently reencoded.
+langpython064 | Explicit str tuple content is rejected.
+langpython065 | 308 downgrade with body raises.
+langpython066 | A pool manager that does not follow redirects is accepted.
+langpython067 | 302 post to get drops content length.
+langpython068 | 302 bodyless post to get drops the zero content length.
+langpython069 | Parent segment is removed.
+langpython070 | Current segment is removed.
+langpython071 | Absolute path keeps query and fragment.
+langpython072 | Protocol relative reference inherits the scheme.
+langpython073 | Absolute url is returned verbatim.
+langpython074 | Unparseable location resolves to none.
+langpython075 | Direct pool keeps ten connections per host.
+langpython076 | Proxy pool keeps ten connections per host.
+langpython077 | Close is idempotent.
+langpython078 | Sensitive header comment lists names without a dangling separator.
+langpython079 | Frame with content size decodes.
+langpython080 | Close clears the pool manager the client created.
+langpython081 | These statuses are not retried.
+langpython082 | Retry after in the past means no wait.
+langpython083 | An exhausted deadline times out without sending.
+langpython084 | An unrelated connection failure is not a timeout.

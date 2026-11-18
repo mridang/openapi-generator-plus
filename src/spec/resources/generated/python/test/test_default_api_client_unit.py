@@ -365,7 +365,7 @@ class TestDefaultApiClientUnit:
             ("multipart/bad\r\nX: y", "multipart/form-data"),
         ],
     )
-    def test_multipart_content_type_carries_the_declared_subtype(
+    def test_bhv_misc_100_multipart_content_type_carries_the_declared_subtype(
         self, declared: Any, expected: str
     ) -> None:
         request_headers = {} if declared is None else {"Content-Type": declared}
@@ -491,7 +491,7 @@ class TestCharsetDecoding:
         )
         assert _decode_with_charset(b"\x00h\x00i", "text/plain; charset=utf-16") == "hi"
 
-    def test_extracts_charset_parameter(self) -> None:
+    def test_bhv_lang_python_061_extracts_charset_parameter(self) -> None:
         assert (
             _charset_from_content_type("text/plain; charset=ISO-8859-1") == "ISO-8859-1"
         )
@@ -607,7 +607,7 @@ class TestMultipartFilenameSanitization:
         assert ascii_fallback == "r_sum_*(1).pdf"
         assert rfc5987 == "UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"
 
-    def test_emoji_name_gets_a_single_underscore(self) -> None:
+    def test_bhv_lang_python_062_emoji_name_gets_a_single_underscore(self) -> None:
         ascii_fallback, rfc5987 = _sanitize_multipart_filename("\U0001f600.png")
         assert ascii_fallback == "_.png"
         assert rfc5987 == "UTF-8''%F0%9F%98%80.png"
@@ -678,7 +678,7 @@ class TestMultipartFieldNameUtf8:
     ) -> None:
         assert _sanitize_multipart_field_name('a"b\\c') == 'a\\"b\\\\c'
 
-    def test_field_name_helper_rejects_nul(self) -> None:
+    def test_bhv_serialization_123_field_name_helper_rejects_nul(self) -> None:
         with pytest.raises(ValueError):
             _sanitize_multipart_field_name("a\x00b")
 
@@ -888,7 +888,9 @@ class TestMultipartContentType:
 class TestMultipartBinaryPreservation:
     """Binary multipart parts must not be re-encoded through UTF-8."""
 
-    def test_text_mode_file_is_rejected_not_silently_reencoded(self) -> None:
+    def test_bhv_lang_python_063_text_mode_file_is_rejected_not_silently_reencoded(
+        self,
+    ) -> None:
         """Passing a str-yielding file-like must NOT silently round-trip via UTF-8."""
         import io
 
@@ -899,7 +901,7 @@ class TestMultipartBinaryPreservation:
         with pytest.raises(TypeError):
             client._build_multipart_body({"upload": text_file}, "boundary")
 
-    def test_explicit_str_tuple_content_is_rejected(self) -> None:
+    def test_bhv_lang_python_064_explicit_str_tuple_content_is_rejected(self) -> None:
         client = DefaultApiClient()
         with pytest.raises(TypeError):
             client._build_multipart_body({"upload": ("file.bin", "hello")}, "boundary")
@@ -1127,7 +1129,7 @@ class TestBodyReplayOnTlsDowngrade:
             )
         assert redirect.released
 
-    def test_308_downgrade_with_body_raises(self) -> None:
+    def test_bhv_lang_python_065_308_downgrade_with_body_raises(self) -> None:
         from petstore_client.errors import ApiException
 
         class _Pool:
@@ -1263,7 +1265,9 @@ class TestCallerPoolManagerRedirects:
         with pytest.raises(ValueError):
             DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
 
-    def test_a_pool_manager_that_does_not_follow_redirects_is_accepted(self) -> None:
+    def test_bhv_lang_python_066_a_pool_manager_that_does_not_follow_redirects_is_accepted(
+        self,
+    ) -> None:
         pool = urllib3.PoolManager(retries=urllib3.Retry(redirect=False))
         client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
         assert client is not None
@@ -1304,7 +1308,7 @@ class TestContentLengthStrippedOnRedirect:
         )
         assert not any(k.lower() == "content-type" for k in followup_headers)
 
-    def test_302_post_to_get_drops_content_length(self) -> None:
+    def test_bhv_lang_python_067_302_post_to_get_drops_content_length(self) -> None:
         # 302 on a POST demotes to GET in our loop (mirrors browser behaviour
         # and the other 11 SDKs). The body and its length headers must go.
         class _Pool:
@@ -1351,7 +1355,9 @@ class TestContentLengthStrippedOnRedirect:
         )
         return pool.calls
 
-    def test_302_bodyless_post_to_get_drops_the_zero_content_length(self) -> None:
+    def test_bhv_lang_python_068_302_bodyless_post_to_get_drops_the_zero_content_length(
+        self,
+    ) -> None:
         calls = self._redirect_once(302, "POST")
         assert calls[0][2]["Content-Length"] == "0"
         assert calls[1][0] == "GET"
@@ -1612,43 +1618,45 @@ class TestRedirectLocationResolution:
 
     BASE = "https://h.example.com/v1/items/1?x=1"
 
-    def test_query_only_reference_keeps_the_base_path(self) -> None:
+    def test_bhv_misc_127_query_only_reference_keeps_the_base_path(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "?page=2")
             == "https://h.example.com/v1/items/1?page=2"
         )
 
-    def test_parent_segment_is_removed(self) -> None:
+    def test_bhv_lang_python_069_parent_segment_is_removed(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "../owners/9")
             == "https://h.example.com/v1/owners/9"
         )
 
-    def test_current_segment_is_removed(self) -> None:
+    def test_bhv_lang_python_070_current_segment_is_removed(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "./a")
             == "https://h.example.com/v1/items/a"
         )
 
-    def test_absolute_path_keeps_query_and_fragment(self) -> None:
+    def test_bhv_lang_python_071_absolute_path_keeps_query_and_fragment(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "/x/y?z=1#f")
             == "https://h.example.com/x/y?z=1#f"
         )
 
-    def test_protocol_relative_reference_inherits_the_scheme(self) -> None:
+    def test_bhv_lang_python_072_protocol_relative_reference_inherits_the_scheme(
+        self,
+    ) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "//other.example.com/p")
             == "https://other.example.com/p"
         )
 
-    def test_absolute_url_is_returned_verbatim(self) -> None:
+    def test_bhv_lang_python_073_absolute_url_is_returned_verbatim(self) -> None:
         assert (
             DefaultApiClient._resolve_url(self.BASE, "FILE:///etc/passwd")
             == "FILE:///etc/passwd"
         )
 
-    def test_unparseable_location_resolves_to_none(self) -> None:
+    def test_bhv_lang_python_074_unparseable_location_resolves_to_none(self) -> None:
         assert DefaultApiClient._resolve_url(self.BASE, "http://[bad") is None
 
     def test_bhv_redirects_017_followed_query_only_redirect_requests_the_resolved_url(
@@ -1676,11 +1684,15 @@ class TestConnectionPoolSizing:
     """The async facade runs requests concurrently, so the pool must keep more
     than urllib3's default of one connection per host."""
 
-    def test_direct_pool_keeps_ten_connections_per_host(self) -> None:
+    def test_bhv_lang_python_075_direct_pool_keeps_ten_connections_per_host(
+        self,
+    ) -> None:
         client = DefaultApiClient()
         assert client._pool_manager.connection_pool_kw["maxsize"] == 10
 
-    def test_proxy_pool_keeps_ten_connections_per_host(self) -> None:
+    def test_bhv_lang_python_076_proxy_pool_keeps_ten_connections_per_host(
+        self,
+    ) -> None:
         options = (
             TransportOptions.builder().proxy("http://proxy.example.com:3128").build()
         )
@@ -1900,7 +1912,7 @@ class TestUseAfterClose:
         assert [response.status_code for response in results] == [200]
         assert pool.cleared is True
 
-    def test_close_is_idempotent(self) -> None:
+    def test_bhv_lang_python_077_close_is_idempotent(self) -> None:
         client = DefaultApiClient()
         client.close()
         client.close()
@@ -2202,7 +2214,7 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
         assert "x-api-key" in DefaultApiClient._SENSITIVE_HEADERS
         assert "x-internal-key" in DefaultApiClient._SENSITIVE_HEADERS
 
-    def test_sensitive_header_comment_lists_names_without_a_dangling_separator(
+    def test_bhv_lang_python_078_sensitive_header_comment_lists_names_without_a_dangling_separator(
         self,
     ) -> None:
         import petstore_client.default_api_client as client_module
@@ -2352,7 +2364,7 @@ class TestZstdDecompression:
 
         assert DefaultApiClient._decompress_body(compressed, "zstd") == payload
 
-    def test_frame_with_content_size_decodes(self) -> None:
+    def test_bhv_lang_python_079_frame_with_content_size_decodes(self) -> None:
         import zstandard
 
         payload = b'{"id":7,"name":"sample"}' * 100
@@ -2734,7 +2746,9 @@ class TestInjectedPoolManager:
 
         assert pool.cleared is False
 
-    def test_close_clears_the_pool_manager_the_client_created(self) -> None:
+    def test_bhv_lang_python_080_close_clears_the_pool_manager_the_client_created(
+        self,
+    ) -> None:
         client = DefaultApiClient()
         pool = _RecordingPool()
         client._pool_manager = pool
@@ -2767,7 +2781,9 @@ class TestRetryPolicy:
         assert _is_retryable_status(status) is True
 
     @pytest.mark.parametrize("status", [200, 301, 400, 401, 403, 404, 422, 501, 600])
-    def test_these_statuses_are_not_retried(self, status: int) -> None:
+    def test_bhv_lang_python_081_these_statuses_are_not_retried(
+        self, status: int
+    ) -> None:
         assert _is_retryable_status(status) is False
 
     @pytest.mark.parametrize(
@@ -2814,7 +2830,7 @@ class TestRetryPolicy:
         assert _retry_delay(0, formatdate(1005, usegmt=True), now=1000.0) == 5.0
         assert _retry_delay(0, formatdate(1000 + 3600, usegmt=True), now=1000.0) == 60.0
 
-    def test_retry_after_in_the_past_means_no_wait(self) -> None:
+    def test_bhv_lang_python_082_retry_after_in_the_past_means_no_wait(self) -> None:
         assert _retry_delay(0, formatdate(900, usegmt=True), now=1000.0) == 0.0
 
     @pytest.mark.parametrize("header", ["", "soon", "-5", "nan", "inf"])
@@ -2823,7 +2839,9 @@ class TestRetryPolicy:
     ) -> None:
         assert _retry_delay(1, header, jitter=0.0) == 1.0
 
-    def test_an_exhausted_deadline_times_out_without_sending(self) -> None:
+    def test_bhv_lang_python_083_an_exhausted_deadline_times_out_without_sending(
+        self,
+    ) -> None:
         class _Pool:
             def request(self, *args: Any, **kwargs: Any) -> Any:
                 raise AssertionError("no request may be sent")
@@ -3007,7 +3025,9 @@ class TestDeadlineAndCancellationClassification:
                 "GET", "https://example.com/x", {}, None
             )
 
-    def test_an_unrelated_connection_failure_is_not_a_timeout(self) -> None:
+    def test_bhv_lang_python_084_an_unrelated_connection_failure_is_not_a_timeout(
+        self,
+    ) -> None:
         from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
