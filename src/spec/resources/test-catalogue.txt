@@ -2607,3 +2607,6 @@ langnode173 | Each style with each explode setting serializes as defined
 langnode174 | A value that is not a YYYY-MM-DD date is refused
 langphp066 | A server variable exposes its default value.
 langphp067 | Non-ASCII text in a serialized string is written literally and never as unicode escapes.
+langphp068 | A hook that returns no observer is skipped while the other hooks still finish.
+langphp069 | The chain returns no observer when no hook returns one.
+langphp070 | Headers edited by one hook are handed on to the next hook.
