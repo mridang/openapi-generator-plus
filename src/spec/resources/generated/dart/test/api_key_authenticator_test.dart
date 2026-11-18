@@ -131,29 +131,32 @@ void main() {
       expect(auth.queryParams(), equals({'api_key': 'abc123'}));
     });
 
-    test('HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)', () {
-      // HEADER location must reject anything outside printable ASCII +
-      // TAB to prevent header injection (\r\n) and silent UTF-8
-      // mangling that varies per HTTP lib.
-      expect(
-        () => ApiKeyAuthenticator(
-          host: '/api/v3',
-          keyParamName: 'X-Api-Key',
-          apiKey: 'abc\r\nInjected: yes',
-          location: ApiKeyLocation.header,
-        ),
-        throwsArgumentError,
-      );
-      expect(
-        () => ApiKeyAuthenticator(
-          host: '/api/v3',
-          keyParamName: 'X-Api-Key',
-          apiKey: 'kéy',
-          location: ApiKeyLocation.header,
-        ),
-        throwsArgumentError,
-      );
-    });
+    test(
+      'bhv langdart 009 HEADER rejects CR/LF and non-ASCII (RFC 7230 §3.2.6)',
+      () {
+        // HEADER location must reject anything outside printable ASCII +
+        // TAB to prevent header injection (\r\n) and silent UTF-8
+        // mangling that varies per HTTP lib.
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'abc\r\nInjected: yes',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => ApiKeyAuthenticator(
+            host: '/api/v3',
+            keyParamName: 'X-Api-Key',
+            apiKey: 'kéy',
+            location: ApiKeyLocation.header,
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
 
     test('bhv authapikey 018 rejects CR in a header key at construction', () {
       expect(
@@ -471,13 +474,16 @@ void main() {
       },
     );
 
-    test('InternalApiKeyAuthenticator sends X-Internal-Key as a header', () {
-      final auth = builders['InternalApiKeyAuthenticator']!('k1');
+    test(
+      'bhv misc 221 InternalApiKeyAuthenticator sends X-Internal-Key as a header',
+      () {
+        final auth = builders['InternalApiKeyAuthenticator']!('k1');
 
-      expect(auth.authHeaders(), equals({'X-Internal-Key': 'k1'}));
-      expect(auth.queryParams(), isEmpty);
-      expect(auth.cookieParams(), isEmpty);
-    });
+        expect(auth.authHeaders(), equals({'X-Internal-Key': 'k1'}));
+        expect(auth.queryParams(), isEmpty);
+        expect(auth.cookieParams(), isEmpty);
+      },
+    );
 
     test(
       'bhv authapikey 006 ApiKeyQueryAuthenticator sends api_key as a query parameter',
