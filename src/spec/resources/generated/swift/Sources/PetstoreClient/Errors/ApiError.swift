@@ -33,7 +33,7 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
   /// Set when wrapping a transport failure (connection reset, read timeout,
   /// DNS failure) so callers can inspect the root error rather than only a
   /// stringified message.
-  public let underlyingError: Error?
+  public internal(set) var underlyingError: Error?
 
   /// The HTTP method of the request that failed (`GET`), or nil when the
   /// error did not come from a request made through an API method.
@@ -100,6 +100,22 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
     message =
       message.isEmpty
       ? "Request failed for \(method) \(shown)" : message + " for \(method) \(shown)"
+  }
+
+  /// Whether repeating the request can succeed: the status is 408, 409, 429
+  /// or a 5xx other than 501, the statuses the client itself retries. It
+  /// looks at the status only, never at the body.
+  public var isRetryable: Bool {
+    return DefaultApiClient.isRetryableStatus(statusCode)
+  }
+
+  /// The request id the server sent in the `x-request-id` response header
+  /// (any letter case), or nil when the header is absent or there was no
+  /// response.
+  public var requestId: String? {
+    guard let headers = responseHeaders else { return nil }
+    return headers.first(where: { $0.key.caseInsensitiveCompare("x-request-id") == .orderedSame })?
+      .value
   }
 
   public var errorDescription: String? {
@@ -209,7 +225,61 @@ public class ApiError: OpenAPIError, LocalizedError, @unchecked Sendable {
   ///   - requestMethod: The HTTP method of the request, named in the message
   ///     when given with `requestPath`.
   ///   - requestPath: The path of the request; any query string is cut.
+  ///   - errorSchemas: The error factories of the operation by declared
+  ///     status. When one matches the status (the exact status first, then
+  ///     the `4XX` or `5XX` range, then `default`) it builds the error of
+  ///     that schema; a body that does not match the schema never hides the
+  ///     real error, the factory then returns the status error with the raw
+  ///     body and the decoding failure as ``underlyingError``. Without a
+  ///     match the result is the plain status error.
   /// - Returns: The error for the status; the caller throws it.
+  public static func fromResponse(
+    statusCode: Int,
+    headers: [String: String]?,
+    body: String,
+    requestMethod: String? = nil,
+    requestPath: String? = nil,
+    errorSchemas: [String: ErrorFactory]?
+  ) -> ApiError {
+    if let schemas = errorSchemas {
+      var factory = schemas[String(statusCode)]
+      if factory == nil && statusCode >= 400 && statusCode < 500 {
+        factory = schemas["4XX"]
+      }
+      if factory == nil && statusCode >= 500 && statusCode < 600 {
+        factory = schemas["5XX"]
+      }
+      if factory == nil {
+        factory = schemas["default"]
+      }
+      if let factory = factory {
+        return factory(statusCode, headers, body, requestMethod, requestPath)
+      }
+    }
+    return fromResponse(
+      statusCode: statusCode, headers: headers, body: body,
+      requestMethod: requestMethod, requestPath: requestPath)
+  }
+
+  /// The status error for a response whose body did not match its declared
+  /// schema: the error ``fromResponse(statusCode:headers:body:requestMethod:requestPath:)``
+  /// gives, with the decoding failure as its ``underlyingError``.
+  ///
+  /// - Parameters:
+  ///   - status: The status error built for the response.
+  ///   - cause: Why the body could not be decoded.
+  /// - Returns: The same error, carrying the cause.
+  public static func statusFallback(_ status: ApiError, cause: Error) -> ApiError {
+    if status.underlyingError == nil {
+      status.underlyingError = cause
+    }
+    return status
+  }
+
+  /// Map an HTTP response that was not a success to the error for its status.
+  ///
+  /// This is the overload without the operation's declared error schemas; see
+  /// ``fromResponse(statusCode:headers:body:requestMethod:requestPath:errorSchemas:)``.
   public static func fromResponse(
     statusCode: Int,
     headers: [String: String]?,
