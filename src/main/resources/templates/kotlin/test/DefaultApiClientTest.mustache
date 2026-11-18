@@ -101,21 +101,6 @@ class DefaultApiClientTest {
             assertEquals("GET", json.get("method").asText())
         }
 
-        @Test
-        @DisplayName("bhvTransport062 verifySsl=false accepts an address the certificate does not name")
-        fun verifySslFalseAcceptsAnAddressTheCertificateDoesNotName() {
-            val transport = TransportOptions.builder()
-                .proxy(SquidContainer.getProxyUrl())
-                .verifySsl(false)
-                .build()
-            val client = DefaultApiClient(transport)
-            val response = runBlocking {
-                client.sendRequest("GET", "${ChasmContainer.getInternalHttpsAddressUrl()}/test/echo", emptyMap(), null)
-            }
-            assertEquals(200, response.statusCode)
-            val json = ObjectMapper().readTree(response.body)
-            assertEquals("GET", json.get("method").asText())
-        }
     }
 
     @Nested

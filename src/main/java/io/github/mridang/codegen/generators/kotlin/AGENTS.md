@@ -289,6 +289,7 @@ Each follows the audit's own proposal, because the owner had not decided; reopen
 ## Known limitations and out of scope
 
 - **Ambient proxy (D74) is a forced divergence on the JVM.** Ktor's CIO engine falls back to `ProxySelector.getDefault()` (the `http.proxyHost` and `https.proxyHost` JVM properties, and the OS proxy) whenever `TransportOptions.proxy` is null, and `HttpClientEngineConfig` has no way to switch that off per client (a `DIRECT` proxy is rejected by `CIOEngine`). The SDK therefore cannot ignore ambient proxy settings; a test that sets the properties and expects a direct connection fails, so none is generated.
+- **TLS host name check is a forced divergence on the JVM (transport062).** `verifySsl=false` turns off certificate validation, but the Ktor CIO engine (`TLSClientHandshake.handleCertificatesAndKeys`) still calls `verifyHostnameInCertificate` whenever `serverName` is set, and CIO always sets it, so a certificate whose host name does not match is refused. No trust manager or `TLSConfigBuilder` setting skips that check, so the `transport062` test is not generated and `test-catalogue-exceptions.txt` records it.
 - Strict-key `unevaluatedProperties` is not on the production deserialize path (second audit tail).
 - Multipart tests are structural, not byte-level, because Ktor's body is opaque to the test.
 - Overflowing double literals such as `1e400` decode to Infinity in kotlin (parked: the stated no-non-finite contract is unmet in java, kotlin, python, node, ruby, php, dart).
