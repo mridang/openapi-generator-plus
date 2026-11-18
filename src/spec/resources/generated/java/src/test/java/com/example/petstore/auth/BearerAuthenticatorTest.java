@@ -64,6 +64,13 @@ class BearerAuthenticatorTest {
   // exercise the runtime guard.
 
   @Test
+  void bhvAuthBearer027RejectsAWhitespaceOnlyToken() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> new BearerAuthenticator("https://api.example.com", "\t \t"));
+  }
+
+  @Test
   void bhvAuthBearer017WhitespaceOnlyTokenIsRejectedAtConstruction() {
     assertThrows(
         IllegalArgumentException.class,
@@ -93,7 +100,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void nonAsciiTokenIsRejectedWithTheExactMessage() {
+  void bhvAuthBearer022NonAsciiTokenIsRejectedWithTheExactMessage() {
     for (String token : new String[] {"töken", "abc\u007fdef", "abc\0def", "abc\rdef"}) {
       IllegalArgumentException ex =
           assertThrows(
@@ -179,7 +186,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void tokenAndTokenProviderTogetherAreRefused() {
+  void bhvAuthBearer026TokenAndTokenProviderTogetherAreRefused() {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,

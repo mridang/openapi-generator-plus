@@ -49,7 +49,7 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void keyIsEmittedOnlyAtItsOwnLocation() {
+  void bhvAuthApiKey022KeyIsEmittedOnlyAtItsOwnLocation() {
     ApiKeyAuthenticator header =
         new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);
     ApiKeyAuthenticator query =
@@ -232,6 +232,23 @@ class ApiKeyAuthenticatorTest {
         () ->
             new ApiKeyAuthenticator(
                 "https://api.example.com", "api_key", "\013", ApiKeyLocation.QUERY));
+  }
+
+  @Test
+  void bhvAuthApiKey023CookieKeyAcceptsANonAsciiValue() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "session", "café", ApiKeyLocation.COOKIE);
+    assertEquals(Map.of("session", "café"), auth.getCookieParams());
+    assertEquals(Map.of(), auth.getAuthHeaders());
+  }
+
+  @Test
+  void bhvAuthApiKey026DefaultDebugOutputDoesNotLeakTheKey() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator(
+            "https://api.example.com", "X-API-Key", "abc123", ApiKeyLocation.HEADER);
+    assertFalse(auth.toString().contains("abc123"));
   }
 
   @Test
