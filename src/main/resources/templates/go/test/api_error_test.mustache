@@ -530,6 +530,19 @@ func TestBhvErrors046_ApiError_OAuth2ServerErrorMessageHasThreeForms(t *testing.
 	}
 }
 
+// An OAuth2 server error with a code and no description names the status and the code.
+func TestBhvErrors049_ApiError_OAuth2ServerErrorNamesTheStatusAndTheErrorCode(t *testing.T) {
+	t.Parallel()
+	err := apierrors.NewOAuth2ServerError(401, "invalid_client", "", "", "{}")
+	msg := err.Error()
+	if !strings.Contains(msg, "401") {
+		t.Errorf("expected the message to name status 401, got %q", msg)
+	}
+	if !strings.Contains(msg, "invalid_client") {
+		t.Errorf("expected the message to name the error code invalid_client, got %q", msg)
+	}
+}
+
 // TestApiError_SerializationError_Satisfies{{errorPrefix}}ErrorAndKeepsCause confirms
 // *SerializationError is declared beside the rest of the hierarchy, satisfies
 // the brand, is re-exported by the main package and keeps its cause.

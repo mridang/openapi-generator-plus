@@ -492,7 +492,7 @@ func TestBhvAuthoauthtwoclientcred014_OAuth2ClientCredentialsAuthenticator_ReprS
 
 // The token body is emitted in the one key order every SDK shares, so the
 // whole string is pinned rather than its parts.
-func TestOAuth2ClientCredentialsAuthenticator_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
+func TestBhvAuthoauthtwoclientcred016_OAuth2ClientCredentialsAuthenticator_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"tok1","expires_in":3600}`, statusCode: 200},

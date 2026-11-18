@@ -1258,7 +1258,7 @@ func TestBhvAuthoauthtwotokenmgr023_OAuth2TokenManager_RefreshGrantParamsSendExa
 
 // Keys outside the shared order follow it, sorted, so every body is
 // deterministic.
-func TestOAuth2TokenManager_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
+func TestBhvAuthoauthtwotokenmgr043_OAuth2TokenManager_TokenBodyUsesTheSharedKeyOrder(t *testing.T) {
 	t.Parallel()
 	client := &recordingTokenClient{responses: []fakeResponse{
 		{body: `{"access_token":"a1"}`, statusCode: 200},
@@ -1452,5 +1452,82 @@ func TestBhvAuthoauthtwotokenmgr020_OAuth2TokenManager_ANonStringRefreshTokenIsI
 	}
 	if got := manager.RefreshToken(); got != "" {
 		t.Errorf("expected no refresh token to be held, got %q", got)
+	}
+}
+
+// A token error with a code and no description names the status and the code.
+func TestBhvAuthoauthtwotokenmgr042_OAuth2TokenManager_ErrorMessageNamesTheStatusAndTheCodeWithoutDescription(t *testing.T) {
+	t.Parallel()
+	client := newFakeTokenClient(fakeResponse{
+		body:       `{"error":"invalid_grant"}`,
+		statusCode: 400,
+	})
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	_, err := manager.GetAccessToken("https://auth.example.com/token", map[string]string{
+		"grant_type": "client_credentials",
+	})
+	if err == nil {
+		t.Fatal("expected error when the token endpoint answers with an error, got nil")
+	}
+	if want := "Token request failed with status 400: invalid_grant"; err.Error() != want {
+		t.Errorf("expected message %q, got %q", want, err.Error())
+	}
+}
+
+// A padded decimal expires_in with a fraction and a trailing newline is read as a
+// lifetime, so the token is cached and the second call sends no request.
+func TestBhvAuthoauthtwotokenmgr045_OAuth2TokenManager_PaddedDecimalStringExpiresInIsAcceptedAsALifetime(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"pad-1","expires_in":" 3600.5\n"}`, statusCode: 200},
+		{body: `{"access_token":"pad-2","expires_in":" 3600.5\n"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the first call: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the second call: %v", err)
+	}
+	if first != "pad-1" || second != "pad-1" {
+		t.Errorf("expected the cached token pad-1 twice, got %q and %q", first, second)
+	}
+	if client.requestCount() != 1 {
+		t.Errorf("expected 1 token request, got %d", client.requestCount())
+	}
+}
+
+// A string expires_in outside the plain decimal grammar is no lifetime, so the
+// token is stale at once and the next call fetches a new one.
+func TestBhvAuthoauthtwotokenmgr046_OAuth2TokenManager_StringExpiresInOutsideTheDecimalGrammarLeavesTheTokenStale(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		{body: `{"access_token":"stale-1","expires_in":"3600s"}`, statusCode: 200},
+		{body: `{"access_token":"stale-2","expires_in":"3600s"}`, statusCode: 200},
+	}}
+	manager := oauth.NewOAuth2TokenManager()
+	manager.SetApiClient(client)
+
+	params := map[string]string{"grant_type": "client_credentials"}
+	first, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the first call: %v", err)
+	}
+	second, err := manager.GetAccessToken("https://auth.example.com/token", params)
+	if err != nil {
+		t.Fatalf("unexpected error on the second call: %v", err)
+	}
+	if first != "stale-1" || second != "stale-2" {
+		t.Errorf("expected tokens stale-1 and stale-2, got %q and %q", first, second)
+	}
+	if client.requestCount() != 2 {
+		t.Errorf("expected 2 token requests, got %d", client.requestCount())
 	}
 }
