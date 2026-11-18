@@ -218,18 +218,28 @@ void main() {
   });
 
   group('BearerAuthenticator', () {
-    const prefixed = {
-      'bhv authbearer 003 already prefixed token is not doubled': 'Bearer xyz',
-      'bhv authbearer 007 lowercase bearer prefix is stripped': 'bearer xyz',
-      'uppercase bearer prefix is stripped': 'BEARER xyz',
-      'bhv authbearer 008 mixed case bearer prefix is stripped': 'BeArEr xyz',
-    };
-    prefixed.forEach((name, token) {
-      test(name, () {
-        final auth = BearerAuthenticator(host: '{{{basePath}}}', token: token);
+    test('bhv authbearer 003 already prefixed token is not doubled', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'Bearer xyz');
 
-        expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
-      });
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv authbearer 007 lowercase bearer prefix is stripped', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'bearer xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('uppercase bearer prefix is stripped', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'BEARER xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
+    });
+
+    test('bhv authbearer 008 mixed case bearer prefix is stripped', () {
+      final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'BeArEr xyz');
+
+      expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
     });
 
     test('bhv authbearer 015 a token that merely begins with the word bearer is kept whole', () {
@@ -293,6 +303,17 @@ void main() {
       });
     });
 
+    test('bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable', () {
+      expect(
+        () => ServiceTokenAuthenticator(
+          host: '{{{basePath}}}',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'))),
+      );
+    });
+
     test('bhv authbearer 023 generated bearer scheme wrappers emit a Bearer header and keep their own name', () {
       builders.forEach((name, build) {
         expect(build('xyz').authHeaders(), equals({'Authorization': 'Bearer xyz'}));
@@ -331,7 +352,7 @@ void main() {
         );
       });
 
-      test('an empty value counts as unset', () {
+      test('bhv authscheme 003 {{className}} fails at construction naming the variable when its environment variable is empty', () {
         expect(
           () => {{className}}(
             host: '{{{basePath}}}',

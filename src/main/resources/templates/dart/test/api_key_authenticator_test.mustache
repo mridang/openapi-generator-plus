@@ -350,6 +350,50 @@ void main() {
       expect(auth.queryParams(), isEmpty);
     });
 
+    test('bhv authscheme 005 the ApiKeyHeader scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => ApiKeyHeaderAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'))),
+      );
+    });
+
+    test('bhv authscheme 006 the ApiKeyQuery scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => ApiKeyQueryAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'))),
+      );
+    });
+
+    test('bhv authscheme 007 the SessionCookie scheme authenticator treats an empty environment variable as unset and names it', () {
+      expect(
+        () => SessionCookieAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'))),
+      );
+    });
+
+    test('bhv authscheme 012 an empty environment variable for the api key scheme credential is treated as unset and fails naming the variable', () {
+      expect(
+        () => InternalApiKeyAuthenticator(
+          host: 'https://api.example.com',
+          environment: const {'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': ''},
+        ),
+        throwsA(isA<ArgumentError>().having((e) => e.message, 'message',
+            contains('SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY'))),
+      );
+    });
+
     test('bhv authapikey 019 wrappers reject an empty key at construction', () {
       for (final build in builders.values) {
         expect(() => build(''), throwsArgumentError);
