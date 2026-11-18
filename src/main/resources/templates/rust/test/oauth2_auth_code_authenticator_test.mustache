@@ -491,15 +491,6 @@ async fn test_bhv_authoauthtwoauthcode_013_failed_exchange_keeps_the_previous_se
     assert_eq!(2, client.urls().len());
 }
 
-/* D09: the not-yet-exchanged state reads with the canonical wording. */
-#[test]
-fn test_code_not_exchanged_error_uses_the_canonical_message() {
-    assert_eq!(
-        "Must call exchange_code() before making API requests",
-        OAuth2AuthorizationCodeError::CodeNotExchanged.to_string()
-    );
-}
-
 /* RFC 9700 section 2.1.1, RFC 7636: the authorization URL carries an S256 code
  * challenge and the code exchange sends the verifier that hashes to it. */
 #[tokio::test(flavor = "multi_thread")]

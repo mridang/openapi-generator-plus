@@ -1145,30 +1145,3 @@ fn test_bhv_lifecycle_024_a_supplied_client_conflicts_with_proxy_and_tls_setting
         }
     }
 }
-
-/* F405: TransportOptions that configure what only the HTTP client can
- * (proxy, TLS verification, CA) conflict with a supplied client and fail fast. */
-#[test]
-fn test_default_api_client_with_client_rejects_conflicting_transport_options() {
-    let with_proxy = TransportOptionsBuilder::new()
-        .proxy("http://proxy.invalid:3128")
-        .build()
-        .expect("valid transport options");
-    let no_verify = TransportOptionsBuilder::new()
-        .verify_ssl(false)
-        .build()
-        .expect("valid transport options");
-    for options in [with_proxy, no_verify] {
-        match DefaultApiClient::with_client(reqwest::Client::new(), Some(options)) {
-            Err(ConfigurationError::InvalidArgument(message)) => {
-                assert!(
-                    message.contains("custom reqwest::Client"),
-                    "unexpected message: {}",
-                    message
-                );
-            }
-            Err(other) => panic!("expected InvalidArgument, got {:?}", other),
-            Ok(_) => panic!("expected a conflict error, got a client"),
-        }
-    }
-}

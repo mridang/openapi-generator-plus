@@ -613,17 +613,6 @@ fn test_bhv_serializationobject_069_enum_known_value_on_deserialize_succeeds() {
 }
 
 #[test]
-fn test_enum_direct_unknown_value_is_rejected() {
-    // Deserializing the enum type directly (not via its owning struct) must
-    // also reject an out-of-schema value.
-    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"banished\"");
-    assert!(
-        result.is_err(),
-        "an unknown bare enum value must fail to deserialize"
-    );
-}
-
-#[test]
 fn test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode() {
     let result: Result<PetStatusEnum, _> = serde_json::from_str("\"teleported\"");
     assert!(
