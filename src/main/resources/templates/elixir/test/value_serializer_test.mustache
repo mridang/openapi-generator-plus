@@ -749,5 +749,26 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert URI.encode(json, &URI.char_unreserved?/1) == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
     end
   end
+  describe "query and path encoding rules" do
+    test "bhv serialization 107 an exploded array query parameter repeats its key once for each element" do
+      assert {{moduleName}}.ValueSerializer.serialize(["1", "2"], :query, "array", collection_format: :multi) ==
+               ["1", "2"]
+    end
+
+    test "bhv serialization 111 only RFC 3986 unreserved characters stay literal and every other character is percent-encoded as UTF-8" do
+      assert {{moduleName}}.ValueSerializer.encode_path_segment("a~b c/é") == "a~b%20c%2F%C3%A9"
+    end
+
+    test "bhv serialization 113 a string value passes through unchanged without normalising its form" do
+      decomposed = "é"
+
+      assert {{moduleName}}.ValueSerializer.serialize(decomposed, :path, "string") == decomposed
+    end
+
+    test "bhv serialization 114 an integer serializes with every digit, including a full 64-bit value" do
+      assert {{moduleName}}.ValueSerializer.serialize(9_223_372_036_854_775_807, :path, "integer") ==
+               "9223372036854775807"
+    end
+  end
 end
 {{/generateTests}}
