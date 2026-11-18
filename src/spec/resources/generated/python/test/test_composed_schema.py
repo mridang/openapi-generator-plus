@@ -176,6 +176,12 @@ class TestOneOfPetFood:
         assert isinstance(result, DryFood)
         assert result.food_type == "dry"
 
+    def test_bhv_unions_047_an_empty_or_unlisted_discriminator_value_raises_a_clear_error(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException, match="foodType"):
+            ObjectSerializer().deserialize('{"foodType":""}', "PetFood")
+
 
 class TestAllOfVehicle:
     """allOf with a discriminator: Vehicle and Shape"""
@@ -400,6 +406,16 @@ class TestAnyOfPetTreatment:
         result = ObjectSerializer().deserialize(json_str, "PetTreatment")
 
         assert isinstance(result.actual_instance, Surgery)
+
+    def test_bhv_unions_046_each_matching_anyof_variant_keeps_its_value_and_non_matching_ones_do_not(
+        self,
+    ) -> None:
+        result = ObjectSerializer().deserialize(
+            '{"drugName":"Amoxicillin","dosage":"500mg"}', "PetTreatment"
+        )
+
+        assert isinstance(result.actual_instance, Medication)
+        assert not isinstance(result.actual_instance, Surgery)
 
 
 class TestAnyOfTreatmentRecord:
