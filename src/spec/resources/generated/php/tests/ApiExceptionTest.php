@@ -77,7 +77,7 @@ test('bhv errors 047 an ApiException is a PHP Throwable and the branded SDK root
     expect($ex)->toBeInstanceOf(OpenAPIException::class);
 });
 
-test('a newline in the body is shown escaped, never as a line break', function (): void {
+test('bhv errors 085 a newline in the body is shown escaped, never as a line break', function (): void {
     $ex = new ApiException(500, 'boom', null, "one\r\ntwo");
 
     expect((string) $ex)->toContain('Response body: one\x0D\x0Atwo');
@@ -92,7 +92,7 @@ test('bhv errors 018 ApiException extends the SDK root OpenAPIException', functi
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 
-test('a thrown typed error is caught by a OpenAPIException catch', function (): void {
+test('bhv langphp 053 a thrown typed error is caught by a {{errorPrefix}}Exception catch', function (): void {
     /* Full chain: UnauthorizedException → ClientException → ApiException
      * → OpenAPIException → \Exception. Catching the root must catch the
      * 401 typed error. */
@@ -436,7 +436,7 @@ test('bhv errors 012 an error built without a request has no request context', f
     expect((string) $ex)->not->toContain('Request:');
 });
 
-test('a bare path or a query only target reduces to a path', function (string $target, string $expected): void {
+test('bhv langphp 054 a bare path or a query only target reduces to a path', function (string $target, string $expected): void {
     expect(ApiException::fromResponse(500, [], null, 'GET', $target)->getRequestPath())->toBe($expected);
 })->with([
     'absolute path' => ['/items/7?x=1', '/items/7'],

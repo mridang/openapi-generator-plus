@@ -2395,3 +2395,5 @@ langcsharp062 | The configured authorization endpoint is kept verbatim in the im
 langphp050 | The base authenticator class reads no environment variable. | multi
 langphp051 | The printable form of a bearer authenticator never shows its token.
 langphp052 | An operation with no security sends no API key even when one is configured.
+langphp053 | A typed error is caught by a catch of the SDK base exception class.
+langphp054 | A bare path or query-only target reduces to the path.
