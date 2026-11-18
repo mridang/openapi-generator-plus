@@ -38,6 +38,16 @@ func (o *WetFood) Equal(other *WetFood) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o WetFood) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "WetFood{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithFoodType returns a copy of the model with FoodType replaced; the receiver is unchanged.
 func (o WetFood) WithFoodType(value string) WetFood {
 	o.FoodType = value

@@ -38,6 +38,16 @@ func (o *TreeNode) Equal(other *TreeNode) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o TreeNode) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "TreeNode{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithValue returns a copy of the model with Value replaced; the receiver is unchanged.
 func (o TreeNode) WithValue(value string) TreeNode {
 	o.Value = value

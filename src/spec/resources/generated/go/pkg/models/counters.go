@@ -39,6 +39,16 @@ func (o *Counters) Equal(other *Counters) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Counters) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Counters{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithLabel returns a copy of the model with Label replaced; the receiver is unchanged.
 func (o Counters) WithLabel(value string) Counters {
 	o.Label = &value
