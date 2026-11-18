@@ -1006,4 +1006,16 @@ import Testing
     let result = ValueSerializer.serializeDeepObject("filter", value: ["b": "2", "a": "1"])
     #expect(result == ["filter[a]": "1", "filter[b]": "2"])
   }
+
+  /* A path parameter string percent-encodes a slash in explicit simple style. */
+  @Test func testBhvMisc232AStringPathParameterPercentEncodesSlashes() throws {
+    #expect(ValueSerializer.encodePathSegment("a/b") == "a%2Fb")
+  }
+
+  /* A cookie carrying a JSON model percent-encodes its colons, so none is sent literally. */
+  @Test func testBhvMisc233ACookieCarryingAJsonModelPercentEncodesItsColons() throws {
+    let cookie = ValueSerializer.encodeCookieValue("{\"label\":\"a.b:c\"}")
+    #expect(!cookie.contains(":"))
+    #expect(cookie.contains("%3A"))
+  }
 }
