@@ -9,6 +9,21 @@ import 'package:{{packageName}}/src/object_serializer.dart' show stringify;
 
 void main() {
   group('ValueSerializer', () {
+    test('bhv misc 232 a string path parameter in the simple style percent-encodes slashes', () {
+      expect(serializeValue('a/b', 'path', 'string', ''), equals('a%2Fb'));
+    });
+
+    test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included', () {
+      final result = serializeValue('{"a":1.5}', 'cookie', 'string', '') as String;
+      expect(result, contains('%7B'));
+      expect(result, contains('%3A'));
+      expect(result, isNot(contains(':')));
+    });
+
+    test('bhv misc 236 a date-only value is written as yyyy-mm-dd with no time', () {
+      expect(stringifyDate(DateTime.utc(2024, 1, 15)), equals('2024-01-15'));
+    });
+
     test('bhv misc 083 a query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written', () {
       expect(encodeQueryAllowingReserved('tag=a&tag=b&q=x%20y%2Bz'), equals('tag=a&tag=b&q=x%20y%2Bz'));
     });

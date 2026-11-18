@@ -34,6 +34,80 @@ end
 defmodule PetstoreClient.ObjectSerializerTest do
   use ExUnit.Case, async: true
 
+  describe "wire rules for models and values" do
+    test "bhv misc 215 an input object with no fields is filled with every declared default value" do
+      assert PetstoreClient.ObjectSerializer.deserialize(~s({}), "Defaults") ==
+               %PetstoreClient.Models.Defaults{}
+    end
+
+    test "bhv misc 230 a model with no extra properties writes exactly its declared keys, with no nested data key" do
+      json =
+        PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.Account{
+          id: 7,
+          username: "u"
+        })
+
+      assert json |> Jason.decode!() |> Map.keys() |> Enum.sort() == ["id", "username"]
+    end
+
+    test "bhv misc 231 a model built in code keeps a value of the wrong type, while decoding that value from JSON raises" do
+      assert %PetstoreClient.Models.Account{id: "seven"}.id == "seven"
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.deserialize(~s({"id":"seven"}), "Account")
+      end
+    end
+
+    test "bhv misc 234 a model inside a list keeps its additional properties through serialize and deserialize" do
+      [meta] =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s([{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}]),
+          "[Metadata]"
+        )
+
+      assert meta.additional_properties["region"] == "eu"
+
+      [back] =
+        PetstoreClient.ObjectSerializer.deserialize(
+          PetstoreClient.ObjectSerializer.serialize([meta]),
+          "[Metadata]"
+        )
+
+      assert back.additional_properties["region"] == "eu"
+    end
+
+    test "bhv misc 235 a duration with fractional seconds keeps its fraction when serialized" do
+      assert PetstoreClient.ObjectSerializer.stringify(
+               Duration.new!(second: 1, microsecond: {500_000, 6})
+             ) == "1.500s"
+    end
+
+    test "bhv misc 243 an absent optional array field decodes to nil, not to an empty list" do
+      assert native_values(~s({})).addresses == nil
+    end
+
+    test "bhv misc 244 a body with a leading byte-order mark decodes into the model" do
+      category =
+        PetstoreClient.ObjectSerializer.deserialize(
+          <<0xEF, 0xBB, 0xBF>> <> ~s({"id":1,"name":"Dogs"}),
+          "Category"
+        )
+
+      assert %PetstoreClient.Models.Category{} = category
+      assert category.id == 1
+    end
+  end
+
+  describe "failed serialization" do
+    test "bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix" do
+      assert_raise PetstoreClient.Errors.SerializationError,
+                   ~r/^Failed to serialize object to JSON/,
+                   fn ->
+                     PetstoreClient.ObjectSerializer.serialize(self())
+                   end
+    end
+  end
+
   describe "model documentation" do
     test "bhv serializationobject 227 a model externalDocs description is documented verbatim without HTML entities" do
       {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} =

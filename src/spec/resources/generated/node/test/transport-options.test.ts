@@ -616,3 +616,11 @@ describe("TransportOptions inspected form misc behaviours", () => {
     expect(String(options)).not.toContain("hidden-secret");
   });
 });
+
+describe("TransportOptions misc proxy schemes", () => {
+  test("bhv options 068 a SOCKS proxy scheme fails at construction with the documented error message", () => {
+    expect(() =>
+      TransportOptions.builder().proxy("socks5://proxy.example.com:1080"),
+    ).toThrow("Invalid proxy URL (must use http or https scheme)");
+  });
+});

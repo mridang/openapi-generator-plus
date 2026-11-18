@@ -804,6 +804,14 @@ describe {{moduleName}}::ValueSerializer do
     _({{moduleName}}::ValueSerializer.serialize_styled('list', ['a,b', 'c'], :path, 'array', nil, 'simple', false)).must_equal('a%2Cb,c')
   end
 
+  it 'bhv_misc_253 an allowReserved value still percent-encodes hash and bracket characters' do
+    _({{moduleName}}::ValueSerializer.encode_query_allowing_reserved('a/b#c[d]')).must_equal('a/b%23c%5Bd%5D')
+  end
+
+  it 'bhv_misc_254 an unmarked query value percent-encodes reserved characters such as slash and colon' do
+    _({{moduleName}}::ValueSerializer.serialize('a/b:c', :query, 'string')).must_equal('a%2Fb%3Ac')
+  end
+
   it 'bhv_misc_120 writes an object parameter as name and value pairs sorted by name, leaving out absent values' do
     result = {{moduleName}}::ValueSerializer.serialize_deep_object('filter', { 'b' => '2', 'a' => '1', 'gone' => nil })
 

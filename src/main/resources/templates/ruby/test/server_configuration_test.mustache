@@ -13,6 +13,22 @@ describe {{moduleName}}::ServerConfiguration do
     _(config.url).must_equal 'https://api.example.com/v1'
   end
 
+  it 'bhv_misc_257 a variable with an empty enum accepts any value' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: { 'env' => {{moduleName}}::ServerVariable.new(default_value: 'x', enum_values: []) }
+    )
+    _(config.url({ 'env' => 'anything' })).must_equal 'https://anything.example.com'
+  end
+
+  it 'bhv_misc_258 a variable without an override uses its default' do
+    config = {{moduleName}}::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: { 'env' => {{moduleName}}::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config.url).must_equal 'https://prod.example.com'
+  end
+
   it 'bhv_misc_278 substitutes default variable values when no overrides are given' do
     config = {{moduleName}}::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
