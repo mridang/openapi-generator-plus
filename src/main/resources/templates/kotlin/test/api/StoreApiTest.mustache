@@ -398,6 +398,47 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc048 a success status that no declared response row names decodes as the operation's union return type")
+        fun bhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnionReturnType() {
+            val result =
+                runBlocking {
+                    capturingStoreApi("""{"reservationId":7,"quantity":2}""", HttpStatusCode.Accepted).reserveStock()
+                }
+            assertNotNull(result.actualInstance)
+        }
+
+        @Test
+        @DisplayName("bhvMisc079 each operation success status decodes its body as the type declared for the status it arrived with")
+        fun bhvMisc079EachSuccessStatusDecodesItsOwnDeclaredType() {
+            val held =
+                runBlocking {
+                    capturingStoreApi("""{"reservationId":31,"quantity":4}""").reserveStock()
+                }
+            val created =
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"C1","expiresAt":"2026-01-02T03:04:05Z"}""",
+                        HttpStatusCode.Created,
+                    ).reserveStock()
+                }
+            assertTrue(held.actualInstance is Reservation)
+            assertTrue(created.actualInstance is ReservationReceipt)
+        }
+
+        @Test
+        @DisplayName("bhvMisc080 a response body is decoded with the schema of its own status code, so a body that fits another status is refused")
+        fun bhvMisc080AResponseBodyIsDecodedWithItsOwnStatusSchema() {
+            assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"C1","expiresAt":"2026-01-02T03:04:05Z"}""",
+                        HttpStatusCode.OK,
+                    ).reserveStock()
+                }
+            }
+        }
+
+        @Test
         @DisplayName("bhvOperations154 a body is checked only against the schema of its own status, and a body that matches neither is refused")
         fun bhvOperations154ABodyIsCheckedOnlyAgainstItsOwnStatus() {
             assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {

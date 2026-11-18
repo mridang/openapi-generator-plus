@@ -1320,6 +1320,44 @@ class TestTokenRequestDetails:
         assert exc_info.value.description == description
         assert exc_info.value.uri == uri
 
+    def test_bhv_misc_172_a_token_request_is_sent_once_when_the_server_answers_503(
+        self,
+    ) -> None:
+        class _Reply:
+            def __init__(self, status: int, data: bytes) -> None:
+                self.status = status
+                self.headers = {"retry-after": "0"}
+                self.data = data
+
+            def read(self) -> bytes:
+                return self.data
+
+            def release_conn(self) -> None:
+                return None
+
+        class _Pool:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def request(self, *args: Any, **kwargs: Any) -> Any:
+                self.calls += 1
+                return _Reply(503, b"{}")
+
+        pool = _Pool()
+        manager = OAuth2TokenManager()
+        manager.set_api_client(
+            DefaultApiClient(
+                TransportOptions.builder().max_retries(2).build(), pool_manager=pool
+            )
+        )
+
+        with pytest.raises(OpenAPIException):
+            manager.get_access_token(
+                "https://auth.example.com/token", {"grant_type": "client_credentials"}
+            )
+
+        assert pool.calls == 1
+
 
 class TestConcurrentTokenAccess:
     def test_bhv_auth_030_setting_and_reading_the_token_from_several_threads_never_observes_an_unset_value(

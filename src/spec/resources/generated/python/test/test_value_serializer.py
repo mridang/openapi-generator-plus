@@ -78,6 +78,13 @@ class TestValueSerializerPath:
             == ""
         )
 
+    def test_bhv_misc_250_array_items_with_a_comma_keep_the_literal_separator_on_a_path(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize(["a,b", "c"], "path", "array", "csv") == "a%2Cb,c"
+        )
+
 
 class TestValueSerializerQuery:
     def test_bhv_serializationparam_067_null_returns_none(self) -> None:
@@ -171,6 +178,19 @@ class TestValueSerializerQuery:
         assert (
             ValueSerializer.serialize([True, False], "query", "array") == "true,false"
         )
+
+    def test_bhv_misc_238_a_number_query_value_is_sent_as_a_plain_number(self) -> None:
+        assert ValueSerializer.serialize(2.5, "query", "number") == "2.5"
+
+    def test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize("a/b:c", "query", "string") == "a%2Fb%3Ac"
+
+    def test_bhv_misc_255_separate_query_parameters_encode_a_space_as_percent_20(
+        self,
+    ) -> None:
+        assert ValueSerializer.serialize("a b", "query", "string") == "a%20b"
 
 
 class TestValueSerializerHeader:
@@ -604,6 +624,14 @@ class TestAllowReserved:
         assert isinstance(wrapped, AllowReservedValue)
         assert wrapped.value == "v1/beta"
         assert ValueSerializer.maybe_allow_reserved(None, True) is None
+
+    def test_bhv_misc_253_an_allow_reserved_value_still_encodes_hash_and_brackets(
+        self,
+    ) -> None:
+        assert (
+            ValueSerializer.serialize(AllowReservedValue("a/b#c[d]"), "query", "string")
+            == "a/b%23c%5Bd%5D"
+        )
 
 
 class TestPathEncodingParity:

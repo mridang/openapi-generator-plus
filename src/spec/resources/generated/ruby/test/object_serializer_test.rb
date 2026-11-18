@@ -2588,6 +2588,32 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
     }).must_raise(Petstore::Client::Errors::SerializationError)
   end
 
+  it 'bhv_misc_287 a wire key named additional_properties is kept as an undeclared extra' do
+    meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","additional_properties":"x"}', 'Metadata')
+
+    _(meta.additional_properties).must_equal('additional_properties' => 'x')
+  end
+
+  it 'bhv_misc_288 a snake_case input key at the top level is captured as an undeclared extra' do
+    meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","created_at":"x"}', 'Metadata')
+
+    _(meta.additional_properties).must_equal('created_at' => 'x')
+  end
+
+  it 'bhv_misc_289 a snake_case input key inside a list element is captured as an undeclared extra' do
+    items = Petstore::Client::ObjectSerializer.deserialize('[{"createdAt":"2024-01-01T00:00:00Z","created_at":"x"}]', 'Array<Metadata>')
+
+    _(items.first.additional_properties).must_equal('created_at' => 'x')
+  end
+
+  it 'bhv_misc_290 an undeclared key holding an object survives a full deserialize and serialize round trip' do
+    json = '{"createdAt":"2024-01-01T00:00:00Z","extra":{"k":{"n":1}}}'
+    wire = Petstore::Client::ObjectSerializer.serialize(Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata'))
+    again = Petstore::Client::ObjectSerializer.deserialize(wire, 'Metadata')
+
+    _(again.additional_properties).must_equal('extra' => { 'k' => { 'n' => 1 } })
+  end
+
   it 'bhv_serialization_052 undeclared keys are kept on every element of a list read from the wire' do
     items = Petstore::Client::ObjectSerializer.deserialize('[{"customField":"a"}]', 'Array<Metadata>')
 
@@ -2767,5 +2793,17 @@ describe Petstore::Client::ObjectSerializer, 'schema defaults, nullable values, 
     meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x","owner":"ann"}', 'Metadata')
     _(meta.additional_properties['note']).must_equal 'x'
     _(meta.additional_properties.keys).must_equal %w[note owner]
+  end
+
+  it 'bhv_misc_144 validating a model refuses a string given for a numeric field' do
+    _ { Petstore::Client::ObjectSerializer.deserialize('{"retries":"3"}', 'TestDefaultsModel') }
+      .must_raise Petstore::Client::Errors::SerializationError
+  end
+
+  it 'bhv_misc_145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged' do
+    meta = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-01T00:00:00Z","note":"x"}', 'Metadata')
+    copy = meta.additional_properties.dup
+    copy['note'] = 'changed'
+    _(meta.additional_properties['note']).must_equal 'x'
   end
 end

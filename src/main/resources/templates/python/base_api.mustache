@@ -66,6 +66,11 @@ class CallOptions(Protocol):
     def max_retries(self) -> Optional[int]: ...
 
 
+# Methods that may be sent again after a connection drops with no response (RFC 9110 9.2.2).
+# A POST or PATCH is sent once, because the server may already have acted on it.
+_IDEMPOTENT_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'})
+
+
 class _NoAuth:
     """Internal no-auth sentinel type.
 
@@ -686,7 +691,8 @@ class BaseApi:
     ) -> ApiHttpResponse:
         """Send the request, sending it again after a retryable failure.
 
-        A retry follows a network error that happened before any response and a
+        A retry follows a network error that happened before any response, for an
+        idempotent method only, and a
         ``408``, ``409``, ``429`` or ``5xx`` (not ``501``) response. It waits
         for the ``Retry-After`` header or the exponential backoff, and every
         retry rebuilds the headers. The wait must fit in what is left of the
@@ -701,7 +707,11 @@ class BaseApi:
             try:
                 response = await self._send(method, url, current, body, deadline)
             except NetworkException as error:
-                if isinstance(error, NetworkTimeoutException) or attempt >= max_retries:
+                if (
+                    isinstance(error, NetworkTimeoutException)
+                    or attempt >= max_retries
+                    or method.upper() not in _IDEMPOTENT_METHODS
+                ):
                     raise
                 failure = error
             if response is not None:

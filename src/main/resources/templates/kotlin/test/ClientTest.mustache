@@ -24,6 +24,19 @@ import java.nio.file.Path
 
 class ClientTest {
 
+
+    private class TransportProbeAuthenticator : {{invokerPackage}}.auth.HttpAwareAuthenticator {
+        var injected: {{invokerPackage}}.ApiClient? = null
+            private set
+
+        override fun setApiClient(apiClient: {{invokerPackage}}.ApiClient) {
+            injected = apiClient
+        }
+
+        override fun invalidateAccessToken() {}
+        override fun getHost(): String = ""
+        override suspend fun getAuthHeaders(): Map<String, String> = emptyMap()
+    }
     private val authenticator = BearerAuthenticator("{{{basePath}}}", "test-token")
 
     @Test
@@ -469,6 +482,26 @@ class ClientTest {
         client.close()
     }
 
+    @Test
+    @DisplayName("bhvMisc071 a client-level credential that needs the HTTP transport receives the client's own transport")
+    fun bhvMisc071ACredentialThatNeedsHttpReceivesTheClientsOwnTransport() {
+        val probe = TransportProbeAuthenticator()
+
+        {{clientClassName}}(probe, TransportOptions.builder().build())
+
+        assertTrue(probe.injected is {{invokerPackage}}.DefaultApiClient)
+    }
+
+{{#hasClientSchemes}}
+    @Test
+    @DisplayName("bhvMisc073 the client provides a generated wrapper class for every security scheme the spec declares")
+    fun bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+{{#clientSchemes}}
+        assertNotNull({{{authPackage}}}.{{className}}::class.java)
+{{/clientSchemes}}
+    }
+
+{{/hasClientSchemes}}
     @Test
     @DisplayName("bhvLifecycle001 API groups are accessible")
     fun apiGroupsAreAccessible() {

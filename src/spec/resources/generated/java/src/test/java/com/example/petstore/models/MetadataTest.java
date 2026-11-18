@@ -417,4 +417,23 @@ class MetadataTest {
   void bhvModels022ModelThatAllowsUndeclaredPropertiesReportsIt() {
     assertNotNull(com.example.petstore.models.Metadata.builder().build().getAdditionalProperties());
   }
+
+  @Test
+  void bhvMisc092PropertyIsReadByItsWireName() {
+    Metadata metadata =
+        serializer.deserialize("{\"createdAt\":\"2024-01-15T10:00:00Z\"}", METADATA_TYPE);
+    assertEquals(java.time.OffsetDateTime.parse("2024-01-15T10:00:00Z"), metadata.createdAt);
+  }
+
+  @Test
+  void bhvMisc093AdditionalPropertiesWithNumericNamesAreWrittenBesideNamedFields() {
+    Metadata metadata =
+        serializer.deserialize(
+            "{\"createdAt\":\"2024-01-15T10:00:00Z\",\"404\":\"missing\",\"500\":\"failed\"}",
+            METADATA_TYPE);
+    String json = serializer.serialize(metadata);
+    assertTrue(json.contains("\"createdAt\":\"2024-01-15T10:00:00"), json);
+    assertTrue(json.contains("\"404\":\"missing\""), json);
+    assertTrue(json.contains("\"500\":\"failed\""), json);
+  }
 }
