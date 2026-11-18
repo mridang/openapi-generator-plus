@@ -1006,10 +1006,8 @@ config017 | Configuration is immutable
 retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
 serializationobject182 | Unknown enum value on deserialize throws
 serializationobject183 | Handles null
-authbasic012 | An empty variable counts as unset
-authoauthtwotokenmgr041 | A 2xx token response that is not a JSON object is refused with the canonical message
 authbasic012 | An empty variable counts as unset | multi
-authoauthtwotokenmgr041 | A non-JSON 2xx token body is not echoed into the error message
+authoauthtwotokenmgr041 | A 2xx token response that is not a JSON object is refused with the canonical error, and a non-JSON token body is not echoed into the error message | multi
 operations126 | Place order without an argument sends no body
 authapikey019 | Wrappers reject an empty key at construction
 authapikey020 | Every API-key wrapper validates eagerly and redacts the key
@@ -1023,16 +1021,9 @@ errors046 | Oauth2 server exception message has three forms
 serializationobject184 | Iso8601 duration string rejected
 serializationobject185 | Deserialize: canonical padded base64 is accepted
 serializationobject186 | Request JSON escapes only the quote, the backslash and controls
-lifecycle024 | A supplied HTTP client conflicts with sdk proxy and tls settings
-errors047 | Name is ApiError
+lifecycle024 | A supplied HTTP client conflicts with sdk proxy and tls settings | multi
+errors047 | A typed internal server error is an ApiError, a ServerError and the branded root of the SDK error family | multi
 serializationobject187 | An explicit key wins over the environment | multi
-lifecycle024 | A supplied HTTP client conflicts with sdk proxy and tls settings
-errors047 | An internal server error is an ApiError, a ServerError and the branded OpenAPIError root
-lifecycle024 | A supplied psr18 client conflicts with sdk proxy and tls settings
-errors047 | A typed API error is an ApiError and also the branded OpenAPIException root
-errors047 | A 500 typed error is an OpenAPI error and chains through ServerError to ApiError
-errors047 | An ApiError is an Error and conforms to the branded OpenAPIError root
-serializationobject187 | An explicit key wins over the environment
 errors048 | 418 throws ClientException
 authbasic013 | Explicit credentials win over the environment | multi
 authbearer018 | An explicit token wins over the environment | multi
