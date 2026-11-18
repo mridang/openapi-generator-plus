@@ -15,7 +15,12 @@ use serde_repr::{Serialize_repr, Deserialize_repr};
 pub enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
     /// Represents the value {{{value}}}.
+{{/enumDescription}}
     {{#-first}}#[default]
     {{/-first}}{{name}} = {{{value}}},
 {{/enumVars}}

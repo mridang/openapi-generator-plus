@@ -905,7 +905,10 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 raw = raw.substring(raw.lastIndexOf('.') + 1);
             }
             final String enumTypeName = model.classname + prop.enumName;
-            final String memberName = toEnumVarName(raw, prop.dataType);
+            final String memberName =
+                    enumNameMapping.containsKey(raw)
+                            ? toEnumVarName(raw, prop.dataType)
+                            : enumMemberNameForWire(prop, raw, prop.dataType);
             prop.defaultValue = enumTypeName + "." + memberName;
         }
     }

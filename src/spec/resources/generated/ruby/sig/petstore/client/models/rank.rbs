@@ -1,0 +1,10 @@
+module Petstore::Client::Models
+  class Rank
+    LOW: Integer
+    MEDIUM: Integer
+    HIGH: Integer
+    VALUES: Array[Integer]
+    def self.all_vars: () -> Array[Integer]
+    def self.validate!: (Integer?) -> Integer?
+  end
+end

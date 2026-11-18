@@ -2870,6 +2870,81 @@ components:
               type: integer
               format: int32
 
+    # Enums whose members are named and described by the author. Tier uses an
+    # array of names and of descriptions (the last text holds comment
+    # terminators and interpolation sigils), Rank an integer enum with an
+    # array of names and an object of descriptions that skips one member, Stage
+    # an object of names keyed by wire value (two names that collide after
+    # casing) with a description array that has a null entry.
+    Tier:
+      type: string
+      enum:
+        - s
+        - m
+        - l
+      x-enumNames:
+        - Small
+        - Medium
+        - Large
+      x-enumDescriptions:
+        - The smallest tier.
+        - The medium tier.
+        - 'The largest tier. Ends with */ and #{x} and $x.'
+
+    Rank:
+      type: integer
+      format: int32
+      enum:
+        - 1
+        - 2
+        - 3
+      x-enum-varnames:
+        - LOW
+        - MEDIUM
+        - HIGH
+      x-enum-descriptions:
+        "1": The lowest rank.
+        "3": The highest rank.
+
+    Stage:
+      type: string
+      enum:
+        - paused
+        - active
+        - live
+      x-enumnames:
+        paused: on hold
+        active: Active
+        live: active
+      x-enumdescriptions:
+        - Waiting.
+        -
+        - Running.
+
+    Subscription:
+      type: object
+      required:
+        - rank
+      properties:
+        tier:
+          $ref: '#/components/schemas/Tier'
+          default: m
+        rank:
+          $ref: '#/components/schemas/Rank'
+        stage:
+          $ref: '#/components/schemas/Stage'
+        interval:
+          type: string
+          enum:
+            - month
+            - year
+          x-enum-varnames:
+            - MONTHLY
+            - YEARLY
+          x-enumDescriptions:
+            - Billed every month.
+            - Billed every year.
+
     # readOnly / writeOnly have no wire effect in any SDK: a readOnly property
     # is still decoded from a response, a writeOnly one is still sent.
     Account:

@@ -27,6 +27,9 @@ import kotlinx.serialization.json.JsonClassDiscriminator
 enum class {{classname}}(val value: Int) {
   {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
+  {{/enumDescription}}
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
@@ -64,6 +67,9 @@ enum class {{classname}}(val value: Int) {
 enum class {{classname}}(val value: Long) {
   {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
+  {{/enumDescription}}
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
@@ -100,6 +106,9 @@ enum class {{classname}}(val value: Long) {
 enum class {{classname}}(val value: String) {
   {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
+  {{/enumDescription}}
   @SerialName({{{value}}})
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
@@ -923,6 +932,9 @@ data class {{classname}}(
   enum class {{enumName}}(val value: Int) {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
+    {{/enumDescription}}
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
@@ -958,6 +970,9 @@ data class {{classname}}(
   enum class {{enumName}}(val value: Long) {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
+    {{/enumDescription}}
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
@@ -992,6 +1007,9 @@ data class {{classname}}(
   enum class {{enumName}}(val value: String) {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.kdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.kdoc}}{{/lambda.singleLine}} */
+    {{/enumDescription}}
     @SerialName({{{value}}})
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}

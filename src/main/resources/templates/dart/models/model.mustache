@@ -25,7 +25,12 @@ import '{{filename}}.dart';
 enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
   /// Represents the value {{{value}}}.
+{{/enumDescription}}
   {{name}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
@@ -59,7 +64,12 @@ enum {{classname}} {
 enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
   /// Represents the value {{{value}}}.
+{{/enumDescription}}
   {{name}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
@@ -92,7 +102,12 @@ enum {{classname}} {
 enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
   /// Represents the value {{{value}}}.
+{{/enumDescription}}
   {{name}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
@@ -142,7 +157,12 @@ enum {{classname}} {
 enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
   /// Represents the value {{{value}}}.
+{{/enumDescription}}
   {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
@@ -172,7 +192,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
   /// Represents the value {{{value}}}.
+{{/enumDescription}}
   {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}
@@ -201,7 +226,12 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  /// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
   /// Represents the value {{{value}}}.
+{{/enumDescription}}
   {{nameLowercase}}({{{value}}}),
 {{/enumVars}}
 {{/allowableValues}}

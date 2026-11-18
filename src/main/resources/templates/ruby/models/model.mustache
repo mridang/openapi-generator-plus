@@ -9,6 +9,11 @@ require 'dry-struct'
 require_relative '../types'
 {{#models}}
 {{#model}}
+{{#vars}}
+{{#vendorExtensions.siblingDefaultIsEnum}}
+require_relative '{{vendorExtensions.siblingDefaultEnumFile}}'
+{{/vendorExtensions.siblingDefaultIsEnum}}
+{{/vars}}
 {{#vendorExtensions.x-allof-child}}
 require '{{modulePath}}/models/{{vendorExtensions.x-allof-base-filename}}'
 {{/vendorExtensions.x-allof-child}}
@@ -24,6 +29,9 @@ module {{moduleName}}
 {{#isEnum}}
     # {{#description}}{{#lambda.rubyDocComment}}{{{description}}}{{/lambda.rubyDocComment}}{{/description}}{{^description}}Enumeration of allowed values for {{classname}}.{{/description}}
     class {{classname}}{{#allowableValues}}{{#enumVars}}
+{{#enumDescription}}
+      # {{#lambda.singleLine}}{{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
       {{{name}}} = {{{value}}}{{/enumVars}}
 
       # Frozen set of all allowed values, used for validation.
@@ -455,6 +463,9 @@ module {{moduleName}}
 {{#allowableValues}}
       # Allowed values of the {{name}} property.
       class {{enumName}}{{#enumVars}}
+{{#enumDescription}}
+        # {{#lambda.singleLine}}{{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
         {{{name}}} = {{{value}}}{{/enumVars}}
 
         # Frozen set of all allowed values, used for validation.

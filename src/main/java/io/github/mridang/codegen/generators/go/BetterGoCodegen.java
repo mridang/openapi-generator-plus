@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -996,18 +997,24 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                 final List<Map<String, String>> enumValues = new ArrayList<>();
                 final Set<String> usedNames = new HashSet<>();
                 for (final String value : p._enum) {
-                    String constName = enumType + toEnumVarName(value, enumBase);
+                    final Map<String, Object> declared = declaredEnumVar(p.allowableValues, value);
+                    final String memberName =
+                            declared != null && Boolean.TRUE.equals(declared.get("nameSupplied"))
+                                    ? String.valueOf(declared.get("name"))
+                                    : toEnumVarName(value, enumBase);
+                    String constName = enumType + memberName;
                     while (!usedNames.add(constName)) {
                         constName = constName + "2";
                     }
-                    enumValues.add(
-                            Map.of(
-                                    "constName",
-                                    constName,
-                                    "literal",
-                                    "string".equals(enumBase)
-                                            ? "\"" + goStringBody(value) + "\""
-                                            : value));
+                    final Map<String, String> constant = new LinkedHashMap<>();
+                    constant.put("constName", constName);
+                    constant.put(
+                            "literal",
+                            "string".equals(enumBase) ? "\"" + goStringBody(value) + "\"" : value);
+                    if (declared != null && declared.get("enumDescription") != null) {
+                        constant.put("enumDescription", String.valueOf(declared.get("enumDescription")));
+                    }
+                    enumValues.add(constant);
                 }
                 param.put("enumTypeName", enumType);
                 param.put("enumBase", enumBase);

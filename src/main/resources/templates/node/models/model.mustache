@@ -28,6 +28,9 @@ import { {{classname}} } from './{{filename}}{{importFileExtension}}';
 export const {{classname}} = {
 {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.tsComment}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.tsComment}} */
+  {{/enumDescription}}
   {{{name}}}: {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}
@@ -1414,6 +1417,9 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 export const {{classname}}{{enumName}} = {
 {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.tsComment}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.tsComment}} */
+  {{/enumDescription}}
   {{{name}}}: {{{value}}},
   {{/enumVars}}
 {{/allowableValues}}

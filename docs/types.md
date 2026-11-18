@@ -52,7 +52,7 @@ A `uuid` is written in lower case with hyphens and validated in both directions.
 
 A `uri` keeps each language's own type, and the wire rule is an absolute RFC 3986 URI with any scheme, written as given. The clients do not enforce `pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems` or `maxItems`; the server owns validation. Python enforces what pydantic enforces natively and nothing more.
 
-An enum value the spec does not list, and a discriminator value that maps to no variant, are errors (a `SerializationError`), never a silent fallback. Regenerate the client when the API adds a value.
+Enum members take the names an author gives in `x-enum-varnames`, `x-enumNames` or `x-enumnames`, and their doc comments from `x-enum-descriptions`, `x-enumDescriptions` or `x-enumdescriptions`; see the decision on enum member names. An enum value the spec does not list, and a discriminator value that maps to no variant, are errors (a `SerializationError`), never a silent fallback. Regenerate the client when the API adds a value.
 
 Optional and nullable are one `null` in every model except required-and-nullable properties, as described above.
 

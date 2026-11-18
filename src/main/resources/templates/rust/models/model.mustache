@@ -26,7 +26,12 @@ use super::*;
 pub enum {{classname}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
     /// Represents the value {{{value}}}.
+{{/enumDescription}}
     {{#-first}}#[default]
     {{/-first}}#[serde(rename = {{{value}}})]
     {{name}},
@@ -85,7 +90,12 @@ impl {{classname}} {
 pub enum {{classname}}{{enumName}} {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /// {{#lambda.singleLine}}{{#lambda.rustdoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.rustdoc}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
     /// Represents the value {{{value}}}.
+{{/enumDescription}}
     {{#-first}}#[default]
     {{/-first}}#[serde(rename = {{{value}}})]
     {{name}},

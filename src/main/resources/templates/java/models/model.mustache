@@ -20,7 +20,12 @@ import javax.annotation.Nullable;
 public enum {{classname}} {
   {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+  {{/enumDescription}}
+  {{^enumDescription}}
   /** The {@code {{{value}}}} value. */
+  {{/enumDescription}}
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
@@ -74,7 +79,12 @@ public enum {{classname}} {
 public enum {{classname}} {
   {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+  {{/enumDescription}}
+  {{^enumDescription}}
   /** The {@code {{{value}}}} value. */
+  {{/enumDescription}}
   {{{name}}}({{{value}}}L){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
@@ -127,7 +137,12 @@ public enum {{classname}} {
 public enum {{classname}} {
   {{#allowableValues}}
   {{#enumVars}}
+  {{#enumDescription}}
+  /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+  {{/enumDescription}}
+  {{^enumDescription}}
   /** The {@code {{{value}}}} value. */
+  {{/enumDescription}}
   {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
   {{/enumVars}}
   {{/allowableValues}}
@@ -716,7 +731,12 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   public enum {{enumName}} {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+    {{/enumDescription}}
+    {{^enumDescription}}
     /** The {@code {{{value}}}} value. */
+    {{/enumDescription}}
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
@@ -770,7 +790,12 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   public enum {{enumName}} {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+    {{/enumDescription}}
+    {{^enumDescription}}
     /** The {@code {{{value}}}} value. */
+    {{/enumDescription}}
     {{{name}}}({{{value}}}L){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}
@@ -823,7 +848,12 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
   public enum {{enumName}} {
     {{#allowableValues}}
     {{#enumVars}}
+    {{#enumDescription}}
+    /** {{#lambda.javadocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.javadocDescription}} */
+    {{/enumDescription}}
+    {{^enumDescription}}
     /** The {@code {{{value}}}} value. */
+    {{/enumDescription}}
     {{{name}}}({{{value}}}){{^-last}},{{/-last}}{{#-last}};{{/-last}}
     {{/enumVars}}
     {{/allowableValues}}

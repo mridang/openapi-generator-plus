@@ -846,4 +846,215 @@ class AbstractBetterCodegenTest {
         property.isContainer = container;
         return property;
     }
+
+    /* The enum member names and descriptions an author supplies (issues 149 and 150). */
+
+    private static List<Map<String, Object>> enumVars(
+            String language, List<Object> values, Map<String, Object> extensions, String datatype) {
+        final AbstractBetterCodegen codegen = codegen(language);
+        final List<Map<String, Object>> vars = codegen.buildEnumVars(values, datatype);
+        codegen.postProcessEnumVars(vars);
+        codegen.updateEnumVarsWithExtensions(vars, extensions, datatype);
+        return vars;
+    }
+
+    private static List<String> names(List<Map<String, Object>> vars) {
+        return vars.stream().map(v -> String.valueOf(v.get("name"))).collect(Collectors.toList());
+    }
+
+    private static Map<String, Object> ext(String key, Object value) {
+        final Map<String, Object> map = new java.util.LinkedHashMap<>();
+        map.put(key, value);
+        return map;
+    }
+
+    @Test
+    @DisplayName("each spelling of the names key names the members, by array")
+    void everyNameSpellingAppliesAnArray() {
+        for (final String key : List.of("x-enum-varnames", "x-enumNames", "x-enumnames")) {
+            assertEquals(
+                    List.of("SMALL", "MEDIUM"),
+                    names(enumVars("java", List.of("s", "m"), ext(key, List.of("Small", "Medium")), "String")),
+                    key);
+        }
+    }
+
+    @Test
+    @DisplayName("each spelling of the descriptions key sets enumDescription")
+    void everyDescriptionSpellingApplies() {
+        for (final String key :
+                List.of("x-enum-descriptions", "x-enumDescriptions", "x-enumdescriptions")) {
+            final List<Map<String, Object>> vars =
+                    enumVars("java", List.of("s", "m"), ext(key, List.of("One.", "Two.")), "String");
+            assertEquals("One.", vars.get(0).get("enumDescription"), key);
+            assertEquals("Two.", vars.get(1).get("enumDescription"), key);
+        }
+    }
+
+    @Test
+    @DisplayName("an object of names applies by wire value and derives the members it does not list")
+    void objectNamesApplyByWireValue() {
+        final Map<String, Object> names = new java.util.LinkedHashMap<>();
+        names.put("b", "Second One");
+        assertEquals(
+                List.of("A", "SECOND_ONE", "C"),
+                names(enumVars("java", List.of("a", "b", "c"), ext("x-enumnames", names), "String")));
+    }
+
+    @Test
+    @DisplayName("an integer object key matches the integer wire value")
+    void integerObjectKeyMatches() {
+        final Map<String, Object> names = new java.util.LinkedHashMap<>();
+        names.put("2", "Mid");
+        final List<Map<String, Object>> vars =
+                enumVars("java", List.of(1, 2, 3), ext("x-enumNames", names), "Integer");
+        assertEquals("MID", vars.get(1).get("name"));
+        assertEquals("2", vars.get(1).get("wire"));
+    }
+
+    @Test
+    @DisplayName("the first spelling present wins as a whole")
+    void firstSpellingWins() {
+        final Map<String, Object> both = new java.util.LinkedHashMap<>();
+        both.put("x-enumnames", List.of("Ignored"));
+        both.put("x-enum-varnames", List.of("Winner"));
+        assertEquals("WINNER", enumVars("java", List.of("a"), both, "String").get(0).get("name"));
+    }
+
+    @Test
+    @DisplayName("an array shorter or longer than the enum applies where it can")
+    void arrayLengthMismatch() {
+        assertEquals(
+                List.of("FIRST", "B"),
+                names(enumVars("java", List.of("a", "b"), ext("x-enumNames", List.of("First")), "String")));
+        assertEquals(
+                List.of("FIRST"),
+                names(enumVars("java", List.of("a"), ext("x-enumNames", List.of("First", "Extra")), "String")));
+    }
+
+    @Test
+    @DisplayName("a null, blank or non-text entry means not supplied")
+    void unsuppliedEntriesKeepTheDerivedName() {
+        final List<Object> entries = new ArrayList<>();
+        entries.add(null);
+        entries.add("  ");
+        entries.add(7);
+        assertEquals(
+                List.of("A", "B", "C"),
+                names(enumVars("java", List.of("a", "b", "c"), ext("x-enumNames", entries), "String")));
+    }
+
+    @Test
+    @DisplayName("names align with the schema's enum array when a nullable enum lists null")
+    void nullEntryKeepsTheSpecIndex() {
+        final List<Object> values = new ArrayList<>();
+        values.add("a");
+        values.add(null);
+        values.add("b");
+        assertEquals(
+                List.of("ALPHA", "BETA"),
+                names(enumVars("java", values, ext("x-enumNames", java.util.Arrays.asList("Alpha", "Ignored", "Beta")), "String")));
+    }
+
+    @Test
+    @DisplayName("a supplied name is cleaned and cased like a derived one, per language")
+    void suppliedNameIsCleanedAndCased() {
+        assertEquals("ON_HOLD", enumVars("java", List.of("x"), ext("x-enumNames", List.of("on hold")), "String").get(0).get("name"));
+        assertEquals("OnHold", enumVars("rust", List.of("x"), ext("x-enumNames", List.of("on hold")), "String").get(0).get("name"));
+        assertEquals("onHold", enumVars("dart", List.of("x"), ext("x-enumNames", List.of("on hold")), "String").get(0).get("name"));
+        assertEquals("N1ST", enumVars("java", List.of("x"), ext("x-enumNames", List.of("1st")), "String").get(0).get("name"));
+    }
+
+    @Test
+    @DisplayName("a supplied name with no letter or digit keeps the derived name")
+    void emptyCleanNameKeepsTheDerivedName() {
+        assertEquals("X", enumVars("java", List.of("x"), ext("x-enumNames", List.of("@@")), "String").get(0).get("name"));
+    }
+
+    @Test
+    @DisplayName("two supplied names equal after casing are made distinct and keep their wires")
+    void collidingSuppliedNamesGetSuffixes() {
+        final List<Map<String, Object>> vars =
+                enumVars("java", List.of("p", "q"), ext("x-enumNames", List.of("Active", "active")), "String");
+        assertEquals(List.of("ACTIVE", "ACTIVE2"), names(vars));
+        assertEquals("q", vars.get(1).get("wire"));
+    }
+
+    @Test
+    @DisplayName("enumDescription is absent for blank and null entries")
+    void blankDescriptionIsNotWritten() {
+        final List<Object> entries = new ArrayList<>();
+        entries.add("");
+        entries.add(null);
+        entries.add("  ");
+        for (final Map<String, Object> var :
+                enumVars("java", List.of("a", "b", "c"), ext("x-enumDescriptions", entries), "String")) {
+            assertFalse(var.containsKey("enumDescription"), String.valueOf(var));
+        }
+    }
+
+    @Test
+    @DisplayName("without any key the members and entries are exactly the derived ones")
+    void noKeysChangesNothing() {
+        for (final String lang : CODEGENS.keySet()) {
+            final List<Map<String, Object>> vars =
+                    enumVars(lang, List.of("on-hold", "b"), new HashMap<>(), "String");
+            assertEquals(codegen(lang).toEnumVarName("on-hold", "String"), vars.get(0).get("name"), lang);
+            assertFalse(vars.get(0).containsKey("enumDescription"), lang);
+            assertFalse(vars.get(0).containsKey("nameSupplied"), lang);
+        }
+    }
+
+    @Test
+    @DisplayName("enumMemberName agrees with the declared members for the same schema")
+    void enumMemberNameAgreesWithTheDeclaredMembers() {
+        final Schema<String> schema = new StringSchema();
+        schema.setEnum(List.of("paused", "active", "live"));
+        final Map<String, Object> names = new java.util.LinkedHashMap<>();
+        names.put("paused", "on hold");
+        names.put("active", "Active");
+        names.put("live", "active");
+        schema.addExtension("x-enumnames", names);
+        for (final String lang : CODEGENS.keySet()) {
+            final AbstractBetterCodegen codegen = codegen(lang);
+            final List<Map<String, Object>> vars =
+                    enumVars(lang, List.of("paused", "active", "live"), names("x-enumnames", names), "String");
+            for (final Map<String, Object> var : vars) {
+                if (var.get("wire") == null) {
+                    continue;
+                }
+                assertEquals(
+                        var.get("name"),
+                        codegen.enumMemberName(schema, String.valueOf(var.get("wire")), "String"),
+                        lang + " " + var.get("wire"));
+            }
+        }
+    }
+
+    private static Map<String, Object> names(String key, Object value) {
+        return ext(key, value);
+    }
+
+    @Test
+    @DisplayName("enumMemberName without a names key is the derived name")
+    void enumMemberNameWithoutKeysIsDerived() {
+        final Schema<String> schema = new StringSchema();
+        schema.setEnum(List.of("on-hold"));
+        assertEquals("ON_HOLD", codegen("java").enumMemberName(schema, "on-hold", "String"));
+    }
+
+    @Test
+    @DisplayName("a member named like what the enum type declares itself gets the numbered suffix")
+    void reservedMemberNamesAreSuffixed() {
+        assertEquals("VALUES2", enumVars("ruby", List.of("values"), ext("x-enumNames", List.of("VALUES")), "String").get(0).get("name"));
+        assertEquals("value2", enumVars("dart", List.of("x"), ext("x-enumNames", List.of("value")), "String").get(0).get("name"));
+        assertEquals("description2", enumVars("swift", List.of("x"), ext("x-enumNames", List.of("description")), "String").get(0).get("name"));
+        assertEquals("all_values_2", enumVars("elixir", List.of("x"), ext("x-enumNames", List.of("all values")), "String").get(0).get("name"));
+    }
+
+    @Test
+    @DisplayName("a derived member named like what the enum type declares itself gets the suffix too")
+    void derivedReservedMemberNamesAreSuffixed() {
+        assertEquals("VALUES2", enumVars("ruby", List.of("values"), new HashMap<>(), "String").get(0).get("name"));
+    }
 }

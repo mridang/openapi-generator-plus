@@ -1265,4 +1265,10 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
         }
         return toModuleTypespec(t, moduleName);
     }
+
+    /** {@inheritDoc} */
+    @Override
+    protected Set<String> getReservedEnumMemberNames() {
+        return Set.of("all_values", "ALL_VALUES");
+    }
 }

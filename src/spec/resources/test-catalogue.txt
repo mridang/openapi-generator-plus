@@ -1429,3 +1429,14 @@ serializationparam106 | A type: number parameter given as the language's exact d
 operations157 | A null required nullable query parameter is sent as the key with an empty value
 operations158 | Every null required nullable query parameter is sent as an empty value in declaration order
 operations159 | A non-null required nullable query parameter is sent with its value
+enums001 | A string enum member named by an array of names exposes the given name and keeps its wire value
+enums002 | An integer enum member named by an array of names exposes the given name and keeps its number
+enums003 | An enum named by an object keyed by wire value names the members it lists and derives the rest
+enums004 | A supplied name that is not a legal identifier is cleaned and cased like a derived name
+enums005 | Two members given names that collide after casing keep distinct names and their own wire values
+enums006 | An inline property enum takes its member names from its own keys
+enums007 | A default on a referenced enum property starts at the member that has the supplied name
+enums008 | Encoding writes the wire value and decoding rejects a supplied name with a serialization error naming it
+enums009 | A member with a description carries it as the one-line doc comment directly above that member
+enums010 | A member without a description keeps the comment it has today
+enums011 | A description holding comment terminators or interpolation sigils still yields a compiling doc comment

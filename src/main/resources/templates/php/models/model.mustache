@@ -21,6 +21,9 @@ enum {{classname}}: int
 {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}{{/lambda.singleLine}} */
+{{/enumDescription}}
     case {{{name}}} = {{{value}}};
 {{/enumVars}}
 {{/allowableValues}}
@@ -42,6 +45,9 @@ enum {{classname}}: int
 {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}{{/lambda.singleLine}} */
+{{/enumDescription}}
     case {{{name}}} = {{{value}}};
 {{/enumVars}}
 {{/allowableValues}}
@@ -62,6 +68,9 @@ enum {{classname}}: string
 {
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+    /** {{#lambda.singleLine}}{{#lambda.phpdocDescription}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.phpdocDescription}}{{/lambda.singleLine}} */
+{{/enumDescription}}
     case {{{name}}} = {{{value}}};
 {{/enumVars}}
 {{/allowableValues}}

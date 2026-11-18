@@ -24,7 +24,12 @@ type {{classname}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{/isLong}}{{^
 const (
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+	// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
+{{^enumDescription}}
 	/* {{classname}}{{name}} represents the value {{{value}}}. */
+{{/enumDescription}}
 	{{classname}}{{name}} {{classname}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}
@@ -116,6 +121,9 @@ type {{classname}}{{enumName}} {{#isInteger}}int{{/isInteger}}{{#isLong}}int64{{
 const (
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+	// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
 	{{classname}}{{enumName}}{{name}} {{classname}}{{enumName}} = {{{value}}}
 {{/enumVars}}
 {{/allowableValues}}

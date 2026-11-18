@@ -18,7 +18,14 @@ defmodule {{moduleName}}.Models.{{classname}} do
   @type t :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}
 {{#allowableValues}}
 {{#enumVars}}
+{{#enumDescription}}
+  @doc """
+  {{#lambda.singleLine}}{{#lambda.elixirHeredoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.elixirHeredoc}}{{/lambda.singleLine}}
+  """
+{{/enumDescription}}
+{{^enumDescription}}
   @doc "Enum value `{{nameLowercase}}`"
+{{/enumDescription}}
   def {{nameLowercase}}, do: :"{{nameLowercase}}"
 
 {{/enumVars}}
@@ -454,7 +461,14 @@ defmodule {{moduleName}}.Models.{{classname}} do
     @type t :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}
 {{#enumVars}}
 
+{{#enumDescription}}
+    @doc """
+    {{#lambda.singleLine}}{{#lambda.elixirHeredoc}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.elixirHeredoc}}{{/lambda.singleLine}}
+    """
+{{/enumDescription}}
+{{^enumDescription}}
     @doc "Enum value `{{nameLowercase}}`"
+{{/enumDescription}}
     def {{nameLowercase}}, do: :"{{nameLowercase}}"
 {{/enumVars}}
 

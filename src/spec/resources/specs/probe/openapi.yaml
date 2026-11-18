@@ -106,6 +106,25 @@ components:
         revision:
           type: integer
           format: int64
+        grade:
+          $ref: '#/components/schemas/Grade'
+
+    Grade:
+      type: string
+      enum:
+        - first
+        - second
+        - third
+      x-enum-varnames:
+        - Gold
+        - Silver
+        - Bronze
+      x-enumDescriptions:
+        - The best grade.
+        - The middle grade.
+        - The last grade.
+      x-enumnames:
+        first: Ignored
 
     Vault:
       type: object

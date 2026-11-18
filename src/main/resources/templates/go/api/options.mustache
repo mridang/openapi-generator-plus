@@ -28,6 +28,9 @@ type {{enumTypeName}} {{enumBase}}
 
 const (
 {{#enumValues}}
+{{#enumDescription}}
+	// {{#lambda.singleLine}}{{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}{{/lambda.singleLine}}
+{{/enumDescription}}
 	{{constName}} {{enumTypeName}} = {{{literal}}}
 {{/enumValues}}
 )

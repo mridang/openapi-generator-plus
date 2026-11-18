@@ -2839,6 +2839,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     @Override
     protected void postProcessEnumVars(List<Map<String, Object>> enumVars) {
         dedupeEnumNames(enumVars, "name");
+        renameReservedEnumMembers(enumVars);
         super.postProcessEnumVars(enumVars);
     }
 
@@ -2879,6 +2880,322 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             seen.add(unique);
             ((Map<String, Object>) entry).put(key, unique);
         }
+    }
+
+    /**
+     * Names the generated enum type declares itself (a values constant, a
+     * raw-value field, a description property, an all-values function). A
+     * member given one of them would collide, so it gets the numbered suffix
+     * a duplicate gets. Empty unless the language's enum template declares such
+     * a name.
+     */
+    protected Set<String> getReservedEnumMemberNames() {
+        return Collections.emptySet();
+    }
+
+    private void renameReservedEnumMembers(List<Map<String, Object>> enumVars) {
+        final Set<String> reserved = getReservedEnumMemberNames();
+        if (reserved.isEmpty()) {
+            return;
+        }
+        final Set<String> taken = new HashSet<>();
+        for (final Map<String, Object> entry : enumVars) {
+            taken.add(String.valueOf(entry.get("name")));
+        }
+        for (final Map<String, Object> entry : enumVars) {
+            final String name = String.valueOf(entry.get("name"));
+            if (!reserved.contains(name)) {
+                continue;
+            }
+            final String separator = name.contains("_") ? "_" : "";
+            String unique = name + separator + 2;
+            for (int n = 3; taken.contains(unique); n++) {
+                unique = name + separator + n;
+            }
+            taken.add(unique);
+            entry.put("name", unique);
+        }
+    }
+
+    /** The spellings an author can use for enum member names, first one wins. */
+    protected static final List<String> ENUM_NAME_KEYS =
+            List.of("x-enum-varnames", "x-enumNames", "x-enumnames");
+
+    /** The spellings an author can use for enum member descriptions, first one wins. */
+    protected static final List<String> ENUM_DESCRIPTION_KEYS =
+            List.of("x-enum-descriptions", "x-enumDescriptions", "x-enumdescriptions");
+
+    /** Warnings already logged, so a schema seen once per property copy warns once. */
+    private final Set<String> loggedEnumWarnings = new HashSet<>();
+
+    /**
+     * Adds the raw wire text ({@code wire}) and the position in the schema's
+     * own {@code enum} array ({@code specIndex}) to every entry, which an
+     * author's names and descriptions are matched against. Upstream drops a
+     * {@code null} entry of a nullable enum, so the position is counted in
+     * {@code values}, not in the generated list. The templates never read
+     * either key.
+     */
+    @Override
+    protected List<Map<String, Object>> buildEnumVars(List<Object> values, String dataType) {
+        final List<Map<String, Object>> enumVars = super.buildEnumVars(values, dataType);
+        int next = 0;
+        for (int i = 0; i < values.size() && next < enumVars.size(); i++) {
+            if (values.get(i) == null) {
+                continue;
+            }
+            final Map<String, Object> entry = enumVars.get(next++);
+            entry.put("wire", String.valueOf(values.get(i)));
+            entry.put("specIndex", i);
+        }
+        return enumVars;
+    }
+
+    /**
+     * Applies an author's member names and descriptions (the spellings in
+     * {@link #ENUM_NAME_KEYS} and {@link #ENUM_DESCRIPTION_KEYS}, the first
+     * present spelling of each family wins). A name goes through the same
+     * pipeline as a derived one ({@link #toSuppliedEnumVarName}) and is then
+     * de-duplicated; a description is stored under {@code enumDescription}
+     * only when it has text. A schema with none of the keys is left alone.
+     */
+    @Override
+    protected void updateEnumVarsWithExtensions(
+            List<Map<String, Object>> enumVars,
+            Map<String, Object> vendorExtensions,
+            String dataType) {
+        if (vendorExtensions == null || vendorExtensions.isEmpty()) {
+            return;
+        }
+        final String nameKey = winningEnumKey(vendorExtensions, ENUM_NAME_KEYS, enumVars);
+        final String descriptionKey =
+                winningEnumKey(vendorExtensions, ENUM_DESCRIPTION_KEYS, enumVars);
+        if (nameKey != null) {
+            boolean applied = false;
+            for (final Map<String, Object> entry : enumVars) {
+                final String supplied =
+                        suppliedEnumText(vendorExtensions.get(nameKey), entry);
+                if (supplied == null) {
+                    continue;
+                }
+                if (!supplied.matches("(?s).*[\\p{L}\\p{N}].*")) {
+                    warnOnce(
+                            "Enum member name '" + supplied + "' for " + enumLabel(enumVars)
+                                    + " has no letter or digit; the derived name is kept");
+                    continue;
+                }
+                entry.put("name", toSuppliedEnumVarName(supplied, dataType));
+                entry.put("nameSupplied", true);
+                applied = true;
+            }
+            if (applied) {
+                renameReservedEnumMembers(enumVars);
+                dedupeEnumNames(enumVars, "name");
+            }
+        }
+        if (descriptionKey != null) {
+            for (final Map<String, Object> entry : enumVars) {
+                final String text =
+                        suppliedEnumText(vendorExtensions.get(descriptionKey), entry);
+                if (text != null) {
+                    entry.put("enumDescription", StringEscapeUtils.unescapeHtml4(text));
+                }
+            }
+        }
+    }
+
+    /**
+     * Picks the first spelling of one key family that is present and warns
+     * when another spelling is also present, or when the value lists more
+     * entries than the enum has values or names a value the enum lacks.
+     */
+    @Nullable
+    private String winningEnumKey(
+            Map<String, Object> extensions,
+            List<String> spellings,
+            List<Map<String, Object>> enumVars) {
+        String winner = null;
+        for (final String spelling : spellings) {
+            if (!extensions.containsKey(spelling)) {
+                continue;
+            }
+            if (winner == null) {
+                winner = spelling;
+            } else {
+                warnOnce(
+                        "Enum " + enumLabel(enumVars) + " has both " + winner + " and " + spelling
+                                + "; " + spelling + " is ignored");
+            }
+        }
+        if (winner == null) {
+            return null;
+        }
+        final Object value = extensions.get(winner);
+        if (value instanceof List) {
+            int known = 0;
+            for (final Map<String, Object> entry : enumVars) {
+                if (entry.get("specIndex") instanceof Integer) {
+                    known = Math.max(known, (Integer) entry.get("specIndex") + 1);
+                }
+            }
+            if (((List<?>) value).size() > known) {
+                warnOnce(
+                        winner + " lists " + ((List<?>) value).size() + " entries but "
+                                + enumLabel(enumVars) + " has " + known
+                                + " values; the extra entries are ignored");
+            }
+        } else if (value instanceof Map) {
+            for (final Object key : ((Map<?, ?>) value).keySet()) {
+                boolean matched = false;
+                for (final Map<String, Object> entry : enumVars) {
+                    if (String.valueOf(key).equals(entry.get("wire"))) {
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    warnOnce(
+                            winner + " names '" + key + "', which is not a value of "
+                                    + enumLabel(enumVars));
+                }
+            }
+        }
+        return winner;
+    }
+
+    /**
+     * The text an author gave one member under {@code key}: the element at
+     * the member's position in the schema's {@code enum} array when the value
+     * is an array, the value of the key equal to the member's wire text when
+     * it is an object. Returns {@code null} when nothing usable was given
+     * (missing, {@code null}, blank or not text).
+     */
+    @Nullable
+    private static String suppliedEnumText(
+            @Nullable Object extension, Map<String, Object> entry) {
+        Object raw = null;
+        if (extension instanceof List) {
+            final Object index = entry.get("specIndex");
+            final List<?> list = (List<?>) extension;
+            if (index instanceof Integer && (Integer) index < list.size()) {
+                raw = list.get((Integer) index);
+            }
+        } else if (extension instanceof Map) {
+            final Object wire = entry.get("wire");
+            for (final Map.Entry<?, ?> candidate : ((Map<?, ?>) extension).entrySet()) {
+                if (wire != null && String.valueOf(candidate.getKey()).equals(wire)) {
+                    raw = candidate.getValue();
+                    break;
+                }
+            }
+        }
+        if (!(raw instanceof String) || ((String) raw).isBlank()) {
+            return null;
+        }
+        return ((String) raw).trim();
+    }
+
+    private static String enumLabel(List<Map<String, Object>> enumVars) {
+        final List<String> wires = new ArrayList<>();
+        for (final Map<String, Object> entry : enumVars) {
+            if (entry.get("wire") != null) {
+                wires.add(String.valueOf(entry.get("wire")));
+            }
+        }
+        return "the enum [" + String.join(", ", wires) + "]";
+    }
+
+    private void warnOnce(String message) {
+        if (loggedEnumWarnings.add(message)) {
+            LOGGER.warn("{}", message);
+        }
+    }
+
+    /**
+     * Names a member from the text an author supplied. The text is a source
+     * word, not final text: it goes through {@link #toEnumVarName} like a
+     * derived name, so symbols, sanitising, the language's casing, the
+     * digit-leading letter and reserved-word escaping all apply. The datatype
+     * is passed as {@code String} so a numeric enum does not prefix the name
+     * with {@code NUMBER_}.
+     */
+    protected String toSuppliedEnumVarName(String supplied, String datatype) {
+        return toEnumVarName(supplied, "String");
+    }
+
+    /**
+     * The one lookup every default uses to name the member for a wire value:
+     * it runs the same pipeline that declares the members (build,
+     * de-duplicate, apply the author's names) over the schema, so a default
+     * can never name a member that was not declared. A schema without author
+     * names gives {@link #toEnumVarName}.
+     *
+     * @param enumSchema the enum schema the default refers to
+     * @param wire the wire value the default holds
+     * @param datatype the datatype the members are named with
+     * @return the member name
+     */
+    @SuppressWarnings("rawtypes")
+    protected String enumMemberName(
+            @Nullable Schema enumSchema, String wire, String datatype) {
+        if (enumSchema == null
+                || enumSchema.getEnum() == null
+                || enumSchema.getExtensions() == null
+                || ENUM_NAME_KEYS.stream().noneMatch(enumSchema.getExtensions()::containsKey)) {
+            return toEnumVarName(wire, datatype);
+        }
+        @SuppressWarnings("unchecked")
+        final List<Object> values = new ArrayList<Object>(enumSchema.getEnum());
+        @SuppressWarnings("unchecked")
+        final Map<String, Object> extensions = (Map<String, Object>) enumSchema.getExtensions();
+        final List<Map<String, Object>> enumVars = buildEnumVars(values, datatype);
+        postProcessEnumVars(enumVars);
+        updateEnumVarsWithExtensions(enumVars, extensions, datatype);
+        for (final Map<String, Object> entry : enumVars) {
+            if (wire.equals(entry.get("wire"))) {
+                return String.valueOf(entry.get("name"));
+            }
+        }
+        return toEnumVarName(wire, datatype);
+    }
+
+    /** The declared {@code enumVars} entry (name, wire, description) for a wire value. */
+    @SuppressWarnings("unchecked")
+    @Nullable
+    protected static Map<String, Object> declaredEnumVar(
+            @Nullable Map<String, Object> allowableValues, String wire) {
+        if (allowableValues != null && allowableValues.get("enumVars") instanceof List) {
+            for (final Object entry : (List<Object>) allowableValues.get("enumVars")) {
+                if (entry instanceof Map
+                        && wire.equals(((Map<String, Object>) entry).get("wire"))) {
+                    return (Map<String, Object>) entry;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Names the member for a wire value from a property's final
+     * {@code enumVars}, the table its template declares from, or falls back
+     * to {@link #toEnumVarName} when the property has none. The reverse of
+     * {@link #enumWireValueForVariant}.
+     */
+    @SuppressWarnings("unchecked")
+    protected String enumMemberNameForWire(CodegenProperty prop, String wire, String datatype) {
+        final Map<String, Object> allowable =
+                prop.mostInnerItems != null && prop.mostInnerItems.allowableValues != null
+                        ? prop.mostInnerItems.allowableValues
+                        : prop.allowableValues;
+        if (allowable != null && allowable.get("enumVars") instanceof List) {
+            for (final Object entry : (List<Object>) allowable.get("enumVars")) {
+                if (entry instanceof Map
+                        && wire.equals(((Map<String, Object>) entry).get("wire"))) {
+                    return String.valueOf(((Map<String, Object>) entry).get("name"));
+                }
+            }
+        }
+        return toEnumVarName(wire, datatype);
     }
 
     /**
@@ -4952,7 +5269,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         property.vendorExtensions.put("siblingDefaultIsEnum", isEnum);
         if (isEnum) {
             property.vendorExtensions.put("siblingDefaultEnumType", toModelName(refName));
-            property.vendorExtensions.put("siblingDefaultEnumVar", toEnumVarName(wire, "String"));
+            property.vendorExtensions.put("siblingDefaultEnumFile", toModelFilename(refName));
+            property.vendorExtensions.put(
+                    "siblingDefaultEnumVar", enumMemberName(target, wire, "String"));
         }
     }
 

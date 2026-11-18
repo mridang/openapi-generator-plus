@@ -2141,6 +2141,149 @@ class ObjectSerializerTest {
   }
 
   @Nested
+  @DisplayName("EnumMemberNameTests")
+  class EnumMemberNameTests {
+
+    private <T> T decode(String json, Class<T> type) {
+      return java.util.Objects.requireNonNull(serializer.deserialize(json, type));
+    }
+
+    private String modelSource(String name) {
+      try {
+        return java.nio.file.Files.readString(
+            java.nio.file.Path.of(
+                "src/main/java", "com.example.petstore.models".replace('.', '/'), name + ".java"));
+      } catch (java.io.IOException e) {
+        throw new java.io.UncheckedIOException(e);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums001 a string enum member named by an array exposes the given name and its wire"
+            + " value")
+    void bhvEnums001ArrayNamesAStringMember() {
+      assertEquals("s", com.example.petstore.models.Tier.SMALL.getValue());
+      assertEquals("m", com.example.petstore.models.Tier.MEDIUM.getValue());
+      assertEquals("l", com.example.petstore.models.Tier.LARGE.getValue());
+      assertEquals(
+          com.example.petstore.models.Tier.MEDIUM,
+          decode("{\"rank\":1,\"tier\":\"m\"}", com.example.petstore.models.Subscription.class)
+              .tier);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums002 an integer enum member named by an array exposes the given name and its"
+            + " number")
+    void bhvEnums002ArrayNamesAnIntegerMember() {
+      assertEquals(1, com.example.petstore.models.Rank.LOW.getValue());
+      assertEquals(2, com.example.petstore.models.Rank.MEDIUM.getValue());
+      assertEquals(3, com.example.petstore.models.Rank.HIGH.getValue());
+      com.example.petstore.models.Subscription decoded =
+          decode("{\"rank\":3}", com.example.petstore.models.Subscription.class);
+      assertEquals(com.example.petstore.models.Rank.HIGH, decoded.rank);
+      assertTrue(serializer.serialize(decoded).contains("\"rank\":3"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums003 an enum named by an object keyed by wire value names the members it lists")
+    void bhvEnums003ObjectNamesTheListedMembers() {
+      assertEquals("paused", com.example.petstore.models.Stage.ON_HOLD.getValue());
+      assertEquals(
+          com.example.petstore.models.Stage.ON_HOLD,
+          decode(
+                  "{\"rank\":1,\"stage\":\"paused\"}",
+                  com.example.petstore.models.Subscription.class)
+              .stage);
+      assertEquals(
+          com.example.petstore.models.Stage.ACTIVE,
+          decode(
+                  "{\"rank\":1,\"stage\":\"active\"}",
+                  com.example.petstore.models.Subscription.class)
+              .stage);
+    }
+
+    @Test
+    @DisplayName("bhvEnums004 a supplied name that is not a legal identifier is cleaned and cased")
+    void bhvEnums004SuppliedNameIsCleanedAndCased() {
+      assertEquals("paused", com.example.petstore.models.Stage.valueOf("ON_HOLD").getValue());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums005 two supplied names that collide after casing keep distinct names and wires")
+    void bhvEnums005CollidingNamesStayDistinct() {
+      assertEquals("active", com.example.petstore.models.Stage.valueOf("ACTIVE").getValue());
+      assertEquals("live", com.example.petstore.models.Stage.valueOf("ACTIVE2").getValue());
+      assertEquals(
+          com.example.petstore.models.Stage.valueOf("ACTIVE2"),
+          decode("{\"rank\":1,\"stage\":\"live\"}", com.example.petstore.models.Subscription.class)
+              .stage);
+    }
+
+    @Test
+    @DisplayName("bhvEnums006 an inline property enum takes its member names from its own keys")
+    void bhvEnums006InlineEnumTakesItsOwnNames() {
+      assertEquals(
+          "month", com.example.petstore.models.Subscription.IntervalEnum.MONTHLY.getValue());
+      assertEquals("year", com.example.petstore.models.Subscription.IntervalEnum.YEARLY.getValue());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums007 a default on a referenced enum property starts at the member with the supplied"
+            + " name")
+    void bhvEnums007DefaultStartsAtTheSuppliedMember() {
+      assertEquals(
+          com.example.petstore.models.Tier.MEDIUM,
+          new com.example.petstore.models.Subscription(com.example.petstore.models.Rank.LOW).tier);
+      assertEquals(
+          com.example.petstore.models.Tier.MEDIUM,
+          decode("{\"rank\":1}", com.example.petstore.models.Subscription.class).tier);
+    }
+
+    @Test
+    @DisplayName("bhvEnums008 encoding writes the wire value and decoding rejects a supplied name")
+    void bhvEnums008WireValueOnlyOnTheWire() {
+      assertEquals("\"m\"", serializer.serialize(com.example.petstore.models.Tier.MEDIUM));
+      SerializationException error =
+          assertThrows(
+              SerializationException.class,
+              () ->
+                  decode(
+                      "{\"rank\":1,\"tier\":\"Medium\"}",
+                      com.example.petstore.models.Subscription.class));
+      assertTrue(String.valueOf(error.getMessage()).contains("Medium"), error.getMessage());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums009 a member with a description carries it as the one-line comment directly above"
+            + " it")
+    void bhvEnums009DescriptionIsTheCommentAboveTheMember() {
+      assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n  SMALL("));
+      assertTrue(modelSource("Tier").contains("/** The medium tier. */\n  MEDIUM("));
+    }
+
+    @Test
+    @DisplayName("bhvEnums010 a member without a description keeps the comment it has today")
+    void bhvEnums010UndescribedMemberKeepsItsComment() {
+      assertTrue(modelSource("Rank").contains("/** The {@code 2} value. */\n  MEDIUM("));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums011 a description with comment terminators still yields a compiling comment")
+    void bhvEnums011HostileDescriptionStaysAComment() {
+      String source = modelSource("Tier");
+      assertTrue(source.contains("The largest tier. Ends with"));
+      assertTrue(source.contains("#{x} and $x. */\n  LARGE("));
+    }
+  }
+
+  @Nested
   @DisplayName("ByteArrayRoundTripTests")
   class ByteArrayRoundTripTests {
 

@@ -2360,5 +2360,70 @@ void main() {
       });
     });
   });
+
+  group('enum member names and descriptions', () {
+    String source(String name) => File('lib/src/models/$name.dart').readAsStringSync();
+
+    test('bhv enums 001 a string member named by an array exposes the given name and its wire value', () {
+      expect([Tier.small.value, Tier.medium.value, Tier.large.value], equals(['s', 'm', 'l']));
+      final item = deserialize<Subscription>('{"rank":1,"tier":"m"}', Subscription.fromJson);
+      expect(item!.tier, equals(Tier.medium));
+    });
+
+    test('bhv enums 002 an integer member named by an array exposes the given name and its number', () {
+      expect([Rank.low.value, Rank.medium.value, Rank.high.value], equals([1, 2, 3]));
+      final item = deserialize<Subscription>('{"rank":3}', Subscription.fromJson);
+      expect(item!.rank, equals(Rank.high));
+      expect(serialize(item), contains('"rank":3'));
+    });
+
+    test('bhv enums 003 an object keyed by wire value names the members it lists', () {
+      expect(deserialize<Subscription>('{"rank":1,"stage":"paused"}', Subscription.fromJson)!.stage,
+          equals(Stage.onHold));
+      expect(deserialize<Subscription>('{"rank":1,"stage":"active"}', Subscription.fromJson)!.stage,
+          equals(Stage.active));
+    });
+
+    test('bhv enums 004 a supplied name that is not a legal identifier is cleaned and cased', () {
+      expect(Stage.onHold.value, equals('paused'));
+    });
+
+    test('bhv enums 005 two supplied names that collide after casing keep distinct names and wires', () {
+      expect(Stage.active.value, equals('active'));
+      expect(Stage.active2.value, equals('live'));
+      expect(deserialize<Subscription>('{"rank":1,"stage":"live"}', Subscription.fromJson)!.stage,
+          equals(Stage.active2));
+    });
+
+    test('bhv enums 006 an inline property enum takes its member names from its own keys', () {
+      expect(SubscriptionIntervalEnum.monthly.value, equals('month'));
+      expect(SubscriptionIntervalEnum.yearly.value, equals('year'));
+    });
+
+    test('bhv enums 007 a default on a referenced enum property starts at the supplied member', () {
+      expect(const Subscription(rank: Rank.low).tier, equals(Tier.medium));
+      expect(deserialize<Subscription>('{"rank":1}', Subscription.fromJson)!.tier, equals(Tier.medium));
+    });
+
+    test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', () {
+      expect(const Subscription(rank: Rank.low, tier: Tier.medium).toJson()['tier'], equals('m'));
+      expect(
+          () => deserialize<Subscription>('{"rank":1,"tier":"Medium"}', Subscription.fromJson),
+          throwsA(predicate((e) => e is SerializationException && e.toString().contains('Medium'))));
+    });
+
+    test('bhv enums 009 a description is the one-line comment directly above the member', () {
+      expect(source('tier'), contains('  /// The smallest tier.\n  small('));
+      expect(source('tier'), contains('  /// The medium tier.\n  medium('));
+    });
+
+    test('bhv enums 010 a member without a description keeps the comment it has today', () {
+      expect(source('rank'), contains('  /// Represents the value 2.\n  medium(2),'));
+    });
+
+    test('bhv enums 011 a description with terminators and sigils still yields a comment', () {
+      expect(source('tier'), contains(r'  /// The largest tier. Ends with */ and #{x} and $x.' '\n  large('));
+    });
+  });
 }
 {{/generateTests}}
