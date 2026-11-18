@@ -1015,7 +1015,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme011PetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void PetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in PetStoreBearerAuthenticatorVariables)
         {
@@ -1181,7 +1181,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme011ServiceTokenAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void ServiceTokenAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in ServiceTokenAuthenticatorVariables)
         {
@@ -1434,7 +1434,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme012InternalApiKeyAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void InternalApiKeyAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in InternalApiKeyAuthenticatorVariables)
         {
@@ -1738,7 +1738,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme013MachineAuthClientCredentialsAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void MachineAuthClientCredentialsAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in MachineAuthClientCredentialsAuthenticatorVariables)
         {
@@ -1875,7 +1875,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme014LegacyAuthPasswordAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void LegacyAuthPasswordAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
         {
@@ -2009,7 +2009,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme015UserAuthAuthorizationCodeAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void UserAuthAuthorizationCodeAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
         {
@@ -2125,7 +2125,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvAuthscheme016BrowserAuthImplicitAuthenticatorTreatsAnEmptyVariableAsUnset()
+    public void BrowserAuthImplicitAuthenticatorTreatsAnEmptyVariableAsUnset()
     {
         foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
         {
