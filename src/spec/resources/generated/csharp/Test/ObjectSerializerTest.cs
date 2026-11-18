@@ -801,6 +801,72 @@ public static class ObjectSerializerTest
         private readonly ObjectSerializer _serializer = new();
 
         [Fact]
+        public void BhvMisc087ADecimalInALooselyBuiltBodyIsABareJsonNumber()
+        {
+            string json = _serializer.Serialize(
+                new Dictionary<string, object> { ["weightKg"] = 12.5m }
+            );
+            Assert.Contains("\"weightKg\":12.5", json, StringComparison.Ordinal);
+            Assert.DoesNotContain("\"weightKg\":\"12.5\"", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc088ADecimalDecodedFromTextKeepsItsDecimalPlaces()
+        {
+            decimal? value = _serializer.Deserialize<decimal>("12.50");
+            Assert.Equal(
+                "12.50",
+                value!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            );
+        }
+
+        [Fact]
+        public void BhvMisc089ADateTimeInAContainerIsWrittenInCanonicalForm()
+        {
+            var times = new List<DateTimeOffset>
+            {
+                new DateTimeOffset(2026, 1, 2, 3, 4, 5, TimeSpan.Zero),
+            };
+            Assert.Contains(
+                "\"2026-01-02T03:04:05.000+00:00\"",
+                _serializer.Serialize(times),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvMisc090ADurationInARecordWritesItsFractionalSeconds()
+        {
+            var durations = new Dictionary<string, TimeSpan>
+            {
+                { "retry", TimeSpan.FromMilliseconds(1500) },
+            };
+            Assert.Contains(
+                "\"retry\":\"1.500s\"",
+                _serializer.Serialize(durations),
+                StringComparison.Ordinal
+            );
+        }
+
+        [Fact]
+        public void BhvMisc092PropertiesAreMatchedOnlyByTheirWireName()
+        {
+            var category = _serializer.Deserialize<Category>("{\"name\":\"x\",\"Name\":\"Dogs\"}");
+            Assert.Equal("x", category!.Name);
+        }
+
+        [Fact]
+        public void BhvMisc094AFreeFormObjectIsWrittenWithItsMembersUnchanged()
+        {
+            var freeForm = new Dictionary<string, object>
+            {
+                ["b"] = new object[] { 1, "x" },
+                ["a"] = new Dictionary<string, object> { ["c"] = true },
+            };
+            Assert.Equal("{\"a\":{\"c\":true},\"b\":[1,\"x\"]}", _serializer.Serialize(freeForm));
+        }
+
+        [Fact]
         public void BhvSerializationobject152SerializesModelToValidJson()
         {
             var category = new Category { Id = 1L, Name = "Dogs" };

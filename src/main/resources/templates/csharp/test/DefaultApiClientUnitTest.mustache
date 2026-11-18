@@ -649,6 +649,115 @@ public class DefaultApiClientUnitTest
         Assert.Equal("application/json", capturedAccept);
     }
 
+    [Fact]
+    public async Task BhvMisc095AResponseBodyWithInvalidBytesReplacesEachBadByte()
+    {
+        var handler = new RawBodyHandler(new byte[] { 0x61, 0xff, 0x62, 0xfe });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var ex = await Assert.ThrowsAnyAsync<ApiException>(() => client.SendRequestAsync(
+            "GET", new Uri("http://example.com/test"), new Dictionary<string, string>(), null));
+        Assert.Equal("a\uFFFDb\uFFFD", ex.ResponseBody);
+    }
+
+    [Fact]
+    public async Task BhvMisc096ATextPartCarriesOnlyItsContentDisposition()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(), new Dictionary<string, object> { { "title", "hello" } });
+
+        Assert.NotNull(wireText);
+        Assert.Contains("Content-Disposition: form-data; name=\"title\"\r\n\r\nhello\r\n", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Content-Transfer-Encoding", wireText, StringComparison.Ordinal);
+        Assert.DoesNotContain("Content-Type", wireText, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc097AnArrayFieldIsOnePartPerElementInOrder()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"), new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "tags", new[] { "a", "b" } }, { "name", "x" } });
+
+        Assert.NotNull(wireText);
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(wireText, "name=\"tags\"").Count);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(wireText, "name=\"name\"").Count);
+        Assert.True(wireText.IndexOf("\r\n\r\na\r\n", StringComparison.Ordinal) < wireText.IndexOf("\r\n\r\nb\r\n", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task BhvMisc098ACallerStreamPartIsNeverClosedBySdk()
+    {
+        var handler = new CapturingHandler(_ => Task.CompletedTask);
+        var client = new DefaultApiClient(new HttpClient(handler));
+        var stream = new DisposeTrackingStream(new byte[] { 1, 2, 3 });
+        await client.SendRequestAsync(
+            "POST", new Uri("http://example.com/upload"), new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "data.bin", stream } });
+
+        Assert.False(stream.WasDisposed);
+    }
+
+    [Fact]
+    public void BhvMisc099ANonAsciiFilenameHasOneFallbackAndAnExtendedForm()
+    {
+        string directive = DefaultApiClient.BuildFilenameDirective("r\u00e9sum\u00e9.pdf");
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(directive, "filename=").Count);
+        Assert.Contains("filename*=UTF-8''r%C3%A9sum%C3%A9.pdf", directive, StringComparison.Ordinal);
+    }
+
+    private sealed class RawBodyHandler : HttpMessageHandler
+    {
+        private readonly byte[] _bytes;
+
+        public RawBodyHandler(byte[] bytes)
+        {
+            _bytes = bytes;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.InternalServerError)
+            {
+                Content = new ByteArrayContent(_bytes),
+            };
+            response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain")
+            {
+                CharSet = "utf-8",
+            };
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class DisposeTrackingStream : MemoryStream
+    {
+        public DisposeTrackingStream(byte[] bytes)
+            : base(bytes)
+        {
+        }
+
+        public bool WasDisposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            WasDisposed = true;
+            base.Dispose(disposing);
+        }
+    }
+
     // -- Gap J: per-part MIME sniffing for multipart uploads --
 
     [Fact]
