@@ -2162,6 +2162,47 @@ import Testing
     #expect(client.isTransportReleased)
   }
 
+  // MARK: - Behaviour catalogue: charsets and multipart parts
+
+  /* A charset is matched by its parameter name, so a parameter whose name only ends in charset is ignored. */
+  @Test func testBhvSerialization055CharsetIsMatchedByParameterNameNeverBySuffix() {
+    let decoded = DefaultApiClient.decodeText(
+      Data([0xE9]), contentType: "text/plain; xcharset=ISO-8859-1")
+    #expect(decoded != "\u{00E9}")
+    #expect(
+      DefaultApiClient.decodeText(Data([0xE9]), contentType: "text/plain; charset=ISO-8859-1")
+        == "\u{00E9}")
+  }
+
+  /* Quotes and backslashes in a multipart field name are escaped so the part header stays well formed. */
+  @Test func testBhvSerialization056QuotesInMultipartNamesAreEscaped() throws {
+    let body = try DefaultApiClient.buildMultipartBody(["a\"b": "value"], boundary: "BOUNDARY")
+    let text = String(decoding: body, as: UTF8.self)
+    #expect(text.contains("name=\"a\\\"b\""))
+  }
+
+  /* A multipart part with no filename is sent as application/octet-stream. */
+  @Test func testBhvSerialization058PartWithoutFilenameIsOctetStream() throws {
+    let body = try DefaultApiClient.buildMultipartBody(
+      ["blob": Data([0x01, 0x02])], boundary: "BOUNDARY")
+    #expect(
+      String(decoding: body, as: UTF8.self).contains("Content-Type: application/octet-stream"))
+  }
+
+  /* A byte stream given as a multipart part is sent as a file part that carries exactly its bytes. */
+  @Test func testBhvSerialization059BinaryPartCarriesExactlyItsBytes() throws {
+    let bytes = Data([0x00, 0xFF, 0x7F])
+    let body = try DefaultApiClient.buildMultipartBody(["blob": bytes], boundary: "BOUNDARY")
+    #expect(body.range(of: bytes) != nil)
+  }
+
+  /* A model sent as a multipart part declares the application/json media type. */
+  @Test func testBhvSerialization060ModelPartDeclaresApplicationJson() throws {
+    let body = try DefaultApiClient.buildMultipartBody(
+      ["order": Order(id: 1, quantity: 7)], boundary: "BOUNDARY")
+    #expect(String(decoding: body, as: UTF8.self).contains("Content-Type: application/json"))
+  }
+
 }
 
 // MARK: - Model-part stand-in for multipart unit tests

@@ -1873,6 +1873,7 @@ import Testing
     #expect(try ObjectSerializer.serialize(["u": "https://x/y"]) == "{\"u\":\"https://x/y\"}")
     let untyped: Any = ["u": "a/b"] as [String: Any]
     #expect(try ObjectSerializer.serialize(untyped) == "{\"u\":\"a/b\"}")
+    #expect(try ObjectSerializer.serialize(["u": "<a>&\u{00E9}"]) == "{\"u\":\"<a>&\u{00E9}\"}")
   }
 
   /* Object keys are written in a fixed order, so the same value always
@@ -2178,6 +2179,9 @@ import Testing
     #expect(decoded?.petId == Int64.min)
     let json = try ObjectSerializer.serialize(Order(id: 9_007_199_254_740_993))
     #expect(json.contains("\"id\":9007199254740993"))
+    #expect(
+      try ObjectSerializer.deserialize("{\"id\":9223372036854775807}", as: Order.self)?.id
+        == Int64.max)
   }
 
   @Test func testInt64FieldBeyondRangeIsRejected() {
@@ -2457,5 +2461,53 @@ import Testing
   @Test func testBhvSerialization065NullInsideAnArrayIsKeptInPlace() throws {
     let decoded = try ObjectSerializer.deserialize("[1,null,3]", as: [Int?].self)
     #expect(decoded == [1, nil, 3])
+  }
+  // MARK: - Behaviour catalogue: numbers, durations and typed leaves
+
+  /* A typed leaf nested inside a model decodes to its own typed value, including an enum member and a model. */
+  @Test func testBhvSerialization025TypedLeavesNestedInAModelDecodeToTheirOwnTypes() throws {
+    let json =
+      "{\"name\":\"Fido\",\"photoUrls\":[],\"category\":{\"id\":2,\"name\":\"Dogs\"},\"tags\":[{\"id\":3,\"name\":\"good\"}],\"status\":\"available\"}"
+    let pet = try #require(try ObjectSerializer.deserialize(json, as: Pet.self))
+    #expect(pet.category?.name == "Dogs")
+    #expect(pet.tags?.first?.name == "good")
+    #expect(pet.status == PetStatusEnum(rawValue: "available"))
+  }
+
+  /* A whole-number floating-point value is written with a decimal point. */
+  @Test func testBhvSerialization036WholeFloatIsWrittenWithADecimalPoint() {
+    #expect(ObjectSerializer.stringify(1.0) == "1.0")
+    #expect(ObjectSerializer.stringify(2.0) == "2.0")
+  }
+
+  /* A decimal number is written with every significant digit, not rounded to a shorter precision. */
+  @Test func testBhvSerialization037DecimalDigitsAreNotRounded() {
+    #expect(ObjectSerializer.stringify(1.23456789012) == "1.23456789012")
+  }
+
+  /* A duration's fractional seconds are written in the shortest group of three, six or nine digits. */
+  @Test func testBhvSerialization046DurationFractionUsesTheShortestGroup() throws {
+    #expect(try ObjectSerializer.encodeDuration(1.25) == "1.250s")
+    #expect(try ObjectSerializer.encodeDuration(0.001) == "0.001s")
+  }
+
+  /* A duration too large for a 64-bit nanosecond count is formatted without overflow, and an out-of-range one is refused. */
+  @Test func testBhvSerialization047LargeDurationFormatsAndOutOfRangeIsRefused() throws {
+    #expect(try ObjectSerializer.encodeDuration(315_576_000_000) == "315576000000s")
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.decodeDuration("315576000001s")
+    }
+  }
+
+  /* A duration written on its own is written as its protobuf-JSON seconds string. */
+  @Test func testBhvSerialization048DurationOnItsOwnIsItsSecondsString() throws {
+    #expect(try ObjectSerializer.encodeDuration(60) == "60s")
+  }
+
+  /* A free-form value keeps its JSON type, so a string stays a string on decode. */
+  @Test func testBhvSerialization054FreeFormValueKeepsItsJsonType() throws {
+    let decoded = try #require(
+      try ObjectSerializer.deserialize("{\"s\":\"text\"}", as: [String: AnyCodable].self))
+    #expect(decoded["s"]?.value as? String == "text")
   }
 }

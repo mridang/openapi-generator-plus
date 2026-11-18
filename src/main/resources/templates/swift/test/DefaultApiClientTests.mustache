@@ -896,6 +896,133 @@ import FoundationNetworking
         let (data, _) = try await session.data(from: URL(string: "https://example.com/after")!)
         #expect(String(data: data, encoding: .utf8) == "ok")
     }
+    // MARK: - Behaviour catalogue: redirect methods, bodies and locations
+
+    /* A 307 redirect keeps the method, so the request is replayed as a POST with its Content-Type. */
+    @Test func testBhvRedirects038A307KeepsTheMethodAndContentType() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        var capturedMethod: String?
+        var capturedType: String?
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 307, ["Location": "https://example.com/api/echo-method-body"])
+            }
+            capturedMethod = req.httpMethod
+            capturedType = req.value(forHTTPHeaderField: "Content-Type")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "POST", url: "https://example.com/api/redirect-307",
+            headers: ["Content-Type": "application/json"], body: "payload".data(using: .utf8)!)
+        #expect(response.statusCode == 200)
+        #expect(capturedMethod == "POST")
+        #expect(capturedType == "application/json")
+    }
+
+    /* A bodyless request is followed from HTTPS to plain HTTP, because no body is sent in plaintext. */
+    @Test func testBhvRedirects039BodylessRequestIsFollowedToPlainHttp() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 307, ["Location": "http://example.com/plain"])
+            }
+            return (Data("{}".utf8), 200, [:])
+        }
+        let response = try await client.sendRequest(
+            method: "POST", url: "https://example.com/start", headers: [:], body: nil)
+        #expect(response.statusCode == 200)
+    }
+
+    /* A 302 from HTTPS to plain HTTP is followed rather than refused, because the next request carries no body. */
+    @Test func testBhvRedirects040A302FromHttpsToHttpIsFollowed() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 302, ["Location": "http://example.com/plain"])
+            }
+            return (Data("{}".utf8), 200, [:])
+        }
+        let response = try await client.sendRequest(
+            method: "POST", url: "https://example.com/start", headers: [:], body: "payload".data(using: .utf8)!)
+        #expect(response.statusCode == 200)
+    }
+
+    /* A 307 redirect of a bodyless POST keeps the request a POST. */
+    @Test func testBhvRedirects042A307OfABodylessPostStaysAPost() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        var capturedMethod: String?
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 307, ["Location": "https://example.com/api/next"])
+            }
+            capturedMethod = req.httpMethod
+            return (Data("{}".utf8), 200, [:])
+        }
+        _ = try await client.sendRequest(method: "POST", url: "https://example.com/api/start", headers: [:], body: nil)
+        #expect(capturedMethod == "POST")
+    }
+
+    /* A relative Location is resolved against the URL of the request that received it, per RFC 3986. */
+    @Test func testBhvRedirects043RelativeLocationIsResolvedAgainstTheRequestUrl() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        var capturedURL: String?
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 302, ["Location": "../other/next"])
+            }
+            capturedURL = req.url?.absoluteString
+            return (Data("{}".utf8), 200, [:])
+        }
+        _ = try await client.sendRequest(method: "GET", url: "https://example.com/a/b/start", headers: [:], body: nil)
+        #expect(capturedURL == "https://example.com/a/other/next")
+    }
+
+    /* A cross-origin redirect removes the caller's own authorization header. */
+    @Test func testBhvRedirects044CrossOriginRedirectRemovesTheCallerAuthorization() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
+        let hopCount = HopCounter()
+        var capturedAuthorization: String? = "unset"
+        let client = makeClient(transport: transport) { req in
+            let hop = hopCount.increment()
+            if hop == 1 {
+                return (Data(), 302, ["Location": "https://other.example.org/next"])
+            }
+            capturedAuthorization = req.value(forHTTPHeaderField: "Authorization")
+            return (Data("{}".utf8), 200, [:])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com/start", headers: ["Authorization": "Bearer caller-token"], body: nil)
+        #expect(capturedAuthorization == nil)
+    }
+
+    /* A caller-supplied session carries every request of the SDK, with the URL and caller headers unchanged. */
+    @Test func testBhvTransport081SuppliedSessionCarriesEveryRequestUnchanged() async throws {
+        var seenURL = ""
+        var seenHeader: String?
+        let session = StubURLProtocol.session { req in
+            seenURL = req.url?.absoluteString ?? ""
+            seenHeader = req.value(forHTTPHeaderField: "X-Caller")
+            return (Data("ok".utf8), 200, [:])
+        }
+        let transport = try TransportOptionsBuilder().session(session).build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/caller", headers: ["X-Caller": "1"], body: nil)
+        #expect(response.statusCode == 200)
+        #expect(seenURL == "https://example.com/caller")
+        #expect(seenHeader == "1")
+    }
+
 }
 
 /// A URLProtocol that accepts a request and never answers it, so a test can
