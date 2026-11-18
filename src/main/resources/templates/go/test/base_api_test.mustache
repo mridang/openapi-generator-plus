@@ -4018,3 +4018,64 @@ func TestBhvMisc177_BaseApi_ADefaultContentTypeInAnyCaseIsNotSentWithoutABody(t 
 		t.Errorf("expected no Content-Type without a body, got %q", contentType)
 	}
 }
+
+// The headers of a received response are copied onto the error raised for that response.
+func TestBhvMisc281_BaseApi_TheResponseHeadersAreCopiedOntoTheRaisedError(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Trace", "trace-281")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+	api := retryApi(t, &scriptedServer{Server: server}, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+
+	err := addPetCall(api)
+	headered, ok := err.(interface{ ResponseHeaders() map[string]string })
+	if !ok {
+		t.Fatalf("expected the error to carry the response headers, got %T", err)
+	}
+	if got := headered.ResponseHeaders()["x-trace"]; got != "trace-281" {
+		t.Errorf("expected the copied X-Trace header, got %q", got)
+	}
+}
+
+// A network failure after the connection drops keeps the transport error as its cause.
+func TestBhvMisc282_BaseApi_ANetworkFailureKeepsTheTransportErrorAsItsCause(t *testing.T) {
+	t.Parallel()
+	srv := newDroppingServer(t)
+	api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+
+	var netErr *apierrors.NetworkError
+	err := addPetCall(api)
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected a *NetworkError, got %T: %v", err, err)
+	}
+	if netErr.Cause() == nil {
+		t.Error("expected the transport error to be kept as the cause")
+	}
+}
+
+// A generated call raises the typed error that matches each status it receives.
+func TestBhvMisc284_BaseApi_AGeneratedCallRaisesTheTypedErrorForEachStatus(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		status int
+		typed  any
+	}{
+		{http.StatusBadRequest, &apierrors.BadRequestError{}},
+		{http.StatusForbidden, &apierrors.ForbiddenError{}},
+		{http.StatusNotFound, &apierrors.NotFoundError{}},
+		{http.StatusConflict, &apierrors.ConflictError{}},
+		{http.StatusUnprocessableEntity, &apierrors.UnprocessableEntityError{}},
+		{http.StatusTooManyRequests, &apierrors.TooManyRequestsError{}},
+		{http.StatusInternalServerError, &apierrors.InternalServerError{}},
+		{http.StatusBadGateway, &apierrors.BadGatewayError{}},
+	}
+	for _, c := range cases {
+		srv := newScriptedServer(t, scriptedReply{status: c.status})
+		api := retryApi(t, srv, func(b *{{packageName}}.TransportOptionsBuilder) { b.MaxRetries(0) }, nil)
+		if got := reflect.TypeOf(addPetCall(api)); got != reflect.TypeOf(c.typed) {
+			t.Errorf("status %d: expected %v, got %v", c.status, reflect.TypeOf(c.typed), got)
+		}
+	}
+}
