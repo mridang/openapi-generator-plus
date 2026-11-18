@@ -1258,6 +1258,35 @@ void main() {
     );
 
     test(
+      'bhv misc 069 a token response with a bad access token or a non-object body is refused naming the problem',
+      () async {
+        final cases = {
+          '{"access_token":42}': 'access_token',
+          '{"access_token":["x"]}': 'access_token',
+          '{"access_token":""}': 'access_token',
+          '["x"]': 'JSON object',
+        };
+        for (final entry in cases.entries) {
+          final client = _FakeApiClient();
+          client.enqueue(entry.key);
+          final manager = OAuth2TokenManager();
+          manager.setApiClient(client);
+
+          await expectLater(
+            manager.getAccessToken(tokenUrl, original),
+            throwsA(
+              isA<OAuth2TokenException>().having(
+                (e) => '$e',
+                'message',
+                contains(entry.value),
+              ),
+            ),
+          );
+        }
+      },
+    );
+
+    test(
       'bhv authoauthtwotokenmgr 020 a non-string refresh_token is ignored',
       () async {
         final client = _FakeApiClient();

@@ -1987,4 +1987,26 @@ public class OAuth2TokenManagerTest
 
         Assert.Equal(2, client.CallCount);
     }
+
+    [Theory]
+    [InlineData("{\"access_token\":12345}")]
+    [InlineData("{\"access_token\":true}")]
+    [InlineData("{\"access_token\":[\"tok\"]}")]
+    [InlineData("{\"access_token\":{\"value\":\"tok\"}}")]
+    public async Task BhvMisc069ANonStringAccessTokenIsRefusedNamingTheField(string body)
+    {
+        var client = new FakeApiClient();
+        client.Enqueue(body);
+        var manager = new OAuth2TokenManager();
+        manager.SetApiClient(client);
+
+        var ex = await Assert.ThrowsAsync<OAuth2TokenException>(() =>
+            manager.GetAccessTokenAsync(
+                new Uri("https://auth.example.com/token"),
+                new Dictionary<string, string> { ["grant_type"] = "client_credentials" },
+                cancellationToken: TestContext.Current.CancellationToken
+            )
+        );
+        Assert.Contains("access_token", ex.Message, StringComparison.Ordinal);
+    }
 }

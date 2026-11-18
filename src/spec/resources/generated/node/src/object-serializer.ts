@@ -795,6 +795,31 @@ export class ObjectSerializer {
   }
 
   /**
+   * Refuse a oneOf wrapper whose held value is none of its declared variants,
+   * so a foreign value is never serialized silently.
+   *
+   * @param wrapper the oneOf wrapper instance
+   * @throws SerializationError if the held value matches no variant
+   */
+  private static assertOneOfVariant(wrapper: object): void {
+    const union = wrapper.constructor as {
+      name: string;
+      ONE_OF_SCHEMAS?: string[];
+    };
+    const names = union.ONE_OF_SCHEMAS ?? [];
+    const isVariant = names.some((name) => {
+      const probe = (wrapper as Record<string, unknown>)[`is${name}`];
+      return (
+        typeof probe === "function" &&
+        (probe as () => unknown).call(wrapper) === true
+      );
+    });
+    if (!isVariant) {
+      throw new SerializationError(`value is not a variant of ${union.name}`);
+    }
+  }
+
+  /**
    * Serialize an object to a JSON string.
    *
    * @param obj the object to serialize
@@ -817,6 +842,7 @@ export class ObjectSerializer {
       "actualInstance" in (obj as Record<string, unknown>) &&
       !("__isAnyOfComposite" in (obj as Record<string, unknown>))
     ) {
+      ObjectSerializer.assertOneOfVariant(obj as object);
       obj = (obj as Record<string, unknown>).actualInstance;
     }
     /**

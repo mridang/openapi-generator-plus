@@ -399,3 +399,16 @@ fn test_bhv_misc_017_a_rejected_bearer_token_never_echoes_its_value() {
         Ok(_) => panic!("a token with a line break must be refused"),
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_066_a_token_provider_value_is_sent_as_the_bearer_credential() {
+    let provider: petstore::auth::TokenProvider = std::sync::Arc::new(|| "live".to_string());
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let headers = auth.try_auth_headers().await.unwrap();
+
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer live")
+    );
+}

@@ -480,3 +480,15 @@ describe('TransportOptions misc behaviours', () => {
     expect(configure).not.toThrow({{errorPrefix}}Error);
   });
 });
+
+describe('TransportOptions builder refusals and proxy', () => {
+  it('bhv misc 051 an unknown option is refused by the builder rather than ignored', () => {
+    const builder = TransportOptions.builder() as unknown as Record<string, unknown>;
+    expect(() => (builder.noSuchOption as () => unknown)()).toThrow(TypeError);
+  });
+
+  it('bhv misc 056 setting the proxy to an empty string removes a proxy set earlier', () => {
+    const options = TransportOptions.builder().proxy('http://proxy.example.com:8080').proxy('').build();
+    expect(options.proxy).toBeFalsy();
+  });
+});

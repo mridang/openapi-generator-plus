@@ -1008,3 +1008,46 @@ async fn test_bhv_auth_029_after_the_cached_discovery_expires_later_calls_use_th
     assert!(first.starts_with("https://auth.example.com/authorize?"), "{}", first);
     assert!(second.starts_with("https://auth.example.com/authorize-v2?"), "{}", second);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_cause_and_hides_its_body() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"["leaked-body"]"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a discovery document that is not an object must fail");
+
+    assert!(err.downcast_ref::<SerializationError>().is_some(), "{}", err);
+    assert!(err.to_string().contains("OIDC discovery document is not a JSON object"), "{}", err);
+    assert!(err.source().is_none());
+    assert!(!err.to_string().contains("leaked-body"), "{}", err);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let url = auth.build_authorization_url("").await.expect("should succeed");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(pairs.contains(&"code_challenge_method=S256"), "{}", url);
+    let challenge = pairs
+        .iter()
+        .find_map(|p| p.strip_prefix("code_challenge="))
+        .expect("a code_challenge");
+    assert_eq!(43, challenge.len(), "{}", challenge);
+    assert!(
+        challenge.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+        "{}",
+        challenge
+    );
+    assert!(!pairs.iter().any(|p| p.starts_with("nonce=")), "{}", url);
+}

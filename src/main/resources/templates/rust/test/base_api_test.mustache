@@ -2499,6 +2499,23 @@ async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_
     assert!(!headers.contains_key("Cookie"), "got: {:?}", headers.get("Cookie"));
 }
 
+#[tokio::test]
+async fn test_bhv_misc_064_an_operation_that_declares_no_security_never_sends_the_client_credential() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
+
+    let _ = api.get_inventory(None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(
+        !headers.contains_key("Authorization"),
+        "got: {:?}",
+        headers.get("Authorization")
+    );
+}
+
 // operations155: an operation sends its query parameters in the order the specification declares them.
 #[tokio::test]
 async fn test_bhv_operations_155_an_operation_sends_its_query_parameters_in_spec_order() {

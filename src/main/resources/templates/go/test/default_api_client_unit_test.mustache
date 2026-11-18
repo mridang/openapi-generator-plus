@@ -3844,3 +3844,38 @@ func TestBhvMisc133_DefaultApiClientUnit_A300Or305IsReturnedAsItIsWithItsLocatio
 		}
 	}
 }
+
+func TestBhvMisc175_DefaultApiClientUnit_CredentialHeaderNamesAreStrippedInAnyCaseAndOrdinaryOnesKept(t *testing.T) {
+	t.Parallel()
+	var receivedAuth, receivedCookie, receivedTrace string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedAuth = r.Header.Get("Authorization")
+		receivedCookie = r.Header.Get("Cookie")
+		receivedTrace = r.Header.Get("X-Trace")
+		w.WriteHeader(200)
+	}))
+	defer target.Close()
+
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", target.URL+"/followed")
+		w.WriteHeader(302)
+	}))
+	defer origin.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().FollowRedirects(true).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
+	_, err := client.SendRequest("GET", origin.URL+"/start",
+		map[string]string{"authorization": "Bearer leaked-token", "COOKIE": "session=leaked", "X-Trace": "kept"}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if receivedAuth != "" || receivedCookie != "" {
+		t.Errorf("expected credential headers stripped across the redirect, got %q and %q", receivedAuth, receivedCookie)
+	}
+	if receivedTrace != "kept" {
+		t.Errorf("expected the ordinary header kept, got %q", receivedTrace)
+	}
+}

@@ -3740,3 +3740,114 @@ class TestEnumMemberNames:
             "    #: The largest tier. Ends with \\*/ and #{x} and $x.\n    LARGE = "
             in self._source("tier")
         )
+
+    def test_bhv_misc_103_rejecting_undeclared_keys_on_one_strict_model_leaves_a_plain_model_accepting_them(
+        self,
+    ) -> None:
+        from petstore_client.models.metadata import Metadata
+
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"rogue":"x"}', "StrictTag")
+        assert isinstance(
+            ObjectSerializer().deserialize('{"rogue":"x"}', "Metadata"), Metadata
+        )
+
+    def test_bhv_misc_105_copying_a_model_never_validates_the_values_given(
+        self,
+    ) -> None:
+        assert Order().model_copy(update={"quantity": 500}).quantity == 500
+
+    def test_bhv_misc_106_a_null_array_element_keeps_its_position(self) -> None:
+        assert ObjectSerializer().serialize([1, None, 2]) == "[1,null,2]"
+
+    def test_bhv_misc_108_a_model_built_with_an_integer_enum_member_keeps_its_wire_value(
+        self,
+    ) -> None:
+        from petstore_client.models.rank import Rank
+        from petstore_client.models.subscription import Subscription
+
+        assert '"rank":1' in ObjectSerializer().serialize(Subscription(rank=Rank.LOW))
+
+    def test_bhv_misc_109_a_nested_object_is_validated_with_the_outer_rules_at_decode(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize(
+                '{"lastError":{"code":"three"}}', "EdgeCases"
+            )
+
+    def test_bhv_misc_110_a_list_of_dates_with_a_non_date_element_is_refused(
+        self,
+    ) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('["2024-01-01","not-a-date"]', "List[date]")
+
+    def test_bhv_misc_111_a_set_is_written_in_sorted_order(self) -> None:
+        text = ObjectSerializer().serialize({"values": {"\U0001f600", "\ufffd", "z"}})
+        assert json.loads(text)["values"] == ["z", "\ufffd", "\U0001f600"]
+        assert json.loads(ObjectSerializer().serialize({"values": {10, 2, 1}}))[
+            "values"
+        ] == [1, 2, 10]
+
+    def test_bhv_misc_112_a_repeated_element_of_a_unique_array_keeps_one_copy(
+        self,
+    ) -> None:
+        from typing import Set
+        from pydantic import BaseModel
+
+        class UniqueTags(BaseModel):
+            values: Set[str]
+
+        decoded = ObjectSerializer().deserialize('{"values":["a","a","b"]}', UniqueTags)
+        assert decoded.values == {"a", "b"}
+
+    def test_bhv_misc_113_a_string_form_shows_the_contents_of_list_map_and_bytes(
+        self,
+    ) -> None:
+        from petstore_client.models.binary_vault import BinaryVault
+
+        text = str(
+            BinaryVault(
+                seal=b"\x01\x02\x03",
+                shards=[b"\x04\x05", b"\x06"],
+                labels={"first": b"\x07\x08"},
+            )
+        )
+        assert "seal=b'\\x01\\x02\\x03'" in text
+        assert "shards=[b'\\x04\\x05', b'\\x06']" in text
+        assert "labels={'first': b'\\x07\\x08'}" in text
+
+    def test_bhv_misc_115_a_bare_string_is_a_quoted_json_string(self) -> None:
+        assert ObjectSerializer().serialize("hello") == '"hello"'
+
+    def test_bhv_misc_116_an_integer_field_accepts_exactly_its_declared_bounds_and_refuses_the_rest(
+        self,
+    ) -> None:
+        for wire in ("1", "100"):
+            assert ObjectSerializer().deserialize(
+                '{"quantity":' + wire + "}", "Order"
+            ).quantity == int(wire)
+        for wire in ("0", "101", "1.5"):
+            with pytest.raises(SerializationException):
+                ObjectSerializer().deserialize('{"quantity":' + wire + "}", "Order")
+
+    def test_bhv_misc_117_an_absent_value_writes_the_json_null_literal(self) -> None:
+        assert ObjectSerializer().serialize(None) == "null"
+
+    def test_bhv_misc_118_the_exact_case_value_is_the_one_decoded(self) -> None:
+        assert (
+            ObjectSerializer()
+            .deserialize('{"NAME":"Other","name":"Exact"}', "Category")
+            .name
+            == "Exact"
+        )
+
+    def test_bhv_misc_119_two_keys_differing_only_by_an_escape_are_one_key_last_wins(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer()
+            .deserialize(r'{"name":"First","\u006eame":"Last"}', "Category")
+            .name
+            == "Last"
+        )
