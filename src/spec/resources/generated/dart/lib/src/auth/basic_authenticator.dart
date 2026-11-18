@@ -93,10 +93,15 @@ class BasicAuthenticator extends BaseAuthenticator {
       );
     }
     if (username != null || password != null) {
-      if (username == null || password == null) {
+      /* Each field takes its passed value, or else its own environment variable. */
+      final user =
+          username ?? readEnvironmentVariable(usernameVariable, environment);
+      final pass =
+          password ?? readEnvironmentVariable(passwordVariable, environment);
+      if (user == null || pass == null) {
         throw ArgumentError('Basic auth needs both a username and a password');
       }
-      return (username, password);
+      return (user, pass);
     }
     if (credentialsProvider != null) {
       return (null, null);

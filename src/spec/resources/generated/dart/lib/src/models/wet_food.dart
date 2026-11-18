@@ -44,11 +44,15 @@ class WetFood {
         "Missing required field 'volumeMl' for WetFood",
       );
     }
-    return WetFood(
-      foodType: json['foodType'] as String,
+    try {
+      return WetFood(
+        foodType: json['foodType'] as String,
 
-      volumeMl: readInt32(json['volumeMl']),
-    );
+        volumeMl: readInt32(json['volumeMl']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for WetFood: $e', e);
+    }
   }
 
   /// Converts this [WetFood] to a JSON map.

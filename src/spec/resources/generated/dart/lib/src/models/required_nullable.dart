@@ -22,7 +22,11 @@ class RequiredNullable {
         "Missing required field 'note' for RequiredNullable",
       );
     }
-    return RequiredNullable(note: json['note'] as String?);
+    try {
+      return RequiredNullable(note: json['note'] as String?);
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for RequiredNullable: $e', e);
+    }
   }
 
   /// Converts this [RequiredNullable] to a JSON map.

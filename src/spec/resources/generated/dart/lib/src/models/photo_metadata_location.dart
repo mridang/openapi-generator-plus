@@ -17,11 +17,18 @@ class PhotoMetadataLocation {
 
   /// Creates a [PhotoMetadataLocation] from a JSON map.
   factory PhotoMetadataLocation.fromJson(Map<String, dynamic> json) {
-    return PhotoMetadataLocation(
-      lat: readDoubleOrNull(json['lat']),
+    try {
+      return PhotoMetadataLocation(
+        lat: readDoubleOrNull(json['lat']),
 
-      lng: readDoubleOrNull(json['lng']),
-    );
+        lng: readDoubleOrNull(json['lng']),
+      );
+    } on TypeError catch (e) {
+      throw SerializationException(
+        'Invalid value for PhotoMetadataLocation: $e',
+        e,
+      );
+    }
   }
 
   /// Converts this [PhotoMetadataLocation] to a JSON map.

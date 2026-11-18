@@ -449,6 +449,15 @@ abstract class AbstractApiClient implements RetryingApiClient {
             );
             next.bodyBytes = await replay.finalize().toBytes();
             next.headers['content-type'] = replay.headers['content-type']!;
+          } else if (const {
+            'POST',
+            'PUT',
+            'PATCH',
+          }.contains(nextMethod.toUpperCase())) {
+            /* A bodyless POST/PUT/PATCH replays with an explicit empty body, as the
+             * first send does, so the hop carries Content-Length: 0. */
+            next.bodyBytes = Uint8List(0);
+            next.headers['content-length'] = '0';
           }
           currentUri = nextUri;
           currentMethod = nextMethod;

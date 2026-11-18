@@ -21,15 +21,19 @@ class Photo {
 
   /// Creates a [Photo] from a JSON map.
   factory Photo.fromJson(Map<String, dynamic> json) {
-    return Photo(
-      id: readInt64OrNull(json['id']),
+    try {
+      return Photo(
+        id: readInt64OrNull(json['id']),
 
-      caption: json['caption'] as String?,
+        caption: json['caption'] as String?,
 
-      isPrimary: json['isPrimary'] as bool?,
+        isPrimary: json['isPrimary'] as bool?,
 
-      url: json['url'] as String?,
-    );
+        url: json['url'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Photo: $e', e);
+    }
   }
 
   /// Converts this [Photo] to a JSON map.

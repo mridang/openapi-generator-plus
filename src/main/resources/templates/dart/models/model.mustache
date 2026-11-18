@@ -413,6 +413,7 @@ class {{classname}} {
 {{/vendorExtensions.requiredNullable}}
 {{/required}}
 {{/vars}}
+    try {
     return {{classname}}(
 {{#vars}}
 {{#vendorExtensions.strictRequired}}
@@ -692,6 +693,9 @@ class {{classname}} {
       additionalProperties: additionalProperties,
 {{/isAdditionalPropertiesTrue}}
     );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for {{classname}}: $e', e);
+    }
   }
 
   /// Converts this [{{classname}}] to a JSON map.

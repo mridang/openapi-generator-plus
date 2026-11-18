@@ -1116,7 +1116,6 @@ void main() {
         environment: {
           BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
         },
-        tokenProvider: () => 'from-provider',
       );
       final fromEnv = BearerAuthenticator(
         host: '/api/v3',

@@ -51,7 +51,16 @@ class BaseApi {
        config = config ?? Configuration.defaultConfiguration(),
        _headerSelector = HeaderSelector(),
        _authenticator = authenticator,
-       _schemes = schemeAuthenticators ?? const {};
+       _schemes = schemeAuthenticators ?? const {} {
+    /* A scheme credential that sends HTTP requests of its own (token exchange,
+       discovery) is given this API's transport as soon as the client is built,
+       so it never reaches a request without one. */
+    for (final credential in _schemes.values) {
+      if (credential is HttpAwareAuthenticator) {
+        credential.setApiClient(this.apiClient);
+      }
+    }
+  }
 
   /// The HTTP transport client used for sending requests.
   final ApiClient apiClient;
@@ -128,7 +137,7 @@ class BaseApi {
     Map<String, String>? callHeaders,
     int? maxRetries,
   }) async {
-    if (timeout != null && timeout < 0) {
+    if (timeout != null && timeout < 1) {
       throw ArgumentError(
         'Invalid timeout: must be a positive number of milliseconds (got $timeout)',
       );
@@ -708,6 +717,7 @@ class BaseApi {
     if (rawBody) {
       if (body is Uint8List) return body;
       if (body is List<int>) return Uint8List.fromList(body);
+      if (body is String) return Uint8List.fromList(utf8.encode(body));
     }
 
     if (contentType == 'multipart/form-data') {

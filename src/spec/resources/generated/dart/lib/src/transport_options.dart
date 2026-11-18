@@ -125,6 +125,36 @@ class TransportOptions {
   Map<String, String> get defaultHeaders =>
       Map<String, String>.from(_defaultHeaders);
 
+  /// Shows every setting, with the proxy password and credential headers masked.
+  @override
+  String toString() {
+    final shownHeaders = _defaultHeaders.map(
+      (name, value) => MapEntry(name, _isSecretHeader(name) ? '***' : value),
+    );
+    return 'TransportOptions(verifySsl: $verifySsl, caCertPath: $caCertPath, '
+        'proxy: ${_redactedProxy()}, timeout: $timeout, '
+        'followRedirects: $followRedirects, maxRedirects: $maxRedirects, '
+        'userAgent: $userAgent, defaultHeaders: $shownHeaders, '
+        'injectRequestId: $injectRequestId, maxRetries: $maxRetries)';
+  }
+
+  String? _redactedProxy() {
+    final url = proxy;
+    if (url == null || url.userInfo.isEmpty) return url?.toString();
+    final user = url.userInfo.split(':').first;
+    return url.replace(userInfo: '$user:***').toString();
+  }
+
+  static bool _isSecretHeader(String name) {
+    final lower = name.toLowerCase();
+    return lower == 'authorization' ||
+        lower == 'proxy-authorization' ||
+        lower == 'cookie' ||
+        lower.contains('key') ||
+        lower.contains('token') ||
+        lower.contains('secret');
+  }
+
   /// Create a new builder for constructing [TransportOptions] instances.
   static TransportOptionsBuilder builder() => TransportOptionsBuilder();
 }

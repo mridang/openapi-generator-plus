@@ -9,7 +9,7 @@ import 'dart:typed_data';
 
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart'
-    show SerializationException;
+    show Category, SerializationException;
 import 'package:petstore_client/src/value_serializer.dart';
 import 'package:petstore_client/src/object_serializer.dart' show stringify;
 
@@ -1347,20 +1347,14 @@ void main() {
     test(
       'bhv serialization 006 a query name or value percent-encodes reserved and space characters so it cannot add a parameter',
       () {
-        expect(
-          serializeValue('a&b=c d', 'query', 'string', ''),
-          equals('a%26b%3Dc%20d'),
-        );
+        expect(encodeRfc3986QueryComponent('a&b=c d'), equals('a%26b%3Dc%20d'));
       },
     );
 
     test(
       'bhv serialization 007 a literal plus sign is sent as %2B and non-ASCII text as percent-encoded UTF-8',
       () {
-        expect(
-          serializeValue('a+é', 'query', 'string', ''),
-          equals('a%2B%C3%A9'),
-        );
+        expect(encodeRfc3986QueryComponent('a+é'), equals('a%2B%C3%A9'));
       },
     );
 

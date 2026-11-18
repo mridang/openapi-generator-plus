@@ -39,23 +39,27 @@ class StockItem {
         "Missing required field 'priority' for StockItem",
       );
     }
-    return StockItem(
-      priority: Priority.fromJson(json['priority'] as int),
-      /* Cross-cutting `default-applies-only-when-absent`: apply the default
+    try {
+      return StockItem(
+        priority: Priority.fromJson(json['priority'] as int),
+        /* Cross-cutting `default-applies-only-when-absent`: apply the default
          solely when the key is OMITTED; an explicit `null` is preserved as
          null per the JSON-Schema contract. */
-      availability: json.containsKey('availability')
-          ? (json['availability'] != null
-                ? Availability.fromJson(json['availability'] as String)
-                : null)
-          : Availability.onHold,
-      matrix: json['matrix'] != null
-          ? deserializeArray(
-              json['matrix'] as List,
-              (e) => deserializeArray(e, (e) => readInt32(e)),
-            )
-          : null,
-    );
+        availability: json.containsKey('availability')
+            ? (json['availability'] != null
+                  ? Availability.fromJson(json['availability'] as String)
+                  : null)
+            : Availability.onHold,
+        matrix: json['matrix'] != null
+            ? deserializeArray(
+                json['matrix'] as List,
+                (e) => deserializeArray(e, (e) => readInt32(e)),
+              )
+            : null,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for StockItem: $e', e);
+    }
   }
 
   /// Converts this [StockItem] to a JSON map.

@@ -120,45 +120,49 @@ class Pet {
         "Missing required field 'photoUrls' for Pet",
       );
     }
-    return Pet(
-      id: readInt64OrNull(json['id']),
+    try {
+      return Pet(
+        id: readInt64OrNull(json['id']),
 
-      name: json['name'] as String,
+        name: json['name'] as String,
 
-      category: json['category'] != null
-          ? Category.fromJson(json['category'] as Map<String, dynamic>)
-          : null,
-      photoUrls: deserializeArray(
-        json['photoUrls'] as List,
-        (e) => e as String,
-      ).toSet(),
-      tags: json['tags'] != null
-          ? deserializeArray(
-              json['tags'] as List,
-              (e) => Tag.fromJson(e as Map<String, dynamic>),
-            )
-          : null,
-      status: json['status'] != null
-          ? PetStatusEnum.fromJson(json['status'] as String)
-          : null,
-      location: json['location'] != null
-          ? deserializeArray(json['location'] as List, (e) => e as Object)
-          : null,
+        category: json['category'] != null
+            ? Category.fromJson(json['category'] as Map<String, dynamic>)
+            : null,
+        photoUrls: deserializeArray(
+          json['photoUrls'] as List,
+          (e) => e as String,
+        ).toSet(),
+        tags: json['tags'] != null
+            ? deserializeArray(
+                json['tags'] as List,
+                (e) => Tag.fromJson(e as Map<String, dynamic>),
+              )
+            : null,
+        status: json['status'] != null
+            ? PetStatusEnum.fromJson(json['status'] as String)
+            : null,
+        location: json['location'] != null
+            ? deserializeArray(json['location'] as List, (e) => e as Object)
+            : null,
 
-      homepageUrl: json['homepageUrl'] != null
-          ? parseUri(json['homepageUrl'] as String)
-          : null,
+        homepageUrl: json['homepageUrl'] != null
+            ? parseUri(json['homepageUrl'] as String)
+            : null,
 
-      thumbnailRef: json['thumbnailRef'] as String?,
+        thumbnailRef: json['thumbnailRef'] as String?,
 
-      linkTemplate: json['linkTemplate'] as String?,
+        linkTemplate: json['linkTemplate'] as String?,
 
-      ownerEmail: json['ownerEmail'] as String?,
+        ownerEmail: json['ownerEmail'] as String?,
 
-      weightKg: readDoubleOrNull(json['weightKg']),
+        weightKg: readDoubleOrNull(json['weightKg']),
 
-      nickname: json['nickname'] as String?,
-    );
+        nickname: json['nickname'] as String?,
+      );
+    } on TypeError catch (e) {
+      throw SerializationException('Invalid value for Pet: $e', e);
+    }
   }
 
   /// Converts this [Pet] to a JSON map.

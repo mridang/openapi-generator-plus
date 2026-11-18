@@ -738,7 +738,7 @@ void main() {
     });
 
     test('bhv errors 079 attaching request details keeps the first complete request and ignores later attachments', () {
-      final first = ApiException.fromResponse(500, const {}, null)
+      final first = ApiException(statusCode: 500, message: 'boom')
           .withRequest('GET', '/first');
       final second = first.withRequest('POST', '/second');
 
