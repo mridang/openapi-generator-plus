@@ -1070,4 +1070,91 @@ describe('OAuth2TokenManager', () => {
       }
     });
   });
+  test('bhv auth 002 invalidating the access token before any exchange raises nothing and sends no request', () => {
+    expect(() => tokenManager.invalidateAccessToken()).not.toThrow();
+    expect(mockClient.callCount).toBe(0);
+  });
+
+  test('bhv auth 010 the token request never carries the transport default headers', async () => {
+    mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
+
+    await tokenManager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' });
+
+    expect(mockClient.lastOptions).toEqual(expect.objectContaining({ noDefaultHeaders: true }));
+  });
+
+  test('bhv auth 017 a form token body writes a space as plus and percent-encodes other reserved punctuation', async () => {
+    mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
+
+    await tokenManager.getAccessToken('https://auth.example.com/token', {
+      grant_type: 'client_credentials',
+      scope: 'read write',
+      note: "!'()*~"
+    });
+
+    expect(mockClient.lastBody).toBe('grant_type=client_credentials&scope=read+write&note=%21%27%28%29%2A~');
+  });
+
+  test('bhv auth 026 when a refresh and the fallback grant both fail, the caller gets the fallback error with its status', async () => {
+    const queued: ApiHttpResponse[] = [
+      { statusCode: 200, body: JSON.stringify({ access_token: 'tok1', refresh_token: 'ref1', expires_in: 0 }), headers: { 'content-type': 'application/json' } },
+      { statusCode: 400, body: JSON.stringify({ error: 'invalid_grant' }), headers: { 'content-type': 'application/json' } },
+      { statusCode: 401, body: JSON.stringify({ error: 'invalid_client' }), headers: { 'content-type': 'application/json' } }
+    ];
+    const client: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        return queued.shift()!;
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    await manager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' });
+
+    const error = await manager
+      .getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(OAuth2ServerError);
+    expect((error as OAuth2ServerError).statusCode).toBe(401);
+  });
+
+  test('bhv auth 027 a cancelled refresh is rethrown and the original grant is not run as a fallback', async () => {
+    let calls = 0;
+    const client: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        calls++;
+        if (calls === 1) {
+          return { statusCode: 200, body: JSON.stringify({ access_token: 'tok1', refresh_token: 'ref1', expires_in: 0 }), headers: { 'content-type': 'application/json' } };
+        }
+        throw new DOMException('The operation was aborted', 'AbortError');
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+    await manager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' });
+
+    const error = await manager
+      .getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' })
+      .catch((e: unknown) => e);
+
+    expect((error as Error).name).toBe('AbortError');
+    expect(calls).toBe(2);
+  });
+
+  test('bhv auth 030 concurrent token requests share one fetch and every caller sees the same token', async () => {
+    let calls = 0;
+    const client: ApiClient = {
+      async sendRequest(): Promise<ApiHttpResponse> {
+        calls++;
+        return { statusCode: 200, body: JSON.stringify({ access_token: `shared${calls}`, expires_in: 3600 }), headers: { 'content-type': 'application/json' } };
+      }
+    };
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    const tokens = await Promise.all([1, 2, 3].map(() => manager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' })));
+
+    expect(calls).toBe(1);
+    expect(new Set(tokens)).toEqual(new Set(['shared1']));
+  });
 });
