@@ -35,6 +35,8 @@ The documentation tree is fixed. Do not put language-specific tables in the root
 | `docs/types.md` | The standard type table: every OpenAPI type and format, and the type each language uses for it, with the language version that type needs. |
 | `docs/languages/<lang>.md` | One page per language (twelve): supported language versions and the support policy, the type mapping for that language, dependencies, the options it accepts, idiom notes, known limits. |
 | `docs/decisions.md` | The settled cross-language decisions in prose for users, linking to the issues for deferred work. |
+| `docs/faq.md` | Questions users and agents ask, each answered with the decision behind it, and the questions still under review. |
+| `docs/comparisons/<tool>.md` | One page per competing generator (ogen, Orval, and later progenitor and swift-openapi-generator): what it does, what we do differently and why, and a verdict per feature. |
 
 Rules for the pages: keep tables in the language page and the types page only, one source of truth each (a version floor is written once and the other pages link to it); regenerate or edit the language page whenever its manifest floor, type mapping or option list changes; state the floor from the build manifest, not from memory; never describe a feature the generated SDK does not have.
 ## Template and generated-prose rules

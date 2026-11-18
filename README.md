@@ -76,6 +76,8 @@ Each language has a page with its supported versions, type mapping, dependencies
 
 * [docs/how-it-works.md](docs/how-it-works.md): the pipeline, the normalizer, the generated SDK format and the checks a change must pass.
 * [docs/types.md](docs/types.md): how every OpenAPI type and format maps to a type in each language.
+* [docs/faq.md](docs/faq.md): common questions answered with the decision behind each, and what is still under review.
+* [docs/comparisons/](docs/comparisons/README.md): how the SDKs compare with ogen, Orval and other generators.
 * [docs/decisions.md](docs/decisions.md): the behaviour all twelve SDKs share, what is not supported and why, and the work that is still open.
 
 ## Contributing
