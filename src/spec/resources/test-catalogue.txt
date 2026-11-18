@@ -2498,3 +2498,4 @@ langnode172 | An uppercase UUID is written in lowercase in the path
 langnode173 | Each style with each explode setting serializes as defined
 langnode174 | A value that is not a YYYY-MM-DD date is refused
 langphp066 | A server variable exposes its default value.
+langphp067 | Non-ASCII text in a serialized string is written literally and never as unicode escapes.
