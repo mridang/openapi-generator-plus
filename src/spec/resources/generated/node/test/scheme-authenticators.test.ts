@@ -143,6 +143,47 @@ describe("SchemeAuthenticators", () => {
       SessionCookieAuthenticator,
       ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"],
     ],
+    [
+      "MachineAuthClientCredentialsAuthenticator",
+      MachineAuthClientCredentialsAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET",
+      ],
+    ],
+    [
+      "LegacyAuthPasswordAuthenticator",
+      LegacyAuthPasswordAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD",
+      ],
+    ],
+    [
+      "UserAuthAuthorizationCodeAuthenticator",
+      UserAuthAuthorizationCodeAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI",
+      ],
+    ],
+    [
+      "BrowserAuthImplicitAuthenticator",
+      BrowserAuthImplicitAuthenticator,
+      ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"],
+    ],
+    [
+      "SsoAuthAuthenticator",
+      SsoAuthAuthenticator,
+      [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI",
+      ],
+    ],
   ];
 
   const withVariables = (

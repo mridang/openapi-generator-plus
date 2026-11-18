@@ -8,6 +8,7 @@
 import {
   readEnvCredential,
   resolveCredential,
+  resolveOAuthCredential,
 } from "../src/auth/credentials.js";
 
 const TOKEN_VARIABLE = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
@@ -64,6 +65,20 @@ describe("credentials", () => {
         `Token is required: pass it explicitly or set ${TOKEN_VARIABLE}`,
       ),
     );
+  });
+
+  it("refuses an OAuth2 credential from the environment that has a line break", () => {
+    process.env[TOKEN_VARIABLE] = "bad\r\nvalue";
+    expect(() =>
+      resolveOAuthCredential(undefined, TOKEN_VARIABLE, "OAuth2 client ID"),
+    ).toThrow(new TypeError("OAuth2 client ID must not contain CR, LF or NUL"));
+  });
+
+  it("accepts an OAuth2 credential from the environment without a line break", () => {
+    process.env[TOKEN_VARIABLE] = "from-env";
+    expect(
+      resolveOAuthCredential(undefined, TOKEN_VARIABLE, "OAuth2 client ID"),
+    ).toBe("from-env");
   });
 
   it("bhv auth 007 reads only the variable it is told to read", () => {
