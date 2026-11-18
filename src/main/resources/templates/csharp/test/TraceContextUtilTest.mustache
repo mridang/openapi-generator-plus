@@ -9,6 +9,40 @@ namespace Test;
 public class TraceContextUtilTest
 {
     [Fact]
+    public void BhvMisc002ACallerRegisteredPropagatorIsUsedAndExistingHeadersAreKept()
+    {
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        using var source = new ActivitySource("test.trace");
+        using var activity = source.StartActivity("TestOperation");
+        Assert.NotNull(activity);
+
+        DistributedContextPropagator previous = DistributedContextPropagator.Current;
+        try
+        {
+            // A propagator that writes nothing: with an active activity, no
+            // traceparent appears, which proves the caller's propagator was used.
+            DistributedContextPropagator.Current = DistributedContextPropagator.CreateNoOutputPropagator();
+
+            var headers = new Dictionary<string, string> { ["Authorization"] = "Bearer t" };
+            TraceContextUtil.InjectTraceContext(headers);
+
+            Assert.False(headers.ContainsKey("traceparent"));
+            Assert.Equal("Bearer t", headers["Authorization"]);
+        }
+        finally
+        {
+            DistributedContextPropagator.Current = previous;
+        }
+    }
+
+    [Fact]
     public void BhvTracing007ShouldNotModifyHeadersWhenNoActiveActivity()
     {
         Activity.Current = null;

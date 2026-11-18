@@ -705,6 +705,16 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
             mergedHeaders["Accept-Encoding"] = SupportedEncodings();
         }
 
+        /* A CR or LF in a header value would let the value end the header and
+           inject another one, so the request is refused before it is built. */
+        foreach (KeyValuePair<string, string> header in mergedHeaders)
+        {
+            if (header.Value.Contains('\r', StringComparison.Ordinal) || header.Value.Contains('\n', StringComparison.Ordinal))
+            {
+                throw new ArgumentException($"Header {header.Key} must not contain CR or LF characters", nameof(headers));
+            }
+        }
+
         using HttpRequestMessage request = new(new HttpMethod(method), url);
 
         string? contentType = null;
