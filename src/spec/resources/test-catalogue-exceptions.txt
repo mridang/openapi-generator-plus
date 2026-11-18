@@ -443,6 +443,9 @@ go | misc105 | Go models have no validation step at construction or copy, so cop
 ||||||| 92a9dd837
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
+ruby | misc152 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
+ruby | misc153 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
+||||||| 9ea484caf
 ruby | misc044 | contradicts transport089: a Content-Encoding that does not match its body is an API error, so a gzip header without the gzip signature cannot also be returned as the plain body
 ruby | misc052 | Ruby keyword arguments cannot name the same option twice in one call (a repeated keyword is a syntax error), so there is no second value of the same per-call option to resolve
 ruby | misc054 | a call reads its header hash before it returns and keeps no reference to it, and no option object holds the map for later, so a change the caller makes afterwards cannot reach a request
