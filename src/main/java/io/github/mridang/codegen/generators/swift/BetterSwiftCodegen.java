@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -23,10 +24,13 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
+import org.openapitools.codegen.CodegenComposedSchemas;
 import org.openapitools.codegen.CodegenConstants;
+import org.openapitools.codegen.CodegenDiscriminator;
 import org.openapitools.codegen.CodegenModel;
 import org.openapitools.codegen.CodegenOperation;
 import org.openapitools.codegen.CodegenParameter;
+import org.openapitools.codegen.CodegenProperty;
 import org.openapitools.codegen.GeneratorLanguage;
 import org.openapitools.codegen.SupportingFile;
 import org.openapitools.codegen.model.ModelMap;
@@ -1059,6 +1063,44 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             nameUnionVariants(modelMap.getModel());
         }
         return result;
+    }
+
+    /**
+     * Realises a classic allOf base (a schema with a discriminator that its
+     * children compose with allOf) as a union of its subtypes, as go does. A
+     * Swift struct cannot be subclassed, so decoding the base must return the
+     * subtype its discriminator names; the mapped subtypes become the base's
+     * oneOf set and its typed variants, and the union template's discriminator
+     * branch does the dispatch and rejects an unknown or missing value (S4,
+     * issue #104).
+     */
+    @Override
+    public Map<String, ModelsMap> postProcessAllModels(final Map<String, ModelsMap> objs) {
+        final Map<String, ModelsMap> result = super.postProcessAllModels(objs);
+        for (final ModelsMap modelsMap : result.values()) {
+            for (final ModelMap modelMap : modelsMap.getModels()) {
+                final CodegenModel model = modelMap.getModel();
+                if (Boolean.TRUE.equals(model.vendorExtensions.get("x-allof-base"))) {
+                    realiseClassicBaseAsUnion(model);
+                }
+            }
+        }
+        return result;
+    }
+
+    private static void realiseClassicBaseAsUnion(final CodegenModel base) {
+        final Set<String> variants = new LinkedHashSet<>();
+        final List<CodegenProperty> typed = new ArrayList<>();
+        for (final CodegenDiscriminator.MappedModel mapped : base.discriminator.getMappedModels()) {
+            if (variants.add(mapped.getModelName())) {
+                final CodegenProperty variant = new CodegenProperty();
+                variant.dataType = mapped.getModelName();
+                typed.add(variant);
+            }
+        }
+        base.oneOf = variants;
+        base.setComposedSchemas(new CodegenComposedSchemas(List.of(), typed, List.of(), null));
+        nameUnionVariants(base);
     }
 
     /**

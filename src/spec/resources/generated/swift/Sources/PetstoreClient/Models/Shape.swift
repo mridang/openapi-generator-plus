@@ -7,53 +7,127 @@
 
 import Foundation
 
-/// Shape is a model class generated from the OpenAPI schema.
-public struct Shape: Codable, Sendable, Equatable, Hashable {
-  public let shapeType: String
-  public let label: String?
+/// Shape is a union type (oneOf).
+public struct Shape: Codable, @unchecked Sendable {
+  private let _value: Any
 
-  enum CodingKeys: String, CodingKey {
-    case shapeType = "shapeType"
-    case label = "label"
+  /// Wraps a `Circle` as this union's value, so a request body can be
+  /// built in code and not only decoded from JSON.
+  public init(_ value: Circle) {
+    self._value = value
   }
 
-  /// Creates a new Shape instance.
-  public init(shapeType: String, label: String? = nil) {
-    self.shapeType = shapeType
-    self.label = label
+  /// Wraps a `Square` as this union's value, so a request body can be
+  /// built in code and not only decoded from JSON.
+  public init(_ value: Square) {
+    self._value = value
   }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(shapeType: String? = nil, label: String?? = .none) -> Shape {
-    return Shape(shapeType: shapeType ?? self.shapeType, label: label ?? self.label)
+  /// Wraps a `Circle` as this union's value; the named form of `init(_:)`.
+  public static func fromCircle(_ value: Circle) -> Shape {
+    return Shape(value)
   }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
+  /// Whether this union holds a `Circle`.
+  public var isCircle: Bool {
+    return _value is Circle
+  }
+
+  /// The held value as a `Circle`, or nil when this union holds another variant.
+  public var asCircle: Circle? {
+    return _value as? Circle
+  }
+
+  /// Wraps a `Square` as this union's value; the named form of `init(_:)`.
+  public static func fromSquare(_ value: Square) -> Shape {
+    return Shape(value)
+  }
+
+  /// Whether this union holds a `Square`.
+  public var isSquare: Bool {
+    return _value is Square
+  }
+
+  /// The held value as a `Square`, or nil when this union holds another variant.
+  public var asSquare: Square? {
+    return _value as? Square
+  }
+
   public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.shapeType = try container.decode(String.self, forKey: .shapeType)
-    self.label = try container.decodeIfPresent(String.self, forKey: .label)
+    /* Use discriminator to determine type */
+    let container = try decoder.singleValueContainer()
+    let data = try container.decode(AnyCodable.self)
+
+    struct DiscriminatorHelper: Decodable {
+      let shapeType: String
+    }
+    let rawData = try ObjectSerializer.encodeToData(data)
+    let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
+
+    switch disc.shapeType {
+    case "Circle":
+      let v = try ObjectSerializer.decodeFromData(rawData, as: Circle.self)
+      self._value = v
+      return
+    case "Square":
+      let v = try ObjectSerializer.decodeFromData(rawData, as: Square.self)
+      self._value = v
+      return
+    default:
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: decoder.codingPath,
+          debugDescription: "Unknown discriminator value: \(disc.shapeType)"
+        )
+      )
+    }
   }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(shapeType, forKey: .shapeType)
-    try container.encodeIfPresent(label, forKey: .label)
+    var container = encoder.singleValueContainer()
+    /* A `format: byte` variant is represented as Data (scalar) or [Data]
+       (array). Encoding Data through its own Encodable conformance
+       (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+       encoder's base64 data strategy. Routing it through the single-value
+       container instead applies the configured .base64 strategy, so a byte
+       variant rides the wire as a base64 string (and an array of byte values
+       as an array of base64 strings), matching the bare format:byte field. */
+    switch _value {
+    case let bytes as Data:
+      try container.encode(bytes)
+    case let byteArrays as [Data]:
+      try container.encode(byteArrays)
+    case let encodable as Encodable:
+      try encodable.encode(to: encoder)
+    default:
+      try container.encodeNil()
+    }
+  }
+
+  /// Returns the matched value of the union type.
+  public func actualInstance() -> Any {
+    return _value
+  }
+
+  /// Returns the matched value cast to the specified type.
+  public func actualInstance<T>(as type: T.Type) -> T? {
+    return _value as? T
+  }
+}
+
+/* Union wrappers compare by value: two wrappers are equal when they encode to
+   the same canonical JSON, and hash the same bytes. */
+extension Shape: Hashable {
+  private var canonicalJson: Data? {
+    return try? ObjectSerializer.encodeToData(self)
+  }
+
+  public static func == (lhs: Shape, rhs: Shape) -> Bool {
+    guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+    return left == right
+  }
+
+  public func hash(into hasher: inout Hasher) {
+    hasher.combine(canonicalJson)
   }
 }
