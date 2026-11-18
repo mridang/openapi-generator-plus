@@ -247,6 +247,31 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     end
   end
 
+  test "bhv transport 092 a caller-supplied HTTP client receives every request the SDK makes" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:seen, URI.to_string(request.url)})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: adapter]))
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/seen", %{}, nil)
+
+    assert_receive {:seen, "http://custom.invalid/seen"}, 5000
+  end
+
+  test "bhv transport 087 a connection that cannot be established raises the SDK's network error" do
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://127.0.0.1:1/refused", %{}, nil)
+      end
+
+    assert err.status_code == 0
+  end
+
   test "bhv transport 070 a per-call timeout bounds the request deadline, not the transport timeout" do
     adapter = fn request ->
       Process.sleep(2_000)
@@ -2190,6 +2215,38 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     refute {{moduleName}}.Errors.NetworkError.network_error?(err)
   end
 
+  test "bhv transport 088 a validly gzip-encoded response body is decoded before it is returned" do
+    client = routed_client(%{"https://gzip.invalid/x" => {200, [{"content-encoding", "gzip"}], :zlib.gzip("hello")}})
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://gzip.invalid/x", %{}, nil)
+
+    assert response.body == "hello"
+  end
+
+  test "bhv transport 090 response headers repeated on the wire are returned with every value present" do
+    client = routed_client(%{"https://multi.invalid/x" => {200, [{"x-multi", "a"}, {"x-multi", "b"}], ""}})
+
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "https://multi.invalid/x", %{}, nil)
+
+    assert response.headers["x-multi"] == "a, b"
+  end
+
+  test "bhv transport 089 a declared Content-Encoding that does not match the body raises the SDK's API error" do
+    base_url =
+      start_server(
+        200,
+        "application/json",
+        "this is not gzip-compressed data",
+        [{"Content-Encoding", "gzip"}]
+      )
+
+    client = {{moduleName}}.DefaultApiClient.new()
+
+    assert_raise {{moduleName}}.Errors.ApiError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
+    end
+  end
+
   # An unrecognised Content-Encoding the client cannot decode hits the
   # decompressor's default clause and must surface a typed ApiError carrying the
   # response status, never a NetworkError and never the body still encoded.
@@ -2369,6 +2426,12 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     assert String.contains?(cd, "filename*=UTF-8''")
     assert String.contains?(cd, "%E6%97%A5%E6%9C%AC")
     assert String.contains?(cd, "filename=\"")
+  end
+
+  test "bhv serialization 124 a non-ASCII multipart filename is sent with an ASCII fallback and an RFC 5987 encoded form" do
+    cd = {{moduleName}}.DefaultApiClient.build_content_disposition("file", "日本.pdf")
+    assert String.contains?(cd, "filename=\"__.pdf\""), "Expected the ASCII fallback, got: #{cd}"
+    assert String.contains?(cd, "filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"), "Expected the RFC 5987 form, got: #{cd}"
   end
 
   test "bhv serializationwire 028 build_content_disposition falls back to one underscore per code point" do

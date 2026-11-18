@@ -129,6 +129,24 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert %{"method" => "GET"} = Jason.decode!(body)
   end
 
+  test "bhv serialization 128 a response declared as a string is returned unchanged whatever its content type", %{state: state} do
+    assert {:ok, text} =
+             {{moduleName}}.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["text/plain", "application/json"],
+               "application/json",
+               "String.t()"
+             )
+
+    assert is_binary(text)
+    assert Jason.decode!(text)["method"] == "GET"
+  end
+
   test "bhv errors 058 raises BadRequestError for status 400", %{state: state} do
     assert {:error, error} =
              {{moduleName}}.Api.BaseApi.invoke_api(state, :get, "/test/status/400", %{}, %{}, nil, ["application/json"], "application/json", nil)
@@ -901,6 +919,17 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     assert IO.iodata_to_binary(request.body) == "k=a~b%2Ac%21d%27e%28f%29g"
   end
 
+  test "bhv serialization 125 form-urlencoded keys and values percent-encode reserved characters and send a plus sign as %2B" do
+    state = retry_state([200])
+
+    {{moduleName}}.Api.BaseApi.invoke_api(
+      state, :post, "/things", %{}, %{}, %{"k" => "a+b c&d=e"}, ["application/json"], "application/x-www-form-urlencoded", nil
+    )
+
+    assert [request] = attempts()
+    assert IO.iodata_to_binary(request.body) == "k=a%2Bb+c%26d%3De"
+  end
+
   test "bhv serializationwire 021 serializes form-urlencoded body", %{state: state} do
     body = %{"name" => "alice", "age" => "30"}
     result = {{moduleName}}.Api.BaseApi.invoke_api(state, :post, "/test/echo", %{}, %{}, body, ["application/json"], "application/x-www-form-urlencoded", "String")
@@ -1428,6 +1457,14 @@ defmodule {{moduleName}}.Api.BaseApiTest do
 
   test "bhv serialization 057 a multipart field name containing a NUL byte or a line break is refused before any request is sent" do
     for name <- ["a\0b", "a\r\nX-Injected: yes"] do
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
+      end
+    end
+  end
+
+  test "bhv serialization 123 a multipart field name or filename with CR, LF, NUL or a quote is refused rather than written" do
+    for name <- ["a\rb", "a\nb", "a\0b", "a\"b"] do
       assert_raise ArgumentError, fn ->
         {{moduleName}}.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
       end
@@ -2314,6 +2351,17 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     Agent.stop(name)
   end
 
+  test "bhv serialization 122 a form-urlencoded body repeats the key for each element of an array property" do
+    state = retry_state([200])
+
+    {{moduleName}}.Api.BaseApi.invoke_api(
+      state, :post, "/things", %{}, %{}, %{"tag" => ["x", "y"]}, ["application/json"], "application/x-www-form-urlencoded", nil
+    )
+
+    assert [request] = attempts()
+    assert IO.iodata_to_binary(request.body) == "tag=x&tag=y"
+  end
+
   # Behavior #2: an absent/nil optional form field is omitted from the body.
   # set_pet_preferences declares optional `tags` and `note`; only `nickname`
   # (required) is supplied here, so neither optional key must appear.
@@ -2455,6 +2503,14 @@ defmodule {{moduleName}}.Api.BaseApiTest do
       "Expected octet-stream fallback for extension-less raw bytes, got: #{serialized}"
   end
 
+  test "bhv serialization 127 primitive multipart parts are sent as plain text and only model parts are sent as JSON" do
+    body = %{"count" => 3, "meta" => %{{moduleName}}.Models.Metadata{created_at: ~U[2024-01-02 03:04:05Z]}}
+    serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"count\"\r\n\r\n3\r\n"), "Expected the plain text count, got: #{serialized}"
+    assert String.contains?(serialized, "Content-Type: application/json"), "Expected the model part as JSON, got: #{serialized}"
+  end
+
   test "bhv serialization 058 a multipart part with no filename is sent as application/octet-stream" do
     serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(%{"data" => {:raw, <<1, 2, 3>>}}, "BOUNDARY")
 
@@ -2493,6 +2549,12 @@ defmodule {{moduleName}}.Api.BaseApiTest do
       "Field name must not be transliterated to ?, got: #{serialized}"
   end
 
+  test "bhv serialization 126 a non-ASCII multipart field name is preserved as UTF-8 in the part header" do
+    serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(%{"名" => "value"}, "BOUNDARY")
+
+    assert String.contains?(serialized, "name=\"名\""), "Expected the field name as UTF-8, got: #{serialized}"
+  end
+
   test "bhv serializationwire 045 multipart model part uses wire property names and date time format" do
     pet = %{{moduleName}}.Models.Pet{name: "rex", photo_urls: []}
     body = %{"pet" => pet}
@@ -2506,6 +2568,15 @@ defmodule {{moduleName}}.Api.BaseApiTest do
     stamped = {{moduleName}}.DefaultApiClient.build_multipart_body(%{"at" => when_sent}, "BOUNDARY")
 
     assert String.contains?(stamped, "2024-01-02T03:04:05.000+00:00")
+  end
+
+  test "bhv serialization 121 a model sent as a multipart part is serialized with its wire property names and the SDK's date-time format" do
+    body = %{"meta" => %{{moduleName}}.Models.Metadata{created_at: ~U[2024-01-02 03:04:05Z]}}
+    serialized = {{moduleName}}.DefaultApiClient.build_multipart_body(body, "BOUNDARY")
+
+    assert String.contains?(serialized, "\"createdAt\""), "Expected the wire name, got: #{serialized}"
+    refute String.contains?(serialized, "created_at"), "Expected no Elixir field name, got: #{serialized}"
+    assert String.contains?(serialized, "2024-01-02T03:04:05.000Z"), "Expected the SDK date-time format, got: #{serialized}"
   end
 
   # Behavior #6: deserializing an out-of-schema enum value raises the SDK

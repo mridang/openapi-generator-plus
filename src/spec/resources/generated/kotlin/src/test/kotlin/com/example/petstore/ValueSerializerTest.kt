@@ -16,6 +16,24 @@ import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 
+private enum class TierFixture(
+    private val wire: String,
+) {
+    GOLD("gold-tier"),
+    ;
+
+    override fun toString(): String = wire
+}
+
+private enum class LevelFixture(
+    private val level: Int,
+) {
+    HIGH(3),
+    ;
+
+    override fun toString(): String = level.toString()
+}
+
 class ValueSerializerTest {
     @Nested
     @DisplayName("path dot segments")
@@ -1167,6 +1185,86 @@ class ValueSerializerTest {
             assertEquals("1.50", objects.toFormValue(java.math.BigDecimal("1.50")))
             assertEquals("42", objects.toFormValue(42))
             assertEquals("true", objects.toFormValue(true))
+        }
+    }
+
+    @Nested
+    @DisplayName("enum and scalar parameter locations")
+    inner class ParameterLocationTests {
+        @Test
+        @DisplayName("bhvMisc082 an enum value in a path, query or header parameter is sent as its wire value")
+        fun bhvMisc082EnumParameterIsSentAsWireValue() {
+            for (location in listOf("path", "query", "header")) {
+                assertEquals(
+                    "gold-tier",
+                    ValueSerializer.serializeStyled("tier", TierFixture.GOLD, location, "string", null, "simple", false).toString(),
+                    location,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc084 a set optional scalar parameter sends its value in every location")
+        fun bhvMisc084ScalarParameterIsSentInEveryLocation() {
+            for (location in listOf("path", "query", "header", "cookie")) {
+                assertEquals(
+                    "7",
+                    ValueSerializer.serializeStyled("count", 7, location, "integer", null, "simple", false).toString(),
+                    location,
+                )
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("query and enum parameters")
+    inner class QueryAndEnumParameterTests {
+        @Test
+        @DisplayName("bhvMisc107 a scalar form query parameter is emitted under its own name with its string value")
+        fun bhvMisc107ScalarFormQueryUsesItsOwnName() {
+            val queryParams = mutableMapOf<String, Any?>()
+            ValueSerializer.putQuery(
+                queryParams,
+                "name",
+                ValueSerializer.serializeStyled("name", "x", "query", "string", null, "form", true),
+                false,
+            )
+            assertEquals("x", queryParams["name"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc108 an integer enum member keeps its wire value")
+        fun bhvMisc108IntegerEnumKeepsWireValue() {
+            assertEquals(
+                "3",
+                ValueSerializer.serializeStyled("level", LevelFixture.HIGH, "query", "integer", null, "form", true).toString(),
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("deep objects, cookies and enum text")
+    inner class DeepObjectCookieAndEnumTextTests {
+        @Test
+        @DisplayName("bhvMisc120 an object parameter becomes name and value pairs sorted by name, with absent values left out")
+        fun bhvMisc120DeepObjectPairsAreSortedAndOmitAbsent() {
+            val pairs = ValueSerializer.serializeDeepObject("filter", mapOf("b" to "2", "a" to "1", "c" to null))
+            assertEquals(listOf("filter[a]", "filter[b]"), pairs.keys.toList())
+        }
+
+        @Test
+        @DisplayName("bhvMisc123 a cookie value the caller already percent-encoded reaches the wire unchanged")
+        fun bhvMisc123EncodedCookieIsNotEncodedAgain() {
+            assertEquals(
+                "a%20b",
+                ValueSerializer.serializeStyled("sid", "a%20b", "cookie", "string", null, "form", true).toString(),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvMisc138 converting an enum member to text yields its wire value")
+        fun bhvMisc138EnumTextIsTheWireValue() {
+            assertEquals("gold-tier", TierFixture.GOLD.toString())
         }
     }
 }

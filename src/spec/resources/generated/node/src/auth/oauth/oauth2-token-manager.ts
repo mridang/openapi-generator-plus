@@ -8,6 +8,7 @@
 import type { ApiClient } from "../../api-client.js";
 import { OAuth2ServerError } from "../../errors/oauth2-server-error.js";
 import { OAuth2TokenError } from "../../errors/oauth2-token-error.js";
+import { ApiError } from "../../errors/api-error.js";
 
 /**
  * Manages OAuth2 token lifecycle including fetching, caching, and refreshing tokens.
@@ -36,6 +37,15 @@ export class OAuth2TokenManager {
   private refreshToken: string | null = null;
   private inflightRefresh: Promise<string> | null = null;
   private exchanged = false;
+  private stopped = false;
+
+  /**
+   * Stop the token manager. Any later token request fails with an ApiError
+   * saying the manager has been stopped; stopping again does nothing.
+   */
+  stop(): void {
+    this.stopped = true;
+  }
 
   /**
    * Inject the shared API client for making token requests.
@@ -238,6 +248,15 @@ export class OAuth2TokenManager {
     params: Record<string, string>,
     extraHeaders: Record<string, string> = {},
   ): Promise<void> {
+    if (this.stopped) {
+      throw new ApiError(
+        0,
+        "The token manager has been stopped.",
+        null,
+        null,
+        null,
+      );
+    }
     if (this.apiClient == null) {
       throw new Error(
         "ApiClient has not been injected. " +
@@ -271,7 +290,7 @@ export class OAuth2TokenManager {
         ...extraHeaders,
       },
       body,
-      { noRedirect: true, noDefaultHeaders: true },
+      { noRedirect: true, noDefaultHeaders: true, maxRetries: 0 },
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {

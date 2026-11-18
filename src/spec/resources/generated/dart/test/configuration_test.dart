@@ -152,6 +152,20 @@ void main() {
     });
 
     test(
+      'bhv misc 136 the debug text shows the base URL and the non-sensitive default headers',
+      () {
+        final text = Configuration.builder()
+            .baseUrl('https://api.example.com')
+            .defaultHeader('Accept', 'text/plain')
+            .build()
+            .toString();
+
+        expect(text, contains('https://api.example.com'));
+        expect(text, contains('text/plain'));
+      },
+    );
+
+    test(
       'bhv config 022 mutating the returned default headers does not change the configuration',
       () {
         final config = ConfigurationBuilder()
@@ -358,6 +372,41 @@ void main() {
 
       expect(config.toString(), isNot(contains('_NoopHook')));
     });
+    test(
+      'bhv misc 276 The default configuration and the default builder both use the base URL declared in the spec',
+      () {
+        expect(Configuration.defaultConfiguration().baseUrl, equals('/api/v3'));
+        expect(Configuration.builder().build().baseUrl, equals('/api/v3'));
+      },
+    );
+
+    test(
+      'bhv misc 277 Each call to the default configuration returns a distinct configuration object',
+      () {
+        expect(
+          identical(
+            Configuration.defaultConfiguration(),
+            Configuration.defaultConfiguration(),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'bhv misc 279 Changing the headers returned from a configuration does not change the headers it holds',
+      () {
+        final config = Configuration.builder()
+            .defaultHeader('X-Keep', 'yes')
+            .build();
+
+        final headers = config.defaultHeaders;
+        headers['X-New'] = 'no';
+
+        expect(config.defaultHeaders.containsKey('X-New'), isFalse);
+        expect(config.defaultHeaders, containsPair('X-Keep', 'yes'));
+      },
+    );
   });
 }
 

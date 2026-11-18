@@ -635,6 +635,22 @@ public class ValueSerializerTest
     // -- serializeStyled: spaceDelimited style --
 
     [Fact]
+    public void BhvMisc213AnOptionalArrayQueryParameterUsesItsDeclaredStyleWithoutBracketsOrCommas()
+    {
+        var rendered = ValueSerializer.SerializeStyled(
+            "color",
+            new List<object> { "blue", "black" },
+            "query",
+            "array",
+            null,
+            "pipeDelimited",
+            false
+        );
+
+        Assert.Equal("blue|black", rendered);
+    }
+
+    [Fact]
     public void BhvSerializationparam093SpaceDelimitedArrayJoinsWithSpace()
     {
         Assert.Equal(

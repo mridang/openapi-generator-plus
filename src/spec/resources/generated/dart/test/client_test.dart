@@ -185,6 +185,37 @@ void main() {
     );
 
     test(
+      'bhv misc 183 closing a client whose credentials hold nothing that needs releasing succeeds',
+      () {
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:1',
+            token: 'test-token',
+          ),
+        );
+
+        expect(client.close, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv misc 187 a credential not passed explicitly is taken from the environment',
+      () {
+        final fromEnvironment = Platform
+            .environment[BearerAuthenticator.defaultEnvironmentVariable];
+        if (fromEnvironment == null) {
+          expect(
+            () => Client.withToken(host: '/api/v3'),
+            throwsA(isA<ArgumentError>()),
+          );
+          return;
+        }
+
+        expect(Client.withToken(host: '/api/v3'), isNotNull);
+      },
+    );
+
+    test(
       'bhv lifecycle 013 close on a client that built its own transport is idempotent',
       () {
         final client = Client(
@@ -481,6 +512,35 @@ void main() {
           throwsA(isA<StateError>()),
         );
         expect(requests, isEmpty);
+      },
+    );
+
+    test(
+      'bhv misc 184 close does not cancel a request that is still running, and it completes successfully',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final client = Client.withToken(
+            host: 'http://localhost:${server.port}',
+            accessToken: 'tok',
+          );
+          final pending = client.pet.getPetTag(1, 'favorite', null);
+          client.close();
+
+          final pet = await pending;
+          expect(pet.name, equals('Fido'));
+        } finally {
+          await server.close();
+        }
       },
     );
 

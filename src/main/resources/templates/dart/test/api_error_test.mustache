@@ -1066,6 +1066,53 @@ void main() {
       expect(other, isA<ApiException>());
       expect(other, isNot(isA<ServerException>()));
       expect(other, isNot(isA<ClientException>()));
+      test('bhv misc 281 Headers from a received response are copied onto the error raised for that response', () {
+      final err = ApiException.fromResponse(503, {'retry-after': '5'}, '{}');
+
+      expect(err.responseHeaders, containsPair('retry-after', '5'));
     });
+
+    test('bhv misc 283 The package root module re-exports every error type in the error tree', () {
+      final types = <Type>[
+        ApiException,
+        ClientException,
+        ServerException,
+        NetworkException,
+        NetworkTimeoutException,
+        SerializationException,
+        SchemaException,
+        OAuth2ServerException,
+        OAuth2TokenException,
+        BadRequestException,
+        UnauthorizedException,
+        ForbiddenException,
+        NotFoundException,
+        ConflictException,
+        UnprocessableEntityException,
+        TooManyRequestsException,
+        InternalServerErrorException,
+        BadGatewayException,
+      ];
+
+      expect(types, hasLength(18));
+    });
+
+    test('bhv misc 284 A generated call that receives a typed error status raises that typed error', () {
+      expect(ApiException.fromResponse(400, null, null), isA<BadRequestException>());
+      expect(ApiException.fromResponse(403, null, null), isA<ForbiddenException>());
+      expect(ApiException.fromResponse(404, null, null), isA<NotFoundException>());
+      expect(ApiException.fromResponse(409, null, null), isA<ConflictException>());
+      expect(ApiException.fromResponse(422, null, null), isA<UnprocessableEntityException>());
+      expect(ApiException.fromResponse(429, null, null), isA<TooManyRequestsException>());
+      expect(ApiException.fromResponse(500, null, null), isA<InternalServerErrorException>());
+      expect(ApiException.fromResponse(502, null, null), isA<BadGatewayException>());
+    });
+    test('bhv misc 286 An OAuth server error message names both its HTTP status and its OAuth error code', () {
+      final err = OAuth2ServerException(401, 'invalid_client', null, null, '{}');
+
+      expect(err.toString(), contains('401'));
+      expect(err.toString(), contains('invalid_client'));
+    });
+  });
 }
 {{/generateTests}}

@@ -819,6 +819,21 @@ export class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
 {{/vendorExtensions.siblingDefaultIsEnum}}
 {{/defaultValue}}
 {{/vars}}
+{{! A collection is copied on the way in, so the caller's array or map is never
+    shared with the model, and the copy is frozen so the model's own collection
+    cannot be changed through the model. }}
+{{#vars}}
+{{#isArray}}
+    if (Array.isArray(this.{{name}})) {
+      this.{{name}} = Object.freeze([...this.{{name}}]) as typeof this.{{name}};
+    }
+{{/isArray}}
+{{#isMap}}
+    if (this.{{name}} != null && typeof this.{{name}} === 'object') {
+      this.{{name}} = Object.freeze({ ...this.{{name}} }) as typeof this.{{name}};
+    }
+{{/isMap}}
+{{/vars}}
   }
 
   /**

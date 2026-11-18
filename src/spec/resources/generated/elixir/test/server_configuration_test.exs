@@ -149,6 +149,18 @@ defmodule PetstoreClient.ServerConfigurationTest do
                "https://{version}.api.example.com/v2"
     end
 
+    test "bhv servers 029 a placeholder introduced by a default value stays literal and is never expanded again" do
+      config = %ServerConfiguration{
+        url_template: "https://{env}.api.example.com/{version}",
+        variables: %{
+          "env" => %ServerVariable{default_value: "{version}"},
+          "version" => %ServerVariable{default_value: "v2"}
+        }
+      }
+
+      assert ServerConfiguration.url(config) == "https://{version}.api.example.com/v2"
+    end
+
     test "bhv servers 023 a server variable value containing replacement patterns is substituted literally" do
       config = %ServerConfiguration{
         url_template: "https://{env}.api.example.com",

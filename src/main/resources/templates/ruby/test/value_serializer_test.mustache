@@ -697,6 +697,12 @@ describe {{moduleName}}::ValueSerializer do
       _(result).must_equal('2024-01-15,2024-02-01')
     end
 
+    it 'bhv_serialization_118 a date-time path parameter keeps its full ISO-8601 time and offset' do
+      value = DateTime.new(2024, 1, 15, 1, 2, 3, '+02:00')
+      result = {{moduleName}}::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)
+      _(result).must_equal('2024-01-15T01:02:03+02:00')
+    end
+
     it 'bhv_serializationparam_048 keeps the time of a date-time parameter that is not a format: date' do
       value = DateTime.new(2024, 1, 15, 1, 2, 3)
       result = {{moduleName}}::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)
@@ -784,6 +790,18 @@ describe {{moduleName}}::ValueSerializer do
 
   it 'bhv_serializationparam_070 path encoding of null is empty for every schema type' do
     _({{moduleName}}::ValueSerializer.serialize(nil, :path, 'integer')).must_equal('')
+  end
+
+  it 'bhv_misc_238 a number query value is sent as a plain number' do
+    _({{moduleName}}::ValueSerializer.serialize(2.5, :query, 'number')).must_equal('2.5')
+  end
+
+  it 'bhv_misc_241 a time-of-day query value is sent as HH:MM:SS' do
+    _({{moduleName}}::ValueSerializer.serialize(Tod::TimeOfDay.new(10, 20, 30), :query, 'string')).must_equal('10:20:30')
+  end
+
+  it 'bhv_misc_250 an array item containing a comma keeps its comma encoded on a path' do
+    _({{moduleName}}::ValueSerializer.serialize_styled('list', ['a,b', 'c'], :path, 'array', nil, 'simple', false)).must_equal('a%2Cb,c')
   end
 
   it 'bhv_misc_120 writes an object parameter as name and value pairs sorted by name, leaving out absent values' do

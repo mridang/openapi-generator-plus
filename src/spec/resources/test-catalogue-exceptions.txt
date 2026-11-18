@@ -652,6 +652,20 @@ dart | misc100 | Dart always builds a Map body as multipart/form-data through pa
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
 dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
 dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
+dart | misc135 | Dart has no client-level cancellation handle: a call is cancelled through the subscription it returns, so the configuration holds no signal to store
+dart | misc139 | Dart model constructors are const and store a passed map by reference, so a copy cannot be taken when the model is built without losing const construction
+dart | misc145 | additionalProperties is a plain final Map on a const model, so a read returns the stored map and a copy on read would break the const model shape
+dart | misc149 | Dart named parameters are checked at compile time, so an undeclared copyWith attribute is a compile error and no runtime refusal can be tested
+dart | misc152 | Dart has no cancellation signal on a call: a request is cancelled by cancelling the stream subscription it returns, so there is no already-aborted signal to pass
+dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
+dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
+dart | misc170 | TLS failures are dart:io TlsException values that the shared retry loop cannot name, since the web build has no dart:io; they are retried like other network errors
+dart | misc173 | Dart request bodies have no streamed form (text, bytes, a map or absent), so a streamed body cannot be replayed or refused across a redirect
+dart | misc176 | the dart fixture has no operation with a required cookie parameter, so there is no call that sends a cookie parameter; cookies are sent only from authentication (authintegration 004 and 017)
+dart | misc185 | the dart OAuth token managers expose no stop operation, so a second stop and a token request after stop cannot be made
+dart | misc188 | the dart client keeps its closed flag private and exposes no getter, so the closed state cannot be observed from outside the client
+kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
+kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
 node | misc149 | TypeScript rejects an undeclared property in the typed constructor argument at compile time, so no copy can carry one through the typed API.
 node | misc156 | The node generator emits no list of every server, so there is no declared order of all servers to keep; each operation exposes only its own server configuration.
 java | misc135 | Java has no client-level cancellation handle to store: cancellation is the calling thread's interruption, so the configuration builder takes no cancel signal
@@ -663,3 +677,22 @@ elixir | transport084 | Elixir has no cancellation handle on a call: the only ca
 elixir | transport085 | Elixir has no cancellation token or signal argument, so there is no cancellation that could be supplied and left unfired
 elixir | transport091 | Elixir multipart file content is in-memory bytes given to the call and the SDK never opens a caller file or stream, so no caller handle exists that could stay open after the request
 elixir | serialization129 | Elixir Duration holds microseconds at most, so a nanosecond-precision value cannot be built and the nine-digit fraction is never produced from a Duration
+go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
+python | misc185 | python's OAuth2 token manager has no stop operation and holds no process or resource to release, so a second stop and a stopped-manager error do not exist
+python | misc186 | python transport options take no ready-made HTTP connection value, so there is no connection to refuse or to combine with a CA bundle setting
+kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or String values read in full before the call (transport061 pins the buffering), so no source can become unreadable during the send and a missing value fails when the caller builds the body
+kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
+java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
+kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
+kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
+dart | misc231 | Dart's typed constructor takes an int for quantity, so a fractional number cannot be passed in code and the compiler refuses it before any run-time check
+dart | misc241 | Dart has no time-of-day type: a format: time property is a String passed through unchanged (serializationobject164), so there is no HH:mm:ss or millisecond truncation to test
+dart | misc242 | Dart sends a readOnly or writeOnly property like any other, as the generated model documents (models/model.mustache), so these properties do have a wire effect
+java | misc176 | The Java petstore fixture declares no operation with a required cookie parameter, only the optional api_key cookie on deletePet, which bhvOperations030 already covers
+java | misc178 | The Java SDK takes no declared multipart subtype and always sends a multipart body as multipart/form-data, so a declared non-form-data type cannot reach the transport
+php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
+php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
+
+dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
+
+kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
