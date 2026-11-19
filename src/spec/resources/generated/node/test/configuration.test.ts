@@ -34,6 +34,14 @@ describe("Configuration", () => {
     expect(config.baseUrl).toBe("https://custom.example.com");
   });
 
+  test("bhv config 026 a configuration built through the builder returns the base URL set on it", () => {
+    const config = Configuration.builder()
+      .baseUrl("https://builder.example.com")
+      .build();
+
+    expect(config.baseUrl).toBe("https://builder.example.com");
+  });
+
   test("bhv config 013 builder sets single default header", () => {
     const config = Configuration.builder()
       .defaultHeader("Authorization", "Bearer token123")
@@ -277,37 +285,72 @@ describe("Configuration", () => {
     }
   });
 
-  test("signal is undefined by default", () => {
+  test("bhv langnode 053 signal is undefined by default", () => {
     expect(Configuration.builder().build().signal).toBeUndefined();
   });
 
-  test("the builder stores the client-level signal", () => {
+  test("bhv misc 135 the builder stores the client-level signal", () => {
     const controller = new AbortController();
     const config = Configuration.builder().signal(controller.signal).build();
     expect(config.signal).toBe(controller.signal);
   });
 
-  test("the signal is not part of the printable form", () => {
+  test("bhv langnode 054 the signal is not part of the printable form", () => {
     const config = Configuration.builder()
       .signal(new AbortController().signal)
       .build();
     expect(Object.keys(config.toJSON())).toEqual(["baseUrl", "defaultHeaders"]);
   });
 
-  test("the call hook is undefined by default", () => {
+  test("bhv langnode 055 the call hook is undefined by default", () => {
     expect(Configuration.builder().build().callHook).toBeUndefined();
   });
 
-  test("the builder stores the call hook", () => {
+  test("bhv langnode 056 the builder stores the call hook", () => {
     const hook = { start: () => undefined };
     expect(Configuration.builder().callHook(hook).build().callHook).toBe(hook);
   });
 
-  test("the call hook is not part of the printable form", () => {
+  test("bhv langnode 057 the call hook is not part of the printable form", () => {
     const config = Configuration.builder()
       .callHook({ start: () => undefined })
       .build();
     expect(Object.keys(config.toJSON())).toEqual(["baseUrl", "defaultHeaders"]);
     expect(config.toString()).not.toContain("start");
+  });
+});
+
+describe("Configuration debug text misc behaviours", () => {
+  test("bhv misc 136 the debug text shows the base URL and the non-sensitive default headers", () => {
+    const config = Configuration.builder()
+      .baseUrl("https://api.example.com")
+      .defaultHeader("Accept", "text/plain")
+      .build();
+    const text = config.toString();
+    expect(text).toContain("https://api.example.com");
+    expect(text).toContain("text/plain");
+  });
+});
+
+describe("Configuration misc default behaviours", () => {
+  test("bhv misc 276 the default configuration and the default builder both use the base URL declared in the spec", () => {
+    expect(Configuration.defaultConfiguration().baseUrl).toBe("/api/v3");
+    expect(new ConfigurationBuilder().build().baseUrl).toBe("/api/v3");
+  });
+
+  test("bhv misc 277 each call to the default configuration returns a distinct configuration object", () => {
+    expect(Configuration.defaultConfiguration()).not.toBe(
+      Configuration.defaultConfiguration(),
+    );
+  });
+
+  test("bhv misc 279 changing a copy of the headers returned from a configuration does not change the headers it holds", () => {
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { "X-One": "1" },
+    });
+    const copy = { ...config.defaultHeaders, "X-Two": "2" };
+    expect(copy).toEqual({ "X-One": "1", "X-Two": "2" });
+    expect(config.defaultHeaders).toEqual({ "X-One": "1" });
   });
 });

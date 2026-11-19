@@ -12,7 +12,7 @@ import Testing
 
 @Suite final class HeaderSelectorTests {
 
-  @Test func testIsJsonMime() {
+  @Test func testBhvLangswift024IsJsonMime() {
     let hs = HeaderSelector()
 
     let testCases: [(String, Bool)] = [

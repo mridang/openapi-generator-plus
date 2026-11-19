@@ -18,7 +18,23 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url).must_equal 'https://api.example.com/v1'
   end
 
-  it 'substitutes default variable values when no overrides are given' do
+  it 'bhv_misc_257 a variable with an empty enum accepts any value' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'x', enum_values: []) }
+    )
+    _(config.url({ 'env' => 'anything' })).must_equal 'https://anything.example.com'
+  end
+
+  it 'bhv_misc_258 a variable without an override uses its default' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.example.com',
+      variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
+    )
+    _(config.url).must_equal 'https://prod.example.com'
+  end
+
+  it 'bhv_misc_278 substitutes default variable values when no overrides are given' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/v{version}',
       variables: {
@@ -51,7 +67,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'version' => '3' })).must_equal 'https://prod.api.example.com/v3'
   end
 
-  it 'substitutes a value containing backslash sequences literally' do
+  it 'bhv_misc_261 substitutes a value containing backslash sequences literally' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{host}.example.com/{host}',
       variables: { 'host' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
@@ -78,7 +94,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'env' => '{version}' })).must_equal 'https://{version}.api.example.com/v2'
   end
 
-  it 'leaves an undeclared placeholder in the template as written' do
+  it 'bhv_misc_259 leaves an undeclared placeholder in the template as written' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{env}.api.example.com/{unknown}',
       variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
@@ -122,7 +138,7 @@ describe Petstore::Client::ServerConfiguration do
     _(config.variables).must_equal variables
   end
 
-  it 'is immutable and freezes its variables map' do
+  it 'bhv_langruby_079 is immutable and freezes its variables map' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://api.example.com',
       variables: { 'env' => Petstore::Client::ServerVariable.new(default_value: 'prod') }
@@ -180,6 +196,19 @@ describe Petstore::Client::ServerConfiguration do
     _(config.url({ 'env' => 'staging' })).must_equal 'https://staging.api.example.com/v2'
   end
 
+  it 'bhv_misc_297 replaces every templated variable with its supplied value when several are present' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}/{region}',
+      variables: {
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod'),
+        'version' => Petstore::Client::ServerVariable.new(default_value: '2'),
+        'region' => Petstore::Client::ServerVariable.new(default_value: 'us')
+      }
+    )
+    _(config.url({ 'env' => 'staging', 'version' => '3', 'region' => 'eu' }))
+      .must_equal 'https://staging.api.example.com/v3/eu'
+  end
+
   it 'bhv_servers_002 replaces every occurrence of a variable repeated in the template' do
     config = Petstore::Client::ServerConfiguration.new(
       url_template: 'https://{host}.example.com/{host}',
@@ -219,7 +248,52 @@ describe Petstore::Client::ServerConfiguration, 'variables are not shared with t
     variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
     config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
 
-    _(-> { variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us')
     _(config.variables.keys).must_equal(['region'])
+  end
+
+  it 'bhv_misc_156 the list of all servers keeps the order in which they are declared' do
+    Petstore::Client::Servers::ALL.each_with_index do |server, index|
+      _(server).must_be_same_as(Petstore::Client::Servers.const_get("SERVER_#{index}"))
+    end
+  end
+
+  it 'bhv_misc_154 the variables map returned by the accessor cannot be edited' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{region}.example.com',
+      variables: { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    )
+
+    _(-> { config.variables['region'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(config.url).must_equal 'https://eu.example.com'
+  end
+
+  it 'bhv_misc_155 an unset enum variable whose default is not allowed is refused naming it' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{region}.example.com',
+      variables: {
+        'region' => Petstore::Client::ServerVariable.new(default_value: 'apac', enum_values: %w[eu us])
+      }
+    )
+
+    error = _(-> { config.url }).must_raise ArgumentError
+    _(error.message).must_include "'region'"
+    _(error.message).must_include 'Allowed values: [eu, us]'
+  end
+
+  it 'bhv_misc_157 explicit variable values are resolved into the URL' do
+    config = Petstore::Client::ServerConfiguration.new(
+      url_template: 'https://{env}.api.example.com/v{version}',
+      variables: {
+        'env' => Petstore::Client::ServerVariable.new(default_value: 'prod'),
+        'version' => Petstore::Client::ServerVariable.new(default_value: '2')
+      }
+    )
+    _(config.url({ 'env' => 'staging', 'version' => '5' })).must_equal 'https://staging.api.example.com/v5'
+  end
+
+  it 'bhv_misc_158 a server with a fixed URL reports exactly that URL' do
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://fixed.example.com/v1/items')
+    _(config.url).must_equal 'https://fixed.example.com/v1/items'
   end
 end

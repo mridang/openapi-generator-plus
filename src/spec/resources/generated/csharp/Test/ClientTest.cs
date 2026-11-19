@@ -379,6 +379,97 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvMisc203ClosingAnAlreadyClosedClientRaisesNoError()
+    {
+        var client = Client.WithToken("http://localhost", "tok");
+        client.Dispose();
+
+        var error = Record.Exception(() => client.Dispose());
+
+        Assert.Null(error);
+    }
+
+    [Fact]
+    public void BhvMisc204ConstructingWithoutACredentialFailsImmediatelyWithAMissingCredentialError()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains("No credential", ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvMisc205AMissingCredentialErrorNamesTheVariableThatShouldHaveSuppliedIt()
+    {
+        WithEnvironment(
+            "http://localhost",
+            null,
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+    }
+
+    [Fact]
+    public void BhvMisc206AClientBuiltWithOnlyADefaultAuthenticatorIsConstructedAndTakesItsHost()
+    {
+        using var client = new Client(new TransportProbeAuthenticator());
+
+        Assert.NotNull(client.Pet);
+    }
+
+    [Fact]
+    public async Task BhvMisc207ACredentialNotPassedToTheConstructorIsReadFromItsEnvironmentVariable()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () => client = Client.FromEnvironment(transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-token", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvMisc208AnEnvironmentVariableSetToEmptyIsTreatedAsUnset()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "",
+            () =>
+            {
+                Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc197AnOperationWhoseSchemesAreNotHeldIsServedByTheDefaultAuthenticator()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        using var client = Client.WithToken("http://localhost", "tok", transport);
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal("Bearer tok", handler.Authorization);
+    }
+
+    [Fact]
     public void BhvAuth004FromEnvironmentWithNoArgumentNoVariableAndNoProviderIsRefused()
     {
         WithEnvironment(
@@ -903,7 +994,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void InternalApiKeyWrapperSendsItsKeyInTheSchemeHeader()
+    public void BhvAuth031InternalApiKeyWrapperSendsItsKeyInTheSchemeHeader()
     {
         var auth = new InternalApiKeyAuthenticator(Host, "k");
 
@@ -913,7 +1004,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ApiKeyQueryWrapperSendsItsKeyInTheSchemeQueryParameter()
+    public void BhvMisc189ApiKeyQueryWrapperSendsItsKeyInTheSchemeQueryParameter()
     {
         var auth = new ApiKeyQueryAuthenticator(Host, "k");
 
@@ -923,7 +1014,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void SessionCookieWrapperSendsItsKeyInTheSchemeCookie()
+    public void BhvAuth032SessionCookieWrapperSendsItsKeyInTheSchemeCookie()
     {
         var auth = new SessionCookieAuthenticator(Host, "k");
 
@@ -972,6 +1063,133 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvAuth033PrintingAnAuthenticatorNeverRevealsItsSecret()
+    {
+        Assert.DoesNotContain(
+            "tok-secret",
+            new PetStoreBearerAuthenticator(Host, "tok-secret").ToString(),
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(
+            "s3cret",
+            new PetStoreBasicAuthenticator(Host, "alice", "s3cret").ToString(),
+            StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(
+            "key-secret",
+            new ApiKeyHeaderAuthenticator(Host, "key-secret").ToString(),
+            StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void BhvAuth034ApiKeyWrappersRejectABlankKeyAtConstruction()
+    {
+        Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, "   "));
+        Assert.Throws<ArgumentException>(() => new InternalApiKeyAuthenticator(Host, "\t"));
+        Assert.Throws<ArgumentException>(() => new ApiKeyQueryAuthenticator(Host, " \r\n"));
+        Assert.Throws<ArgumentException>(() => new SessionCookieAuthenticator(Host, "  "));
+    }
+
+    [Fact]
+    public void BhvAuth035HeaderKeyWithAControlOrNonAsciiCharacterIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, "a\u0000b"));
+        Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, "a\u0001b"));
+        Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, "a\nb"));
+        Assert.Throws<ArgumentException>(() => new ApiKeyHeaderAuthenticator(Host, "kéy"));
+    }
+
+    [Fact]
+    public void BhvAuth036BasicWrappersRejectAUsernameContainingAColon()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            new PetStoreBasicAuthenticator(Host, "ali:ce", "s3cret")
+        );
+        Assert.Throws<ArgumentException>(() =>
+            new AdminBasicAuthenticator(Host, "ali:ce", "s3cret")
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth037TokenProviderIsAskedAgainForEachRequest()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        int calls = 0;
+        using var client = Client.FromEnvironment(
+            host: "http://localhost",
+            tokenProvider: _ => Task.FromResult("current-" + (++calls)),
+            transportOptions: transport
+        );
+
+        _ = await client.Store.GetOrderByIdAsync(1);
+        Assert.Equal("Bearer current-1", handler.Authorization);
+        _ = await client.Store.GetOrderByIdAsync(1);
+
+        Assert.Equal("Bearer current-2", handler.Authorization);
+    }
+
+    [Fact]
+    public async Task BhvAuth040AnEmptyEnvironmentVariableFallsThroughToTheTokenProvider()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "",
+            () =>
+                client = Client.FromEnvironment(
+                    tokenProvider: _ => Task.FromResult("provided-token"),
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer provided-token", handler.Authorization);
+    }
+
+    [Fact]
+    public async Task BhvAuth041AnArgumentTokenOverridesTheSameEnvironmentVariable()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "env-value",
+            () =>
+                client = Client.FromEnvironment(
+                    token: "argument-value",
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer argument-value", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvAuth042AnExplicitEmptyTokenIsRefusedAndNotReplacedByTheEnvironment()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "env-value",
+            () =>
+            {
+                Assert.Throws<ArgumentException>(() => Client.FromEnvironment(token: ""));
+            }
+        );
+    }
+
+    [Fact]
     public void BhvAuthbearer023BearerWrappersSendTheTokenAsABearerCredential()
     {
         Assert.Equal(
@@ -1006,7 +1224,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task PasswordWrapperUsesItsTokenUrlThenItsRefreshUrlAndScopes()
+    public async Task BhvAuth051PasswordWrapperUsesItsTokenUrlThenItsRefreshUrlAndScopes()
     {
         var transport = new ScriptedApiClient();
         transport.Enqueue(
@@ -1039,7 +1257,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task AuthorizationCodeWrapperUsesItsAuthorizeTokenAndRefreshUrlsAndScopes()
+    public async Task BhvAuth048AuthorizationCodeWrapperUsesItsAuthorizeTokenAndRefreshUrlsAndScopes()
     {
         var transport = new ScriptedApiClient();
         transport.Enqueue(
@@ -1072,7 +1290,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task ClientCredentialsWrapperUsesItsTokenUrlAndScopes()
+    public async Task BhvAuth050ClientCredentialsWrapperUsesItsTokenUrlAndScopes()
     {
         var transport = new ScriptedApiClient();
         transport.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
@@ -1095,7 +1313,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public void ImplicitWrapperUsesItsAuthorizeUrlAndScopes()
+    public void BhvAuth049ImplicitWrapperUsesItsAuthorizeUrlAndScopes()
     {
         var auth = new BrowserAuthImplicitAuthenticator(Host, "cid");
 
@@ -1108,6 +1326,19 @@ public sealed class ClientTest : IDisposable
         );
         Assert.Contains("response_type=token", authorizeUrl, StringComparison.Ordinal);
         Assert.Contains("scope=read", authorizeUrl, StringComparison.Ordinal);
+
+        string[] twoScopeList = ["read", "write"];
+        var twoScopes = new OAuth2ImplicitAuthenticator(
+            Host,
+            "cid",
+            new Uri("https://auth.example.com/authorize"),
+            twoScopeList
+        );
+        Assert.Contains(
+            "scope=read%20write",
+            twoScopes.BuildAuthorizationUrl().OriginalString,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -1146,7 +1377,7 @@ public sealed class ClientTest : IDisposable
 
         public List<(string Method, Uri Url, string Body)> Requests { get; } = [];
 
-        public void Enqueue(string body) => _bodies.Enqueue(body);
+        internal void Enqueue(string body) => _bodies.Enqueue(body);
 
         public Task<ApiHttpResponse> SendRequestAsync(
             string method,
@@ -1160,5 +1391,93 @@ public sealed class ClientTest : IDisposable
                 new ApiHttpResponse(200, _bodies.Dequeue(), new Dictionary<string, string>())
             );
         }
+    }
+
+    [Fact]
+    public async Task BhvMisc063APerSchemeWrapperSendsItsTokenRequestToTheTokenUrlItsSchemeDeclares()
+    {
+        var transport = new ScriptedApiClient();
+        transport.Enqueue("{\"access_token\":\"tok1\",\"expires_in\":3600}");
+        var auth = new MachineAuthClientCredentialsAuthenticator(Host, "cid", "csecret");
+        auth.SetApiClient(transport);
+
+        await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("https://auth.example.com/oauth/token", transport.Requests[0].Url.AbsoluteUri);
+    }
+
+    [Fact]
+    public void BhvMisc071ACredentialThatNeedsHttpReceivesTheClientsOwnTransport()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var probe = new TransportProbeAuthenticator();
+        using var client = new Client(probe, transport);
+
+        Assert.IsType<DefaultApiClient>(probe.Injected);
+    }
+
+    [Fact]
+    public void BhvMisc072EachApiGroupHoldsTheSchemeCredentialTheClientWasBuilt()
+    {
+        var held = new PetStoreBearerAuthenticator("http://localhost", "bearer-token");
+        using var client = new Client("http://localhost", petStoreBearer: held);
+        BaseApi[] groups = [client.Pet, client.Problems, client.Store];
+        var schemeField = typeof(BaseApi).GetField(
+            "_schemeAuthenticators",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic
+        )!;
+
+        foreach (BaseApi group in groups)
+        {
+            var schemes = (IReadOnlyDictionary<string, IAuthenticator>)schemeField.GetValue(group)!;
+            Assert.Equal(new IAuthenticator[] { held }, schemes.Values);
+        }
+    }
+
+    [Fact]
+    public void BhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme()
+    {
+        Assert.NotNull(typeof(PetstoreClient.Auth.PetStoreBasicAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.AdminBasicAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.PetStoreBearerAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ServiceTokenAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ApiKeyHeaderAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.InternalApiKeyAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.ApiKeyQueryAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.SessionCookieAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator));
+        Assert.NotNull(typeof(PetstoreClient.Auth.OAuth.SsoAuthAuthenticator));
+    }
+
+    [Fact]
+    public void BhvMisc183ClosingAClientWhoseCredentialHoldsNothingToReleaseSucceeds()
+    {
+        var client = new Client(new BearerAuthenticator("http://authenticator.invalid", "tok"));
+
+        Assert.Null(Record.Exception(() => client.Dispose()));
+    }
+
+    [Fact]
+    public async Task BhvMisc187AClientBuiltWithoutHostOrTokenTakesBothFromTheEnvironment()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://env.example.test",
+            "env-value",
+            () => client = Client.FromEnvironment(transportOptions: transport)
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer env-value", handler.Authorization);
+        Assert.Equal("env.example.test", handler.RequestUri?.Host);
     }
 }

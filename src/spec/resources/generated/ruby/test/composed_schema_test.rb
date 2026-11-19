@@ -23,7 +23,7 @@ describe 'Composed Schema' do
       _(Petstore::Client::Models::PetFood.wet_food_variant?(food)).must_equal(false)
     end
 
-    it 'builds a variant through its typed factory and rejects another type' do
+    it 'bhv_langruby_026 builds a variant through its typed factory and rejects another type' do
       dry = Petstore::Client::Models::DryFood.new(weight_kg: 2.5)
 
       _(Petstore::Client::Models::PetFood.from_dry_food(dry)).must_be_same_as(dry)
@@ -43,6 +43,12 @@ describe 'Composed Schema' do
       # raises SerializationError instead of falling through to the
       # base type. Aligns Ruby with Python / Swift / Dart / Go / Rust.
       json = '{"foodType":"raw","calories":300}'
+      _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
+    it 'bhv_serialization_082 a missing or null discriminator property fails decoding and names the missing key' do
+      json = '{"weightKg":2.5}'
       _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
         .must_raise Petstore::Client::Errors::SerializationError
     end
@@ -89,6 +95,20 @@ describe 'Composed Schema' do
       _(serialized).must_include('dry')
     end
 
+    it 'bhv_unions_045 two union values built from the same data compare equal' do
+      left = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+      right = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+      other = Petstore::Client::ObjectSerializer.deserialize('"BQYHCA=="', 'SetPetAvatarThumbnailRequest')
+      _(left).must_equal(right)
+      _(left.hash).must_equal(right.hash)
+      _(left).wont_equal(other)
+
+      food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+      same_food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+      _(food).must_equal(same_food)
+      _(food.hash).must_equal(same_food.hash)
+    end
+
     it 'bhv_unions_029 oneOf wrappers have value equality' do
       left = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
       right = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
@@ -101,6 +121,13 @@ describe 'Composed Schema' do
       same_food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
       _(food).must_equal(same_food)
       _(food.hash).must_equal(same_food.hash)
+    end
+
+    it 'bhv_misc_294 a subtype payload without its discriminator decodes as the variant the mapping names' do
+      food = Petstore::Client::ObjectSerializer.deserialize('{"weightKg":2.5}', 'DryFood')
+
+      _(food).must_be_kind_of(Petstore::Client::Models::DryFood)
+      _(food.food_type).must_equal('dry')
     end
 
     it 'bhv_unions_030 a subtype whose discriminator key is absent is filled with the mapping default' do
@@ -116,6 +143,17 @@ describe 'Composed Schema' do
       _(food).must_be_same_as(dry)
       serialized = Petstore::Client::ObjectSerializer.serialize(food)
       _(JSON.parse(serialized)).must_equal('foodType' => 'dry', 'weightKg' => 2.5)
+    end
+
+    it 'bhv_misc_047 serializing a union holding a value that is not one of its variants fails naming the union' do
+      [
+        '{"foodType":"raw","calories":300}',
+        '{"weightKg":2.5}',
+        '{"foodType":"","weightKg":2.5}'
+      ].each do |json|
+        _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
+          .must_raise Petstore::Client::Errors::SerializationError
+      end
     end
 
     it 'bhv_unions_033 an unknown, missing or empty discriminator fails with the SDK serialization error' do
@@ -137,6 +175,11 @@ describe 'Composed Schema' do
       assert_nil(Petstore::Client::Models::PetFood.as_dry_food(food))
     end
 
+    it 'bhv_unions_047 a discriminator value not in the mapping, including an empty one, raises a clear error' do
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"foodType":"frozen","weightKg":3.0}', 'PetFood') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
     it 'bhv_unions_035 a discriminator value not listed in the mapping fails even when the payload fits a variant' do
       _ { Petstore::Client::ObjectSerializer.deserialize('{"foodType":"frozen","weightKg":3.0}', 'PetFood') }
         .must_raise Petstore::Client::Errors::SerializationError
@@ -151,6 +194,18 @@ describe 'Composed Schema' do
       _(Petstore::Client::Models::PetFood.singleton_methods.grep(/\Aset_|=\z/)).must_be_empty
     end
 
+    it 'bhv_misc_045 a payload that does not satisfy a variant schema is not accepted as that variant' do
+      [
+        '{"foodType":3,"weightKg":2.5}',
+        '{"FoodType":"dry","weightKg":2.5}',
+        '{"foodType":"fish","weightKg":2.5}',
+        '{"foodType":"dry"}'
+      ].each do |json|
+        _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
+          .must_raise Petstore::Client::Errors::SerializationError
+      end
+    end
+
     it 'bhv_unions_038 a union body that cannot be decoded raises the SDK serialization error' do
       [
         '{"foodType":3,"weightKg":2.5}',
@@ -161,6 +216,15 @@ describe 'Composed Schema' do
         _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetFood') }
           .must_raise Petstore::Client::Errors::SerializationError
       end
+    end
+
+    it 'bhv_unions_044 each union variant has a typed factory and accessor that identify the variant' do
+      food = Petstore::Client::ObjectSerializer.deserialize('{"foodType":"dry","weightKg":2.5}', 'PetFood')
+
+      _(food).must_be_kind_of(Petstore::Client::Models::DryFood)
+      _(Petstore::Client::Models::PetFood.as_dry_food(food)).must_be_same_as(food)
+      assert_nil(Petstore::Client::Models::PetFood.as_wet_food(food))
+      _(Petstore::Client::Models::PetFood.wet_food_variant?(food)).must_equal(false)
     end
 
     it 'bhv_unions_040 a typed accessor returns the variant a decoded union holds and nothing for the other' do
@@ -208,6 +272,31 @@ describe 'Composed Schema' do
       _(result.duration_minutes).must_equal(45)
     end
 
+    it 'bhv_unions_046 each matching anyOf variant reports itself as matched and keeps its value' do
+      # PetTreatment is documented as "a medication, a surgery, OR BOTH". A
+      # payload satisfying BOTH variants at once must retain BOTH — the old
+      # first-match build silently dropped the Surgery fields and lost them on
+      # re-encode. Assert every field of both variants is reachable on the
+      # decoded value, then re-serialize and assert all four fields survive the
+      # round-trip (no silent drop).
+      json = '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}'
+      result = Petstore::Client::ObjectSerializer.deserialize(json, 'PetTreatment')
+
+      # Both variants' data are accessible off the single decoded value.
+      _(result.drug_name).must_equal('Amoxicillin')
+      _(result.dosage).must_equal('250mg')
+      _(result.procedure_name).must_equal('Spay')
+      _(result.duration_minutes).must_equal(45)
+
+      # Re-serialize: the union of ALL FOUR fields round-trips losslessly.
+      serialized = Petstore::Client::ObjectSerializer.serialize(result)
+      reparsed = JSON.parse(serialized)
+      _(reparsed['drugName']).must_equal('Amoxicillin')
+      _(reparsed['dosage']).must_equal('250mg')
+      _(reparsed['procedureName']).must_equal('Spay')
+      _(reparsed['durationMinutes']).must_equal(45)
+    end
+
     it 'bhv_unions_009 anyOf retains all matching variants (medication and surgery) losslessly' do
       # PetTreatment is documented as "a medication, a surgery, OR BOTH". A
       # payload satisfying BOTH variants at once must retain BOTH — the old
@@ -251,6 +340,22 @@ describe 'Composed Schema' do
       _(serialized.scan('"notes"').length).must_equal(1)
     end
 
+    it 'bhv_misc_046 two unions holding equal content compare equal and hash equally' do
+      build = lambda do
+        medication = Petstore::Client::Models::Medication.new(drug_name: 'Amoxicillin')
+        surgery = Petstore::Client::Models::Surgery.new(procedure_name: 'Spay')
+        Petstore::Client::Models::PetTreatment::Composite.new([medication, surgery])
+      end
+      first = build.call
+      second = build.call
+      _(first).must_equal(second)
+      _(first.eql?(second)).must_equal true
+      _(first.hash).must_equal(second.hash)
+      _([first, second].uniq.length).must_equal 1
+      other = Petstore::Client::Models::PetTreatment::Composite.new([Petstore::Client::Models::Surgery.new(procedure_name: 'Spay')])
+      _(first).wont_equal(other)
+    end
+
     it 'bhv_unions_011 anyOf composites have value equality and a matching hash' do
       build = lambda do
         medication = Petstore::Client::Models::Medication.new(drug_name: 'Amoxicillin')
@@ -265,6 +370,20 @@ describe 'Composed Schema' do
       _([first, second].uniq.length).must_equal 1
       other = Petstore::Client::Models::PetTreatment::Composite.new([Petstore::Client::Models::Surgery.new(procedure_name: 'Spay')])
       _(first).wont_equal(other)
+    end
+
+    it 'bhv_misc_293 an anyOf value keeps every matching variant and skips the ones that do not match' do
+      both = Petstore::Client::ObjectSerializer.deserialize(
+        '{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+      surgery_only = Petstore::Client::ObjectSerializer.deserialize(
+        '{"procedureName":"Spay","durationMinutes":45}', 'PetTreatment'
+      )
+
+      _(Petstore::Client::Models::PetTreatment.matched_instances(both).map(&:class))
+        .must_equal([Petstore::Client::Models::Medication, Petstore::Client::Models::Surgery])
+      _(Petstore::Client::Models::PetTreatment.matched_instances(surgery_only).map(&:class))
+        .must_equal([Petstore::Client::Models::Surgery])
     end
 
     it 'bhv_unions_003 exposes actual_instance and matched_instances for anyOf values' do
@@ -296,6 +415,17 @@ describe 'Composed Schema' do
         .must_raise Petstore::Client::Errors::SerializationError
     end
 
+    it 'bhv_serialization_076 a union value that matches none of its candidates raises a serialization error' do
+      # oneof-nondiscriminator-no-match-silent: a body matching neither
+      # Medication nor Surgery must raise rather than return a silently-empty
+      # union. The anyOf build raises on union no-match, and deserialize wraps
+      # every schema-validation failure uniformly as SerializationError so a
+      # caller can rescue a single branded type.
+      json = '{"unrelatedKey":"value","anotherUnknown":123}'
+      _ { Petstore::Client::ObjectSerializer.deserialize(json, 'PetTreatment') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
     it 'bhv_unions_007 raises for anyOf payload matching no variant' do
       # oneof-nondiscriminator-no-match-silent: a body matching neither
       # Medication nor Surgery must raise rather than return a silently-empty
@@ -314,6 +444,22 @@ describe 'Composed Schema' do
   describe 'anyOf variants are tried in declaration order: TreatmentRecord' do
     it 'bhv_unions_005 lists the variants in the order the spec declares them' do
       _(Petstore::Client::Models::TreatmentRecord.openapi_any_of).must_equal(%i[Surgery Medication])
+    end
+
+    it 'bhv_misc_291 a payload matching more than one variant decodes to the first declared one' do
+      both = Petstore::Client::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
+
+      _(Petstore::Client::Models::TreatmentRecord.actual_instance(both)).must_be_kind_of(Petstore::Client::Models::Surgery)
+    end
+
+    it 'bhv_misc_292 serializing a union wrapper writes the bare variant payload and reading it back restores it' do
+      medication = Petstore::Client::Models::Medication.new(drug_name: 'Amoxicillin', notes: 'from-medication')
+      composite = Petstore::Client::Models::PetTreatment::Composite.new([medication])
+
+      serialized = Petstore::Client::ObjectSerializer.serialize(composite)
+
+      _(JSON.parse(serialized)).must_equal(JSON.parse(Petstore::Client::ObjectSerializer.serialize(medication)))
+      _(Petstore::Client::ObjectSerializer.deserialize(serialized, 'PetTreatment').drug_name).must_equal('Amoxicillin')
     end
 
     it 'bhv_unions_025 retains the first declared variant first' do
@@ -351,6 +497,26 @@ describe 'Composed Schema' do
     # as raw text). The deserialize side goes through the normal #deserialize
     # entry point, which dispatches to the union's #build.
 
+    it 'bhv_serialization_088 byte values are written as base64 strings, including each element of a list' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
+      json = Petstore::Client::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('"AQIDBA=="')
+      _(json).wont_equal('[1,2,3,4]')
+      _(json).wont_include('[')
+    end
+
+    it 'bhv_misc_049 a choice between one binary value and a list writes the list as base64 text items' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
+      json = Petstore::Client::ObjectSerializer.serialize(encoded)
+
+      _(json).must_equal('"AQIDBA=="')
+      _(json).wont_equal('[1,2,3,4]')
+      _(json).wont_include('[')
+    end
+
     it 'bhv_unions_019 serializes the scalar byte variant as a base64 string (not an int-array, not raw)' do
       raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
       encoded = Petstore::Client::ObjectSerializer.encode_oneof_body(raw, 'SetPetAvatarThumbnailRequest')
@@ -359,6 +525,15 @@ describe 'Composed Schema' do
       _(json).must_equal('"AQIDBA=="')
       _(json).wont_equal('[1,2,3,4]')
       _(json).wont_include('[')
+    end
+
+    it 'bhv_serialization_089 a base64 string on the wire decodes into a byte value' do
+      raw = [0x01, 0x02, 0x03, 0x04].pack('C*')
+      result = Petstore::Client::ObjectSerializer.deserialize('"AQIDBA=="', 'SetPetAvatarThumbnailRequest')
+
+      _(result).must_be_kind_of(String)
+      _(result.bytes).must_equal([0x01, 0x02, 0x03, 0x04])
+      _(result.b).must_equal(raw.b)
     end
 
     it 'bhv_unions_023 deserializes a base64 string back to the original scalar bytes (round-trip)' do
@@ -380,22 +555,24 @@ describe 'Composed Schema' do
       _(result).wont_be_kind_of(Array)
     end
 
-    it 'serializes the array byte variant as an array of base64 strings' do
+    it 'bhv_misc_295 a byte-string variant round-trips through base64 and a non-list value is refused for the array variant' do
+      encoded = Petstore::Client::ObjectSerializer.encode_oneof_body([[0x01, 0x02].pack('C*')], 'SetPetAvatarThumbnailRequest')
+      json = Petstore::Client::ObjectSerializer.serialize(encoded)
+      result = Petstore::Client::ObjectSerializer.deserialize(json, 'SetPetAvatarThumbnailRequest')
+
+      _(json).must_equal('["AQI="]')
+      _(result.map(&:bytes)).must_equal([[0x01, 0x02]])
+      _ { Petstore::Client::ObjectSerializer.deserialize('{"x":1}', 'SetPetAvatarThumbnailRequest') }
+        .must_raise Petstore::Client::Errors::SerializationError
+    end
+
+    it 'bhv_langruby_027 serializes the array byte variant as an array of base64 strings' do
       payload_a = [0x01, 0x02, 0x03, 0x04].pack('C*')
       payload_b = [0x05, 0x06, 0x07, 0x08].pack('C*')
       encoded = Petstore::Client::ObjectSerializer.encode_oneof_body([payload_a, payload_b], 'SetPetAvatarThumbnailRequest')
       json = Petstore::Client::ObjectSerializer.serialize(encoded)
 
       _(json).must_equal('["AQIDBA==","BQYHCA=="]')
-    end
-
-    it 'round-trips the array byte variant preserving both payloads exactly' do
-      result = Petstore::Client::ObjectSerializer.deserialize('["AQIDBA==","BQYHCA=="]', 'SetPetAvatarThumbnailRequest')
-
-      _(result).must_be_kind_of(Array)
-      _(result.length).must_equal(2)
-      _(result[0].bytes).must_equal([0x01, 0x02, 0x03, 0x04])
-      _(result[1].bytes).must_equal([0x05, 0x06, 0x07, 0x08])
     end
   end
 

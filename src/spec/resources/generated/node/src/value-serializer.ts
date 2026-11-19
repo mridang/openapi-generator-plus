@@ -311,6 +311,15 @@ export class ValueSerializer {
   }
 
   /**
+   * Percent-encodes the JSON text of a `content:` cookie parameter. Only
+   * `A-Za-z0-9-_~` stay literal: the query component encoding keeps the dot,
+   * so the dot is encoded here as well.
+   */
+  static encodeCookieComponent(value: string): string {
+    return ValueSerializer.encodeQueryComponent(value).replace(/\./g, "%2E");
+  }
+
+  /**
    * Percent-encodes a query value while leaving RFC 3986 reserved characters
    * literal (OAS `allowReserved: true`).
    *
@@ -329,6 +338,7 @@ export class ValueSerializer {
    */
   static encodeQueryAllowingReserved(value: string): string {
     return encodeURIComponent(value)
+      .replace(/%25(?=[0-9A-Fa-f]{2})/g, "%")
       .replace(/%3A/g, ":")
       .replace(/%2F/g, "/")
       .replace(/%3F/g, "?")

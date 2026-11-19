@@ -73,6 +73,10 @@ class ObjectSerializer
      * emitted and the round-trip is lossless to the millisecond. */
     private const string DATE_TIME_FORMAT = \DateTime::RFC3339_EXTENDED;
 
+    private const int MAX_SANITIZE_DEPTH = 512;
+
+    private static int $sanitizeDepth = 0;
+
     private static ?Serializer $serializer = null;
 
     /**
@@ -234,9 +238,27 @@ class ObjectSerializer
      *
      * @param mixed $data the data to sanitize
      *
-     * @return scalar|array<array-key, mixed>|\ArrayObject<array-key, mixed>|null sanitized form of $data
+     * @return mixed sanitized form of $data
      */
     private static function sanitizeForSerialization(mixed $data): mixed
+    {
+        /* A self-referencing array (or model) would recurse until PHP's stack is exhausted, which
+         * segfaults instead of throwing. Nesting is counted here so a cycle raises the serialization
+         * error like every other unserializable value. */
+        if (self::$sanitizeDepth >= self::MAX_SANITIZE_DEPTH) {
+            throw new SerializationException(
+                'Value is nested more than ' . self::MAX_SANITIZE_DEPTH . ' levels deep or is cyclic'
+            );
+        }
+        self::$sanitizeDepth++;
+        try {
+            return self::sanitizeNode($data);
+        } finally {
+            self::$sanitizeDepth--;
+        }
+    }
+
+    private static function sanitizeNode(mixed $data): mixed
     {
         if (is_scalar($data) || $data === null) {
             return $data;
@@ -270,6 +292,18 @@ class ObjectSerializer
                 ksort($data, SORT_STRING);
             }
             return $data;
+        }
+
+        if ($data instanceof \Ds\Set) {
+            /* A unique collection is written in a defined order: code point order for
+             * strings (strcmp compares bytes, which is code point order in UTF-8) and
+             * numeric order for numbers, so equal sets always give identical output. */
+            $items = $data->toArray();
+            usort($items, static fn (mixed $a, mixed $b): int => is_string($a) && is_string($b)
+                ? strcmp($a, $b)
+                : $a <=> $b);
+
+            return self::sanitizeForSerialization($items);
         }
 
         if (is_object($data)) {
@@ -695,11 +729,13 @@ class ObjectSerializer
      * types off the public surface and gives cross-SDK parity with the other
      * language clients.
      *
+     * @template T of object
+     *
      * @param mixed                     $data        object or primitive to be deserialized
-     * @param string                    $class       class name is passed as a string
+     * @param class-string<T>|string    $class       class name is passed as a string
      * @param array<string, string>|null $httpHeaders HTTP headers
      *
-     * @return mixed a single deserialized instance, an array, or a primitive
+     * @return ($class is class-string<T> ? T|null : mixed) a single deserialized instance, an array, or a primitive
      *
      * @throws SerializationException when deserialization fails
      */
@@ -1924,6 +1960,64 @@ class ObjectSerializer
             );
         }
         return $matched;
+    }
+
+    /**
+     * Renders a decoded value for a model's string form: strings quoted with their contents, lists
+     * in brackets, maps with their keys, models through their own string form, and null, booleans
+     * and numbers as written. Nothing here throws.
+     */
+    public static function describeValue(mixed $value): string
+    {
+        if ($value === null) {
+            return 'null';
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+        if (is_string($value)) {
+            return "'" . addcslashes($value, "'\\") . "'";
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return "'" . $value->format(\DateTimeInterface::RFC3339_EXTENDED) . "'";
+        }
+        if ($value instanceof \BackedEnum) {
+            return self::describeValue($value->value);
+        }
+        if ($value instanceof \Ds\Map) {
+            return self::describePairs($value->toArray());
+        }
+        if ($value instanceof \Ds\Collection) {
+            return '[' . implode(', ', array_map(self::describeValue(...), $value->toArray())) . ']';
+        }
+        if (is_array($value)) {
+            return array_is_list($value)
+                ? '[' . implode(', ', array_map(self::describeValue(...), $value)) . ']'
+                : self::describePairs($value);
+        }
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return '<' . get_debug_type($value) . '>';
+    }
+
+    /**
+     * Renders an associative array as {key: value} pairs for describeValue().
+     *
+     * @param array<array-key, mixed> $pairs
+     */
+    private static function describePairs(array $pairs): string
+    {
+        $parts = [];
+        foreach ($pairs as $key => $item) {
+            $parts[] = self::describeValue((string) $key) . ': ' . self::describeValue($item);
+        }
+
+        return '{' . implode(', ', $parts) . '}';
     }
 
     /**

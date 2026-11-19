@@ -148,6 +148,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert token == "tok123"
     end
 
+    test "bhv misc 286 an OAuth server error message names both its HTTP status and its OAuth error code" do
+      err =
+        PetstoreClient.Errors.OAuth2ServerError.exception(
+          status_code: 400,
+          code: "invalid_grant",
+          description: "Code expired"
+        )
+
+      assert err.message == "Token request failed with status 400: invalid_grant -- Code expired"
+    end
+
     test "bhv authoauthtwotokenmgr 028 stores refresh token" do
       fake_client =
         FakeApiClient.new([
@@ -437,14 +448,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
-    for expires_in <- [31, 60, 90, 120] do
-      test "bhv authoauthtwotokenmgr 004 a token with expires_in #{expires_in} is reused, not refetched on every call" do
+    test "bhv authoauthtwotokenmgr 004 a token with a long enough expires_in is reused, not refetched on every call" do
+      for expires_in <- [31, 60, 90, 120] do
         fake_client =
           FakeApiClient.new([
             %PetstoreClient.ApiHttpResponse{
               status_code: 200,
-              body:
-                Jason.encode!(%{"access_token" => "reused", "expires_in" => unquote(expires_in)})
+              body: Jason.encode!(%{"access_token" => "reused", "expires_in" => expires_in})
             }
           ])
 
@@ -458,15 +468,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
                  manager,
                  token_url,
                  params
-               ) == "reused"
+               ) == "reused",
+               "expires_in #{expires_in}"
 
         assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
                  manager,
                  token_url,
                  params
-               ) == "reused"
+               ) == "reused",
+               "expires_in #{expires_in}"
 
-        assert FakeApiClient.call_count(fake_client) == 1
+        assert FakeApiClient.call_count(fake_client) == 1, "expires_in #{expires_in}"
       end
     end
 
@@ -622,6 +634,27 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       refute err.message =~ "unusual-type-marker"
     end
 
+    test "bhv misc 069 an access_token that is empty or not a string is refused with the missing-or-empty message" do
+      for body <- [~s({"access_token":""}), ~s({"access_token":5})] do
+        fake_client =
+          FakeApiClient.new([%PetstoreClient.ApiHttpResponse{status_code: 200, body: body}])
+
+        {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+        PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+        err =
+          assert_raise PetstoreClient.Errors.OAuth2TokenError, fn ->
+            PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+              manager,
+              "https://auth.example.com/token",
+              %{"grant_type" => "client_credentials"}
+            )
+          end
+
+        assert err.message == "Token response missing or empty access_token field"
+      end
+    end
+
     test "bhv authoauthtwotokenmgr 040 an unusable token response has its canonical message and no cause" do
       for {body, message} <- [
             {"not json", "Token response is not valid JSON"},
@@ -715,6 +748,131 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       # contains an empty refresh_token which must not clobber the cached value.
       PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(manager, token_url, params)
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(manager) == "old_refresh"
+    end
+
+    test "bhv auth 056 an expires_in that is not plain decimal digits marks the token stale and refetches" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "e1", "expires_in" => "1e3"})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "e2", "expires_in" => " 3600 "})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "client_credentials"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "e1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "e2"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "e2"
+
+      assert FakeApiClient.call_count(fake_client) == 2
+    end
+
+    test "bhv auth 057 a refresh answered with a malformed body falls back to the original grant" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 0
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: "not json"
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok3", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password", "client_id" => "cid", "client_secret" => "sec"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok3"
+
+      assert [first, _refresh, retry] = FakeApiClient.bodies(fake_client)
+      assert URI.decode_query(first)["grant_type"] == "password"
+      assert URI.decode_query(retry) == params
+    end
+
+    test "bhv auth 058 a new token uses the refresh grant first when a refresh token is held" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 0
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
+      PetstoreClient.Auth.OAuth.OAuth2TokenManager.set_api_client(manager, fake_client)
+
+      params = %{"grant_type" => "password", "client_id" => "cid", "client_secret" => "sec"}
+      token_url = "https://auth.example.com/token"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok1"
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
+               manager,
+               token_url,
+               params
+             ) == "tok2"
+
+      assert [_first, refresh] = FakeApiClient.bodies(fake_client)
+      assert URI.decode_query(refresh)["grant_type"] == "refresh_token"
     end
 
     test "bhv authoauthtwotokenmgr 022 a refresh sends the refresh token with the client credentials, not the original grant" do
@@ -1364,7 +1522,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert error.uri == nil
     end
 
-    test "a non-string error value is not taken as a code" do
+    test "bhv langelixir 041 a non-string error value is not taken as a code" do
       body = Jason.encode!(%{"error" => 7, "error_description" => "x"})
 
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
@@ -1438,13 +1596,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     # 307/308, rather than replay the credential-bearing POST. Like any non-2xx
     # answer, the refusal is an OAuth2ServerError carrying that status.
 
-    for status <- [301, 302, 303, 307, 308] do
-      @redirect_status status
-      test "bhv authoauthtwotokenmgr 033 refuses #{@redirect_status} from token endpoint with OAuth2ServerError" do
+    test "bhv authoauthtwotokenmgr 033 refuses every redirect status from the token endpoint with OAuth2ServerError" do
+      for status <- [301, 302, 303, 307, 308] do
         fake_client =
           FakeApiClient.new([
             %PetstoreClient.ApiHttpResponse{
-              status_code: @redirect_status,
+              status_code: status,
               headers: %{"location" => "https://attacker.example/token"},
               body: ""
             }
@@ -1462,7 +1619,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
             )
           end
 
-        assert err.status_code == @redirect_status
+        assert err.status_code == status, "status #{status}"
       end
     end
 
@@ -1620,7 +1777,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       end
     end
 
-    test "stop/1 is idempotent and a stopped manager raises a typed error" do
+    test "bhv misc 185 stop/1 is idempotent and a stopped manager raises a typed error" do
       {:ok, manager} = PetstoreClient.Auth.OAuth.OAuth2TokenManager.start_link()
 
       assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.stop(manager) == :ok

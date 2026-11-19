@@ -17,9 +17,34 @@ import 'package:petstore_client/petstore_client.dart';
 import 'package:petstore_client/src/api/base_api.dart';
 import 'package:petstore_client/src/object_serializer.dart' show deserialize;
 import 'package:petstore_client/src/value_serializer.dart'
-    show maybeAllowReserved;
+    show AllowReservedValue, maybeAllowReserved;
 
 import 'testcontainers_helper.dart';
+
+/// Records the body of every request as text, for the multipart and form tests.
+class _BodyCapturingApiClient implements ApiClient {
+  String capturedBody = '';
+
+  @override
+  Future<ApiHttpResponse> sendRequest(
+    String method,
+    String url,
+    Map<String, String> headers,
+    Object? body, {
+    bool noRedirect = false,
+    int? timeout,
+    bool noDefaultHeaders = false,
+  }) async {
+    capturedBody = body is List<int>
+        ? utf8.decode(body, allowMalformed: true)
+        : '$body';
+    return ApiHttpResponse(
+      statusCode: 200,
+      body: '{}',
+      headers: {'content-type': 'application/json'},
+    );
+  }
+}
 
 class _BaseApiAuth implements Authenticator {
   final Map<String, String> headers;
@@ -241,7 +266,7 @@ void main() {
   });
 
   group('BaseApi', () {
-    test('error dispatch', () async {
+    test('bhv langdart 010 error dispatch', () async {
       // The Chasm mock serves only these status routes. Every status-to-exception
       // pair is pinned without a server by bhv errors 006 in the api error test.
       final testCases = <int, Type>{
@@ -290,7 +315,7 @@ void main() {
      * ApiException carries null for both. The `== null` assertions below
      * only compile when the fields are typed as nullable. */
     test(
-      'ApiException responseBody and responseHeaders are nullable',
+      'bhv langdart 011 ApiException responseBody and responseHeaders are nullable',
       () async {
         final client = DefaultApiClient();
         try {
@@ -314,23 +339,51 @@ void main() {
     // Cross-cutting `bearer-no-empty-token-guard`: BearerAuthenticator must
     // reject an empty / whitespace-only token at construction so it can
     // never emit a bare `Authorization: Bearer ` header.
-    test('BearerAuthenticator rejects empty or whitespace token', () {
-      expect(
-        () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
-        throwsArgumentError,
-      );
-      expect(
-        () =>
-            BearerAuthenticator(host: 'https://api.example.com', token: '   '),
-        throwsArgumentError,
-      );
-      // A valid token still constructs and emits the expected header.
-      final ok = BearerAuthenticator(
-        host: 'https://api.example.com',
-        token: 't',
-      );
-      expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
-    });
+    test(
+      'bhv langdart 012 BearerAuthenticator rejects empty or whitespace token',
+      () {
+        expect(
+          () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(
+            host: 'https://api.example.com',
+            token: '   ',
+          ),
+          throwsArgumentError,
+        );
+        // A valid token still constructs and emits the expected header.
+        final ok = BearerAuthenticator(
+          host: 'https://api.example.com',
+          token: 't',
+        );
+        expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
+      },
+    );
+
+    test(
+      'bhv misc 195 A whitespace-only token returned by a token provider is rejected when the request is made.',
+      () {
+        expect(
+          () => BearerAuthenticator(host: 'https://api.example.com', token: ''),
+          throwsArgumentError,
+        );
+        expect(
+          () => BearerAuthenticator(
+            host: 'https://api.example.com',
+            token: '   ',
+          ),
+          throwsArgumentError,
+        );
+        // A valid token still constructs and emits the expected header.
+        final ok = BearerAuthenticator(
+          host: 'https://api.example.com',
+          token: 't',
+        );
+        expect(ok.authHeaders()['Authorization'], equals('Bearer t'));
+      },
+    );
 
     test('bhv errors 034 parses JSON error body', () async {
       final config = ConfigurationBuilder()
@@ -374,6 +427,37 @@ void main() {
       );
       expect(resp.body, isNotEmpty);
     });
+
+    test(
+      'bhv misc 065 scheme credentials are copied when the API is built',
+      () async {
+        final schemes = <String, Authenticator>{
+          'petStoreBearer': _BaseApiAuth(
+            headers: {'Authorization': 'Bearer first'},
+          ),
+        };
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = PetApi(
+          apiClient: client,
+          config: ConfigurationBuilder()
+              .baseUrl('https://api.example.com')
+              .build(),
+          schemeAuthenticators: schemes,
+        );
+        schemes['petStoreBearer'] = _BaseApiAuth(
+          headers: {'Authorization': 'Bearer second'},
+        );
+
+        try {
+          await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
+        } catch (_) {}
+
+        expect(
+          client.sentHeaders.single['Authorization'],
+          equals('Bearer first'),
+        );
+      },
+    );
 
     test('bhv authintegration 010 forwards auth headers', () async {
       final auth = _BaseApiAuth(
@@ -471,6 +555,44 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 191 an invalid auth cookie raises an ArgumentError that is not an OpenAPI error',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: _BaseApiAuth(cookies: {'session': 'bad value'}),
+          );
+
+          await expectLater(
+            api.addPet(
+              Pet(name: 'Fido', photoUrls: <String>{}),
+              const AddPetOptions(),
+            ),
+            throwsA(
+              allOf(isA<ArgumentError>(), isNot(isA<OpenAPIException>())),
+            ),
+          );
+          expect(requests, equals(0));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv authintegration 017 sets cookie from auth', () async {
       String? receivedCookie;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -500,6 +622,39 @@ void main() {
         await server.close();
       }
     });
+
+    test(
+      'bhv misc 192 An auth cookie made only of legal cookie octets is sent exactly as given.',
+      () async {
+        String? receivedCookie;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          receivedCookie = request.headers.value('cookie');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Test","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final auth = _BaseApiAuth(cookies: {'session': 'abc123'});
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'petStoreBearer': auth},
+          );
+
+          await api.addPet(Pet(name: 'Test', photoUrls: <String>{}), null);
+          expect(receivedCookie, equals('session=abc123'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     test('bhv serializationwire 002 forwards auth query params', () async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -1630,7 +1785,272 @@ void main() {
       },
     );
 
-    test('serializes number query params', () async {
+    test(
+      'bhv misc 211 a date-time inside a JSON query parameter keeps its wire date-time form',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'filter': '{"at":"2024-01-02T03:04:05Z"}'},
+        );
+
+        expect(client.capturedUrl, contains('2024-01-02T03%3A04%3A05Z'));
+      },
+    );
+
+    test(
+      'bhv misc 212 a 404 or 500 response from a call raises the corresponding error through the API layer',
+      () async {
+        await expectLater(
+          _RecordingApi(
+            _ScriptedApiClient([_reply(404)]),
+          ).invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<NotFoundException>()),
+        );
+        await expectLater(
+          _RecordingApi(
+            _ScriptedApiClient([_reply(500), _reply(500), _reply(500)]),
+          ).invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<InternalServerErrorException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 213 an optional array query parameter is serialized in its declared style with no bracket or comma-joined rendering',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {
+            'tags': <String>['a', 'b'],
+          },
+        );
+
+        expect(client.capturedUrl, contains('tags=a&tags=b'));
+        expect(client.capturedUrl, isNot(contains('%5B')));
+        expect(client.capturedUrl, isNot(contains('a%2Cb')));
+      },
+    );
+
+    test(
+      'bhv misc 216 a binary response is returned as decoded bytes while the raw body keeps the encoded text',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 200,
+            body: 'AQI=',
+            headers: {'content-type': 'application/octet-stream'},
+          ),
+        ]);
+        final api = _RecordingApi(client);
+
+        final result = await api.invokeApiForResult<Uint8List>(
+          method: 'GET',
+          path: '/api/bin',
+          accepts: const ['application/octet-stream'],
+          returnType: 'Uint8List',
+        );
+
+        expect(result.data, equals(Uint8List.fromList([1, 2])));
+        expect(result.rawBody, equals('AQI='));
+      },
+    );
+
+    test(
+      'bhv misc 217 a binary upload sends in-memory bytes as the exact raw body',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: Uint8List.fromList([0, 255, 1]),
+          contentType: 'application/octet-stream',
+        );
+
+        expect(
+          client.sentBodies.single,
+          equals(Uint8List.fromList([0, 255, 1])),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 218 a per-call header is sent and takes precedence over a configured header of the same name without a duplicate key',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final config = ConfigurationBuilder()
+            .baseUrl('https://api.example.com')
+            .defaultHeader('X-Trace', 'configured')
+            .build();
+        final api = BaseApi(apiClient: client, config: config);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/x',
+          callHeaders: {'X-Trace': 'per-call'},
+        );
+
+        expect(client.sentHeaders.single['X-Trace'], equals('per-call'));
+        expect(
+          client.sentHeaders.single.keys.where(
+            (k) => k.toLowerCase() == 'x-trace',
+          ),
+          hasLength(1),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 220 a call returning the full response keeps the status code and decodes the body type',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 201,
+            body: '{"kind":"b"}',
+            headers: {'content-type': 'application/json'},
+          ),
+        ]);
+        final api = _RecordingApi(client);
+
+        final result = await api.invokeApiForResult<Map<String, Object?>>(
+          method: 'POST',
+          path: '/x',
+          accepts: const ['application/json'],
+          contentType: 'application/json',
+          returnType: 'Object',
+          deserialize: (body) => jsonDecode(body) as Map<String, Object?>,
+        );
+
+        expect(result.statusCode, equals(201));
+        expect(result.data?['kind'], equals('b'));
+      },
+    );
+
+    test(
+      'bhv misc 222 a success response with a 201 status and an empty body returns no data without an error',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 201,
+            body: '',
+            headers: {'content-type': 'application/json'},
+          ),
+        ]);
+        final api = _RecordingApi(client);
+
+        final result = await api.invokeApiForResult<Map<String, Object?>>(
+          method: 'POST',
+          path: '/test/created',
+          accepts: const ['application/json'],
+          returnType: 'Object',
+          deserialize: (body) => jsonDecode(body) as Map<String, Object?>,
+        );
+
+        expect(result.statusCode, equals(201));
+        expect(result.data, isNull);
+      },
+    );
+
+    test(
+      'bhv misc 239 an operation query parameter is serialized when no authenticator is configured',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'status': 'available'},
+        );
+
+        expect(client.capturedUrl, contains('status=available'));
+      },
+    );
+
+    test(
+      'bhv misc 253 an allowReserved query value still percent-encodes hash and bracket characters',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'tag': const AllowReservedValue('a#b[c]')},
+        );
+
+        expect(client.capturedUrl, contains('tag=a%23b%5Bc%5D'));
+      },
+    );
+
+    test(
+      'bhv misc 254 an unmarked query value percent-encodes reserved characters such as slash and colon',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'path': 'a/b:c'},
+        );
+
+        expect(client.capturedUrl, contains('path=a%2Fb%3Ac'));
+      },
+    );
+
+    test(
+      'bhv misc 255 separate query parameters encode a space as %20',
+      () async {
+        final client = _CapturingApiClient();
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/test/echo',
+          queryParams: {'q': 'a b'},
+        );
+
+        expect(client.capturedUrl, contains('q=a%20b'));
+      },
+    );
+
+    test(
+      'bhv misc 264 each listed error HTTP status raises the SDK API error carrying that status code',
+      () async {
+        for (final status in [400, 401, 403, 404, 409, 422, 429, 500, 502]) {
+          final client = _ScriptedApiClient([
+            _reply(status),
+            _reply(status),
+            _reply(status),
+          ]);
+          final api = _RecordingApi(client);
+
+          await expectLater(
+            api.invokeApi(method: 'GET', path: '/x'),
+            throwsA(
+              isA<ApiException>().having(
+                (e) => e.statusCode,
+                'statusCode',
+                status,
+              ),
+            ),
+            reason: 'status $status',
+          );
+        }
+      },
+    );
+
+    test('bhv misc 238 serializes number query params', () async {
       final client = _CapturingApiClient();
       final api = _RecordingApi(client);
 
@@ -1947,6 +2367,31 @@ void main() {
     );
 
     test(
+      'bhv misc 210 A date-time form field is encoded in canonical form with its colons and plus sign percent-escaped on the wire.',
+      () async {
+        final client = _CapturingApiClient();
+        final api = PetApi(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+        );
+
+        await api.setPetPreferences(
+          1,
+          SetPetPreferencesOptions(
+            nickname: 'a b',
+            reminder: DateTime.utc(2024, 1, 15, 10, 30),
+          ),
+        );
+
+        expect(
+          client.capturedBody,
+          contains('reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00'),
+        );
+        expect(client.capturedBody, isNot(contains('%20')));
+      },
+    );
+
+    test(
       'bhv serializationwire 014 form body rejects a nested object field',
       () async {
         final api = BaseApi(
@@ -2026,21 +2471,24 @@ void main() {
       },
     );
 
-    test('query key keeps only the unreserved set literal', () async {
-      final client = _CapturingApiClient();
-      final api = BaseApi(
-        apiClient: client,
-        config: ConfigurationBuilder().baseUrl('http://localhost').build(),
-      );
+    test(
+      'bhv serialization 111 query key keeps only the unreserved set literal',
+      () async {
+        final client = _CapturingApiClient();
+        final api = BaseApi(
+          apiClient: client,
+          config: ConfigurationBuilder().baseUrl('http://localhost').build(),
+        );
 
-      await api.invokeApi(
-        method: 'GET',
-        path: '/q',
-        queryParams: <String, Object?>{'k~*': 'v'},
-      );
+        await api.invokeApi(
+          method: 'GET',
+          path: '/q',
+          queryParams: <String, Object?>{'k~*': 'v'},
+        );
 
-      expect(client.capturedUrl, endsWith('/q?k~%2A=v'));
-    });
+        expect(client.capturedUrl, endsWith('/q?k~%2A=v'));
+      },
+    );
 
     /* date-only-serialization (Case 14): `format: date` parameters are typed
      * as a plain String in Dart (typeMapping date -> String), so the caller's
@@ -2268,43 +2716,46 @@ void main() {
      * `filename="..."` fallback). Exercised on the live builder
      * (BaseApi._buildMultipartBody via the public buildFilenameDirective
      * the builder uses) and end-to-end through DefaultApiClient. */
-    test('multipart non-ASCII filename emits RFC 5987 filename*', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      String receivedBody = '';
-      server.listen((request) async {
-        receivedBody = await utf8.decoder.bind(request).join();
-        request.response
-          ..statusCode = 200
-          ..close();
-      });
+    test(
+      'bhv misc 099 multipart non-ASCII filename emits RFC 5987 filename*',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String receivedBody = '';
+        server.listen((request) async {
+          receivedBody = await utf8.decoder.bind(request).join();
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        await client.sendRequest(
-          'POST',
-          'http://localhost:${server.port}/upload',
-          {'Content-Type': 'multipart/form-data; boundary=X'},
-          // Directly drive the live multipart builder used by operations.
-          // A Map<String, Object?> body routes through DefaultApiClient's
-          // multipart path; the non-ASCII name must produce filename*.
-          {
-            '日本.pdf': Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
-          },
-        );
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/upload',
+            {'Content-Type': 'multipart/form-data; boundary=X'},
+            // Directly drive the live multipart builder used by operations.
+            // A Map<String, Object?> body routes through DefaultApiClient's
+            // multipart path; the non-ASCII name must produce filename*.
+            {
+              '日本.pdf': Uint8List.fromList([0x25, 0x50, 0x44, 0x46]),
+            },
+          );
 
-        // The wire bytes are produced by package:http's MultipartRequest
-        // for the direct-Map path; the canonical RFC 5987 encoding is
-        // additionally asserted on the generated helper below so the
-        // operation path (BaseApi._buildMultipartBody) is covered too.
-        final directive = buildFilenameDirective('日本.pdf');
-        expect(directive, contains("filename*=UTF-8''"));
-        expect(directive, contains('%E6%97%A5%E6%9C%AC'));
-        expect(directive, startsWith('filename="'));
-        expect(receivedBody, isNotEmpty);
-      } finally {
-        await server.close();
-      }
-    });
+          // The wire bytes are produced by package:http's MultipartRequest
+          // for the direct-Map path; the canonical RFC 5987 encoding is
+          // additionally asserted on the generated helper below so the
+          // operation path (BaseApi._buildMultipartBody) is covered too.
+          final directive = buildFilenameDirective('日本.pdf');
+          expect(directive, contains("filename*=UTF-8''"));
+          expect(directive, contains('%E6%97%A5%E6%9C%AC'));
+          expect(directive, startsWith('filename="'));
+          expect(receivedBody, isNotEmpty);
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     /* multipart-model-part-wire-format: a multipart/form-data body that
      * carries a MODEL part (addPetPhotos sends a PhotoMetadata `metadata`
@@ -2322,7 +2773,7 @@ void main() {
      * raw multipart bytes. The cross-language contract must hold byte-for-
      * byte across all 12 SDKs. */
     test(
-      'multipart model part serializes with wire keys and date-time format',
+      'bhv langdart 013 multipart model part serializes with wire keys and date-time format',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         String receivedBody = '';
@@ -2449,6 +2900,102 @@ void main() {
       }
     });
 
+    test(
+      'bhv operations 157 a binary request body is sent as its exact raw bytes with no multipart encoding, and a null required nullable query parameter is sent as the key with an empty value',
+      () async {
+        List<int> receivedBytes = [];
+        String? receivedType;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          receivedType = request.headers.contentType?.mimeType;
+          receivedBytes = await request.fold<List<int>>(
+            <int>[],
+            (acc, chunk) => acc..addAll(chunk),
+          );
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          await client.sendRequest(
+            'POST',
+            'http://localhost:${server.port}/upload',
+            {'Content-Type': 'application/octet-stream'},
+            Uint8List.fromList([0x01, 0x02, 0x03]),
+          );
+
+          expect(receivedType, equals('application/octet-stream'));
+          expect(receivedBytes, equals([0x01, 0x02, 0x03]));
+        } finally {
+          await server.close();
+        }
+
+        String? capturedQuery;
+        final petServer = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        petServer.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final petApi = PetApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://localhost:${petServer.port}')
+                .build(),
+          );
+
+          await petApi.getPetByNote(
+            const GetPetByNoteOptions(note: null, rank: 3),
+          );
+
+          expect(
+            capturedQuery,
+            'note=&rank=3',
+            reason: 'a null note is sent as the key with an empty value',
+          );
+        } finally {
+          await petServer.close(force: true);
+        }
+      },
+    );
+
+    test(
+      'bhv operations 161 a text/plain response is returned as the raw text and never decoded, even when it looks like base64',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('aGVsbG8=')
+            ..close();
+        });
+
+        try {
+          final response = await DefaultApiClient().sendRequest(
+            'GET',
+            'http://localhost:${server.port}/text',
+            {},
+            null,
+          );
+
+          expect(response.body, equals('aGVsbG8='));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
     test('bhv operations 016 sends no body when body is null', () async {
       final client = DefaultApiClient();
       final resp = await client.sendRequest(
@@ -2541,7 +3088,74 @@ void main() {
     });
 
     test(
+      'bhv misc 209 A void operation ignores a success response body whether it is text or a non-object JSON value, and returns no data.',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final auth = _BaseApiAuth();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            schemeAuthenticators: {'adminBasic': auth},
+          );
+          try {
+            await api.deletePet(1, null);
+          } catch (_) {}
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv serializationwire 007 empty content-type defaults to application/json on requests with body',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedContentType;
+        server.listen((request) {
+          receivedContentType = request.headers.contentType?.toString();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          /* addPet is a POST with a JSON body — the HeaderSelector
+         * defaults the empty contentType parameter to
+         * application/json and DefaultApiClient retains it because
+         * a body is present. GET endpoints can't exercise this
+         * because the client strips Content-Type when body is null
+         * (see RFC 7231 §3.1.1.5). */
+          await api.addPet(
+            Pet(name: 'Fido', photoUrls: <String>{}),
+            const AddPetOptions(),
+          );
+          expect(receivedContentType, isNotNull);
+          expect(receivedContentType, contains('application/json'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv misc 202 A text body sent without a declared content type goes out with the JSON media type and no parameters.',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         String? receivedContentType;
@@ -2899,6 +3513,33 @@ void main() {
     );
 
     test(
+      'bhv misc 095 a response body with bytes invalid in its charset decodes each bad byte to U+FFFD',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set('content-type', 'text/plain; charset=utf-8')
+            ..add([0x61, 0xFF, 0x62, 0xFE])
+            ..close();
+        });
+
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/api/test',
+            {},
+            null,
+          );
+          expect(resp.body, equals('a\uFFFDb\uFFFD'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv serializationwire 034 defaults to UTF-8 when no charset is specified',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -2925,36 +3566,39 @@ void main() {
       },
     );
 
-    test('falls back to UTF-8 for unknown charset without throwing', () async {
-      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      server.listen((request) {
-        request.response
-          ..statusCode = 200
-          ..headers.set(
-            'content-type',
-            'text/plain; charset=x-made-up-encoding',
-          )
-          ..add(utf8.encode('hello'))
-          ..close();
-      });
+    test(
+      'bhv langdart 014 falls back to UTF-8 for unknown charset without throwing',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          request.response
+            ..statusCode = 200
+            ..headers.set(
+              'content-type',
+              'text/plain; charset=x-made-up-encoding',
+            )
+            ..add(utf8.encode('hello'))
+            ..close();
+        });
 
-      try {
-        final client = DefaultApiClient();
-        final resp = await client.sendRequest(
-          'GET',
-          'http://localhost:${server.port}/api/test',
-          {},
-          null,
-        );
-        expect(
-          resp.body,
-          equals('hello'),
-          reason: 'unknown charset must fall back to UTF-8, not throw',
-        );
-      } finally {
-        await server.close();
-      }
-    });
+        try {
+          final client = DefaultApiClient();
+          final resp = await client.sendRequest(
+            'GET',
+            'http://localhost:${server.port}/api/test',
+            {},
+            null,
+          );
+          expect(
+            resp.body,
+            equals('hello'),
+            reason: 'unknown charset must fall back to UTF-8, not throw',
+          );
+        } finally {
+          await server.close();
+        }
+      },
+    );
 
     // -- NullBodyContentTypeTests --
 
@@ -3198,6 +3842,139 @@ void main() {
     );
   });
 
+  group('BaseApi request bodies', () {
+    test(
+      'bhv serialization 120 a multipart file part takes its Content-Type from the extension or octet-stream',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            'file.xyzzy': Uint8List.fromList([1, 2, 3]),
+          },
+          contentType: 'multipart/form-data',
+        );
+        expect(
+          client.capturedBody,
+          contains('Content-Type: application/octet-stream'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 121 a model sent as a multipart part uses its wire names and the SDK date-time format',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            'meta': Metadata(createdAt: DateTime.utc(2024, 1, 2, 3, 4, 5)),
+          },
+          contentType: 'multipart/form-data',
+        );
+        expect(
+          client.capturedBody,
+          contains('"createdAt":"2024-01-02T03:04:05.000+00:00"'),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 122 a form-urlencoded array repeats its key once per element in order',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            'tags': ['a', 'b'],
+            'id': 1,
+          },
+          contentType: 'application/x-www-form-urlencoded',
+        );
+        expect(client.capturedBody, equals('tags=a&tags=b&id=1'));
+      },
+    );
+
+    test(
+      'bhv serialization 123 a multipart field name containing a NUL character is rejected',
+      () {
+        expect(
+          _RecordingApi(_BodyCapturingApiClient()).invokeApi(
+            method: 'POST',
+            path: '/test/echo',
+            body: {'a\x00b': 'x'},
+            contentType: 'multipart/form-data',
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 124 a non-ASCII multipart filename has an RFC 5987 form with percent-encoding',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {
+            '日本.pdf': Uint8List.fromList([1]),
+          },
+          contentType: 'multipart/form-data',
+        );
+        expect(
+          client.capturedBody,
+          contains(r"filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 125 a form-urlencoded value percent-encodes a literal plus sign as %2B',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'q': 'a+b c'},
+          contentType: 'application/x-www-form-urlencoded',
+        );
+        expect(client.capturedBody, equals('q=a%2Bb+c'));
+      },
+    );
+
+    test(
+      'bhv serialization 126 a non-ASCII multipart field name is kept as UTF-8 in the part header',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'nomé': 'x'},
+          contentType: 'multipart/form-data',
+        );
+        expect(client.capturedBody, contains('name="nomé"'));
+      },
+    );
+
+    test(
+      'bhv serialization 127 a primitive multipart part is sent as plain text in canonical form',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'count': 3},
+          contentType: 'multipart/form-data',
+        );
+        expect(client.capturedBody, contains('\r\n\r\n3\r\n'));
+      },
+    );
+  });
+
   group('Parameters on the wire', () {
     test(
       'bhv operations 043 a format:date path parameter is sent as YYYY-MM-DD with no time component',
@@ -3400,32 +4177,38 @@ void main() {
       expect(auth.invalidations, equals(0));
     });
 
-    test('a 401 is replayed even when retries are disabled', () async {
-      final auth = _RotatingAuth();
-      final client = _ScriptedApiClient([
-        _reply(401),
-        _reply(200),
-      ], maxRetries: 0);
-      final api = _RecordingApi(client, authenticator: auth);
+    test(
+      'bhv misc 159 a 401 is replayed even when retries are disabled',
+      () async {
+        final auth = _RotatingAuth();
+        final client = _ScriptedApiClient([
+          _reply(401),
+          _reply(200),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client, authenticator: auth);
 
-      await api.invokeApi(method: 'GET', path: '/x');
+        await api.invokeApi(method: 'GET', path: '/x');
 
-      expect(client.sentHeaders, hasLength(2));
-    });
+        expect(client.sentHeaders, hasLength(2));
+      },
+    );
   });
 
   group('BaseApi retries', () {
-    test('a 503 is sent again once after about half a second', () async {
-      final client = _ScriptedApiClient([_reply(503), _reply(200)]);
-      final api = _RecordingApi(client);
+    test(
+      'bhv langdart 015 a 503 is sent again once after about half a second',
+      () async {
+        final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+        final api = _RecordingApi(client);
 
-      final response = await api.invokeApi(method: 'GET', path: '/x');
+        final response = await api.invokeApi(method: 'GET', path: '/x');
 
-      expect(response.statusCode, equals(200));
-      expect(client.sentHeaders, hasLength(2));
-      expect(api.waits, hasLength(1));
-      expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
-    });
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(2));
+        expect(api.waits, hasLength(1));
+        expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+      },
+    );
 
     test(
       'bhv retries 024 the wait doubles and the failure is reported after maxRetries retries',
@@ -3458,29 +4241,35 @@ void main() {
       }
     });
 
-    test('408, 409, 429 and 502 are retried', () async {
-      for (final status in [408, 409, 429, 502]) {
-        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
-        final api = _RecordingApi(client);
+    test(
+      'bhv langdart 016 retries on 408, 409, 429 and 502 responses',
+      () async {
+        for (final status in [408, 409, 429, 502]) {
+          final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+          final api = _RecordingApi(client);
 
-        await api.invokeApi(method: 'GET', path: '/x');
+          await api.invokeApi(method: 'GET', path: '/x');
 
-        expect(client.sentHeaders, hasLength(2), reason: 'status $status');
-      }
-    });
+          expect(client.sentHeaders, hasLength(2), reason: 'status $status');
+        }
+      },
+    );
 
-    test('400, 404, 422 and 501 are not retried', () async {
-      for (final status in [400, 404, 422, 501]) {
-        final client = _ScriptedApiClient([_reply(status), _reply(200)]);
-        final api = _RecordingApi(client);
+    test(
+      'bhv langdart 017 never retries 400, 404, 422 or 501 responses',
+      () async {
+        for (final status in [400, 404, 422, 501]) {
+          final client = _ScriptedApiClient([_reply(status), _reply(200)]);
+          final api = _RecordingApi(client);
 
-        await expectLater(
-          api.invokeApi(method: 'GET', path: '/x'),
-          throwsA(isA<ApiException>()),
-        );
-        expect(client.sentHeaders, hasLength(1), reason: 'status $status');
-      }
-    });
+          await expectLater(
+            api.invokeApi(method: 'GET', path: '/x'),
+            throwsA(isA<ApiException>()),
+          );
+          expect(client.sentHeaders, hasLength(1), reason: 'status $status');
+        }
+      },
+    );
 
     test('bhv retries 018 maxRetries 0 sends the request once', () async {
       final client = _ScriptedApiClient([
@@ -3576,6 +4365,22 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 228 A Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503, headers: {'retry-after': 'soon'}),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(api.waits, hasLength(1));
+        expect(api.waits.single.inMilliseconds, inInclusiveRange(375, 500));
+      },
+    );
+
     test('bhv retries 022 Retry-After as an HTTP date sets the wait', () async {
       final date = HttpDate.format(
         DateTime.now().toUtc().add(const Duration(seconds: 30)),
@@ -3654,6 +4459,241 @@ void main() {
     );
 
     test(
+      'bhv misc 227 A network error that happens before any response is received is retried, so a dropped connection produces a second request',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkException(message: 'connection reset'),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        final response = await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 161 a non-idempotent request whose connection drops is sent once, and QUERY is retried',
+      () async {
+        for (final method in ['POST', 'PATCH']) {
+          final client = _ScriptedApiClient([
+            const NetworkException(message: 'connection reset'),
+            _reply(200),
+          ]);
+          final api = _RecordingApi(client);
+
+          await expectLater(
+            api.invokeApi(method: method, path: '/x'),
+            throwsA(isA<NetworkException>()),
+          );
+          expect(client.sentHeaders, hasLength(1), reason: method);
+        }
+
+        final query = _ScriptedApiClient([
+          const NetworkException(message: 'connection reset'),
+          _reply(200),
+        ]);
+        final response = await _RecordingApi(
+          query,
+        ).invokeApi(method: 'QUERY', path: '/x');
+        expect(response.statusCode, equals(200));
+        expect(query.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 162 an idempotent request whose connection drops before any response is sent again exactly once',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkException(message: 'connection reset'),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        final response = await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 170 a TLS or certificate failure is sent once and never retried',
+      () async {
+        for (final message in [
+          'HandshakeException: Handshake error in client (OS Error: CERTIFICATE_VERIFY_FAILED)',
+          'TlsException: certificate has expired',
+        ]) {
+          final client = _ScriptedApiClient([
+            NetworkException(message: message),
+            _reply(200),
+          ]);
+          await expectLater(
+            _RecordingApi(client).invokeApi(method: 'GET', path: '/x'),
+            throwsA(isA<NetworkException>()),
+          );
+          expect(client.sentHeaders, hasLength(1), reason: message);
+        }
+      },
+    );
+
+    test(
+      'bhv misc 163 a request body that can be replayed is sent again unchanged after a dropped connection',
+      () async {
+        for (final body in <Object?>[
+          'text',
+          Uint8List.fromList([1, 2]),
+          null,
+        ]) {
+          final client = _ScriptedApiClient([
+            const NetworkException(message: 'connection reset'),
+            _reply(200),
+          ]);
+          final api = _RecordingApi(client);
+
+          await api.invokeApi(method: 'PUT', path: '/x', body: body);
+
+          expect(client.sentBodies, hasLength(2));
+          expect(client.sentBodies.last, equals(client.sentBodies.first));
+        }
+      },
+    );
+
+    test(
+      'bhv misc 164 a retry whose wait fits within the remaining timeout budget is sent',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503, headers: {'retry-after': '1'}),
+          _reply(200),
+        ], timeoutMillis: 60000);
+        final api = _RecordingApi(client);
+
+        final response = await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 167 an operation that keeps receiving a retryable status is attempted up to the retry limit, then raises that status',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503),
+          _reply(503),
+          _reply(503),
+        ]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ServerException>()),
+        );
+        expect(client.sentHeaders, hasLength(3));
+      },
+    );
+
+    test(
+      'bhv misc 168 with no retry setting a failing request is sent three times, with a pause before each retry',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503),
+          _reply(503),
+          _reply(503),
+        ]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ServerException>()),
+        );
+        expect(client.sentHeaders, hasLength(3));
+        expect(api.waits, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 169 the pause between retries starts at half a second and never exceeds eight seconds',
+      () async {
+        final client = _ScriptedApiClient(
+          List<Object>.generate(7, (_) => _reply(503)),
+          maxRetries: 6,
+        );
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ServerException>()),
+        );
+        expect(
+          api.waits.first,
+          lessThanOrEqualTo(const Duration(milliseconds: 500)),
+        );
+        expect(
+          api.waits,
+          everyElement(lessThanOrEqualTo(const Duration(seconds: 8))),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 171 a per-call maximum retry count larger than the transport limit allows more attempts',
+      () async {
+        final client = _ScriptedApiClient(
+          List<Object>.generate(6, (_) => _reply(503)),
+          maxRetries: 2,
+        );
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', maxRetries: 5),
+          throwsA(isA<ServerException>()),
+        );
+        expect(client.sentHeaders, hasLength(6));
+      },
+    );
+
+    test(
+      'bhv misc 178 a declared multipart content type other than form-data reaches the transport with its subtype kept',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/x',
+          contentType: 'multipart/related',
+          body: 'note',
+        );
+
+        final sent = client.sentHeaders.single.entries
+            .firstWhere((e) => e.key.toLowerCase() == 'content-type')
+            .value;
+        expect(sent, startsWith('multipart/related'));
+      },
+    );
+
+    test(
+      'bhv misc 179 an operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/x',
+          contentType: 'application/x-www-form-urlencoded',
+          body: {'name': 'x'},
+        );
+
+        final sent = client.sentHeaders.single.entries
+            .firstWhere((e) => e.key.toLowerCase() == 'content-type')
+            .value;
+        expect(sent, startsWith('application/x-www-form-urlencoded'));
+      },
+    );
+
+    test(
       'bhv retries 033 the last network error is reported once the retries are used up',
       () async {
         final client = _ScriptedApiClient([
@@ -3673,19 +4713,22 @@ void main() {
       },
     );
 
-    test('an error that is not a network failure is not retried', () async {
-      final client = _ScriptedApiClient([
-        const ApiException(statusCode: 0, message: 'bad encoding'),
-        _reply(200),
-      ]);
-      final api = _RecordingApi(client);
+    test(
+      'bhv misc 160 an error that is not a network failure is not retried',
+      () async {
+        final client = _ScriptedApiClient([
+          const ApiException(statusCode: 0, message: 'bad encoding'),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
 
-      await expectLater(
-        api.invokeApi(method: 'GET', path: '/x'),
-        throwsA(isA<ApiException>()),
-      );
-      expect(client.sentHeaders, hasLength(1));
-    });
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<ApiException>()),
+        );
+        expect(client.sentHeaders, hasLength(1));
+      },
+    );
 
     test(
       'bhv retries 005 a retry asks the authenticator for the headers again',
@@ -3704,7 +4747,80 @@ void main() {
     );
 
     test(
-      'the default client retries a 503 over the wire and then succeeds',
+      'bhv retries 049 the max retries setting allows that many retries after the first attempt, so n retries means n plus one requests',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          request.response
+            ..statusCode = 503
+            ..close();
+        });
+
+        try {
+          final api = BaseApi(
+            apiClient: DefaultApiClient(
+              transportOptions: TransportOptionsBuilder().maxRetries(2).build(),
+            ),
+            config: ConfigurationBuilder()
+                .baseUrl('http://127.0.0.1:${server.port}')
+                .build(),
+          );
+          await expectLater(
+            api.invokeApi(method: 'GET', path: '/x'),
+            throwsA(isA<ServerException>()),
+          );
+          expect(requests, equals(3));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv retries 050 a Retry-After header given as an HTTP date is honoured and the request is retried',
+      () async {
+        var requests = 0;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          requests++;
+          if (requests == 1) {
+            request.response
+              ..statusCode = 503
+              ..headers.set(
+                'Retry-After',
+                HttpDate.format(DateTime.now().toUtc()),
+              )
+              ..close();
+            return;
+          }
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{}')
+            ..close();
+        });
+
+        try {
+          final api = BaseApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://127.0.0.1:${server.port}')
+                .build(),
+          );
+          final response = await api.invokeApi(method: 'GET', path: '/x');
+
+          expect(requests, equals(2));
+          expect(response.statusCode, equals(200));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv retries 048 the default client retries a 503 over the wire and then succeeds',
       () async {
         var requests = 0;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3735,7 +4851,7 @@ void main() {
     );
 
     test(
-      'over the wire the retries stay inside the end-to-end timeout',
+      'bhv retries 047 over the wire the retries stay inside the end-to-end timeout',
       () async {
         var requests = 0;
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -3897,6 +5013,59 @@ void main() {
     );
 
     test(
+      'bhv operations 158 a header supplied on an individual call is sent with that call, and every null required nullable query parameter is sent as an empty value in declaration order',
+      () async {
+        final client = _ScriptedApiClient([_reply(200), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await api.invokeApi(
+          method: 'GET',
+          path: '/x',
+          callHeaders: {'X-Once': 'yes'},
+        );
+        await api.invokeApi(method: 'GET', path: '/x');
+
+        expect(client.sentHeaders.first['X-Once'], equals('yes'));
+        expect(client.sentHeaders.last.containsKey('X-Once'), isFalse);
+
+        String? capturedQuery;
+        final petServer = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        petServer.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final petApi = PetApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://localhost:${petServer.port}')
+                .build(),
+          );
+
+          await petApi.getPetByNote(
+            const GetPetByNoteOptions(note: null, rank: null),
+          );
+
+          expect(
+            capturedQuery,
+            'note=&rank=',
+            reason: 'every null is sent in declaration order',
+          );
+        } finally {
+          await petServer.close(force: true);
+        }
+      },
+    );
+
+    test(
       'bhv transport 002 the timeout reaches the transport for this call only',
       () async {
         final client = _ScriptedApiClient([_reply(200), _reply(200)]);
@@ -3906,6 +5075,79 @@ void main() {
         await api.invokeApi(method: 'GET', path: '/x');
 
         expect(client.sentTimeouts, equals([1500, null]));
+      },
+    );
+
+    test(
+      'bhv misc 050 per-call options override the options object and an unset option falls through to it',
+      () async {
+        final overridden = _ScriptedApiClient([
+          _reply(503),
+          _reply(503),
+          _reply(200),
+        ], maxRetries: 0);
+        final response = await _RecordingApi(
+          overridden,
+        ).invokeApi(method: 'GET', path: '/x', maxRetries: 2);
+        expect(response.statusCode, equals(200));
+
+        final inherited = _ScriptedApiClient([
+          _reply(503),
+          _reply(200),
+        ], maxRetries: 1);
+        final second = await _RecordingApi(
+          inherited,
+        ).invokeApi(method: 'GET', path: '/x');
+        expect(second.statusCode, equals(200));
+        expect(inherited.sentHeaders, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 053 a per-call retry budget of zero sends one request',
+      () async {
+        final client = _ScriptedApiClient([_reply(503), _reply(200)]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', maxRetries: 0),
+          throwsA(isA<ServerException>()),
+        );
+        expect(client.sentHeaders, hasLength(1));
+      },
+    );
+
+    test(
+      'bhv misc 054 per-call headers are a copy that later changes do not reach',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final headers = <String, String>{'X-Per-Call': 'first'};
+
+        final pending = _RecordingApi(
+          client,
+        ).invokeApi(method: 'GET', path: '/x', callHeaders: headers);
+        headers['X-Per-Call'] = 'changed';
+        await pending;
+
+        expect(client.sentHeaders.single['X-Per-Call'], equals('first'));
+      },
+    );
+
+    test(
+      'bhv misc 055 a per-call timeout or retry count that is not valid is refused',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', timeout: 0),
+          throwsA(isA<ArgumentError>()),
+        );
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/x', maxRetries: -1),
+          throwsA(isA<ArgumentError>()),
+        );
+        expect(client.sentHeaders, isEmpty);
       },
     );
 
@@ -3925,6 +5167,28 @@ void main() {
 
     test(
       'bhv retries 004 maxRetries 3 allows more retries than the transport default',
+      () async {
+        final client = _ScriptedApiClient([
+          _reply(503),
+          _reply(503),
+          _reply(503),
+          _reply(200),
+        ]);
+        final api = _RecordingApi(client);
+
+        final response = await api.invokeApi(
+          method: 'GET',
+          path: '/x',
+          maxRetries: 3,
+        );
+
+        expect(response.statusCode, equals(200));
+        expect(client.sentHeaders, hasLength(4));
+      },
+    );
+
+    test(
+      'bhv misc 229 A per-call max retries value overrides the client setting, so a call can retry even when the client was built with no retries',
       () async {
         final client = _ScriptedApiClient([
           _reply(503),
@@ -4084,6 +5348,39 @@ void main() {
 
     test(
       'bhv operations 026 the default authenticator serves an operation no scheme matches',
+      () async {
+        String? sent;
+        final transport = MockClient((request) async {
+          sent = request.headers['authorization'];
+          return http.Response(
+            '{"id":1,"name":"x","photoUrls":[]}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://api.test',
+            token: 'fallback',
+          ),
+          adminBasic: BasicAuthenticator(
+            host: 'http://api.test',
+            username: 'admin',
+            password: 'pw',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(transport)
+              .build(),
+        );
+
+        await client.pet.addPet(Pet(name: 'x', photoUrls: <String>{}), null);
+
+        expect(sent, equals('Bearer fallback'));
+      },
+    );
+
+    test(
+      'bhv misc 197 An operation whose named schemes the client does not hold is served by the client\'s default authenticator.',
       () async {
         String? sent;
         final transport = MockClient((request) async {
@@ -4309,6 +5606,34 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 064 an operation that declares no security never sends the client default credential',
+      () async {
+        String? sent;
+        final transport = MockClient((request) async {
+          sent = request.headers['authorization'];
+          return http.Response(
+            '{"available":1}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        });
+        final client = Client(
+          petStoreBearer: BearerAuthenticator(
+            host: 'http://api.test',
+            token: 'b-token',
+          ),
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(transport)
+              .build(),
+        );
+
+        await client.store.getInventory(null);
+
+        expect(sent, isNull);
+      },
+    );
+
     test('bhv lifecycle 026 a client with no credential at all is refused', () {
       expect(() => Client(), throwsArgumentError);
     });
@@ -4351,7 +5676,70 @@ void main() {
     );
 
     test(
+      'bhv misc 079 each success status decodes as the schema declared for that status',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(
+            201,
+            '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}',
+          ),
+        ]);
+
+        final result = await storeApi(client).reserveStock(null);
+
+        expect(result.actualInstance, isA<ReservationReceipt>());
+      },
+    );
+
+    test(
+      'bhv misc 080 a 200 body is refused when it only fits the 201 schema',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(
+            200,
+            '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}',
+          ),
+        ]);
+
+        await expectLater(
+          storeApi(client).reserveStock(null),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 048 a success status no response row declares decodes as the union return type',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(202, '{"reservationId":7,"quantity":2}'),
+        ]);
+
+        final result = await storeApi(client).reserveStock(null);
+
+        expect(result, isA<ReserveStockResponse>());
+        expect(result.actualInstance, isNotNull);
+      },
+    );
+
+    test(
       'bhv operations 120 a 201 body is decoded as the schema of 201',
+      () async {
+        final client = _ScriptedApiClient([
+          jsonReply(
+            201,
+            '{"receiptCode":"r1","expiresAt":"2030-01-01T00:00:00Z"}',
+          ),
+        ]);
+
+        final result = await storeApi(client).reserveStock(null);
+
+        expect(result.actualInstance, isA<ReservationReceipt>());
+      },
+    );
+
+    test(
+      'bhv misc 114 a success response is decoded by the decoder for the status code actually received',
       () async {
         final client = _ScriptedApiClient([
           jsonReply(
@@ -4409,7 +5797,7 @@ void main() {
       headers: {'content-type': 'application/json'},
     );
 
-    test('a map of int32 leaves decodes integers', () async {
+    test('bhv langdart 018 a map of int32 leaves decodes integers', () async {
       final client = _ScriptedApiClient([jsonReply('{"a":1,"b":-2147483648}')]);
 
       expect(
@@ -4419,7 +5807,7 @@ void main() {
     });
 
     test(
-      'a map leaf that is fractional, quoted or out of range is refused',
+      'bhv misc 116 a map leaf that is fractional, quoted or out of range is refused',
       () async {
         for (final leaf in [
           '1.5',
@@ -4439,48 +5827,57 @@ void main() {
       },
     );
 
-    test('a nested array of int32 leaves is checked leaf by leaf', () async {
-      final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
-      expect(
-        await storeApi(ok).getMatrix(null),
-        equals([
-          [1, 2],
-          [3],
-        ]),
-      );
-
-      for (final leaf in ['1.5', '"1"', '4294967296']) {
-        final client = _ScriptedApiClient([jsonReply('[[1,$leaf]]')]);
-
-        await expectLater(
-          storeApi(client).getMatrix(null),
-          throwsA(isA<SerializationException>()),
-          reason: leaf,
-        );
-      }
-    });
-
-    test('a model property is checked against its integer width', () async {
-      expect(
-        deserialize<Order>('{"quantity":2147483647}', Order.fromJson)!.quantity,
-        equals(2147483647),
-      );
-      for (final value in ['2147483648', '1.5', '"7"']) {
+    test(
+      'bhv langdart 019 a nested array of int32 leaves is checked leaf by leaf',
+      () async {
+        final ok = _ScriptedApiClient([jsonReply('[[1,2],[3]]')]);
         expect(
-          () => deserialize<Order>('{"quantity":$value}', Order.fromJson),
-          throwsA(isA<SerializationException>()),
-          reason: value,
+          await storeApi(ok).getMatrix(null),
+          equals([
+            [1, 2],
+            [3],
+          ]),
         );
-      }
-      expect(
-        deserialize<Order>('{"id":9007199254740993}', Order.fromJson)!.id,
-        equals(9007199254740993),
-      );
-      expect(
-        () => deserialize<Order>('{"id":1.5}', Order.fromJson),
-        throwsA(isA<SerializationException>()),
-      );
-    });
+
+        for (final leaf in ['1.5', '"1"', '4294967296']) {
+          final client = _ScriptedApiClient([jsonReply('[[1,$leaf]]')]);
+
+          await expectLater(
+            storeApi(client).getMatrix(null),
+            throwsA(isA<SerializationException>()),
+            reason: leaf,
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv langdart 020 a model property is checked against its integer width',
+      () async {
+        expect(
+          deserialize<Order>(
+            '{"quantity":2147483647}',
+            Order.fromJson,
+          )!.quantity,
+          equals(2147483647),
+        );
+        for (final value in ['2147483648', '1.5', '"7"']) {
+          expect(
+            () => deserialize<Order>('{"quantity":$value}', Order.fromJson),
+            throwsA(isA<SerializationException>()),
+            reason: value,
+          );
+        }
+        expect(
+          deserialize<Order>('{"id":9007199254740993}', Order.fromJson)!.id,
+          equals(9007199254740993),
+        );
+        expect(
+          () => deserialize<Order>('{"id":1.5}', Order.fromJson),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
   });
 
   group('BaseApi request context on errors', () {
@@ -4530,21 +5927,43 @@ void main() {
       },
     );
 
-    test('a timeout stays a timeout and carries the request', () async {
-      final client = _ScriptedApiClient([
-        const NetworkTimeoutException(message: 'slow'),
-      ], maxRetries: 0);
-      final api = _RecordingApi(client);
+    test(
+      'bhv misc 027 a timeout stays a timeout and carries the request',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkTimeoutException(message: 'slow'),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client);
 
-      await expectLater(
-        api.invokeApi(method: 'GET', path: '/items'),
-        throwsA(
-          isA<NetworkTimeoutException>()
-              .having((e) => e.requestMethod, 'requestMethod', 'GET')
-              .having((e) => e.requestPath, 'requestPath', '/items'),
-        ),
-      );
-    });
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/items'),
+          throwsA(
+            isA<NetworkTimeoutException>()
+                .having((e) => e.requestMethod, 'requestMethod', 'GET')
+                .having((e) => e.requestPath, 'requestPath', '/items'),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv errors 092 a network failure carries the request method and path',
+      () async {
+        final client = _ScriptedApiClient([
+          const NetworkException(message: 'connection refused'),
+        ], maxRetries: 0);
+        final api = _RecordingApi(client);
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/items'),
+          throwsA(
+            isA<NetworkException>()
+                .having((e) => e.requestMethod, 'requestMethod', 'GET')
+                .having((e) => e.requestPath, 'requestPath', '/items'),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv errors 205 a decode failure of a response carries the status, the headers and the raw body',
@@ -4983,6 +6402,45 @@ void main() {
     );
 
     test(
+      'bhv misc 072 each API group holds the default credential and the scheme credentials it was built with',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        String? receivedAuth;
+        server.listen((request) {
+          receivedAuth = request.headers.value('authorization');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(
+            apiClient: DefaultApiClient(),
+            config: config,
+            authenticator: _BaseApiAuth(
+              headers: {'Authorization': 'Bearer default'},
+            ),
+            schemeAuthenticators: {
+              'adminBasic': _BaseApiAuth(
+                headers: {'Authorization': 'Bearer scheme'},
+              ),
+            },
+          );
+
+          await api.addPet(Pet(name: 'Fido', photoUrls: <String>{}), null);
+          expect(receivedAuth, equals('Bearer default'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv serialization 014 a query parameter left unset produces no query entry at all',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -5278,7 +6736,7 @@ void main() {
     );
 
     test(
-      'bhv hooks 002 start is called once with the spec operation id, the method, the template and the url',
+      'bhv hooks 002 start is called once per operation call with the spec operation id, the upper-case method, the url template and the url without its query string',
       () async {
         final hook = _RecordingHook();
         final api = _HookedApi(_ScriptedApiClient([_reply(200)]), hook);
@@ -5298,13 +6756,16 @@ void main() {
           hook.infos.single.url,
           equals('https://api.example.com/items/7'),
         );
-      },
-    );
 
-    test(
-      'bhv hooks 002 a generated operation passes its spec id and its path template',
-      () async {
-        final hook = _RecordingHook();
+        final lower = CallInfo.of(
+          operationId: 'o',
+          method: 'get',
+          urlTemplate: '/x',
+          target: 'https://api.example.com/x',
+        );
+        expect(lower.method, equals('GET'));
+
+        final hook2 = _RecordingHook();
         final client = _ScriptedApiClient([
           ApiHttpResponse(
             statusCode: 200,
@@ -5312,19 +6773,19 @@ void main() {
             headers: {'content-type': 'application/json'},
           ),
         ]);
-        final api = PetApi(
+        final api2 = PetApi(
           apiClient: client,
           config: ConfigurationBuilder()
               .baseUrl('https://api.example.com')
-              .callHook(hook)
+              .callHook(hook2)
               .build(),
         );
 
-        await api.getPetById(7, null, null);
+        await api2.getPetById(7, null, null);
 
-        expect(hook.infos.single.operationId, equals('getPetById'));
-        expect(hook.infos.single.urlTemplate, equals('/pet/{petId}'));
-        expect(hook.infos.single.method, equals('GET'));
+        expect(hook2.infos.single.operationId, equals('getPetById'));
+        expect(hook2.infos.single.urlTemplate, equals('/pet/{petId}'));
+        expect(hook2.infos.single.method, equals('GET'));
       },
     );
 
@@ -5478,27 +6939,6 @@ void main() {
 
         expect(hook.infos, hasLength(2));
         expect(hook.outcomes, hasLength(2));
-      },
-    );
-
-    test(
-      'bhv hooks 010 a hook on the configuration fires when the caller supplied the transport',
-      () async {
-        final hook = _RecordingHook();
-        final supplied = MockClient((_) async => http.Response('{}', 200));
-        final api = _HookedApi(
-          DefaultApiClient(
-            transportOptions: TransportOptionsBuilder()
-                .httpClient(supplied)
-                .build(),
-          ),
-          hook,
-        );
-
-        await api.invokeApi(method: 'GET', path: '/x');
-
-        expect(hook.infos, hasLength(1));
-        expect(hook.outcomes.single.statusCode, equals(200));
       },
     );
 

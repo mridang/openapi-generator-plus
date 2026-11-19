@@ -289,7 +289,7 @@ test('bhv options 046 constructing directly with a non http proxy scheme is reje
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
 });
 
-test('constructor rejects a malformed proxy url', function (): void {
+test('bhv misc 298 constructor rejects a malformed proxy url', function (): void {
     expect(fn () => new TransportOptions(proxy: 'not-a-url'))
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL: not-a-url');
 });
@@ -368,9 +368,11 @@ test('bhv options 027 max retries can be set, including to 0 to disable retrying
     expect(TransportOptions::builder()->maxRetries($retries)->build()->maxRetries)->toBe($retries);
 })->with([0, 1, 5]);
 
-test('bhv options 007 constructor rejects a negative max retries', function (): void {
+test('bhv options 007 a negative max retries is rejected by the constructor and by the builder', function (): void {
     expect(fn () => new TransportOptions(maxRetries: -1))
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
+    expect(fn () => TransportOptions::builder()->maxRetries(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
 });
 
 test('bhv options 064 debug output shows the max retries', function (): void {
@@ -385,4 +387,59 @@ test('bhv options 013 an invalid proxy url is rejected at build, not in the sett
 test('bhv options 039 timeout defaults to 10000 milliseconds', function (): void {
     $opts = TransportOptions::builder()->build();
     expect($opts->timeout)->toBe(10000);
+});
+
+test('bhv misc 026 a configuration mistake raises an error that is not an api error', function (): void {
+    try {
+        TransportOptions::builder()->proxy('http://[::1')->build();
+        test()->fail('Expected InvalidArgumentException');
+    } catch (\Throwable $e) {
+        expect($e)->toBeInstanceOf(\InvalidArgumentException::class);
+        expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\ApiException::class);
+    }
+});
+
+test('bhv misc 051 an unknown option is refused by the builder rather than ignored', function (): void {
+    expect(fn () => callWithArray(TransportOptions::builder(), 'noSuchOption', [1]))->toThrow(\Error::class);
+});
+
+test('bhv misc 056 setting the proxy to null removes a proxy set earlier', function (): void {
+    $opts = TransportOptions::builder()->proxy('http://proxy.example.com:8080')->proxy(null)->build();
+    expect($opts->proxy)->toBeNull();
+});
+
+test('bhv options 068 a SOCKS proxy is refused at construction with the documented message', function (): void {
+    expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
+        ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
+});
+
+test('bhv misc 175 credential header names are redacted regardless of letter case', function (): void {
+    $options = TransportOptions::builder()
+        ->defaultHeader('AUTHORIZATION', 'Bearer hidden-one')
+        ->defaultHeader('X-Api-Key', 'hidden-two')
+        ->defaultHeader('Content-Type', 'text/plain')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->not->toContain('hidden-one');
+    expect($printed)->not->toContain('hidden-two');
+    expect($printed)->toContain('text/plain');
+});
+
+test('bhv misc 180 the printable form shows non sensitive default header values and hides sensitive ones', function (): void {
+    $options = TransportOptions::builder()
+        ->defaultHeader('X-Visible', 'shown-value')
+        ->defaultHeader('Authorization', 'Bearer hidden-secret')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->toContain('shown-value');
+    expect($printed)->not->toContain('hidden-secret');
+});
+
+test('bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
 });

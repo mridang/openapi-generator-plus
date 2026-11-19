@@ -52,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Integration tests for the Pet API endpoints. */
+@SuppressWarnings("NullAway")
 class PetApiTest {
 
   private PetApi api;
@@ -77,7 +78,7 @@ class PetApiTest {
   }
 
   @Test
-  void testSchemeAuthenticatorsPrintTheirOwnNameWithTheSecretRedacted() {
+  void bhvLangjava050TestSchemeAuthenticatorsPrintTheirOwnNameWithTheSecretRedacted() {
     String baseUrl = ChasmContainer.getBaseUrl();
     assertThat(bearerAuth.toString())
         .isEqualTo("PetStoreBearerAuthenticator(host=" + baseUrl + ", token=***)");
@@ -551,7 +552,8 @@ class PetApiTest {
   }
 
   @Test
-  void testTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt() throws Exception {
+  void bhvLangjava051TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
+      throws Exception {
     List<Map<String, String>> sent = new java.util.ArrayList<>();
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
@@ -707,7 +709,7 @@ class PetApiTest {
   }
 
   @Test
-  void getPetByNameTildeInPathIsNotOverEncoded() throws Exception {
+  void bhvLangjava052GetPetByNameTildeInPathIsNotOverEncoded() throws Exception {
     // RFC 3986 unreserved '~' must survive in a path segment as a literal
     // tilde, never percent-encoded to %7E.
     CapturingApiClient capturing = new CapturingApiClient();
@@ -777,37 +779,85 @@ class PetApiTest {
   @Test
   void bhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
       throws Exception {
-    CapturingApiClient capturing = new CapturingApiClient();
-    PetApi petApi =
-        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+    {
+      CapturingApiClient capturing = new CapturingApiClient();
+      PetApi petApi =
+          new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-    petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
+      petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
 
-    assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
-  }
+      assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
+    }
+    {
+      // End-to-end transport check against a real HttpServer: selecting
+      // application/octet-stream must put the RAW file bytes on the wire with
+      // Content-Type: application/octet-stream — proving the transport does
+      // not re-wrap the body as multipart. Guards the DefaultApiClient
+      // dispatch, which previously emitted multipart whenever the body was a
+      // Map regardless of the selected content-type.
+      final byte[][] capturedBody = new byte[1][];
+      final String[] capturedContentType = new String[1];
+      HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+      server.createContext(
+          "/",
+          exchange -> {
+            capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+          });
+      server.start();
+      try {
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        PetApi petApi = new PetApi(new DefaultApiClient(), config);
 
-  @Test
-  void bhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
-      throws Exception {
-    CapturingApiClient capturing = new CapturingApiClient();
-    PetApi petApi =
-        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+        byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
 
-    petApi.getPetByNote(new GetPetByNoteOptions(null, null));
+        petApi.uploadPetDocument(
+            1L,
+            new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+            "application/octet-stream");
 
-    assertThat(capturing.capturedUrl).endsWith("?note=&rank=");
+        // The wire body is exactly the raw payload — no boundary, no part
+        // headers, no base64.
+        assertNotNull(capturedBody[0]);
+        assertThat(capturedBody[0]).isEqualTo(payload);
+
+        // Content-Type is the selected octet-stream, never multipart.
+        assertNotNull(capturedContentType[0]);
+        assertThat(capturedContentType[0]).startsWith("application/octet-stream");
+        assertThat(capturedContentType[0]).doesNotContain("multipart");
+        assertThat(capturedContentType[0]).doesNotContain("boundary");
+      } finally {
+        server.stop(0);
+      }
+    }
   }
 
   @Test
   void bhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
       throws Exception {
-    CapturingApiClient capturing = new CapturingApiClient();
-    PetApi petApi =
-        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+    {
+      CapturingApiClient capturing = new CapturingApiClient();
+      PetApi petApi =
+          new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-    petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
+      petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
 
-    assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
+      assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
+    }
+    {
+      ApiClient empty = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+      PetApi petApi =
+          new PetApi(empty, Configuration.builder().baseUrl("http://localhost").build());
+      assertThatThrownBy(() -> petApi.findPetsByStatus())
+          .isInstanceOf(com.example.petstore.errors.ApiException.class);
+    }
   }
 
   @Test
@@ -944,7 +994,7 @@ class PetApiTest {
   /* A null path parameter beside a null required Options object is the
    * violation under test; NullAway forbids it by design. */
   @SuppressWarnings("NullAway")
-  void nullPathParameterIsReportedBeforeANullRequiredOptions() {
+  void bhvLangjava064NullPathParameterIsReportedBeforeANullRequiredOptions() {
     CapturingApiClient capturing = new CapturingApiClient();
     Configuration config = Configuration.builder().baseUrl("http://localhost").build();
     PetApi petApi = new PetApi(capturing, config);
@@ -1262,57 +1312,6 @@ class PetApiTest {
     // multipart/form-data.
     assertNotNull(capturing.capturedHeaders);
     assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "application/octet-stream");
-  }
-
-  @Test
-  void uploadPetDocumentOctetStreamSelectionWireBodyIsRawBytes() throws Exception {
-    // End-to-end transport check against a real HttpServer: selecting
-    // application/octet-stream must put the RAW file bytes on the wire with
-    // Content-Type: application/octet-stream — proving the transport does
-    // not re-wrap the body as multipart. Guards the DefaultApiClient
-    // dispatch, which previously emitted multipart whenever the body was a
-    // Map regardless of the selected content-type.
-    final byte[][] capturedBody = new byte[1][];
-    final String[] capturedContentType = new String[1];
-    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-    server.createContext(
-        "/",
-        exchange -> {
-          capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
-          capturedBody[0] = exchange.getRequestBody().readAllBytes();
-          byte[] responseBytes =
-              "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
-          exchange.getResponseHeaders().set("Content-Type", "application/json");
-          exchange.sendResponseHeaders(200, responseBytes.length);
-          exchange.getResponseBody().write(responseBytes);
-          exchange.getResponseBody().close();
-        });
-    server.start();
-    try {
-      String baseUrl = "http://localhost:" + server.getAddress().getPort();
-      Configuration config = Configuration.builder().baseUrl(baseUrl).build();
-      PetApi petApi = new PetApi(new DefaultApiClient(), config);
-
-      byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
-
-      petApi.uploadPetDocument(
-          1L,
-          new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
-          "application/octet-stream");
-
-      // The wire body is exactly the raw payload — no boundary, no part
-      // headers, no base64.
-      assertNotNull(capturedBody[0]);
-      assertThat(capturedBody[0]).isEqualTo(payload);
-
-      // Content-Type is the selected octet-stream, never multipart.
-      assertNotNull(capturedContentType[0]);
-      assertThat(capturedContentType[0]).startsWith("application/octet-stream");
-      assertThat(capturedContentType[0]).doesNotContain("multipart");
-      assertThat(capturedContentType[0]).doesNotContain("boundary");
-    } finally {
-      server.stop(0);
-    }
   }
 
   @Test
@@ -2058,5 +2057,374 @@ class PetApiTest {
     assertThat(calls.get(0)[0]).isEqualTo(7L);
     assertThat(calls.get(0)[1]).isNull();
     assertThat(calls.get(0)[2]).isNull();
+  }
+
+  @Test
+  void bhvAuth043OperationSendsOnlyTheCredentialOfTheSchemeItNames() throws Exception {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    AdminBasicAuthenticator basic =
+        new AdminBasicAuthenticator("http://localhost", "admin", "password");
+    PetStoreBearerAuthenticator bearer =
+        new PetStoreBearerAuthenticator("http://localhost", "test-token");
+    PetApi mockedApi =
+        new PetApi(
+            recording,
+            Configuration.builder().baseUrl("http://localhost").build(),
+            null,
+            Map.of("adminBasic", basic, "petStoreBearer", bearer));
+
+    mockedApi.deletePet(7L);
+
+    assertThat(sent.get("Authorization")).isEqualTo(basic.getAuthHeaders().get("Authorization"));
+    assertThat(sent.get("Authorization")).doesNotContain("test-token");
+  }
+
+  @Test
+  void bhvAuth044OperationWithNoSecurityRequirementSendsNoCredential() throws Exception {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "{}", Map.of());
+        };
+    PetStoreBearerAuthenticator bearer =
+        new PetStoreBearerAuthenticator("http://localhost", "test-token");
+    StoreApi mockedApi =
+        new StoreApi(
+            recording, Configuration.builder().baseUrl("http://localhost").build(), bearer);
+
+    mockedApi.getOrderByTrackingId(java.util.UUID.randomUUID());
+
+    assertThat(sent.get("Authorization")).isNull();
+  }
+
+  @Test
+  void bhvAuth045CredentialOfTheOperationsSchemeReplacesTheDefaultAuthorizationHeader()
+      throws Exception {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    AdminBasicAuthenticator basic =
+        new AdminBasicAuthenticator("http://localhost", "admin", "password");
+    PetApi mockedApi =
+        new PetApi(
+            recording,
+            Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("Authorization", "Bearer default-token")
+                .build(),
+            null,
+            Map.of("adminBasic", basic));
+
+    mockedApi.deletePet(7L);
+
+    assertThat(sent.get("Authorization")).isEqualTo(basic.getAuthHeaders().get("Authorization"));
+    assertThat(sent.get("Authorization")).doesNotContain("default-token");
+  }
+
+  @Test
+  void bhvAuth047OperationSendsNoSchemeCredentialWhenItHoldsNone() throws Exception {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi mockedApi =
+        new PetApi(
+            recording, Configuration.builder().baseUrl("http://localhost").build(), null, Map.of());
+
+    mockedApi.deletePet(7L);
+
+    assertThat(sent.get("Authorization")).isNull();
+  }
+
+  @Test
+  void bhvOperations160ExternalVariantOperationIsSentToItsServerVariantUrl() {
+    UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getExternalPetInfo(7L, new PetApi.GetExternalPetInfoServer.Server0(), null);
+    assertThat(recording.capturedUrl).startsWith("https://external-api.example.com/v1");
+  }
+
+  @Test
+  void bhvOperations161TextPlainResponseIsReturnedRawEvenWhenItLooksLikeBase64() {
+    ApiClient textual =
+        (method, url, headers, body) ->
+            new ApiHttpResponse(200, "aGVsbG8=", Map.of("Content-Type", "text/plain"));
+    PetApi petApi =
+        new PetApi(textual, Configuration.builder().baseUrl("http://localhost").build());
+    String summary =
+        petApi.getPetSummary(
+            7L,
+            LocalDate.of(2024, 1, 15),
+            new com.example.petstore.api.options.GetPetSummaryOptions("abc"));
+    assertThat(summary).isEqualTo("aGVsbG8=");
+  }
+
+  @Test
+  void bhvOperations162DateOnlyParameterIsBareDateInPathQueryAndHeader() throws Exception {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 3, 9),
+        new com.example.petstore.api.options.GetPetSummaryOptions("abc")
+            .days(List.of(LocalDate.of(2024, 3, 9))));
+    String url =
+        java.net.URLDecoder.decode(String.valueOf(recording.capturedUrl), StandardCharsets.UTF_8);
+    assertThat(url).contains("asOf=2024-03-09").contains("days=2024-03-09");
+    assertThat(url).doesNotContain("T00:00");
+  }
+
+  @Test
+  void bhvOperations163RequestWithNoBodySendsNoContentTypeWhateverTheDefaultHeaderCase() {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(
+            recording,
+            Configuration.builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("content-type", "application/json")
+                .build());
+    petApi.deletePet(7L);
+    assertThat(sent.keySet().stream().noneMatch(k -> k.equalsIgnoreCase("Content-Type"))).isTrue();
+  }
+
+  @Test
+  void bhvOperations164MissingRequiredParameterRaisesAnArgumentErrorAndSendsNothing() {
+    int[] sends = new int[1];
+    ApiClient counting =
+        (method, url, headers, body) -> {
+          sends[0]++;
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.deletePet(null)).isInstanceOf(IllegalArgumentException.class);
+    assertThat(sends[0]).isZero();
+  }
+
+  @Test
+  void bhvOperations165PathParameterUsesTheMatrixStyleTheOperationDeclares() {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 1, 15),
+        new com.example.petstore.api.options.GetPetSummaryOptions("abc"));
+    assertThat(String.valueOf(recording.capturedUrl)).contains("/pet/7/summary/;asOf=2024-01-15");
+  }
+
+  @Test
+  void bhvAuth046InheritedSecurityReceivesTheClientAuthenticator() throws Exception {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}", Map.of());
+        };
+    PetStoreBearerAuthenticator bearer =
+        new PetStoreBearerAuthenticator("http://localhost", "client-token");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build(), bearer);
+
+    petApi.getPetById(7L);
+
+    assertThat(sent.get("Authorization")).isEqualTo(bearer.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvMisc003AnAllOptionalOperationSendsNoOmittedParameter() {
+    UrlRecording recording = new UrlRecording("[]");
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.findPetsByStatus();
+    assertThat(String.valueOf(recording.capturedUrl)).doesNotContain("?");
+  }
+
+  @Test
+  void bhvMisc004AMissingRequiredOptionsFieldIsNamedInTheArgumentError() {
+    ApiClient unused = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+    PetApi petApi = new PetApi(unused, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(
+            () ->
+                petApi.getPetSummary(
+                    7L,
+                    LocalDate.of(2024, 1, 15),
+                    new com.example.petstore.api.options.GetPetSummaryOptions("")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("session");
+  }
+
+  @Test
+  void bhvMisc005ABareNullListBodyIsAnApiError() {
+    ApiClient nullBody = (method, url, headers, body) -> new ApiHttpResponse(200, "null", Map.of());
+    PetApi petApi =
+        new PetApi(nullBody, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.findPetsByStatus())
+        .isInstanceOf(com.example.petstore.errors.ApiException.class);
+  }
+
+  @Test
+  void bhvMisc006ABareNullResponseGivesNoDataAndKeepsTheRawBody() {
+    ApiClient nullBody = (method, url, headers, body) -> new ApiHttpResponse(200, "null", Map.of());
+    PetApi petApi =
+        new PetApi(nullBody, Configuration.builder().baseUrl("http://localhost").build());
+    var result = petApi.getPetByIdWithHttpInfo(7L);
+    assertThat(result.data()).isNull();
+    assertThat(result.rawBody()).isEqualTo("null");
+  }
+
+  @Test
+  void bhvMisc007AMissingPathParameterIsNamedAndNothingIsSent() {
+    int[] sends = new int[1];
+    ApiClient counting =
+        (method, url, headers, body) -> {
+          sends[0]++;
+          return new ApiHttpResponse(200, "", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(counting, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.getPetSummary(7L, null, null))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("asOf");
+    assertThat(sends[0]).isZero();
+  }
+
+  @Test
+  void bhvMisc008ARequiredCookieParameterIsSentInTheCookieHeader() {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "\"ok\"", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 1, 15),
+        new com.example.petstore.api.options.GetPetSummaryOptions("abc123"));
+    assertThat(sent.get("Cookie")).contains("session=abc123");
+  }
+
+  @Test
+  void bhvMisc009ACallWithoutOptionsSendsNoPerCallHeaders() {
+    Map<String, String> sent = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          sent.putAll(headers);
+          return new ApiHttpResponse(200, "{\"name\":\"x\",\"photoUrls\":[]}", Map.of());
+        };
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+    petApi.getPetById(7L);
+    assertThat(sent).doesNotContainKey("X-Per-Call");
+  }
+
+  @Test
+  void bhvMisc010AnOptionsObjectWithRequiredFieldsIsRefusedWhenOmitted() {
+    ApiClient unused = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+    PetApi petApi = new PetApi(unused, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.getPetSummary(7L, LocalDate.of(2024, 1, 15), null))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void bhvErrors091StatusErrorNamesTheMethodAndTheSubstitutedPath() {
+    ApiClient failing = (method, url, headers, body) -> new ApiHttpResponse(500, "", Map.of());
+    PetApi petApi =
+        new PetApi(failing, Configuration.builder().baseUrl("http://localhost").build());
+    assertThatThrownBy(() -> petApi.getPetById(7L))
+        .isInstanceOfSatisfying(
+            com.example.petstore.errors.ApiException.class,
+            err -> {
+              assertThat(err.getRequestMethod()).isEqualTo("GET");
+              assertThat(err.getRequestPath()).isEqualTo("/pet/7");
+            });
+  }
+
+  @Test
+  void bhvMisc179AFormUrlencodedBodySendsItsContentType() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.setPetPreferences(1L, new SetPetPreferencesOptions("a"));
+
+    assertThat(capturing.capturedHeaders)
+        .containsEntry("Content-Type", "application/x-www-form-urlencoded");
+  }
+
+  @Test
+  void bhvMisc191AnAuthCookieWithAForbiddenOctetRaisesAnArgumentErrorNotAnApiError() {
+    PetApi petApi =
+        new PetApi(
+            new CapturingApiClient(), Configuration.builder().baseUrl("http://localhost").build());
+
+    assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey("bad\u0001value")))
+        .isExactlyInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void bhvMisc219AnOperationWithSeveralServersSendsItsRequestToTheChosenServer() throws Exception {
+    CapturingApiClient capturing = new CapturingApiClient();
+    PetApi petApi =
+        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getStagingPetInfo(
+        1L,
+        new PetApi.GetStagingPetInfoServer.StagingServer(
+            PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
+            PetApi.GetStagingPetInfoServer.Version.V3),
+        null);
+    assertThat(capturing.capturedUrl).startsWith("https://sandbox.example.com/api/v3/");
+  }
+
+  @Test
+  void bhvMisc236ADateOnlyValueIsSentWithNoTimeInTheQueryAndAHeader() throws Exception {
+    String[] capturedUrl = new String[1];
+    Map<String, String> capturedHeaders = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          capturedHeaders.putAll(headers);
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    PetApi mockedApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.findPetsByStatus(
+        new FindPetsByStatusOptions()
+            .status("available")
+            .bornAfter(LocalDate.of(2024, 1, 1))
+            .reportDate(LocalDate.of(2024, 1, 1)));
+
+    assertThat(capturedUrl[0]).contains("bornAfter=2024-01-01");
+    assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01T");
+    assertThat(
+            capturedHeaders.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase("Report-Date"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(""))
+        .isEqualTo("2024-01-01");
   }
 }

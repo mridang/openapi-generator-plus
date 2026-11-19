@@ -6,6 +6,18 @@ describe {{moduleName}}::ValueSerializer do
   parallelize_me!
 
   describe 'path location' do
+    it 'bhv_misc_084 a set optional scalar parameter sends its value in every location' do
+      %i[path query header cookie].each do |location|
+        _({{moduleName}}::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
+      end
+    end
+
+    it 'bhv_misc_082 an enum value is sent as its wire value in a path, query or header parameter' do
+      %i[path query header].each do |location|
+        _({{moduleName}}::ValueSerializer.serialize('on-hold', location, 'string')).must_equal('on-hold')
+      end
+    end
+
     it 'bhv_serializationparam_062 null returns empty string' do
       _({{moduleName}}::ValueSerializer.serialize(nil, :path, 'string')).must_equal('')
     end
@@ -16,6 +28,10 @@ describe {{moduleName}}::ValueSerializer do
 
     it 'bhv_serializationparam_102 string with spaces is URL-encoded' do
       _({{moduleName}}::ValueSerializer.serialize('hello world', :path, 'string')).must_equal('hello%20world')
+    end
+
+    it 'bhv_misc_232 a string path parameter in explicit simple style percent-encodes slashes' do
+      _({{moduleName}}::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
     end
 
     it 'bhv_serializationparam_101 string with slash is URL-encoded' do
@@ -107,13 +123,13 @@ describe {{moduleName}}::ValueSerializer do
 
     # A null element keeps its slot: it is neither skipped nor spelled out as
     # the language's null text.
-    {
-      csv: '1,,3',
-      ssv: '1  3',
-      tsv: "1\t\t3",
-      pipes: '1||3'
-    }.each do |format, expected|
-      it "bhv_serializationparam_001 array keeps an empty slot for a null element with #{format}" do
+    it 'bhv_serializationparam_001 array keeps an empty slot for a null element with each collection format' do
+      {
+        csv: '1,,3',
+        ssv: '1  3',
+        tsv: "1\t\t3",
+        pipes: '1||3'
+      }.each_case do |format, expected|
         result = {{moduleName}}::ValueSerializer.serialize(['1', nil, '3'], :query, 'array', collection_format: format)
         _(result).must_equal(expected)
       end
@@ -325,11 +341,6 @@ describe {{moduleName}}::ValueSerializer do
         _(result).must_be_nil
       end
 
-      it 'bhv_serializationparam_105 a form scalar serializes as the plain value' do
-        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil, 'form', true)
-        _(result).must_equal('blue')
-      end
-
       it 'bhv_serializationparam_117 a Set with explode false joins its elements like an array' do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'color', Set['red', 'blue'], :query, 'array', nil, 'form', false
@@ -377,7 +388,7 @@ describe {{moduleName}}::ValueSerializer do
     end
 
     describe 'null style falls back to location default' do
-      it 'bhv_serializationparam_106 path with null style behaves like simple' do
+      it 'bhv_serialization_108 a parameter with no declared style uses the default style for its location' do
         result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
       end
@@ -462,14 +473,14 @@ describe {{moduleName}}::ValueSerializer do
 
     # The OAS path sub-delimiters and the unreserved ~ stay literal, one
     # character per row so a dropped one names itself.
-    [';', '=', '~', '@', '!', '$', '&', "'", '(', ')', '*', '+'].each do |char|
-      it "bhv_serializationparam_071 #{char.inspect} preserved in a path segment" do
+    it 'bhv_serializationparam_071 path sub-delimiters and the unreserved tilde are preserved in a path segment' do
+      [';', '=', '~', '@', '!', '$', '&', "'", '(', ')', '*', '+'].each_case do |char|
         _({{moduleName}}::ValueSerializer.serialize("a#{char}b", :path, 'string')).must_equal("a#{char}b")
       end
     end
 
-    ['%', '[', ']', '{', '}', '|', '"', '<', '>', '^', '`', '\\'].each do |char|
-      it "bhv_serializationparam_002 #{char.inspect} encoded in a path segment" do
+    it 'bhv_serializationparam_002 special characters are encoded in a path segment' do
+      ['%', '[', ']', '{', '}', '|', '"', '<', '>', '^', '`', '\\'].each_case do |char|
         encoded = char.bytes.map { |byte| format('%%%02X', byte) }.join
         _({{moduleName}}::ValueSerializer.serialize("a#{char}b", :path, 'string')).must_equal("a#{encoded}b")
       end
@@ -514,6 +525,11 @@ describe {{moduleName}}::ValueSerializer do
         .must_equal(';name=a%2Fb,c')
     end
 
+    it 'bhv_operations_165 a path parameter is written in the serialization style the operation declares' do
+      result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'matrix', false)
+      _(result).must_equal(';color=a%20b')
+    end
+
     it 'bhv_serializationparam_059 matrix style encodes value' do
       result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'a b', :path, 'string', nil, 'matrix', false)
       _(result).must_equal(';color=a%20b')
@@ -538,8 +554,8 @@ describe {{moduleName}}::ValueSerializer do
       }).must_raise ArgumentError
     end
 
-    ['.', '..'].each do |segment|
-      it "bhv_serializationparam_029 rejects the dot segment #{segment.inspect} as a simple path value" do
+    it 'bhv_serializationparam_029 rejects the dot segments as a simple path value' do
+      ['.', '..'].each_case do |segment|
         err = _(-> {
           {{moduleName}}::ValueSerializer.serialize_styled('id', segment, :path, 'string', nil, 'simple', false)
         }).must_raise ArgumentError
@@ -583,6 +599,10 @@ describe {{moduleName}}::ValueSerializer do
     it 'bhv_serializationparam_118 encodes a content cookie value to the shared percent encoded bytes' do
       encoded = {{moduleName}}::ValueSerializer.encode_content_cookie('{"k":"a b~*é"}')
       _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')
+    end
+
+    it 'bhv_misc_233 a content cookie carrying a JSON model is fully percent-encoded, including its colons and dots' do
+      _({{moduleName}}::ValueSerializer.encode_content_cookie('{"a":1.5}')).must_equal('%7B%22a%22%3A1%2E5%7D')
     end
 
     it 'bhv_serializationparam_081 encodes the sub-delimiters and the asterisk' do
@@ -631,6 +651,12 @@ describe {{moduleName}}::ValueSerializer do
       _({{moduleName}}::ValueSerializer.serialize(date, :path, 'string')).must_equal('2024-01-15')
     end
 
+    it 'bhv_operations_162 a date-only parameter is sent as a bare date with no time component' do
+      date = Date.new(2024, 1, 15)
+      result = {{moduleName}}::ValueSerializer.serialize_styled('since', date, :path, 'string', nil, 'simple', false)
+      _(result).must_equal('2024-01-15')
+    end
+
     it 'bhv_serializationparam_054 Date via serialize_styled simple returns YYYY-MM-DD' do
       date = Date.new(2024, 1, 15)
       result = {{moduleName}}::ValueSerializer.serialize_styled('since', date, :path, 'string', nil, 'simple', false)
@@ -669,6 +695,12 @@ describe {{moduleName}}::ValueSerializer do
       _(result).must_equal('2024-01-15,2024-02-01')
     end
 
+    it 'bhv_serialization_118 a date-time path parameter keeps its full ISO-8601 time and offset' do
+      value = DateTime.parse('2024-01-15T01:02:03+02:00')
+      result = {{moduleName}}::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)
+      _(result).must_equal('2024-01-15T01:02:03.000+02:00')
+    end
+
     it 'bhv_serializationparam_048 keeps the time of a date-time parameter that is not a format: date' do
       value = DateTime.new(2024, 1, 15, 1, 2, 3)
       result = {{moduleName}}::ValueSerializer.serialize_styled('at', value, :path, 'Time', nil, 'simple', false)
@@ -698,7 +730,7 @@ describe {{moduleName}}::ValueSerializer do
       _(result).must_equal({ 'csv_params' => 'breed,lab,min_age,3' })
     end
 
-    it 'keeps a scalar under its own name' do
+    it 'bhv_misc_107 keeps a scalar under its own name' do
       result = {{moduleName}}::ValueSerializer.query_entries('filter', 'x', 'String', nil, 'form', true, false)
       _(result).must_equal({ 'filter' => 'x' })
     end
@@ -709,17 +741,17 @@ describe {{moduleName}}::ValueSerializer do
       _(result['breed'].value).must_equal('a/b')
     end
 
-    {
-      ['simple', false] => 'breed,lab,min_age,3',
-      ['simple', true] => 'breed=lab,min_age=3',
-      ['matrix', false] => ';criteria=breed,lab,min_age,3',
-      ['matrix', true] => ';breed=lab;min_age=3',
-      ['label', false] => '.breed,lab,min_age,3',
-      ['label', true] => '.breed=lab.min_age=3'
-    }.each do |(style, explode), expected|
-      it "bhv_serialization_015 renders an object in a path by #{style} explode=#{explode}" do
+    it 'bhv_serialization_015 renders an object in a path by each style and explode' do
+      {
+        ['simple', false] => 'breed,lab,min_age,3',
+        ['simple', true] => 'breed=lab,min_age=3',
+        ['matrix', false] => ';criteria=breed,lab,min_age,3',
+        ['matrix', true] => ';breed=lab;min_age=3',
+        ['label', false] => '.breed,lab,min_age,3',
+        ['label', true] => '.breed=lab.min_age=3'
+      }.each_case do |(style, explode), expected|
         result = {{moduleName}}::ValueSerializer.serialize_styled(
-          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode # steep:ignore ArgumentTypeMismatch
+          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode
         )
         _(result).must_equal(expected)
       end
@@ -757,4 +789,27 @@ describe {{moduleName}}::ValueSerializer do
   it 'bhv_serializationparam_070 path encoding of null is empty for every schema type' do
     _({{moduleName}}::ValueSerializer.serialize(nil, :path, 'integer')).must_equal('')
   end
+
+  it 'bhv_misc_238 a number query value is sent as a plain number' do
+    _({{moduleName}}::ValueSerializer.serialize(2.5, :query, 'number')).must_equal('2.5')
+  end
+
+  it 'bhv_misc_241 a time-of-day query value is sent as HH:MM:SS' do
+    _({{moduleName}}::ValueSerializer.serialize(Tod::TimeOfDay.new(10, 20, 30), :query, 'string')).must_equal('10:20:30')
+  end
+
+  it 'bhv_misc_250 an array item containing a comma keeps its comma encoded on a path' do
+    _({{moduleName}}::ValueSerializer.serialize_styled('list', ['a,b', 'c'], :path, 'array', nil, 'simple', false)).must_equal('a,b,c')
+  end
+
+  it 'bhv_misc_253 an allowReserved value still percent-encodes hash and bracket characters' do
+    _({{moduleName}}::ValueSerializer.encode_query_allowing_reserved('a/b#c[d]')).must_equal('a/b%23c%5Bd%5D')
+  end
+
+  it 'bhv_misc_120 writes an object parameter as name and value pairs sorted by name, leaving out absent values' do
+    result = {{moduleName}}::ValueSerializer.serialize_deep_object('filter', { 'b' => '2', 'a' => '1', 'gone' => nil })
+
+    _(result.keys).must_equal ['filter[a]', 'filter[b]']
+  end
+
 end

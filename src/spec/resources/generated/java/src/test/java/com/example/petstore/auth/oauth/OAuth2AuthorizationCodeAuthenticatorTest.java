@@ -140,6 +140,27 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
+  void bhvMisc058TheAuthorizationEndpointAndRedirectUriReachTheUrlExactly() {
+    String url = createAuthenticator().buildAuthorizationUrl(null);
+
+    assertTrue(url.startsWith("https://auth.example.com/authorize?"), url);
+    assertTrue(
+        url.matches(".*[?&]redirect_uri=https%3A%2F%2Fapp\\.example\\.com%2Fcallback(&.*)?"), url);
+  }
+
+  @Test
+  void bhvMisc062TheAuthorizationUrlCarriesTheSchemeDeclaredScopes() {
+    UserAuthAuthorizationCodeAuthenticator auth =
+        new UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://app.example.com/callback");
+
+    assertTrue(auth.buildAuthorizationUrl(null).contains("scope=pets%3Aread%20pets%3Awrite"));
+  }
+
+  @Test
   void bhvAuthOauthTwoAuthCode020SchemeWrapperSendsTheSpecScopesAndUrls() {
     List<String> urls = new java.util.ArrayList<>();
     ApiClient client =
@@ -598,7 +619,7 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
   }
 
   @Test
-  void generatedVerifiersAreFortyThreeUnreservedCharactersAndDiffer() {
+  void bhvLangjava060GeneratedVerifiersAreFortyThreeUnreservedCharactersAndDiffer() {
     String first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
     String second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
 
@@ -748,5 +769,122 @@ class OAuth2AuthorizationCodeAuthenticatorTest {
         java.util.Objects.requireNonNull(ex.getMessage())
             .contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET"),
         ex.getMessage());
+  }
+
+  @Test
+  void bhvAuth048AuthorizeUrlCarriesTheDeclaredScopesAndTheTokenUrlIsCalledForTheExchange() {
+    java.util.concurrent.atomic.AtomicReference<String> calledUrl =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          calledUrl.set(url);
+          return new ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator auth =
+        new com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://app.example.com/callback",
+            List.of("read", "write"));
+    auth.setApiClient(client);
+
+    String url = auth.buildAuthorizationUrl(null);
+    assertTrue(url.startsWith("https://auth.example.com/authorize?response_type=code"), url);
+    assertTrue(url.contains("scope=read%20write"), url);
+
+    auth.exchangeCode("code-1");
+    assertEquals("https://auth.example.com/token", calledUrl.get());
+  }
+
+  @Test
+  void bhvAuth052AnOAuthAuthenticatorWithNoTokenRefusesToProduceHeaders() {
+    com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator auth =
+        new com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://app.example.com/callback",
+            List.of("read"));
+    IllegalStateException ex =
+        assertThrowsExactly(IllegalStateException.class, auth::getAuthHeaders);
+    assertEquals("Must call exchangeCode() before making API requests", ex.getMessage());
+  }
+
+  @Test
+  void bhvAuth053ExchangingACodeDiscardsTheRefreshTokenHeldBefore() {
+    java.util.List<String> bodies = new java.util.ArrayList<>();
+    ApiClient client =
+        (method, url, headers, body) -> {
+          bodies.add(body != null ? body.toString() : "");
+          if (bodies.size() == 1) {
+            return new ApiHttpResponse(
+                200,
+                "{\"access_token\":\"at-1\",\"expires_in\":3600,\"refresh_token\":\"r1\"}",
+                Map.of());
+          }
+          if (bodies.size() == 2) {
+            return new ApiHttpResponse(
+                200, "{\"access_token\":\"at-2\",\"expires_in\":3600}", Map.of());
+          }
+          return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+        };
+    com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator auth =
+        new com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://app.example.com/callback",
+            List.of("read"));
+    auth.setApiClient(client);
+    auth.exchangeCode("code-1");
+    auth.exchangeCode("code-2");
+    auth.invalidateAccessToken();
+    assertThrowsExactly(
+        com.example.petstore.errors.OAuth2ServerException.class, auth::getAuthHeaders);
+
+    String refresh = bodies.get(bodies.size() - 1);
+    assertTrue(refresh.contains("grant_type=refresh_token"), refresh);
+    assertFalse(refresh.contains("refresh_token=r1"), refresh);
+  }
+
+  @Test
+  void bhvMisc028ATransportFailureDuringTheCodeExchangeReachesTheCallerUnchanged() {
+    RuntimeException cause = new IllegalStateException("connection reset");
+    OAuth2AuthorizationCodeAuthenticator auth =
+        new OAuth2AuthorizationCodeAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/authorize",
+            "https://auth.example.com/token",
+            "https://app.example.com/callback",
+            List.of("read"),
+            "https://auth.example.com/oauth/refresh");
+    auth.setApiClient(
+        (method, url, headers, body) -> {
+          throw cause;
+        });
+    RuntimeException thrown =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalStateException.class, () -> auth.exchangeCode("the-code"));
+    org.junit.jupiter.api.Assertions.assertSame(cause, thrown);
+  }
+
+  @Test
+  void bhvMisc077AGeneratedPkceVerifierIsFortyThreeCharactersAndDiffersPerCall() {
+    String first = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+    String second = OAuth2AuthorizationCodeAuthenticator.newPkceVerifier();
+
+    assertEquals(43, first.length());
+    assertTrue(first.matches("[A-Za-z0-9_-]{43}"), first);
+    assertNotEquals(first, second);
   }
 }

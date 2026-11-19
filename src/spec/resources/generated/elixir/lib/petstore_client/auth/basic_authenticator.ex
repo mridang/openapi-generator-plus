@@ -45,8 +45,12 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
   """
   @spec new(String.t(), String.t() | nil, String.t() | nil) :: t()
   def new(host, username, password) do
-    username = PetstoreClient.Auth.BaseAuthenticator.credential(username, "USERNAME")
-    password = PetstoreClient.Auth.BaseAuthenticator.credential(password, "PASSWORD")
+    # An empty string counts as not passed, so each value is read from its environment variable.
+    username =
+      PetstoreClient.Auth.BaseAuthenticator.credential(blank_to_nil(username), "USERNAME")
+
+    password =
+      PetstoreClient.Auth.BaseAuthenticator.credential(blank_to_nil(password), "PASSWORD")
 
     # Validate eagerly at construction so a malformed credential surfaces
     # where it is supplied rather than lazily at first request.
@@ -84,4 +88,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticator do
     encoded = Base.encode64("#{self.username}:#{self.password}")
     %{"Authorization" => "Basic #{encoded}"}
   end
+
+  defp blank_to_nil(""), do: nil
+  defp blank_to_nil(value), do: value
 end

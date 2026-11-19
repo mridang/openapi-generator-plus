@@ -7,6 +7,7 @@
 
 package com.example.petstore.models
 
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
@@ -157,6 +158,35 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvMisc045 a payload that does not satisfy a variant's schema is not accepted as that variant")
+        fun bhvMisc045VariantSchemaViolationIsNotAcceptedAsThatVariant() {
+            val serializer = com.example.petstore.ObjectSerializer()
+            for (payload in listOf(
+                """{"foodType":3,"weightKg":2.5}""",
+                """{"foodType":"fish","weightKg":2.5}""",
+                """{"foodType":"dry"}""",
+            )) {
+                val ex =
+                    assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
+                        serializer.deserialize<PetFood>(payload)
+                    }
+                assertTrue(ex.message!!.startsWith("Failed to deserialize JSON: "), ex.message)
+            }
+        }
+
+        @Test
+        @DisplayName(
+            "bhvMisc047 serializing a union holding a value that is not one of its variants fails with an error that names the union",
+        )
+        fun bhvMisc047SerializingANonVariantFailsNamingTheUnion() {
+            val ex =
+                assertThrowsExactly(kotlinx.serialization.SerializationException::class.java) {
+                    json.encodeToString(PetFood(actualInstance = "raw"))
+                }
+            assertTrue(ex.message!!.contains("PetFood"), ex.message)
+        }
+
+        @Test
         @DisplayName("bhvUnions043 a discriminator value already set on a subtype is written as given, not replaced by its default")
         fun presetDiscriminatorIsWrittenAsGiven() {
             val jsonString = json.encodeToString(DryFood(foodType = "custom", weightKg = 1.0))
@@ -217,6 +247,17 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvMisc046 two unions holding equal content compare equal and hash equally, and different content compares unequal")
+        fun bhvMisc046EqualUnionsCompareEqualAndDifferentOnesDoNot() {
+            val payload = """{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"""
+            val first = json.decodeFromString<PetTreatment>(payload)
+            val second = json.decodeFromString<PetTreatment>(payload)
+            assertEquals(first, second)
+            assertEquals(first.hashCode(), second.hashCode())
+            assertNotEquals(first, json.decodeFromString<PetTreatment>("""{"drugName":"Amoxicillin"}"""))
+        }
+
+        @Test
         @DisplayName("bhvUnions006 deserializes the surgery variant into actualInstance")
         fun testDeserializeSurgery() {
             val jsonString = """{"procedureName":"Spay","durationMinutes":45}"""
@@ -229,8 +270,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("round-trips a wrapped variant back to the bare payload")
-        fun testWrapperSerializeRoundTrip() {
+        @DisplayName("bhvLangkotlin017 round-trips a wrapped variant back to the bare payload")
+        fun bhvLangkotlin017TestWrapperSerializeRoundTrip() {
             val original =
                 PetTreatment(
                     actualInstance = Medication(drugName = "Amoxicillin", dosage = "500mg"),
@@ -451,8 +492,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("missing required photoUrls array is rejected, not defaulted to empty")
-        fun missingRequiredPhotoUrlsThrows() {
+        @DisplayName("bhvLangkotlin018 missing required photoUrls array is rejected, not defaulted to empty")
+        fun bhvLangkotlin018MissingRequiredPhotoUrlsThrows() {
             val jsonString =
                 """{"name":"doggie","ownerName":"John","ownerEmail":"john@example.com"}"""
 
@@ -577,6 +618,14 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvMisc049 a choice between one binary value and a list of binary values writes the list as base64 text items")
+        fun bhvMisc049ListOfBinaryValuesIsWrittenAsBase64Items() {
+            val raw = byteArrayOf(0x01, 0x02, 0x03, 0x04)
+            val encoded = json.encodeToString(SetPetAvatarThumbnailRequest(actualInstance = listOf(raw)))
+            assertEquals("[\"AQIDBA==\"]", encoded)
+        }
+
+        @Test
         @DisplayName("bhvUnions022 setPetAvatarThumbnail array byte oneOf round-trips through base64")
         fun testArrayByteVariantRoundTripsThroughBase64() {
             val first = byteArrayOf(0x01)
@@ -673,8 +722,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a union built by a factory equals one built from the same variant by the constructor")
-        fun testFactoryAndConstructorAgree() {
+        @DisplayName("bhvUnions044 a union built by a factory equals one built from the same variant by the constructor")
+        fun bhvUnions044TestFactoryAndConstructorAgree() {
             val reservation = Reservation(reservationId = 31L, quantity = 4)
 
             assertEquals(ReserveStockResponse(reservation), ReserveStockResponse.fromReservation(reservation))
@@ -696,8 +745,8 @@ class ComposedSchemaTest {
     @DisplayName("anyOf typed factories and accessors - PetTreatment")
     inner class PetTreatmentAccessorTests {
         @Test
-        @DisplayName("a factory wraps its variant and only its is accessor answers true")
-        fun testFactoryWrapsItsVariant() {
+        @DisplayName("bhvLangkotlin019 a factory wraps its variant and only its is accessor answers true")
+        fun bhvLangkotlin019TestFactoryWrapsItsVariant() {
             val medication = Medication(drugName = "Amoxicillin", dosage = "500mg")
             val union = PetTreatment.fromMedication(medication)
 
@@ -709,8 +758,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a payload that satisfies both variants answers true to both accessors")
-        fun testBothRetainedVariantsAreReachable() {
+        @DisplayName("bhvUnions046 a payload that satisfies both variants answers true to both accessors")
+        fun bhvUnions046TestBothRetainedVariantsAreReachable() {
             val union =
                 json.decodeFromString<PetTreatment>(
                     """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}""",
@@ -723,8 +772,8 @@ class ComposedSchemaTest {
         }
 
         @Test
-        @DisplayName("a union with no variant answers false and null to every accessor")
-        fun testEmptyUnionAnswersNothing() {
+        @DisplayName("bhvLangkotlin020 a union with no variant answers false and null to every accessor")
+        fun bhvLangkotlin020TestEmptyUnionAnswersNothing() {
             val union = PetTreatment()
 
             assertFalse(union.isMedication)
@@ -754,4 +803,58 @@ class ComposedSchemaTest {
             assertNull(union.asReservationReceipt())
         }
     }
+
+    @Test
+    fun bhvMisc292OneOfWrapperWritesTheBarePayloadAndReadsItBack() =
+        runBlocking<Unit> {
+            val food = PetFood.fromDryFood(DryFood(weightKg = 2.5))
+            val wire = Json { encodeDefaults = true }.encodeToString(food)
+            assertEquals("""{"foodType":"dry","weightKg":2.5}""", wire)
+            assertEquals(2.5, json.decodeFromString<PetFood>(wire).asDryFood()?.weightKg)
+        }
+
+    @Test
+    fun bhvMisc294SubtypeWithoutItsDiscriminatorDecodesAsTheMappedVariant() =
+        runBlocking<Unit> {
+            val result = json.decodeFromString<DryFood>("""{"weightKg":2.5}""")
+            assertEquals("dry", result.foodType)
+        }
+
+    @Test
+    fun bhvSerialization076UnionValueMatchingNoCandidateRaisesAnError() =
+        runBlocking<Unit> {
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<PetFood>("""{"foodType":"fish"}""")
+            }
+        }
+
+    @Test
+    fun bhvSerialization082MissingDiscriminatorFailsNamingTheKey() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                    json.decodeFromString<PetFood>("""{"weightKg":2.5}""")
+                }
+            assertTrue(ex.message!!.contains("foodType"), ex.message)
+        }
+
+    @Test
+    fun bhvUnions045EqualDataBuildsEqualUnionValues() =
+        runBlocking<Unit> {
+            assertEquals(
+                json.decodeFromString<DryFood>("""{"foodType":"dry","weightKg":2.5}"""),
+                json.decodeFromString<DryFood>("""{"foodType":"dry","weightKg":2.5}"""),
+            )
+            assertEquals(PetFood.fromDryFood(DryFood(weightKg = 2.5)), PetFood.fromDryFood(DryFood(weightKg = 2.5)))
+        }
+
+    @Test
+    fun bhvUnions047AnUnlistedDiscriminatorRaisesAClearError() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                    json.decodeFromString<PetFood>("""{"foodType":"fish"}""")
+                }
+            assertTrue(ex.message!!.contains("fish"), ex.message)
+        }
 }

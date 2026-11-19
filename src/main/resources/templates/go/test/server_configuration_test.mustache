@@ -109,7 +109,7 @@ func TestBhvServers014_ServerConfiguration_URLAcceptsAnyValueWhenNoEnum(t *testi
 	}
 }
 
-func TestServerConfiguration_AccessorsExposeImmutableState(t *testing.T) {
+func TestBhvLanggo094_ServerConfiguration_AccessorsExposeImmutableState(t *testing.T) {
 	t.Parallel()
 	server := {{packageName}}.NewServerConfiguration(
 		"https://{env}.example.com",
@@ -192,7 +192,7 @@ func TestBhvServers012_ServerConfiguration_RejectionMessageNamesValueVariableAnd
 
 // A value that introduces a placeholder is substituted literally: the result
 // never depends on which variable is visited first.
-func TestServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
+func TestBhvServers029_ServerConfiguration_AValueIsNeverExpandedAgain(t *testing.T) {
 	t.Parallel()
 	server := {{packageName}}.NewServerConfiguration(
 		"https://{env}.api.example.com/{version}",
@@ -473,5 +473,167 @@ func TestBhvServers027_ServerVariable_EqualDefaultDescriptionAndValuesAreEqual(t
 	second := {{packageName}}.NewServerVariable("prod", "environment", []string{"prod", "dev"})
 	if !reflect.DeepEqual(first, second) {
 		t.Errorf("expected equal server variables, got %+v and %+v", first, second)
+	}
+}
+
+// A value that is not one of a server variable's declared enum values is rejected with an error.
+func TestBhvServers030_ServerConfiguration_AValueOutsideTheEnumIsRejected(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://api.example.com/{env}",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("prod", "", []string{"api", "staging"}),
+		},
+	)
+	if _, err := server.URL(map[string]string{"env": "bogus"}); !errors.Is(err, {{packageName}}.ErrInvalidServerVariable) {
+		t.Errorf("expected ErrInvalidServerVariable, got %v", err)
+	}
+}
+
+func TestBhvMisc297_ServerConfiguration_EveryTemplateVariableIsReplacedWhenTheURLIsBuilt(t *testing.T) {
+	t.Parallel()
+	got, err := {{packageName}}.Server1.URL(map[string]string{"environment": "staging", "version": "v2"})
+	if err != nil {
+		t.Fatalf("failed to build the server URL: %v", err)
+	}
+	if want := "https://staging.example.com/api/v2"; got != want {
+		t.Errorf("URL = %q, want %q", got, want)
+	}
+}
+
+func TestBhvMisc154_ServerConfiguration_EditingTheReturnedVariablesMapLeavesItUnchanged(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+		},
+	)
+	vars := server.Variables()
+	vars["env"] = {{packageName}}.NewServerVariable("changed", "", []string{"changed"})
+	delete(vars, "env")
+	if got, err := server.URL(nil); err != nil || got != "https://api.example.com" {
+		t.Errorf("expected the configuration unchanged, got %q and %v", got, err)
+	}
+}
+
+func TestBhvMisc155_ServerConfiguration_AnUnsetEnumVariableIsRefusedNamingItsValues(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("prod", "", []string{"api", "staging"}),
+		},
+	)
+	_, err := server.URL(nil)
+	want := "invalid server variable: invalid value 'prod' for server variable 'env'. Allowed values: [api, staging]"
+	if err == nil || err.Error() != want {
+		t.Errorf("expected message %q, got %v", want, err)
+	}
+}
+
+func TestBhvMisc156_ServerConfiguration_AllServersKeepsDeclarationOrder(t *testing.T) {
+	t.Parallel()
+	if len({{packageName}}.AllServers) < 3 || {{packageName}}.AllServers[1] != {{packageName}}.Server1 || {{packageName}}.AllServers[2] != {{packageName}}.Server2 {
+		t.Error("expected AllServers to list Server1 then Server2 in declaration order")
+	}
+}
+
+func TestBhvMisc157_ServerConfiguration_ExplicitVariableValuesResolveIntoTheURL(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api/{version}",
+		"",
+		map[string]{{packageName}}.ServerVariable{
+			"env":     {{packageName}}.NewServerVariable("api", "", []string{"api", "staging"}),
+			"version": {{packageName}}.NewServerVariable("v3", "", []string{"v2", "v3"}),
+		},
+	)
+	url, err := server.URL(map[string]string{"env": "staging", "version": "v2"})
+	if err != nil {
+		t.Fatalf("URL() returned error: %v", err)
+	}
+	if want := "https://staging.example.com/api/v2"; url != want {
+		t.Errorf("URL = %q, want %q", url, want)
+	}
+}
+
+func TestBhvMisc158_ServerConfiguration_AFixedURLIsReportedUnchanged(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration("https://example.com/api/v1", "", map[string]{{packageName}}.ServerVariable{})
+	url, err := server.URL(nil)
+	if err != nil || url != "https://example.com/api/v1" {
+		t.Errorf("expected the fixed URL unchanged, got %q and %v", url, err)
+	}
+}
+
+// A variable declared with an empty enum accepts any value and the URL is built from it.
+func TestBhvMisc257_ServerConfiguration_EmptyEnumVariableAcceptsAnyValue(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{"env": "anything-goes"})
+	if err != nil || got != "https://anything-goes.example.com/api" {
+		t.Errorf("expected the override in the URL, got %q and %v", got, err)
+	}
+}
+
+// A variable with no override uses its default value in the URL.
+func TestBhvMisc258_ServerConfiguration_MissingOverrideUsesTheDefault(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("staging", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{})
+	if err != nil || got != "https://staging.example.com/api" {
+		t.Errorf("expected the default in the URL, got %q and %v", got, err)
+	}
+}
+
+// A placeholder with no declared variable stays in the URL exactly as written.
+func TestBhvMisc259_ServerConfiguration_UndeclaredPlaceholderStaysInTheUrl(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/{unknown}",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{"env": "api"})
+	if err != nil || got != "https://api.example.com/{unknown}" {
+		t.Errorf("expected the placeholder kept, got %q and %v", got, err)
+	}
+}
+
+// A value containing backslash sequences is inserted into the URL exactly as given.
+func TestBhvMisc261_ServerConfiguration_BackslashSequencesAreInsertedLiterally(t *testing.T) {
+	t.Parallel()
+	server := {{packageName}}.NewServerConfiguration(
+		"https://{env}.example.com/api",
+		"Test server",
+		map[string]{{packageName}}.ServerVariable{
+			"env": {{packageName}}.NewServerVariable("api", "", []string{}),
+		},
+	)
+
+	got, err := server.URL(map[string]string{"env": `a\n\b`})
+	if err != nil || got != `https://a\n\b.example.com/api` {
+		t.Errorf("expected the backslashes kept literally, got %q and %v", got, err)
 	}
 }

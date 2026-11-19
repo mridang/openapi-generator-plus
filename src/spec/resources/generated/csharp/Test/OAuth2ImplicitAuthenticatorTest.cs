@@ -41,7 +41,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void AccessTokenFieldIsVolatile()
+    public void BhvLangcsharp061AccessTokenFieldIsVolatile()
     {
         FieldInfo field = typeof(OAuth2ImplicitAuthenticator).GetField(
             "_accessToken",
@@ -64,7 +64,7 @@ public class OAuth2ImplicitAuthenticatorTest
     }
 
     [Fact]
-    public void AuthorizationUrlKeepsConfiguredEndpointVerbatim()
+    public void BhvLangcsharp062AuthorizationUrlKeepsConfiguredEndpointVerbatim()
     {
         var auth = new OAuth2ImplicitAuthenticator(
             "https://api.example.com",
@@ -142,6 +142,17 @@ public class OAuth2ImplicitAuthenticatorTest
         Dictionary<string, string> headers = auth.GetAuthHeaders();
 
         Assert.Equal("Bearer implicit-tok", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuth052AnAuthenticatorHoldingNoTokenRefusesAuthHeadersSyncAndAsync()
+    {
+        var auth = CreateAuthenticator();
+
+        Assert.Throws<InvalidOperationException>(() => auth.GetAuthHeaders());
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
     }
 
     [Fact]

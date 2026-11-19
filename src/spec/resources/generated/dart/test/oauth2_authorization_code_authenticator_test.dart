@@ -16,6 +16,7 @@ class _FakeApiClient implements ApiClient {
   String? lastUrl;
   final List<String> urls = [];
   final List<String> bodies = [];
+  Object? failure;
 
   void enqueue(String body, {int statusCode = 200}) {
     _responses.add(
@@ -33,6 +34,8 @@ class _FakeApiClient implements ApiClient {
     int? timeout,
     bool noDefaultHeaders = false,
   }) async {
+    final failed = failure;
+    if (failed != null) throw failed;
     lastUrl = url;
     urls.add(url);
     if (body != null) {
@@ -58,6 +61,30 @@ OAuth2AuthorizationCodeAuthenticator _createAuthenticator() {
 
 void main() {
   group('OAuth2AuthorizationCodeAuthenticator', () {
+    test(
+      'bhv misc 058 the authorization endpoint and redirect URI reach the URL exactly as configured',
+      () {
+        final url = _createAuthenticator().buildAuthorizationUrl();
+
+        expect(url, startsWith('https://auth.example.com/authorize?'));
+        expect(
+          url,
+          contains(
+            'redirect_uri=${Uri.encodeQueryComponent('https://app.example.com/callback')}',
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 062 the authorization URL carries the scopes the security scheme declares',
+      () {
+        final url = _createAuthenticator().buildAuthorizationUrl();
+
+        expect(url, contains('scope=read%20write'));
+      },
+    );
+
     test(
       'bhv authoauthtwoauthcode 006 builds authorization URL with required params',
       () {
@@ -96,7 +123,7 @@ void main() {
     );
 
     test(
-      'the synchronous authHeaders raises after the exchange instead of returning no credentials',
+      'bhv langdart 057 the synchronous authHeaders raises after the exchange instead of returning no credentials',
       () async {
         final client = _FakeApiClient();
         client.enqueue(
@@ -183,6 +210,133 @@ void main() {
           auth.exchangeCode('   '),
           throwsA(isA<ArgumentError>()),
         );
+      },
+    );
+
+    test(
+      'bhv auth 048 the authorization-code flow calls the token URL with the declared scopes after the exact authorize URL',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        expect(auth.buildAuthorizationUrl(), contains('scope=read%20write'));
+        await auth.exchangeCode('code-a');
+
+        expect(client.urls, equals(['https://auth.example.com/token']));
+        expect(
+          client.bodies.single,
+          startsWith('grant_type=authorization_code&'),
+        );
+      },
+    );
+
+    test(
+      'bhv auth 052 an OAuth authenticator that holds no token refuses auth headers synchronously and asynchronously',
+      () async {
+        final auth = _createAuthenticator();
+
+        expect(() => auth.authHeaders(), throwsA(isA<StateError>()));
+        await expectLater(auth.authHeadersAsync(), throwsA(isA<StateError>()));
+      },
+    );
+
+    test(
+      'bhv auth 053 exchanging a code discards the refresh token held before it',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}',
+        );
+        client.enqueue('{"access_token":"tok2","expires_in":0}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.exchangeCode('code-a');
+        await auth.exchangeCode('code-b');
+        try {
+          await auth.authHeadersAsync();
+        } catch (_) {
+          // With no refresh token the authenticator cannot refresh; the refusal is not under test.
+        }
+
+        expect(
+          client.bodies.where((b) => b.startsWith('grant_type=refresh_token')),
+          isEmpty,
+        );
+      },
+    );
+
+    test(
+      'bhv auth 054 a non-success token response surfaces as an OAuth2 server exception with its status and error code',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"error":"invalid_grant"}', statusCode: 400);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.exchangeCode('code-a'),
+          throwsA(
+            isA<OAuth2ServerException>()
+                .having((e) => e.statusCode, 'statusCode', equals(400))
+                .having((e) => e.code, 'code', equals('invalid_grant')),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 076 a call after a dropped code exchange sees the code as not yet exchanged',
+      () async {
+        final cause = StateError('connection reset');
+        final client = _FakeApiClient();
+        client.failure = cause;
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.exchangeCode('a'), throwsA(same(cause)));
+        expect(
+          () => auth.authHeaders(),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              'Must call exchangeCode() before making API requests',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call',
+      () {
+        final auth = _createAuthenticator();
+
+        auth.buildAuthorizationUrl();
+        final first = auth.pendingPkceVerifier!;
+        auth.buildAuthorizationUrl();
+        final second = auth.pendingPkceVerifier!;
+
+        expect(first, matches(RegExp(r'^[A-Za-z0-9_-]{43}$')));
+        expect(second, isNot(equals(first)));
+      },
+    );
+
+    test(
+      'bhv misc 028 a transport failure during the code exchange reaches the caller unchanged',
+      () async {
+        final cause = StateError('connection reset');
+        final client = _FakeApiClient();
+        client.failure = cause;
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.exchangeCode('the-code'), throwsA(same(cause)));
       },
     );
 
@@ -325,9 +479,10 @@ void main() {
 
         await auth.exchangeCode('a');
         await auth.exchangeCode('b');
-        await auth.authHeadersAsync();
+        await expectLater(auth.authHeadersAsync(), throwsA(isA<StateError>()));
 
-        expect(client.bodies[2], isNot(contains('ref1')));
+        expect(client.bodies, hasLength(2));
+        expect(client.bodies.any((b) => b.contains('ref1')), isFalse);
       },
     );
 
@@ -562,18 +717,21 @@ void main() {
   });
 
   group('OAuth2AuthorizationCodeAuthenticator wire format', () {
-    test('the authorize URL is exact and separates scopes with %20', () {
-      expect(
-        _createAuthenticator().buildAuthorizationUrl(),
-        matches(
-          RegExp(
-            r'^https://auth\.example\.com/authorize\?response_type=code&client_id=my-client-id'
-            r'&redirect_uri=https%3A%2F%2Fapp\.example\.com%2Fcallback&scope=read%20write'
-            r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$',
+    test(
+      'bhv langdart 058 the authorize URL is exact and separates scopes with %20',
+      () {
+        expect(
+          _createAuthenticator().buildAuthorizationUrl(),
+          matches(
+            RegExp(
+              r'^https://auth\.example\.com/authorize\?response_type=code&client_id=my-client-id'
+              r'&redirect_uri=https%3A%2F%2Fapp\.example\.com%2Fcallback&scope=read%20write'
+              r'&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$',
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoauthcode 004 the authorize URL keeps ~ literal and percent-encodes * ! \' ( )',

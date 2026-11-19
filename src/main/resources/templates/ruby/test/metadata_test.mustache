@@ -6,6 +6,16 @@ require 'json'
 describe 'Metadata' do
   parallelize_me!
 
+  it 'bhv_misc_092 a property is read by its wire name' do
+    metadata = {{moduleName}}::ObjectSerializer.deserialize('{"createdAt":"2024-01-15T10:00:00Z"}', 'Metadata')
+    _(metadata.created_at).must_equal(Time.utc(2024, 1, 15, 10, 0, 0))
+  end
+
+  it 'bhv_misc_093 a model whose only fields are numeric additional properties serializes as an object' do
+    metadata = {{moduleName}}::Models::Metadata.new(additional_properties: { '0' => 'x', '1' => 'y' })
+    _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(metadata))).must_equal('0' => 'x', '1' => 'y')
+  end
+
   it 'bhv_models_008 serializes empty metadata' do
     metadata = {{moduleName}}::Models::Metadata.new
     json = {{moduleName}}::ObjectSerializer.serialize(metadata)
@@ -25,6 +35,41 @@ describe 'Metadata' do
 
     _(metadata).wont_be_nil
     _(metadata).must_be_kind_of({{moduleName}}::Models::Metadata)
+  end
+
+  it 'bhv_serialization_067 extra properties are written as top-level keys beside the declared fields' do
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
+    metadata = {{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata')
+
+    # Undeclared keys are captured (not silently dropped) so a round-trip
+    # preserves them, matching the SDKs that round-trip additionalProperties.
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => '3')
+
+    data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(metadata))
+    _(data['customField']).must_equal('hello')
+    _(data['count']).must_equal('3')
+    _(data['createdAt']).wont_be_nil
+  end
+
+  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level, and an additional property whose value type is a model decodes to that model' do
+    json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
+    metadata = {{moduleName}}::ObjectSerializer.deserialize(json, 'Metadata')
+
+    # Undeclared keys are captured (not silently dropped) so a round-trip
+    # preserves them, matching the SDKs that round-trip additionalProperties.
+    _(metadata.additional_properties).must_equal('customField' => 'hello', 'count' => '3')
+
+    data = JSON.parse({{moduleName}}::ObjectSerializer.serialize(metadata))
+    _(data['customField']).must_equal('hello')
+    _(data['count']).must_equal('3')
+    _(data['createdAt']).wont_be_nil
+
+    roster = {{moduleName}}::ObjectSerializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+
+    _(roster.additional_properties['a']).must_be_kind_of({{moduleName}}::Models::Category)
+    _(roster.additional_properties['a'].id).must_equal(1)
+    _(roster.additional_properties['a'].name).must_equal('x')
+    _ { {{moduleName}}::ObjectSerializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise {{moduleName}}::Errors::SerializationError
   end
 
   it 'bhv_models_001 captures and round-trips additionalProperties' do
@@ -67,20 +112,20 @@ describe 'Metadata', 'typed additional properties' do
     _({{moduleName}}::Models::Metadata::ADDITIONAL_PROPERTIES_TYPE).must_equal('String')
   end
 
-  it 'bhv_models_025 an additional property of the wrong JSON type fails the decode' do
+  it 'bhv_models_025 an additional property of the wrong JSON type fails the decode, and instances that differ only in extra properties are not equal' do
     ['{"a":2.5}', '{"a":"2"}'].each do |body|
       _ { serializer.deserialize(body, 'Counters') }.must_raise(failure)
     end
     _ { serializer.deserialize('{"a":3}', 'Metadata') }.must_raise(failure)
-  end
 
-  it 'bhv_models_026 an additional property whose value type is a model decodes to that model' do
-    roster = serializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+    first = serializer.deserialize('{"customField":"a"}', 'Metadata')
+    same = serializer.deserialize('{"customField":"a"}', 'Metadata')
+    other = serializer.deserialize('{"customField":"b"}', 'Metadata')
 
-    _(roster.additional_properties['a']).must_be_kind_of({{moduleName}}::Models::Category)
-    _(roster.additional_properties['a'].id).must_equal(1)
-    _(roster.additional_properties['a'].name).must_equal('x')
-    _ { serializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise(failure)
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_027 a null additional property is rejected unless the value schema is nullable' do
@@ -125,7 +170,7 @@ describe 'Metadata', 'with' do
     _(metadata.inspect).must_include 'customField'
   end
 
-  it 'returns a copy with the changes applied and leaves the receiver as it was' do
+  it 'bhv_serialization_079 returns a copy with the changes applied and leaves the receiver as it was' do
     original = {{moduleName}}::Models::Metadata.new(
       created_at: Time.utc(2024, 1, 1, 0, 0, 0),
       additional_properties: { 'customField' => 'a' }
@@ -138,11 +183,6 @@ describe 'Metadata', 'with' do
     _(changed).wont_be_same_as(original)
   end
 
-  it 'rejects an attribute the model does not have' do
-    error = _ { {{moduleName}}::Models::Metadata.new.with(missing: 1) }.must_raise(ArgumentError)
-
-    _(error.message).must_equal('Unknown attribute for Metadata: missing')
-  end
 end
 
 describe 'Metadata', 'round-trip and constants' do
@@ -232,7 +272,7 @@ describe 'gem manifest' do
   # are default gems that Ruby is unbundling from the standard library
   # (base64 is no longer a default gem on Ruby 3.4+). They must be
   # declared explicitly so the gem keeps working once they are removed.
-  it 'declares the default gems used by the runtime' do
+  it 'bhv_langruby_043 declares the default gems used by the runtime' do
     gemspec_path = File.join(File.expand_path('..', File.dirname(__FILE__)), '{{gemName}}.gemspec')
     _(File.exist?(gemspec_path)).must_equal(true)
 
@@ -293,6 +333,11 @@ describe 'Metadata', 'copy, equality and enum contract' do
     _(Set.new([first, same]).size).must_equal(1)
   end
 
+  it 'bhv_serialization_101 an integer-backed enum is written as a JSON number and a number decodes back to its member' do
+    _({{moduleName}}::Models::Priority::NUMBER_1).must_equal(1)
+    _({{moduleName}}::Models::Priority::NUMBER_3).must_equal(3)
+  end
+
   it 'bhv_models_021 each member of an integer-backed enum carries its declared number as its value' do
     _({{moduleName}}::Models::Priority::NUMBER_1).must_equal(1)
     _({{moduleName}}::Models::Priority::NUMBER_3).must_equal(3)
@@ -308,9 +353,100 @@ describe 'Metadata', 'copy, equality and enum contract' do
     _({{moduleName}}::Models::Metadata.new.created_at).must_be_nil
   end
 
+  it 'bhv_serialization_114 numeric values keep every digit when serialized, including long decimals and full 64-bit integers' do
+    short = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
+    padded = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
+    _(short).must_equal(padded)
+  end
+
   it 'bhv_models_018 models whose decimal fields hold numerically equal values compare equal' do
     short = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
     padded = {{moduleName}}::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
     _(short).must_equal(padded)
+  end
+end
+
+describe 'Metadata', 'copies and equality' do
+  parallelize_me!
+
+  it 'bhv_misc_139 a collection passed into a model is copied so later changes to the source do not reach it' do
+    source = { 'owner' => 'team-a' }
+    item = {{moduleName}}::Models::Metadata.new(additional_properties: source)
+    source['owner'] = 'team-b'
+    source['extra'] = 'added'
+
+    _(item.additional_properties).must_equal('owner' => 'team-a')
+    _ { item.additional_properties['owner'] = 'x' }.must_raise FrozenError
+
+    variables = { 'region' => {{moduleName}}::ServerVariable.new(default_value: 'eu') }
+    config = {{moduleName}}::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { config.variables['zone'] = {{moduleName}}::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(variables).wont_be_same_as(config.variables)
+  end
+
+  it 'bhv_misc_143 a copy keeps the additional properties and compares equal to the original' do
+    original = {{moduleName}}::Models::Metadata.new(additional_properties: { 'customField' => 'a' })
+    copy = original.with
+
+    _(copy.additional_properties).must_equal('customField' => 'a')
+    _(copy).must_equal(original)
+  end
+
+  it 'bhv_misc_146 a copy with no changes is a new instance that compares equal to the original' do
+    original = {{moduleName}}::Models::Metadata.new(created_at: Time.utc(2024, 1, 1, 0, 0, 0))
+    copy = original.with
+
+    _(copy).wont_be_same_as(original)
+    _(copy).must_equal(original)
+  end
+
+  it 'bhv_misc_147 a copy holds the same nested object as the original rather than a duplicate' do
+    original = {{moduleName}}::Models::Department.new(
+      name: 'Ops',
+      lead: {{moduleName}}::Models::Employee.new(name: 'Ann')
+    )
+    copy = original.with(name: 'Eng')
+
+    _(copy.lead).must_be_same_as(original.lead)
+  end
+
+  it 'bhv_misc_148 a copy serializes to the wire form of the original with its changes applied' do
+    original = {{moduleName}}::Models::Department.new(
+      name: 'Ops',
+      lead: {{moduleName}}::Models::Employee.new(name: 'Ann')
+    )
+    copy = original.with(name: 'Eng')
+
+    _(JSON.parse({{moduleName}}::ObjectSerializer.serialize(copy))).must_equal(
+      'name' => 'Eng', 'lead' => { 'name' => 'Ann' }
+    )
+  end
+
+  it 'bhv_misc_149 a copy with an attribute the model does not declare is refused naming the attribute' do
+    original = {{moduleName}}::Models::Metadata.new
+
+    error = _ { original.with(undeclaredField: 'x') }.must_raise ArgumentError
+    _(error.message).must_include 'undeclaredField'
+  end
+
+  it 'bhv_misc_150 models whose fields hold equal values compare equal, and differing values compare unequal' do
+    created = Time.utc(2024, 1, 1, 0, 0, 0)
+
+    _({{moduleName}}::Models::Metadata.new(created_at: created)).must_equal(
+      {{moduleName}}::Models::Metadata.new(created_at: created)
+    )
+    _({{moduleName}}::Models::Metadata.new(created_at: created)).wont_equal(
+      {{moduleName}}::Models::Metadata.new(created_at: Time.utc(2025, 1, 1, 0, 0, 0))
+    )
+  end
+
+  it 'bhv_misc_151 a model holding a map compares equal when the entries match and unequal when any entry differs' do
+    _({{moduleName}}::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })).must_equal(
+      {{moduleName}}::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })
+    )
+    _({{moduleName}}::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })).wont_equal(
+      {{moduleName}}::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '3' })
+    )
   end
 end

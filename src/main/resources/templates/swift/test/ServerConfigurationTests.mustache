@@ -33,6 +33,18 @@ import Testing
         #expect(resolved == "https://staging.api.example.com/v1")
     }
 
+    @Test func testBhvMisc297UrlReplacesEveryVariableWhenSeveralAreOverridden() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "prod"),
+                "version": ServerVariable(defaultValue: "1"),
+            ]
+        )
+        let resolved = try server.url(variables: ["env": "staging", "version": "2"])
+        #expect(resolved == "https://staging.api.example.com/v2")
+    }
+
     @Test func testBhvServers003UrlAcceptsOverrideInEnumValues() throws {
         let server = ServerConfiguration(
             urlTemplate: "https://{env}.api.example.com",
@@ -104,7 +116,7 @@ import Testing
         #expect(server.variables["env"]?.defaultValue == "prod")
     }
 
-    @Test func testDescriptionDefaultsToEmpty() {
+    @Test func testBhvLangswift068DescriptionDefaultsToEmpty() {
         #expect(ServerConfiguration(urlTemplate: "https://api.example.com").description == "")
     }
 
@@ -169,4 +181,124 @@ import Testing
         #expect(first == same)
         #expect(first != other)
     }
+
+    /* A variable declared with an empty enum accepts any value, and the URL is built from that value. */
+    @Test func testBhvMisc257AVariableDeclaredWithAnEmptyEnumAcceptsAnyValue() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v1",
+            variables: ["env": ServerVariable(defaultValue: "prod", enumValues: [])]
+        )
+        #expect(try server.url(variables: ["env": "anything"]) == "https://anything.api.example.com/v1")
+    }
+
+    /* When no override is supplied for a variable, its default value is used in the URL. */
+    @Test func testBhvMisc258AMissingOverrideUsesTheVariableDefault() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "prod"),
+                "version": ServerVariable(defaultValue: "1"),
+            ]
+        )
+        #expect(try server.url(variables: ["version": "2"]) == "https://prod.api.example.com/v2")
+    }
+
+    /* A placeholder in the template with no declared variable stays in the URL exactly as written. */
+    @Test func testBhvMisc259AnUndeclaredPlaceholderStaysInTheUrl() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/{undeclared}",
+            variables: ["env": ServerVariable(defaultValue: "prod")]
+        )
+        #expect(try server.url() == "https://prod.api.example.com/{undeclared}")
+    }
+
+    /* A value containing backslash sequences is inserted into the URL exactly as given, with no escape processing. */
+    @Test func testBhvMisc261AValueWithBackslashSequencesIsInsertedLiterally() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v1",
+            variables: ["env": ServerVariable(defaultValue: "prod")]
+        )
+        #expect(try server.url(variables: ["env": #"a\nb"#]) == #"https://a\nb.api.example.com/v1"#)
+    }
+
+    /* Editing the variables map read back from a server configuration does not change the configuration. */
+    @Test func testBhvMisc154EditingTheVariablesReadBackDoesNotChangeTheServer() {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.example.com",
+            variables: ["env": ServerVariable(defaultValue: "api")])
+        var copy = server.variables
+        copy["env"] = ServerVariable(defaultValue: "staging")
+        #expect(server.variables["env"]?.defaultValue == "api")
+    }
+
+    /* A server URL with templated variables resolves to the URL formed from each variable's default value when no overrides are supplied. */
+    @Test func testBhvMisc278AServerUrlWithTemplatedVariablesResolvesToEachDefault() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "staging"),
+                "version": ServerVariable(defaultValue: "3"),
+            ]
+        )
+        #expect(try server.url() == "https://staging.api.example.com/v3")
+    }
+
+    /* A placeholder introduced by a substituted value, whether from a default or an override, stays literal in the resulting URL and is never expanded again. */
+    @Test func testBhvServers029APlaceholderIntroducedBySubstitutionStaysLiteral() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{a}.example.com",
+            variables: [
+                "a": ServerVariable(defaultValue: "{b}", enumValues: ["{b}"]),
+                "b": ServerVariable(defaultValue: "z", enumValues: ["z"]),
+            ])
+
+        #expect(try server.url() == "https://{b}.example.com")
+        #expect(try server.url(variables: ["a": "{b}"]) == "https://{b}.example.com")
+    }
+
+    /* A value that is not one of a server variable's declared enum values is rejected with an error. */
+    @Test func testBhvServers030AValueOutsideTheDeclaredEnumIsRejected() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com",
+            variables: ["env": ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"])])
+
+        #expect(throws: Error.self) {
+            _ = try server.url(variables: ["env": "dev"])
+        }
+    }
+    @Test func testBhvMisc155AnUnsetEnumVariableWithADisallowedDefaultIsRefusedNamingIt() {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{region}.example.com",
+            variables: ["region": ServerVariable(defaultValue: "apac", enumValues: ["eu", "us"])])
+        do {
+            _ = try server.url()
+            Issue.record("expected the disallowed default to be refused")
+        } catch {
+            let described = (error as? LocalizedError)?.errorDescription ?? ""
+            #expect(described.contains("'region'"))
+        }
+    }
+
+    @Test func testBhvMisc156TheListOfAllServersKeepsTheDeclaredOrder() {
+        #expect(Servers.all.map(\.urlTemplate) == [{{#serverConfigs}}Servers.server{{serverIndex}}.urlTemplate{{^-last}}, {{/-last}}{{/serverConfigs}}])
+    }
+
+    @Test func testBhvMisc157ExplicitVariableValuesAreResolvedIntoTheUrl() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "prod"),
+                "version": ServerVariable(defaultValue: "1"),
+            ]
+        )
+        let resolved = try server.url(variables: ["env": "prod", "version": "2"])
+        #expect(resolved == "https://prod.api.example.com/v2")
+    }
+
+    @Test func testBhvMisc158AServerWithAFixedUrlReportsExactlyThatUrl() throws {
+        let server = ServerConfiguration(urlTemplate: "https://api.example.com/v1")
+        #expect(server.urlTemplate == "https://api.example.com/v1")
+        #expect(try server.url() == "https://api.example.com/v1")
+    }
+
 }

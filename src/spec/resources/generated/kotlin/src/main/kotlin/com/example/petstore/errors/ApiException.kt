@@ -346,9 +346,8 @@ open class ApiException : OpenAPIException {
         if (statusCode != 0) {
             rendered.append("\nHTTP status code: ").append(statusCode)
         }
-        val request = listOfNotNull(requestMethod, requestPath)
-        if (request.isNotEmpty()) {
-            rendered.append("\nRequest: ").append(request.joinToString(" "))
+        if (requestMethod != null && requestPath != null) {
+            rendered.append("\nRequest: ").append("$requestMethod $requestPath")
         }
         val headers = responseHeaders
         if (!headers.isNullOrEmpty()) {

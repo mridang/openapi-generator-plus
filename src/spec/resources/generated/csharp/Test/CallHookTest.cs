@@ -67,7 +67,7 @@ public class CallHookTest
     }
 
     [Fact]
-    public void AChainOfHooksThatReturnNothingReturnsNoObserver()
+    public void BhvLangcsharp051AChainOfHooksThatReturnNothingReturnsNoObserver()
     {
         ICallHook chain = ICallHook.Chain(
             new Probe("a", [], observes: false),
@@ -78,7 +78,7 @@ public class CallHookTest
     }
 
     [Fact]
-    public void AnErrorFromALaterHookReachesTheCallerAndFinishesTheObserversAlreadyStarted()
+    public void BhvLangcsharp052AnErrorFromALaterHookReachesTheCallerAndFinishesTheObserversAlreadyStarted()
     {
         var log = new List<string>();
         var failure = new InvalidOperationException("refused");
@@ -96,7 +96,7 @@ public class CallHookTest
     }
 
     [Fact]
-    public void ChainRejectsANullHookList()
+    public void BhvLangcsharp053ChainRejectsANullHookList()
     {
         _ = Assert.Throws<ArgumentNullException>(() => ICallHook.Chain(null!));
     }

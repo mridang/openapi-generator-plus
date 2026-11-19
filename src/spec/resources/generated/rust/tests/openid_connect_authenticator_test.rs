@@ -359,6 +359,34 @@ async fn test_bhv_authoidc_016_malformed_discovery_document_raises_serialization
     );
 }
 
+/// A transport failure during the authorization code exchange reaches the caller
+/// as the same `NetworkError`, with its message intact.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_028_a_transport_failure_during_the_code_exchange_is_returned_unchanged() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}"#,
+        200,
+    );
+    client.enqueue_error(Box::new(
+        NetworkError::try_from(ApiError::new(0, "connection reset".to_string(), None, None))
+            .expect("status 0"),
+    ));
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.build_authorization_url("")
+        .await
+        .expect("should succeed");
+    let err = auth
+        .exchange_code("oidc-code")
+        .await
+        .expect_err("a failed exchange must fail");
+    let network = err
+        .downcast_ref::<NetworkError>()
+        .unwrap_or_else(|| panic!("expected NetworkError, got: {}", err));
+    assert_eq!(network.api_error().message(), "connection reset");
+}
+
 /// A discovery transport failure passes through as the `NetworkError` or
 /// `NetworkTimeoutError` it already is.
 #[tokio::test(flavor = "multi_thread")]
@@ -669,7 +697,7 @@ redirect_uri: \"https://app.example.com/callback\", scopes: [\"openid\", \"profi
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_concurrent_call_during_code_exchange_reuses_the_delegate() {
+async fn test_bhv_misc_076_concurrent_call_during_code_exchange_reuses_the_delegate() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     client.enqueue(r#"{"access_token":"oidc-tok","expires_in":3600}"#, 200);
@@ -704,7 +732,7 @@ async fn test_concurrent_call_during_code_exchange_reuses_the_delegate() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_cancelled_code_exchange_keeps_the_delegate() {
+async fn test_bhv_langrust_043_cancelled_code_exchange_keeps_the_delegate() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(DISCOVERY, 200);
     client.enqueue(DISCOVERY, 200);
@@ -824,7 +852,7 @@ async fn test_bhv_authoidc_029_concurrent_cold_calls_issue_one_discovery_request
 /// `Send` and `Sync` follow from the fields, so the type needs no `unsafe impl`
 /// that would assert them regardless of what the fields hold.
 #[test]
-fn test_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
+fn test_bhv_langrust_044_openid_connect_authenticator_is_send_and_sync_without_unsafe_impls() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<OpenIdConnectAuthenticator>();
 
@@ -1115,7 +1143,7 @@ async fn test_bhv_authoidc_033_a_failed_discovery_request_names_its_method_and_p
         .downcast_ref::<InternalServerError>()
         .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
     assert_eq!(
-        "API returned status code 500 for GET https://auth.example.com/.well-known/openid-configuration",
+        "API returned status code 500 for GET /.well-known/openid-configuration",
         internal.server_error().api_error().message()
     );
 }
@@ -1168,5 +1196,160 @@ async fn test_bhv_auth_029_after_the_cached_discovery_expires_later_calls_use_th
         second.starts_with("https://auth.example.com/authorize-v2?"),
         "{}",
         second
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_070_a_discovery_document_that_is_not_an_object_keeps_no_cause_and_hides_its_body(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"["leaked-body"]"#, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a discovery document that is not an object must fail");
+
+    assert!(
+        err.downcast_ref::<SerializationError>().is_some(),
+        "{}",
+        err
+    );
+    assert!(
+        err.to_string()
+            .contains("OIDC discovery document is not a JSON object"),
+        "{}",
+        err
+    );
+    assert!(err.source().is_none());
+    assert!(!err.to_string().contains("leaked-body"), "{}", err);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(DISCOVERY, 200);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let url = auth
+        .build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    let query = url.split_once('?').expect("a query string").1;
+    let pairs: Vec<&str> = query.split('&').collect();
+    assert!(pairs.contains(&"code_challenge_method=S256"), "{}", url);
+    let challenge = pairs
+        .iter()
+        .find_map(|p| p.strip_prefix("code_challenge="))
+        .expect("a code_challenge");
+    assert_eq!(43, challenge.len(), "{}", challenge);
+    assert!(
+        challenge
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'),
+        "{}",
+        challenge
+    );
+    assert!(!pairs.iter().any(|p| p.starts_with("nonce=")), "{}", url);
+}
+
+/// Once the cached discovery document's max-age has elapsed, later calls use the endpoints of the new document.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_199_oidc_discovery_runs_again_when_the_cache_expires_and_uses_the_new_endpoints(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "max-age=1");
+    client.enqueue_cached(REDISCOVERY, "max-age=3600");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let first = auth
+        .build_authorization_url("")
+        .await
+        .expect("should succeed");
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let second = auth
+        .build_authorization_url("")
+        .await
+        .expect("should succeed");
+
+    assert!(
+        first.starts_with("https://auth.example.com/authorize?"),
+        "{}",
+        first
+    );
+    assert!(
+        second.starts_with("https://auth.example.com/authorize-v2?"),
+        "{}",
+        second
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_200_a_discovery_document_whose_issuer_names_another_server_is_rejected() {
+    for (issuer, accepted) in [
+        (Some("https://auth.example.com"), true),
+        (Some("https://auth.example.com/"), true),
+        (None, true),
+        (Some("https://evil.example.com"), false),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        let mut document = serde_json::json!({
+            "authorization_endpoint": "https://auth.example.com/authorize",
+            "token_endpoint": "https://auth.example.com/token"
+        });
+        if let Some(issuer) = issuer {
+            document["issuer"] = serde_json::json!(issuer);
+        }
+        client.enqueue(&document.to_string(), 200);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client);
+
+        let result = auth.build_authorization_url("").await;
+
+        let outcome = result.as_ref().err().map(|e| e.to_string());
+        assert_eq!(
+            accepted,
+            result.is_ok(),
+            "issuer {:?}: {:?}",
+            issuer,
+            outcome
+        );
+        if !accepted {
+            let err = result.unwrap_err();
+            let serialization = err
+                .downcast_ref::<SerializationError>()
+                .expect("a SerializationError");
+            assert_eq!(
+                "OIDC discovery issuer 'https://evil.example.com' does not match 'https://auth.example.com'",
+                serialization.message()
+            );
+        }
+    }
+}
+
+/// A failed discovery request names its method and URL in the error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_201_a_failed_oidc_discovery_request_reports_its_path_without_the_query_string(
+) {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("<html><body>Internal Server Error</body></html>", 500);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a 500 discovery response must produce an error");
+    let internal = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
+    assert_eq!(
+        "API returned status code 500 for GET /.well-known/openid-configuration",
+        internal.server_error().api_error().message()
     );
 }

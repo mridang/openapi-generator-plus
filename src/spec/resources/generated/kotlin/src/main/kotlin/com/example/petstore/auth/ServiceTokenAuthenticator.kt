@@ -17,5 +17,5 @@ class ServiceTokenAuthenticator : BearerAuthenticator {
         host: String,
         token: String? = null,
         tokenProvider: (suspend () -> String)? = null,
-    ) : super(host, token, tokenProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN")
+    ) : super(host, token?.takeIf { it.isNotEmpty() }, tokenProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN")
 }

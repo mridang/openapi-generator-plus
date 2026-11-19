@@ -70,7 +70,7 @@ defmodule PetstoreClient.CallHookTest do
     assert events() == [finished: :b, finished: :a]
   end
 
-  test "a chain finishes every observer even when one of them fails" do
+  test "bhv langelixir 042 a chain finishes every observer even when one of them fails" do
     chained =
       PetstoreClient.CallHook.chain([hook(:a), hook(:b, %{finish_raises: true}), hook(:c)])
 
@@ -83,7 +83,7 @@ defmodule PetstoreClient.CallHookTest do
     assert events() == [finished: :c, finished: :b, finished: :a]
   end
 
-  test "a chain of hooks that return nothing has no observer" do
+  test "bhv langelixir 043 a chain of hooks that return nothing has no observer" do
     chained = PetstoreClient.CallHook.chain([hook(:a, %{nothing: true})])
 
     assert {%{}, nil} = PetstoreClient.CallHook.start_one(chained, info(), %{})

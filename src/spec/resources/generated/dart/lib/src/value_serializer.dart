@@ -521,15 +521,19 @@ Map<String, String> serializeDeepObject(
   final result = <String, String>{};
   if (value == null) return result;
 
-  for (final entry in value.entries) {
-    final v = entry.value;
+  /* Pairs come out sorted by wire name, and an absent (null) property is
+   * left out entirely. */
+  final keys = value.keys.toList()..sort();
+  for (final key in keys) {
+    final v = value[key];
+    if (v == null) continue;
     if (v is Map<Object?, Object?> || v is Iterable<Object?>) {
       throw SerializationException(
-        "Parameter '$paramName' has a nested value at '${entry.key}', which "
+        "Parameter '$paramName' has a nested value at '$key', which "
         'cannot be serialized as a deepObject',
       );
     }
-    result['$paramName[${entry.key}]'] = stringify(v);
+    result['$paramName[$key]'] = stringify(v);
   }
   return result;
 }

@@ -95,6 +95,7 @@ module {{moduleName}}::Models
     def self.build_subtype: (untyped) -> untyped
 {{/vendorExtensions.x-allof-base}}
     def inspect: () -> String
+    def to_s: () -> String
     def with: (**untyped) -> {{classname}}
 {{#isAdditionalPropertiesTrue}}
     ADDITIONAL_PROPERTIES: bool

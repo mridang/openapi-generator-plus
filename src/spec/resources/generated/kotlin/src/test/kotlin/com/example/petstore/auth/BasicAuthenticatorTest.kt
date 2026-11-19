@@ -220,8 +220,8 @@ class BasicAuthenticatorTest {
     }
 
     @Test
-    @DisplayName("F862: a security scheme's authenticator reads the variables of its own scheme")
-    fun schemeWrapperReadsItsOwnVariables() =
+    @DisplayName("bhvLangkotlin007 F862: a security scheme's authenticator reads the variables of its own scheme")
+    fun bhvLangkotlin007SchemeWrapperReadsItsOwnVariables() =
         runBlocking {
             val env =
                 mapOf(
@@ -268,5 +268,15 @@ class BasicAuthenticatorTest {
                 BasicAuthenticator("https://api.example.com", "alice", "s3\r\ncret")
             }
         assertTrue(pass.message!!.contains("password"), pass.message)
+    }
+
+    @Test
+    @DisplayName("bhvAuth036 a Basic username containing a colon is rejected with an error")
+    fun bhvAuth036UsernameWithColonIsRejected() {
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                BasicAuthenticator("https://api.example.com", "al:ice", "s3cret")
+            }
+        assertTrue(ex.message!!.contains("':'"), ex.message)
     }
 }

@@ -69,9 +69,12 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     authenticator.setApiClient(mockClient);
   });
 
-  test("the synchronous getAuthHeaders throws instead of returning unauthenticated headers", () => {
+  test("bhv auth 052 an OAuth authenticator that holds no token refuses to produce auth headers, sync and async", async () => {
     expect(() => authenticator.getAuthHeaders()).toThrow(
       "OAuth2 authenticators require async token exchange; use getAuthHeadersAsync() instead.",
+    );
+    await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow(
+      "Must call exchangeCode() before making API requests",
     );
   });
 
@@ -127,6 +130,26 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
   });
 
   describe("PKCE (RFC 7636)", () => {
+    test("bhvMisc077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call", async () => {
+      const verifiers: string[] = [];
+      for (let i = 0; i < 2; i++) {
+        authenticator.buildAuthorizationUrl();
+        mockClient.responseBody = JSON.stringify({
+          access_token: "access-token",
+          expires_in: 3600,
+        });
+        await authenticator.exchangeCode("my-auth-code");
+        verifiers.push(
+          new URLSearchParams(mockClient.lastBody as string).get(
+            "code_verifier",
+          )!,
+        );
+      }
+      expect(verifiers[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(verifiers[1]).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(verifiers[0]).not.toBe(verifiers[1]);
+    });
+
     const s256 = (verifier: string): string =>
       createHash("sha256").update(verifier).digest("base64url");
     const tokenBody = JSON.stringify({
@@ -293,6 +316,44 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow(
       "Must call exchangeCode() before making API requests",
     );
+  });
+
+  test("bhv auth 048 the authorize URL is exact and the code exchange posts to the declared token URL", async () => {
+    expect(authenticator.buildAuthorizationUrl()).toMatch(
+      /^https:\/\/auth\.example\.com\/authorize\?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fmyapp\.example\.com%2Fcallback&scope=read%20write&code_challenge=[A-Za-z0-9_-]{43}&code_challenge_method=S256$/,
+    );
+    mockClient.responseBody = JSON.stringify({
+      access_token: "access-token-123",
+      expires_in: 3600,
+    });
+
+    await authenticator.exchangeCode("auth-code-1");
+
+    expect(mockClient.lastUrl).toBe("https://auth.example.com/token");
+    expect(mockClient.lastBody).toContain("grant_type=authorization_code");
+  });
+
+  test("bhv auth 053 exchanging a code discards the refresh token previously held", async () => {
+    mockClient.queued = [
+      {
+        status: 200,
+        body: { access_token: "tok1", refresh_token: "ref1", expires_in: 0 },
+      },
+      { status: 200, body: { access_token: "tok2", expires_in: 0 } },
+      { status: 200, body: { access_token: "tok3", expires_in: 3600 } },
+    ];
+
+    await authenticator.exchangeCode("code-a");
+    await authenticator.exchangeCode("code-b");
+    const originalNow = Date.now;
+    Date.now = () => originalNow() + 120_000;
+    try {
+      await authenticator.getAuthHeadersAsync();
+    } finally {
+      Date.now = originalNow;
+    }
+
+    expect(mockClient.calls[2]!.params.get("refresh_token")).toBe("");
   });
 
   test("bhv authoauthtwoauthcode 032 the code exchange body uses a fixed parameter order", async () => {
@@ -619,6 +680,62 @@ describe("OAuth2AuthorizationCodeAuthenticator", () => {
     expect(error).toBeInstanceOf(OAuth2ServerError);
     await expect(authenticator.getAuthHeadersAsync()).rejects.toThrow(
       "Must call exchangeCode() before making API requests",
+    );
+  });
+});
+
+describe("OAuth2AuthorizationCodeAuthenticator misc behaviours", () => {
+  test("bhv misc 028 a transport failure during the code exchange reaches the caller unchanged", async () => {
+    const failure = new Error("connection reset");
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "client-id",
+      "client-secret",
+      "https://auth.example.com/authorize",
+      "https://auth.example.com/token",
+      "https://myapp.example.com/callback",
+      [],
+    );
+    auth.setApiClient({ sendRequest: () => Promise.reject(failure) } as never);
+    await expect(auth.exchangeCode("my-auth-code")).rejects.toBe(failure);
+  });
+});
+
+describe("OAuth2AuthorizationCodeAuthenticator configured urls", () => {
+  it("bhv misc 058 the configured endpoint and redirect URI reach the authorization URL exactly as configured", () => {
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "my-client-id",
+      "my-client-secret",
+      "https://Auth.Example.com:443/authorize",
+      "https://auth.example.com/token",
+      "https://MyApp.example.com:443/callback",
+      ["read"],
+    );
+
+    const url = auth.buildAuthorizationUrl();
+
+    expect(url.startsWith("https://Auth.Example.com:443/authorize?")).toBe(
+      true,
+    );
+    expect(
+      new URLSearchParams(url.slice(url.indexOf("?") + 1)).get("redirect_uri"),
+    ).toBe("https://MyApp.example.com:443/callback");
+  });
+
+  it("bhv misc 062 the authorization URL carries the declared scopes", () => {
+    const auth = new OAuth2AuthorizationCodeAuthenticator(
+      "https://api.example.com",
+      "cid",
+      "sec",
+      "https://auth.example.com/authorize",
+      "https://auth.example.com/token",
+      "https://app.example.com/cb",
+      ["pets:read", "pets:write"],
+    );
+
+    expect(auth.buildAuthorizationUrl()).toContain(
+      "scope=pets%3Aread%20pets%3Awrite",
     );
   });
 });

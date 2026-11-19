@@ -159,7 +159,7 @@ func TestBhvOptions041_TransportOptions_UserAgentDefaultsToNonEmptyString(t *tes
 	}
 }
 
-func TestTransportOptions_UserAgentDefaultThenSet(t *testing.T) {
+func TestBhvLanggo102_TransportOptions_UserAgentDefaultThenSet(t *testing.T) {
 	t.Parallel()
 	// The default carries the branded value; once set via the nullable setter
 	// it is applied and read back through the pointer.
@@ -976,5 +976,98 @@ func TestBhvTransport080_TransportOptions_AProxyTheClientCannotApplyFailsConstru
 	}
 	if opts != nil {
 		t.Error("expected no TransportOptions when the proxy cannot be applied")
+	}
+}
+
+// A caller-supplied transport refuses every SDK proxy and TLS setting, and a second transport, at construction.
+func TestBhvLifecycle041_TransportOptions_ASuppliedTransportRejectsSdkProxyAndTlsSettings(t *testing.T) {
+	t.Parallel()
+	builds := map[string]func() error{
+		"proxy": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).Proxy("http://proxy.example.com:8080").Build()
+			return err
+		},
+		"verify off": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().RoundTripper(http.DefaultTransport).VerifySsl(false).Build()
+			return err
+		},
+		"client and transport": func() error {
+			_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).RoundTripper(http.DefaultTransport).Build()
+			return err
+		},
+	}
+	for name, build := range builds {
+		if err := build(); !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+			t.Errorf("%s: expected ErrTransportConflict, got %v", name, err)
+		}
+	}
+}
+
+// Configuring a proxy with a SOCKS scheme fails at construction with the documented error.
+func TestBhvOptions068_TransportOptions_ASocksProxyIsRefusedAtConstruction(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Proxy("socks5://proxy.example.com:1080").Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Errorf("expected ErrInvalidProxyURL for a SOCKS proxy, got %v", err)
+	}
+}
+
+// A CA certificate path that does not exist fails with an error that names the certificate and wraps the not-found cause.
+func TestBhvErrors098_TransportOptions_AMissingCaCertificateNamesThePathAndWrapsTheCause(t *testing.T) {
+	t.Parallel()
+	path := "/nonexistent/ca-certificate.pem"
+	_, err := {{packageName}}.NewTransportOptionsBuilder().CACertPath(path).Build()
+	if err == nil || !strings.Contains(err.Error(), path) || !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("expected an error naming the path and wrapping not-found, got %v", err)
+	}
+}
+
+// Supplying both a caller HTTP client and a caller transport is refused when the client is built.
+func TestBhvMisc034_TransportOptions_AClientAndATransportTogetherAreRefused(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).RoundTripper(http.DefaultTransport).Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) {
+		t.Errorf("expected ErrTransportConflict for a client and a transport, got %v", err)
+	}
+}
+
+// Supplying a custom HTTP connection with disabled TLS verification is refused, and the error names the verification setting.
+func TestBhvMisc042_TransportOptions_DisabledVerificationRefusalNamesTheSetting(t *testing.T) {
+	t.Parallel()
+	_, err := {{packageName}}.NewTransportOptionsBuilder().HttpClient(&http.Client{}).VerifySsl(false).Build()
+	if !errors.Is(err, {{packageName}}.ErrTransportConflict) || !strings.Contains(err.Error(), "VerifySsl") {
+		t.Errorf("expected a conflict naming VerifySsl, got %v", err)
+	}
+}
+
+func TestBhvMisc298_TransportOptions_MalformedProxyUrlFailsTheClientWithInvalidProxyURL(t *testing.T) {
+	t.Parallel()
+	opts, err := {{packageName}}.NewTransportOptionsBuilder().
+		Proxy("http://[::1").
+		Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidProxyURL) {
+		t.Fatalf("expected ErrInvalidProxyURL, got %v", err)
+	}
+	if opts != nil {
+		t.Error("expected no TransportOptions when the proxy URL is malformed")
+	}
+}
+
+func TestBhvMisc026_TransportOptions_ATimeoutMistakeIsNotAnApiError(t *testing.T) {
+	t.Parallel()
+	value := -1
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&value).Build()
+	var status interface{ StatusCode() int }
+	if errors.As(err, &status) {
+		t.Errorf("expected a configuration error that is not an API error, got %T", err)
+	}
+}
+
+func TestBhvMisc134_TransportOptions_AZeroTimeoutIsRefusedAtBuildAsAnArgumentError(t *testing.T) {
+	t.Parallel()
+	zero := 0
+	_, err := {{packageName}}.NewTransportOptionsBuilder().Timeout(&zero).Build()
+	if !errors.Is(err, {{packageName}}.ErrInvalidTimeout) {
+		t.Fatalf("expected ErrInvalidTimeout for a zero timeout, got %v", err)
 	}
 }

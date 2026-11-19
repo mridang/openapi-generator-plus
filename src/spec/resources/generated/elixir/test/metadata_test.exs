@@ -208,7 +208,7 @@ defmodule PetstoreClient.Models.MetadataTest do
 
     # @deprecated is a function attribute and would land on the struct's own
     # function, which nobody calls; the schema is marked in the module docs.
-    test "a deprecated schema is marked in its module docs, not on a function" do
+    test "bhv langelixir 004 a deprecated schema is marked in its module docs, not on a function" do
       {:docs_v1, _anno, _lang, _format, _moduledoc, metadata, _docs} =
         Code.fetch_docs(PetstoreClient.Models.Tag)
 
@@ -262,6 +262,19 @@ defmodule PetstoreClient.Models.MetadataTest do
       copy = %{metadata | created_at: "2024-01-01T00:00:00+00:00"}
 
       assert copy.additional_properties == %{"customField" => "hello"}
+    end
+
+    test "bhv serialization 079 a copy with named changes leaves the original and keeps unnamed fields and additional properties" do
+      metadata = %PetstoreClient.Models.Metadata{
+        created_at: "2024-01-01T00:00:00+00:00",
+        additional_properties: %{"customField" => "hello"}
+      }
+
+      copy = %{metadata | created_at: "2025-01-01T00:00:00+00:00"}
+
+      assert copy.created_at == "2025-01-01T00:00:00+00:00"
+      assert copy.additional_properties == %{"customField" => "hello"}
+      assert metadata.created_at == "2024-01-01T00:00:00+00:00"
     end
 
     test "bhv models 016 a copy clears an optional field only when nil is set and keeps it when omitted" do

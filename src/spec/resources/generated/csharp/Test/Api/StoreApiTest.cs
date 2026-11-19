@@ -553,7 +553,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task OperationWithACancelledTokenSendsNoRequest()
+    public async Task BhvMisc035OperationWithACancelledTokenSendsNoRequest()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -609,7 +609,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task SearchStoreContentQueryKeepsWireDateTimeForm()
+    public async Task BhvMisc211SearchStoreContentQueryKeepsWireDateTimeForm()
     {
         var client = new ListCapturingApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -902,7 +902,23 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
+    public async Task BhvOperations158APerCallHeaderIsSentWithThatCall()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetInventoryAsync(
+            new GetInventoryOptions
+            {
+                Headers = new Dictionary<string, string> { ["X-Call"] = "call-1" },
+            }
+        );
+
+        Assert.Equal("call-1", client.Headers["X-Call"]);
+    }
+
+    [Fact]
+    public async Task BhvLangcsharp045AnOperationWithNoParametersAndNoSecurityLeavesTheTransportSettingsAloneWithoutOptions()
     {
         var client = new CallOptionsApiClient { Body = "{}" };
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
@@ -914,7 +930,7 @@ public class StoreApiTest
     }
 
     [Fact]
-    public void TheOptionsOfAnOperationWithNoParametersAndNoSecurityHaveNoAuthField()
+    public void BhvLangcsharp046TheOptionsOfAnOperationWithNoParametersAndNoSecurityHaveNoAuthField()
     {
         Assert.NotNull(typeof(GetInventoryOptions).GetProperty("Timeout"));
         Assert.NotNull(typeof(GetInventoryOptions).GetProperty("Headers"));
@@ -934,13 +950,96 @@ public class StoreApiTest
     }
 
     [Fact]
-    public async Task APerCallTimeoutOfZeroIsRejected()
+    public async Task BhvLangcsharp047APerCallTimeoutOfZeroIsRejected()
     {
         var client = new CallOptionsApiClient();
         var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             api.SearchStoreAsync(new SearchStoreOptions { Timeout = 0 })
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc013AnOperationWithNoParametersRunsWithNoArgument()
+    {
+        var mockApi = NewStoreApiForMock(200, "application/json", "{\"sold\":1}");
+
+        Dictionary<string, int> result = await mockApi.GetInventoryAsync();
+
+        Assert.Equal(1, result["sold"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc014ALiteralNullSuccessBodyRaisesTheApiErrorAndReturnsNoValue()
+    {
+        var mockApi = NewStoreApiForMock(200, "application/json", "null");
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.ApiException>(() =>
+            mockApi.GetInventoryAsync()
+        );
+    }
+
+    [Fact]
+    public async Task BhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnion()
+    {
+        var api = NewStoreApiForMock(
+            202,
+            "application/json",
+            "{\"reservationId\":7,\"quantity\":2}"
+        );
+
+        var result = await api.ReserveStockAsync();
+
+        Assert.True(result.IsReservation());
+    }
+
+    [Fact]
+    public async Task BhvMisc050PerCallOptionsSetOnlyTheOptionsGivenAndLeaveTheRestUnset()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetInventoryAsync(new GetInventoryOptions { Timeout = 1500 });
+
+        Assert.Equal(1500, client.Timeout);
+        Assert.Null(client.MaxRetries);
+    }
+
+    [Fact]
+    public async Task BhvMisc053APerCallRetryBudgetOfZeroIsAcceptedAndSentAsZero()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetInventoryAsync(new GetInventoryOptions { MaxRetries = 0 });
+
+        Assert.Equal(0, client.MaxRetries);
+    }
+
+    [Fact]
+    public async Task BhvMisc055ANegativePerCallRetryBudgetIsRefusedWithAnArgumentError()
+    {
+        var client = new CallOptionsApiClient { Body = "{}" };
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            api.GetInventoryAsync(new GetInventoryOptions { MaxRetries = -1 })
+        );
+        Assert.Null(client.MaxRetries);
+    }
+
+    [Fact]
+    public async Task BhvMisc080A200BodyIsRefusedWhenItOnlyFitsTheSchemaOf201()
+    {
+        var api = NewStoreApiForMock(
+            200,
+            "application/json",
+            "{\"receiptCode\":\"C1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}"
+        );
+
+        await Assert.ThrowsAsync<PetstoreClient.Errors.SerializationException>(() =>
+            api.ReserveStockAsync()
         );
     }
 }

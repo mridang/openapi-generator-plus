@@ -374,6 +374,9 @@ public sealed class OAuth2TokenManager
                 headers,
                 body,
                 noRedirect: true,
+                refreshHeaders: null,
+                timeout: null,
+                maxRetries: 0,
                 cancellationToken: cancellationToken
             )
             .ConfigureAwait(false);

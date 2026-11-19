@@ -291,6 +291,17 @@ func (o {{classname}}) String() string {
 	return string(data)
 }
 {{/hasPasswordProperty}}
+{{^hasPasswordProperty}}
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o {{classname}}) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "{{classname}}{<unprintable>}"
+	}
+	return string(data)
+}
+{{/hasPasswordProperty}}
 
 {{#vars}}
 // With{{name}} returns a copy of the model with {{name}} replaced; the receiver is unchanged.
@@ -814,6 +825,9 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		o.value = v
 		return nil
 {{/mappedModels}}
+	}
+	if disc.{{#pascalcase}}{{propertyBaseName}}{{/pascalcase}} == "" {
+		return fmt.Errorf("missing discriminator property %q for {{classname}}", "{{propertyBaseName}}")
 	}
 	// Gap AU — unknown discriminator value. Other 11 SDKs throw; Go
 	// previously returned nil silently, leaving the union uninitialized

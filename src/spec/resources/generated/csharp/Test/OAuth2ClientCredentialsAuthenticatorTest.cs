@@ -19,7 +19,7 @@ public class OAuth2ClientCredentialsAuthenticatorTest
     {
         private readonly Queue<ApiHttpResponse> _responses = new();
 
-        public void Enqueue(string body, int statusCode = 200)
+        internal void Enqueue(string body, int statusCode = 200)
         {
             _responses.Enqueue(
                 new ApiHttpResponse(statusCode, body, new Dictionary<string, string>())

@@ -29,9 +29,10 @@ defmodule PetstoreClient.Auth.BaseAuthenticator do
   @doc false
   # Resolves one credential of an authenticator. A value that was passed is used
   # as it is. A `nil` is read once, now, from the environment variable
-  # `env_name`; an empty variable counts as unset. A credential found in neither
-  # place raises, so a client that is missing one fails when it is built and not
-  # on its first request. The authenticator of a security scheme passes the
+  # `env_name`; an empty variable counts as unset. An empty string passed is
+  # kept as given and refused by the caller's own validation. A credential
+  # found in neither place raises, so a client that is missing one fails when
+  # it is built and not on its first request. The authenticator of a security scheme passes the
   # variable of that scheme; `credential/2` is the variable of an authenticator
   # built on its own: `SWAGGER_PETSTORE_OPEN_API_3_0_<FIELD>`, for the field "TOKEN"
   # `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`.

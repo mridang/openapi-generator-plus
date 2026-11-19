@@ -77,6 +77,11 @@ module Petstore::Client
         "#<#{self.class.name} #{fields.join(' ')}>"
       end
 
+      # The string form is the inspect form, so a list, map or byte field shows its contents.
+      def to_s
+        inspect
+      end
+
       # A copy of this model with +changes+ applied. A model has no writers, so
       # this is how a value is modified: the receiver stays as it was.
       #
@@ -106,7 +111,8 @@ module Petstore::Client
       # when one is declared.
       additional_properties_default = {} # : Hash[String, untyped]
       attribute :additional_properties,
-                Types::Hash.optional.meta(omittable: true).default(additional_properties_default.freeze)
+                Types::Hash.optional.constructor { |value| value&.dup&.freeze }.meta(omittable: true)
+                .default(additional_properties_default.freeze)
       attribute :label, Types::Any.optional.meta(omittable: true)
     end
   end

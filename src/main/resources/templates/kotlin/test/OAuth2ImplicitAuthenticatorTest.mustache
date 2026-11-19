@@ -52,6 +52,17 @@ class OAuth2ImplicitAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth049 the implicit flow builds the exact authorize URL with response_type token and scopes as percent 20")
+    fun bhvAuth049ImplicitAuthorizeUrlIsExact() {
+        val auth = createAuthenticator()
+
+        assertEquals(
+            "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write",
+            auth.buildAuthorizationUrl(),
+        )
+    }
+
+    @Test
     fun bhvAuthoauthtwoimplicit002BuildsAuthorizationUrlWithClientId() {
         val auth = createAuthenticator()
 

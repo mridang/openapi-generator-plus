@@ -15,7 +15,7 @@ namespace PetstoreClient\Test;
 
 use PetstoreClient\Auth\CompositeAuthenticator;
 
-test('a composite sends the headers, query parameters and cookies of every authenticator', function (): void {
+test('bhv langphp 058 a composite sends the headers, query parameters and cookies of every authenticator', function (): void {
     $auth = new CompositeAuthenticator([
         new TestAuthenticator(headers: ['X-Key' => 'k'], queryParams: ['a' => '1'], cookies: ['s' => 'x']),
         new TestAuthenticator(headers: ['Authorization' => 'Bearer t'], queryParams: ['b' => '2']),
@@ -26,7 +26,7 @@ test('a composite sends the headers, query parameters and cookies of every authe
     expect($auth->getCookieParams())->toBe(['s' => 'x']);
 });
 
-test('a composite takes its host from the first authenticator', function (): void {
+test('bhv langphp 059 a composite takes its host from the first authenticator', function (): void {
     $auth = new CompositeAuthenticator([
         new \PetstoreClient\Auth\BearerAuthenticator('https://first.example.com', 'a'),
         new \PetstoreClient\Auth\BearerAuthenticator('https://second.example.com', 'b'),
@@ -35,7 +35,7 @@ test('a composite takes its host from the first authenticator', function (): voi
     expect($auth->getHost())->toBe('https://first.example.com');
 });
 
-test('a composite needs at least one authenticator', function (): void {
+test('bhv langphp 060 a composite needs at least one authenticator', function (): void {
     expect(fn () => new CompositeAuthenticator([]))
         ->toThrow(\InvalidArgumentException::class, 'at least one authenticator');
 });

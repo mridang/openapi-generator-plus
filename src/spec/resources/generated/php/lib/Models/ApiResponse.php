@@ -15,7 +15,7 @@ namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class ApiResponse
+class ApiResponse implements \Stringable
 {
     #[SerializedName('code')]
     public readonly ?int $code;
@@ -72,6 +72,21 @@ class ApiResponse
             type: $this->type,
             message: $message,
         );
+    }
+
+    /**
+     * The string form names the class and lists each property with its contents (lists, maps and
+     * byte fields included), so interpolating a model shows what it holds. A password property is
+     * shown as *** and never printed, matching __debugInfo().
+     */
+    public function __toString(): string
+    {
+        $parts = [];
+        foreach (get_object_vars($this) as $name => $value) {
+            $parts[] = $name . '=' . \PetstoreClient\ObjectSerializer::describeValue($value);
+        }
+
+        return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';
     }
 
     /**

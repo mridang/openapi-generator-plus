@@ -20,6 +20,13 @@ describe("OAuth2ImplicitAuthenticator", () => {
     );
   });
 
+  test("bhv auth 049 the implicit authorize URL carries response_type token and percent-encodes scopes as %20", () => {
+    const url = authenticator.buildAuthorizationUrl();
+    expect(url).toContain("response_type=token");
+    expect(url).toContain("scope=read%20write");
+    expect(url).not.toContain("scope=read+write");
+  });
+
   test("bhv authoauthtwoimplicit 003 builds authorization URL with response type token", () => {
     const url = authenticator.buildAuthorizationUrl();
     expect(url).toContain("https://auth.example.com/authorize?");
@@ -82,20 +89,22 @@ describe("OAuth2ImplicitAuthenticator", () => {
     );
   });
 
-  test.each([
-    ["CR/LF", "abc\r\nInjected: yes"],
-    ["LF", "abc\ndef"],
-    ["NUL", "abc\0def"],
-    ["DEL", "abc\x7fdef"],
-    ["non-ASCII", "tök"],
-  ])("setAccessToken rejects a token containing %s", (_label, token) => {
-    expect(() => authenticator.setAccessToken(token)).toThrow(TypeError);
-    expect(() => authenticator.setAccessToken(token)).toThrow(
-      "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
-    );
-    expect(() => authenticator.getAuthHeaders()).toThrow(
-      "Must set the access token before making API requests",
-    );
+  test("bhv langnode 091 setAccessToken rejects a token containing CR, LF or NUL", () => {
+    for (const [, token] of [
+      ["CR/LF", "abc\r\nInjected: yes"],
+      ["LF", "abc\ndef"],
+      ["NUL", "abc\0def"],
+      ["DEL", "abc\x7fdef"],
+      ["non-ASCII", "tök"],
+    ] as const) {
+      expect(() => authenticator.setAccessToken(token)).toThrow(TypeError);
+      expect(() => authenticator.setAccessToken(token)).toThrow(
+        "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
+      );
+      expect(() => authenticator.getAuthHeaders()).toThrow(
+        "Must set the access token before making API requests",
+      );
+    }
   });
 
   test("bhv authoauthtwoimplicit 014 rejects a non-ASCII access token with the RFC 7230 message", () => {

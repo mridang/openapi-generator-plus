@@ -225,6 +225,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         if (transportOptions.CaCertPath != null)
         {
             X509Certificate2Collection caCerts = [];
+            if (!System.IO.File.Exists(transportOptions.CaCertPath))
+            {
+                /* A missing file (or missing directory) is reported as a file-not-found
+                 * cause naming the path, not as the platform's DirectoryNotFoundException. */
+                System.IO.FileNotFoundException notFound = new(
+                    $"Could not find CA certificate file \"{transportOptions.CaCertPath}\".",
+                    transportOptions.CaCertPath
+                );
+                throw new ArgumentException(
+                    $"failed to read CA certificate from \"{transportOptions.CaCertPath}\": {notFound.Message}",
+                    nameof(transportOptions),
+                    notFound
+                );
+            }
             try
             {
                 /* Read the bundle as text and normalise CRLF to LF before parsing:
@@ -364,6 +378,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     internal DefaultApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
+        _ownsHttpClient = false;
         _transportOptions = TransportOptions.Builder().Build();
         ProxyAuthorizationHeader = null;
     }
@@ -379,6 +394,7 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     {
         ArgumentNullException.ThrowIfNull(transportOptions);
         _httpClient = httpClient;
+        _ownsHttpClient = false;
         _transportOptions = transportOptions;
         ProxyAuthorizationHeader = BuildProxyAuthorizationHeader(transportOptions.Proxy);
     }
@@ -498,6 +514,32 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
     private static bool IsReplayableBody(object? body)
     {
         return body is null or string or byte[];
+    }
+
+    /// <summary>Whether a request may be sent again after the connection dropped before any response.</summary>
+    private static bool IsIdempotent(string method)
+    {
+        return method.ToUpperInvariant()
+            is "GET"
+                or "HEAD"
+                or "OPTIONS"
+                or "TRACE"
+                or "PUT"
+                or "DELETE"
+                or "QUERY";
+    }
+
+    /// <summary>Whether a transport failure came from TLS or certificate validation, which a retry cannot fix.</summary>
+    private static bool IsTlsFailure(Exception ex)
+    {
+        for (Exception? current = ex; current != null; current = current.InnerException)
+        {
+            if (current is System.Security.Authentication.AuthenticationException)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>Tells the retry loop whether a response had started to arrive.</summary>
@@ -669,6 +711,8 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     && attempt < effectiveMaxRetries
                     && !state.ResponseReceived
                     && ex is not Errors.NetworkTimeoutException
+                    && IsIdempotent(method)
+                    && !IsTlsFailure(ex)
                 )
             {
                 delay = RetryDelay(
@@ -766,13 +810,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
            inject another one, so the request is refused before it is built. */
         foreach (KeyValuePair<string, string> header in mergedHeaders)
         {
-            if (
-                header.Value.Contains('\r', StringComparison.Ordinal)
-                || header.Value.Contains('\n', StringComparison.Ordinal)
-            )
+            if (header.Value.IndexOfAny(['\r', '\n', '\0']) >= 0)
             {
                 throw new ArgumentException(
-                    $"Header {header.Key} must not contain CR or LF characters",
+                    $"Header {header.Key} must not contain CR, LF or NUL characters",
                     nameof(headers)
                 );
             }
@@ -898,6 +939,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                    dropped on a cross-origin hop stays dropped for every later
                    hop, even one that returns to the original origin. */
                 Dictionary<string, string> currentHeaders = mergedHeaders;
+                /* Transport default headers are configured for the API origin only,
+                   so they are withheld from any hop that leaves that origin. */
+                HashSet<string> transportHeaderNames = new(
+                    _transportOptions.DefaultHeaders.Keys,
+                    StringComparer.OrdinalIgnoreCase
+                );
                 int hops = 0;
                 string currentMethod = method;
                 object? currentBody = body;
@@ -949,17 +996,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                             StringComparison.OrdinalIgnoreCase
                         );
                     int redirectStatus = (int)response.StatusCode;
-                    bool preservesBody =
-                        redirectStatus == 307
-                        || redirectStatus == 308
-                        || (
-                            (redirectStatus == 301 || redirectStatus == 302)
-                            && !string.Equals(
-                                currentMethod,
-                                "POST",
-                                StringComparison.OrdinalIgnoreCase
-                            )
-                        );
+                    /* Only 303 leaves the body behind (it coerces to GET). 301,
+                       302, 307 and 308 would carry the body to the HTTP target,
+                       so a body on any of them is refused. */
+                    bool preservesBody = redirectStatus != 303;
                     if (isDowngrade && preservesBody && currentBody != null)
                     {
                         /* T-D2: refuse to replay a body that was sent over TLS
@@ -1010,7 +1050,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     );
                     foreach (KeyValuePair<string, string> header in currentHeaders)
                     {
-                        if (crossOrigin && IsCredentialHeader(header.Key))
+                        if (
+                            crossOrigin
+                            && (
+                                IsCredentialHeader(header.Key)
+                                || transportHeaderNames.Contains(header.Key)
+                            )
+                        )
                         {
                             continue;
                         }

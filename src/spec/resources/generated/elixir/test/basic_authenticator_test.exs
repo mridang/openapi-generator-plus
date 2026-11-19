@@ -6,6 +6,21 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   alias PetstoreClient.Auth.BearerAuthenticator
 
   describe "BasicAuthenticator" do
+    test "bhv auth 036 a username containing a colon is rejected at construction" do
+      assert_raise ArgumentError, ~r/must not contain ':'/, fn ->
+        BasicAuthenticator.new("https://api.example.com", "us:er", "s3cret")
+      end
+    end
+
+    test "bhv misc 193 the Basic scheme authenticator sends the same header as the base Basic authenticator and rejects a missing username" do
+      auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] == "Basic YWxpY2U6czNjcmV0"
+
+      assert_raise ArgumentError, fn ->
+        BasicAuthenticator.new("https://api.example.com", nil, "s3cret")
+      end
+    end
+
     test "bhv authbasic 011 valid credentials produce basic header" do
       auth = BasicAuthenticator.new("https://api.example.com", "alice", "s3cret")
       headers = BasicAuthenticator.auth_headers(auth)
@@ -37,6 +52,23 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
 
       assert BasicAuthenticator.auth_headers(mixed)["Authorization"] ==
                "Basic " <> Base.encode64("bob:changed")
+    end
+
+    test "bhv misc 068 an empty string passed for a credential counts as not passed" do
+      user = "SWAGGER_PETSTORE_OPEN_API_3_0_USERNAME"
+      pass = "SWAGGER_PETSTORE_OPEN_API_3_0_PASSWORD"
+      System.put_env(user, "alice")
+      System.put_env(pass, "from-env")
+
+      on_exit(fn ->
+        System.delete_env(user)
+        System.delete_env(pass)
+      end)
+
+      auth = BasicAuthenticator.new("https://api.example.com", "", "")
+
+      assert BasicAuthenticator.auth_headers(auth)["Authorization"] ==
+               "Basic " <> Base.encode64("alice:from-env")
     end
 
     test "bhv authbasic 013 explicit credentials win over the environment" do
@@ -90,7 +122,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
                "Basic " <> Base.encode64("alice:s3:cret")
     end
 
-    test "rejects each invalid credential with its own message" do
+    test "bhv langelixir 046 rejects each invalid credential with its own message" do
       assert_raise ArgumentError,
                    "Basic auth username must not contain CR, LF, or NUL characters",
                    fn ->
@@ -147,7 +179,7 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
   # bearer-no-empty-token-guard: an empty/whitespace Bearer token must be
   # rejected at construction, not silently emit `Authorization: Bearer `.
   describe "BearerAuthenticator empty-token guard" do
-    test "rejects empty token" do
+    test "bhv langelixir 047 rejects empty token" do
       assert_raise ArgumentError, fn ->
         BearerAuthenticator.new("https://api.example.com", "")
       end
@@ -223,5 +255,19 @@ defmodule PetstoreClient.Auth.BasicAuthenticatorTest do
       assert BasicAuthenticator.auth_headers(only_user)["Authorization"] ==
                "Basic " <> Base.encode64("alice:env-pass")
     end
+  end
+
+  test "bhv misc 017 a construction error for rejected credentials never includes the rejected value" do
+    error =
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.Auth.BasicAuthenticator.new(
+          "https://api.example.com",
+          "alice",
+          "sec\rret-9"
+        )
+      end
+
+    refute Exception.message(error) =~ "sec"
+    refute Exception.message(error) =~ "ret-9"
   end
 end

@@ -216,9 +216,8 @@ describe("BearerAuthenticator", () => {
       expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer first" });
     });
 
-    it.each([undefined, ""])(
-      "fails when it is built with no token and the variable is %p",
-      (value) => {
+    it("bhv misc 196 fails when it is built with no token and the variable is unset or empty", () => {
+      for (const value of [undefined, ""]) {
         if (value === undefined) {
           delete process.env[variable];
         } else {
@@ -231,8 +230,8 @@ describe("BearerAuthenticator", () => {
             `Bearer token is required: pass it explicitly or set ${variable}`,
           ),
         );
-      },
-    );
+      }
+    });
 
     it("bhv authbearer 019 an empty environment value counts as unset and fails construction naming the variable", () => {
       process.env[variable] = "";
@@ -264,7 +263,32 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("a provider may return a promise", async () => {
+    it("bhv misc 194 a provider token is sent under the same Bearer prefix rule as a static token", async () => {
+      for (const token of [
+        "bearer abc",
+        "BEARER xyz",
+        "Bearer Bearer xyz",
+        "bearerxyz",
+      ]) {
+        const fromStatic = new BearerAuthenticator(
+          "https://api.example.com",
+          token,
+        ).getAuthHeaders();
+        const fromProvider = await new BearerAuthenticator(
+          "https://api.example.com",
+          () => token,
+        ).getAuthHeadersAsync();
+        expect(fromProvider).toEqual(fromStatic);
+      }
+    });
+
+    it("bhv misc 204 a missing bearer token fails at construction, before any request is made", () => {
+      delete process.env[variable];
+      expect(() => new BearerAuthenticator("https://api.example.com")).toThrow(
+        TypeError,
+      );
+    });
+    it("bhv langnode 030 a provider may return a promise", async () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         async () => "late-token",
@@ -274,7 +298,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("a provider is used instead of the environment", async () => {
+    it("bhv langnode 031 a provider is used instead of the environment", async () => {
       process.env[variable] = "from-env";
       const auth = new BearerAuthenticator(
         "https://api.example.com",
@@ -285,7 +309,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("a synchronous provider also serves getAuthHeaders", () => {
+    it("bhv langnode 032 a synchronous provider also serves getAuthHeaders", () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         () => "sync-token",
@@ -295,7 +319,7 @@ describe("BearerAuthenticator", () => {
       });
     });
 
-    it("an asynchronous provider is refused by getAuthHeaders", () => {
+    it("bhv langnode 033 an asynchronous provider is refused by getAuthHeaders", () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         async () => "late-token",
@@ -305,7 +329,7 @@ describe("BearerAuthenticator", () => {
       );
     });
 
-    it("validates what a provider returns", async () => {
+    it("bhv misc 195 validates what a provider returns", async () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         () => "   ",
@@ -315,7 +339,7 @@ describe("BearerAuthenticator", () => {
       );
     });
 
-    it("does not print the provider or the token", () => {
+    it("bhv auth 033 does not print the provider or the token", () => {
       const auth = new BearerAuthenticator(
         "https://api.example.com",
         () => "provider-secret",
@@ -419,5 +443,82 @@ describe("BearerAuthenticator", () => {
     expect(error).toBeInstanceOf(TypeError);
     expect((error as Error).message).not.toContain("secret-value-018");
     expect((error as Error).stack ?? "").not.toContain("secret-value-018");
+  });
+
+  it("bhv auth 037 a token provider is asked again for each request and its current value is sent", () => {
+    let current = "first";
+    const auth = new BearerAuthenticator(
+      "https://api.example.com",
+      () => current,
+    );
+    expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer first" });
+    current = "second";
+    expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer second" });
+  });
+
+  it("bhv auth 038 a token provider takes precedence over the same token read from the environment", () => {
+    const variable = "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN";
+    const saved = process.env[variable];
+    process.env[variable] = "from-env";
+    try {
+      const auth = new BearerAuthenticator(
+        "https://api.example.com",
+        () => "from-provider",
+      );
+      expect(auth.getAuthHeaders()).toEqual({
+        Authorization: "Bearer from-provider",
+      });
+    } finally {
+      if (saved === undefined) {
+        delete process.env[variable];
+      } else {
+        process.env[variable] = saved;
+      }
+    }
+  });
+});
+
+describe("BearerAuthenticator misc behaviours", () => {
+  test("bhv misc 017 a rejected credential is never named in the construction error", () => {
+    const construct = (): unknown =>
+      new BearerAuthenticator(
+        "https://api.example.com",
+        "tok\r\nInjected: yes",
+      );
+    expect(construct).toThrow(TypeError);
+    expect(construct).not.toThrow(/Injected/);
+  });
+});
+
+describe("BearerAuthenticator token provider results", () => {
+  it("bhv misc 066 a token provider value is sent as the bearer credential", async () => {
+    const auth = new BearerAuthenticator(
+      "https://api.example.com",
+      () => "live",
+    );
+    expect(await auth.getAuthHeadersAsync()).toEqual({
+      Authorization: "Bearer live",
+    });
+  });
+
+  it("bhv misc 067 a token provider error reaches the caller unchanged", async () => {
+    const failure = new Error("provider boom");
+    const auth = new BearerAuthenticator("https://api.example.com", () => {
+      throw failure;
+    });
+    await expect(auth.getAuthHeadersAsync()).rejects.toBe(failure);
+  });
+});
+
+describe("BearerAuthenticator misc behaviours", () => {
+  it("bhv misc 174 a bearer token containing a line break is refused, and the error never repeats it", () => {
+    let error: unknown;
+    try {
+      new BearerAuthenticator("https://api.example.com", "abc\ndef");
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).not.toContain("abc");
   });
 });

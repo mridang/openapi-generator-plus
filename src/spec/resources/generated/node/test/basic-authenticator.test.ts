@@ -30,6 +30,13 @@ describe("BasicAuthenticator", () => {
     });
   });
 
+  it("bhv auth 036 a username containing a colon is rejected with an error", () => {
+    expect(
+      () =>
+        new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"),
+    ).toThrow("Basic auth username must not contain ':' (RFC 7617 §2)");
+  });
+
   it("bhv authbasic 018 a password may contain a colon", () => {
     const auth = new BasicAuthenticator(
       "https://api.example.com",
@@ -207,9 +214,8 @@ describe("BasicAuthenticator", () => {
       );
     });
 
-    it.each([userVariable, secretVariable])(
-      "an empty %s counts as unset",
-      (empty) => {
+    it("bhv misc 068 an empty user or password variable counts as unset", () => {
+      for (const empty of [userVariable, secretVariable]) {
         process.env[userVariable] = "alice";
         process.env[secretVariable] = "x";
         process.env[empty] = "";
@@ -225,7 +231,7 @@ describe("BasicAuthenticator", () => {
             `${empty === userVariable ? "Basic auth username" : "Basic auth password"} is required: pass it explicitly or set ${empty}`,
           ),
         );
-      },
-    );
+      }
+    });
   });
 });

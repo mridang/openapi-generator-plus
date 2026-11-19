@@ -182,9 +182,14 @@ def _assert_each_empty_variable_is_unset(
             _scheme_class(module, name)(HOST)
 
 
+def test_bhv_misc_073_a_wrapper_class_exists_for_every_declared_scheme() -> None:
+    for module, name, _variables, _bearer, _basic, _api_key in SCHEMES:
+        assert _scheme_class(module, name) is not None
+
+
 @pytest.mark.parametrize("module,name,variables,bearer,basic,api_key", SCHEMES)
 class TestSchemeAuthenticatorEnvironment:
-    def test_it_builds_from_its_environment_variables_alone(
+    def test_bhv_lang_python_189_it_builds_from_its_environment_variables_alone(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -212,7 +217,7 @@ class TestSchemeAuthenticatorEnvironment:
 
         assert _scheme_class(module, name)(HOST, **_explicit(variables)) is not None
 
-    def test_a_missing_credential_names_its_variable(
+    def test_bhv_lang_python_190_a_missing_credential_names_its_variable(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -260,6 +265,18 @@ class TestSchemeAuthenticatorEnvironment:
             with pytest.raises(ValueError, match=missing):
                 _scheme_class(module, name)(HOST)
 
+    def test_bhv_misc_208_an_empty_environment_variable_for_an_implicit_credential_fails_as_unset(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+        bearer: bool,
+        basic: bool,
+        api_key: bool,
+    ) -> None:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
 
 BEARER_SCHEMES = [
     (module, name, variables)
@@ -280,6 +297,18 @@ API_KEY_SCHEMES = [
 
 @pytest.mark.parametrize("module,name,variables", BEARER_SCHEMES)
 class TestBearerSchemeAuthenticator:
+    def test_bhv_misc_196_a_scheme_wrapper_with_no_token_from_argument_or_environment_fails(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        module: str,
+        name: str,
+        variables: List[Tuple[str, str]],
+    ) -> None:
+        _clear(monkeypatch, variables)
+
+        with pytest.raises(ValueError, match=variables[0][1]):
+            _scheme_class(module, name)(HOST)
+
     def test_bhv_authbearer_018_an_explicit_token_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -293,7 +322,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer explicit"
 
-    def test_the_environment_supplies_the_token(
+    def test_bhv_lang_python_191_the_environment_supplies_the_token(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -375,7 +404,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer first"
 
-    def test_a_token_provider_wins_over_the_environment(
+    def test_bhv_auth_038_a_token_provider_wins_over_the_environment(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -401,7 +430,7 @@ class TestBearerSchemeAuthenticator:
 
         assert authenticator.get_auth_headers()["Authorization"] == "Bearer live"
 
-    def test_a_token_and_a_token_provider_together_are_rejected(
+    def test_bhv_auth_039_a_token_and_a_token_provider_together_are_rejected(
         self, module: str, name: str, variables: List[Tuple[str, str]]
     ) -> None:
         with pytest.raises(ValueError, match="not both"):
@@ -438,7 +467,7 @@ class TestBasicSchemeAuthenticator:
         assert authenticator.username == "explicit-user"
         assert authenticator.password == "explicit-pass"
 
-    def test_the_environment_supplies_the_username_and_password(
+    def test_bhv_lang_python_192_the_environment_supplies_the_username_and_password(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,
@@ -468,6 +497,16 @@ class TestBasicSchemeAuthenticator:
 
         assert auth.get_auth_headers() == base.get_auth_headers()
 
+    def test_bhv_misc_193_a_basic_scheme_sends_the_same_header_as_its_base(
+        self, module: str, name: str, variables: List[Tuple[str, str]]
+    ) -> None:
+        import base64
+
+        authenticator = _scheme_class(module, name)(HOST, "alice", "s3cret")
+
+        expected = "Basic " + base64.b64encode(b"alice:s3cret").decode()
+        assert authenticator.get_auth_headers() == {"Authorization": expected}
+
 
 @pytest.mark.parametrize("module,name,variables", API_KEY_SCHEMES)
 class TestApiKeySchemeAuthenticator:
@@ -484,7 +523,7 @@ class TestApiKeySchemeAuthenticator:
 
         assert authenticator.api_key == "explicit"
 
-    def test_the_environment_supplies_the_key(
+    def test_bhv_lang_python_193_the_environment_supplies_the_key(
         self,
         monkeypatch: pytest.MonkeyPatch,
         module: str,

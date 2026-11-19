@@ -491,6 +491,14 @@ class ApiException extends OpenAPIException
             return null;
         }
 
+        /* A typed view is a model, so only a JSON object can be read as one: a scalar,
+         * an array or text that is not JSON is a serialization error. */
+        if (!is_object(json_decode($this->responseBody, false))) {
+            throw new SerializationException(
+                'The error body is not a JSON object and cannot be read as ' . $class
+            );
+        }
+
         /** @var object|null $result */
         $result = ObjectSerializer::deserialize($this->responseBody, $class);
         return $result;

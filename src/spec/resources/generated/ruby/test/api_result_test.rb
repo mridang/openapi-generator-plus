@@ -58,7 +58,7 @@ describe Petstore::Client::ApiResult do
     _(result.headers).must_be :frozen?
   end
 
-  it 'does not freeze the caller hash' do
+  it 'bhv_langruby_016 does not freeze the caller hash' do
     headers = { 'Content-Type' => 'application/json' }
     result = Petstore::Client::ApiResult.new(
       status_code: 200, data: nil, raw_body: '', headers: headers

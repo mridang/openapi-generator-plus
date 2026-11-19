@@ -9,6 +9,7 @@ import { OAuth2TokenManager } from "../src/auth/oauth/oauth2-token-manager.js";
 import { OAuth2ServerError } from "../src/errors/oauth2-server-error.js";
 import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
 import { NetworkError } from "../src/errors/network-error.js";
+import { ApiError } from "../src/errors/api-error.js";
 import { OpenAPIError } from "../src/errors/open-api-error.js";
 import type { ApiClient, SendRequestOptions } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
@@ -71,6 +72,37 @@ describe("OAuth2TokenManager", () => {
     );
 
     expect(token).toBe("my-access-token");
+  });
+
+  test("bhvMisc172 a token request is sent once and not retried when the server answers 503", async () => {
+    mockClient.responseStatus = 503;
+    mockClient.responseBody = "{}";
+
+    await expect(
+      tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toThrow();
+
+    expect(mockClient.lastOptions?.maxRetries).toBe(0);
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test("bhvMisc185 stopping the token manager twice is a no-op and a later token request fails with a fixed ApiError", async () => {
+    tokenManager.stop();
+    tokenManager.stop();
+
+    const error = await tokenManager
+      .getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      })
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as Error).message).toBe(
+      "The token manager has been stopped.",
+    );
+    expect(mockClient.callCount).toBe(0);
   });
 
   test("bhv authoauthtwotokenmgr 028 stores refresh token", async () => {
@@ -384,6 +416,141 @@ describe("OAuth2TokenManager", () => {
     expect(first).toBe("neg1");
     expect(second).toBe("neg2");
     expect(n).toBe(2);
+  });
+
+  test("bhv auth 056 an expires_in that is not a plain decimal number marks the token stale, and a padded decimal is honoured", async () => {
+    const grant = { grant_type: "client_credentials" };
+    mockClient.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: "60s",
+    });
+    await tokenManager.getAccessToken("https://auth.example.com/token", grant);
+    await tokenManager.getAccessToken("https://auth.example.com/token", grant);
+    expect(mockClient.callCount).toBe(2);
+
+    const padded = new OAuth2TokenManager();
+    padded.setApiClient(mockClient);
+    mockClient.callCount = 0;
+    mockClient.responseBody = JSON.stringify({
+      access_token: "at",
+      expires_in: " 3600 ",
+    });
+    await padded.getAccessToken("https://auth.example.com/token", grant);
+    await padded.getAccessToken("https://auth.example.com/token", grant);
+    expect(mockClient.callCount).toBe(1);
+  });
+
+  test("bhv auth 057 a refresh that is rejected, unreachable or malformed falls back to the original grant", async () => {
+    const replies: ApiHttpResponse[] = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          access_token: "first",
+          refresh_token: "rt",
+          expires_in: 0,
+        }),
+        headers: { "content-type": "application/json" },
+      },
+      { statusCode: 503, body: "unavailable", headers: {} },
+      {
+        statusCode: 200,
+        body: JSON.stringify({ access_token: "fallback", expires_in: 3600 }),
+        headers: { "content-type": "application/json" },
+      },
+    ];
+    const bodies: string[] = [];
+    tokenManager.setApiClient({
+      sendRequest: async (
+        _method: string,
+        _url: string,
+        _headers: Record<string, string>,
+        body: string | Buffer | null,
+      ) => {
+        bodies.push(String(body));
+        return replies.shift() as ApiHttpResponse;
+      },
+    } as unknown as ApiClient);
+    const grant = { grant_type: "client_credentials" };
+
+    await tokenManager.getAccessToken("https://auth.example.com/token", grant);
+    const token = await tokenManager.getAccessToken(
+      "https://auth.example.com/token",
+      grant,
+    );
+
+    expect(token).toBe("fallback");
+    expect(new URLSearchParams(bodies[2]).get("grant_type")).toBe(
+      "client_credentials",
+    );
+  });
+
+  test("bhv auth 058 a request that needs a new token uses the refresh grant first when a refresh token is held", async () => {
+    const replies: ApiHttpResponse[] = [
+      {
+        statusCode: 200,
+        body: JSON.stringify({
+          access_token: "first",
+          refresh_token: "rt",
+          expires_in: 0,
+        }),
+        headers: { "content-type": "application/json" },
+      },
+      {
+        statusCode: 200,
+        body: JSON.stringify({ access_token: "refreshed", expires_in: 3600 }),
+        headers: { "content-type": "application/json" },
+      },
+    ];
+    const bodies: string[] = [];
+    tokenManager.setApiClient({
+      sendRequest: async (
+        _method: string,
+        _url: string,
+        _headers: Record<string, string>,
+        body: string | Buffer | null,
+      ) => {
+        bodies.push(String(body));
+        return replies.shift() as ApiHttpResponse;
+      },
+    } as unknown as ApiClient);
+    const grant = { grant_type: "client_credentials" };
+
+    await tokenManager.getAccessToken("https://auth.example.com/token", grant);
+    await tokenManager.getAccessToken("https://auth.example.com/token", grant);
+
+    expect(new URLSearchParams(bodies[1]).get("grant_type")).toBe(
+      "refresh_token",
+    );
+  });
+
+  test("bhv auth 054 a non-success token response surfaces as OAuth2ServerError naming the status and the body", async () => {
+    mockClient.responseStatus = 500;
+    mockClient.responseBody = "upstream exploded";
+
+    const error = await tokenManager
+      .getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(OAuth2ServerError);
+    expect((error as Error).message).toContain("500");
+    expect((error as Error).message).toContain("upstream exploded");
+  });
+
+  test("bhv auth 055 a network failure during a token request reaches the caller unchanged", async () => {
+    const failure = new Error("socket hang up");
+    tokenManager.setApiClient({
+      sendRequest: async () => {
+        throw failure;
+      },
+    } as unknown as ApiClient);
+
+    await expect(
+      tokenManager.getAccessToken("https://auth.example.com/token", {
+        grant_type: "client_credentials",
+      }),
+    ).rejects.toBe(failure);
   });
 
   test("bhv authoauthtwotokenmgr 031 throws when token request fails", async () => {
@@ -735,16 +902,15 @@ describe("OAuth2TokenManager", () => {
     expect(bodies).toHaveLength(2);
   });
 
-  test.each([
-    ["authorization_code", { grant_type: "authorization_code", code: "abc" }],
-    ["client_credentials", { grant_type: "client_credentials" }],
-    [
-      "password",
-      { grant_type: "password", username: "user", password: "pass" },
-    ],
-  ])(
-    "the %s token request is form-encoded and asks for JSON",
-    async (_grant, params) => {
+  test("bhv langnode 092 every token request is form-encoded and asks for JSON", async () => {
+    for (const [, params] of [
+      ["authorization_code", { grant_type: "authorization_code", code: "abc" }],
+      ["client_credentials", { grant_type: "client_credentials" }],
+      [
+        "password",
+        { grant_type: "password", username: "user", password: "pass" },
+      ],
+    ] as const) {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",
         expires_in: 3600,
@@ -759,8 +925,8 @@ describe("OAuth2TokenManager", () => {
         "application/x-www-form-urlencoded",
       );
       expect(mockClient.lastHeaders["Accept"]).toBe("application/json");
-    },
-  );
+    }
+  });
 
   test("bhv authoauthtwotokenmgr 035 the refresh grant request is form-encoded and asks for JSON", async () => {
     const headers: Array<Record<string, string>> = [];
@@ -1243,9 +1409,8 @@ describe("OAuth2TokenManager", () => {
     ).toBe("no-type");
   });
 
-  test.each([["bearer"], ["Bearer"], ["BEARER"]])(
-    "token_type %p is accepted",
-    async (tokenType) => {
+  test("bhv langnode 093 token_type is accepted in any letter case", async () => {
+    for (const [tokenType] of [["bearer"], ["Bearer"], ["BEARER"]]) {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",
         token_type: tokenType,
@@ -1256,8 +1421,8 @@ describe("OAuth2TokenManager", () => {
           grant_type: "client_credentials",
         }),
       ).toBe("tok");
-    },
-  );
+    }
+  });
 
   test("bhv authoauthtwotokenmgr 027 coalesces concurrent refresh calls into single token request", async () => {
     let pendingResolve: ((value: ApiHttpResponse) => void) | null = null;
@@ -1525,5 +1690,41 @@ describe("OAuth2TokenManager", () => {
 
     expect(calls).toBe(1);
     expect(new Set(tokens)).toEqual(new Set(["shared1"]));
+  });
+});
+
+describe("OAuth2TokenManager misc behaviours", () => {
+  it("bhv misc 059 a token whose lifetime is not finite is not cached", async () => {
+    const client = new MockApiClient();
+    client.responseBody = '{"access_token":"at","expires_in":1e400}';
+    const manager = new OAuth2TokenManager();
+    manager.setApiClient(client);
+
+    await manager.getAccessToken("https://auth.example.com/token", {
+      grant_type: "client_credentials",
+    });
+    await manager.getAccessToken("https://auth.example.com/token", {
+      grant_type: "client_credentials",
+    });
+
+    expect(client.callCount).toBe(2);
+  });
+
+  it("bhv misc 069 an access token that is empty or not a string is refused naming the field", async () => {
+    for (const body of ['{"access_token":""}', '{"access_token":7}']) {
+      const client = new MockApiClient();
+      client.responseBody = body;
+      const manager = new OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      const error = await manager
+        .getAccessToken("https://auth.example.com/token", {
+          grant_type: "client_credentials",
+        })
+        .catch((e: unknown) => e);
+
+      expect((error as Error).constructor).toBe(OAuth2TokenError);
+      expect((error as Error).message).toContain("access_token");
+    }
   });
 });

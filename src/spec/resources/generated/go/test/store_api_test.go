@@ -440,7 +440,7 @@ func TestBhvOperations107_StoreApi_GetBySwatchOmitsUnsetOptionalEnumParameters(t
 
 // Nested containers and enum bodies decode into their typed leaves through the
 // operation, not just through the serializer.
-func TestStoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
+func TestBhvLanggo008_StoreApi_NestedContainerOperationsDecodeTypedLeaves(t *testing.T) {
 	t.Parallel()
 
 	t.Run("matrix", func(t *testing.T) {
@@ -872,5 +872,24 @@ func TestBhvOperations139_StoreApi_SearchStoreKeepsTheFractionOfATimeParameter(t
 	}
 	if want := "at=10%3A30%3A00.123"; query != want {
 		t.Errorf("expected query %q, got %q", want, query)
+	}
+}
+
+// A 201 body is decoded as the new receipt, because the status is what selects the schema.
+func TestBhvMisc114_StoreApi_ReserveStockDecodesA201AsTheReceipt(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte(`{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00.000+00:00"}`))
+	}))
+	defer server.Close()
+
+	result, err := newStoreApiForMock(t, server).ReserveStock(context.Background())
+	if err != nil {
+		t.Fatalf("ReserveStock failed: %v", err)
+	}
+	if !result.IsReservationReceipt() {
+		t.Errorf("expected the receipt for a 201, got %T", result.ActualInstance())
 	}
 }

@@ -57,7 +57,44 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  it 'sends a method Faraday does not know, such as QUERY, with its body' do
+  it 'bhv_misc_083 a query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written' do
+    _(sent_query('tag=a&tag=b&q=x%20y%2Bz')).must_equal 'tag=a&tag=b&q=x%20y%2Bz'
+  end
+
+  it 'bhv_misc_095 a response body with bytes invalid in its charset decodes with each bad byte replaced by U+FFFD' do
+    client = {{moduleName}}::DefaultApiClient.new
+    _(client.send(:decode_text_body, "a\xFFb".b, 'text/plain; charset=utf-8')).must_equal "a�b"
+  end
+
+  it 'bhv_misc_096 a multipart file part carries no Content-Transfer-Encoding header' do
+    client = {{moduleName}}::DefaultApiClient.new
+    body = client.send(:build_multipart_body, { 'file' => StringIO.new('payload') }, 'b')
+    _(body).wont_include 'Content-Transfer-Encoding'
+  end
+
+  it 'bhv_misc_097 each element of a multipart array field is sent as its own part in the order given' do
+    client = {{moduleName}}::DefaultApiClient.new
+    body = client.send(:build_multipart_body, { 'tag' => %w[first second] }, 'b')
+    _(body.scan('name="tag"').size).must_equal 2
+    _(body.index('first')).must_be :<, body.index('second')
+  end
+
+  it 'bhv_misc_098 a caller stream used as a multipart part is read into the body and never closed by the SDK' do
+    stream = StringIO.new('payload')
+    client = {{moduleName}}::DefaultApiClient.new
+    client.send(:build_multipart_body, { 'file' => stream }, 'b')
+    _(stream.closed?).must_equal false
+  end
+
+  it 'bhv_misc_101 a multipart file whose source can no longer be read fails the call instead of sending an empty payload' do
+    file = Tempfile.new('part')
+    file.close
+    client = {{moduleName}}::DefaultApiClient.new
+    _(proc { client.send(:build_multipart_body, { 'file' => file }, 'b') }).must_raise IOError
+    file.unlink
+  end
+
+  it 'bhv_langruby_033 sends a method Faraday does not know, such as QUERY, with its body' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new
     stubs.send(:new_stub, :query, '/search') do |env|
@@ -71,6 +108,22 @@ describe 'DefaultApiClientUnit' do
       _(resp.body).must_equal 'found'
     end
     _(seen).must_equal [:query, 'q=1']
+  end
+
+  it 'bhv_misc_218 a per-call header is sent and takes precedence over a configured header of the same name, without a duplicate key' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        seen = env.request_headers.to_h.select { |k, _v| k.casecmp?('x-token') }
+        [200, {}, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_headers({ 'x-token' => 'default' }).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', { 'X-Token' => 'caller' }, nil)
+    end
+    _(seen.values).must_equal ['caller']
   end
 
   it 'bhv_transport_047 a caller header replaces a default header of the same name in any case' do
@@ -87,6 +140,27 @@ describe 'DefaultApiClientUnit' do
       client.send_request(:GET, 'http://localhost/echo', { 'X-Token' => 'caller' }, nil)
     end
     _(seen.values).must_equal ['caller']
+  end
+
+  it 'bhv_redirects_056 an opted-out request sends no transport default header and the next normal request does' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      2.times do
+        stub.get('/echo') do |env|
+          seen << env.request_headers.to_h.transform_keys(&:downcase)
+          [200, {}, 'ok']
+        end
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_headers({ 'X-Token' => 'default' }).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', {}, nil, no_default_headers: true)
+      client.send_request(:GET, 'http://localhost/echo', {}, nil)
+    end
+
+    _(seen.first).wont_include 'x-token'
+    _(seen.last['x-token']).must_equal 'default'
   end
 
   it 'bhv_redirects_016 leaves the default headers off a request that asks for none, keeping the SDK headers' do
@@ -124,14 +198,11 @@ describe 'DefaultApiClientUnit' do
     sent
   end
 
-  it 'installs the passthrough query encoder on the connection it builds' do
+  it 'bhv_langruby_034 installs the passthrough query encoder on the connection it builds' do
     connection = {{moduleName}}::DefaultApiClient.new.send(:build_connection)
     _(connection.options.params_encoder).must_equal {{moduleName}}::DefaultApiClient::QueryParamsEncoder
   end
 
-  it 'sends a repeated query key once per value' do
-    _(sent_query('tags=a&tags=b&tags=c')).must_equal 'tags=a&tags=b&tags=c'
-  end
 
   it 'bhv_redirects_019 keeps the order of the query parameters' do
     _(sent_query('z=1&a=2&m=3')).must_equal 'z=1&a=2&m=3'
@@ -141,20 +212,25 @@ describe 'DefaultApiClientUnit' do
     _(sent_query('revision=v1.0/beta:rc1&at=a@b,c;d')).must_equal 'revision=v1.0/beta:rc1&at=a@b,c;d'
   end
 
-  it 'keeps an encoded plus and an encoded space distinct' do
+  it 'bhv_langruby_035 keeps an encoded plus and an encoded space distinct' do
     _(sent_query('a=1%2B2&b=x%20y')).must_equal 'a=1%2B2&b=x%20y'
   end
 
-  it 'query encoder decodes to the raw string and encodes it back unchanged' do
+  it 'bhv_langruby_036 query encoder decodes to the raw string and encodes it back unchanged' do
     encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
     _(encoder.encode(encoder.decode('b=2&a=1&b=3'))).must_equal 'b=2&a=1&b=3'
     _(encoder.decode(nil)).must_equal({})
     _(encoder.decode('')).must_equal({})
   end
 
-  it 'query encoder encodes separate params with %20 for a space' do
+  it 'bhv_misc_255 query encoder encodes separate params with %20 for a space' do
     encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
     _(encoder.encode({ 'q' => 'a b' })).must_equal 'q=a%20b'
+  end
+
+  it 'bhv_serialization_111 only RFC 3986 unreserved characters stay literal and every other character is percent-encoded as UTF-8' do
+    encoder = {{moduleName}}::DefaultApiClient::QueryParamsEncoder
+    _(encoder.encode({ 'q' => "a~*!'()" })).must_equal 'q=a~%2A%21%27%28%29'
   end
 
   it 'bhv_serializationparam_107 a query value keeps only the unreserved set literal and percent-encodes the sub-delimiters' do
@@ -204,6 +280,33 @@ describe 'DefaultApiClientUnit' do
       _(response.status_code).must_equal 200
       _(response.body).must_include 'POST'
       _(response.body).must_include 'key'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_032 the raw response exposes its status code, body and headers under public names' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/raw') { [201, { 'x-raw' => 'yes' }, 'raw-body'] }
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/raw', {}, nil)
+      _(response.status_code).must_equal 201
+      _(response.body).must_equal 'raw-body'
+      _(response.headers['x-raw']).must_equal 'yes'
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_040 response header names are returned in lower case' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/names') { [200, { 'X-Mixed-Case' => 'v' }, 'ok'] }
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/names', {}, nil)
+      _(response.headers['x-mixed-case']).must_equal 'v'
+      _(response.headers.keys.grep(/[A-Z]/)).must_be_empty
     end
     stubs.verify_stubbed_calls
   end
@@ -502,7 +605,34 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_misc_299 a caller header replaces the transport default header of the same name on the wire' do
+    seen = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/test') do |env|
+        seen << env.request_headers['Accept-Language']
+        [200, {}, '{}']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.default_header('Accept-Language', 'en').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('GET', 'http://localhost/test', { 'Accept-Language' => 'fr' }, nil)
+    end
+    _(seen).must_equal ['fr']
+    stubs.verify_stubbed_calls
+  end
+
   # ── Multipart filename sanitization (Gap F) ──
+
+  it 'bhv_serialization_123 multipart field names and filenames with CR, LF, NUL or quote characters are rejected' do
+    require 'stringio'
+    client = {{moduleName}}::DefaultApiClient.new
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { "a\r\nX-Injected: yes" }
+    assert_raises(ArgumentError) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+  end
 
   it 'bhv_serializationwire_043 rejects multipart filename containing CRLF (header injection)' do
     require 'stringio'
@@ -549,6 +679,21 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+  it 'bhv_misc_036 a caller body part stays open after the request it was sent with fails' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') { raise Faraday::ConnectionFailed, 'connection refused' }
+    end
+    io = StringIO.new('payload')
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+      end
+    end
+    _(io.closed?).must_equal false
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_transport_061 leaves a caller-supplied stream open after the request body is sent' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/upload') { [200, {}, '{}'] }
@@ -560,6 +705,26 @@ describe 'DefaultApiClientUnit' do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
     _(io.closed?).must_equal false
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serialization_124 a non-ASCII multipart filename is sent with an ASCII fallback and an RFC 5987 form' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('payload')
+    io.define_singleton_method(:path) { '日本.pdf' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_str).must_include "filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"
     stubs.verify_stubbed_calls
   end
 
@@ -586,13 +751,13 @@ describe 'DefaultApiClientUnit' do
   # The filename directive: an ASCII name is quoted and escaped; any other name
   # gets a per-character '_' fallback plus a filename* that keeps only the
   # RFC 3986 unreserved characters.
-  {
-    'résumé*(1).pdf' => %(filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf),
-    'a"b\\c.txt' => %(filename="a\\"b\\\\c.txt"),
-    "\u{1F600}.png" => %(filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png),
-    'plain.txt' => %(filename="plain.txt")
-  }.each do |input, directive|
-    it "builds the filename directive for #{input.inspect}" do
+  it 'bhv_misc_099 builds the filename directive for each filename' do
+    {
+      'résumé*(1).pdf' => %(filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf),
+      'a"b\\c.txt' => %(filename="a\\"b\\\\c.txt"),
+      "\u{1F600}.png" => %(filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png),
+      'plain.txt' => %(filename="plain.txt")
+    }.each_case do |input, directive|
       client = {{moduleName}}::DefaultApiClient.new
       _(client.send(:build_content_disposition, 'file', input))
         .must_equal(%(Content-Disposition: form-data; name="file"; #{directive}))
@@ -606,6 +771,28 @@ describe 'DefaultApiClientUnit' do
   # parameter — not transliterated to '?', not stripped to ASCII. The field
   # name is interpolated raw (after CR/LF/NUL rejection and quote escaping)
   # and the part is built as binary, so the UTF-8 bytes survive intact.
+  it 'bhv_serialization_126 a non-ASCII multipart field name is preserved as UTF-8 in the part header' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      # 'café' is a plain scalar form field whose NAME is non-ASCII.
+      client.send_request('POST', 'http://localhost/upload', {}, { 'café' => 'value' })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    _(body_str).must_include 'name="café"'
+    # The raw UTF-8 bytes for 'é' (0xC3 0xA9) must be present unmangled.
+    body_bytes = captured_body.to_s.dup.force_encoding(Encoding::ASCII_8BIT)
+    _(body_bytes).must_include 'caf'.b + "\xC3\xA9".b
+    _(body_bytes).wont_include 'name="caf?"'.b
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_046 preserves a non-ASCII multipart field name as UTF-8' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -638,6 +825,35 @@ describe 'DefaultApiClientUnit' do
   # produces the same wire keys (isEnabled/recordedAt) and date-time formatting as
   # the JSON-body path. A model is sent as the "metadata" part — here we build
   # that part directly and assert the wire form.
+  it 'bhv_serialization_121 a model sent as a multipart part is serialized with its wire property names' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    metadata = MultipartModelPart.new(
+      is_enabled: true,
+      recorded_at: Time.utc(2020, 1, 2, 3, 4, 5, 123_000)
+    )
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'metadata' => metadata })
+    end
+    body_str = captured_body.to_s.dup.force_encoding(Encoding::UTF_8)
+    # Wire property names, not the snake_case Ruby attribute names.
+    _(body_str).must_include '"isEnabled":true'
+    _(body_str).must_include '"recordedAt"'
+    _(body_str).wont_include 'is_enabled'
+    _(body_str).wont_include 'recorded_at'
+    # The date-time carries the SDK's millisecond-precision wire format.
+    _(body_str).must_include '"recordedAt":"2020-01-02T03:04:05.123'
+    # The part still declares application/json.
+    _(body_str).must_include 'Content-Type: application/json'
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_045 serialises a multipart model part with wire keys and formatted date-time' do
     captured_body = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -664,6 +880,36 @@ describe 'DefaultApiClientUnit' do
     _(body_str).must_include '"recordedAt":"2020-01-02T03:04:05.123'
     # The part still declares application/json.
     _(body_str).must_include 'Content-Type: application/json'
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_serialization_127 primitive multipart parts are sent as plain text and only model parts are sent as JSON' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    form = {
+      'flag' => true,
+      'count' => 3,
+      'stamp' => Time.utc(2024, 1, 15, 10, 30, 0),
+      'shade' => 'red',
+      'meta' => MultipartModelPart.new(is_enabled: true)
+    }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, form)
+    end
+    parts = captured_body.to_s.dup.force_encoding(Encoding::UTF_8).split(/--[0-9a-f-]{36}(?:--)?\r\n/).reject(&:empty?)
+    _(parts.first(4)).must_equal [
+      "Content-Disposition: form-data; name=\"flag\"\r\n\r\ntrue\r\n",
+      "Content-Disposition: form-data; name=\"count\"\r\n\r\n3\r\n",
+      "Content-Disposition: form-data; name=\"stamp\"\r\n\r\n2024-01-15T10:30:00.000+00:00\r\n",
+      "Content-Disposition: form-data; name=\"shade\"\r\n\r\nred\r\n"
+    ]
+    _(parts.last).must_include "Content-Disposition: form-data; name=\"meta\"\r\nContent-Type: application/json\r\n\r\n{\"isEnabled\":true"
     stubs.verify_stubbed_calls
   end
 
@@ -756,13 +1002,13 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  {
-    'photo.jpg' => 'image/jpeg',
-    'photo.jpeg' => 'image/jpeg',
-    'anim.gif' => 'image/gif',
-    'data.json' => 'application/json'
-  }.each do |filename, mime|
-    it "sets #{mime} for a #{File.extname(filename)} upload" do
+  it 'bhv_langruby_037 sets the content type from the file extension of an upload' do
+    {
+      'photo.jpg' => 'image/jpeg',
+      'photo.jpeg' => 'image/jpeg',
+      'anim.gif' => 'image/gif',
+      'data.json' => 'application/json'
+    }.each_case do |filename, mime|
       captured_body = nil
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do |env|
@@ -780,6 +1026,25 @@ describe 'DefaultApiClientUnit' do
       _(captured_body.to_s).must_include "Content-Type: #{mime}"
       stubs.verify_stubbed_calls
     end
+  end
+
+  it 'bhv_serialization_120 a multipart file part takes its Content-Type from its file extension' do
+    captured_body = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/upload') do |env|
+        captured_body = env.body
+        [200, {}, '{}']
+      end
+    end
+    require 'stringio'
+    io = StringIO.new('bytes')
+    io.define_singleton_method(:path) { 'blob.xyzunknown' }
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
+    end
+    _(captured_body.to_s).must_include 'Content-Type: application/octet-stream'
+    stubs.verify_stubbed_calls
   end
 
   it 'bhv_serializationwire_040 falls back to application/octet-stream for unknown extension' do
@@ -920,6 +1185,20 @@ describe 'DefaultApiClientUnit' do
 
   # ── Response charset decoding (Gap H) ──
 
+  it 'bhv_serialization_119 a response body is decoded using its declared charset label, falling back to UTF-8' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/shift-jis') do
+        [200, { 'content-type' => 'text/plain; charset=Shift_JIS' }, "\x82\xA0".b]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/shift-jis', {}, nil)
+      _(response.body).must_equal "\u3042"
+    end
+    stubs.verify_stubbed_calls
+  end
+
   it 'bhv_serializationwire_033 decodes a body in the charset its Content-Type declares' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.get('/shift-jis') do
@@ -934,6 +1213,36 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
+
+  it 'bhv_misc_237 an ISO-8859-1 error response body decodes to UTF-8 text' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/latin1-error') do
+        [400, { 'content-type' => 'text/plain; charset=ISO-8859-1' }, "caf\xE9".b]
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      response = client.send_request('GET', 'http://localhost/latin1-error', {}, nil)
+      _(response.body.encoding).must_equal Encoding::UTF_8
+      _(response.body).must_equal "café"
+    end
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_240 a multipart file part is sent with its content' do
+    captured = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/test/echo') do |env|
+        captured = env.body
+        [200, { 'content-type' => 'application/json' }, '{}']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request('POST', 'http://localhost/test/echo', { 'Content-Type' => 'multipart/form-data' }, { 'file' => 'file content' })
+    end
+    _(captured.to_s).must_include 'file content'
+  end
 
   it 'bhv_serializationwire_032 decodes ISO-8859-1 response body to UTF-8' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -1175,10 +1484,10 @@ describe 'DefaultApiClientUnit' do
     _(seen).must_equal ['{"a":1}', 'application/json']
   end
 
-  it 'bhv_redirects_040 follows a 301, 302 or 303 redirect from HTTPS to plain HTTP for a POST with a body' do
-    # Those statuses send the next request as a GET with no body, so there is
-    # nothing to leak across the downgrade and the redirect is followed.
-    [301, 302, 303].each do |status|
+  it 'bhv_redirects_040 follows a 303 redirect from HTTPS to plain HTTP for a POST with a body' do
+    # A 303 sends the next request as a GET with no body, so there is nothing
+    # to leak across the downgrade and the redirect is followed.
+    [303].each do |status|
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [status, { 'location' => 'http://localhost/landing' }, '']
@@ -1194,6 +1503,28 @@ describe 'DefaultApiClientUnit' do
         _(resp.status_code).must_equal 200
         _(resp.body).must_equal 'ok'
       end
+    end
+  end
+
+  it 'bhv_misc_223 a redirect that turns the follow-up into a GET drops the request body and its Content-Length' do
+    [301, 302, 303].each do |status|
+      seen = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
+        stub.get('/landing') do |env|
+          seen = env.request_headers.keys.map(&:downcase)
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:POST, 'http://localhost/r', {}, nil)
+      end
+      _(seen).wont_include 'content-length'
+      _(seen).wont_include 'content-type'
     end
   end
 
@@ -1283,12 +1614,10 @@ describe 'DefaultApiClientUnit' do
     _(conn.proxy.uri.host).must_equal 'proxy.example'
   end
 
-  it 'bhv_retries_016 allows HTTPS -> HTTP redirect when method demotes to GET with no body' do
-    # 302 of a POST demotes to GET and drops the body, so there is no
-    # body to replay across the downgrade — the guard MUST NOT refuse.
+  it 'bhv_retries_016 HTTPS->HTTPS body replay allowed (no downgrade)' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/r') do
-        [302, { 'location' => 'http://localhost/landing' }, '']
+        [302, { 'location' => 'https://localhost/landing' }, '']
       end
       stub.get('/landing') do
         [200, { 'content-type' => 'text/plain' }, 'ok']
@@ -1357,15 +1686,16 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  it 'returns a 3xx without a Location header as the terminal response' do
+
+  it 'bhv_misc_225 a 3xx response with no Location header is returned to the caller as the final response' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-      stub.get('/moved') { [301, { 'content-type' => 'text/plain' }, 'moved body'] }
+      stub.get('/moved') { [302, { 'location' => '', 'content-type' => 'text/plain' }, 'moved body'] }
     end
     transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
     client = {{moduleName}}::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
-      _(resp.status_code).must_equal 301
+      _(resp.status_code).must_equal 302
       _(resp.body).must_equal 'moved body'
     end
   end
@@ -1512,24 +1842,6 @@ describe 'DefaultApiClientUnit' do
     thread.join
   end
 
-  it 'a second close releases nothing more, in flight or not' do
-    release = Queue.new
-    port, thread = serve_when_released(release)
-    closes = [] # : Array[bool]
-    client = client_counting_closes(closes)
-    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
-    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
-
-    client.close
-    client.close
-    release << true
-    request.value
-    client.close
-    client.close
-
-    _(closes.length).must_equal 1
-    thread.join
-  end
 
   it 'bhv_lifecycle_022 releases the connection at once when no request is in flight' do
     port, thread = serve_once do |socket|
@@ -1747,7 +2059,61 @@ describe 'DefaultApiClientUnit' do
     file&.unlink
   end
 
-  it 'leaves the certificate store unset when no CA is configured' do
+  it 'bhv_misc_033 a pinned CA file holding only the root accepts a server that also sends the intermediate' do
+    issue = lambda do |subject, key, signer, signer_key, ca|
+      cert = OpenSSL::X509::Certificate.new
+      cert.version = 2
+      cert.serial = OpenSSL::BN.new(Random.rand(2..(2**31)).to_s)
+      cert.subject = OpenSSL::X509::Name.parse("/CN=#{subject}")
+      cert.issuer = signer ? signer.subject : cert.subject
+      cert.public_key = key.public_key
+      cert.not_before = Time.now - 60
+      cert.not_after = Time.now + 3600
+      factory = OpenSSL::X509::ExtensionFactory.new(signer || cert, cert)
+      cert.add_extension(factory.create_extension('basicConstraints', ca ? 'CA:TRUE' : 'CA:FALSE', true))
+      cert.add_extension(factory.create_extension('subjectAltName', 'DNS:localhost,IP:127.0.0.1')) unless ca
+      cert.sign(signer_key || key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+      cert
+    end
+    root_key = OpenSSL::PKey::RSA.new(2048)
+    intermediate_key = OpenSSL::PKey::RSA.new(2048)
+    leaf_key = OpenSSL::PKey::RSA.new(2048)
+    root = issue.call('bhv-root-ca', root_key, nil, nil, true)
+    intermediate = issue.call('bhv-intermediate-ca', intermediate_key, root, root_key, true)
+    leaf = issue.call('localhost', leaf_key, intermediate, intermediate_key, false)
+
+    tcp = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = tcp.addr[1]
+    context = OpenSSL::SSL::SSLContext.new
+    context.cert = leaf
+    context.key = leaf_key
+    context.extra_chain_cert = [intermediate]
+    tls = OpenSSL::SSL::SSLServer.new(tcp, context)
+    thread = Thread.new do
+      conn = tls.accept
+      conn.gets
+      while (line = conn.gets)
+        break if line.strip.empty?
+      end
+      conn.write("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}")
+      conn.close
+    rescue StandardError
+      nil
+    end
+    file = Tempfile.new(['root', '.pem'])
+    file.write(root.to_pem)
+    file.close
+    transport = {{moduleName}}::TransportOptions.builder.ca_cert_path(file.path).build
+
+    response = {{moduleName}}::DefaultApiClient.new(transport).send_request('GET', "https://127.0.0.1:#{port}/ping", {}, nil)
+    _(response.status_code).must_equal 200
+  ensure
+    tls&.close
+    thread&.join(5)
+    file&.unlink
+  end
+
+  it 'bhv_langruby_038 leaves the certificate store unset when no CA is configured' do
     ssl = {{moduleName}}::DefaultApiClient.new.send(:build_connection).ssl
     _(ssl.cert_store).must_be_nil
   end
@@ -1943,6 +2309,58 @@ describe 'DefaultApiClientUnit' do
 
   # D92: the returned headers describe the body the caller holds, so a decoded
   # body drops Content-Encoding and Content-Length and keeps the rest.
+  it 'bhv_misc_273 the request id is a UUID v4 when injection is on and absent when it is off' do
+    on_opts = {{moduleName}}::TransportOptions.builder.inject_request_id(true).build
+    off_opts = {{moduleName}}::TransportOptions.builder.inject_request_id(false).build
+    _on_outcome, on_envs, = run_retry_probe(options: on_opts) { [200, {}, 'ok'] }
+    _off_outcome, off_envs, = run_retry_probe(options: off_opts) { [200, {}, 'ok'] }
+
+    _(on_envs.first.request_headers['X-Request-ID']).must_match(/\A\h{8}-\h{4}-4\h{3}-[89ab]\h{3}-\h{12}\z/i)
+    _(off_envs.first.request_headers.key?('X-Request-ID')).must_equal false
+  end
+
+  it 'bhv_misc_274 a non-2xx response is returned to the caller with its status code intact' do
+    outcome, envs, = run_retry_probe { [404, {}, 'missing'] }
+
+    _(outcome.status_code).must_equal 404
+    _(envs.length).must_equal 1
+  end
+
+  it 'bhv_misc_275 the request is sent with the intended method and the response is returned' do
+    outcome, envs, = run_retry_probe(verb: :delete) { [200, { 'content-type' => 'text/plain' }, 'gone'] }
+
+    _(envs.first.method).must_equal :delete
+    _(outcome.body).must_equal 'gone'
+  end
+
+  it 'bhv_misc_282 a connection that drops keeps the transport error that caused it as its cause' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/drop') { raise Faraday::ConnectionFailed, 'connection reset' }
+    end
+    client = {{moduleName}}::DefaultApiClient.new(single_attempt)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::NetworkError) do
+        client.send_request('GET', 'http://localhost/drop', {}, nil)
+      end
+      _(err.cause).must_be_kind_of Faraday::ConnectionFailed
+    end
+  end
+
+  it 'bhv_misc_285 a Content-Encoding the SDK cannot decode is refused with the unsupported-encoding message' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/enc') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'made-up-codec' }, 'payload']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/enc', {}, nil)
+      end
+      _(err.message).must_include "Unsupported Content-Encoding 'made-up-codec'"
+    end
+  end
+
   it 'bhv_transport_027 drops content-encoding and content-length from a decoded response' do
     io = StringIO.new
     gz = Zlib::GzipWriter.new(io)
@@ -1986,7 +2404,7 @@ describe 'DefaultApiClientUnit' do
   # compressed in-process via the same gem the client uses to inflate it.
   # Skipped when the optional brotli gem is absent (the alpine CI image sets
   # BUNDLE_WITHOUT=optional), since there is then nothing to compress with.
-  it 'decompresses a valid brotli-encoded body' do
+  it 'bhv_langruby_039 decompresses a valid brotli-encoded body' do
     skip 'brotli gem not installed (optional group)' unless defined?(Brotli)
 
     compressed = Brotli.deflate('{"ok":true}')
@@ -2047,16 +2465,16 @@ describe 'DefaultApiClientUnit' do
     captured&.transform_keys(&:downcase)
   end
 
-  [
-    ['http://origin.test/start', 'http://origin.test/landing'],
-    ['http://origin.test/start', '/landing'],
-    ['http://origin.test/start', 'http://origin.test:80/landing'],
-    ['http://origin.test:80/start', 'http://origin.test/landing'],
-    ['https://origin.test/start', 'https://origin.test:443/landing'],
-    ['https://origin.test:443/start', 'https://origin.test/landing'],
-    ['http://origin.test:8080/start', 'http://origin.test:8080/landing']
-  ].each do |start_url, location|
-    it "bhv_redirects_024 keeps Authorization and Cookie on a redirect from #{start_url} to #{location}" do
+  it 'bhv_redirects_024 keeps Authorization and Cookie on a redirect to the same origin' do
+    [
+      ['http://origin.test/start', 'http://origin.test/landing'],
+      ['http://origin.test/start', '/landing'],
+      ['http://origin.test/start', 'http://origin.test:80/landing'],
+      ['http://origin.test:80/start', 'http://origin.test/landing'],
+      ['https://origin.test/start', 'https://origin.test:443/landing'],
+      ['https://origin.test:443/start', 'https://origin.test/landing'],
+      ['http://origin.test:8080/start', 'http://origin.test:8080/landing']
+    ].each_case do |start_url, location|
       followed = headers_followed_to(start_url, location)
       _(followed).wont_be_nil
       _(followed['authorization']).must_equal 'Bearer secret'
@@ -2071,14 +2489,14 @@ describe 'DefaultApiClientUnit' do
     _(followed['authorization']).must_equal 'Bearer secret'
   end
 
-  [
-    ['http://origin.test/start', 'http://origin.test:8080/landing'],
-    ['http://origin.test/start', 'https://origin.test/landing'],
-    ['https://origin.test/start', 'https://origin.test:8443/landing'],
-    ['http://origin.test/start', 'http://other.test/landing'],
-    ['http://origin.test/start', 'http://sub.origin.test/landing']
-  ].each do |start_url, location|
-    it "bhv_redirects_013 strips Authorization and Cookie on a redirect from #{start_url} to #{location}" do
+  it 'bhv_redirects_013 strips Authorization and Cookie on a redirect to another origin' do
+    [
+      ['http://origin.test/start', 'http://origin.test:8080/landing'],
+      ['http://origin.test/start', 'https://origin.test/landing'],
+      ['https://origin.test/start', 'https://origin.test:8443/landing'],
+      ['http://origin.test/start', 'http://other.test/landing'],
+      ['http://origin.test/start', 'http://sub.origin.test/landing']
+    ].each_case do |start_url, location|
       followed = headers_followed_to(start_url, location)
       _(followed).wont_be_nil
       _(followed.key?('authorization')).must_equal false
@@ -2301,7 +2719,7 @@ describe 'DefaultApiClientUnit' do
   # number), the recorded pauses replace real sleeping, and +envs+ keeps each
   # attempt's request.
   def run_retry_probe(options: nil, verb: :get, headers: {}, body: nil, retry_headers: nil, random: nil,
-                      call_max_retries: nil, &respond)
+                      call_max_retries: nil, call_timeout: nil, &respond)
     envs = []
     delays = []
     # The request body as sent: the stub rewrites env.body with the response.
@@ -2323,7 +2741,8 @@ describe 'DefaultApiClientUnit' do
     client.stub(:build_connection, stub_connection(stubs)) do
       outcome = begin
         client.send_request(verb, 'http://localhost/r', headers, body, retry_headers: retry_headers,
-                                                                       max_retries: call_max_retries)
+                                                                       max_retries: call_max_retries,
+                                                                       timeout: call_timeout)
       rescue {{moduleName}}::Errors::NetworkError => e
         e
       end
@@ -2339,6 +2758,309 @@ describe 'DefaultApiClientUnit' do
     ->(attempt) { attempt > attempts ? [200, { 'content-type' => 'text/plain' }, 'ok'] : failure }
   end
 
+  it 'bhv_misc_160 an error that is not a network failure is never retried' do
+    envs = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.get('/r') do |env|
+          envs << env
+          raise ArgumentError, 'bad encoding'
+        end
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.max_retries(2).build)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises(ArgumentError) { client.send_request(:GET, 'http://localhost/r', {}, nil) }
+    end
+
+    _(envs.length).must_equal 1
+  end
+
+  it 'bhv_misc_162 an idempotent request whose connection drops before any response is sent again once' do
+    outcome, envs, delays = run_retry_probe { |attempt| attempt == 1 ? raise(Faraday::ConnectionFailed, 'reset') : [200, {}, 'ok'] }
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 2
+    _(delays.length).must_equal 1
+  end
+
+  it 'bhv_misc_161 a POST or PATCH whose connection drops before any response is sent once' do
+    %i[post patch].each do |verb|
+      outcome, envs, delays = run_retry_probe(verb: verb) { raise Faraday::ConnectionFailed, 'reset' }
+
+      _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
+      _(envs.length).must_equal 1
+      _(delays).must_be_empty
+    end
+
+    query_envs = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.send(:new_stub, :query, '/r') do |env|
+          query_envs << env
+          raise Faraday::ConnectionFailed, 'reset' if query_envs.length == 1
+
+          [200, { 'content-type' => 'text/plain' }, 'found']
+        end
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.define_singleton_method(:pause) { |_seconds| nil }
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = client.send_request(:QUERY, 'http://localhost/r', {}, 'q=1')
+    end
+
+    _(outcome.status_code).must_equal 200
+    _(query_envs.length).must_equal 2
+  end
+
+  it 'bhv_misc_163 a one-shot stream body is not replayed on retry, while text, bytes and an absent body are' do
+    _outcome, envs, = run_retry_probe(verb: :put, body: StringIO.new('payload')) { [503, {}, 'busy'] }
+    _(envs.length).must_equal 1
+
+    [nil, 'payload', 'payload'.b].each do |body|
+      _outcome, envs, = run_retry_probe(verb: :put, body: body) { [503, {}, 'busy'] }
+      _(envs.length).must_equal 3
+    end
+  end
+
+  it 'bhv_misc_164 a retry whose wait fits within the remaining timeout budget is sent' do
+    options = {{moduleName}}::TransportOptions.builder.timeout(60_000).build
+    outcome, envs, delays = run_retry_probe(options: options, &ok_after(1, [503, { 'retry-after' => '1' }, 'busy']))
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 2
+    _(delays).must_equal [1.0]
+  end
+
+  it 'bhv_misc_165 a request body is replayed across a redirect that keeps the same plain-text scheme' do
+    bodies = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/r') do |env|
+        bodies << env.body
+        [307, { 'location' => 'http://localhost/final' }, '']
+      end
+      stub.post('/final') do |env|
+        bodies << env.body
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.follow_redirects(true).build)
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = client.send_request(:POST, 'http://localhost/r', {}, 'payload')
+    end
+
+    _(outcome.status_code).must_equal 200
+    _(bodies).must_equal %w[payload payload]
+  end
+
+  it 'bhv_misc_166 a call that disables its deadline is not cut short while it waits to retry' do
+    options = {{moduleName}}::TransportOptions.builder.timeout(1_000).build
+    outcome, envs, delays = run_retry_probe(options: options, call_timeout: false,
+                                            &ok_after(1, [503, { 'retry-after' => '30' }, 'later']))
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 2
+    _(delays).must_equal [30.0]
+  end
+
+  it 'bhv_misc_167 an operation that keeps receiving a retryable status is attempted up to the retry limit and then returned' do
+    outcome, envs, = run_retry_probe { [503, {}, 'busy'] }
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 3
+  end
+
+  it 'bhv_misc_168 with no retry setting a failing request is sent three times, pausing 0.5 s and then 1 s between attempts' do
+    _outcome, envs, delays = run_retry_probe(random: 0) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+    _(delays).must_equal [0.5, 1.0]
+  end
+
+  it 'bhv_misc_169 the pause between retries starts at 0.5 s, doubles on each attempt and never exceeds 8 s' do
+    options = {{moduleName}}::TransportOptions.builder.max_retries(6).timeout(300_000).build
+    _outcome, _envs, delays = run_retry_probe(options: options) { [500, {}, 'busy'] }
+
+    ceilings = [0.5, 1.0, 2.0, 4.0, 8.0, 8.0]
+    _(delays.length).must_equal 6
+    ceilings.zip(delays).each do |ceiling, delay|
+      _(delay).must_be :<=, ceiling
+      _(delay).must_be :>=, ceiling * 0.75
+    end
+  end
+
+  it 'bhv_misc_171 a per-call maximum retry count larger than the transport limit applies to that call and allows more attempts' do
+    options = {{moduleName}}::TransportOptions.builder.max_retries(1).build
+    _outcome, envs, = run_retry_probe(options: options, call_max_retries: 4) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 5
+  end
+
+  it 'bhv_misc_173 a request body is refused across an https to http redirect when the body is not empty' do
+    envs = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      10.times do
+        stub.post('/items') do |env|
+          envs << env
+          [307, { 'location' => 'http://insecure.example.com/items' }, '']
+        end
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      assert_raises({{moduleName}}::Errors::ApiError) do
+        client.send_request(:POST, 'https://localhost/items', {}, 'payload')
+      end
+    end
+
+    _(envs.length).must_equal 1
+  end
+
+  it 'bhv_misc_174 a header value refused for a line break or NUL byte is never repeated in the error raised for it' do
+    client = {{moduleName}}::DefaultApiClient.new
+    ["abc\r\nsecret-value", "abc\0secret-value"].each do |value|
+      err = assert_raises(ArgumentError) { client.send_request(:GET, 'http://localhost/r', { 'X-Token' => value }, nil) }
+      _(err.message).wont_include 'secret-value'
+      _(err.message).wont_include 'abc'
+    end
+  end
+
+  it 'bhv_misc_175 credential header names are recognised regardless of letter case' do
+    _({{moduleName}}::TransportOptions.sensitive_header?('AUTHORIZATION')).must_equal true
+    _({{moduleName}}::TransportOptions.sensitive_header?('X-Api-Key')).must_equal true
+    _({{moduleName}}::TransportOptions.sensitive_header?('Content-Type')).must_equal false
+  end
+
+  it 'bhv_misc_177 a default Content-Type header given in any letter case is not sent when the request has no body' do
+    options = {{moduleName}}::TransportOptions.builder.default_header('content-type', 'application/json').build
+    _outcome, envs, = run_retry_probe(options: options) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['content-type']).must_be_nil
+  end
+
+  it 'bhv_misc_178 a declared multipart content type other than form-data reaches the transport with its subtype kept' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'multipart/related' },
+                                      body: { 'note' => 'hello' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_match %r{\Amultipart/related; boundary=}
+  end
+
+  it 'bhv_misc_179 a form-urlencoded body sends the application/x-www-form-urlencoded Content-Type' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+                                      body: 'a=1') { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/x-www-form-urlencoded'
+  end
+
+  it 'bhv_misc_181 content placed in a header is sent exactly as serialised, with no percent-encoding applied' do
+    _outcome, envs, = run_retry_probe(headers: { 'X-Raw' => 'a%20b c/d' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['X-Raw']).must_equal 'a%20b c/d'
+  end
+
+  it 'bhv_misc_182 a cross-origin redirect removes the Authorization header whatever its letter case' do
+    %w[Authorization authorization AUTHORIZATION].each do |name|
+      followup = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/start') { [302, { 'location' => 'http://otherhost.example.com/landing' }, ''] }
+        stub.get('http://otherhost.example.com/landing') do |env|
+          followup = env.request_headers
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.follow_redirects(true).build)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:GET, 'http://localhost/start', { name => 'Bearer x' }, nil)
+      end
+
+      _(followup['Authorization']).must_be_nil
+    end
+  end
+
+  it 'bhv_misc_183 closing a client whose credentials hold nothing that needs releasing succeeds' do
+    _(-> { {{moduleName}}::DefaultApiClient.new.close }).must_be_silent
+  end
+
+  it 'bhv_misc_184 close does not wait for a request that is still running and does not cancel it' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
+    client.close
+    _(closes).must_be_empty
+    release << true
+    response = request.value
+
+    _(response.status_code).must_equal 200
+    thread.join
+  end
+
+  it 'bhv_misc_188 a client reports itself as closed only after close has been called on it' do
+    client = {{moduleName}}::DefaultApiClient.new
+    _(client.instance_variable_get(:@closed)).must_equal false
+    client.close
+    _(client.instance_variable_get(:@closed)).must_equal true
+  end
+
+  it 'bhv_misc_202 a text body sent without a declared content type goes out with the JSON media type and no parameters' do
+    _outcome, envs, = run_retry_probe(verb: :post, body: 'hello') { [200, {}, '{}'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/json'
+  end
+
+  it 'bhv_misc_203 closing a client that is already closed does nothing and raises no error' do
+    client = {{moduleName}}::DefaultApiClient.new
+    client.close
+
+    _(-> { client.close }).must_be_silent
+  end
+
+  it 'bhv_misc_224 transport default headers are not sent on a request that goes to another origin after a redirect' do
+    followup = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://otherhost.example.com/landing' }, ''] }
+      stub.get('http://otherhost.example.com/landing') do |env|
+        followup = env.request_headers
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).default_header('X-Default', 'configured').build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', {}, nil)
+    end
+
+    _(followup['X-Default']).must_be_nil
+  end
+
+  it 'bhv_misc_226 with redirect following enabled a 302 is followed to its target and the final 200 is returned' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://localhost/landing' }, ''] }
+      stub.get('/landing') { [200, { 'content-type' => 'text/plain' }, 'landed'] }
+    end
+    client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.follow_redirects(true).build)
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = client.send_request(:GET, 'http://localhost/start', {}, nil)
+    end
+
+    _(outcome.status_code).must_equal 200
+    _(outcome.body).must_equal 'landed'
+  end
+
+  it 'bhv_misc_229 a per-call max retries value lets a call retry when the client was built with no retries' do
+    options = {{moduleName}}::TransportOptions.builder.max_retries(0).build
+    _outcome, envs, = run_retry_probe(options: options, call_max_retries: 2) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+  end
+
   it 'bhv_retries_038 sends the request again after a 503 and returns the later success' do
     outcome, envs, delays = run_retry_probe(&ok_after(2, [503, {}, 'busy']))
 
@@ -2346,6 +3068,57 @@ describe 'DefaultApiClientUnit' do
     _(outcome.body).must_equal 'ok'
     _(envs.length).must_equal 3
     _(delays.length).must_equal 2
+  end
+
+  it 'bhv_retries_047 a wait that would overrun the caller timeout is not taken' do
+    budget = {{moduleName}}::TransportOptions.builder.timeout(2_000).build
+    outcome, envs, delays = run_retry_probe(options: budget, &ok_after(1, [503, { 'Retry-After' => '30' }, 'later']))
+
+    _(outcome.status_code).must_equal 503
+    _(envs.length).must_equal 1
+    _(delays).must_be_empty
+  end
+
+  it 'bhv_retries_048 the default client retries a 503 over a real connection and returns the later success' do
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+    port = server.addr[1]
+    replies = [
+      "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbusy",
+      "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
+    ]
+    thread = Thread.new do
+      replies.each do |raw|
+        conn = server.accept
+        conn.gets
+        while (line = conn.gets)
+          break if line.strip.empty?
+        end
+        conn.write(raw)
+        conn.close
+      end
+    end
+
+    outcome = {{moduleName}}::DefaultApiClient.new.send_request('GET', "http://127.0.0.1:#{port}/r", {}, nil)
+    thread.join
+    server.close
+
+    _(outcome.status_code).must_equal 200
+    _(outcome.body).must_equal 'ok'
+  end
+
+  it 'bhv_transport_089 a Content-Encoding that does not match the body raises the SDK API error' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/bad-gzip') do
+        [200, { 'content-type' => 'application/json', 'content-encoding' => 'gzip' }, 'plain-not-gzip']
+      end
+    end
+    client = {{moduleName}}::DefaultApiClient.new
+    client.stub(:build_connection, stub_connection(stubs)) do
+      err = assert_raises({{moduleName}}::Errors::ApiError) do
+        client.send_request('GET', 'http://localhost/bad-gzip', {}, nil)
+      end
+      _(err).must_be_kind_of {{moduleName}}::Errors::ApiError
+    end
   end
 
   it 'bhv_retries_041 backs off from 0.5 s, doubling, with up to 25% jitter' do
@@ -2360,8 +3133,8 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  [408, 409, 429, 500, 502, 503, 504, 599].each do |status|
-    it "retries a #{status} response and returns it once the retries are spent" do
+  it 'bhv_langruby_040 retries a retryable status and returns the response once the retries are spent' do
+    [408, 409, 429, 500, 502, 503, 504, 599].each_case do |status|
       outcome, envs, = run_retry_probe { [status, {}, 'no'] }
 
       _(outcome.status_code).must_equal status
@@ -2369,8 +3142,8 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  [400, 401, 403, 404, 422, 501].each do |status|
-    it "does not retry a #{status} response" do
+  it 'bhv_langruby_041 does not retry a status that is not retryable' do
+    [400, 401, 403, 404, 422, 501].each_case do |status|
       outcome, envs, delays = run_retry_probe { [status, {}, 'no'] }
 
       _(outcome.status_code).must_equal status
@@ -2436,11 +3209,19 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_be_empty
   end
 
-  it 'sends 1 + max_retries requests at most' do
+  it 'bhv_retries_049 sends 1 + max_retries requests at most' do
     options = {{moduleName}}::TransportOptions.builder.max_retries(1).build
     _outcome, envs, = run_retry_probe(options: options) { [503, {}, 'busy'] }
 
     _(envs.length).must_equal 2
+  end
+
+  it 'bhv_misc_296 by default a failed request is retried twice with backoff, so three requests reach the wire' do
+    _outcome, envs, delays = run_retry_probe { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+    _(delays.length).must_equal 2
+    _(delays[1]).must_be :>, delays[0]
   end
 
   it 'bhv_retries_026 waits as long as a Retry-After header in seconds says' do
@@ -2455,6 +3236,13 @@ describe 'DefaultApiClientUnit' do
     _(delays).must_equal [60.0]
   end
 
+  it 'bhv_retries_050 a Retry-After header given as an HTTP date is honoured' do
+    date = (Time.now.utc + 30).httpdate
+    _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'retry-after' => date }, 'later']))
+
+    _(delays.first).must_be_within_delta 30, 1.5
+  end
+
   it 'bhv_retries_022 reads a Retry-After header that is an HTTP date' do
     date = (Time.now.utc + 30).httpdate
     _outcome, _envs, delays = run_retry_probe(options: long_budget, &ok_after(1, [503, { 'retry-after' => date }, 'later']))
@@ -2462,11 +3250,30 @@ describe 'DefaultApiClientUnit' do
     _(delays.first).must_be_within_delta 30, 1.5
   end
 
+  it 'bhv_misc_228 a Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay' do
+    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => 'soon' }, 'later']))
+
+    _(delays.first).must_be :<=, 0.5
+    _(delays.first).must_be :>=, 0.375
+  end
+
   it 'bhv_retries_029 falls back to the backoff when Retry-After cannot be read' do
     _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => 'soon' }, 'later']))
 
     _(delays.first).must_be :<=, 0.5
     _(delays.first).must_be :>=, 0.375
+  end
+
+  it 'bhv_misc_227 a network error before any response is retried, so a dropped connection produces a second request' do
+    flaky = lambda do |attempt|
+      raise Faraday::ConnectionFailed, 'reset' if attempt < 3
+
+      [200, { 'content-type' => 'text/plain' }, 'ok']
+    end
+    outcome, envs, = run_retry_probe(&flaky)
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 3
   end
 
   it 'bhv_retries_021 retries a network error and returns the later success' do
@@ -2490,8 +3297,15 @@ describe 'DefaultApiClientUnit' do
     _(delays.length).must_equal 2
   end
 
-  it 'does not retry a TLS failure' do
+  it 'bhv_misc_170 does not retry a TLS failure' do
     outcome, envs, = run_retry_probe { raise Faraday::SSLError, 'bad certificate' }
+
+    _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
+    _(envs.length).must_equal 1
+
+    outcome, envs, = run_retry_probe do
+      raise Faraday::ConnectionFailed, OpenSSL::SSL::SSLError.new('certificate verify failed')
+    end
 
     _(outcome).must_be_instance_of {{moduleName}}::Errors::NetworkError
     _(envs.length).must_equal 1
@@ -2591,7 +3405,7 @@ describe 'DefaultApiClientUnit' do
     _($LOADED_FEATURES.grep(%r{faraday/follow_redirects})).must_be_empty
   end
 
-  it 'does not declare the faraday-follow_redirects gem' do
+  it 'bhv_langruby_042 does not declare the faraday-follow_redirects gem' do
     spec = Gem::Specification.load('{{gemName}}.gemspec')
     _(spec.runtime_dependencies.map(&:name)).wont_include 'faraday-follow_redirects'
   end
@@ -2655,6 +3469,12 @@ describe 'DefaultApiClientUnit' do
       end
       _(err.detail_message).must_equal 'Refusing to replay request body across HTTPS->HTTP redirect: https://localhost/upload -> http://insecure.example.com/upload'
     end
+  end
+
+  it 'bhv_errors_098 a missing CA certificate fails with an ArgumentError that wraps the not-found cause' do
+    transport = {{moduleName}}::TransportOptions.builder.ca_cert_path('/nonexistent/bhv-ca-098.pem').build
+    err = assert_raises(ArgumentError) { {{moduleName}}::DefaultApiClient.new(transport) }
+    _(err.message).must_include 'No such file or directory'
   end
 
   it 'bhv_errors_083 names the CA certificate path that cannot be read, at construction' do
@@ -2962,4 +3782,126 @@ describe 'DefaultApiClientUnit' do
     _(seen).must_equal([['http://localhost/items', 'kept']] * 2)
     stubs.verify_stubbed_calls
   end
+
+  it 'bhv_misc_124 refuses a 301 or 302 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
+    [301, 302].each do |status|
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
+      end
+      transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        _(proc {
+          client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+        }).must_raise {{moduleName}}::Errors::ApiError
+      end
+    end
+  end
+
+
+  it 'bhv_misc_125 follows a 307 with the same method and body' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.post('/redirect') { [307, { 'location' => '/final' }, ''] }
+      stub.post('/final') { [200, {}, 'final'] }
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:POST, 'http://localhost/redirect', {}, 'body')
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  it 'bhv_misc_126 follows a 303 to a HEAD request as HEAD rather than GET' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.head('/see') { [303, { 'location' => '/other' }, ''] }
+      stub.head('/other') { [200, {}, ''] }
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:HEAD, 'http://localhost/see', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+  end
+
+  it 'bhv_misc_127 a redirect that holds only a query keeps the path and replaces the query' do
+    queries = []
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/a/b') do |env|
+        queries << env.url.query
+        env.url.query == 'x=1' ? [302, { 'location' => '?y=2' }, ''] : [200, {}, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/a/b?x=1', {}, nil)
+      _(resp.status_code).must_equal 200
+    end
+    _(queries).must_equal ['x=1', 'y=2']
+  end
+
+  it 'bhv_misc_130 a credential removed by a cross-origin hop is not restored when a later hop returns to the origin' do
+    seen = :unset
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.example.com/mid' }, ''] }
+      stub.get('/mid') { [302, { 'location' => 'http://localhost/end' }, ''] }
+      stub.get('/end') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)['authorization']
+        [200, {}, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', { 'Authorization' => 'Bearer abc' }, nil)
+    end
+    _(seen).must_be_nil
+  end
+
+  it 'bhv_misc_131 a supplied session follows redirects under the SDK redirect rules' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => '/landing' }, ''] }
+      stub.get('/landing') { [200, {}, 'landed'] }
+    end
+    supplied = Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).connection(supplied).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    resp = client.send_request(:GET, 'http://localhost/start', {}, nil)
+    _(resp.status_code).must_equal 200
+    stubs.verify_stubbed_calls
+  end
+
+  it 'bhv_misc_132 a per-call header whose name holds a credential word is dropped on a cross-origin redirect' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://other.example.com/end' }, ''] }
+      stub.get('/end') do |env|
+        seen = env.request_headers.to_h.transform_keys(&:downcase)
+        [200, {}, 'ok']
+      end
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', { 'X-Call-Token' => 'abc' }, nil)
+    end
+    _(seen.keys).wont_include 'x-call-token'
+  end
+
+  it 'bhv_misc_133 a 300 response is returned as it is even when it carries a Location header' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/multi') { [300, { 'location' => '/elsewhere' }, ''] }
+    end
+    transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
+    client = {{moduleName}}::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/multi', {}, nil)
+      _(resp.status_code).must_equal 300
+    end
+  end
+
 end

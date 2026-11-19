@@ -86,8 +86,18 @@ defmodule PetstoreClient.Api.BaseApi do
     from_options =
       if is_map(options), do: options |> Map.take(@call_keys) |> Map.to_list(), else: []
 
+    # A nil per-call value is unset and falls through to the options object;
+    # for a repeated key the last one given wins.
+    per_call =
+      opts
+      |> Keyword.take(@call_keys)
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Enum.reverse()
+      |> Enum.uniq_by(fn {key, _value} -> key end)
+      |> Enum.reverse()
+
     from_options
-    |> Keyword.merge(Keyword.take(opts, @call_keys))
+    |> Keyword.merge(per_call)
     |> Enum.reject(fn {_key, value} -> is_nil(value) end)
     |> Enum.map(&validate_call_setting/1)
   end
@@ -694,6 +704,9 @@ defmodule PetstoreClient.Api.BaseApi do
   @retry_jitter 0.25
   @retry_after_cap_ms 60_000
 
+  # Methods a dropped connection may retry: the RFC 9110 idempotent methods and QUERY.
+  @idempotent_methods [:get, :head, :options, :trace, :put, :delete, :query]
+
   # What the retry loop carries from one attempt to the next: how many retries
   # are allowed and used, the transport timeout, the monotonic deadline of the
   # whole call (:unset until the first request is built, so the time spent
@@ -799,7 +812,7 @@ defmodule PetstoreClient.Api.BaseApi do
         end
 
       true ->
-        case next_delay(result, ctx) do
+        case next_delay(result, method, ctx) do
           {:ok, delay} ->
             Process.sleep(delay)
 
@@ -898,27 +911,36 @@ defmodule PetstoreClient.Api.BaseApi do
   # How long to wait before the next retry, or :none when the result is not
   # worth retrying, the retries are used up, or the wait would end past the
   # end-to-end timeout.
-  defp next_delay(_result, %{retries: retries, max_retries: max_retries})
+  defp next_delay(_result, _method, %{retries: retries, max_retries: max_retries})
        when retries >= max_retries, do: :none
 
-  defp next_delay(result, ctx) do
-    case delay_for(result, ctx.retries + 1) do
+  defp next_delay(result, method, ctx) do
+    case delay_for(result, method, ctx.retries + 1) do
       nil -> :none
       delay -> within_budget(delay, ctx.deadline)
     end
   end
 
-  defp delay_for({:ok, %{status_code: status} = response}, retry_number) do
+  defp delay_for({:ok, %{status_code: status} = response}, _method, retry_number) do
     if retryable_status?(status) do
       retry_after_ms(Map.get(response, :headers), DateTime.utc_now()) ||
         backoff_delay(retry_number, :rand.uniform())
     end
   end
 
-  defp delay_for({:error, %PetstoreClient.Errors.NetworkError{}}, retry_number),
-    do: backoff_delay(retry_number, :rand.uniform())
+  # A connection that dropped before any response is retried only for a method
+  # that is safe to send twice (RFC 9110 section 9.2.2, plus QUERY). A POST or
+  # PATCH could apply its change twice, so it is sent once. A TLS or certificate
+  # failure repeats on every attempt, so it is never retried.
+  defp delay_for({:error, %PetstoreClient.Errors.NetworkError{} = error}, method, retry_number)
+       when method in @idempotent_methods do
+    if tls_failure?(error), do: nil, else: backoff_delay(retry_number, :rand.uniform())
+  end
 
-  defp delay_for(_result, _retry_number), do: nil
+  defp delay_for(_result, _method, _retry_number), do: nil
+
+  defp tls_failure?(%{cause: %{reason: {:tls_alert, _}}}), do: true
+  defp tls_failure?(_error), do: false
 
   defp within_budget(delay, nil), do: {:ok, delay}
 

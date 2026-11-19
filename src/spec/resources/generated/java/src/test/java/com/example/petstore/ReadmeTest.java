@@ -28,7 +28,7 @@ class ReadmeTest {
   }
 
   @Test
-  void hasTheSharedSectionsInTheSharedOrder() throws IOException {
+  void bhvLangjava038HasTheSharedSectionsInTheSharedOrder() throws IOException {
     String readme = readme();
     int position = -1;
     for (String heading :
@@ -70,8 +70,9 @@ class ReadmeTest {
   }
 
   @Test
-  void schemaConstraintsSectionSaysWhatTheServerValidatesAndThatUniqueItemsAreNotSorted()
-      throws IOException {
+  void
+      bhvLangjava039SchemaConstraintsSectionSaysWhatTheServerValidatesAndThatUniqueItemsAreNotSorted()
+          throws IOException {
     String readme = flattened();
     assertTrue(
         readme.contains("`multipleOf`, `minItems` and `maxItems` are validated by the server."));
@@ -80,14 +81,16 @@ class ReadmeTest {
   }
 
   @Test
-  void retriesSectionDocumentsTheOptionAndNoLongerSaysRequestsAreNeverRetried() throws IOException {
+  void bhvLangjava040RetriesSectionDocumentsTheOptionAndNoLongerSaysRequestsAreNeverRetried()
+      throws IOException {
     String readme = flattened();
     assertTrue(readme.contains("`TransportOptions.builder().maxRetries(n)`"));
     assertFalse(readme.contains("never retries"));
   }
 
   @Test
-  void perCallOptionsSectionSaysEveryOperationTakesAnOptionsObject() throws IOException {
+  void bhvLangjava041PerCallOptionsSectionSaysEveryOperationTakesAnOptionsObject()
+      throws IOException {
     String readme = flattened();
     assertTrue(readme.contains("### Per-call options"));
     assertTrue(readme.contains("Every operation takes an optional trailing options object"));
@@ -107,7 +110,7 @@ class ReadmeTest {
   }
 
   @Test
-  void namesTheEnvironmentVariableOfEveryCredential() throws IOException {
+  void bhvLangjava042NamesTheEnvironmentVariableOfEveryCredential() throws IOException {
     String readme = readme();
     String[] rows = {
       "| `adminBasic` | `username` | `SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME` |",

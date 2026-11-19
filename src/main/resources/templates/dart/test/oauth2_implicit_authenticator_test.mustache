@@ -93,7 +93,7 @@ void main() {
       );
     });
 
-    test('a rejected access token never appears in the ArgumentError', () {
+    test('bhv langdart 061 a rejected access token never appears in the ArgumentError', () {
       final auth = _createAuthenticator();
       Object? thrown;
       try {
@@ -155,7 +155,7 @@ void main() {
       expect(() => auth.authHeaders(), throwsStateError);
     });
 
-    test('the authorize URL is exact and separates scopes with %20', () {
+    test('bhv auth 049 the authorize URL is exact and separates scopes with %20', () {
       expect(
         _createAuthenticator().buildAuthorizationUrl(),
         equals(

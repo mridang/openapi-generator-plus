@@ -41,6 +41,18 @@ def _create_authenticator() -> OAuth2AuthorizationCodeAuthenticator:
 
 
 class TestOAuth2AuthorizationCodeAuthenticator:
+    def test_bhv_misc_077_a_generated_pkce_challenge_is_43_characters_and_differs_per_call(
+        self,
+    ) -> None:
+        first = parse_qs(
+            urlparse(_create_authenticator().build_authorization_url()).query
+        )["code_challenge"][0]
+        second = parse_qs(
+            urlparse(_create_authenticator().build_authorization_url()).query
+        )["code_challenge"][0]
+        assert len(first) == 43
+        assert first != second
+
     def test_bhv_authoauthtwoauthcode_006_builds_authorization_url_with_required_params(
         self,
     ) -> None:
@@ -57,6 +69,14 @@ class TestOAuth2AuthorizationCodeAuthenticator:
         assert params["redirect_uri"] == ["https://app.example.com/callback"]
         assert params["scope"] == ["read write"]
         assert params["response_type"] == ["code"]
+
+    def test_bhv_auth_052_an_authenticator_holding_no_token_refuses_to_produce_headers(
+        self,
+    ) -> None:
+        auth = _create_authenticator()
+
+        with pytest.raises(RuntimeError):
+            auth.get_auth_headers()
 
     def test_bhv_authoauthtwoauthcode_010_exchange_code_rejects_empty_code(
         self,
@@ -255,6 +275,36 @@ def _code_reply(**fields: object) -> ApiHttpResponse:
 
 
 class TestAuthorizationUrlEncoding:
+    def test_bhv_misc_058_the_endpoint_and_redirect_uri_reach_the_url_as_configured(
+        self,
+    ) -> None:
+        auth = OAuth2AuthorizationCodeAuthenticator(
+            host="https://api.example.com",
+            client_id="my_client_id",
+            client_secret="my_secret",
+            authorization_url="https://Auth.Example.com:443/authorize",
+            token_url="https://auth.example.com/token",
+            redirect_uri="https://App.Example.com:443/Callback",
+            scopes=["read", "write"],
+        )
+
+        url = _without_pkce(auth.build_authorization_url())
+
+        assert url.startswith("https://Auth.Example.com:443/authorize?")
+        assert "&redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2FCallback&" in url
+
+    def test_bhv_auth_048_authorize_url_is_exact_and_the_code_exchange_goes_to_the_token_url(
+        self,
+    ) -> None:
+        url = _create_authenticator().build_authorization_url()
+
+        assert _without_pkce(url) == (
+            "https://auth.example.com/authorize?response_type=code"
+            "&client_id=my_client_id"
+            "&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback"
+            "&scope=read%20write"
+        )
+
     def test_bhv_auth_014_authorize_url_separates_scopes_with_percent_20(self) -> None:
         url = _create_authenticator().build_authorization_url()
 
@@ -415,6 +465,20 @@ def _form_of(call: Any) -> dict[str, list[str]]:
 
 
 class TestAuthorizationCodeSession:
+    def test_bhv_misc_028_a_transport_failure_during_the_code_exchange_is_raised_unchanged(
+        self,
+    ) -> None:
+        cause = OSError("connection reset")
+        auth = _create_authenticator()
+        mock_client = MagicMock()
+        mock_client.send_request.side_effect = cause
+        auth.set_api_client(mock_client)
+
+        with pytest.raises(OSError) as exc_info:
+            auth.exchange_code("the-code")
+
+        assert exc_info.value is cause
+
     def test_bhv_authoauthtwoauthcode_026_the_refresh_carries_the_client_credentials(
         self,
     ) -> None:
@@ -543,6 +607,21 @@ class TestUserAuthWrapper:
         first, second = mock_client.send_request.call_args_list
         assert first[0][1] == "https://auth.example.com/oauth/token"
         assert second[0][1] == "https://auth.example.com/oauth/refresh"
+
+    def test_bhv_misc_062_the_authorization_url_carries_the_declared_scopes(
+        self,
+    ) -> None:
+        from petstore_client.auth.oauth.user_auth_authorization_code_authenticator import (
+            UserAuthAuthorizationCodeAuthenticator,
+        )
+
+        auth = UserAuthAuthorizationCodeAuthenticator(
+            "https://api.example.com", "cid", "sec", "https://app.example.com/cb"
+        )
+
+        assert "&scope=pets%3Aread%20pets%3Awrite" in _without_pkce(
+            auth.build_authorization_url()
+        )
 
 
 class TestAuthorizationCodeRedactedRepr:

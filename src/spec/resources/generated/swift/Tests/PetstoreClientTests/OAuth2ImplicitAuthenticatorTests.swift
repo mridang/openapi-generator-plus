@@ -76,6 +76,18 @@ import Testing
         || url.contains("scope=read write"))
   }
 
+  /* The implicit flow builds an exact authorize URL with response_type token and percent-encoded scopes. */
+  @Test func testBhvAuth049ImplicitAuthorizeUrlHasResponseTypeTokenAndPercentEncodedScopes() throws
+  {
+    let auth = createAuthenticator()
+
+    let url = try auth.buildAuthorizationURL()
+
+    #expect(url.contains("response_type=token"))
+    #expect(url.contains("scope=read%20write"))
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+  }
+
   @Test func testBhvAuthoauthtwoimplicit005BuildsAuthorizationUrlWithState() throws {
     let auth = createAuthenticator()
 
@@ -188,14 +200,8 @@ import Testing
     let description = String(describing: auth)
     #expect(!description.contains("implicit-tok"))
     #expect(description.contains("***"))
-  }
-
-  /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
-   * included, so the redacted description is not enough: the reflection
-   * must hide the secret too. */
-  @Test func dumpDoesNotLeakSecret() async throws {
-    let auth = createAuthenticator()
-    try auth.setAccessToken("implicit-tok")
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+     * so the redacted description is not enough: the reflection must hide the secret too. */
     var dumped = ""
     dump(auth, to: &dumped)
     #expect(!dumped.contains("implicit-tok"), "dump leaked the secret: \(dumped)")

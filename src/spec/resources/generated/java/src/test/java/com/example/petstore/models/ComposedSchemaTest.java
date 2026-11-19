@@ -11,6 +11,7 @@ package com.example.petstore.models;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -25,6 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class ComposedSchemaTest {
 
   private static final java.lang.reflect.Type PET_WITH_OWNER_TYPE =
@@ -106,6 +108,56 @@ class ComposedSchemaTest {
       assertTrue(empty.asSurgery().isEmpty());
       assertFalse(
           new com.example.petstore.models.PetTreatment(java.util.List.<Object>of()).isMedication());
+    }
+
+    @Test
+    void bhvMisc049AChoiceWithAListOfBinaryValuesWritesTheListAsBase64Text() {
+      byte[] first = new byte[] {0x01, 0x02, 0x03, 0x04};
+      SetPetAvatarThumbnailRequest request =
+          new SetPetAvatarThumbnailRequest(java.util.List.of(first));
+
+      String serialized = serializer.serialize(request);
+
+      assertThat(serialized).isEqualTo("[\"AQIDBA==\"]");
+      assertThat(serialized).doesNotContain("[1,2,3,4]");
+    }
+
+    @Test
+    void bhvMisc045APayloadFailingAVariantSchemaIsNotAcceptedAsThatVariant() {
+      for (String json :
+          java.util.List.of(
+              "{\"foodType\":3,\"weightKg\":2.5}",
+              "{\"FoodType\":\"dry\",\"weightKg\":2.5}",
+              "{\"foodType\":\"fish\",\"weightKg\":2.5}",
+              "{\"foodType\":\"dry\"}")) {
+        assertThrows(
+            SerializationException.class, () -> serializer.deserialize(json, PET_FOOD_TYPE));
+      }
+    }
+
+    @Test
+    void bhvMisc046UnionsWithEqualContentAreEqualAndHashEqually() {
+      com.example.petstore.models.Medication aspirin =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.Medication otherAspirin =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.Medication ibuprofen =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"ibuprofen\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.PetTreatment first =
+          com.example.petstore.models.PetTreatment.ofMedication(aspirin);
+      com.example.petstore.models.PetTreatment second =
+          com.example.petstore.models.PetTreatment.ofMedication(otherAspirin);
+      com.example.petstore.models.PetTreatment other =
+          com.example.petstore.models.PetTreatment.ofMedication(ibuprofen);
+      assertThat(second).isEqualTo(first);
+      assertThat(second.hashCode()).isEqualTo(first.hashCode());
+      assertThat(other).isNotEqualTo(first);
     }
 
     @Test
@@ -646,7 +698,7 @@ class ComposedSchemaTest {
 
     @Test
     @DisplayName("throws when no oneOf variant matches (no silent raw accept)")
-    void testNoMatchThrows() {
+    void bhvLangjava058TestNoMatchThrows() {
       // A JSON object matches neither the single-byte[] nor the
       // array-of-byte[] variant. The deserializer must reject it rather
       // than silently store the raw tree as the actualInstance.
@@ -703,6 +755,117 @@ class ComposedSchemaTest {
 
       assertThat(restored.name).isEqualTo(original.name);
       assertThat(restored.ownerName).isEqualTo(original.ownerName);
+    }
+  }
+
+  @Test
+  @DisplayName("bhvMisc291 a payload matching several variants decodes to the first declared one")
+  void bhvMisc291APayloadMatchingSeveralVariantsDecodesToTheFirstDeclaredOne() {
+    com.example.petstore.models.PetTreatment result =
+        serializer.deserialize(
+            "{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}",
+            com.example.petstore.models.PetTreatment.class);
+
+    assertTrue(result.getActualInstance() instanceof com.example.petstore.models.Medication);
+  }
+
+  @Test
+  @DisplayName("bhvMisc293 resolving an anyOf value skips candidates that do not match")
+  void bhvMisc293ResolvingAnyOfValueSkipsCandidatesThatDoNotMatch() {
+    com.example.petstore.models.PetTreatment result =
+        serializer.deserialize(
+            "{\"procedureName\":\"Spay\",\"durationMinutes\":45}",
+            com.example.petstore.models.PetTreatment.class);
+
+    assertTrue(result.getActualInstance() instanceof com.example.petstore.models.Surgery);
+  }
+
+  @Test
+  @DisplayName("bhvMisc292 a union wrapper serializes its bare payload and reads it back")
+  void bhvMisc292AUnionWrapperSerializesItsBarePayloadAndReadsItBack() {
+    SetPetAvatarThumbnailRequest req =
+        Objects.requireNonNull(serializer.deserialize("\"aGk=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+
+    assertEquals("\"aGk=\"", serializer.serialize(req));
+    assertEquals(
+        "\"aGk=\"",
+        serializer.serialize(
+            Objects.requireNonNull(
+                serializer.deserialize(serializer.serialize(req), ONE_OF_NO_DISCRIMINATOR_TYPE))));
+  }
+
+  @Test
+  @DisplayName("bhvMisc295 a oneOf with a byte-string variant round-trips through base64")
+  void bhvMisc295AOneOfWithAByteStringVariantRoundTripsThroughBase64() {
+    SetPetAvatarThumbnailRequest req =
+        Objects.requireNonNull(serializer.deserialize("\"aGk=\"", ONE_OF_NO_DISCRIMINATOR_TYPE));
+
+    assertTrue(req.getActualInstance() instanceof byte[]);
+    assertEquals("\"aGk=\"", serializer.serialize(req));
+  }
+
+  @Test
+  @DisplayName("bhvMisc294 a subtype payload without its discriminator is refused")
+  void bhvMisc294ASubtypePayloadWithoutItsDiscriminatorIsRefused() {
+    assertThrows(
+        SerializationException.class,
+        () ->
+            serializer.deserialize(
+                "{\"weightKg\":2.5}", com.example.petstore.models.PetFood.class));
+  }
+
+  @Nested
+  @DisplayName("union variant identity and equality")
+  class UnionVariantIdentityTests {
+
+    @Test
+    @DisplayName(
+        "bhvUnions044 a union's typed factory and accessor identify the variant it was built from")
+    void bhvUnions044TypedFactoryAndAccessorIdentifyTheVariant() {
+      com.example.petstore.models.Medication aspirin =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.PetTreatment treatment =
+          com.example.petstore.models.PetTreatment.ofMedication(aspirin);
+      assertThat(treatment.isMedication()).isTrue();
+      assertThat(treatment.isSurgery()).isFalse();
+      assertThat(treatment.asMedication()).contains(aspirin);
+    }
+
+    @Test
+    @DisplayName("bhvUnions045 two unions decoded from identical JSON compare equal")
+    void bhvUnions045UnionsDecodedFromIdenticalJsonCompareEqual() {
+      String json = "{\"drugName\":\"aspirin\"}";
+      com.example.petstore.models.PetTreatment first =
+          serializer.deserialize(json, com.example.petstore.models.PetTreatment.class);
+      com.example.petstore.models.PetTreatment second =
+          serializer.deserialize(json, com.example.petstore.models.PetTreatment.class);
+      assertThat(second).isEqualTo(first);
+    }
+
+    @Test
+    @DisplayName("bhvUnions046 every anyOf variant a payload matches reports itself as matched")
+    void bhvUnions046EveryMatchingAnyOfVariantReportsItself() {
+      com.example.petstore.models.PetTreatment treatment =
+          serializer.deserialize(
+              "{\"drugName\":\"x\",\"procedureName\":\"y\"}",
+              com.example.petstore.models.PetTreatment.class);
+      assertThat(treatment.isMedication()).isTrue();
+      assertThat(treatment.isSurgery()).isTrue();
+      assertThat(treatment.getMatchedInstances()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions047 a discriminator value that is not listed, or is empty, raises a clear error")
+    void bhvUnions047UnlistedOrEmptyDiscriminatorRaisesAClearError() {
+      for (String foodType : List.of("triangle", "")) {
+        String json = "{\"foodType\":\"" + foodType + "\",\"weightKg\":2.5}";
+        assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+            .isExactlyInstanceOf(SerializationException.class)
+            .hasMessageContaining("Could not resolve");
+      }
     }
   }
 }

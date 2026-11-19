@@ -211,4 +211,13 @@ class OAuth2ImplicitAuthenticatorTest {
             .contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
         ex.getMessage());
   }
+
+  @Test
+  void bhvAuth049ImplicitAuthorizeUrlPercentEncodesScopesAsTwentyPercent() {
+    String url = createAuthenticator().buildAuthorizationUrl(null);
+    assertTrue(url.startsWith("https://auth.example.com/authorize?"), url);
+    assertTrue(url.contains("response_type=token"), url);
+    assertTrue(url.contains("scope=read%20write"), url);
+    assertFalse(url.contains("scope=read+write"), url);
+  }
 }

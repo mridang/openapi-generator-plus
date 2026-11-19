@@ -68,7 +68,9 @@ type Client struct {
 	 * StoreApiInterface so that a fake can stand in for the real group. */
 	Store StoreApiInterface
 
-	apiClient ApiClient
+	apiClient     ApiClient
+	config        *Configuration
+	authenticator Authenticator
 }
 
 // ClientOption configures a client built by one of the NewClient
@@ -164,10 +166,12 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 	apiStore := NewStoreApi(apiClient, config, authenticator, Credentials{})
 	apiStore.credentials = credentials
 	return &Client{
-		apiClient: apiClient,
-		Pet:       apiPet,
-		Problems:  apiProblems,
-		Store:     apiStore,
+		apiClient:     apiClient,
+		config:        config,
+		authenticator: authenticator,
+		Pet:           apiPet,
+		Problems:      apiProblems,
+		Store:         apiStore,
 	}
 }
 

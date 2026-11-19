@@ -129,6 +129,14 @@ class TestTransportOptions:
             TransportOptions(timeout=value)
         assert str(direct.value) == message
 
+    def test_bhv_misc_134_a_zero_timeout_is_a_value_error_and_not_an_sdk_error(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().timeout(0)
+        assert type(exc_info.value) is ValueError
+        assert not isinstance(exc_info.value, OpenAPIException)
+
     def test_bhv_options_045_a_negative_max_redirects_is_rejected_at_configuration(
         self,
     ) -> None:
@@ -148,6 +156,22 @@ class TestTransportOptions:
             TransportOptions.builder().timeout(-1)
         with pytest.raises(ValueError):
             TransportOptions(timeout=-1)
+
+    def test_bhv_options_068_a_socks_proxy_is_refused_at_construction_with_the_documented_message(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions.builder().proxy("socks5://proxy.example.com:1080")
+        assert str(exc_info.value) == (
+            "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
+        )
+
+    def test_bhv_misc_026_a_configuration_mistake_is_not_an_api_error(self) -> None:
+        from petstore_client.errors import ApiException
+
+        with pytest.raises(ValueError) as exc_info:
+            TransportOptions(timeout=-1)
+        assert not isinstance(exc_info.value, ApiException)
 
     def test_bhv_options_051_a_proxy_url_with_a_scheme_other_than_http_or_https_is_rejected(
         self,
@@ -404,6 +428,21 @@ class TestProxyUrlValidation:
 
 
 class TestTransportOptionsRepr:
+    def test_bhv_misc_180_the_repr_shows_non_sensitive_default_header_values_and_hides_sensitive_ones(
+        self,
+    ) -> None:
+        options = (
+            TransportOptions.builder()
+            .default_header("X-Visible", "shown-value")
+            .default_header("Authorization", "Bearer hidden-secret")
+            .build()
+        )
+
+        text = repr(options)
+
+        assert "shown-value" in text
+        assert "hidden-secret" not in text
+
     def test_bhv_options_065_repr_masks_the_proxy_password(self) -> None:
         opts = (
             TransportOptions.builder()
@@ -439,7 +478,7 @@ class TestTransportOptionsRepr:
         assert "hunter2" not in repr(opts)
         assert f"{name!r}: '***'" in repr(opts)
 
-    def test_repr_keeps_other_default_header_values(self) -> None:
+    def test_bhv_lang_python_196_repr_keeps_other_default_header_values(self) -> None:
         opts = TransportOptions.builder().default_header("Accept", "text/plain").build()
 
         assert "'Accept': 'text/plain'" in repr(opts)
@@ -479,3 +518,16 @@ class TestTransportOptionsBehaviours:
     ) -> None:
         with pytest.raises(ValueError):
             TransportOptions.builder().proxy("socks5://127.0.0.1:1080").build()
+
+
+class TestCredentialHeaderNames:
+    def test_bhv_misc_175_credential_header_names_are_recognised_in_any_letter_case_and_ordinary_names_are_not(
+        self,
+    ) -> None:
+        from petstore_client.transport_options import _is_sensitive_header
+
+        assert _is_sensitive_header("X-API-KEY") is True
+        assert _is_sensitive_header("x-auth-TOKEN") is True
+        assert _is_sensitive_header("Authorization") is True
+        assert _is_sensitive_header("Accept") is False
+        assert _is_sensitive_header("X-Request-Id") is False

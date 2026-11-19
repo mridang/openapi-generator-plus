@@ -2,6 +2,8 @@
 package {{packageName}}_test
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -965,5 +967,116 @@ func TestBhvAuth011_OpenIdConnectAuthenticator_DiscoveryWithoutMaxAgeIsCachedFor
 	}
 	if got := atomic.LoadInt32(&client.getCount); got != 1 {
 		t.Errorf("expected one discovery fetch within the default lifetime, got %d", got)
+	}
+}
+
+// discoveryOnlyClient answers the OpenID Connect discovery request with a fixed document and nothing else.
+type discoveryOnlyClient struct{}
+
+func (discoveryOnlyClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return discoveryOnlyClient{}.SendRequestWithOptions(method, url, headers, body, nil)
+}
+
+func (discoveryOnlyClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	return &auth.ApiHttpResponse{
+		StatusCode: 200,
+		Body:       `{"issuer":"https://issuer.example.com","authorization_endpoint":"https://issuer.example.com/authorize","token_endpoint":"https://issuer.example.com/token"}`,
+		Headers:    map[string]string{},
+	}, nil
+}
+
+// An OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce.
+func TestBhvMisc078_OpenIdConnectAuthenticator_AuthorizeUrlHasS256AndNoNonce(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOpenIdConnectAuthenticator("https://issuer.example.com", "https://issuer.example.com/.well-known/openid-configuration", "my-client-id", "my-client-secret", "https://app.example.com/cb", []string{"read"})
+	authObj.SetApiClient(discoveryOnlyClient{})
+	got, err := authObj.BuildAuthorizationURL("state")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(got, "code_challenge_method=S256") || strings.Contains(got, "nonce=") {
+		t.Errorf("expected an S256 challenge and no nonce, got %q", got)
+	}
+}
+
+func TestBhvMisc070_OpenIdConnectAuthenticator_ANonObjectDiscoveryDocumentKeepsNoCauseAndNoBody(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `<html>not json</html>`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	_, err := authObj.AuthHeadersOrError()
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if serErr.Message() != "oidc discovery document is not valid JSON" {
+		t.Errorf("expected the canonical message, got %q", serErr.Message())
+	}
+	if serErr.Cause() != nil {
+		t.Errorf("expected no cause, got %v", serErr.Cause())
+	}
+	if strings.Contains(err.Error(), "<html>") {
+		t.Errorf("expected the response body not to be repeated, got %q", err.Error())
+	}
+}
+
+func TestBhvMisc199_OpenIdConnectAuthenticator_DiscoveryRunsAgainWhenItsMaxAgeIsZero(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+		oidcDiscoveryResponse("max-age=0"),
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+	for i := 0; i < 3; i++ {
+		if _, err := authObj.BuildAuthorizationURL(""); err != nil {
+			t.Fatalf("unexpected error on use %d: %v", i+1, err)
+		}
+	}
+	if got := client.requestCount(); got != 3 {
+		t.Errorf("expected 3 discovery requests, got %d", got)
+	}
+}
+
+func TestBhvMisc200_OpenIdConnectAuthenticator_DiscoveryIssuerOfAnotherServerIsRejected(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `{"issuer":"https://evil.example.com","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}`, statusCode: 200},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	var serErr *apierrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+}
+
+func TestBhvMisc201_OpenIdConnectAuthenticator_FailedDiscoveryReportsPathWithoutQuery(t *testing.T) {
+	t.Parallel()
+	client := &fakeOIDCClient{responses: []fakeOIDCResponse{
+		{body: `down`, statusCode: 500},
+	}}
+	authObj := oauth.NewOpenIdConnectAuthenticator(
+		"https://api.example.com",
+		"https://auth.example.com/.well-known/openid-configuration?tenant=a",
+		"my-client-id",
+		"my-client-secret",
+		"https://app.example.com/callback",
+		[]string{"openid"},
+	)
+	authObj.SetApiClient(client)
+
+	_, err := authObj.BuildAuthorizationURL("")
+	var apiErr *apierrors.ApiError
+	if !errors.As(err, &apiErr) {
+		t.Fatalf("expected *ApiError, got %T: %v", err, err)
+	}
+	if got, want := apiErr.RequestPath(), "/.well-known/openid-configuration"; got != want {
+		t.Errorf("expected request path %q without the query, got %q", want, got)
 	}
 }

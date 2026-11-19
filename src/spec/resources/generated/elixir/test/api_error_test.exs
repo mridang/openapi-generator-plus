@@ -17,6 +17,43 @@ defmodule PetstoreClient.ApiErrorTest do
     assert err.error_body == nil
   end
 
+  test "bhv misc 284 a generated call that receives a typed status raises that typed error" do
+    for {status, name} <- [
+          {400, :BadRequestError},
+          {403, :ForbiddenError},
+          {404, :NotFoundError},
+          {409, :ConflictError},
+          {422, :UnprocessableEntityError},
+          {429, :TooManyRequestsError},
+          {500, :InternalServerError},
+          {502, :BadGatewayError}
+        ] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, "")
+      assert error.__struct__ == Module.concat(PetstoreClient.Errors, name)
+    end
+  end
+
+  test "bhv misc 283 the package root module re-exports every error type in the error tree" do
+    assert PetstoreClient.errors() == PetstoreClient.Errors.OpenAPIError.exceptions()
+    assert Enum.all?(PetstoreClient.errors(), &Code.ensure_loaded?/1)
+  end
+
+  test "bhv misc 281 headers from a received response are copied onto the error raised for that response" do
+    error = PetstoreClient.Errors.ApiError.from_response(500, %{"x-trace-id" => "abc123"}, "boom")
+
+    assert error.response_headers == %{"x-trace-id" => "abc123"}
+  end
+
+  test "bhv misc 264 each listed error HTTP status raises the SDK's API error carrying that status code" do
+    for status <- [400, 401, 403, 404, 409, 422, 429, 500, 502] do
+      error = PetstoreClient.Errors.ApiError.from_response(status, %{}, "")
+
+      assert Exception.exception?(error)
+      assert PetstoreClient.Errors.ApiError.api_error?(error)
+      assert error.status_code == status
+    end
+  end
+
   test "bhv errors 021 nil headers and body mark transport-no-response" do
     # apierror-responsebody-headers-nullable-split: nil is distinct from an
     # empty header map / empty body so a pre-response transport failure can
@@ -116,7 +153,20 @@ defmodule PetstoreClient.ApiErrorTest do
     assert byte_size(err.response_body) == 3_000
   end
 
-  test "the message leaves a body of exactly 1 KiB whole" do
+  test "bhv misc 280 the message truncated at 1 KiB states how many bytes were left out" do
+    body = String.duplicate("b", 1_100)
+
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "bad gateway",
+        status_code: 502,
+        response_body: body
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) =~ "... (76 more bytes)"
+  end
+
+  test "bhv errors 086 the message leaves a body of exactly 1 KiB whole" do
     body = String.duplicate("a", 1_024)
     err = PetstoreClient.Errors.ApiError.exception(message: "boom", response_body: body)
 
@@ -348,7 +398,7 @@ defmodule PetstoreClient.ApiErrorTest do
     end
   end
 
-  test "typed_error_body deserializes the body of a specialised error" do
+  test "bhv langelixir 005 typed_error_body deserializes the body of a specialised error" do
     err = PetstoreClient.Errors.ApiError.from_response(404, %{}, ~s({"id":42,"name":"Dogs"}))
 
     body = PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
@@ -545,7 +595,7 @@ defmodule PetstoreClient.ApiErrorTest do
     assert %PetstoreClient.Errors.SerializationError{} = error.cause
   end
 
-  test "the error of a declared error schema is an ApiError and every error above it" do
+  test "bhv langelixir 006 the error of a declared error schema is an ApiError and every error above it" do
     error = PetstoreClient.Errors.UnexpectedFailureError.exception(%{})
 
     assert PetstoreClient.Errors.ApiError.api_error?(error)
@@ -607,7 +657,7 @@ defmodule PetstoreClient.ApiErrorTest do
       end
     end
 
-    test "a rescued SDK error is recognised via exceptions/0" do
+    test "bhv errors 094 a rescued SDK error is recognised via exceptions/0" do
       # Elixir's `rescue e in [...]` clause needs a compile-time literal list
       # of exception modules, so a runtime list cannot be spliced in. The
       # idiomatic equivalent is to rescue the error and assert membership in
@@ -623,7 +673,7 @@ defmodule PetstoreClient.ApiErrorTest do
       assert PetstoreClient.Errors.OpenAPIError.open_api_error?(caught)
     end
 
-    test "network and OAuth errors are recognised" do
+    test "bhv langelixir 007 network and OAuth errors are recognised" do
       for err <- [
             PetstoreClient.Errors.NetworkError.exception(message: "refused"),
             PetstoreClient.Errors.NetworkTimeoutError.exception(message: "timed out"),
@@ -669,7 +719,7 @@ defmodule PetstoreClient.ApiErrorTest do
     # the hierarchy: a 404 is a NotFoundError, a ClientError and an ApiError; a
     # 500 is an InternalServerError, a ServerError and an ApiError; a
     # NetworkTimeoutError is a NetworkError and an ApiError.
-    test "family predicates express the error hierarchy" do
+    test "bhv errors 095 family predicates express the error hierarchy" do
       not_found =
         PetstoreClient.Errors.NotFoundError.exception(%{message: "missing", status_code: 404})
 
@@ -834,7 +884,7 @@ defmodule PetstoreClient.ApiErrorTest do
                0
     end
 
-    test "non-SDK exceptions are not recognised" do
+    test "bhv langelixir 008 non-SDK exceptions are not recognised" do
       refute PetstoreClient.Errors.OpenAPIError.open_api_error?(%RuntimeError{
                message: "unrelated"
              })
@@ -893,5 +943,191 @@ defmodule PetstoreClient.ApiErrorTest do
 
     assert %PetstoreClient.Errors.InternalServerError{} = err
     assert Enum.reduce(1..depth, err.error_body, fn _, acc -> acc["a"] end) == 1
+  end
+
+  test "bhv errors 085 a carriage return, line feed or other control character in an error's response body appears escaped in the rendered message" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 500,
+        message: "boom",
+        response_body: "a\r\nb"
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) ==
+             "boom\nHTTP status code: 500\nResponse body: a\\r\\nb"
+  end
+
+  test "bhv errors 087 credential and challenge headers are masked in the rendered message" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 401,
+        message: "denied",
+        response_headers: %{
+          "authorization" => "Bearer abc",
+          "www-authenticate" => "Basic realm=x"
+        },
+        response_body: ""
+      )
+
+    message = PetstoreClient.Errors.ApiError.message(err)
+    refute message =~ "Bearer abc"
+    refute message =~ "realm=x"
+  end
+
+  test "bhv errors 088 the rendered message leaves out absent or empty sections and keeps the present ones" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        status_code: 500,
+        message: "down",
+        response_headers: %{},
+        response_body: ""
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) == "down\nHTTP status code: 500"
+  end
+
+  test "bhv errors 089 an error with a nil or empty message renders the default message text" do
+    for message <- [nil, ""] do
+      err = PetstoreClient.Errors.ApiError.exception(status_code: 0, message: message)
+
+      assert PetstoreClient.Errors.ApiError.message(err) ==
+               "Error message: the server returns an error"
+    end
+  end
+
+  test "bhv errors 090 an error with no response data keeps its body and headers as nil" do
+    err = PetstoreClient.Errors.ApiError.exception(status_code: 0, message: "connection reset")
+
+    assert err.response_body == nil
+    assert err.response_headers == nil
+  end
+
+  test "bhv errors 091 the rendered message names the method and path of the request it failed on" do
+    err =
+      PetstoreClient.Errors.ApiError.from_response(404, %{}, "missing")
+      |> PetstoreClient.Errors.ApiError.with_request(:get, "/items/7")
+
+    assert Exception.message(err) =~ "Request: GET /items/7"
+  end
+
+  test "bhv errors 093 an error body prefixed with a byte order mark is parsed into the error body" do
+    bom = <<0xEF, 0xBB, 0xBF>> <> ~s({"a":1})
+    err = PetstoreClient.Errors.ApiError.from_response(400, %{}, bom)
+
+    assert %PetstoreClient.Errors.BadRequestError{} = err
+    assert err.error_body == %{"a" => 1}
+    assert err.response_body == bom
+  end
+
+  test "bhv errors 096 a status outside every class range falls back to the base error" do
+    for status <- [399, 600] do
+      assert %PetstoreClient.Errors.ApiError{} =
+               PetstoreClient.Errors.ApiError.from_response(status, %{}, nil)
+    end
+  end
+
+  test "bhv errors 097 an unrecognised 4xx status raises the generic client error" do
+    assert %PetstoreClient.Errors.ClientError{} =
+             PetstoreClient.Errors.ApiError.from_response(499, %{}, nil)
+  end
+
+  test "bhv misc 015 a typed view of an error body that is valid JSON but not an object is refused" do
+    err = PetstoreClient.Errors.ApiError.from_response(400, %{}, "[1, 2]")
+
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Errors.ApiError.typed_error_body(err, "Category")
+    end
+  end
+
+  test "bhv misc 016 the rendered error body shows at most 1 KiB and states how many bytes were omitted" do
+    err =
+      PetstoreClient.Errors.ApiError.exception(
+        message: "bad gateway",
+        status_code: 502,
+        response_body: String.duplicate("a", 3_000)
+      )
+
+    assert PetstoreClient.Errors.ApiError.message(err) ==
+             "bad gateway\nHTTP status code: 502\nResponse body: " <>
+               String.duplicate("a", 1_024) <> "... (1976 more bytes)"
+
+    assert byte_size(err.response_body) == 3_000
+  end
+
+  test "bhv misc 018 a token endpoint error with a non-JSON body exposes the status, no code and the raw body" do
+    err =
+      PetstoreClient.Errors.OAuth2ServerError.exception(
+        status_code: 502,
+        raw_body: "<html>bad gateway</html>"
+      )
+
+    assert err.status_code == 502
+    assert err.code == nil
+    assert err.raw_body == "<html>bad gateway</html>"
+
+    assert Exception.message(err) ==
+             "Token request failed with status 502: <html>bad gateway</html>"
+  end
+
+  test "bhv misc 019 a request target shown in an error is reduced to its path, dropping scheme, host, query and fragment" do
+    err =
+      PetstoreClient.Errors.ApiError.with_request(
+        PetstoreClient.Errors.ApiError.from_response(404, %{}, nil),
+        :get,
+        "https://api.example.com/items/1?token=abc#frag"
+      )
+
+    assert err.request_method == "GET"
+    assert err.request_path == "/items/1"
+    refute Exception.message(err) =~ "api.example.com"
+    refute Exception.message(err) =~ "token"
+  end
+
+  test "bhv misc 020 the rendered error text shows the request line only when the method and path are both known" do
+    err = PetstoreClient.Errors.ApiError.from_response(404, %{}, nil)
+
+    refute Exception.message(%{err | request_method: "GET"}) =~ "Request:"
+
+    assert Exception.message(PetstoreClient.Errors.ApiError.with_request(err, :get, "/items")) =~
+             "Request: GET /items"
+  end
+
+  test "bhv misc 021 the request path an error reports includes the base URL path prefix and excludes the query string" do
+    err =
+      PetstoreClient.Errors.ApiError.with_request(
+        PetstoreClient.Errors.ApiError.from_response(404, %{}, nil),
+        :delete,
+        "https://api.example.com/api/v3/items/7?x=1"
+      )
+
+    assert err.request_method == "DELETE"
+    assert err.request_path == "/api/v3/items/7"
+    assert Exception.message(err) =~ "Request: DELETE /api/v3/items/7"
+    refute Exception.message(err) =~ "x=1"
+  end
+
+  test "bhv misc 022 a server error is an instance of the SDK root error type" do
+    err = PetstoreClient.Errors.ApiError.from_response(500, %{}, nil)
+
+    assert PetstoreClient.Errors.ServerError.server_error?(err)
+    assert PetstoreClient.Errors.ApiError.api_error?(err)
+    assert PetstoreClient.Errors.OpenAPIError.open_api_error?(err)
+  end
+
+  test "bhv misc 023 a status with no specific error module becomes the generic server error or the generic other error" do
+    assert %PetstoreClient.Errors.ServerError{status_code: 599} =
+             PetstoreClient.Errors.ApiError.from_response(599, %{}, nil)
+
+    assert %PetstoreClient.Errors.ApiError{status_code: 302} =
+             PetstoreClient.Errors.ApiError.from_response(302, %{}, nil)
+  end
+
+  test "bhv misc 024 a transport failure keeps the underlying transport error reachable as its cause" do
+    transport = %RuntimeError{message: "econnrefused"}
+    err = PetstoreClient.Errors.NetworkError.exception(message: "timed out", cause: transport)
+
+    assert err.cause == transport
+    assert err.status_code == 0
+    assert PetstoreClient.Errors.ApiError.api_error?(err)
   end
 end

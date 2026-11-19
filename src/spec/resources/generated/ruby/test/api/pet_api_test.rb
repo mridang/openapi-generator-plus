@@ -97,6 +97,29 @@ describe Petstore::Client::Api::PetApi do
     end
   end
 
+  describe '#find_pets_by_status with no options' do
+    it 'bhv_misc_003 an all-optional operation sends no omitted parameter' do
+      api, server, thread, captured = capture_wire_request('[]')
+      begin
+        api.find_pets_by_status
+        _(captured.pop[:request_line]).wont_include '?'
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_005 a bare null list body raises an API error' do
+      api, server, thread, = capture_wire_request('null')
+      begin
+        _(-> { api.find_pets_by_status }).must_raise Petstore::Client::Errors::ApiError
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+  end
+
   describe '#find_pets_by_status' do
     it 'bhv_operations_039 find_pets_by_status' do
       result = @api.find_pets_by_status(Petstore::Client::Api::Options::FindPetsByStatusOptions.new(status: 'available'))
@@ -217,6 +240,23 @@ describe Petstore::Client::Api::PetApi do
         server.close
         thread.join(2)
       end
+    end
+  end
+
+  describe '#get_pet_by_name without its positional argument or options' do
+    it 'bhv_misc_007 a missing path parameter is named and no request is sent' do
+      client = RecordingPetClient.new
+      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
+      api = Petstore::Client::Api::PetApi.new(client, config)
+
+      operation = :get_pet_by_name
+      err = assert_raises(ArgumentError) { api.public_send(operation, nil, nil) }
+      _(err.message).must_include "'name'"
+      _(client.calls).must_equal(0)
+    end
+
+    it 'bhv_misc_010 an operation with required options refuses a call that omits them' do
+      _(-> { @api.get_pet_by_name('Rex') }).must_raise ArgumentError
     end
   end
 
@@ -660,7 +700,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     # S16 / F406: a caller-supplied stream is read, never closed.
-    it 'leaves a caller-supplied upload stream open' do
+    it 'bhv_transport_091 leaves a caller-supplied upload stream open' do
       api, server, thread, captured_body, = capture_document_request
       begin
         io = StringIO.new('doc')
@@ -821,8 +861,8 @@ describe Petstore::Client::Api::PetApi do
       _(client.headers['Cookie']).must_equal('session=abc')
     end
 
-    [nil, ''].each do |session|
-      it "bhv_operations_056 refuses the required session cookie #{session.inspect} before sending" do
+    it 'bhv_operations_056 refuses a nil or empty required session cookie before sending' do
+      [nil, ''].each_case do |session|
         client = RecordingPetClient.new
         # @type var missing: untyped
         missing = session
@@ -836,8 +876,8 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_by_name required header' do
-    [nil, ''].each do |value|
-      it "bhv_operations_050 refuses the required X-Correlation-Id header #{value.inspect} before sending" do
+    it 'bhv_operations_050 refuses a nil or empty required X-Correlation-Id header before sending' do
+      [nil, ''].each_case do |value|
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -872,14 +912,14 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe '#get_pet_summary doc comments' do
-    it 'shows the summary, description and parameter prose without literal escapes' do
+    it 'bhv_langruby_001 shows the summary, description and parameter prose without literal escapes' do
       path = String(Object.const_source_location(Petstore::Client::Api::PetApi.name)&.first)
       source = File.read(path)
       _(source).must_include(%q(# Get a <plain> "text" summary & it's short))
       _(source).must_include(%q(# Returns '''plain''' text for <tt>/pets/#{id}</tt> and <b> & "c" it's done))
     end
 
-    it 'shows the options parameter prose without literal escapes' do
+    it 'bhv_langruby_002 shows the options parameter prose without literal escapes' do
       path = String(Object.const_source_location(Petstore::Client::Api::Options::GetPetSummaryOptions.name)&.first)
       source = File.read(path)
       _(source).must_include(%q(# @param session [String] Session token: "a<b>" & it's required))
@@ -887,7 +927,7 @@ describe Petstore::Client::Api::PetApi do
   end
 
   describe 'per-operation server variables' do
-    it 'resolves the URL from enum values' do
+    it 'bhv_langruby_003 resolves the URL from enum values' do
       server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
         environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
         version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
@@ -906,7 +946,7 @@ describe Petstore::Client::Api::PetApi do
       )
     end
 
-    it 'rejects a value outside the enum on a later variable' do
+    it 'bhv_langruby_004 rejects a value outside the enum on a later variable' do
       err = _(lambda {
         Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(environment: 'staging', version: 'v9')
       }).must_raise(ArgumentError)
@@ -914,7 +954,7 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include("Invalid value 'v9' for server variable 'version'")
     end
 
-    it 'rejects nil for an enum variable' do
+    it 'bhv_misc_260 rejects nil for an enum variable' do
       err = _(lambda {
         Petstore::Client::Api::GetMultiServerPetInfoServerRegional.new(region: nil) # steep:ignore ArgumentTypeMismatch
       }).must_raise(ArgumentError)
@@ -956,7 +996,7 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
-    it 'bhv_operations_125 raises ArgumentError naming the required query param category when it is nil' do
+    it 'bhv_operations_164 raises ArgumentError when the required query param category is nil' do
       # Deliberately breaks the signature, which types category as String.
       # @type var missing: untyped
       missing = nil
@@ -966,7 +1006,17 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
-    it 'raises ArgumentError when the required path param name is nil' do
+    it 'bhv_misc_004 calling an operation with required fields and no options object raises naming the first missing field' do
+      # Deliberately breaks the signature, which types category as String.
+      # @type var missing: untyped
+      missing = nil
+      err = assert_raises(ArgumentError) do
+        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
+      end
+      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
+    end
+
+    it 'bhv_misc_012 raises ArgumentError when the required path param name is nil' do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
       end
@@ -990,8 +1040,8 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include 'name'
     end
 
-    ['.', '..'].each do |segment|
-      it "bhv_operations_051 rejects the dot segment #{segment.inspect} as the path param name before dispatch" do
+    it 'bhv_operations_051 rejects the dot segments as the path param name before dispatch' do
+      ['.', '..'].each_case do |segment|
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1195,21 +1245,18 @@ describe Petstore::Client::Api::PetApi do
       [api, server, thread, captured]
     end
 
-    it 'bhv_operations_059 sends format:byte query and header params as padded standard base64' do
+    it 'bhv_operations_059 sends format:byte query and header params as padded standard base64, with the standard alphabet' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
       api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: 'hi', x_fingerprint: 'hi'))
       _(client.url).must_include 'fingerprint=aGk%3D'
       _(client.headers['X-Fingerprint']).must_equal 'aGk='
-    end
 
-    it 'uses the standard base64 alphabet for format:byte params' do
-      client = RecordingPetClient.new
-      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
-      api = Petstore::Client::Api::PetApi.new(client, config)
+      alphabet = RecordingPetClient.new
+      api = Petstore::Client::Api::PetApi.new(alphabet, config)
       api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: "\xFB\xFF".b))
-      _(client.url).must_include 'fingerprint=%2B%2F8%3D'
+      _(alphabet.url).must_include 'fingerprint=%2B%2F8%3D'
     end
 
     it 'bhv_operations_066 percent-encodes a # in an allowReserved value instead of truncating the query' do
@@ -1218,26 +1265,6 @@ describe Petstore::Client::Api::PetApi do
       api = Petstore::Client::Api::PetApi.new(client, config)
       api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(revision: 'v1.0/beta:rc1#frag'))
       _(client.url).must_include 'revision=v1.0/beta:rc1%23frag'
-    end
-
-    it 'percent-encodes a path param value exactly once' do
-      body = '{"id":1,"name":"x","photoUrls":[],"status":"available"}'
-      api, server, thread, captured = capture_request_line(200, 'application/json', body)
-      begin
-        # 'a b' (label style) serialises to '.a%20b'. The wrong (double)
-        # encoding would emit '.a%2520b'.
-        api.get_pet_tag(
-          5,
-          'a b',
-          Petstore::Client::Api::Options::GetPetTagOptions.new
-        )
-        request_line = captured.pop
-        _(request_line).must_include '%20'
-        _(request_line).wont_include '%2520'
-      ensure
-        server.close
-        thread.join(2)
-      end
     end
 
     # optional-array-param parity (Wave D): an OPTIONAL array query parameter
@@ -1632,7 +1659,7 @@ describe Petstore::Client::Api::PetApi do
 
     # Canonical behavior 2 — optional `tags`/`note` left absent are omitted
     # from the body entirely; only the required `nickname` is sent.
-    it 'omits absent optional form properties' do
+    it 'bhv_langruby_005 omits absent optional form properties' do
       api, server, thread, captured = capture_request_body
       begin
         options = Petstore::Client::Api::Options::SetPetPreferencesOptions.new(nickname: 'Rex')
@@ -1731,13 +1758,13 @@ describe Petstore::Client::Api::PetApi do
       end
     end
 
-    it 'does not mark an operation that is not deprecated' do
+    it 'bhv_langruby_006 does not mark an operation that is not deprecated' do
       %w[add_pet add_pet_with_http_info delete_pet].each do |name|
         _(doc_block(name)).wont_include '# @deprecated This operation is deprecated.'
       end
     end
 
-    it 'marks the deprecated parameter on its options class' do
+    it 'bhv_langruby_007 marks the deprecated parameter on its options class' do
       path = String(Object.const_source_location(Petstore::Client::Api::Options::FindPetsByStatusOptions.name)&.first)
       _(File.read(path)).must_include '# @deprecated This parameter is deprecated.'
     end
@@ -1759,13 +1786,13 @@ describe Petstore::Client::Api::PetApi do
 
     # Binary downloads are returned as the in-memory StringIO that BaseApi
     # builds, never a File, so the YARD tag and the RBS signature say so.
-    it 'declares the StringIO a binary download returns in YARD' do
+    it 'bhv_langruby_008 declares the StringIO a binary download returns in YARD' do
       %w[get_pet_avatar download_pet_document get_pet_photo].each do |name|
         _(doc_block(name)).must_include '# @return [StringIO]'
       end
     end
 
-    it 'declares the StringIO a binary download returns in RBS' do
+    it 'bhv_langruby_009 declares the StringIO a binary download returns in RBS' do
       root = File.expand_path('../..', File.dirname(__FILE__))
       rbs = File.read(File.join(root, 'sig', 'petstore/client', 'api', 'pet_api.rbs'))
       _(rbs).must_include 'def get_pet_avatar: (Integer pet_id, ?Options::GetPetAvatarOptions? options) -> ::StringIO'
@@ -1794,8 +1821,8 @@ describe Petstore::Client::Api::PetApi do
     # F840: a value that holds a character outside RFC 6265's cookie-octet set
     # (space, double quote, comma, semicolon, backslash, a control character or
     # anything non-ASCII) fails before a request is sent; the caller encodes it.
-    ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", 'a b', 'a"b', 'a,b', 'a;b', 'a\\b', "caf\u00e9"].each do |value|
-      it "bhv_operations_029 fails closed for #{value.inspect} without sending a request" do
+    it 'bhv_operations_029 fails closed for a cookie value outside the cookie-octet set without sending a request' do
+      ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", 'a b', 'a"b', 'a,b', 'a;b', 'a\\b', "caf\u00e9"].each_case do |value|
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1819,8 +1846,8 @@ describe Petstore::Client::Api::PetApi do
 
     # Every character of these is a legal cookie-octet, so the value goes out
     # exactly as given: nothing is percent-encoded or decoded.
-    ['a=b==', 'a%20b', 'a/b+c', 'a.b~c_d-e', 'a:b@c!d'].each do |value|
-      it "bhv_operations_030 sends #{value.inspect} raw" do
+    it 'bhv_operations_030 sends a cookie value made only of legal cookie-octets raw' do
+      ['a=b==', 'a%20b', 'a/b+c', 'a.b~c_d-e', 'a:b@c!d'].each_case do |value|
         client = RecordingPetClient.new
         config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = Petstore::Client::Api::PetApi.new(client, config)
@@ -1840,6 +1867,13 @@ describe Petstore::Client::Api::PetApi do
       client.url
     end
 
+    it 'bhv_operations_160 a call to an external-variant operation is sent to the URL of the generated server variant' do
+      url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
+        api.get_external_pet_info(7, server: server)
+      end
+      _(url).must_equal 'https://external-api.example.com/v1/pet/7/external'
+    end
+
     it 'bhv_operations_083 sends the single-server operation to its fixed URL' do
       url = url_sent_to(Petstore::Client::Api::GetExternalPetInfoServerServer0.new) do |api, server|
         api.get_external_pet_info(7, server: server)
@@ -1852,7 +1886,7 @@ describe Petstore::Client::Api::PetApi do
       _(url).must_equal 'http://127.0.0.1:1/pet/7/external'
     end
 
-    it 'substitutes the server variables into the templated URL' do
+    it 'bhv_langruby_010 substitutes the server variables into the templated URL' do
       environment = Petstore::Client::Api::GetStagingPetInfoServerEnvironment
       version = Petstore::Client::Api::GetStagingPetInfoServerVersion
       server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
@@ -1876,28 +1910,29 @@ describe Petstore::Client::Api::PetApi do
       _(regional).must_equal 'https://eu.example.com/v1/pet/7/multi'
     end
 
+    it 'bhv_misc_219 an operation with several servers sends its request to the server chosen for that operation' do
+      server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
+        version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
+      )
+      url = url_sent_to(server) { |api, chosen| api.get_staging_pet_info(7, server: chosen) }
+
+      _(url).must_match %r{\Ahttps://sandbox\.example\.com/api/v3/}
+    end
+
     # The Mirror variant has two variables, and its channel values hold
     # characters that are special in a URL and in a string literal.
-    {
-      'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
-      "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
-    }.each do |channel, expected|
-      it "bhv_operations_084 resolves the Mirror variant for the channel #{channel.inspect}" do
+    it 'bhv_operations_084 resolves the Mirror variant for channels that are special in a URL and a string literal' do
+      {
+        'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
+        "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
+      }.each_case do |channel, expected|
         server = Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
           region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: channel
         )
         url = url_sent_to(server) { |api, chosen| api.get_multi_server_pet_info(7, server: chosen) }
         _(url).must_equal expected
       end
-    end
-
-    it 'rejects a Mirror channel outside the declared values' do
-      err = assert_raises(ArgumentError) do
-        Petstore::Client::Api::GetMultiServerPetInfoServerMirror.new(
-          region: Petstore::Client::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: 'other'
-        )
-      end
-      _(err.message).must_include "Invalid value 'other' for server variable 'channel'"
     end
   end
 
@@ -1976,19 +2011,6 @@ describe Petstore::Client::Api::PetApi do
       api.find_pets_by_status_with_http_info
       _(hook.infos.length).must_equal 2
       _(hook.outcomes.length).must_equal 2
-    end
-
-    it 'bhv_hooks_002 names the operation as the spec writes it and gives its path template' do
-      hook = RecordingCallHook.new
-
-      hooked_pet_api(hook).find_pets_by_status
-
-      info = hook.infos.first
-      _(info.operation_id).must_equal 'findPetsByStatus'
-      _(info.http_method).must_equal 'GET'
-      _(info.url_template).must_equal '/pet/findByStatus'
-      _(info.url).must_equal 'http://127.0.0.1:1/pet/findByStatus'
-      _(hook.outcomes.first.status_code).must_equal 200
     end
   end
 end

@@ -7,6 +7,7 @@
 
 package com.example.petstore
 
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -45,8 +46,8 @@ class ApiResultTest {
     }
 
     @Test
-    @DisplayName("value equality holds for identical results")
-    fun valueEquality() {
+    @DisplayName("bhvLangkotlin004 value equality holds for identical results")
+    fun bhvLangkotlin004ValueEquality() {
         val a = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         val b = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         assertEquals(a, b)
@@ -54,8 +55,8 @@ class ApiResultTest {
     }
 
     @Test
-    @DisplayName("copy overrides a single field and leaves the rest intact")
-    fun copyOverridesSingleField() {
+    @DisplayName("bhvSerialization079 copy overrides a single field and leaves the rest intact")
+    fun bhvSerialization079CopyOverridesSingleField() {
         val original = ApiResult(200, "x", "raw", mapOf("h" to "v"))
         val copied = original.copy(statusCode = 201)
         assertEquals(201, copied.statusCode)
@@ -84,4 +85,19 @@ class ApiResultTest {
         val result = ApiResult(200, "x", "{\"raw\":true}", emptyMap())
         assertEquals("{\"raw\":true}", result.rawBody)
     }
+
+    @Test
+    fun bhvResults007ResultCarriesDataRawBodyAndHeadersTogether() =
+        runBlocking<Unit> {
+            val result =
+                ApiResult(
+                    statusCode = 201,
+                    data = "payload",
+                    rawBody = "{\"value\":\"payload\"}",
+                    headers = mapOf("X-Id" to "42"),
+                )
+            assertEquals("payload", result.data)
+            assertEquals("{\"value\":\"payload\"}", result.rawBody)
+            assertEquals("42", result.headers["X-Id"])
+        }
 }

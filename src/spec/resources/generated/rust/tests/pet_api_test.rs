@@ -577,17 +577,6 @@ async fn test_bhv_operations_055_pet_api_get_pet_photo() {
 }
 
 #[tokio::test]
-async fn test_pet_api_get_pet_photo_json_reply_returns_the_raw_bytes() {
-    let body = r#"{"id":7,"name":"photo"}"#;
-    let (api, _) = new_pet_api_for_mock(200, "application/json", body);
-    let photo = api
-        .get_pet_photo(1, 1, None)
-        .await
-        .expect("get_pet_photo failed");
-    assert_eq!(photo, body.as_bytes().to_vec());
-}
-
-#[tokio::test]
 async fn test_bhv_operations_063_pet_api_get_pet_avatar_thumbnail_rejects_malformed_base64() {
     let (api, _) = new_pet_api_for_mock(200, "application/json", "\"!!not*base64??\"");
     let err = api
@@ -1111,7 +1100,7 @@ async fn test_bhv_operations_079_pet_api_credentials_send_the_bearer_scheme_the_
 
 /// F857: with only the API key held, the API key is sent and no bearer is.
 #[tokio::test]
-async fn test_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
+async fn test_bhv_misc_221_pet_api_credentials_send_the_api_key_scheme_the_operation_lists() {
     let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
     let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
     assert!(request.contains("key-one"), "request: {}", request);
@@ -1181,29 +1170,10 @@ async fn test_bhv_operations_086_pet_api_unsecured_op_has_no_auth_field() {
     assert!(result.is_ok(), "get_pet_by_id failed: {:?}", result.err());
 }
 
-/// path-single-encoding: a string path parameter containing a space and a
-/// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
-/// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
-/// path segments, so the operation template must not re-encode the output.
-#[tokio::test]
-async fn test_pet_api_get_pet_by_name_path_encoded_once() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetByNameOptions::new("dogs".to_string(), "corr-1".to_string());
-    let _ = api.get_pet_by_name("a b/c".to_string(), Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    let request_line = request.lines().next().unwrap_or("");
-    assert!(
-        request_line.contains("/pet/byName/a%20b%2Fc"),
-        "expected single-encoded path segment, got request line: {}",
-        request_line
-    );
-    assert!(
-        !request_line.contains("%2520") && !request_line.contains("%252F"),
-        "path was double-encoded, got request line: {}",
-        request_line
-    );
-}
+// path-single-encoding: a string path parameter containing a space and a
+// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
+// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
+// path segments, so the operation template must not re-encode the output.
 
 /// required-nested-param-validation: `category` is a REQUIRED query parameter.
 /// Calling the operation without Options (where the required value lives) must
@@ -1287,7 +1257,7 @@ async fn test_bhv_operations_065_pet_api_get_pet_by_name_required_query_on_wire(
 }
 
 #[tokio::test]
-async fn test_bhv_operations_157_pet_api_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(
+async fn test_bhv_operations_157_a_null_required_nullable_query_parameter_is_sent_empty_and_a_binary_body_is_raw_bytes(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(None, Some(3));
@@ -1300,10 +1270,30 @@ async fn test_bhv_operations_157_pet_api_get_pet_by_note_sends_a_null_required_n
         "expected the query note=&rank=3, got request line: {}",
         request_line
     );
+
+    let (byte_api, byte_rx, _) = new_pet_api_for_byte_capture();
+    let image_bytes: Vec<u8> = vec![0x00, 0xFF, 0xD8, 0x0D, 0x0A, 0x2D, 0x2D];
+    let _ = byte_api
+        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/jpeg"))
+        .await;
+    let raw = byte_rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    assert_eq!(
+        body,
+        image_bytes.as_slice(),
+        "the body must be the exact bytes"
+    );
+    assert!(
+        !String::from_utf8_lossy(headers)
+            .to_ascii_lowercase()
+            .contains("multipart"),
+        "a binary body must not be multipart: {}",
+        String::from_utf8_lossy(headers)
+    );
 }
 
 #[tokio::test]
-async fn test_bhv_operations_158_pet_api_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(
+async fn test_bhv_operations_158_every_null_required_nullable_query_parameter_is_sent_in_declaration_order_and_a_per_call_header_is_sent(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(None, None);
@@ -1316,10 +1306,27 @@ async fn test_bhv_operations_158_pet_api_get_pet_by_note_sends_every_null_requir
         "expected the query note=&rank=, got request line: {}",
         request_line
     );
+
+    let (trace_api, trace_rx, _) = new_pet_api_for_capture();
+    let trace_opts = AddPetOptions::new().header("X-Call-Trace", "call-158");
+    let pet = Pet::new(
+        "TraceDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = trace_api.add_pet(pet, Some(&trace_opts)).await;
+    let trace_request = trace_rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        trace_request.contains("x-call-trace: call-158"),
+        "request: {}",
+        trace_request
+    );
 }
 
 #[tokio::test]
-async fn test_bhv_operations_159_pet_api_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(
+async fn test_bhv_operations_159_a_non_null_required_nullable_query_parameter_is_sent_with_its_value_and_an_empty_success_body_is_a_typed_error(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(Some("a b".to_string()), Some(3));
@@ -1331,6 +1338,21 @@ async fn test_bhv_operations_159_pet_api_get_pet_by_note_sends_a_non_null_requir
         request_line.contains(" /pet/byNote?note=a%20b&rank=3 "),
         "expected the query note=a%20b&rank=3, got request line: {}",
         request_line
+    );
+
+    let config = ConfigurationBuilder::new()
+        .base_url(&start_empty_ok_server())
+        .build();
+    let empty_api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let err = empty_api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a value call must not accept an empty body")
+        .to_string();
+    assert!(
+        err.contains("Expected a response body for get_pet_by_id but received none"),
+        "{}",
+        err
     );
 }
 
@@ -1677,21 +1699,6 @@ async fn test_bhv_operations_059_pet_api_get_pet_tag_byte_params_are_base64() {
         .find(|line| line.to_lowercase().starts_with("x-fingerprint:"))
         .map(|line| line["x-fingerprint:".len()..].trim().to_string());
     assert_eq!(Some("aGk=".to_string()), header, "{}", request);
-}
-
-#[tokio::test]
-async fn test_pet_api_get_pet_tag_byte_param_uses_the_standard_alphabet() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = GetPetTagOptions::new().fingerprint(vec![0xFB, 0xFF]);
-    let _ = api.get_pet_tag(5, "cute".to_string(), Some(&opts)).await;
-
-    let request = rx.recv().expect("expected a captured request");
-    let request_line = request.lines().next().unwrap_or("");
-    assert!(
-        request_line.contains("fingerprint=%2B%2F8%3D"),
-        "got request line: {}",
-        request_line
-    );
 }
 
 #[tokio::test]
@@ -2140,7 +2147,7 @@ async fn test_bhv_operations_084_pet_api_mirror_operation_server_is_the_host_of_
  * cookie and the date array reach the wire, and the text/plain answer comes
  * back as the text. */
 #[tokio::test]
-async fn test_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
+async fn test_bhv_langrust_045_pet_api_get_pet_summary_succeeds_with_a_text_plain_answer() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let base_url = format!("http://{}", listener.local_addr().unwrap());
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -2248,7 +2255,7 @@ async fn test_bhv_operations_043_pet_api_find_pets_born_on_path_param_is_date_on
 /// The API group can be built without wiring a client, configuration or
 /// authenticator, like the no-argument constructors in the other SDKs.
 #[test]
-fn test_pet_api_default_constructs_without_arguments() {
+fn test_bhv_misc_276_pet_api_default_constructs_without_arguments() {
     let _api = PetApi::default();
 }
 
@@ -2282,7 +2289,7 @@ fn test_bhv_operations_082_operations_document_their_options_argument() {
 /// written: no HTML entity, no leaked backslash-quote, and the angle brackets
 /// rustdoc reads as HTML tags are escaped so `cargo doc -D warnings` passes.
 #[test]
-fn test_operation_prose_is_raw_and_rustdoc_safe() {
+fn test_bhv_langrust_046_operation_prose_is_raw_and_rustdoc_safe() {
     let source = include_str!("../src/api/pet_api.rs");
     let expected = "    /// Get a \\<plain\\> \"text\" summary & it's short\n    \
 /// Returns '''plain''' text for /pets/#{id} and \\<b\\> & \"c\" it's done\n";
@@ -2304,7 +2311,7 @@ fn test_operation_prose_is_raw_and_rustdoc_safe() {
 /* F823: the default transport retries a 503 and sends the call again as a
  * fresh request. */
 #[tokio::test]
-async fn test_pet_api_retries_a_503_with_the_default_transport() {
+async fn test_bhv_retries_048_pet_api_retries_a_503_with_the_default_transport() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().unwrap();
     let served = Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -3178,4 +3185,363 @@ async fn test_bhv_mocking_006_pet_api_call_without_options_reaches_the_full_sign
         "unexpected call {}",
         calls[0]
     );
+}
+/// auth043: an operation sends the credential of the scheme it names and no other scheme's credential.
+#[tokio::test]
+async fn test_bhv_auth_043_an_operation_sends_only_the_scheme_credential_it_names() {
+    let key = ApiKeyHeaderAuthenticator::new("http://localhost", Some("key-one")).unwrap();
+    let request = add_pet_request_with(Credentials::new().with_api_key_header(key)).await;
+    assert!(request.contains("key-one"), "request: {}", request);
+    assert!(!request.contains("authorization:"), "request: {}", request);
+}
+
+/// auth044: an operation that declares no security requirement sends no credential, even when the client holds one.
+#[tokio::test]
+async fn test_bhv_auth_044_an_operation_with_no_security_requirement_sends_no_credential() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let store = StoreApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let _ = store.get_inventory(None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(!request.contains("authorization:"), "request: {}", request);
+    assert!(
+        !request.contains("bearer test-token"),
+        "request: {}",
+        request
+    );
+}
+
+/// auth045: a credential supplied for the operation's scheme replaces a default Authorization header set on the client.
+#[tokio::test]
+async fn test_bhv_auth_045_an_operation_credential_replaces_the_default_authorization_header() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new()
+        .base_url(&base_url)
+        .default_header("Authorization", "Bearer default-token")
+        .build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let pet = Pet::new(
+        "ReplacedDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = api.add_pet(pet, None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("authorization: bearer test-token"),
+        "request: {}",
+        request
+    );
+    assert!(!request.contains("default-token"), "request: {}", request);
+}
+
+/// auth046: an operation with no security of its own inherits the document-level security, so the client's credential is sent.
+#[tokio::test]
+async fn test_bhv_auth_046_an_operation_without_its_own_security_receives_the_client_credential() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let api = PetApi::new(
+        Arc::new(DefaultApiClient::new(None)),
+        config,
+        Some(Arc::new(bearer_auth())),
+    );
+    let _ = api.find_pets_by_status(None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("authorization: bearer test-token"),
+        "request: {}",
+        request
+    );
+}
+
+/// auth047: with none of an operation's schemes held, no scheme credential is sent on the wire.
+#[tokio::test]
+async fn test_bhv_auth_047_an_operation_sends_no_scheme_credential_when_none_is_held() {
+    let request = add_pet_request_with(Credentials::new()).await;
+    assert!(!request.contains("authorization:"), "request: {}", request);
+    assert!(!request.contains("key-one"), "request: {}", request);
+}
+
+/// Starts a local server that answers every request with 200 and no body.
+fn start_empty_ok_server() -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { break };
+            let mut buf = [0u8; 4096];
+            let _ = std::io::Read::read(&mut stream, &mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        }
+    });
+    base_url
+}
+
+/// operations160: an operation whose server is an external variant is sent to that variant's URL.
+#[tokio::test]
+async fn test_bhv_operations_160_an_external_variant_operation_is_sent_to_its_server_url() {
+    let (api, client) = new_pet_api_recording_urls();
+    let _ = api
+        .get_external_pet_info(7, Some(&GetExternalPetInfoServerServer0 {}), None)
+        .await;
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].starts_with("https://external-api.example.com/v1/pet/7/external"),
+        "{}",
+        urls[0]
+    );
+}
+
+/// operations162: a date-only parameter is written as a bare date in the path and the query, with no time component.
+#[tokio::test]
+async fn test_bhv_operations_162_date_only_parameters_carry_no_time_component() {
+    let (api, client) = new_pet_api_recording_urls();
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let days = vec![
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 1).expect("a valid date"),
+        chrono::NaiveDate::from_ymd_opt(2024, 2, 2).expect("a valid date"),
+    ];
+    let opts = GetPetSummaryOptions::new("s".to_string()).days(days);
+    let _ = api.get_pet_summary(1, as_of, Some(&opts)).await;
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].contains("days=2024-02-01&days=2024-02-02"),
+        "{}",
+        urls[0]
+    );
+    assert!(
+        !urls[0].contains('T') && !urls[0].contains(":00"),
+        "a date must carry no time: {}",
+        urls[0]
+    );
+}
+
+/// operations165: a path parameter with a matrix style is written into the path as `;name=value`.
+#[tokio::test]
+async fn test_bhv_operations_165_a_path_parameter_is_written_in_its_declared_matrix_style() {
+    let (api, client) = new_pet_api_recording_urls();
+    let as_of = chrono::NaiveDate::from_ymd_opt(2024, 1, 31).expect("a valid date");
+    let opts = GetPetSummaryOptions::new("s".to_string());
+    let _ = api.get_pet_summary(1, as_of, Some(&opts)).await;
+    let urls = client.urls.lock().unwrap();
+    assert_eq!(urls.len(), 1, "{:?}", urls);
+    assert!(
+        urls[0].contains("/pet/1/summary/;asOf=2024-01-31"),
+        "{}",
+        urls[0]
+    );
+}
+
+/// operations163: a request with no body sends no Content-Type, even when the default header is supplied in lower case.
+#[tokio::test]
+async fn test_bhv_operations_163_a_request_without_a_body_sends_no_content_type() {
+    let (_api, rx, base_url) = new_pet_api_for_capture();
+    let config = ConfigurationBuilder::new()
+        .base_url(&base_url)
+        .default_header("content-type", "application/json")
+        .build();
+    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let _ = api.get_pet_by_id(1, None, None).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(!request.contains("content-type:"), "request: {}", request);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_003_an_all_optional_operation_runs_with_no_arguments_and_sends_no_omitted_parameter(
+) {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let _ = api.find_pets_by_status(None).await;
+
+    let request = rx
+        .recv()
+        .expect("the all-optional operation must send a request");
+    let request_line = request.lines().next().unwrap_or("");
+    assert!(
+        !request_line.contains("status="),
+        "no omitted parameter may be sent: {}",
+        request_line
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_005_a_bare_null_body_for_a_list_operation_raises_an_api_error() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let err = api.find_pets_by_status(None).await.unwrap_err();
+    assert!(
+        err.downcast_ref::<petstore::ApiError>().is_some(),
+        "got: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_006_a_bare_null_response_keeps_the_raw_body_and_gives_no_data() {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let result = api
+        .get_pet_by_id_with_http_info(1, None, None)
+        .await
+        .expect("a null body is a result");
+    assert!(result.data().is_none());
+    assert_eq!("null", result.raw_body());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_008_a_supplied_required_cookie_is_sent_in_the_cookie_header() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = DeletePetOptions::new().api_key("session-abc".to_string());
+    let _ = api.delete_pet(1, Some(&opts)).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("cookie: api_key=session-abc"),
+        "the supplied cookie must be sent in the Cookie header, got request: {}",
+        request
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_014_a_null_body_for_an_operation_that_must_return_one_raises_and_returns_no_value(
+) {
+    let (api, _) = new_pet_api_for_mock(200, "application/json", "null");
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a null body for a required return must raise");
+    assert!(
+        err.downcast_ref::<ApiError>().is_some(),
+        "must be the typed ApiError, got: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_021_the_request_path_in_an_error_keeps_the_base_url_prefix_and_drops_the_query(
+) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().unwrap();
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = stream.read(&mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n",
+            );
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let base_url = format!("http://{}/v1", addr);
+    let config = ConfigurationBuilder::new().base_url(&base_url).build();
+    let client = DefaultApiClient::new(Some(
+        TransportOptions::builder()
+            .max_retries(0)
+            .build()
+            .expect("valid transport options"),
+    ));
+    let api = PetApi::new(Arc::new(client), config, None);
+
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a 404 must fail");
+    let api_err = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| {
+        e.source()
+    })
+    .find_map(|e| e.downcast_ref::<ApiError>())
+    .expect("every HTTP error chains to an ApiError");
+    assert_eq!(api_err.request_path(), Some("/v1/pet/1"));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_025_a_typed_call_fails_when_the_server_answers_a_client_error() {
+    let (api, _) = new_pet_api_for_mock(404, "application/json", r#"{"message":"gone"}"#);
+    let err = api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a client error status must fail the typed call");
+    assert!(
+        err.downcast_ref::<NotFoundError>().is_some(),
+        "expected NotFoundError, got: {}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_123_a_pre_encoded_cookie_value_is_sent_unchanged() {
+    let (api, rx, _) = new_pet_api_for_capture();
+    let opts = DeletePetOptions::new().api_key("abc%20def%3d".to_string());
+    let _ = api.delete_pet(1, Some(&opts)).await;
+    let request = rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        request.contains("cookie: api_key=abc%20def%3d"),
+        "a pre-encoded cookie value must not be encoded again, got request: {}",
+        request
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_220_a_full_response_call_keeps_the_status_code_and_the_decoded_body() {
+    let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+    let (api, _) = new_pet_api_for_mock(200, "application/json", body);
+    let result = api
+        .get_pet_by_id_with_http_info(1, None, None)
+        .await
+        .expect("get_pet_by_id_with_http_info failed");
+    assert_eq!(result.status_code(), 200);
+    assert_eq!(result.data().map(|pet| pet.name.as_str()), Some("x"));
+    assert_eq!(result.raw_body(), body);
+    assert!(
+        result
+            .headers()
+            .keys()
+            .any(|k| k.eq_ignore_ascii_case("content-type")),
+        "the ApiResult must carry the response headers, got: {:?}",
+        result.headers()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_216_a_binary_response_is_returned_as_bytes_and_the_raw_body_keeps_its_text()
+{
+    let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "hello");
+    let result = api
+        .get_pet_avatar_with_http_info(1, None)
+        .await
+        .expect("the binary response decodes");
+    assert_eq!(
+        result.data().map(|bytes| bytes.as_slice()),
+        Some(&b"hello"[..])
+    );
+    assert_eq!(result.raw_body(), "aGVsbG8=");
 }

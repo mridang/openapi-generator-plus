@@ -414,6 +414,15 @@ test('bhv redirects 008 returns redirect when disabled', function (): void {
     expect($response->statusCode)->toBe(302);
 });
 
+test('bhv misc 223 a see other redirect drops the request body of the follow up request', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(5)->build();
+    $response = (new DefaultApiClient($transport))->sendRequest('POST', $chasmUrl . '/test/redirect/303', ['Content-Type' => 'application/json'], 'hello-body');
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['body'])->toBe('');
+});
+
 test('bhv redirects 005 redirect 303 switches to get and drops body', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 
@@ -798,7 +807,7 @@ test('bhv transport 025 verify ssl true rejects a server certificate the system 
         });
 });
 
-test('a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
+test('bhv langphp 064 a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
 
     $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
@@ -837,4 +846,132 @@ test('bhv transport 023 the default transport rejects a certificate from an untr
 
     expect(fn (): mixed => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
         ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+});
+
+test('bhv misc 050 per call headers override the options object and an unset header falls through to it', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $client = new DefaultApiClient(TransportOptions::builder()->defaultHeader('Accept', 'text/plain')->maxRetries(0)->build());
+
+    $overridden = $client->sendRequest('GET', $chasmUrl . '/test/echo', ['Accept' => 'application/json'], null);
+    $fallThrough = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    /** @var array<string, array<string, string>> $overriddenJson */
+    $overriddenJson = json_decode($overridden->body, true);
+    expect($overriddenJson['headers']['accept'] ?? null)->toBe('application/json');
+    /** @var array<string, array<string, string>> $fallThroughJson */
+    $fallThroughJson = json_decode($fallThrough->body, true);
+    expect($fallThroughJson['headers']['accept'] ?? null)->toBe('text/plain');
+});
+
+test('bhv misc 226 a 302 is followed to its target and the final 200 is returned', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $client = new DefaultApiClient(TransportOptions::builder()->followRedirects(true)->maxRedirects(5)->build());
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 240 a multipart file part is echoed back with its content', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $response = (new DefaultApiClient())->sendRequest('POST', $chasmUrl . '/test/echo', [], ['file' => 'file content']);
+    expect($response->body)->toContain('file content');
+});
+test('bhv transport 093 a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'unrelated-ca'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $pem);
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $pem);
+
+    try {
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($path)
+            ->build();
+        $client = new DefaultApiClient($transport);
+
+        expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+            ->toThrow(function (\Exception $e): void {
+                expect($e::class)->toBe(\{{invokerPackage}}\Errors\NetworkException::class);
+                assert($e instanceof \{{invokerPackage}}\Errors\NetworkException);
+                expect($e->getStatusCode())->toBe(0);
+                expect($e->getMessage())->toMatch('/certificate|SSL/i');
+            });
+    } finally {
+        unlink($path);
+    }
+});
+
+test('bhv misc 268 a trusted ca certificate is rejected when the hostname does not match', function (): void {
+    /* Reach the fixture by its IP address, which its certificate does not name. */
+    $parts = parse_url(getenv('CHASM_HTTPS_URL') ?: '');
+    assert(is_array($parts));
+    $address = gethostbyname((string) ($parts['host'] ?? ''));
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath(getenv('CA_CERT_PATH') ?: null)
+        ->build();
+    $client = new DefaultApiClient($transport);
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://' . $address . ':' . ($parts['port'] ?? 443) . '/test/echo', [], null))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+});
+
+test('bhv misc 269 a self signed endpoint is reached only with verification disabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $off = new DefaultApiClient(TransportOptions::builder()->verifySsl(false)->build());
+    $response = $off->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    expect($response->statusCode)->toBe(200);
+
+    $on = new DefaultApiClient(TransportOptions::builder()->verifySsl(true)->build());
+    expect(fn (): mixed => $on->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+});
+
+test('bhv misc 271 a client without a proxy connects directly even when a proxy environment variable is set', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+    $saved = [];
+    foreach ($names as $name) {
+        $saved[$name] = $_SERVER[$name] ?? null;
+        $_SERVER[$name] = 'http://127.0.0.1:1';
+    }
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->build());
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    } finally {
+        foreach ($saved as $name => $value) {
+            if ($value === null) {
+                unset($_SERVER[$name]);
+            } else {
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 272 an authenticating proxy accepts the credentials embedded in the proxy url end to end', function (): void {
+    // The Squid fixture's second port answers 407 unless the request carries
+    // Basic proxy credentials, so a success through it proves the credentials
+    // embedded in the proxy URL reached the proxy.
+    $proxy = (string) parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . (string) parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('"method"');
 });

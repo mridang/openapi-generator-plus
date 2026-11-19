@@ -5,13 +5,14 @@ import time
 
 import pytest
 import urllib3
+from urllib3._collections import HTTPHeaderDict
 from typing import Any
 from urllib.parse import urlsplit
 
 from petstore_client.api.base_api import BaseApi
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
-from petstore_client.errors import NetworkException
+from petstore_client.errors import ApiException, NetworkException
 from petstore_client.transport_options import TransportOptions
 
 
@@ -122,7 +123,7 @@ class TestAmbientProxyEnvironmentIsIgnored:
             "all_proxy",
         ],
     )
-    def test_a_client_without_a_proxy_connects_directly(
+    def test_bhv_misc_271_a_client_without_a_proxy_connects_directly(
         self, chasm_http_url: Any, monkeypatch: pytest.MonkeyPatch, variable: str
     ) -> None:
         monkeypatch.delenv("NO_PROXY", raising=False)
@@ -140,7 +141,7 @@ class TestProxyWithCredentials:
     # The fixture proxy's second port answers 407 unless the request carries
     # Proxy-Authorization, so these two prove the credentials in the proxy URL
     # reach the proxy on the wire.
-    def test_authenticating_proxy_accepts_credentials_from_the_proxy_url(
+    def test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_proxy_url(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
     ) -> None:
         transport = (
@@ -155,6 +156,32 @@ class TestProxyWithCredentials:
 
         assert response.status_code == 200
         assert '"method"' in response.body
+
+    def test_bhv_misc_031_a_proxy_credential_is_sent_exactly_when_the_proxy_url_has_user_info(
+        self,
+    ) -> None:
+        with_credentials = (
+            TransportOptions.builder()
+            .proxy("http://alice:s3cret@127.0.0.1:3128")
+            .build()
+        )
+        without_credentials = (
+            TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
+        )
+        sent = {
+            k.lower(): v
+            for k, v in _proxy_manager(
+                DefaultApiClient(with_credentials)
+            ).proxy_headers.items()
+        }
+        omitted = {
+            k.lower(): v
+            for k, v in _proxy_manager(
+                DefaultApiClient(without_credentials)
+            ).proxy_headers.items()
+        }
+        assert sent.get("proxy-authorization") == "Basic YWxpY2U6czNjcmV0"
+        assert "proxy-authorization" not in omitted
 
     def test_bhv_transport_059_authenticating_proxy_refuses_a_request_without_credentials(
         self, chasm_internal_http_url: Any, proxy_auth_host_port: Any
@@ -290,7 +317,7 @@ class TestRequestTimeout:
 class TestRedirectChainTimeoutIsOneBudget:
     # Three hops of 500 ms each: one end-to-end budget of 1200 ms must fail
     # where a per-hop timer would pass; 5000 ms is the positive control.
-    def test_a_chain_longer_than_the_budget_times_out(
+    def test_bhv_redirects_054_a_chain_longer_than_the_budget_times_out(
         self, chasm_http_url: Any
     ) -> None:
         from petstore_client.errors import NetworkTimeoutException
@@ -551,7 +578,9 @@ class TestRedirectSecurityGuards:
     These exercise the manual redirect loop in DefaultApiClient.
     """
 
-    def test_strips_authorization_on_https_to_http_downgrade(self) -> None:
+    def test_bhv_redirects_053_strips_authorization_on_https_to_http_downgrade(
+        self,
+    ) -> None:
         """Guard 2: an HTTPS -> HTTP redirect is a TLS downgrade and
         MUST strip Authorization / Cookie before re-issuing. Same host
         is not enough: the scheme change is the threat."""
@@ -568,6 +597,8 @@ class TestRedirectSecurityGuards:
                 return None
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -588,7 +619,52 @@ class TestRedirectSecurityGuards:
         assert not any(k.lower() == "authorization" for k in followup_headers)
         assert not any(k.lower() == "cookie" for k in followup_headers)
 
-    def test_strips_credential_named_headers_on_a_cross_origin_hop(self) -> None:
+    def test_bhv_redirects_052_a_cross_origin_redirect_removes_the_credential_headers(
+        self,
+    ) -> None:
+        class _FakeResp:
+            def __init__(self, status: int, headers: dict[str, Any]) -> None:
+                self.status = status
+                self.headers = headers
+
+            def read(self) -> bytes:
+                return b""
+
+            def release_conn(self) -> None:
+                return None
+
+        class _FakePool:
+            headers = HTTPHeaderDict()
+
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url, dict(kwargs.get("headers") or {})))
+                if len(self.calls) == 1:
+                    return _FakeResp(
+                        302, {"location": "https://other.example.org/next"}
+                    )
+                return _FakeResp(200, {})
+
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = _FakePool()
+        client = DefaultApiClient(transport, pool_manager=pool)
+        headers = {
+            "Authorization": "Bearer secret",
+            "Cookie": "sid=abc",
+            "X-Custom-Auth-Key": "k",
+        }
+        client.send_request("GET", "https://example.com/start", headers, None)
+        assert len(pool.calls) == 2
+        followup = {k.lower() for k in pool.calls[1][2]}
+        assert "authorization" not in followup
+        assert "cookie" not in followup
+        assert "x-custom-auth-key" not in followup
+
+    def test_bhv_lang_python_060_strips_credential_named_headers_on_a_cross_origin_hop(
+        self,
+    ) -> None:
         """A default or authenticator header named like a credential
         (X-Tenant-Token, X-Custom-Auth-Key) is not forwarded to another origin."""
 
@@ -604,6 +680,8 @@ class TestRedirectSecurityGuards:
                 return None
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -647,6 +725,8 @@ class TestRedirectSecurityGuards:
         observed_proxy_headers_on_followup: dict[str, str] = {}
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.proxy_headers: dict[str, str] = {
                     "Proxy-Authorization": "Basic dXNlcjpwYXNz"
@@ -699,6 +779,8 @@ class TestN1RedirectBodyReplayMatrix:
         outer = self
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -712,23 +794,23 @@ class TestN1RedirectBodyReplayMatrix:
 
         return _Pool()
 
-    def test_bhv_redirects_001_https_to_http_302_with_body_proceeds(self) -> None:
-        # 302 demotes POST -> GET and drops the body, so the plaintext hop
-        # carries no sensitive payload: it must proceed, not throw.
+    def test_bhv_redirects_001_https_to_http_302_with_body_is_refused(self) -> None:
+        # A body must never be replayed in plain text: a 302 HTTPS -> HTTP hop
+        # that would carry the body is refused, and the call fails.
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._pool(302)
         client = DefaultApiClient(transport, pool_manager=pool)
-        response = client.send_request(
-            "POST",
-            "https://example.com/secure",
-            {"Content-Type": "application/json"},
-            '{"secret":"value"}',
-        )
-        assert response.status_code == 200
-        assert len(pool.calls) == 2
-        # The follow-up is a GET with the body dropped.
-        assert pool.calls[1][0] == "GET"
-        assert pool.calls[1][2] is None
+        with pytest.raises(
+            ApiException,
+            match="Refusing to replay request body across HTTPS->HTTP redirect",
+        ):
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert len(pool.calls) == 1
 
     def test_bhv_redirects_029_a_301_or_302_keeps_the_method_and_body_of_put_patch_and_delete(
         self,
@@ -742,7 +824,7 @@ class TestN1RedirectBodyReplayMatrix:
                 assert pool.calls[1][0] == method
                 assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
-    def test_301_and_302_turn_post_into_get(self) -> None:
+    def test_bhv_redirects_048_status_301_and_302_turn_post_into_get(self) -> None:
         for status in (301, 302):
             transport = TransportOptions.builder().follow_redirects(True).build()
             pool = self._pool(status)
@@ -750,6 +832,73 @@ class TestN1RedirectBodyReplayMatrix:
             client.send_request("POST", "http://example.com/start", {}, '{"a":1}')
             assert pool.calls[1][0] == "GET"
             assert pool.calls[1][2] is None
+
+    def test_bhv_redirects_049_a_307_or_308_repeats_the_method_and_body_and_is_followed_by_default(
+        self,
+    ) -> None:
+        for status in (307, 308):
+            transport = TransportOptions.builder().build()
+            pool = self._pool(status)
+            client = DefaultApiClient(transport, pool_manager=pool)
+            client.send_request("POST", "http://example.com/start", {}, '{"a":1}')
+            assert pool.calls[1][0] == "POST"
+            assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
+
+    def test_bhv_redirects_050_each_redirect_status_gives_the_rfc_9110_follow_up_method_and_body(
+        self,
+    ) -> None:
+        rows = [
+            (301, "GET", None),
+            (302, "GET", None),
+            (303, "GET", None),
+            (307, "POST", '{"a":1}'),
+            (308, "POST", '{"a":1}'),
+        ]
+        for status, method, body in rows:
+            transport = TransportOptions.builder().follow_redirects(True).build()
+            pool = self._pool(status)
+            client = DefaultApiClient(transport, pool_manager=pool)
+            client.send_request("POST", "http://example.com/start", {}, '{"a":1}')
+            assert pool.calls[1][0] == method
+            if body is None:
+                assert pool.calls[1][2] is None
+            else:
+                assert pool.calls[1][2] in (body, body.encode())
+
+    def test_bhv_redirects_055_a_redirect_to_a_non_http_scheme_is_refused_with_an_error(
+        self,
+    ) -> None:
+        from petstore_client.errors import ApiException
+
+        resp_cls = self._FakeResp
+
+        class _Pool:
+            headers = HTTPHeaderDict()
+
+            def __init__(self) -> None:
+                self.calls: list[Any] = []
+
+            def request(self, method: str, url: str, **kwargs: Any) -> Any:
+                self.calls.append((method, url))
+                return resp_cls(302, {"location": "ftp://example.com/file"})
+
+        pool = _Pool()
+        client = DefaultApiClient(
+            TransportOptions.builder().follow_redirects(True).build(), pool_manager=pool
+        )
+        with pytest.raises(ApiException):
+            client.send_request("GET", "https://example.com/start", {}, None)
+        assert len(pool.calls) == 1
+
+    def test_bhv_retries_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme(
+        self,
+    ) -> None:
+        transport = TransportOptions.builder().follow_redirects(True).build()
+        pool = self._pool(307)
+        client = DefaultApiClient(transport, pool_manager=pool)
+        client.send_request("POST", "http://example.com/start", {}, '{"a":1}')
+        assert pool.calls[1][0] == "POST"
+        assert pool.calls[1][2] in ('{"a":1}', b'{"a":1}')
 
     def test_bhv_redirects_036_a_303_turns_every_method_except_head_into_get(
         self,
@@ -762,7 +911,7 @@ class TestN1RedirectBodyReplayMatrix:
             assert pool.calls[1][0] == "GET"
             assert pool.calls[1][2] is None
 
-    def test_303_keeps_head_as_head(self) -> None:
+    def test_bhv_redirects_051_status_303_keeps_head_as_head(self) -> None:
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._pool(303)
         client = DefaultApiClient(transport, pool_manager=pool)
@@ -850,6 +999,8 @@ class TestConcurrentRedirects:
             return None
 
     class _SharedChainPool:
+        headers = HTTPHeaderDict()
+
         """Thread-safe fake pool shared by every concurrent request.
 
         Two virtual endpoints:
@@ -940,7 +1091,7 @@ class TestConcurrentRedirects:
             'request "too many redirects" refusal'
         )
 
-    def test_concurrent_live_redirects_each_resolve_independently(
+    def test_bhv_redirects_047_concurrent_live_redirects_each_resolve_independently(
         self, chasm_http_url: Any
     ) -> None:
         """End-to-end variant against the live mock: many concurrent
@@ -976,6 +1127,39 @@ class TestConcurrentRedirects:
         # Each plain request independently returned 200.
         assert all(r.status_code == 200 for r in plain_results)
 
+    def test_bhv_misc_266_caller_default_headers_replace_the_user_agent_and_request_id_in_any_case(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient(
+            TransportOptions.builder().inject_request_id(True).build()
+        )
+        response = client.send_request(
+            "GET",
+            chasm_http_url + "/test/echo",
+            {"USER-AGENT": "caller-agent", "X-REQUEST-ID": "caller-id"},
+            None,
+        )
+        body = json.loads(response.body)
+        assert body["headers"]["user-agent"] == "caller-agent"
+        assert body["headers"]["x-request-id"] == "caller-id"
+
+    def test_bhv_misc_267_a_caller_supplied_http_client_default_headers_are_sent_with_each_request(
+        self, chasm_http_url: Any
+    ) -> None:
+        import urllib3
+
+        pool = urllib3.PoolManager(headers={"X-Pool-Default": "yes"})
+        client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=pool)
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+        assert json.loads(response.body)["headers"]["x-pool-default"] == "yes"
+
+    def test_bhv_misc_275_the_request_is_sent_with_the_intended_method_and_the_response_returned(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request("PATCH", chasm_http_url + "/test/echo", {}, None)
+        assert response.status_code == 200
+
 
 class TestMultipartBody:
     def test_bhv_serializationwire_027_sends_multipart_form_data(
@@ -999,10 +1183,24 @@ class TestMultipartBody:
         with pytest.raises(ValueError):
             client.send_request("POST", chasm_http_url + "/test/echo", {}, bad_fields)
 
+    def test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        response = client.send_request(
+            "POST", chasm_http_url + "/test/echo", {}, {"file": b"file content"}
+        )
+        assert "file content" in response.body
+
 
 class TestHttpCompression:
     """The fixture serves one JSON body under each codec whatever the request
     advertises, so the plain text proves the client decoded it."""
+
+    def test_bhv_transport_088_a_gzip_encoded_body_is_decoded_before_it_is_returned(
+        self, chasm_http_url: Any
+    ) -> None:
+        self._assert_decompresses(chasm_http_url, "gzip")
 
     def _assert_decompresses(self, chasm_http_url: Any, encoding: str) -> None:
         client = DefaultApiClient()
@@ -1125,6 +1323,61 @@ class TestTlsVerificationEnforced:
         assert response.status_code == 200
         assert '"method"' in response.body
 
+    def test_bhv_misc_268_a_trusted_ca_certificate_is_rejected_when_the_hostname_does_not_match(
+        self, chasm_https_url: Any, ca_cert_path: Any
+    ) -> None:
+        transport = (
+            TransportOptions.builder()
+            .verify_ssl(True)
+            .ca_cert_path(ca_cert_path)
+            .build()
+        )
+        client = DefaultApiClient(transport)
+        with pytest.raises(NetworkException):
+            client.send_request(
+                "GET", self._address_url(chasm_https_url) + "/test/echo", {}, None
+            )
+
+    def test_bhv_misc_269_a_self_signed_endpoint_is_reached_only_with_verification_disabled(
+        self, chasm_https_url: Any
+    ) -> None:
+        off = DefaultApiClient(TransportOptions.builder().verify_ssl(False).build())
+        assert (
+            off.send_request(
+                "GET", chasm_https_url + "/test/echo", {}, None
+            ).status_code
+            == 200
+        )
+        on = DefaultApiClient(TransportOptions.builder().build())
+        with pytest.raises(NetworkException):
+            on.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+    def test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error(
+        self, chasm_https_url: Any
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        with pytest.raises(NetworkException):
+            client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+
+
+class TestDefaultTrustStore:
+    def test_bhv_misc_038_with_no_ca_certificate_server_certificates_use_the_platform_trust_store(
+        self, chasm_https_url: Any
+    ) -> None:
+        client = DefaultApiClient()
+        with pytest.raises(NetworkException) as excinfo:
+            client.send_request("GET", chasm_https_url + "/test/echo", {}, None)
+        assert "CERTIFICATE_VERIFY_FAILED" in str(excinfo.value)
+
+
+class TestCallerClientAndTransport:
+    def test_bhv_misc_034_a_caller_http_client_with_a_caller_transport_is_refused_at_build(
+        self,
+    ) -> None:
+        transport = TransportOptions.builder().proxy("http://127.0.0.1:3128").build()
+        with pytest.raises(ValueError):
+            DefaultApiClient(transport, pool_manager=urllib3.PoolManager())
+
 
 class TestCancellation:
     """Cancelling an in-flight request really aborts it: the connection is
@@ -1160,7 +1413,7 @@ class TestCancellation:
             await asyncio.sleep(0.05)
         assert client._inflight == set()
 
-    async def test_a_request_cancelled_through_its_handle_ends_at_once(
+    async def test_bhv_transport_084_a_request_cancelled_through_its_handle_ends_at_once(
         self, chasm_http_url: Any
     ) -> None:
         from petstore_client.default_api_client import RequestHandle

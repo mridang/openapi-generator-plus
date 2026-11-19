@@ -10,6 +10,7 @@ package com.example.petstore.auth;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -78,7 +79,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void newlineOnlyTokenReportsEmptyNotPrintableAscii() {
+  void bhvLangjava053NewlineOnlyTokenReportsEmptyNotPrintableAscii() {
     for (String blank : new String[] {"\n", "\r\n", "\013", "\f"}) {
       IllegalArgumentException ex =
           assertThrows(
@@ -89,7 +90,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void controlCharacterInTokenReportsPrintableAscii() {
+  void bhvAuth035ControlCharacterInTokenReportsPrintableAscii() {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,
@@ -180,7 +181,7 @@ class BearerAuthenticatorTest {
   }
 
   @Test
-  void tokenProviderResultKeepsTheBearerPrefixRule() {
+  void bhvLangjava054TokenProviderResultKeepsTheBearerPrefixRule() {
     BearerAuthenticator auth = new BearerAuthenticator(HOST, () -> "Bearer xyz");
     assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
   }
@@ -259,5 +260,79 @@ class BearerAuthenticatorTest {
     assertTrue(repr.contains("host=https://api.example.com"));
     assertFalse(repr.contains("s3cr3t-value"));
     assertTrue(repr.contains("token=***"));
+  }
+
+  @Test
+  void bhvAuth037TokenProviderIsAskedAgainForEachRequest() {
+    java.util.concurrent.atomic.AtomicInteger calls =
+        new java.util.concurrent.atomic.AtomicInteger();
+    BearerAuthenticator auth =
+        new BearerAuthenticator(
+            "https://api.example.com", () -> "token-" + calls.incrementAndGet());
+    assertEquals("Bearer token-1", auth.getAuthHeaders().get("Authorization"));
+    assertEquals("Bearer token-2", auth.getAuthHeaders().get("Authorization"));
+    assertEquals(2, calls.get());
+  }
+
+  @Test
+  void bhvMisc194ProviderTokenIsSentUnderTheBearerPrefix() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", () -> "tok-123");
+    assertEquals("Bearer tok-123", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvMisc195WhitespaceOnlyProviderTokenIsRejectedWhenRequested() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", () -> "   ");
+    assertThrows(IllegalArgumentException.class, () -> auth.getAuthHeaders());
+  }
+
+  @Test
+  void bhvAuth039PassingBothATokenAndATokenProviderIsRejected() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                new BearerAuthenticator(
+                    "https://api.example.com", "static-token", () -> "provided"));
+    assertEquals("Pass either token or tokenProvider, not both", ex.getMessage());
+  }
+
+  @Test
+  void bhvMisc017ARejectedCredentialIsNeverEchoedInTheConstructionError() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> new BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes"));
+    String message = java.util.Objects.requireNonNull(ex.getMessage());
+    assertFalse(message.contains("tok\r\nInjected"));
+    assertFalse(message.contains("Injected"));
+  }
+
+  @Test
+  void bhvMisc066ATokenProviderValueIsSentAsTheBearerCredential() {
+    BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", () -> "live");
+    assertEquals("Bearer live", auth.getAuthHeaders().get("Authorization"));
+  }
+
+  @Test
+  void bhvMisc067ATokenProviderErrorReachesTheCallerUnchanged() {
+    IllegalStateException boom = new IllegalStateException("provider boom");
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                new BearerAuthenticator(
+                        "https://api.example.com",
+                        () -> {
+                          throw boom;
+                        })
+                    .getAuthHeaders());
+    assertSame(boom, thrown);
+  }
+
+  @Test
+  void bhvMisc190PrintedBearerAuthenticatorHidesTheToken() {
+    String text = new BearerAuthenticator("http://localhost", "super-secret-token").toString();
+    assertFalse(text.contains("super-secret-token"), text);
   }
 }

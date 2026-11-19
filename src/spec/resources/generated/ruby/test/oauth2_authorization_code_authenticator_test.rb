@@ -52,6 +52,15 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     )
   end
 
+  it 'bhv_misc_058 the authorization endpoint and redirect URI reach the URL exactly as configured' do
+    url = auth.build_authorization_url
+    _(url).must_include 'https://auth.example.com/authorize?'
+    _(url).must_include 'response_type=code'
+    _(url).must_include 'client_id=my_client_id'
+    _(url).must_include 'redirect_uri='
+    _(url).must_include 'scope=read%20write'
+  end
+
   it 'bhv_authoauthtwoauthcode_006 builds authorization URL with required params' do
     url = auth.build_authorization_url
     _(url).must_include 'https://auth.example.com/authorize?'
@@ -77,11 +86,29 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     URI.decode_www_form(URI(url).query.to_s).to_h
   end
 
+  it 'bhv_misc_078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce' do
+    params = pkce_challenge_of(auth.build_authorization_url('s'))
+    _(params['code_challenge_method']).must_equal 'S256'
+    _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(params).wont_include 'nonce'
+  end
+
   it 'bhv_authoauthtwoauthcode_023 adds an S256 code challenge to the authorization URL and no nonce' do
     params = pkce_challenge_of(auth.build_authorization_url('s'))
     _(params['code_challenge_method']).must_equal 'S256'
     _(params['code_challenge']).must_match(/\A[A-Za-z0-9_-]{43}\z/)
     _(params).wont_include 'nonce'
+  end
+
+  it 'bhv_misc_077 a generated PKCE verifier is 43 characters from the unreserved set and differs on every call' do
+    client = FakeAuthCodeClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
+    auth.api_client = client
+
+    challenge = pkce_challenge_of(auth.build_authorization_url)['code_challenge']
+    auth.exchange_code('auth_code_123')
+    verifier = URI.decode_www_form(client.last_body.to_s).to_h['code_verifier'].to_s
+    _(verifier).must_match(/\A[A-Za-z0-9_-]{43}\z/)
+    _(Base64.urlsafe_encode64(Digest::SHA256.digest(verifier), padding: false)).must_equal challenge
   end
 
   it 'bhv_authoauthtwoauthcode_008 proves the challenge with a 43 character verifier on the code exchange' do
@@ -212,6 +239,20 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(auth.auth_headers['Authorization']).must_equal 'Bearer tok_two'
   end
 
+  it 'bhv_auth_053 exchanging a code discards the refresh token previously held' do
+    client = FakeAuthCodeClient.new([
+                                      { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
+                                      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+                                    ])
+    auth.api_client = client
+    manager = auth.instance_variable_get(:@token_manager)
+
+    auth.exchange_code('a')
+    _(manager.refresh_token).must_equal 'ref_one'
+    auth.exchange_code('b')
+    _(manager.refresh_token).must_be_nil
+  end
+
   it 'bhv_authoauthtwoauthcode_022 second exchange without a refresh_token drops the old refresh token' do
     client = FakeAuthCodeClient.new([
                                       { status: 200, body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 3600 } },
@@ -250,6 +291,54 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
 
   it 'bhv_authoauthtwoauthcode_014 getHost returns configured host' do
     _(auth.host).must_equal 'https://api.example.com'
+  end
+
+  it 'bhv_auth_052 refuses to produce headers before any code was exchanged' do
+    err = assert_raises(RuntimeError) { auth.auth_headers }
+    _(err.message).must_equal 'Must call exchange_code() before making API requests'
+  end
+
+  it 'bhv_misc_062 the authorization URL carries the scopes the security scheme declares' do
+    url = auth.build_authorization_url
+    _(url).must_include 'scope=read%20write'
+  end
+
+  it 'bhv_misc_076 a call after a dropped code exchange sees the code as not yet exchanged' do
+    failing = Class.new do
+      def send_request(*_args, **_kwargs)
+        raise IOError, 'connection reset'
+      end
+    end
+    auth.api_client = failing.new
+    _(-> { auth.exchange_code('a') }).must_raise IOError
+    err = assert_raises(RuntimeError) { auth.auth_headers }
+    _(err.message).must_equal 'Must call exchange_code() before making API requests'
+  end
+
+  it 'bhv_auth_048 builds the authorize URL at the declared address with the declared scopes' do
+    url = auth.build_authorization_url
+    _(url.split('?').first).must_equal 'https://auth.example.com/authorize'
+    _(url).must_include 'scope=read%20write'
+  end
+
+  it 'bhv_auth_054 a non-success token response raises an OAuth2 server error naming the status and body' do
+    auth.api_client = FakeAuthCodeClient.new([
+                                               { status: 400, body: { 'error' => 'invalid_grant', 'error_description' => 'code expired' } }
+                                             ])
+    err = _(-> { auth.exchange_code('a') }).must_raise Petstore::Client::Errors::OAuth2ServerError
+    _(err.message).must_include '400'
+    _(err.message).must_include 'invalid_grant'
+  end
+
+  it 'bhv_auth_055 a network failure during the token request reaches the caller unchanged' do
+    failing = Class.new do
+      def send_request(*_args, **_kwargs)
+        raise IOError, 'connection reset'
+      end
+    end
+    auth.api_client = failing.new
+    err = _(-> { auth.exchange_code('a') }).must_raise IOError
+    _(err.message).must_equal 'connection reset'
   end
 
   it 'bhv_authoauthtwoauthcode_030 refuses to produce headers before exchange_code was called' do
@@ -321,22 +410,6 @@ describe Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator do
     _(secret_auth.inspect).must_include '***'
     _(secret_auth.to_s).wont_include 'super_secret_value'
     _(secret_auth.to_s).wont_include 'super_secret_value'
-  end
-
-  def test_redacts_secret
-    auth = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
-      'https://api.example.com',
-      'my_client_id',
-      'leaky_client_secret',
-      'https://auth.example.com/authorize',
-      'https://auth.example.com/token',
-      'https://app.example.com/callback',
-      %w[read write]
-    )
-    _(auth.inspect).wont_include 'leaky_client_secret'
-    _(auth.inspect).must_include '***'
-    _(auth.to_s).wont_include 'leaky_client_secret'
-    _(auth.to_s).must_include '***'
   end
 
   it 'bhv_authoauthtwoauthcode_024 sends the code exchange to the token URL and the refresh grant to the refresh URL' do

@@ -11,6 +11,10 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert opts.ca_cert_path == nil
   end
 
+  test "bhv misc 051 an option the transport cannot apply is refused rather than ignored" do
+    assert_raise KeyError, fn -> PetstoreClient.TransportOptions.new(no_such_option: 1) end
+  end
+
   test "bhv options 052 a proxy URL carrying credentials is accepted" do
     credentials = "user:" <> "pass"
     proxy = "http://" <> credentials <> "@proxy.example.com:8080"
@@ -195,7 +199,7 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "a SOCKS proxy scheme is rejected at construction" do
+  test "bhv options 068 a SOCKS proxy scheme is rejected at construction" do
     for scheme <- ["socks", "socks4", "socks5"] do
       url = "#{scheme}://proxy.example.com:1080"
 
@@ -464,20 +468,46 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options defaults to an empty list" do
+  test "bhv langelixir 009 req_options defaults to an empty list" do
     assert PetstoreClient.TransportOptions.new().req_options == []
   end
 
-  test "req_options carries the caller's Req options" do
+  test "bhv langelixir 010 req_options carries the caller's Req options" do
     adapter = fn request -> {request, Req.Response.new(status: 200)} end
     opts = PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
 
     assert opts.req_options == [adapter: adapter]
   end
 
-  test "req_options must be a keyword list" do
+  test "bhv langelixir 011 req_options must be a keyword list" do
     assert_raise ArgumentError, ~r/req_options/, fn ->
       PetstoreClient.TransportOptions.new(req_options: %{adapter: :none})
+    end
+  end
+
+  test "bhv misc 175 credential-bearing header names are recognised in any letter case and ordinary names are not" do
+    redacted =
+      PetstoreClient.TransportOptions.redact_headers(%{
+        "X-API-KEY" => "k1",
+        "authorization" => "Bearer t",
+        "Accept" => "application/json"
+      })
+
+    assert redacted["X-API-KEY"] == "***"
+    assert redacted["authorization"] == "***"
+    assert redacted["Accept"] == "application/json"
+  end
+
+  test "bhv misc 186 a non-keyword HTTP connection value and a ready-made connection with a CA setting are refused when the options are built" do
+    assert_raise ArgumentError, ~r/must be a keyword list/, fn ->
+      PetstoreClient.TransportOptions.new(req_options: "not-a-connection")
+    end
+
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.TransportOptions.new(
+        ca_cert_path: "/nonexistent/ca.pem",
+        req_options: [connect_options: [timeout: 1]]
+      )
     end
   end
 
@@ -508,8 +538,14 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options finch conflicts with verify_ssl false" do
+  test "bhv lifecycle 041 req_options finch conflicts with verify_ssl false" do
     assert_raise ArgumentError, ~r/conflicts with the SDK's own proxy\/TLS settings/, fn ->
+      PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
+    end
+  end
+
+  test "bhv misc 042 a supplied connection with verification turned off is refused and the error names verify_ssl" do
+    assert_raise ArgumentError, ~r/verify_ssl/, fn ->
       PetstoreClient.TransportOptions.new(verify_ssl: false, req_options: [finch: MyFinch])
     end
   end
@@ -530,9 +566,15 @@ defmodule PetstoreClient.TransportOptionsTest do
     end
   end
 
-  test "req_options connect_options is accepted when the SDK sets no proxy or TLS option" do
+  test "bhv langelixir 012 req_options connect_options is accepted when the SDK sets no proxy or TLS option" do
     opts = PetstoreClient.TransportOptions.new(req_options: [connect_options: [timeout: 1]])
 
     assert opts.req_options == [connect_options: [timeout: 1]]
+  end
+
+  test "bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error" do
+    assert_raise ArgumentError,
+                 "Invalid timeout: must be a positive number of milliseconds (got 0)",
+                 fn -> PetstoreClient.TransportOptions.new(timeout: 0) end
   end
 end

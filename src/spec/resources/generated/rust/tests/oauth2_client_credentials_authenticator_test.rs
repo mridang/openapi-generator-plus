@@ -544,3 +544,142 @@ async fn test_bhv_auth_025_a_credential_that_needs_http_is_given_the_client_tran
         client.last_url()
     );
 }
+
+/// The client-credentials grant posts to the declared token URL with the grant type and the scopes joined by a plus.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_050_client_credentials_posts_the_grant_to_the_declared_token_url() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+    auth.auth_headers().await;
+
+    assert_eq!(
+        client.last_url().as_deref(),
+        Some("https://auth.example.com/token")
+    );
+    let body = client.last_body().expect("should have body");
+    assert!(body.contains("grant_type=client_credentials"), "{}", body);
+    assert!(body.contains("scope=read+write"), "{}", body);
+}
+
+/// With no token held, the authenticator produces no headers: the infallible call is empty and the fallible one is an error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_052_an_authenticator_without_a_token_refuses_to_produce_headers() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    assert!(auth.auth_headers().await.is_empty());
+    assert!(auth.try_auth_headers().await.is_err());
+}
+
+/// A non-success token response is an OAuth2 server error that names the status and carries the response body.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_054_a_non_success_token_response_is_an_oauth2_server_error() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"invalid_client"}"#, 401);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("a 401 token response must fail");
+    let server = err
+        .downcast_ref::<petstore::errors::oauth2_server_error::OAuth2ServerError>()
+        .expect("the failure must be an OAuth2ServerError");
+    let text = server.to_string();
+    assert!(text.contains("401"), "{}", text);
+    assert!(text.contains("invalid_client"), "{}", text);
+}
+
+/// A transport failure during the token request reaches the caller with its own message, not a rewrapped one.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_055_a_network_failure_during_a_token_request_reaches_the_caller_unchanged() {
+    struct NetworkDownApiClient;
+
+    impl ApiClient for NetworkDownApiClient {
+        fn send_request(
+            &self,
+            _method: &str,
+            _url: &str,
+            _headers: &HashMap<String, String>,
+            _body: Option<&RequestBody>,
+        ) -> Pin<
+            Box<
+                dyn Future<
+                        Output = Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>,
+                    > + Send
+                    + '_,
+            >,
+        > {
+            Box::pin(async {
+                Err(Box::new(std::io::Error::new(
+                    std::io::ErrorKind::ConnectionRefused,
+                    "connection refused by the test transport",
+                ))
+                    as Box<dyn std::error::Error + Send + Sync>)
+            })
+        }
+    }
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(Arc::new(NetworkDownApiClient));
+
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("a refused connection must fail");
+    assert!(
+        err.to_string()
+            .contains("connection refused by the test transport"),
+        "{}",
+        err
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_063_scheme_wrapper_posts_the_token_request_to_the_declared_token_url() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+
+    let mut auth = MachineAuthClientCredentialsAuthenticator::new(
+        "https://api.example.com",
+        Some("id"),
+        Some("secret"),
+    )
+    .unwrap();
+    auth.as_http_aware_mut()
+        .expect("http aware")
+        .set_api_client(client.clone());
+
+    auth.auth_headers().await;
+
+    assert_eq!(
+        client.last_url().as_deref(),
+        Some("https://auth.example.com/oauth/token")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_198_a_new_grant_without_expires_in_clears_the_expiry_of_the_previous_token()
+{
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"short","expires_in":0}"#, 200);
+    client.enqueue(r#"{"access_token":"open-ended"}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.try_auth_headers().await.expect("should succeed");
+    auth.try_auth_headers().await.expect("should succeed");
+    let third = auth.try_auth_headers().await.expect("should succeed");
+
+    assert_eq!("Bearer open-ended", third.get("Authorization").unwrap());
+}

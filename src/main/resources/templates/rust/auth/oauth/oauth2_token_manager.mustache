@@ -127,6 +127,19 @@ impl OAuth2TokenManager {
         *slot = Some(client);
     }
 
+    /// Returns the cached access token while it is still valid, without any network call.
+    pub async fn cached_access_token(&self) -> Option<String> {
+        let inner = self.inner.lock().await;
+        if inner.access_token.is_empty() {
+            return None;
+        }
+        match inner.token_expiry {
+            None => Some(inner.access_token.clone()),
+            Some(expiry) if Instant::now() < expiry => Some(inner.access_token.clone()),
+            Some(_) => None,
+        }
+    }
+
     /// Returns the current refresh token, if any.
     pub async fn refresh_token(&self) -> String {
         let inner = self.inner.lock().await;

@@ -278,8 +278,16 @@ public class TransportOptionsTest
         Assert.Throws<ArgumentException>(() => builder.Build());
     }
 
+    [Fact]
+    public void BhvMisc298AMalformedProxyUrlFailsWithAnInvalidProxyUrlError()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("not a valid url").Build()
+        );
+        Assert.Contains("Invalid proxy URL", ex.Message, StringComparison.Ordinal);
+    }
+
     [Theory]
-    [InlineData("", "Invalid proxy URL")]
     [InlineData("not a valid url", "Invalid proxy URL")]
     [InlineData("http://", "Invalid proxy URL")]
     [InlineData("ftp://proxy.example.com:21", "must use http or https scheme")]
@@ -454,13 +462,13 @@ public class TransportOptionsTest
     // Injected transport and cancellation
 
     [Fact]
-    public void CancellationTokenDefaultsToNone()
+    public void BhvLangcsharp057CancellationTokenDefaultsToNone()
     {
         Assert.Equal(CancellationToken.None, TransportOptions.Builder().Build().CancellationToken);
     }
 
     [Fact]
-    public void CancellationTokenIsPreservedOnReadBack()
+    public void BhvLangcsharp058CancellationTokenIsPreservedOnReadBack()
     {
         using var cts = new CancellationTokenSource();
         var opts = TransportOptions.Builder().CancellationToken(cts.Token).Build();
@@ -486,7 +494,7 @@ public class TransportOptionsTest
     }
 
     [Fact]
-    public void SuppliedClientAndHandlerTogetherFailFast()
+    public void BhvLangcsharp059SuppliedClientAndHandlerTogetherFailFast()
     {
         using var client = new HttpClient();
         using var handler = new HttpClientHandler { AllowAutoRedirect = false };
@@ -510,6 +518,17 @@ public class TransportOptionsTest
     }
 
     [Fact]
+    public void BhvMisc034ASuppliedClientAndASuppliedTransportAreRefusedWhenTheClientIsBuilt()
+    {
+        using var client = new HttpClient();
+        using var handler = new HttpClientHandler();
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpClient(client).HttpMessageHandler(handler).Build()
+        );
+        Assert.Contains("not both", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvLifecycle024SuppliedClientConflictsWithTlsSettings()
     {
         using var client = new HttpClient();
@@ -519,6 +538,16 @@ public class TransportOptionsTest
         Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().HttpClient(client).CaCertPath("/tmp/ca.pem").Build()
         );
+    }
+
+    [Fact]
+    public void BhvMisc042ASuppliedClientWithDisabledVerificationIsRefusedAndNamesTheSetting()
+    {
+        using var client = new HttpClient();
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().HttpClient(client).VerifySsl(false).Build()
+        );
+        Assert.Contains("VerifySsl", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -546,6 +575,19 @@ public class TransportOptionsTest
         );
         Assert.Throws<ArgumentException>(() =>
             TransportOptions.Builder().HttpMessageHandler(handler).VerifySsl(false).Build()
+        );
+    }
+
+    [Fact]
+    public void BhvLifecycle041SuppliedHandlerConflictsWithTheProxySetting()
+    {
+        using var handler = new HttpClientHandler { AllowAutoRedirect = false };
+        Assert.Throws<ArgumentException>(() =>
+            TransportOptions
+                .Builder()
+                .HttpMessageHandler(handler)
+                .Proxy("http://proxy.example.com:8080")
+                .Build()
         );
     }
 
@@ -635,5 +677,26 @@ public class TransportOptionsTest
             TransportOptions.Builder().Proxy("http://proxy.example.com:8080").Build().Proxy
         );
         Assert.Null(TransportOptions.Builder().Build().Proxy);
+    }
+
+    [Fact]
+    public void BhvMisc186AReadyMadeConnectionWithACaBundleIsRefusedWhenBuilt()
+    {
+        var builder = TransportOptions
+            .Builder()
+            .HttpClient(new HttpClient())
+            .CaCertPath("/tmp/ca.pem");
+
+        _ = Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void BhvOptions068ASocksProxySchemeFailsAtConstructionWithTheDocumentedMessage()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            TransportOptions.Builder().Proxy("socks5://proxy.example.com:1080").Build()
+        );
+
+        Assert.Contains("must use http or https scheme", ex.Message, StringComparison.Ordinal);
     }
 }

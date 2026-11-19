@@ -169,29 +169,33 @@ describe('StoreApi nested container deserialization', () => {
     }
   });
 
-  test.each([
+  test('bhv langnode 017 getMatrix rejects a fractional number element', async () => {
+    for (const [, body] of [
     ['a quoted number', '[[1,"2"]]'],
     ['a fractional number', '[[1,2.5]]'],
     ['a null', '[[1,null]]'],
-  ])('getMatrix rejects %s element', async (_label, body) => {
-    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
-    try {
-      await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(SerializationError);
-    } finally {
-      close();
+  ] as const) {
+      const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+      try {
+        await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(SerializationError);
+      } finally {
+        close();
+      }
     }
   });
 
-  test.each([
+  test('bhv langnode 018 getInventory rejects a fractional number element', async () => {
+    for (const [, body] of [
     ['a quoted number', '{"available":"5"}'],
     ['a fractional number', '{"available":5.5}'],
     ['a null', '{"available":null}'],
-  ])('getInventory rejects %s element', async (_label, body) => {
-    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
-    try {
-      await expect(mockApi.getInventory()).rejects.toBeInstanceOf(SerializationError);
-    } finally {
-      close();
+  ] as const) {
+      const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+      try {
+        await expect(mockApi.getInventory()).rejects.toBeInstanceOf(SerializationError);
+      } finally {
+        close();
+      }
     }
   });
 
@@ -288,6 +292,17 @@ describe('StoreApi response shapes', () => {
     }
   });
 
+  test('bhv misc 048 an undeclared success status decodes as the union return type', async () => {
+    const { api: mockApi, close } = await createMockServer(202, 'application/json', '{"reservationId":7,"quantity":2}');
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(7);
+    } finally {
+      close();
+    }
+  });
+
   test('bhv operations 154 a 201 body that only fits the 200 schema is refused', async () => {
     const { api: mockApi, close } = await createMockServer(201, 'application/json', '{"reservationId":31,"quantity":4}');
     try {
@@ -299,6 +314,46 @@ describe('StoreApi response shapes', () => {
 
   test('bhv unions 036 the status code selects the declared variant, so a 200 body of the 201 shape is refused', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}');
+    try {
+      await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
+    } finally {
+      close();
+    }
+  });
+
+  test('bhv misc 079 each success status decodes as the body type the status declares', async () => {
+    const { api: okApi, close: closeOk } = await createMockServer(
+      200,
+      'application/json',
+      '{"reservationId":31,"quantity":4}',
+    );
+    try {
+      const result = await okApi.reserveStock();
+      expect(result).toBeInstanceOf(Reservation);
+      expect((result as Reservation).reservationId).toBe(31);
+    } finally {
+      closeOk();
+    }
+    const { api: createdApi, close: closeCreated } = await createMockServer(
+      201,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await createdApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+      expect((result as ReservationReceipt).receiptCode).toBe('R-1');
+    } finally {
+      closeCreated();
+    }
+  });
+
+  test('bhv misc 080 a 200 body that only fits the 201 schema is refused', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      200,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
     try {
       await expect(mockApi.reserveStock()).rejects.toThrow(SerializationError);
     } finally {
@@ -332,7 +387,7 @@ describe('StoreApi response shapes', () => {
     }
   });
 
-  test('getDefaults fills every default when the body is an empty object', async () => {
+  test('bhv misc 215 getDefaults fills every default when the body is an empty object', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '{}');
     try {
       const result = await mockApi.getDefaults();
@@ -443,20 +498,22 @@ describe('StoreApi content-encoded query parameters', () => {
     expect([...new URL(url, 'http://127.0.0.1').searchParams.keys()]).toEqual(['q', 'labels', 'at']);
   });
 
-  test('searchStore expands a Set parameter like an array', async () => {
+  test('bhv langnode 016 searchStore expands a Set parameter like an array', async () => {
     const url = await captureRequest((s) => s.searchStore({ labels: new Set(['red', 'blue']) }));
 
     expect(new URL(url, 'http://localhost').searchParams.getAll('labels').sort()).toEqual(['blue', 'red']);
   });
 
-  test.each([
+  test('bhv misc 241 searchStore sends every listed time percent-encoded', async () => {
+    for (const [time, expected] of [
     ['10:30:00.123456789', 'at=10%3A30%3A00.123'],
     ['10:30:00', 'at=10%3A30%3A00'],
-  ])('searchStore sends the time %s as %s', async (time, expected) => {
-    const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from(time) }));
+  ] as const) {
+      const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from(time) }));
 
-    expect(url).toContain(expected);
-    expect(url).not.toContain(`${expected}0`);
+      expect(url).toContain(expected);
+      expect(url).not.toContain(`${expected}0`);
+    }
   });
 
   test('bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero', async () => {
@@ -512,7 +569,7 @@ describe('StoreApi content-encoded query parameters', () => {
     expect(capturedHeader).toBe('{"colour":"red","size":"a b"}');
   });
 
-  test('searchStore sends a date-time inside q in the canonical +00:00 form', async () => {
+  test('bhv serialization 093 searchStore sends a date-time inside q in the canonical +00:00 form', async () => {
     const url = await captureSearch(new PhotoMetadata({ takenAt: new Date('2024-01-02T03:04:05Z') }));
 
     expect(JSON.parse(new URL(url, 'http://localhost').searchParams.get('q')!)).toEqual({
@@ -585,7 +642,8 @@ describe('StoreApi named-enum parameters', () => {
 });
 
 describe('StoreApi error dispatch through the typed status routes', () => {
-  test.each([
+  test('bhv operations 110 getOrderById picks the status-specific error for every listed status', async () => {
+    for (const [status, expected] of [
     [400, BadRequestError],
     [401, UnauthorizedError],
     [403, ForbiddenError],
@@ -595,20 +653,7 @@ describe('StoreApi error dispatch through the typed status routes', () => {
     [422, UnprocessableEntityError],
     [500, InternalServerError],
     [502, BadGatewayError],
-  ])('bhv operations 110 getOrderById picks the status-specific error for status %i', async (status, expected) => {
-    const statusApi = new StoreApi(
-      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
-      Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
-    );
-
-    const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
-
-    expect((error as Error).constructor).toBe(expected);
-    expect((error as ClientError).statusCode).toBe(status);
-  });
-
-  test('an error response on a typed route is thrown as the exception class specific to its status, not the generic client error', async () => {
-    for (const status of [400, 404, 422, 500]) {
+  ] as const) {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
@@ -616,10 +661,11 @@ describe('StoreApi error dispatch through the typed status routes', () => {
 
       const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
 
-      expect((error as Error).constructor).not.toBe(ClientError);
+      expect((error as Error).constructor).toBe(expected);
       expect((error as ClientError).statusCode).toBe(status);
     }
   });
+
 });
 
 describe('StoreApi', () => {
@@ -681,6 +727,33 @@ describe('StoreApi operation without parameters or security', () => {
       expect(seen).toEqual(['1']);
     } finally {
       server.close();
+    }
+  });
+});
+
+describe('StoreApi misc behaviours', () => {
+  test('bhv misc 011 an operation with no parameters accepts the call settings', async () => {
+    const result = await api.getInventory({ timeout: 5000, maxRetries: 0, headers: { 'X-A': '1' } });
+    expect(result).toBeDefined();
+  });
+
+  test('bhv misc 013 an operation with no parameters can be called with no argument and returns its result', async () => {
+    const result = await api.getInventory();
+    expect(result).toBeDefined();
+  });
+
+
+  test('bhv misc 114 a success response is decoded by the decoder for the status code actually received', async () => {
+    const { api: mockApi, close } = await createMockServer(
+      201,
+      'application/json',
+      '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
+    );
+    try {
+      const result = await mockApi.reserveStock();
+      expect(result).toBeInstanceOf(ReservationReceipt);
+    } finally {
+      close();
     }
   });
 });

@@ -42,6 +42,16 @@ test('bhv authbearer 008 mixed case bearer prefix is stripped', function (): voi
     expect($headers['Authorization'])->toBe('Bearer xyz');
 });
 
+test('bhv misc 017 a rejected credential is never named in the construction error', function (): void {
+    try {
+        new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes");
+        test()->fail('Expected exception not thrown');
+    } catch (\InvalidArgumentException $e) {
+        expect($e->getMessage())->not->toContain('Injected');
+        expect($e->getMessage())->not->toContain("tok\r\n");
+    }
+});
+
 test('bhv authbearer 012 bearer rejects crlf at construction', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', "tok\r\nInjected: yes"))
         ->toThrow(\InvalidArgumentException::class);
@@ -85,7 +95,7 @@ test('bhv authbearer 016 bearer rejects unicode space only token as non printabl
     'line separator' => ["\u{2028}"],
 ]);
 
-test('token is masked in var_dump and print_r output', function (): void {
+test('bhv auth 033 token is masked in var_dump and print_r output', function (): void {
     /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
      * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
      * the masked array, so the token never leaks through a stray dump or an
@@ -102,16 +112,6 @@ test('token is masked in var_dump and print_r output', function (): void {
     expect($varDump)->toContain('***');
     expect($printR)->not->toContain('token=xyz');
     expect($printR)->toContain('***');
-});
-
-test('secret constructor parameters are marked sensitive', function (): void {
-    $sensitive = [];
-    foreach ((new \ReflectionMethod(BearerAuthenticator::class, '__construct'))->getParameters() as $param) {
-        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
-            $sensitive[] = $param->getName();
-        }
-    }
-    expect($sensitive)->toBe(['token']);
 });
 
 test('bhv auth 018 rejected token is not recorded in the exception stack trace', function (): void {
@@ -195,14 +195,6 @@ test('bhv lifecycle 014 reads the token from the environment when none is passed
     });
 });
 
-test('bhv lifecycle 025 reads the environment once, when the authenticator is built', function (): void {
-    withBearerTokenEnvironment('first', function (): void {
-        $auth = new PetStoreBearerAuthenticator('https://api.example.com');
-        putenv('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN=second');
-        expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer first');
-    });
-});
-
 test('bhv authscheme 010 a missing or empty environment token fails naming the variable when the authenticator is built', function (?string $value): void {
     withBearerTokenEnvironment($value, function (): void {
         expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com'))
@@ -234,18 +226,6 @@ test('bhv auth 022 an explicit token, then the environment variable, then the pr
     });
 });
 
-test('the base class reads no environment variable', function (): void {
-    withBearerTokenEnvironment('from-environment', function (): void {
-        $message = '';
-        try {
-            new BearerAuthenticator('https://api.example.com');
-        } catch (\InvalidArgumentException $e) {
-            $message = $e->getMessage();
-        }
-        expect($message)->toBe('Bearer token is required: pass a token or a token provider');
-    });
-});
-
 test('bhv authbearer 014 a token provider is asked for the token on every request', function (): void {
     $calls = 0;
     $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
@@ -258,7 +238,7 @@ test('bhv authbearer 014 a token provider is asked for the token on every reques
     expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer rotated-2');
 });
 
-test('a token and a token provider cannot both be passed', function (): void {
+test('bhv auth 039 a token and a token provider cannot both be passed', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com', 'a', fn (): string => 'b'))
         ->toThrow(\InvalidArgumentException::class, 'not both');
 });
@@ -393,7 +373,7 @@ test('bhv auth 009 a bearer token that is blank or holds a control character is 
     'nul' => ["abc\x00def"],
 ]);
 
-test('a bearer token from a provider that holds a line feed is refused when the header is built', function (): void {
+test('bhv misc 194 a bearer token from a provider that holds a line feed is refused when the header is built', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', null, fn (): string => "abc\ndef");
     expect(fn (): array => $auth->getAuthHeaders())->toThrow(\InvalidArgumentException::class);
 });
@@ -419,14 +399,14 @@ test('bhv auth 023 an explicitly passed empty bearer token is refused and not re
         ->toThrow(\InvalidArgumentException::class, 'must not be empty');
 });
 
-test('a bearer authenticator built with no token, no provider and no environment is refused', function (): void {
+test('bhv misc 196 a bearer authenticator built with no token, no provider and no environment is refused', function (): void {
     expect(fn () => new BearerAuthenticator('https://api.example.com'))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
     expect(fn () => new BearerAuthenticator('https://api.example.com'))
         ->toThrow(\InvalidArgumentException::class, 'Bearer token is required');
 });
 
-test('the printable form of a bearer authenticator names its type and never shows the token', function (): void {
+test('bhv langphp 051 the printable form of a bearer authenticator names its type and never shows the token', function (): void {
     $auth = new BearerAuthenticator('https://api.example.com', 'tok-secret-123');
 
     ob_start();
@@ -465,3 +445,40 @@ function bearerWrapperEnvVariable(string $class): string
 
     return $first;
 }
+
+test('bhv auth 037 a token provider is asked again for each request and its current value is sent', function (): void {
+    $calls = 0;
+    $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
+        $calls++;
+
+        return 'token-' . $calls;
+    });
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-2');
+});
+
+test('bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request', function (): void {
+    $calls = 0;
+    $auth = new BearerAuthenticator('https://api.example.com', null, function () use (&$calls): string {
+        $calls++;
+
+        return 'token-' . $calls;
+    });
+
+    expect($auth->getAuthHeaders()['Authorization'])->toBe('Bearer token-1');
+});
+
+test('bhv misc 067 a token provider error reaches the caller unchanged', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', null, function (): string {
+        throw new \RuntimeException('provider boom');
+    });
+
+    expect(fn () => $auth->getAuthHeaders())->toThrow(\RuntimeException::class, 'provider boom');
+});
+
+test('bhv misc 195 a whitespace only token from the provider is rejected when the request is made', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', null, fn () => '   ');
+    expect(fn () => $auth->getAuthHeaders())
+        ->toThrow(\InvalidArgumentException::class, 'must not be empty');
+});

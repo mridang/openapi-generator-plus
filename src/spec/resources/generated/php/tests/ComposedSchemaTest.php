@@ -238,7 +238,7 @@ test('bhv unions 002 any of shared property collision keeps the later declared v
     expect(substr_count($serialized, '"notes"'))->toBe(1);
 });
 
-test('any of variants with only numeric additional properties serialize as an object', function (): void {
+test('bhv langphp 061 any of variants with only numeric additional properties serialize as an object', function (): void {
     /** @var \Ds\Map<string, string> $firstExtra */
     $firstExtra = new \Ds\Map(['0' => 'x']);
     $first = (new Metadata())->withAdditionalProperties($firstExtra);
@@ -335,7 +335,7 @@ test('bhv unions 017 all of round trip', function (): void {
 
 // -- 4.7 discriminator non-listed $ref --
 
-test('one of non-listed discriminator ref throws not falls through', function (): void {
+test('bhv unions 047 one of non-listed discriminator ref throws not falls through', function (): void {
     /* 4.7: a discriminator value that doesn't appear in DISCRIMINATOR_MAPPING
      * — including the case where the spec's oneOf lists a $ref without a
      * corresponding mapping entry — must throw rather than wrap the raw
@@ -506,4 +506,168 @@ test('bhv unions 043 a discriminator value already set on a subtype is written a
     \assert(is_array($decoded));
 
     expect($decoded['foodType'] ?? null)->toBe('custom');
+});
+
+test('bhv misc 045 a variant payload that fails its schema is rejected', function (array $data): void {
+    expect(fn () => PetFood::build($data))->toThrow(\Exception::class);
+})->with([
+    'missing required field' => [['foodType' => 'dry']],
+    'field of the wrong type' => [['foodType' => 'dry', 'weightKg' => 'heavy']],
+]);
+
+test('bhv misc 046 unions holding equal content compare equal and different content compares unequal', function (): void {
+    $a = PetTreatment::build(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
+    $b = PetTreatment::build(['drugName' => 'Amoxicillin', 'dosage' => '500mg']);
+    $c = PetTreatment::build(['drugName' => 'Other', 'dosage' => '1mg']);
+
+    expect($a->equals($b))->toBeTrue();
+    expect($a->equals($c))->toBeFalse();
+});
+
+test('bhv misc 047 serializing a union holding a value that is not one of its variants fails naming the union', function (array $data): void {
+    expect(fn () => PetFood::build($data))->toThrow(\InvalidArgumentException::class, 'PetFood');
+})->with([
+    'unknown discriminator' => [['foodType' => 'raw', 'calories' => 300]],
+    'missing discriminator' => [['weightKg' => 2.5]],
+    'empty discriminator' => [['foodType' => '', 'weightKg' => 2.5]],
+]);
+
+test('bhv misc 049 a choice between one binary value and a list writes the list as base64 text items', function (): void {
+    $request = new SetPetAvatarThumbnailRequest(new \Ds\Vector(["\x01\x02\x03\x04"]));
+
+    $json = ObjectSerializer::serialize($request);
+
+    expect($json)->toBe('["AQIDBA=="]');
+    expect($json)->not->toContain('[1,2,3,4]');
+});
+
+test('bhv misc 291 a payload matching more than one variant decodes to the first declared one', function (): void {
+    $record = \PetstoreClient\Models\TreatmentRecord::build(['drugName' => 'a', 'procedureName' => 'b']);
+
+    expect($record->getActualInstance())->toBeInstanceOf(\PetstoreClient\Models\Surgery::class);
+});
+
+test('bhv misc 292 serializing a union wrapper writes the bare variant payload and reading it back restores it', function (): void {
+    $medication = new \PetstoreClient\Models\Medication('Amoxicillin', notes: 'from-medication');
+    $treatment = \PetstoreClient\Models\PetTreatment::fromMedication($medication);
+
+    $serialized = ObjectSerializer::serialize($treatment);
+
+    expect(json_decode($serialized, true))->toBe(json_decode(ObjectSerializer::serialize($medication), true));
+    $restored = ObjectSerializer::deserialize($serialized, \PetstoreClient\Models\PetTreatment::class);
+    /** @var \PetstoreClient\Models\Medication $restoredMedication */
+    $restoredMedication = $restored?->getActualInstance();
+    expect($restoredMedication->drugName)->toBe('Amoxicillin');
+});
+
+test('bhv misc 294 a subtype payload that omits its discriminator is decoded as the variant named by the mapping value', function (): void {
+    $data = ['foodType' => 'dry', 'weightKg' => 2.5];
+    $result = PetFood::build($data);
+    $instance = $result->getActualInstance();
+    expect($instance)->toBeInstanceOf(DryFood::class);
+    assert($instance instanceof DryFood);
+    expect($instance->foodType)->toBe('dry');
+});
+
+test('bhv misc 295 a oneOf with a byte string variant round trips through base64 encoding', function (): void {
+    // (1) SCALAR variant: constructed from raw bytes [0x01,0x02,0x03,0x04].
+    $raw = "\x01\x02\x03\x04";
+    $request = new SetPetAvatarThumbnailRequest($raw);
+    expect($request->getActualInstance())->toBe($raw);
+
+    // The wire value is the base64 STRING "AQIDBA==" — not a JSON int-array
+    // [1,2,3,4], not the raw bytes, not object garbage.
+    $json = ObjectSerializer::serialize($request);
+    expect($json)->toBe('"AQIDBA=="');
+
+    // Deserializing recovers exactly the original 4 bytes.
+    /** @var SetPetAvatarThumbnailRequest $restored */
+    $restored = ObjectSerializer::deserialize($json, SetPetAvatarThumbnailRequest::class);
+    expect($restored->getActualInstance())->toBe($raw);
+});
+
+test('bhv serialization 076 any of no matching variant throws', function (): void {
+    // oneof-nondiscriminator-no-match-silent: a body matching neither
+    // Medication nor Surgery must throw rather than yield a silently-empty
+    // union. resolveAnyOfAll throws UnexpectedValueException on union no-match.
+    $data = ['unrelatedKey' => 'value', 'anotherUnknown' => 123];
+    expect(fn () => PetTreatment::build($data))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
+test('bhv serialization 082 one of missing discriminator throws', function (): void {
+    // Gap AU: missing discriminator field must throw, not silently wrap.
+    $data = ['weightKg' => 2.5];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Missing discriminator');
+});
+
+test('bhv unions 045 one of wrappers have value equality', function (): void {
+    $first = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($first instanceof SetPetAvatarThumbnailRequest);
+    $second = ObjectSerializer::deserialize('"AQIDBA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($second instanceof SetPetAvatarThumbnailRequest);
+    $other = ObjectSerializer::deserialize('"BQYHCA=="', SetPetAvatarThumbnailRequest::class);
+    \assert($other instanceof SetPetAvatarThumbnailRequest);
+
+    expect($first == $second)->toBeTrue();
+    expect($first == $other)->toBeFalse();
+});
+
+test('bhv unions 046 any of retains all matching variants (medication and surgery) losslessly', function (): void {
+    // anyOf matches one OR MORE schemas: a payload that co-satisfies BOTH
+    // Medication and Surgery must retain BOTH variants, not silently keep the
+    // first and drop the rest. Deserialize a body satisfying both at once.
+    $data = [
+        'drugName' => 'Amoxicillin',
+        'dosage' => '250mg',
+        'procedureName' => 'Spay',
+        'durationMinutes' => 45,
+    ];
+    $result = PetTreatment::build($data);
+
+    // Both variants are accessible — locate each by type rather than position.
+    $instances = $result->getMatchedInstances();
+    expect($instances)->toHaveCount(2);
+
+    expect($instances[0])->toBeInstanceOf(Medication::class);
+    expect($instances[1])->toBeInstanceOf(Surgery::class);
+    expect($result->getActualInstance())->toBe($instances[0]);
+
+    $medication = null;
+    $surgery = null;
+    foreach ($instances as $instance) {
+        if ($instance instanceof Medication) {
+            $medication = $instance;
+        }
+        if ($instance instanceof Surgery) {
+            $surgery = $instance;
+        }
+    }
+
+    expect($medication)->toBeInstanceOf(Medication::class);
+    assert($medication instanceof Medication);
+    expect($medication->drugName)->toBe('Amoxicillin');
+    expect($medication->dosage)->toBe('250mg');
+
+    expect($surgery)->toBeInstanceOf(Surgery::class);
+    assert($surgery instanceof Surgery);
+    expect($surgery->procedureName)->toBe('Spay');
+    expect($surgery->durationMinutes)->toBe(45);
+
+    // Re-serialize the WRAPPER: the union of all retained variants' fields must
+    // round-trip — all four fields present, nothing silently dropped.
+    $serialized = ObjectSerializer::serialize($result);
+    expect($serialized)->toContain('drugName');
+    expect($serialized)->toContain('dosage');
+    expect($serialized)->toContain('procedureName');
+    expect($serialized)->toContain('durationMinutes');
+    $roundTripped = json_decode($serialized, true);
+    \assert(is_array($roundTripped));
+    expect($roundTripped)->toMatchArray([
+        'drugName' => 'Amoxicillin',
+        'dosage' => '250mg',
+        'procedureName' => 'Spay',
+        'durationMinutes' => 45,
+    ]);
 });

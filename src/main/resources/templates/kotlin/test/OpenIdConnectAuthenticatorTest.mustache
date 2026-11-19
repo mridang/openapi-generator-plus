@@ -252,7 +252,64 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
-    fun malformedDiscoveryDocumentDoesNotEchoTheBody() {
+    @DisplayName("bhvMisc070 a discovery document that is not a JSON object raises the serialization error with the canonical message, keeps no cause, and does not repeat the body")
+    fun bhvMisc070ANonObjectDiscoveryDocumentKeepsNoCauseAndNoBody() {
+        val client = FakeApiClient()
+        client.enqueue("[\"access_token\",\"gho_SECRET123\"]")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val ex = assertThrowsExactly({{invokerPackage}}.errors.SerializationException::class.java) {
+            runBlocking { auth.buildAuthorizationUrl() }
+        }
+        assertEquals("OIDC discovery document is not a JSON object", ex.message)
+        assertNull(ex.cause)
+        assertFalse(ex.message!!.contains("gho_SECRET123"))
+    }
+
+    @Test
+    @DisplayName("bhvMisc076 a call after a dropped code exchange reuses the discovered configuration and sees the code as not yet exchanged")
+    fun bhvMisc076ACallAfterADroppedCodeExchangeReusesDiscovery() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("Cache-Control" to "max-age=3600"))
+        client.enqueue("""{"error":"server_error"}""", 500)
+        client.enqueue("""{"access_token":"tok1","expires_in":3600}""")
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        runBlocking { auth.buildAuthorizationUrl() }
+        assertThrows({{invokerPackage}}.errors.OAuth2ServerException::class.java) {
+            runBlocking { auth.exchangeCode("my-auth-code") }
+        }
+        assertEquals(1, client.getCount)
+
+        runBlocking { auth.buildAuthorizationUrl() }
+        assertEquals(1, client.getCount)
+
+        runBlocking { auth.exchangeCode("my-auth-code") }
+        assertEquals(1, client.getCount)
+        assertTrue(client.lastBody!!.contains("code=my-auth-code"))
+    }
+
+    @Test
+    @DisplayName("bhvMisc078 an OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce")
+    fun bhvMisc078AuthorizationUrlCarriesAnS256ChallengeAndNoNonce() {
+        val client = FakeApiClient()
+        client.enqueue(discovery("https://auth.example.com/authorize"))
+
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        val query = runBlocking { auth.buildAuthorizationUrl() }.substringAfter('?')
+        assertTrue(query.contains("code_challenge_method=S256"))
+        assertTrue(Regex("code_challenge=[A-Za-z0-9_-]{43}(&|$)").containsMatchIn(query))
+        assertFalse(query.contains("nonce="))
+    }
+
+    @Test
+    fun bhvSerialization103MalformedDiscoveryDocumentDoesNotEchoTheBody() {
         // The parser's own message quotes an excerpt of its input, so neither
         // the message nor the cause may be kept.
         val client = FakeApiClient()
@@ -706,4 +763,45 @@ class OpenIdConnectAuthenticatorTest {
         repeat(3) { runBlocking { auth.buildAuthorizationUrl() } }
         assertEquals(3, client.getCount)
     }
+    @Test
+    @DisplayName("bhvMisc199 discovery runs again when the cached document has a max-age of zero and uses the rediscovered endpoints")
+    fun bhvMisc199DiscoveryRunsAgainWhenMaxAgeIsZero() {
+        val client = FakeApiClient()
+        repeat(3) {
+            client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("cache-control" to "max-age=0"))
+        }
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        repeat(3) { runBlocking { auth.buildAuthorizationUrl() } }
+        assertEquals(3, client.getCount)
+    }
+
+    @Test
+    @DisplayName("bhvMisc200 a discovery document whose issuer names another server is rejected with a serialization error")
+    fun bhvMisc200DiscoveryIssuerOfAnotherServerIsRejected() {
+        val client = FakeApiClient()
+        client.enqueue("""{"issuer":"https://evil.example.net","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        assertThrows({{invokerPackage}}.errors.SerializationException::class.java) { runBlocking { auth.buildAuthorizationUrl() } }
+    }
+
+    @Test
+    @DisplayName("bhvMisc201 a failed discovery request reports its request path without the query string")
+    fun bhvMisc201FailedDiscoveryReportsPathWithoutQuery() {
+        val client = FakeApiClient()
+        client.enqueue("down", statusCode = 500)
+        val auth = OpenIdConnectAuthenticator(
+            host = "https://api.example.com",
+            openIdConnectUrl = "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("openid")
+        )
+        auth.setApiClient(client)
+        val ex = assertThrows(ApiException::class.java) { runBlocking { auth.buildAuthorizationUrl() } }
+        assertEquals("/.well-known/openid-configuration", ex.requestPath)
+    }
+
 }

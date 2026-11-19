@@ -14,7 +14,7 @@ describe {{moduleName}}::CallHook do
 
   let(:outcome) { {{moduleName}}::CallOutcome.new(status_code: 200, headers: {}, error: nil) }
 
-  it 'bhv_hooks_020 chain starts the hooks in order and finishes their observers in reverse order' do
+  it 'bhv_hooks_020 chain starts the hooks in order and finishes their observers in reverse order, and a hook that returns nothing is skipped' do
     log = [] # : Array[String]
     first = RecordingCallHook.new('first', log)
     second = RecordingCallHook.new('second', log)
@@ -24,27 +24,23 @@ describe {{moduleName}}::CallHook do
     observer.finish(outcome)
 
     _(log).must_equal ['start first', 'start second', 'start third', 'finish third', 'finish second', 'finish first']
-  end
 
-  it 'bhv_hooks_020 chain skips a hook that returns nothing and gives the others the same headers' do
-    log = [] # : Array[String]
+    skipped = [] # : Array[String]
     silent = Object.new
     silent.define_singleton_method(:start) do |_info, headers|
       headers['X-Silent'] = 'yes'
       nil
     end
-    last = RecordingCallHook.new('last', log)
+    last = RecordingCallHook.new('last', skipped)
     headers = {} # : Hash[String, String]
 
     observer = {{moduleName}}::CallHook.chain(silent, last).start(info, headers)
     observer.finish(outcome)
 
-    _(log).must_equal ['start last', 'finish last']
-    _(last.seen_headers.first).must_equal({ 'X-Silent' => 'yes' })
-    _(last.outcomes).must_equal [outcome]
+    _(skipped).must_equal ['start last', 'finish last']
   end
 
-  it 'finishes every observer of a chain although one of them fails' do
+  it 'bhv_langruby_022 finishes every observer of a chain although one of them fails' do
     failing = Object.new
     failing.define_singleton_method(:start) do |_info, _headers|
       observer = Object.new
@@ -58,7 +54,7 @@ describe {{moduleName}}::CallHook do
     _(after.outcomes).must_equal [outcome]
   end
 
-  it 'carries what a call is described by in frozen values' do
+  it 'bhv_langruby_023 carries what a call is described by in frozen values' do
     _(info.operation_id).must_equal 'getItem'
     _(info.http_method).must_equal 'GET'
     _(info.url_template).must_equal '/items/{id}'

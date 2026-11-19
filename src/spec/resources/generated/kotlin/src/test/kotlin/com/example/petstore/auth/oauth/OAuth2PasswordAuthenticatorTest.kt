@@ -160,6 +160,14 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth058 a request that needs a new token uses the refresh grant first when a refresh token is held")
+    fun bhvAuth058RefreshGrantComesFirstWhenHeld() = bhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls()
+
+    @Test
+    @DisplayName("bhvLangkotlin054 a rejected refresh falls back to the original grant")
+    fun bhvLangkotlin054RejectedRefreshFallsBackToTheOriginalGrant() = bhvAuthoauthtwopassword010RejectedRefreshReRunsThePasswordGrant()
+
+    @Test
     fun bhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok1","refresh_token":"ref1","expires_in":0}""")
@@ -439,6 +447,11 @@ class OAuth2PasswordAuthenticatorTest {
         assertTrue(client.lastBody!!.contains("grant_type=refresh_token"), client.lastBody)
     }
 
+    @Test
+    @DisplayName("bhvAuth051 the password grant posts to the token URL and refreshes at the refresh URL with the scopes")
+    fun bhvAuth051PasswordGrantRoutesToTheDeclaredUrls() =
+        bhvAuthoauthtwopassword022GeneratedSchemeWrapperRoutesTheFirstGrantToTheTokenUrlAndTheRefreshToTheRefreshUrl()
+
     private fun <T> withEnvironment(
         values: Map<String, String>,
         body: () -> T,
@@ -453,7 +466,7 @@ class OAuth2PasswordAuthenticatorTest {
     }
 
     @Test
-    fun generatedSchemeWrapperReadsEveryCredentialFromItsOwnVariable() {
+    fun bhvLangkotlin035GeneratedSchemeWrapperReadsEveryCredentialFromItsOwnVariable() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"tok","expires_in":3600}""")
         val env =

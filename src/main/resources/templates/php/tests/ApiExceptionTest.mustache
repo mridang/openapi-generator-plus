@@ -7,6 +7,45 @@ use {{invokerPackage}}\Errors\SerializationException;
 use {{invokerPackage}}\Errors\{{errorPrefix}}Exception;
 use {{modelPackage}}\Category;
 
+test('bhv misc 015 a typed view of a non object error body is a serialization error', function (): void {
+    $err = new \{{invokerPackage}}\Errors\BadRequestException(message: 'boom', responseHeaders: [], responseBody: '[1,2]');
+
+    expect(fn (): mixed => $err->getTypedErrorBody(Category::class))->toThrow(SerializationException::class);
+});
+
+test('bhv misc 016 the rendered body is capped and states the bytes omitted', function (): void {
+    $err = new ApiException(502, 'bad gateway', null, str_repeat('a', 3000));
+
+    expect((string) $err)->toContain('more bytes');
+    expect(strlen((string) $err))->toBeLessThan(1500);
+});
+
+test('bhv misc 018 a token error with a non json body exposes status, no code and the raw text', function (): void {
+    $err = new \{{invokerPackage}}\Errors\OAuth2ServerException(500, null, null, null, 'upstream exploded');
+
+    expect($err->statusCode)->toBe(500);
+    expect($err->errorCode)->toBeNull();
+    expect($err->rawBody)->toBe('upstream exploded');
+});
+
+test('bhv misc 020 the request line needs both the method and the path', function (): void {
+    $err = ApiException::fromResponse(500, [], 'x', null, '/items');
+
+    expect((string) $err)->not->toContain('Request:');
+});
+
+test('bhv misc 022 a server error is an instance of the sdk root error type', function (): void {
+    $err = ApiException::fromResponse(503, [], '{}');
+
+    expect($err)->toBeInstanceOf(\{{invokerPackage}}\Errors\ServerException::class);
+    expect($err)->toBeInstanceOf({{errorPrefix}}Exception::class);
+});
+
+test('bhv misc 023 an unmapped 5xx is the generic server error and another unmapped status the base error', function (): void {
+    expect(ApiException::fromResponse(520, [], null))->toBeInstanceOf(\{{invokerPackage}}\Errors\ServerException::class);
+    expect(ApiException::fromResponse(399, [], null)::class)->toBe(ApiException::class);
+});
+
 test('bhv errors 004 exposes status code, message, body, headers and error body', function (): void {
     $ex = new ApiException(
         404,
@@ -80,7 +119,7 @@ test('bhv errors 047 an ApiException is a PHP Throwable and the branded SDK root
     expect($ex)->toBeInstanceOf({{errorPrefix}}Exception::class);
 });
 
-test('a newline in the body is shown escaped, never as a line break', function (): void {
+test('bhv errors 085 a newline in the body is shown escaped, never as a line break', function (): void {
     $ex = new ApiException(500, 'boom', null, "one\r\ntwo");
 
     expect((string) $ex)->toContain('Response body: one\x0D\x0Atwo');
@@ -95,7 +134,7 @@ test('bhv errors 018 ApiException extends the SDK root {{errorPrefix}}Exception'
     expect($ex)->toBeInstanceOf(Exception::class);
 });
 
-test('a thrown typed error is caught by a {{errorPrefix}}Exception catch', function (): void {
+test('bhv langphp 053 a thrown typed error is caught by a {{errorPrefix}}Exception catch', function (): void {
     /* Full chain: UnauthorizedException → ClientException → ApiException
      * → {{errorPrefix}}Exception → \Exception. Catching the root must catch the
      * 401 typed error. */
@@ -312,20 +351,16 @@ test('bhv errors 202 an error exposes the x-request-id response header as its re
     [null, null],
 ]);
 
-test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default', function (int $status, string $expected): void {
+test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default, and a status without a factory keeps the status exception', function (): void {
     $factory = static fn (string $name): \Closure =>
         /** @param array<string, string>|null $h */
         static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, $name, $h, $b);
     $factories = ['404' => $factory('exact'), '4XX' => $factory('range'), 'default' => $factory('default')];
 
-    expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
-})->with([
-    [404, 'exact'],
-    [418, 'range'],
-    [502, 'default'],
-]);
+    foreach ([[404, 'exact'], [418, 'range'], [502, 'default']] as [$status, $expected]) {
+        expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
+    }
 
-test('bhv errors 203 a status without a factory keeps the status exception', function (): void {
     /** @param array<string, string>|null $h */
     $other = static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, 'other', $h, $b);
 
@@ -334,6 +369,7 @@ test('bhv errors 203 a status without a factory keeps the status exception', fun
     expect(ApiException::fromResponse(404, [], '{}', 'GET', '/x', [])::class)
         ->toBe(\{{invokerPackage}}\Errors\NotFoundException::class);
 });
+
 {{#hasErrorSchemas}}
 {{#errorSchemas}}
 {{#-first}}
@@ -445,7 +481,7 @@ test('bhv errors 012 an error built without a request has no request context', f
     expect((string) $ex)->not->toContain('Request:');
 });
 
-test('a bare path or a query only target reduces to a path', function (string $target, string $expected): void {
+test('bhv langphp 054 a bare path or a query only target reduces to a path', function (string $target, string $expected): void {
     expect(ApiException::fromResponse(500, [], null, 'GET', $target)->getRequestPath())->toBe($expected);
 })->with([
     'absolute path' => ['/items/7?x=1', '/items/7'],
@@ -744,4 +780,124 @@ test('bhv errors 077 a url in diagnostics drops its query string, userinfo and f
 
 test('bhv errors 084 an error built without a response reports a status code of zero by default', function (): void {
     expect((new ApiException())->getStatusCode())->toBe(0);
+});
+
+test('bhv errors 086 a body of exactly 1 KiB renders whole and a larger body is truncated', function (): void {
+    $exact = new ApiException(500, 'boom', null, str_repeat('a', 1024));
+    $over = new ApiException(500, 'boom', null, str_repeat('a', 1025));
+
+    expect((string) $exact)->toEndWith(str_repeat('a', 1024));
+    expect((string) $exact)->not->toContain('more bytes');
+    expect((string) $over)->toContain('... (1 more bytes)');
+    expect($over->getResponseBody())->toBe(str_repeat('a', 1025));
+});
+
+test('bhv errors 087 credential and challenge headers are masked in the rendered message', function (): void {
+    $ex = new ApiException(401, 'denied', [
+        'Authorization' => 'Bearer abc',
+        'Cookie' => 'sid=1',
+        'WWW-Authenticate' => 'Basic realm=x',
+        'Proxy-Authenticate' => 'Basic realm=y',
+    ], null);
+
+    expect((string) $ex)->toContain('***');
+    expect((string) $ex)->not->toContain('Bearer abc');
+    expect((string) $ex)->not->toContain('sid=1');
+    expect((string) $ex)->not->toContain('realm=x');
+    expect((string) $ex)->not->toContain('realm=y');
+});
+
+test('bhv errors 088 absent sections are left out of the message and present ones are kept', function (): void {
+    $ex = new ApiException(500, 'down', [], '');
+
+    expect((string) $ex)->toBe("down\nHTTP status code: 500");
+});
+
+test('bhv errors 089 an error with an empty message renders the default message text', function (): void {
+    /* A PHP string message cannot be null, so an absent message is the empty string. */
+    $ex = new ApiException(0, '');
+
+    expect((string) $ex)->toStartWith('Error message: the server returns an error');
+});
+
+test('bhv errors 090 an error with no response keeps its body and headers as null', function (): void {
+    $ex = ApiException::fromResponse(0, null, null);
+
+    expect($ex->getResponseHeaders())->toBeNull();
+    expect($ex->getResponseBody())->toBeNull();
+});
+
+test('bhv errors 091 the rendered message names the method and path of the failed request', function (): void {
+    $withResponse = ApiException::fromResponse(404, [], 'missing', 'GET', '/items/7');
+    $withoutResponse = new ApiException(0, 'connection reset', null, null, null, null, 'get', '/items/7?x=1');
+
+    expect((string) $withResponse)->toContain("Request: GET /items/7");
+    expect((string) $withoutResponse)->toContain("Request: GET /items/7");
+    expect((string) $withoutResponse)->not->toContain('x=1');
+});
+
+test('bhv errors 092 a network timeout carries the method and path of its request and stays a timeout', function (): void {
+    $timeout = new \{{invokerPackage}}\Errors\NetworkTimeoutException('timed out', null, 'post', '/items/7?x=1');
+
+    expect($timeout)->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
+    expect($timeout->getRequestMethod())->toBe('POST');
+    expect($timeout->getRequestPath())->toBe('/items/7');
+});
+
+test('bhv errors 093 an error exposes the decoded error body alongside the raw response body', function (): void {
+    $raw = "\xEF\xBB\xBF" . '{"code":"bad"}';
+    $ex = ApiException::fromResponse(400, null, $raw);
+
+    expect($ex->getErrorBody())->toBe(['code' => 'bad']);
+    expect($ex->getResponseBody())->toBe($raw);
+});
+
+test('bhv errors 094 every error the sdk raises is the root sdk exception', function (): void {
+    $errors = [
+        new ApiException(500, 'boom'),
+        new \{{invokerPackage}}\Errors\NetworkException('down'),
+        new SerializationException('bad'),
+        ApiException::fromResponse(404, null, null),
+    ];
+
+    foreach ($errors as $error) {
+        expect($error)->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+    }
+});
+
+test('bhv errors 095 a typed 4xx or 5xx error is found by its status family', function (): void {
+    expect(ApiException::fromResponse(404, null, null))->toBeInstanceOf(\{{invokerPackage}}\Errors\ClientException::class);
+    expect(ApiException::fromResponse(503, null, null))->toBeInstanceOf(\{{invokerPackage}}\Errors\ServerException::class);
+});
+
+test('bhv errors 096 a status outside every class range falls back to the base error', function (): void {
+    foreach ([399, 600] as $status) {
+        $ex = ApiException::fromResponse($status, null, null);
+
+        expect($ex::class)->toBe(ApiException::class);
+        expect($ex)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\ClientException::class);
+        expect($ex)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\ServerException::class);
+    }
+});
+
+test('bhv errors 097 an unrecognised 4xx status raises the generic client error', function (): void {
+    $ex = ApiException::fromResponse(499, null, null);
+
+    expect($ex::class)->toBe(\{{invokerPackage}}\Errors\ClientException::class);
+});
+
+test('bhv misc 284 a status with a typed error raises that typed error', function (): void {
+    $cases = [
+        400 => \{{invokerPackage}}\Errors\BadRequestException::class,
+        403 => \{{invokerPackage}}\Errors\ForbiddenException::class,
+        404 => \{{invokerPackage}}\Errors\NotFoundException::class,
+        409 => \{{invokerPackage}}\Errors\ConflictException::class,
+        422 => \{{invokerPackage}}\Errors\UnprocessableEntityException::class,
+        429 => \{{invokerPackage}}\Errors\TooManyRequestsException::class,
+        500 => \{{invokerPackage}}\Errors\InternalServerErrorException::class,
+        502 => \{{invokerPackage}}\Errors\BadGatewayException::class,
+    ];
+    foreach ($cases as $status => $class) {
+        expect(ApiException::fromResponse($status, [], ''))->toBeInstanceOf($class);
+    }
 });

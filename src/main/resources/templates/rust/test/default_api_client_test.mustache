@@ -267,6 +267,30 @@ async fn test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust
     assert!(err.downcast_ref::<NetworkError>().is_some(), "expected a NetworkError, got: {}", err);
 }
 
+#[tokio::test]
+async fn test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error() {
+    use std::net::ToSocketAddrs;
+    let reachable = "example.com:443"
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
+        })
+        .unwrap_or(false);
+    assert!(reachable, "example.com:443 must be reachable: the replacement check needs a public CA chain");
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let result = DefaultApiClient::new(Some(transport))
+        .send_request("GET", "https://example.com/", &HashMap::new(), None)
+        .await;
+    let err = result.expect_err("a public CA must not be trusted next to a configured CA");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "expected a NetworkError, got: {}", err);
+}
+
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo
 // (`http://user:pass@127.0.0.1:3128`) must preserve those credentials end-to-end
 // so the proxy can authenticate the tunnel (otherwise it 407s). Java's
@@ -670,6 +694,33 @@ async fn test_bhv_retries_012_default_api_client_multipart_body_replayed_on_307_
     assert!(!echoed_body.is_empty(), "redirect target must echo a non-empty replayed body, got: {:?}", json);
 }
 
+/// retries_046: a 307 that keeps the scheme resends the request body unchanged.
+#[tokio::test]
+async fn test_bhv_retries_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(5))
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = {{packageName}}::api_client::RequestBody::Bytes(br#"{"a":1}"#.to_vec());
+
+    let resp = client
+        .send_request(
+            "POST",
+            &format!("{}/test/redirect/307", chasm_url),
+            &HashMap::new(),
+            Some(&body),
+        )
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code(), 200);
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
+    assert_eq!(json["method"], "POST");
+    assert_eq!(json["body"], r#"{"a":1}"#);
+}
+
 #[tokio::test]
 async fn test_bhv_redirects_006_default_api_client_respects_max_redirects_limit() {
     let chasm_url = testcontainers_helper::chasm_http_url();
@@ -906,7 +957,7 @@ async fn test_bhv_transport_019_default_api_client_post_with_null_body_sends_con
  * the supplied client (its default header is on the wire) while the SDK's own
  * defaults (User-Agent) are still applied on top. */
 #[tokio::test]
-async fn test_default_api_client_with_client_sends_through_supplied_client() {
+async fn test_bhv_langrust_035_default_api_client_with_client_sends_through_supplied_client() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
     let addr = listener.local_addr().unwrap();
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -946,14 +997,29 @@ async fn test_default_api_client_with_client_sends_through_supplied_client() {
 }
 
 /* F405: closing the SDK client never shuts down a caller-supplied client; the
- * caller's handle keeps working afterwards. */
+ * caller's handle keeps sending requests afterwards. */
 #[tokio::test]
-async fn test_default_api_client_close_leaves_supplied_client_usable() {
+async fn test_bhv_lifecycle_045_default_api_client_close_leaves_supplied_client_usable() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let url = format!("http://{}/", listener.local_addr().unwrap());
+    std::thread::spawn(move || {
+        for stream in listener.incoming().take(2) {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let _ = std::io::Read::read(&mut stream, &mut buf);
+            let _ = std::io::Write::write_all(
+                &mut stream,
+                b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            );
+        }
+    });
     let supplied = reqwest::Client::new();
     let client = DefaultApiClient::with_client(supplied.clone(), None).expect("no conflict");
+    assert!(supplied.get(&url).send().await.is_ok());
     client.close();
     assert!(client.is_closed());
-    assert!(supplied.get("http://127.0.0.1:1/").build().is_ok());
+    let response = supplied.get(&url).send().await.expect("the supplied client must still send");
+    assert_eq!(200, response.status().as_u16());
 }
 
 /* lifecycle 024: a supplied client conflicts with the SDK proxy and TLS settings, each refused. */
@@ -975,4 +1041,220 @@ fn test_bhv_lifecycle_024_a_supplied_client_conflicts_with_proxy_and_tls_setting
             Ok(_) => panic!("expected a conflict error, got a client"),
         }
     }
+}
+
+/// Starts a local server that counts the connections it accepts and answers each one after `delay_ms`.
+fn start_counting_server(delay_ms: u64) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let url = format!("http://{}/", listener.local_addr().unwrap());
+    let accepted = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = accepted.clone();
+    std::thread::spawn(move || {
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { break };
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            std::thread::spawn(move || {
+                let mut buf = [0u8; 4096];
+                let _ = std::io::Read::read(&mut stream, &mut buf);
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
+                let _ = std::io::Write::write_all(
+                    &mut stream,
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                );
+            });
+        }
+    });
+    (url, accepted)
+}
+
+/// A supplied client combined with SDK redirect settings is a conflict, refused at construction.
+#[test]
+fn test_bhv_lifecycle_041_a_supplied_client_with_redirect_settings_is_a_conflict() {
+    let transport = TransportOptionsBuilder::new().max_redirects(Some(3)).build().expect("valid transport options");
+    match DefaultApiClient::with_client(reqwest::Client::new(), Some(transport)) {
+        Err(ConfigurationError::InvalidArgument(message)) => {
+            assert!(message.contains("custom reqwest::Client"), "unexpected message: {}", message);
+        }
+        Err(other) => panic!("expected InvalidArgument, got {:?}", other),
+        Ok(_) => panic!("expected a conflict error, got a client"),
+    }
+}
+
+/// A caller-supplied HTTP client carries the requests: the server receives them through it.
+#[tokio::test]
+async fn test_bhv_lifecycle_042_a_supplied_http_client_sends_the_requests() {
+    let (url, accepted) = start_counting_server(0);
+    let client = DefaultApiClient::with_client(reqwest::Client::new(), None).expect("no conflict");
+    let response = client
+        .send_request("GET", &url, &HashMap::new(), None)
+        .await
+        .expect("the request must go through the supplied client");
+    assert_eq!(200, response.status_code());
+    assert_eq!(1, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// After close, a new request fails with a closed-client error and never reaches the network.
+#[tokio::test]
+async fn test_bhv_lifecycle_043_a_request_after_close_fails_without_reaching_the_network() {
+    let (url, accepted) = start_counting_server(0);
+    let client = DefaultApiClient::new(None);
+    client.close();
+    let err = client
+        .send_request("GET", &url, &HashMap::new(), None)
+        .await
+        .expect_err("a closed client must refuse the request");
+    assert!(err.to_string().contains("closed"), "{}", err);
+    assert_eq!(0, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// A request already in flight when the client is closed still completes successfully.
+#[tokio::test]
+async fn test_bhv_lifecycle_044_a_request_in_flight_when_the_client_closes_still_completes() {
+    let (url, _accepted) = start_counting_server(300);
+    let client = std::sync::Arc::new(DefaultApiClient::new(None));
+    let in_flight = {
+        let client = client.clone();
+        let url = url.clone();
+        tokio::spawn(async move { client.send_request("GET", &url, &HashMap::new(), None).await })
+    };
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    client.close();
+    let response = in_flight
+        .await
+        .expect("the task must not panic")
+        .expect("the in-flight request must complete after close");
+    assert_eq!(200, response.status_code());
+}
+
+
+#[tokio::test]
+async fn test_bhv_misc_266_caller_default_headers_replace_user_agent_and_request_id_any_case() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("SdkDefault/1.0")
+        .inject_request_id(true)
+        .default_header("USER-agent", "Caller/2.0")
+        .default_header("x-REQUEST-id", "caller-request-7")
+        .build().expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let resp = client
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
+    let h = &json["headers"];
+    assert_eq!(h.get("user-agent").and_then(|v| v.as_str()), Some("Caller/2.0"));
+    assert_eq!(h.get("x-request-id").and_then(|v| v.as_str()), Some("caller-request-7"));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_269_self_signed_endpoint_is_reached_only_when_verification_is_off() {
+    let chasm_url = testcontainers_helper::chasm_https_url();
+    let off = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build().expect("valid transport options");
+    let on = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .build().expect("valid transport options");
+
+    let reached = DefaultApiClient::new(Some(off))
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &HashMap::new(), None)
+        .await
+        .expect("self-signed endpoint must be reached with verification off");
+    assert_eq!(reached.status_code(), 200);
+
+    let refused = DefaultApiClient::new(Some(on))
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &HashMap::new(), None)
+        .await;
+    assert!(refused.is_err(), "self-signed endpoint must be rejected with verification on");
+}
+#[tokio::test]
+async fn test_bhv_misc_267_a_caller_supplied_http_client_default_headers_are_sent_with_each_request() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let mut defaults = reqwest::header::HeaderMap::new();
+    defaults.insert("x-pool-default", reqwest::header::HeaderValue::from_static("yes"));
+    let http = reqwest::Client::builder().default_headers(defaults).build().expect("valid client");
+    let client = DefaultApiClient::with_client(http, None).expect("valid client");
+    let resp = client
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
+    assert_eq!(Some("yes"), json["headers"]["x-pool-default"].as_str());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_268_a_trusted_ca_certificate_is_rejected_when_the_hostname_does_not_match() {
+    use std::net::ToSocketAddrs;
+    let https_url = testcontainers_helper::chasm_https_url();
+    let (host, port) = https_url
+        .trim_start_matches("https://")
+        .rsplit_once(':')
+        .expect("the https url must carry a port");
+    let ip = (host, 0u16).to_socket_addrs().expect("the fixture host resolves").next().expect("an address").ip();
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let err = client
+        .send_request("GET", &format!("https://{}:{}/test/echo", ip, port), &HashMap::new(), None)
+        .await
+        .expect_err("a certificate for another host must be rejected");
+    assert!(err.downcast_ref::<{{packageName}}::NetworkError>().is_some(), "{}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_271_a_client_without_a_proxy_connects_directly() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let variables = ["HTTP_PROXY", "http_proxy", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"];
+    for name in variables {
+        std::env::set_var(name, "http://127.0.0.1:1");
+    }
+    for name in ["NO_PROXY", "no_proxy"] {
+        std::env::remove_var(name);
+    }
+    let client = DefaultApiClient::new(None);
+    let resp = client
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &HashMap::new(), None)
+        .await
+        .expect("a direct connection must succeed");
+    for name in variables {
+        std::env::remove_var(name);
+    }
+    assert_eq!(200, resp.status_code());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_proxy_url() {
+    let chasm_url = testcontainers_helper::chasm_internal_http_url();
+    let auth_proxy = testcontainers_helper::auth_proxy_url();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(&auth_proxy.replacen("http://", "http://user:pass@", 1))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let resp = client
+        .send_request("GET", &format!("{}/test/echo", chasm_url), &HashMap::new(), None)
+        .await
+        .expect("the proxy must accept the credentials");
+    assert_eq!(200, resp.status_code());
+    assert!(resp.body().contains(r#""method""#), "{}", resp.body());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let client = DefaultApiClient::new(None);
+    let body = {{packageName}}::api_client::RequestBody::Multipart(vec![(
+        "file".to_string(),
+        {{packageName}}::api_client::MultipartValue::Bytes(b"file content".to_vec()),
+    )]);
+    let resp = client
+        .send_request("POST", &format!("{}/test/echo", chasm_url), &HashMap::new(), Some(&body))
+        .await
+        .expect("unexpected error");
+    assert!(resp.body().contains("file content"), "{}", resp.body());
 }

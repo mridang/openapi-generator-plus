@@ -111,7 +111,7 @@ void main() {
       },
     );
 
-    test('DryFood rejects an explicit null discriminator', () {
+    test('bhv langdart 029 DryFood rejects an explicit null discriminator', () {
       expect(
         () => DryFood.fromJson(<String, dynamic>{
           'foodType': null,
@@ -182,13 +182,16 @@ void main() {
       },
     );
 
-    test('PetFood constructor round trips through fromJson', () {
-      final wire =
-          jsonDecode(jsonEncode(PetFood(WetFood(volumeMl: 400)).toJson()))
-              as Map<String, dynamic>;
+    test(
+      'bhv langdart 030 PetFood constructor round trips through fromJson',
+      () {
+        final wire =
+            jsonDecode(jsonEncode(PetFood(WetFood(volumeMl: 400)).toJson()))
+                as Map<String, dynamic>;
 
-      expect(PetFood.fromJson(wire).actualInstance, isA<WetFood>());
-    });
+        expect(PetFood.fromJson(wire).actualInstance, isA<WetFood>());
+      },
+    );
 
     test(
       'bhv unions 032 PetFood typed constructors, is and as accessors name the variant',
@@ -210,7 +213,7 @@ void main() {
     );
 
     test(
-      'a result decoded by status code exposes its variant through the accessors',
+      'bhv langdart 031 a result decoded by status code exposes its variant through the accessors',
       () {
         final reservation = ReserveStockResponse.reservation(
           const Reservation(reservationId: 1, quantity: 2),
@@ -221,17 +224,20 @@ void main() {
       },
     );
 
-    test('PetTreatment typed constructors and accessors name the variant', () {
-      final surgery = PetTreatment.surgery(
-        Surgery(procedureName: 'Spay', durationMinutes: 45),
-      );
+    test(
+      'bhv langdart 032 PetTreatment typed constructors and accessors name the variant',
+      () {
+        final surgery = PetTreatment.surgery(
+          Surgery(procedureName: 'Spay', durationMinutes: 45),
+        );
 
-      expect(surgery.isSurgery, isTrue);
-      expect(surgery.isMedication, isFalse);
-      expect(surgery.asSurgery!.procedureName, equals('Spay'));
-      expect(surgery.asMedication, isNull);
-      expect(surgery.matchedInstances, hasLength(1));
-    });
+        expect(surgery.isSurgery, isTrue);
+        expect(surgery.isMedication, isFalse);
+        expect(surgery.asSurgery!.procedureName, equals('Spay'));
+        expect(surgery.asMedication, isNull);
+        expect(surgery.matchedInstances, hasLength(1));
+      },
+    );
 
     // anyOf without discriminator: PetTreatment
 
@@ -425,26 +431,29 @@ void main() {
       },
     );
 
-    test('oneOf unions decoded from identical JSON are equal', () {
-      final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
+    test(
+      'bhv langdart 033 oneOf unions decoded from identical JSON are equal',
+      () {
+        final json = <String, dynamic>{'foodType': 'dry', 'weightKg': 2.5};
 
-      final a = PetFood.fromJson(json);
-      final b = PetFood.fromJson(json);
+        final a = PetFood.fromJson(json);
+        final b = PetFood.fromJson(json);
 
-      expect(a, equals(b));
-      expect(a.hashCode, equals(b.hashCode));
-      expect(
-        a,
-        isNot(
-          equals(
-            PetFood.fromJson(<String, dynamic>{
-              'foodType': 'dry',
-              'weightKg': 3.5,
-            }),
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(
+          a,
+          isNot(
+            equals(
+              PetFood.fromJson(<String, dynamic>{
+                'foodType': 'dry',
+                'weightKg': 3.5,
+              }),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
 
     // allOf with a discriminator: the base decodes to its subtype
 
@@ -612,6 +621,21 @@ void main() {
     );
 
     test(
+      'bhv misc 049 a list of binary values is written as base64 text items',
+      () {
+        final a = Uint8List.fromList(<int>[1, 2]);
+        final b = Uint8List.fromList(<int>[3, 4]);
+
+        final req = SetPetAvatarThumbnailRequest.fromJson(<String>[
+          base64Encode(a),
+          base64Encode(b),
+        ]);
+
+        expect(req.toJson(), equals(['AQI=', 'AwQ=']));
+      },
+    );
+
+    test(
       'bhv unions 019 SetPetAvatarThumbnailRequest round trips a single byte value',
       () {
         final bytes = Uint8List.fromList(<int>[10, 20, 30]);
@@ -640,29 +664,32 @@ void main() {
       },
     );
 
-    test('SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
-        'bytes are value-equal and hash equally', () {
-      // M5 regression: the scalar `byte` variant decodes to a fresh Uint8List
-      // per call, whose built-in `==` is identity. Two unions built from the
-      // SAME base64 wire string must still compare equal and hash equally —
-      // otherwise they wrongly collide in Sets/Maps. The union ==/hashCode
-      // must use DeepCollectionEquality, like the rest of the SDK.
-      final wire = base64Encode(Uint8List.fromList(<int>[0x01, 0x02, 0x03]));
+    test(
+      'bhv langdart 083 SetPetAvatarThumbnailRequest byte unions decoded from identical wire '
+      'bytes are value-equal and hash equally',
+      () {
+        // M5 regression: the scalar `byte` variant decodes to a fresh Uint8List
+        // per call, whose built-in `==` is identity. Two unions built from the
+        // SAME base64 wire string must still compare equal and hash equally —
+        // otherwise they wrongly collide in Sets/Maps. The union ==/hashCode
+        // must use DeepCollectionEquality, like the rest of the SDK.
+        final wire = base64Encode(Uint8List.fromList(<int>[0x01, 0x02, 0x03]));
 
-      final a = SetPetAvatarThumbnailRequest.fromJson(wire);
-      final b = SetPetAvatarThumbnailRequest.fromJson(wire);
+        final a = SetPetAvatarThumbnailRequest.fromJson(wire);
+        final b = SetPetAvatarThumbnailRequest.fromJson(wire);
 
-      // Distinct underlying Uint8List instances (identity-unequal)...
-      expect(identical(a.actualInstance, b.actualInstance), isFalse);
-      // ...but the unions are value-equal and hash-consistent.
-      expect(a, equals(b));
-      expect(a.hashCode, equals(b.hashCode));
-      // Usable as a Set key without duplicating.
-      expect(<SetPetAvatarThumbnailRequest>{a, b}, hasLength(1));
-    });
+        // Distinct underlying Uint8List instances (identity-unequal)...
+        expect(identical(a.actualInstance, b.actualInstance), isFalse);
+        // ...but the unions are value-equal and hash-consistent.
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        // Usable as a Set key without duplicating.
+        expect(<SetPetAvatarThumbnailRequest>{a, b}, hasLength(1));
+      },
+    );
 
     test(
-      'SetPetAvatarThumbnailRequest array unions decoded from identical wire '
+      'bhv langdart 084 SetPetAvatarThumbnailRequest array unions decoded from identical wire '
       'bytes are value-equal and hash equally',
       () {
         // M5 regression for the ARRAY variant (List<Uint8List>): nested byte
@@ -683,7 +710,7 @@ void main() {
     );
 
     test(
-      'SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
+      'bhv langdart 085 SetPetAvatarThumbnailRequest unions with differing bytes are unequal',
       () {
         // Sanity: deep-equality must still distinguish genuinely different
         // payloads — the fix must not collapse all unions to "equal".
@@ -791,6 +818,207 @@ void main() {
         final dry = DryFood(foodType: 'custom', weightKg: 1);
 
         expect(dry.toJson()['foodType'], equals('custom'));
+      },
+    );
+  });
+  group('Union schema and equality', () {
+    test(
+      'bhv misc 045 a payload that fails a variant schema is not accepted as that variant',
+      () {
+        for (final json in <Map<String, dynamic>>[
+          <String, dynamic>{'foodType': 'dry'},
+          <String, dynamic>{'foodType': 3, 'weightKg': 2.5},
+          <String, dynamic>{'FoodType': 'dry', 'weightKg': 2.5},
+          <String, dynamic>{'foodType': 'dry', 'weightKg': 'heavy'},
+        ]) {
+          expect(
+            () => PetFood.fromJson(json),
+            throwsA(isA<SerializationException>()),
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv misc 046 two unions holding equal bytes compare equal and hash equally even when their buffers differ',
+      () {
+        final first = PetFood(Uint8List.fromList([1, 2, 3]));
+        final second = PetFood(Uint8List.fromList([1, 2, 3]));
+
+        expect(first, equals(second));
+        expect(first.hashCode, equals(second.hashCode));
+        expect(first, isNot(equals(PetFood(Uint8List.fromList([1, 2, 4])))));
+      },
+    );
+    test(
+      'bhv misc 291 A payload matching several variants of a union decodes to the first declared variant',
+      () {
+        final treatment = PetTreatment.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'dosage': '500mg',
+          'procedureName': 'Spay',
+          'durationMinutes': 45,
+        });
+
+        expect(treatment.actualInstance, isA<Medication>());
+      },
+    );
+
+    test(
+      'bhv misc 292 A union wrapper serializes its bare payload with no envelope and reads it back',
+      () {
+        final req = SetPetAvatarThumbnailRequest(
+          Uint8List.fromList(<int>[0x68, 0x69]),
+        );
+
+        final encoded = req.toJson();
+
+        expect(encoded, equals('aGk='));
+        expect(jsonEncode(encoded), equals('"aGk="'));
+        final restored = SetPetAvatarThumbnailRequest.fromJson(encoded);
+        expect(
+          restored.actualInstance,
+          equals(Uint8List.fromList(<int>[0x68, 0x69])),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 293 An anyOf value skips candidates that do not match and keeps the ones that do',
+      () {
+        final treatment = PetTreatment.fromJson(<String, dynamic>{
+          'procedureName': 'Spay',
+          'durationMinutes': 45,
+        });
+
+        expect(treatment.matchedInstances, hasLength(1));
+        expect(treatment.actualInstance, isA<Surgery>());
+      },
+    );
+
+    test(
+      'bhv misc 294 A subtype payload without its discriminator decodes as the variant the mapping names',
+      () {
+        final food = DryFood.fromJson(<String, dynamic>{'weightKg': 2.5});
+
+        expect(food, isA<DryFood>());
+        expect(food.toJson(), containsPair('foodType', 'dry'));
+      },
+    );
+
+    test(
+      'bhv misc 295 A non-list value is rejected for the array variant of a oneOf',
+      () {
+        expect(
+          () =>
+              SetPetAvatarThumbnailRequest.fromJson(<String, dynamic>{'a': 1}),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv unions 044 each variant of a union has a typed constructor and accessor that identify it',
+      () {
+        final food = PetFood.dryFood(
+          DryFood.fromJson(<String, dynamic>{
+            'foodType': 'dry',
+            'weightKg': 2.5,
+          }),
+        );
+
+        expect(food.isDryFood, isTrue);
+        expect(food.isWetFood, isFalse);
+        expect(food.asDryFood?.weightKg, equals(2.5));
+        expect(food.asWetFood, isNull);
+      },
+    );
+
+    test(
+      'bhv unions 045 two union values built from the same data compare equal, decoded or built by a factory',
+      () {
+        final decoded = PetFood.fromJson(<String, dynamic>{
+          'foodType': 'dry',
+          'weightKg': 2.5,
+        });
+        final built = PetFood.dryFood(
+          DryFood.fromJson(<String, dynamic>{
+            'foodType': 'dry',
+            'weightKg': 2.5,
+          }),
+        );
+
+        expect(decoded, equals(built));
+      },
+    );
+
+    test(
+      'bhv unions 046 when a payload matches several anyOf variants each matching variant keeps its value, and a non-matching variant reports false and null',
+      () {
+        final treatment = PetTreatment.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+          'procedureName': 'Spay',
+          'durationMinutes': 45,
+        });
+
+        expect(treatment.isMedication, isTrue);
+        expect(treatment.isSurgery, isTrue);
+        expect(treatment.asMedication?.drugName, equals('Amoxicillin'));
+        expect(treatment.asSurgery?.procedureName, equals('Spay'));
+        expect(treatment.matchedInstances, hasLength(2));
+
+        final partial = PetTreatment.fromJson(<String, dynamic>{
+          'drugName': 'Amoxicillin',
+        });
+
+        expect(partial.isSurgery, isFalse);
+        expect(partial.asSurgery, isNull);
+      },
+    );
+    test(
+      'bhv serialization 076 a union value that matches no candidate raises a serialization error',
+      () {
+        expect(
+          () =>
+              PetTreatment.fromJson(<String, dynamic>{'unrelatedKey': 'value'}),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv serialization 082 a missing discriminator fails with an error that names the missing key',
+      () {
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{'weightKg': 2.5}),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('foodType'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv unions 047 a discriminator value outside the mapping, including an empty one, raises an error',
+      () {
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{'foodType': ''}),
+          throwsA(isA<SerializationException>()),
+        );
+        expect(
+          () => PetFood.fromJson(<String, dynamic>{'foodType': 'fish'}),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('fish'),
+            ),
+          ),
+        );
       },
     );
   });

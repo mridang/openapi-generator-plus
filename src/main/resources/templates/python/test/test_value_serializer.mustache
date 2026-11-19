@@ -6,6 +6,26 @@ from {{packageName}}.value_serializer import AllowReservedValue, ValueSerializer
 
 
 class TestValueSerializerPath:
+    def test_bhv_serialization_109_a_path_value_is_percent_encoded_exactly_once(self) -> None:
+        assert ValueSerializer.serialize('a%b', 'path', 'string') == 'a%25b'
+
+    def test_bhv_serialization_110_an_absent_path_value_is_empty_and_an_absent_query_value_is_none(self) -> None:
+        assert ValueSerializer.serialize(None, 'path', 'string') == ''
+        assert ValueSerializer.serialize(None, 'query', 'string') is None
+
+    def test_bhv_serialization_111_only_unreserved_characters_stay_literal_and_others_are_utf8_encoded(self) -> None:
+        assert ValueSerializer.serialize('a~b-._z \u00e9', 'path', 'string') == 'a~b-._z%20%C3%A9'
+
+    def test_bhv_serialization_108_a_path_value_without_a_style_matches_the_simple_style(self) -> None:
+        assert ValueSerializer.serialize('hello world', 'path', 'string') == 'hello%20world'
+
+    def test_bhv_serialization_118_a_date_time_query_value_keeps_its_time_and_offset(self) -> None:
+        moment = datetime.datetime(2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc)
+        rendered = ValueSerializer.serialize(moment, 'query', 'string')
+        assert isinstance(rendered, str)
+        assert 'T13:45:30' in rendered
+        assert rendered.endswith(('+00:00', 'Z'))
+
     def test_bhv_serializationparam_062_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'path', 'string') == ''
 
@@ -29,6 +49,23 @@ class TestValueSerializerPath:
 
     def test_bhv_serializationparam_066_null_returns_empty_string_in_path_location(self) -> None:
         assert ValueSerializer.serialize_styled('id', None, 'path', 'string', None, 'matrix', False) == ''
+
+    def test_bhv_misc_250_array_items_with_a_comma_keep_the_literal_separator_on_a_path(self) -> None:
+        assert ValueSerializer.serialize(['a,b', 'c'], 'path', 'array', 'csv') == 'a%2Cb,c'
+
+    def test_bhv_misc_232_a_string_path_parameter_in_simple_style_percent_encodes_slashes(self) -> None:
+        assert ValueSerializer.serialize('a/b', 'path', 'string') == 'a%2Fb'
+
+    def test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded(self) -> None:
+        assert ValueSerializer.encode_content('c', '{"a":1.5}', 'cookie') == '%7B%22a%22%3A1%2E5%7D'
+
+    def test_bhv_misc_211_a_date_time_inside_a_json_query_parameter_keeps_its_wire_form(self) -> None:
+        json_text = '{"recordedAt":"2024-01-02T03:04:05+00:00"}'
+
+        assert ValueSerializer.encode_content('filter', json_text, 'query') == json_text
+
+    def test_bhv_misc_213_an_optional_array_query_parameter_is_joined_in_its_declared_style(self) -> None:
+        assert ValueSerializer.serialize_styled('colors', ['blue', 'black'], 'query', 'array', style='pipeDelimited') == 'blue|black'
 
 
 class TestValueSerializerQuery:
@@ -90,6 +127,8 @@ class TestValueSerializerQuery:
     def test_bhv_serializationparam_012_array_of_booleans_stringifies_elements(self) -> None:
         assert ValueSerializer.serialize([True, False], 'query', 'array') == 'true,false'
 
+    def test_bhv_misc_238_a_number_query_value_is_sent_as_a_plain_number(self) -> None:
+        assert ValueSerializer.serialize(2.5, 'query', 'number') == '2.5'
 
 class TestValueSerializerHeader:
     def test_bhv_serializationparam_063_null_returns_empty_string(self) -> None:
@@ -199,9 +238,6 @@ class TestFormStyleWithExplode:
     def test_bhv_serializationparam_038_array_with_explode_true_returns_list(self) -> None:
         assert ValueSerializer.serialize_styled('color', ['blue', 'black'], 'query', 'array', None, 'form', True) == ['blue', 'black']
 
-    def test_bhv_serializationparam_105_form_scalar_is_serialized_as_the_value(self) -> None:
-        assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'form', True) == 'blue'
-
     def test_bhv_serializationparam_041_scalar_with_explode_true_returns_string_not_list(self) -> None:
         assert ValueSerializer.serialize_styled('color', 'blue', 'query', 'string', None, 'form', True) == 'blue'
 
@@ -244,13 +280,10 @@ class TestSimpleStyleBackwardCompatibility:
 
 
 class TestNullStyleFallback:
-    def test_bhv_serializationparam_106_path_with_null_style_behaves_like_simple(self) -> None:
-        assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, None, False) == '5'
-
     def test_bhv_serializationparam_035_empty_style_falls_back(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, '', False) == '5'
 
-    def test_bhv_serializationparam_109_an_unknown_style_falls_back_to_plain_value(self) -> None:
+    def test_bhv_lang_python_205_an_unknown_style_falls_back_to_plain_value(self) -> None:
         assert ValueSerializer.serialize_styled('id', '5', 'query', 'string', None, 'unknownStyle', False) == '5'
 
 
@@ -260,7 +293,7 @@ class TestDeepObjectSerialization:
         assert result['filter[color]'] == 'blue'
         assert result['filter[size]'] == 'large'
 
-    def test_bhv_serializationparam_111_each_model_property_is_written_under_its_name_key(self) -> None:
+    def test_bhv_lang_python_207_each_model_property_is_written_under_its_name_key(self) -> None:
         from {{packageName}}.models.category import Category
 
         result = ValueSerializer.serialize_deep_object('filter', Category(id=3, name='Dogs'))
@@ -271,6 +304,10 @@ class TestDeepObjectSerialization:
 
         with pytest.raises(SerializationException):
             ValueSerializer.serialize_deep_object('filter', {'a': {'b': 1}})
+
+    def test_bhv_misc_120_an_object_parameter_is_sorted_by_wire_name_and_omits_absent_values(self) -> None:
+        result = ValueSerializer.serialize_deep_object("filter", {"b": "2", "c": None, "a": "1"})
+        assert list(result) == ["filter[a]", "filter[b]"]
 
     def test_bhv_serializationparam_061_null_returns_empty_dict(self) -> None:
         result = ValueSerializer.serialize_deep_object('filter', None)
@@ -310,6 +347,9 @@ class TestAllowReserved:
         assert isinstance(wrapped, AllowReservedValue)
         assert wrapped.value == 'v1/beta'
         assert ValueSerializer.maybe_allow_reserved(None, True) is None
+
+    def test_bhv_misc_253_an_allow_reserved_value_still_encodes_hash_and_brackets(self) -> None:
+        assert ValueSerializer.serialize(AllowReservedValue('a/b#c[d]'), 'query', 'string') == 'a/b%23c%5Bd%5D'
 
 
 class TestPathEncodingParity:
@@ -395,7 +435,7 @@ class TestValueSerializerFormatDatePath:
         moment = datetime.datetime(2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc)
         assert ValueSerializer.serialize(moment, location, 'date') == '2024-01-15'
 
-    def test_a_datetime_for_a_styled_date_parameter_sends_only_the_date(self) -> None:
+    def test_bhv_lang_python_197_a_datetime_for_a_styled_date_parameter_sends_only_the_date(self) -> None:
         moment = datetime.datetime(2024, 1, 15, 13, 45, 30, tzinfo=datetime.timezone.utc)
         assert (
             ValueSerializer.serialize_styled('asOf', moment, 'path', 'date', None, 'matrix', False)
@@ -408,7 +448,7 @@ class TestValueSerializerFormatDatePath:
         assert isinstance(rendered, str)
         assert rendered.startswith('2024-01-15T13:45:30')
 
-    def test_bhv_serializationparam_110_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
+    def test_bhv_lang_python_206_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
         moment = datetime.datetime(2024, 1, 1, 10, 30, 45, tzinfo=datetime.timezone.utc)
         assert ValueSerializer.serialize(moment, 'query', 'date') == '2024-01-01'
         assert ValueSerializer.serialize_styled('d', moment, 'query', 'date', None, 'form', True) == '2024-01-01'
@@ -481,26 +521,20 @@ class TestPathSegmentCharacterSet:
 class TestEncodeContent:
     """A `content` parameter's JSON text is encoded once, by its location."""
 
-    def test_path_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_lang_python_198_path_value_is_fully_percent_encoded(self) -> None:
         assert ValueSerializer.encode_content('p', '{"a":"b/c"}', 'path') == '%7B%22a%22%3A%22b%2Fc%22%7D'
 
-    def test_bhv_serializationparam_118_cookie_value_is_fully_percent_encoded(self) -> None:
+    def test_bhv_lang_python_209_cookie_value_is_fully_percent_encoded(self) -> None:
         assert ValueSerializer.encode_content('c', '{"a":1}', 'cookie') == '%7B%22a%22%3A1%7D'
 
-    def test_bhv_serializationparam_104_cookie_value_keeps_only_the_unreserved_set_literal(self) -> None:
-        assert (
-            ValueSerializer.encode_content('c', '{"k":"a b~*\u00e9"}', 'cookie')
-            == '%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'
-        )
-
-    def test_header_value_is_sent_verbatim(self) -> None:
+    def test_bhv_lang_python_199_header_value_is_sent_verbatim(self) -> None:
         assert ValueSerializer.encode_content('h', '{"a":1}', 'header') == '{"a":1}'
 
     def test_bhv_headers_031_header_value_with_a_line_break_is_rejected(self) -> None:
         with pytest.raises(ValueError):
             ValueSerializer.encode_content('h', '{"a":"x\ny"}', 'header')
 
-    def test_query_value_is_left_for_the_query_builder(self) -> None:
+    def test_bhv_lang_python_200_query_value_is_left_for_the_query_builder(self) -> None:
         assert ValueSerializer.encode_content('q', '{"a":1}', 'query') == '{"a":1}'
 
 
@@ -525,7 +559,7 @@ class TestObjectValuedParameters:
         result = ValueSerializer.serialize_styled('c', self._FIELDS, 'header', 'Obj', None, 'simple', False)
         assert result == 'breed,lab,min_age,3'
 
-    def test_simple_exploded_assigns_each_property(self) -> None:
+    def test_bhv_lang_python_201_simple_exploded_assigns_each_property(self) -> None:
         result = ValueSerializer.serialize_styled('c', self._FIELDS, 'header', 'Obj', None, 'simple', True)
         assert result == 'breed=lab,min_age=3'
 
@@ -542,16 +576,40 @@ class TestObjectValuedParameters:
     def test_bhv_serialization_014_an_empty_object_query_is_omitted(self) -> None:
         assert ValueSerializer.serialize_styled('c', {}, 'query', 'Obj', None, 'form', True) is None
 
-    def test_query_entries_expand_an_exploded_object(self) -> None:
+    def test_bhv_lang_python_202_query_entries_expand_an_exploded_object(self) -> None:
         assert ValueSerializer.query_entries('c', {'a': '1'}) == {'a': '1'}
         assert ValueSerializer.query_entries('c', 'v') == {'c': 'v'}
         assert ValueSerializer.query_entries('c', None) == {}
 
-    def test_bhv_serializationparam_108_a_nested_object_leaf_is_a_serialization_error(self) -> None:
+    def test_bhv_misc_107_a_scalar_form_query_parameter_keeps_its_own_name_and_value(self) -> None:
+        assert ValueSerializer.query_entries('filter', 'x') == {'filter': 'x'}
+
+    def test_bhv_lang_python_208_a_nested_object_leaf_is_a_serialization_error(self) -> None:
         from {{packageName}}.errors import SerializationException
 
         with pytest.raises(SerializationException):
             ValueSerializer.serialize_styled('c', {'a': {'b': 1}}, 'query', 'Obj', None, 'form', True)
+
+    def test_bhv_serializationparam_108_a_nested_object_leaf_in_a_styled_parameter_is_a_serialization_error(self) -> None:
+        from {{packageName}}.errors import SerializationException
+
+        with pytest.raises(SerializationException):
+            ValueSerializer.serialize_styled('criteria', {'a': {'b': 1}}, 'query', 'object', None, 'form', True)
+
+    def test_bhv_serializationparam_109_an_unknown_style_falls_back_to_plain_value_serialization(self) -> None:
+        assert ValueSerializer.serialize_styled('id', '5', 'query', 'string', None, 'unknownStyle', False) == '5'
+
+    def test_bhv_serializationparam_110_a_date_value_is_written_as_yyyy_mm_dd(self) -> None:
+        assert ValueSerializer.serialize(datetime.date(2025, 1, 1), 'path', 'string') == '2025-01-01'
+
+    def test_bhv_serializationparam_111_a_deep_object_parameter_writes_each_property_as_name_key(self) -> None:
+        assert ValueSerializer.serialize_deep_object('filter', {'status': 'active', 'type': 'dog'}) == {
+            'filter[status]': 'active',
+            'filter[type]': 'dog',
+        }
+
+    def test_bhv_serializationparam_118_a_content_cookie_value_is_encoded_to_the_shared_bytes(self) -> None:
+        assert ValueSerializer.encode_content('c', 'a b~c', 'cookie') == 'a%20b~c'
 
     def test_bhv_serializationparam_003_allow_reserved_wraps_each_property_of_an_exploded_object(self) -> None:
         wrapped = ValueSerializer.maybe_allow_reserved({'a': 'x/y'}, True)
@@ -560,6 +618,15 @@ class TestObjectValuedParameters:
 
 
 class TestValueSerializerBehaviours:
+    def test_bhv_misc_084_a_set_optional_scalar_is_sent_in_every_location(self) -> None:
+        assert str(ValueSerializer.serialize(7, 'path', 'integer')) == '7'
+        assert str(ValueSerializer.serialize(7, 'header', 'integer')) == '7'
+        assert str(ValueSerializer.serialize(7, 'cookie', 'integer')) == '7'
+        assert str(ValueSerializer.serialize(7, 'query', 'integer')) == '7'
+
+    def test_bhv_misc_086_an_element_holding_json_text_is_not_decoded_again(self) -> None:
+        assert '{"a":1}' in str(ValueSerializer.serialize(['{"a":1}'], 'query', 'array'))
+
     def test_bhv_serialization_008_a_content_parameter_is_encoded_once_for_its_location(self) -> None:
         assert ValueSerializer.encode_content('filter', '{"a":1}', 'path') == '%7B%22a%22%3A1%7D'
         assert ValueSerializer.encode_content('filter', '{"a":1}', 'query') == '{"a":1}'

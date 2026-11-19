@@ -62,34 +62,57 @@ internal enum ValueSerializer {
 
     let strVal = ObjectSerializer.stringify(value)
     if location == "path" {
-      return ValueSerializer.encodePathSegment(strVal)
+      return ValueSerializer.encodeStyledPathValue(strVal)
     }
     return strVal
   }
 
   /// Percent-encodes a value for use as a URL path segment.
   ///
-  /// Encodes characters that are not allowed in a URI path segment per RFC 3986,
-  /// but preserves the sub-delimiters (including `;`, `=`, `,`, `:`, etc.)
-  /// that OAS 3.0 matrix/label/simple styles use as structural separators in
-  /// the styled value.
-  ///
-  /// The preserved set matches the canonical encoding used by Node, C#, Java, etc.:
-  /// `; = , : @ ! $ & ' ( ) * +`. The RFC 3986 unreserved `~` is also preserved.
+  /// Only RFC 3986 unreserved characters (ALPHA, DIGIT, `-`, `.`, `_`, `~`) stay
+  /// literal; every other character is percent-encoded as UTF-8.
   static func encodePathSegment(_ value: String) -> String {
-    guard !value.isEmpty else { return value }
-    var allowed = CharacterSet.alphanumerics
-    allowed.insert(charactersIn: "-._~;=,:@!$&'()*+")
-    return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    return percentEncode(value, keeping: "")
+  }
+
+  /// Percent-encodes a styled path value (simple, matrix or label style).
+  ///
+  /// Besides the unreserved characters, the RFC 3986 sub-delimiters
+  /// `; = , : @ ! $ & ' ( ) * +` stay literal, because the OAS 3.0 matrix, label
+  /// and simple styles use them as structural separators in the styled value.
+  static func encodeStyledPathValue(_ value: String) -> String {
+    return percentEncode(value, keeping: ";=,:@!$&'()*+")
+  }
+
+  /// Percent-encodes `value` byte by byte; ASCII unreserved characters and the
+  /// bytes listed in `extra` stay literal, every other byte becomes `%XX`.
+  private static func percentEncode(_ value: String, keeping extra: String) -> String {
+    let hex = Array("0123456789ABCDEF")
+    let keep = Array(extra.utf8)
+    var out = ""
+    for byte in value.utf8 {
+      let unreserved =
+        (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
+        || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D
+        || byte == 0x2E || byte == 0x5F || byte == 0x7E
+      if unreserved || keep.contains(byte) {
+        out.unicodeScalars.append(Unicode.Scalar(byte))
+      } else {
+        out.append("%")
+        out.append(hex[Int(byte >> 4)])
+        out.append(hex[Int(byte & 0x0F)])
+      }
+    }
+    return out
   }
 
   /// Percent-encodes a value for use as a cookie value.
   ///
-  /// Only the RFC 3986 unreserved characters stay literal, so the quotes,
-  /// commas, semicolons and spaces of a JSON text never reach the `Cookie`
-  /// header, where RFC 6265 forbids them.
+  /// Only the letters, digits, hyphen, underscore and tilde stay literal, so the
+  /// quotes, commas, colons, dots, semicolons and spaces of a JSON text never reach
+  /// the `Cookie` header, where RFC 6265 forbids them.
   static func encodeCookieValue(_ value: String) -> String {
-    /* Byte-wise so only ASCII A-Z a-z 0-9 - . _ ~ stay literal; the
+    /* Byte-wise so only ASCII A-Z a-z 0-9 - _ ~ stay literal (a dot is encoded too); the
      * Unicode letters CharacterSet.alphanumerics admits are encoded as
      * UTF-8 like every other character. */
     let hex = Array("0123456789ABCDEF")
@@ -97,7 +120,7 @@ internal enum ValueSerializer {
     for byte in value.utf8 {
       let literal =
         (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
-        || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D || byte == 0x2E
+        || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D
         || byte == 0x5F || byte == 0x7E
       if literal {
         out.unicodeScalars.append(Unicode.Scalar(byte))
@@ -223,7 +246,7 @@ internal enum ValueSerializer {
     let items = toStringArray(value)
 
     let encodeIfPath: (String) -> String = {
-      location == "path" ? ValueSerializer.encodePathSegment($0) : $0
+      location == "path" ? ValueSerializer.encodeStyledPathValue($0) : $0
     }
 
     switch style {

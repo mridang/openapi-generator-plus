@@ -109,7 +109,7 @@ class TestApiErrorShape:
         assert isinstance(err, Exception)
         assert str(err) != ''
 
-    def test_none_message_renders_the_default_text(self) -> None:
+    def test_bhv_errors_089_none_message_renders_the_default_text(self) -> None:
         err = ApiException(status_code=0, message=None)
 
         assert str(err) == 'Error message: the server returns an error'
@@ -164,6 +164,12 @@ class TestExceptionHierarchy:
 
         for error_type, status in pinned:
             assert error_type().status_code == status
+
+    def test_bhv_errors_095_a_typed_4xx_error_is_found_by_its_status_family(self) -> None:
+        err = NotFoundException(message='gone')
+
+        assert isinstance(err, ClientException)
+        assert ClientException in type(err).__mro__
 
     def test_bhv_errors_061_a_bad_request_error_is_a_client_error_an_api_error_and_an_openapi_error(self) -> None:
         err = BadRequestException(message='bad request')
@@ -230,7 +236,7 @@ class TestCause:
             NetworkTimeoutException,
         ],
     )
-    def test_every_constructor_chains_the_given_cause(self, error_type: Any) -> None:
+    def test_bhv_lang_python_003_every_constructor_chains_the_given_cause(self, error_type: Any) -> None:
         cause = ValueError('root cause')
 
         err = error_type(message='boom', cause=cause)
@@ -247,7 +253,25 @@ class TestErrorTreeExports:
             assert name in {{packageName}}.errors.__all__
             assert getattr({{packageName}}.errors, name).__module__.startswith('{{packageName}}.errors')
 
-    def test_package_root_exports_the_whole_error_tree(self) -> None:
+    def test_bhv_errors_094_every_raised_error_is_the_root_type(self) -> None:
+        from {{packageName}}.errors.serialization_exception import SerializationException
+
+        raised = [
+            SerializationException(message='bad'),
+            NetworkTimeoutException(message='timed out'),
+            ApiException.from_response(404, {}, '{}'),
+        ]
+        for err in raised:
+            assert isinstance(err, {{errorPrefix}}Exception)
+
+    def test_bhv_misc_022_a_server_error_is_the_root_type_and_the_server_class(self) -> None:
+        from {{packageName}}.errors.server_exception import ServerException
+
+        err = ApiException.from_response(503, {}, '{}')
+        assert isinstance(err, ServerException)
+        assert isinstance(err, {{errorPrefix}}Exception)
+
+    def test_bhv_misc_283_package_root_exports_the_whole_error_tree(self) -> None:
         for name in ERROR_TREE:
             assert name in {{packageName}}.__all__
             assert getattr({{packageName}}, name) is getattr({{packageName}}.errors, name)
@@ -290,6 +314,11 @@ class TestFromResponse:
         assert err.response_headers == {'x-request-id': 'abc'}
         assert err.response_body == '{"code":7}'
         assert err.error_body == {'code': 7}
+
+    def test_bhv_errors_097_an_unrecognised_4xx_status_raises_the_generic_client_error(self) -> None:
+        err = ApiException.from_response(499, {}, None)
+
+        assert type(err) is ClientException
 
     def test_bhv_errors_048_a_status_418_throws_client_exception(self) -> None:
         err = ApiException.from_response(418, None, None)
@@ -352,6 +381,17 @@ class TestFromResponse:
         assert type(err) is ServerException
         assert err.status_code == 507
 
+    def test_bhv_errors_096_a_status_outside_every_class_range_falls_back_to_the_base_error(self) -> None:
+        for status in (399, 600):
+            err = ApiException.from_response(status, {}, None)
+            assert type(err) is ApiException
+            assert not isinstance(err, ClientException)
+            assert not isinstance(err, ServerException)
+
+    def test_bhv_misc_023_an_unmapped_5xx_is_the_generic_server_error_and_another_unmapped_status_the_base_error(self) -> None:
+        assert type(ApiException.from_response(520, {}, None)) is ServerException
+        assert type(ApiException.from_response(399, {}, None)) is ApiException
+
     def test_bhv_errors_056_status_at_or_above_600_is_not_a_server_error(self) -> None:
         # The 5xx arm is bounded at < 600: a status outside 400-599 yields the
         # base ApiException, never ServerException.
@@ -369,7 +409,7 @@ class TestFromResponse:
         assert err.response_body == '<html>oops</html>'
         assert err.error_body is None
 
-    def test_keeps_absent_response_headers_as_none(self) -> None:
+    def test_bhv_errors_090_keeps_absent_response_headers_as_none(self) -> None:
         # None means no response arrived at all and is never coerced to an
         # empty dict, which would claim a response with no headers.
         err = ApiException.from_response(0, None, None)
@@ -397,7 +437,7 @@ class TestFromResponse:
 
 
 class TestApiErrorImmutability:
-    def test_fields_are_read_only(self) -> None:
+    def test_bhv_lang_python_004_fields_are_read_only(self) -> None:
         err = ApiException(
             status_code=404,
             message='not found',
@@ -476,6 +516,11 @@ class TestApiErrorRendering:
             '\nResponse headers: {"location":"https://example.com/a","x-a":"1","x-b":"2"}'
         )
 
+    def test_bhv_errors_088_absent_sections_are_left_out_and_present_ones_are_kept(self) -> None:
+        err = ApiException(status_code=500, message="down", response_headers={}, response_body="")
+
+        assert str(err) == "down\nHTTP status code: 500"
+
     def test_bhv_errors_022_omits_empty_headers_and_an_empty_body(self) -> None:
         err = ApiException(
             status_code=502, message="bad gateway", response_headers={}, response_body=""
@@ -487,6 +532,29 @@ class TestApiErrorRendering:
         err = ApiException(status_code=0, message="boom")
 
         assert str(err) == "boom"
+
+    def test_bhv_misc_016_the_rendered_body_is_capped_and_states_the_bytes_omitted(self) -> None:
+        err = ApiException(status_code=502, message="bad gateway", response_body='a' * 3000)
+
+        assert 'more bytes' in str(err)
+        assert len(str(err)) < 1500
+
+    def test_bhv_misc_280_a_truncated_body_states_how_many_bytes_were_left_out(self) -> None:
+        err = ApiException(status_code=502, message="bad gateway", response_body='a' * 3000)
+
+        assert '1976 more bytes' in str(err)
+
+    def test_bhv_misc_281_headers_from_the_response_are_copied_onto_the_error(self) -> None:
+        err = ApiException.from_response(503, {'retry-after': '5'}, '{}')
+
+        assert err.response_headers is not None
+        assert err.response_headers['retry-after'] == '5'
+
+    def test_bhv_misc_286_an_oauth_error_message_names_its_status_and_error_code(self) -> None:
+        err = OAuth2ServerException(401, 'invalid_client', None, None, '{}')
+
+        assert '401' in str(err)
+        assert 'invalid_client' in str(err)
 
     def test_bhv_errors_065_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(self) -> None:
         err = ApiException(
@@ -500,11 +568,16 @@ class TestApiErrorRendering:
         )
         assert err.response_body == 'a' * 3000
 
-    def test_keeps_a_body_of_exactly_1_kib_whole(self) -> None:
+    def test_bhv_errors_086_keeps_a_body_of_exactly_1_kib_whole(self) -> None:
         err = ApiException(status_code=500, message="boom", response_body='a' * 1024)
 
         assert str(err).endswith('a' * 1024)
         assert 'more bytes' not in str(err)
+
+    def test_bhv_errors_085_a_line_break_in_the_body_renders_escaped(self) -> None:
+        err = ApiException(status_code=500, message="boom", response_body='a\r\nb')
+
+        assert str(err) == "boom\nHTTP status code: 500\nResponse body: a\\r\\nb"
 
     def test_bhv_errors_001_escapes_control_characters_in_the_rendered_body(self) -> None:
         err = ApiException(
@@ -513,6 +586,22 @@ class TestApiErrorRendering:
 
         assert str(err) == "boom\nHTTP status code: 500\nResponse body: a\\r\\nb\\tc\\x01\\x7F"
         assert err.response_body == 'a\r\nb\tc\x01\x7f'
+
+    def test_bhv_errors_087_credential_and_challenge_headers_are_masked_in_the_message(self) -> None:
+        err = ApiException(
+            status_code=401,
+            message="denied",
+            response_headers={'Authorization': 'Bearer abc', 'WWW-Authenticate': 'Basic realm=x'},
+            response_body="",
+        )
+
+        assert 'Bearer abc' not in str(err)
+        assert 'realm=x' not in str(err)
+
+    def test_bhv_misc_020_the_request_line_needs_both_the_method_and_the_path(self) -> None:
+        err = ApiException.from_response(500, {}, 'x', None, '/items')
+
+        assert 'Request:' not in str(err)
 
     def test_bhv_errors_023_masks_credential_headers_in_the_rendered_headers(self) -> None:
         headers = {
@@ -661,12 +750,17 @@ class TestRequestContext:
         assert err.request_path is None
         assert str(err) == 'API returned status code 404\nHTTP status code: 404'
 
-    def test_the_request_is_unknown_by_default(self) -> None:
+    def test_bhv_lang_python_005_the_request_is_unknown_by_default(self) -> None:
         err = ApiException(status_code=500, message='boom')
 
         assert err.request_method is None
         assert err.request_path is None
         assert str(err) == 'boom\nHTTP status code: 500'
+
+    def test_bhv_errors_091_the_message_names_the_method_and_path_of_a_request_with_no_response(self) -> None:
+        err = ApiException.from_response(404, {}, 'missing', 'GET', '/items/7')
+
+        assert 'Request: GET /items/7' in str(err)
 
     def test_bhv_errors_011_the_message_names_the_request_before_the_status(self) -> None:
         err = ApiException.from_response(502, {}, 'down', 'POST', '/items')
@@ -691,7 +785,7 @@ class TestFromResponseBodyShapes:
         assert err.error_body == "just a string"
         assert err.response_body == '"just a string"'
 
-    def test_a_bom_prefixed_body_is_parsed_into_an_error_body(self) -> None:
+    def test_bhv_errors_093_a_bom_prefixed_body_is_parsed_into_an_error_body(self) -> None:
         body = '﻿{"a":1}'
 
         err = ApiException.from_response(400, {}, body)
@@ -721,6 +815,15 @@ class TestApiErrorTypedBodyFailures:
 
 
 class TestOAuth2ServerExceptionMessage:
+    def test_bhv_misc_018_a_non_json_token_error_body_exposes_status_no_code_and_the_raw_text(self) -> None:
+        from {{packageName}}.errors import OAuth2ServerException
+
+        err = OAuth2ServerException(500, None, None, None, 'upstream exploded')
+
+        assert err.status_code == 500
+        assert err.code is None
+        assert err.raw_body == 'upstream exploded'
+
 
     def test_bhv_errors_049_names_the_status_and_the_error_code(self) -> None:
         err = OAuth2ServerException(400, 'invalid_grant', None, None, '{}')
@@ -805,7 +908,7 @@ class TestErrorBehaviours:
         assert error.request_method == 'GET'
         assert error.request_path == '/pets'
 
-    def test_an_incomplete_request_attachment_is_ignored(self) -> None:
+    def test_bhv_lang_python_006_an_incomplete_request_attachment_is_ignored(self) -> None:
         error = ApiException(status_code=500)._with_request('', '/pets')
 
         assert error.request_method is None

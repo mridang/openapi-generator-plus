@@ -1427,7 +1427,25 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
         if (statusCode === 200) {
           return ObjectSerializer.deserialize(json, Reservation)!;
         }
-        return ObjectSerializer.deserialize(json, ReservationReceipt)!;
+        if (statusCode === 201) {
+          return ObjectSerializer.deserialize(json, ReservationReceipt)!;
+        }
+        /* An undeclared success status decodes as the union return type: the
+         * first member, in declaration order, that the body decodes as wins. */
+        const candidates: Array<(value: unknown) => unknown> = [
+          (value: unknown) => ObjectSerializer.deserialize(value, Reservation),
+          (value: unknown) =>
+            ObjectSerializer.deserialize(value, ReservationReceipt),
+        ];
+        let lastError: unknown;
+        for (const decode of candidates) {
+          try {
+            return decode(json) as ReserveStockResponse;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        throw lastError;
       },
 
       NO_AUTH,

@@ -47,7 +47,7 @@ void main() {
   });
 
   group('StoreApi', () {
-    test('searchStore expands a uniqueItems query array into repeated pairs', () async {
+    test('bhv langdart 004 searchStore expands a uniqueItems query array into repeated pairs', () async {
       String? query;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -180,6 +180,32 @@ void main() {
         expect(Uri.decodeQueryComponent(query ?? ''), contains('at=10:30:00.123'));
       } finally {
         await server.close(force: true);
+      }
+    });
+
+    test('bhv misc 082 an enum in a path parameter is sent as its wire value', () async {
+      String? path;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        path = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":1,"name":"sample"}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getBySwatch(Swatch.red, null);
+
+        expect(path, endsWith('/red'));
+      } finally {
+        await server.close();
       }
     });
 
@@ -320,7 +346,7 @@ void main() {
      * `default` must be initialised to that default variant, so a
      * default-constructed model serialises the default on the wire
      * (`"status":"placed"`) like the other SDKs — rather than omitting it. */
-    test('default-constructed Order serializes the default status', () {
+    test('bhv langdart 005 default-constructed Order serializes the default status', () {
       final json = Order().toJson();
       expect(json['status'], equals('placed'));
     });
@@ -338,6 +364,87 @@ void main() {
       final result = await api.getInventoryWithHttpInfo(null);
       expect(result.statusCode, equals(200));
       expect(result.data, isNotNull);
+    });
+
+    test('bhv misc 009 a call without an options object sends none of the per-call headers', () async {
+      String? perCall;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        perCall = request.headers.value('X-Per-Call');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getInventory(null);
+
+        expect(perCall, isNull);
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 011 a no-parameter operation accepts the call settings and applies them', () async {
+      String? perCall;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        perCall = request.headers.value('X-Per-Call');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":1}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final inventory = await api.getInventory(GetInventoryOptions(
+          timeout: 1000,
+          headers: {'X-Per-Call': 'yes'},
+          maxRetries: 0,
+        ));
+
+        expect(perCall, equals('yes'));
+        expect(inventory['available'], equals(1));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 013 a no-parameter operation called without options returns its result', () async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"available":3}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = StoreApi(apiClient: DefaultApiClient(), config: config);
+
+        final inventory = await api.getInventory(null);
+
+        expect(inventory['available'], equals(3));
+      } finally {
+        await server.close();
+      }
     });
 
     test('bhv operations 104 getOrderById', () async {
@@ -487,14 +594,14 @@ void main() {
     /* Strict containers: a container of primitives is checked element by
      * element like a single primitive; a quoted number, a fractional for an
      * integer or a null raises the SDK SerializationException. */
-    for (final bad in const [
-      '{"available":"abc"}',
-      '{"available":"5"}',
-      '{"available":1.9}',
-      '{"available":null}',
-      '{"available":true}',
-    ]) {
-      test('getInventory rejects the wrong-typed element $bad', () async {
+    test('bhv langdart 006 getInventory rejects each wrong-typed element', () async {
+      for (final bad in const [
+        '{"available":"abc"}',
+        '{"available":"5"}',
+        '{"available":1.9}',
+        '{"available":null}',
+        '{"available":true}',
+      ]) {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
           request.response
@@ -510,15 +617,15 @@ void main() {
               .build();
           final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-          await expectLater(api.getInventory(null), throwsA(isA<SerializationException>()));
+          await expectLater(api.getInventory(null), throwsA(isA<SerializationException>()), reason: bad);
         } finally {
           await server.close();
         }
-      });
-    }
+      }
+    });
 
-    for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
-      test('getMatrix rejects the wrong-typed element $bad', () async {
+    test('bhv langdart 007 getMatrix rejects each wrong-typed element', () async {
+      for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
           request.response
@@ -534,12 +641,12 @@ void main() {
               .build();
           final api = StoreApi(apiClient: DefaultApiClient(), config: config);
 
-          await expectLater(api.getMatrix(null), throwsA(isA<SerializationException>()));
+          await expectLater(api.getMatrix(null), throwsA(isA<SerializationException>()), reason: bad);
         } finally {
           await server.close();
         }
-      });
-    }
+      }
+    });
 
     /* recursive-container-deserialize: getSwatchGroups returns
      * List<Map<String, Swatch>> — an enum leaf. The leaf must go through the
@@ -629,6 +736,18 @@ void main() {
         expect(department.name, equals('d'));
         expect(department.lead?.name, equals('e'));
         expect(department.lead?.department?.name, equals('d2'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv misc 215 getDefaults fills every declared default when the body is an empty object', () async {
+      final server = await _serveJson('{}');
+      try {
+        final defaults = await _storeApiFor(server).getDefaults(null);
+        expect(defaults.retries, equals(3));
+        expect(defaults.label, equals('untitled'));
+        expect(defaults.scale, equals(0.25));
       } finally {
         await server.close();
       }

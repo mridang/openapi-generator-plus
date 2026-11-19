@@ -363,3 +363,124 @@ fn test_bhv_auth_012_each_refused_token_states_why() {
         }
     }
 }
+
+/// The token provider is read again for every request, so a value that changes between requests is the one sent.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_037_a_token_provider_is_asked_again_for_each_request() {
+    let current = std::sync::Arc::new(std::sync::Mutex::new("first".to_string()));
+    let source = current.clone();
+    let provider: petstore::auth::TokenProvider =
+        std::sync::Arc::new(move || source.lock().unwrap().clone());
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let before = auth.auth_headers().await;
+    *current.lock().unwrap() = "second".to_string();
+    let after = auth.auth_headers().await;
+
+    assert_eq!(
+        before.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer first")
+    );
+    assert_eq!(
+        after.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer second")
+    );
+}
+
+#[test]
+fn test_bhv_misc_017_a_rejected_bearer_token_never_echoes_its_value() {
+    let secret = "bad-token-value-42";
+    match BearerAuthenticator::new("https://api.example.com", &format!("bad\n{}", secret)) {
+        Err(err) => assert!(
+            !err.to_string().contains(secret),
+            "the value must not be echoed: {}",
+            err
+        ),
+        Ok(_) => panic!("a token with a line break must be refused"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_066_a_token_provider_value_is_sent_as_the_bearer_credential() {
+    let provider: petstore::auth::TokenProvider = std::sync::Arc::new(|| "live".to_string());
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let headers = auth.try_auth_headers().await.unwrap();
+
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer live")
+    );
+}
+
+#[test]
+fn test_bhv_misc_190_the_printed_bearer_authenticator_hides_the_token() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "tok-secret-190").unwrap();
+    let debug = format!("{:?}", auth);
+    assert!(!debug.contains("tok-secret-190"), "{}", debug);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_193_the_bearer_scheme_header_matches_the_base_bearer_header() {
+    let auth = BearerAuthenticator::new("https://api.example.com", "tok193").unwrap();
+    let headers = auth.auth_headers().await;
+    assert_eq!(
+        headers.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer tok193")
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_195_a_whitespace_only_token_from_a_provider_is_rejected_when_the_request_is_made(
+) {
+    let provider: petstore::auth::TokenProvider = std::sync::Arc::new(|| "   ".to_string());
+    let auth = BearerAuthenticator::with_token_provider("https://api.example.com", provider);
+
+    let err = auth
+        .try_auth_headers()
+        .await
+        .expect_err("an empty token must fail");
+
+    assert!(
+        err.to_string().contains("Bearer token must not be empty"),
+        "{}",
+        err
+    );
+    assert!(auth.auth_headers().await.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_194_a_token_from_a_provider_gets_the_same_bearer_prefix_as_a_static_token() {
+    let raw: petstore::auth::TokenProvider = std::sync::Arc::new(|| "xyz".to_string());
+    let prefixed: petstore::auth::TokenProvider = std::sync::Arc::new(|| "Bearer xyz".to_string());
+    let from_raw = BearerAuthenticator::with_token_provider("https://api.example.com", raw)
+        .try_auth_headers()
+        .await
+        .unwrap();
+    let from_prefixed =
+        BearerAuthenticator::with_token_provider("https://api.example.com", prefixed)
+            .try_auth_headers()
+            .await
+            .unwrap();
+    assert_eq!(
+        from_raw.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+    assert_eq!(
+        from_prefixed.get("Authorization").map(|s| s.as_str()),
+        Some("Bearer xyz")
+    );
+}
+
+#[test]
+fn test_bhv_misc_196_a_scheme_wrapper_with_no_token_from_argument_or_environment_fails() {
+    match ServiceTokenAuthenticator::new("https://api.example.com", None) {
+        Err(ConfigurationError::InvalidArgument(reason)) => {
+            assert!(reason.contains("The credential is required"), "{}", reason)
+        }
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument, got {:?}",
+            other.err()
+        ),
+    }
+}

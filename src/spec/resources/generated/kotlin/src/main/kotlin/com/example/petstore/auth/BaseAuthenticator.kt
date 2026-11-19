@@ -44,7 +44,7 @@ internal object CredentialEnvironment {
         variable: String,
         what: String,
     ): String =
-        explicit ?: read(variable) ?: throw IllegalArgumentException(
+        explicit?.takeIf { it.isNotEmpty() } ?: read(variable) ?: throw IllegalArgumentException(
             "A value for $what is required: pass one or set $variable",
         )
 }

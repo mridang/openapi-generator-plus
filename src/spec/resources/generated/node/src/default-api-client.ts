@@ -176,3 +176,20 @@ export class DefaultApiClient extends AbstractApiClient {
     }
   }
 }
+
+/* Installs the zstd decoder from node:zlib where the running Node build provides one. */
+if ("zstdDecompress" in zlib) {
+  AbstractApiClient.zstdDecoder = (buf: Buffer) =>
+    new Promise<Buffer>((resolve, reject) => {
+      (
+        zlib as unknown as {
+          zstdDecompress(
+            input: Buffer,
+            callback: (error: Error | null, result: Buffer) => void,
+          ): void;
+        }
+      ).zstdDecompress(buf, (error, result) =>
+        error ? reject(error) : resolve(result),
+      );
+    });
+}

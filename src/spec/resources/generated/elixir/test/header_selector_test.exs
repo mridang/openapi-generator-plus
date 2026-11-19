@@ -36,7 +36,7 @@ defmodule PetstoreClient.HeaderSelectorTest do
       assert PetstoreClient.HeaderSelector.json_mime?("") == false
     end
 
-    test "returns false for text/plain" do
+    test "bhv langelixir 088 returns false for text/plain" do
       assert PetstoreClient.HeaderSelector.json_mime?("text/plain") == false
     end
 

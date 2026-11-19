@@ -19,6 +19,20 @@ pub enum SerializedValue {
 /// but preserves the sub-delimiters (including `;`, `=`, `,`, `:`, etc.) that
 /// OAS 3.0 matrix/label/simple styles use as structural separators in the
 /// styled value: `; = , : @ ! $ & ' ( ) * +`.
+/// Percent-encodes every byte that is not an ASCII letter or digit, so a cookie
+/// parameter value carrying a model's JSON arrives fully encoded.
+fn encode_cookie_value(s: &str) -> String {
+    s.bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() {
+                (b as char).to_string()
+            } else {
+                format!("%{:02X}", b)
+            }
+        })
+        .collect()
+}
+
 fn encode_path_segment(s: &str) -> String {
     urlencoding::encode(s)
         .into_owned()
@@ -113,6 +127,8 @@ pub fn serialize_value(
         Some(val) => {
             if location == "path" {
                 Some(encode_path_segment(val))
+            } else if location == "cookie" {
+                Some(encode_cookie_value(val))
             } else {
                 Some(val.to_string())
             }
@@ -183,10 +199,11 @@ pub fn serialize_styled(
      * does not panic on an empty path — it serializes gracefully and leaves
      * rejection to the call site (matching how go/swift validate up front). */
 
-    /* URL-encoding is applied at a higher level (the API call site) — pass the
-     * raw stringified value through here. */
+    /* A path value with no style behaves like `simple` and is percent-encoded
+     * here; other locations pass the raw stringified value through. */
     if style.is_empty() {
         return match value {
+            Some(val) if location == "path" => Some(SerializedValue::Single(encode_path_segment(val))),
             Some(val) => Some(SerializedValue::Single(val.to_string())),
             None => serialize_nil(location).map(SerializedValue::Single),
         };
@@ -347,6 +364,17 @@ pub fn serialize_styled(
     }
 }
 
+/// Serializes a `content: application/json` query parameter to its JSON text.
+///
+/// The object serializer writes the canonical SDK wire form for every nested
+/// value, so a date-time inside the JSON keeps its `format: date-time` form. The
+/// text is returned unencoded; the query builder percent-encodes it once.
+pub fn serialize_query_content<T: serde::Serialize>(
+    value: &T,
+) -> Result<String, crate::errors::serialization_error::SerializationError> {
+    crate::object_serializer::serialize(value)
+}
+
 fn serialize_nil(location: &str) -> Option<String> {
     if location == "query" {
         None
@@ -372,6 +400,7 @@ fn serialize_query_array(items: &[String], collection_format: &str) -> Serialize
  * integration-test crate. */
 #[cfg(test)]
 mod tests {
+    use super::*;
     fn unwrap_single(val: Option<super::SerializedValue>) -> String {
         match val {
             Some(super::SerializedValue::Single(s)) => s,
@@ -468,6 +497,19 @@ mod tests {
     fn test_bhv_serializationparam_067_serialize_value_query_null() {
         let result = super::serialize_value(None::<&str>, "query", "string", "");
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_bhv_misc_120_an_object_parameter_is_sorted_by_wire_name() {
+        let obj = HashMap::from([("b".to_string(), "2".to_string()), ("a".to_string(), "1".to_string())]);
+        let result = super::serialize_deep_object("filter", &obj);
+        assert_eq!(result, vec![("filter[a]".to_string(), "1".to_string()), ("filter[b]".to_string(), "2".to_string())]);
+    }
+
+    #[test]
+    fn test_bhv_misc_107_a_scalar_form_query_parameter_keeps_its_string_value() {
+        let result = super::serialize_value(Some("x"), "query", "string", "");
+        assert_eq!(result.unwrap(), "x");
     }
 
     #[test]
@@ -760,11 +802,17 @@ mod tests {
     /* -- serialize_styled: form -- */
 
     #[test]
-    fn test_bhv_serializationparam_105_serialize_styled_form_scalar() {
+    fn test_bhv_serializationparam_105_serialize_styled_form_scalar_and_an_address_is_canonical_text() {
         let result = super::serialize_styled(
             "color", Some("blue"), None, "query", "string", "", "form", true,
         );
         assert_eq!(unwrap_single(result), "blue");
+
+        assert_eq!(serde_json::to_value(std::net::Ipv4Addr::new(192, 0, 2, 1)).expect("encode"), "192.0.2.1");
+        assert_eq!(
+            serde_json::to_value("2001:0DB8::1".parse::<std::net::Ipv6Addr>().expect("parse")).expect("encode"),
+            "2001:db8::1"
+        );
     }
 
     #[test]
@@ -894,6 +942,14 @@ mod tests {
         let json = r#"{"a":"b c"}"#;
         let result = super::serialize_styled("q", Some(json), None, "path", "", "", "simple", false);
         assert_eq!(unwrap_single(result), "%7B%22a%22:%22b%20c%22%7D");
+    }
+
+    /* misc211: a date-time inside a JSON query content value keeps its wire form. */
+    #[test]
+    fn test_bhv_misc_211_a_date_time_inside_a_json_query_content_keeps_its_wire_form() {
+        let when: crate::date_time::DateTime = "2024-01-15T10:30:00Z".parse().unwrap();
+        let json = serialize_query_content(&serde_json::json!({ "at": when })).unwrap();
+        assert_eq!(json, r#"{"at":"2024-01-15T10:30:00.000+00:00"}"#);
     }
 
     #[test]
@@ -1037,7 +1093,7 @@ mod tests {
      * as-is (not percent-encoded). The comma is the structural separator, so the
      * wire form for `["a,b", "c"]` is `a,b,c`, matching the other 11 SDKs. */
     #[test]
-    fn test_path_array_item_with_comma_preserves_literal_comma() {
+    fn test_bhv_misc_250_path_array_item_with_comma_preserves_literal_comma() {
         let two: Vec<String> = vec!["a,b".into(), "c".into()];
 
         /* simple */
@@ -1247,5 +1303,101 @@ mod tests {
         let literal = ";=,:@!$&'()*+~-._";
         assert_eq!(super::encode_path_segment(literal), literal);
         assert_eq!(super::encode_path_segment("a/b c?d#e%f"), "a%2Fb%20c%3Fd%23e%25f");
+    }
+
+    #[test]
+    fn test_bhv_misc_082_enum_wire_value_is_sent_in_path_query_and_header() {
+        for location in ["path", "query", "header"] {
+            let value = serialize_styled("status", Some("sold"), None, location, "string", "", "simple", false);
+            assert_eq!(unwrap_single(value), "sold", "location {}", location);
+        }
+    }
+
+    #[test]
+    fn test_bhv_misc_084_set_optional_scalar_is_sent_in_every_location_and_style() {
+        for location in ["path", "query", "header"] {
+            for style in ["simple", "form"] {
+                let value = serialize_styled("limit", Some("20"), None, location, "integer", "", style, false);
+                assert_eq!(unwrap_single(value), "20", "location {} style {}", location, style);
+            }
+        }
+    }
+
+    #[test]
+    fn test_bhv_misc_086_element_holding_json_text_is_not_decoded_again() {
+        let items = vec![r#"{"a":1}"#.to_string()];
+        let got = unwrap_single(serialize_styled("tags", None, Some(&items), "query", "array", "", "form", false));
+        assert!(got.contains(r#"{"a":1}"#), "got: {}", got);
+    }
+
+    #[test]
+    fn test_bhv_misc_253_an_allow_reserved_value_still_encodes_hash_and_brackets() {
+        assert_eq!(super::encode_query_allowing_reserved("a/b#c[d]"), "a/b%23c%5Bd%5D");
+    }
+    /* -- wire-form parity for query arrays and path values (chunk 14) -- */
+
+    #[test]
+    fn test_bhv_serialization_106_a_non_exploded_array_query_value_joins_with_commas() {
+        let items: Vec<String> = vec!["a".into(), "b".into()];
+        let result = super::serialize_styled("tags", None, Some(&items), "query", "array", "", "form", false);
+        assert_eq!(unwrap_single(result), "a,b");
+    }
+
+    #[test]
+    fn test_bhv_serialization_107_an_exploded_array_query_parameter_repeats_its_key() {
+        let items: Vec<String> = vec!["a".into(), "b".into()];
+        let result = super::serialize_styled("tags", None, Some(&items), "query", "array", "", "form", true);
+        assert_eq!(unwrap_multi(result), vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn test_bhv_serialization_108_a_path_value_without_a_style_matches_the_simple_style() {
+        let result = super::serialize_styled("id", Some("hello world"), None, "path", "string", "", "", false);
+        assert_eq!(unwrap_single(result), "hello%20world");
+    }
+
+    #[test]
+    fn test_bhv_serialization_109_a_path_value_is_percent_encoded_exactly_once() {
+        let result = super::serialize_styled("id", Some("a%b"), None, "path", "string", "", "simple", false);
+        assert_eq!(unwrap_single(result), "a%25b");
+    }
+
+    /* -- absent values and path encoding (chunk 15) -- */
+
+    #[test]
+    fn test_bhv_serialization_110_an_absent_path_value_is_empty_and_an_absent_query_value_is_none() {
+        assert_eq!(super::serialize_value(None::<&str>, "path", "string", "").unwrap(), "");
+        assert!(super::serialize_value(None::<&str>, "query", "string", "").is_none());
+    }
+
+    #[test]
+    fn test_bhv_serialization_111_only_unreserved_characters_stay_literal_and_others_are_utf8_encoded() {
+        assert_eq!(super::encode_path_segment("a~b-._z \u{e9}"), "a~b-._z%20%C3%A9");
+    }
+
+    #[test]
+    fn test_bhv_serialization_118_a_date_time_query_value_keeps_its_time_and_offset() {
+        let rendered = super::serialize_value(Some("2024-01-15T13:45:30+00:00"), "query", "string", "")
+            .unwrap();
+        assert!(rendered.contains("T13:45:30"), "got: {}", rendered);
+        assert!(rendered.ends_with("+00:00"), "got: {}", rendered);
+    }
+
+    #[test]
+    fn test_bhv_misc_232_a_string_path_parameter_in_simple_style_percent_encodes_slashes() {
+        assert_eq!(Some("a%2Fb".to_string()), serialize_value(Some("a/b"), "path", "string", ""));
+    }
+
+    #[test]
+    fn test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded() {
+        assert_eq!(
+            Some("%7B%22a%22%3A1%2E5%7D".to_string()),
+            serialize_value(Some("{\"a\":1.5}"), "cookie", "string", "")
+        );
+    }
+
+    #[test]
+    fn test_bhv_misc_238_a_number_query_value_is_sent_as_a_plain_number() {
+        assert_eq!(Some("2.5".to_string()), serialize_value(Some("2.5"), "query", "number", ""));
     }
 }

@@ -159,7 +159,19 @@ export abstract class AbstractApiClient implements ApiClient {
       });
     }
     if (name === "TypeError") {
-      return new NetworkError(message, { cause: error, ...request });
+      const networkError = new NetworkError(message, {
+        cause: error,
+        ...request,
+      });
+      /* OpenSSL and undici codes for a rejected certificate or failed TLS handshake. */
+      if (
+        /^(ERR_TLS_|ERR_SSL_|ERR_CERT_|CERT_|UNABLE_TO_|SELF_SIGNED_|DEPTH_ZERO_)/.test(
+          causeCode,
+        )
+      ) {
+        AbstractApiClient.tlsFailures.add(networkError);
+      }
+      return networkError;
     }
     return new ApiError(0, message, null, null, null, {
       cause: error,
@@ -394,7 +406,7 @@ export abstract class AbstractApiClient implements ApiClient {
       const retryable =
         response != null
           ? AbstractApiClient.isRetryableStatus(response.statusCode)
-          : AbstractApiClient.isRetryableFailure(failure);
+          : AbstractApiClient.isRetryableFailure(failure, method);
       if (!retryable || multipart || attempt >= maxRetries) {
         return finish();
       }
@@ -430,19 +442,38 @@ export abstract class AbstractApiClient implements ApiClient {
     );
   }
 
+  /** Network errors that are TLS or certificate failures: the same answer comes back on every attempt. */
+  private static readonly tlsFailures = new WeakSet<object>();
+
+  /** Methods that RFC 9110 defines as idempotent (QUERY per the HTTP QUERY draft). */
+  private static readonly idempotentMethods: ReadonlySet<string> = new Set([
+    "GET",
+    "HEAD",
+    "OPTIONS",
+    "TRACE",
+    "PUT",
+    "DELETE",
+    "QUERY",
+  ]);
+
   /**
-   * Whether a failure is a network error that happened before any response:
-   * not a timeout (the deadline is spent), not a failure while reading a
-   * body, not any other error.
+   * Whether a failure is a network error that happened before any response,
+   * for a method that may be sent again: not a timeout (the deadline is
+   * spent), not a failure while reading a body, not a TLS or certificate
+   * failure, not any other error, and not a non-idempotent method (a POST
+   * or PATCH whose connection dropped may already have been applied).
    *
    * @param failure the value the attempt rejected with
+   * @param method the HTTP method of the request
    * @returns true when the request is worth repeating
    */
-  private static isRetryableFailure(failure: unknown): boolean {
+  private static isRetryableFailure(failure: unknown, method: string): boolean {
     return (
       failure instanceof NetworkError &&
       !(failure instanceof NetworkTimeoutError) &&
-      !AbstractApiClient.afterResponse.has(failure)
+      !AbstractApiClient.afterResponse.has(failure) &&
+      !AbstractApiClient.tlsFailures.has(failure) &&
+      AbstractApiClient.idempotentMethods.has(method.toUpperCase())
     );
   }
 
@@ -592,6 +623,10 @@ export abstract class AbstractApiClient implements ApiClient {
       mergedHeaders["Accept-Encoding"] = this.supportedEncodings();
     }
 
+    if (typeof body === "string" && !hasHeader("Content-Type")) {
+      mergedHeaders["Content-Type"] = "application/json";
+    }
+
     if (body != null && typeof body === "object" && !Buffer.isBuffer(body)) {
       const boundary = globalThis.crypto.randomUUID();
       /* The declared multipart subtype (form-data, mixed, related, ...) is
@@ -687,6 +722,12 @@ export abstract class AbstractApiClient implements ApiClient {
     let currentUrl = url;
     const originalUrl = url;
     try {
+      /* A signal already aborted before the request starts is raised as is,
+       * without handing the transport a request that can never settle. */
+      const preAborted = fetchOptions.signal as AbortSignal | undefined;
+      if (preAborted?.aborted) {
+        throw preAborted.reason;
+      }
       response = await doFetch(
         url,
         fetchOptions as Parameters<typeof fetch>[1],
@@ -728,7 +769,7 @@ export abstract class AbstractApiClient implements ApiClient {
            * throw or replace `response`, so undici returns the connection to
            * the pool instead of holding it until the body is garbage
            * collected. */
-          await AbstractApiClient.discardBody(response);
+          AbstractApiClient.discardBody(response);
           /* T-D3: a Location pointing at a non-HTTP(S) scheme
            * (file:, javascript:, data:, ...) must be refused loudly,
            * never silently surfaced as the 3xx response. Throw a typed
@@ -781,23 +822,16 @@ export abstract class AbstractApiClient implements ApiClient {
            * downgrade (HTTPS -> HTTP). Replaying the body in cleartext
            * after the original request was sent over TLS leaks whatever
            * the caller trusted to TLS to protect (credentials, PII,
-           * signed tokens). Only 307 / 308 preserve the method AND body
-           * across a redirect (RFC 7231 sec 6.4.7 / RFC 7538), so they are
-           * the only statuses that can replay a body onto a downgraded
-           * http:// target -- restrict the guard to them. 301 / 302 / 303
-           * coerce the follow-up to a bodyless GET (handled above), so a
-           * downgrade on those statuses carries nothing sensitive and must
-           * PROCEED rather than throw; gating only on `nextBody` (without
-           * the status check) wrongly refused a GET-with-body whose body
-           * the 301/302 coercion preserves. N1: guard 307/308, plus any 301/302 that keeps a body
-           * on a method other than GET/HEAD (PUT, PATCH, DELETE keep it). */
+           * signed tokens). Only 303 leaves the body behind: it coerces the
+           * follow-up to a bodyless GET. 301, 302, 307 and 308 would carry
+           * the body onto the http:// target, so a body on any of them is
+           * refused. The body is checked as sent (currentBody), not as the
+           * follow-up (nextBody), because a POST's body is dropped on 301/302. */
           const currentProto = new URL(currentUrl).protocol;
           if (
-            (statusCode === 307 ||
-              statusCode === 308 ||
-              !["GET", "HEAD"].includes(nextMethod.toUpperCase())) &&
-            nextBody !== undefined &&
-            nextBody !== null &&
+            statusCode !== 303 &&
+            currentBody !== undefined &&
+            currentBody !== null &&
             currentProto === "https:" &&
             nextParsed.protocol === "http:"
           ) {
@@ -855,7 +889,7 @@ export abstract class AbstractApiClient implements ApiClient {
           exhaustedLocation != null &&
           exhaustedLocation.length > 0
         ) {
-          await AbstractApiClient.discardBody(response);
+          AbstractApiClient.discardBody(response);
           throw new ApiError(
             response.status,
             `Too many redirects (exceeded ${maxRedirects})`,
@@ -1008,6 +1042,12 @@ export abstract class AbstractApiClient implements ApiClient {
    * @throws ApiError carrying `statusCode` when the declared encoding cannot
    *   be decoded
    */
+  /**
+   * Decodes one zstd frame. The Node transport installs it from `node:zlib`; the
+   * portable base leaves it null, which also keeps `zstd` out of the supported codings.
+   */
+  static zstdDecoder: ((buf: Buffer) => Promise<Buffer>) | null = null;
+
   static async ensureDecoded(
     buf: Buffer,
     contentEncoding: string,
@@ -1016,6 +1056,30 @@ export abstract class AbstractApiClient implements ApiClient {
   ): Promise<Buffer> {
     if (contentEncoding === "" || contentEncoding === "identity") {
       return buf;
+    }
+    /* Refuse any coding the SDK cannot decode rather than handing the caller
+     * bytes still in that encoding. Every token of a comma list must be one of
+     * the codings the SDK advertises or the identity coding. */
+    const supportedCodings = [
+      "identity",
+      "gzip",
+      "x-gzip",
+      "deflate",
+      "br",
+      ...(AbstractApiClient.zstdDecoder != null ? ["zstd"] : []),
+    ];
+    const unsupported = contentEncoding
+      .split(",")
+      .map((token) => token.trim())
+      .some((token) => token !== "" && !supportedCodings.includes(token));
+    if (unsupported) {
+      throw new ApiError(
+        statusCode,
+        `Unsupported Content-Encoding '${contentEncoding}'`,
+        responseHeaders,
+        null,
+        null,
+      );
     }
     /* Only the first declared coding can still be on the wire; a comma list
      * (e.g. "gzip, br") is decoded outer-first by the fetch layer, so inspect
@@ -1034,6 +1098,55 @@ export abstract class AbstractApiClient implements ApiClient {
           throw new ApiError(
             statusCode,
             `Failed to decompress ${contentEncoding} response body: ` +
+              (error instanceof Error ? error.message : String(error)),
+            responseHeaders,
+            null,
+            null,
+            { cause: error },
+          );
+        }
+      }
+    }
+    /* deflate is a zlib stream: CMF low nibble 8 and CMF*256+FLG divisible by 31. */
+    if (contentEncoding === "deflate") {
+      if (
+        buf.length >= 2 &&
+        (buf[0]! & 0x0f) === 8 &&
+        ((buf[0]! << 8) | buf[1]!) % 31 === 0
+      ) {
+        try {
+          const stream = new Blob([buf])
+            .stream()
+            .pipeThrough(new DecompressionStream("deflate"));
+          return Buffer.from(await new Response(stream).arrayBuffer());
+        } catch (error) {
+          throw new ApiError(
+            statusCode,
+            "Failed to decompress deflate response body: " +
+              (error instanceof Error ? error.message : String(error)),
+            responseHeaders,
+            null,
+            null,
+            { cause: error },
+          );
+        }
+      }
+    }
+    /* zstd frame magic 0x28 0xB5 0x2F 0xFD. Decoded only when the platform decoder is wired. */
+    if (contentEncoding === "zstd" && AbstractApiClient.zstdDecoder != null) {
+      if (
+        buf.length >= 4 &&
+        buf[0] === 0x28 &&
+        buf[1] === 0xb5 &&
+        buf[2] === 0x2f &&
+        buf[3] === 0xfd
+      ) {
+        try {
+          return await AbstractApiClient.zstdDecoder(buf);
+        } catch (error) {
+          throw new ApiError(
+            statusCode,
+            "Failed to decompress zstd response body: " +
               (error instanceof Error ? error.message : String(error)),
             responseHeaders,
             null,
@@ -1329,9 +1442,11 @@ export abstract class AbstractApiClient implements ApiClient {
    * Cancel an unread response body so its connection is released. Best
    * effort: a body that is already consumed or errored needs no release.
    */
-  private static async discardBody(response: Response): Promise<void> {
+  private static discardBody(response: Response): void {
+    /* Cancelled without awaiting: the cancel still releases the connection, and
+     * a redirect hop must not wait on a stream that may never settle. */
     try {
-      await response.body?.cancel();
+      response.body?.cancel().catch(() => undefined);
     } catch {
       /* nothing left to release */
     }

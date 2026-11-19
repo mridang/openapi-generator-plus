@@ -222,7 +222,7 @@ func TestBhvAuthoauthtwoimplicit008_OAuth2ImplicitAuthenticator_GetHostReturnsCo
 
 // The authorize URL is a URL, not a form body: a space between scopes is %20,
 // never a plus, which a strict server reads as a literal plus.
-func TestOAuth2ImplicitAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
+func TestBhvLanggo061_OAuth2ImplicitAuthenticator_AuthorizeUrlEncodesScopeSpacesAsPercent20(t *testing.T) {
 	t.Parallel()
 	url := createImplicitAuthenticator().BuildAuthorizationURL("")
 
@@ -292,5 +292,17 @@ func TestBhvAuth019_OAuth2ImplicitAuthenticator_AuthorizeUrlUsesTheSharedParamet
 	want := "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=s"
 	if url != want {
 		t.Errorf("expected %q, got %q", want, url)
+	}
+}
+
+// The implicit flow builds an exact authorize URL with response_type token and the scopes percent-encoded as %20.
+func TestBhvAuth049_OAuth2ImplicitAuthenticator_BuildsTheExactAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	a := createImplicitAuthenticator()
+
+	got := a.BuildAuthorizationURL("xyz")
+	want := "https://auth.example.com/authorize?response_type=token&client_id=my-client-id&scope=read%20write&state=xyz"
+	if got != want {
+		t.Errorf("expected %q, got %q", want, got)
 	}
 }

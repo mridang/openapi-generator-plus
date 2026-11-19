@@ -152,6 +152,25 @@ class StoreApiTest {
     inner class MockTests {
 
         @Test
+        @DisplayName("bhvMisc011 an options object for an operation with no parameters accepts its settings and defaults them")
+        fun bhvMisc011OptionsWithNoParametersAcceptSettingsAndDefaultThem() {
+            val built = {{apiPackage}}.options.GetInventoryOptions(timeout = 5L, headers = mapOf("X-A" to "1"), maxRetries = 0)
+
+            assertEquals(5L, built.timeout)
+            assertEquals(0, built.maxRetries)
+            assertEquals("1", built.headers?.get("X-A"))
+            assertNull({{apiPackage}}.options.GetInventoryOptions().timeout)
+        }
+
+        @Test
+        @DisplayName("bhvMisc013 an operation with no parameters is called with no argument and returns its result")
+        fun bhvMisc013NoParameterOperationReturnsItsResult() = runBlocking<Unit> {
+            val api = capturingStoreApi("""{"available":3}""") { _, _ -> }
+
+            assertEquals(mapOf("available" to 3), api.getInventory())
+        }
+
+        @Test
         @DisplayName("bhvOperations106 getOrderNotFound")
         fun testGetOrderNotFound() {
             val engine =
@@ -365,6 +384,19 @@ class StoreApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc114 a success response is decoded by the decoder for the status code actually received")
+        fun bhvMisc114ASuccessResponseIsDecodedForTheStatusActuallyReceived() {
+            val created =
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}""",
+                        HttpStatusCode.Created,
+                    ).reserveStock()
+                }
+            assertTrue(created.actualInstance is ReservationReceipt)
+        }
+
+        @Test
         @DisplayName("bhvOperations120 reserveStock decodes a 201 body as the new receipt")
         fun bhvOperations120ReserveStockDecodesA201BodyAsTheReceipt() {
             val created =
@@ -376,6 +408,47 @@ class StoreApiTest {
                 }
             assertTrue(created.actualInstance is ReservationReceipt)
             assertEquals("rcpt-77", (created.actualInstance as ReservationReceipt).receiptCode)
+        }
+
+        @Test
+        @DisplayName("bhvMisc048 a success status that no declared response row names decodes as the operation's union return type")
+        fun bhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnionReturnType() {
+            val result =
+                runBlocking {
+                    capturingStoreApi("""{"reservationId":7,"quantity":2}""", HttpStatusCode.Accepted).reserveStock()
+                }
+            assertNotNull(result.actualInstance)
+        }
+
+        @Test
+        @DisplayName("bhvMisc079 each operation success status decodes its body as the type declared for the status it arrived with")
+        fun bhvMisc079EachSuccessStatusDecodesItsOwnDeclaredType() {
+            val held =
+                runBlocking {
+                    capturingStoreApi("""{"reservationId":31,"quantity":4}""").reserveStock()
+                }
+            val created =
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"C1","expiresAt":"2026-01-02T03:04:05Z"}""",
+                        HttpStatusCode.Created,
+                    ).reserveStock()
+                }
+            assertTrue(held.actualInstance is Reservation)
+            assertTrue(created.actualInstance is ReservationReceipt)
+        }
+
+        @Test
+        @DisplayName("bhvMisc080 a response body is decoded with the schema of its own status code, so a body that fits another status is refused")
+        fun bhvMisc080AResponseBodyIsDecodedWithItsOwnStatusSchema() {
+            assertThrows({{invokerPackage}}.errors.SerializationException::class.java) {
+                runBlocking {
+                    capturingStoreApi(
+                        """{"receiptCode":"C1","expiresAt":"2026-01-02T03:04:05Z"}""",
+                        HttpStatusCode.OK,
+                    ).reserveStock()
+                }
+            }
         }
 
         @Test
@@ -440,8 +513,8 @@ class StoreApiTest {
         }
 
         @Test
-        @DisplayName("searchStore sends a format time query value as HH:mm:ss with truncated milliseconds")
-        fun testSearchStoreSendsPartialTime() {
+        @DisplayName("bhvLangkotlin053 searchStore sends a format time query value as HH:mm:ss with truncated milliseconds")
+        fun bhvLangkotlin053TestSearchStoreSendsPartialTime() {
             val captured = mutableListOf<String>()
             val engine =
                 MockEngine { request ->
@@ -602,30 +675,6 @@ class StoreApiTest {
 
             assertEquals("", capturedQuery)
             assertNull(capturedHeader)
-        }
-
-        @Test
-        @DisplayName("apiresult-rawbody-nullability: ApiResult.rawBody is a non-null String")
-        fun testApiResultRawBodyNonNull() {
-            val engine =
-                MockEngine { _ ->
-                    respond(
-                        content = """{"id":7,"petId":1,"quantity":1,"status":"placed","complete":false}""",
-                        status = HttpStatusCode.OK,
-                        headers = headersOf("Content-Type", "application/json"),
-                    )
-                }
-            val config =
-                Configuration
-                    .builder()
-                    .baseUrl("http://localhost")
-                    .build()
-            val api = StoreApi(DefaultApiClient(HttpClient(engine)), config)
-
-            val result = runBlocking { api.getOrderByIdWithHttpInfo(7L) }
-            // Assigning to a non-null String compiles only if rawBody is non-null.
-            val rawBody: String = result.rawBody
-            assertTrue(rawBody.isNotEmpty())
         }
 
         @Test

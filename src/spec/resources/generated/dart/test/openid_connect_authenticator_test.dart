@@ -183,7 +183,7 @@ void main() {
     });
 
     test(
-      'the synchronous authHeaders raises instead of returning no credentials',
+      'bhv langdart 076 the synchronous authHeaders raises instead of returning no credentials',
       () {
         expect(
           () => _createAuthenticator().authHeaders(),
@@ -291,6 +291,32 @@ void main() {
     );
 
     test(
+      'bhv misc 200 A discovery document whose issuer names another server is rejected.',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"issuer":"https://evil.example.net",'
+          '"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              'OIDC discovery document issuer does not match the discovery URL',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv authoidc 004 accepts an issuer that differs only by a trailing slash',
       () async {
         final client = _FakeApiClient();
@@ -331,7 +357,7 @@ void main() {
       );
     });
 
-    test('refuses a cleartext authorization_endpoint', () async {
+    test('bhv langdart 077 refuses a cleartext authorization_endpoint', () async {
       final client = _FakeApiClient();
       client.enqueue(
         '{"authorization_endpoint":"http://auth.example.com/authorize",'
@@ -368,6 +394,54 @@ void main() {
         final url = await auth.buildAuthorizationUrl('s');
 
         expect(url, startsWith('http://127.0.0.1:9000/authorize?'));
+      },
+    );
+
+    test(
+      'bhv misc 070 a discovery document that is not a JSON object keeps no cause and does not repeat the body',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('["leaked-body"]');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(
+            isA<SerializationException>()
+                .having(
+                  (e) => e.message,
+                  'message',
+                  'OIDC discovery document is not a JSON object',
+                )
+                .having((e) => e.cause, 'cause', isNull)
+                .having(
+                  (e) => e.toString(),
+                  'text',
+                  isNot(contains('leaked-body')),
+                ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 078 the authorization url carries an S256 challenge and omits any nonce',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          '{"authorization_endpoint":"https://auth.example.com/authorize",'
+          '"token_endpoint":"https://auth.example.com/token"}',
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        final query = Uri.parse(
+          await auth.buildAuthorizationUrl(),
+        ).queryParameters;
+
+        expect(query['code_challenge_method'], equals('S256'));
+        expect(query.containsKey('nonce'), isFalse);
       },
     );
 
@@ -409,6 +483,29 @@ void main() {
     // a 500 HTML error page) must surface as the same status-specific
     // exception an API call would throw, not a downstream "invalid JSON"
     // parse failure of the body.
+    test(
+      'bhv misc 201 a failed discovery request reports its path without the query string',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('', statusCode: 500);
+        final auth = OpenIdConnectAuthenticator(
+          host: 'https://api.example.com',
+          openIdConnectUrl:
+              'https://auth.example.com/.well-known/openid-configuration?tenant=a',
+          clientId: 'my-client-id',
+          clientSecret: 'my-client-secret',
+          redirectUri: 'https://app.example.com/callback',
+          scopes: ['openid'],
+        );
+        auth.setApiClient(client);
+
+        await expectLater(
+          auth.buildAuthorizationUrl(),
+          throwsA(predicate((e) => !e.toString().contains('tenant'))),
+        );
+      },
+    );
+
     test(
       'bhv authoidc 027 throws when discovery returns a non-2xx status',
       () async {
@@ -560,7 +657,7 @@ void main() {
     );
 
     test(
-      'a transport failure during the token exchange reaches the caller unchanged',
+      'bhv auth 055 a transport failure during the token exchange reaches the caller unchanged',
       () async {
         const failure = NetworkException(message: 'connection refused');
         final client = _FakeApiClient();
@@ -676,6 +773,28 @@ void main() {
     );
 
     test(
+      'bhv misc 199 OIDC discovery runs again when the cached document expires or its max-age is zero, and the rediscovered endpoints are used.',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue(
+          document,
+          headers: {'Cache-Control': 'public, max-age=0'},
+        );
+        client.enqueue(
+          document,
+          headers: {'Cache-Control': 'public, max-age=0'},
+        );
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.buildAuthorizationUrl();
+        await auth.buildAuthorizationUrl();
+
+        expect(client.getCount, equals(2));
+      },
+    );
+
+    test(
       'bhv authoidc 003 Cache-Control max-age keeps the document for that long',
       () async {
         final client = _FakeApiClient();
@@ -693,14 +812,14 @@ void main() {
     /* A max-age beyond the one-year ceiling, including a digit run that
      * overflows an int, is clamped before the expiry arithmetic, so the
      * document stays cached instead of the Duration overflowing. */
-    for (final maxAge in <String>[
-      '9223372036854775807',
-      '18446744073709551615',
-      '31536001',
-    ]) {
-      test(
-        'bhv authoidc 001 Cache-Control max-age=$maxAge is clamped to one year and cached',
-        () async {
+    test(
+      'bhv authoidc 001 every oversized Cache-Control max-age is clamped to one year and cached',
+      () async {
+        for (final maxAge in <String>[
+          '9223372036854775807',
+          '18446744073709551615',
+          '31536001',
+        ]) {
           final client = _FakeApiClient();
           client.enqueue(
             document,
@@ -713,10 +832,10 @@ void main() {
           await auth.buildAuthorizationUrl();
           await auth.buildAuthorizationUrl();
 
-          expect(client.getCount, equals(1));
-        },
-      );
-    }
+          expect(client.getCount, equals(1), reason: 'max-age=$maxAge');
+        }
+      },
+    );
 
     test(
       'bhv auth 011 a Cache-Control header without max-age falls back to the default lifetime',

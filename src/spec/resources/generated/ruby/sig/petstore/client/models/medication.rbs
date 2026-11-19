@@ -7,6 +7,7 @@ module Petstore::Client::Models
     REQUIRED_NULLABLE: Hash[Symbol, bool]
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
     def inspect: () -> String
+    def to_s: () -> String
     def with: (**untyped) -> Medication
     attr_reader drug_name: String
     attr_reader dosage: String?

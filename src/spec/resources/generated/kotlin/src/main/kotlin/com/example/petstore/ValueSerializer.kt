@@ -397,6 +397,7 @@ internal object ValueSerializer {
                     .replace("+", "%20")
                     .replace("*", "%2A")
                     .replace("%7E", "~")
+                    .replace(".", "%2E")
             else -> json
         }
     }
@@ -427,7 +428,8 @@ internal object ValueSerializer {
         val result = linkedMapOf<String, String>()
         if (value == null) return result
         if (value is Map<*, *>) {
-            for ((key, v) in value) {
+            // Keys are written in ascending order and absent values are left out, as the OAS deepObject style requires.
+            for ((key, v) in value.entries.filter { it.value != null }.sortedBy { it.key.toString() }) {
                 result["$paramName[$key]"] = serializer.stringify(v)
             }
             return result
@@ -437,7 +439,7 @@ internal object ValueSerializer {
             kotlinx.serialization.json.Json
                 .parseToJsonElement(serializer.serialize(value))
         if (fields is kotlinx.serialization.json.JsonObject) {
-            for ((key, v) in fields) {
+            for ((key, v) in fields.entries.sortedBy { it.key }) {
                 when (v) {
                     is kotlinx.serialization.json.JsonNull -> {}
                     is kotlinx.serialization.json.JsonPrimitive -> result["$paramName[$key]"] = v.content

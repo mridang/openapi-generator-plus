@@ -260,7 +260,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert settings_only =~ "* `opts` - Keyword list.\n"
   end
 
-  test "operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
+  test "bhv langelixir 079 operation and parameter prose reaches the docs verbatim, never interpolated or entity-escaped" do
     [summary] = function_docs(:get_pet_summary)
 
     assert summary =~ ~S(Get a <plain> "text" summary & it's short)
@@ -270,7 +270,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     refute summary =~ "&amp;"
   end
 
-  test "model external-docs prose reaches the module docs verbatim" do
+  test "bhv langelixir 080 model external-docs prose reaches the module docs verbatim" do
     {:docs_v1, _anno, _lang, _format, %{"en" => moduledoc}, _metadata, _docs} =
       Code.fetch_docs({{moduleName}}.Models.Account)
 
@@ -281,7 +281,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
   # error instead of being silently dropped (a `:server` on an operation without
   # servers would otherwise go to the default server, a misspelt `:content_type`
   # would send the default content-type).
-  test "an operation without servers rejects the :server opt", %{api: api} do
+  test "bhv langelixir 081 an operation without servers rejects the :server opt", %{api: api} do
     pet = %{{moduleName}}.Models.Pet{name: "Rex", photo_urls: []}
     server = %{{moduleName}}.ServerConfiguration{url_template: "http://other.example.com"}
 
@@ -290,7 +290,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
                  fn -> {{moduleName}}.Api.PetApi.update_pet(api, 1, pet, nil, server: server) end
   end
 
-  test "an operation rejects a misspelt :content_type opt", %{api: api} do
+  test "bhv langelixir 082 an operation rejects a misspelt :content_type opt", %{api: api} do
     assert_raise ArgumentError,
                  ~r/unknown keys \[:contnet_type\] in .*, the allowed keys are: \[:timeout, :headers, :max_retries, :content_type\]/,
                  fn ->
@@ -301,7 +301,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
   # A per-operation server variable that declares an enum accepts only a member
   # of it, as the global ServerConfiguration does: any other value would be
   # spliced into the request host (and a nil one would leave it empty).
-  test "per-operation server variant resolves a value inside the variable enum" do
+  test "bhv langelixir 083 per-operation server variant resolves a value inside the variable enum" do
     server = %{{moduleName}}.Api.GetStagingPetInfoServer.StagingServer{
       environment: {{moduleName}}.Api.GetStagingPetInfoServer.Environment.sandbox(),
       version: {{moduleName}}.Api.GetStagingPetInfoServer.Version.v3()
@@ -322,7 +322,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
                  fn -> {{moduleName}}.Api.GetStagingPetInfoServer.StagingServer.url(server) end
   end
 
-  test "per-operation server variant rejects a variable left unset" do
+  test "bhv misc 155 per-operation server variant rejects a variable left unset" do
     server = %{{moduleName}}.Api.GetStagingPetInfoServer.StagingServer{environment: "staging"}
 
     assert_raise ArgumentError,
@@ -356,6 +356,18 @@ defmodule {{moduleName}}.Api.PetApiTest do
       {{! URL-capturing test doesn't trip required-field deserialization. }}
       %{{moduleName}}.ApiHttpResponse{status_code: 200, body: "", headers: %{"Content-Type" => "application/json"}}
     end
+  end
+
+  test "bhv operations 165 a path parameter is written into the path in the style the operation declares" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    _result = {{moduleName}}.Api.PetApi.get_pet_tag(api, 5, "cute", %{{moduleName}}.Api.Options.GetPetTagOptions{})
+
+    assert PathCapturingApiClient.captured_url(name) == "http://localhost/pet/;petId=5/tag/.cute"
+
+    Agent.stop(name)
   end
 
   test "bhv operations 060 get_pet_tag renders petId as a matrix segment and tagName as a label segment" do
@@ -490,7 +502,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "string path param is percent-encoded exactly once (no double-encoding)" do
+  test "bhv langelixir 084 string path param is percent-encoded exactly once (no double-encoding)" do
     {:ok, name} = PathCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
@@ -565,7 +577,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
   # A non-exploded delimited array serialises to a single (empty) value, so an
   # explicitly empty list is sent as `colors=` / `sizes=` like in the other
   # SDKs, rather than dropping the key.
-  test "get_pet_tag sends an empty non-exploded array query param as an empty value" do
+  test "bhv langelixir 085 get_pet_tag sends an empty non-exploded array query param as an empty value" do
     {:ok, name} = PathCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
@@ -731,7 +743,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
              {{moduleName}}.Api.PetApi.get_pet_by_id(api, 99_999)
   end
 
-  test "error handling 404 names the request" do
+  test "bhv langelixir 086 error handling 404 names the request" do
     api = new_pet_api_for_mock(404, "application/json", ~s({"message":"Pet not found"}))
 
     assert {:error, %{{moduleName}}.Errors.NotFoundError{request_method: "GET", request_path: "/pet/99999"}} =
@@ -808,14 +820,6 @@ defmodule {{moduleName}}.Api.PetApiTest do
 
     assert error.status_code == 200
     assert error.message =~ "Expected a response body for get_pet_by_id but received none"
-  end
-
-  test "bang variant raises typed ApiError on empty 200 body" do
-    api = new_pet_api_for_mock(200, "application/json", "")
-
-    assert_raise {{moduleName}}.Errors.ApiError, fn ->
-      {{moduleName}}.Api.PetApi.get_pet_by_id!(api, 1)
-    end
   end
 
   test "bhv operations 048 get_pet_by_id_with_http_info", %{api: api} do
@@ -945,13 +949,19 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert headers["Authorization"] == "default"
   end
 
-  test "a held scheme wins over the client-level authenticator" do
+  test "bhv auth 045 a credential for the operation's scheme replaces a default Authorization header" do
     headers = delete_with(credential("default"), %{"adminBasic" => credential("admin")})
 
     assert headers["Authorization"] == "admin"
   end
 
-  test "an operation uses the scheme credential of its own security, not another operation's" do
+  test "bhv langelixir 090 a held scheme wins over the client-level authenticator" do
+    headers = delete_with(credential("default"), %{"adminBasic" => credential("admin")})
+
+    assert headers["Authorization"] == "admin"
+  end
+
+  test "bhv auth 043 an operation uses the scheme credential of its own security, not another operation's" do
     {:ok, name} = HeaderCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
 
@@ -1086,7 +1096,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "get_external_pet_info sends the request to the generated variant's URL" do
+  test "bhv operations 160 get_external_pet_info sends the request to the generated variant's URL" do
     {name, api} = stub_pet_api(@sample_pet)
 
     assert {:ok, _result} =
@@ -1117,6 +1127,20 @@ defmodule {{moduleName}}.Api.PetApiTest do
              "https://sandbox.example.com/api/v3/pet/5/staging"
 
     Agent.stop(name)
+  end
+
+  test "bhv misc 219 an operation with several servers sends its request to the server chosen for that call" do
+    {name, api} = stub_pet_api(@sample_pet)
+
+    assert {:ok, _result} =
+             {{moduleName}}.Api.PetApi.get_multi_server_pet_info(
+               api,
+               5,
+               nil,
+               server: {{moduleName}}.Api.GetMultiServerPetInfoServer.Primary
+             )
+
+    assert StubResponseApiClient.captured(name).url == "https://primary.example.com/v1/pet/5/multi"
   end
 
   test "bhv operations 085 get_multi_server_pet_info reaches whichever of its servers is passed" do
@@ -1159,7 +1183,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     end
   end
 
-  test "get_multi_server_pet_info rejects a region outside the variable enum" do
+  test "bhv servers 030 get_multi_server_pet_info rejects a region outside the variable enum" do
     {name, api} = stub_pet_api(@sample_pet)
 
     regional = %{{moduleName}}.Api.GetMultiServerPetInfoServer.Regional{region: "mars"}
@@ -1175,6 +1199,16 @@ defmodule {{moduleName}}.Api.PetApiTest do
   end
 
   # A format: date path parameter renders as YYYY-MM-DD with no time component.
+  test "bhv operations 162 a date-only path parameter is sent as a bare date" do
+    {name, api} = stub_pet_api("[]")
+
+    assert {:ok, []} = {{moduleName}}.Api.PetApi.find_pets_born_on(api, ~D[2024-01-01])
+
+    assert StubResponseApiClient.captured(name).url == "http://localhost/pet/born-on/2024-01-01"
+
+    Agent.stop(name)
+  end
+
   test "bhv operations 043 find_pets_born_on serialises the date path param as YYYY-MM-DD" do
     {name, api} = stub_pet_api("[]")
 
@@ -1591,6 +1625,23 @@ defmodule {{moduleName}}.Api.PetApiTest do
   # required-nested-param-validation: get_pet_by_name has a REQUIRED query param
   # `category`. A nil value or empty string must raise before any HTTP call,
   # and a present value must be serialized onto the wire.
+  test "bhv operations 164 a call with a nil required parameter raises an argument error and sends no request" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError, fn ->
+      {{moduleName}}.Api.PetApi.get_pet_by_name_with_http_info(
+        api,
+        "rex",
+        %{{moduleName}}.Api.Options.GetPetByNameOptions{category: nil, x_correlation_id: "c-1"}
+      )
+    end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
   test "bhv operations 125 get_pet_by_name raises when required category is nil" do
     {:ok, name} = PathCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
@@ -1780,7 +1831,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv operations 158 get_pet_by_note sends every null required nullable query parameter in declaration order" do
+  test "bhv operations 158 get_pet_by_note sends every null required nullable query parameter in declaration order and a header supplied on a call is sent with it" do
     {:ok, name} = PathCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1794,9 +1845,17 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=&rank=")
 
     Agent.stop(name)
+
+    {:ok, header_name} = HeaderCapturingApiClient.start()
+    header_api = {{moduleName}}.Api.PetApi.new(HeaderCapturingApiClient, config)
+
+    {:ok, _result} = {{moduleName}}.Api.PetApi.delete_pet_with_http_info(header_api, 1, nil, headers: %{"X-Trace" => "call-1"})
+    assert HeaderCapturingApiClient.captured_headers(header_name)["X-Trace"] == "call-1"
+
+    Agent.stop(header_name)
   end
 
-  test "bhv operations 159 get_pet_by_note sends a non-null required nullable query parameter with its value" do
+  test "bhv operations 159 get_pet_by_note sends a non-null required nullable query parameter with its value and a bang variant raises a typed ApiError on an empty 200 body" do
     {:ok, name} = PathCapturingApiClient.start()
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
     api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
@@ -1810,25 +1869,12 @@ defmodule {{moduleName}}.Api.PetApiTest do
     assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=a%20b&rank=3")
 
     Agent.stop(name)
-  end
 
-  test "bhv operations 125 get_pet_by_name refuses a nil required query parameter that is not nullable" do
-    {:ok, name} = PathCapturingApiClient.start()
-    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
-    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+    bang_api = new_pet_api_for_mock(200, "application/json", "")
 
-    assert_raise ArgumentError,
-                 ~r/Missing the required parameter 'category' when calling PetApi\.get_pet_by_name/,
-                 fn ->
-                   {{moduleName}}.Api.PetApi.get_pet_by_name_with_http_info(
-                     api,
-                     "rex",
-                     %{{moduleName}}.Api.Options.GetPetByNameOptions{category: nil, x_correlation_id: "c-1"}
-                   )
-                 end
-
-    assert PathCapturingApiClient.captured_url(name) == ""
-    Agent.stop(name)
+    assert_raise {{moduleName}}.Errors.ApiError, fn ->
+      {{moduleName}}.Api.PetApi.get_pet_by_id!(bang_api, 1)
+    end
   end
 
   # allowEmptyValue-omitted-key: find_pets_by_status declares an OPTIONAL query
@@ -1951,7 +1997,7 @@ defmodule {{moduleName}}.Api.PetApiTest do
     def finish(pid, outcome), do: send(pid, {:call_outcome, outcome})
   end
 
-  test "both variants of a generated operation call the hook once, with the spec operation id and path" do
+  test "bhv langelixir 087 both variants of a generated operation call the hook once, with the spec operation id and path" do
     {:ok, name} = StubResponseApiClient.start(200, "[]", "application/json")
     config = {{moduleName}}.Configuration.new(base_url: "http://localhost:4010", call_hook: {HookSpy, self()})
     api = {{moduleName}}.Api.PetApi.new(StubResponseApiClient, config)
@@ -1973,5 +2019,119 @@ defmodule {{moduleName}}.Api.PetApiTest do
     refute_received {:call_info, _}
     Agent.stop(name)
   end
+
+  test "bhv misc 003 an all-optional operation runs with no arguments and sends no omitted parameter" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert {:ok, _} = {{moduleName}}.Api.PetApi.find_pets_by_status_with_http_info(api)
+    refute String.contains?(PathCapturingApiClient.captured_url(name), "status")
+    Agent.stop(name)
+  end
+
+  test "bhv misc 004 an operation with required fields and no options object raises naming the first missing field" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'session' when calling PetApi\.get_pet_summary/,
+                 fn -> {{moduleName}}.Api.PetApi.get_pet_summary_with_http_info(api, 5, ~D[2024-01-02], nil) end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv misc 005 a bare null body for a list operation raises an API error" do
+    api = new_pet_api_for_mock(200, "application/json", "null")
+
+    assert {:error, %{{moduleName}}.Errors.ApiError{}} = {{moduleName}}.Api.PetApi.find_pets_by_status(api)
+  end
+
+  test "bhv misc 006 a bare null response through the http info variant gives no data and keeps the raw body" do
+    api = new_pet_api_for_mock(200, "application/json", "null")
+
+    assert {:ok, %{{moduleName}}.ApiResult{data: nil, raw_body: "null"}} =
+             {{moduleName}}.Api.PetApi.find_pets_by_status_with_http_info(api)
+  end
+
+  test "bhv misc 007 a missing required path parameter and options object names the path parameter and sends nothing" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'pet_id' when calling PetApi\.get_pet_summary/,
+                 fn -> {{moduleName}}.Api.PetApi.get_pet_summary_with_http_info(api, nil, ~D[2024-01-02], nil) end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv misc 008 a supplied required cookie parameter is sent in the Cookie header" do
+    {:ok, name} = SummaryApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(SummaryApiClient, config)
+
+    options = %{{moduleName}}.Api.Options.GetPetSummaryOptions{session: "abc"}
+    assert {:ok, _} = {{moduleName}}.Api.PetApi.get_pet_summary(api, 7, ~D[2024-01-05], options)
+
+    assert SummaryApiClient.captured(name).headers["Cookie"] == "session=abc"
+    Agent.stop(name)
+  end
+
+
+  test "bhv misc 009 an operation called without an options object sends none of the per-call headers" do
+    {:ok, name} = RecordingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(RecordingApiClient, config)
+
+    assert {:ok, _} = {{moduleName}}.Api.PetApi.get_pet_tag(api, 5, "cute")
+    refute Map.has_key?(RecordingApiClient.captured(name).headers, "X-Criteria")
+    Agent.stop(name)
+  end
+
+  test "bhv misc 012 a required path argument that is nil raises naming it and sends nothing when options are given" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+    options = %{{moduleName}}.Api.Options.GetPetSummaryOptions{session: "abc"}
+
+    assert_raise ArgumentError,
+                 ~r/Missing the required parameter 'pet_id' when calling PetApi\.get_pet_summary/,
+                 fn -> {{moduleName}}.Api.PetApi.get_pet_summary_with_http_info(api, nil, ~D[2024-01-02], options) end
+
+    assert PathCapturingApiClient.captured_url(name) == ""
+    Agent.stop(name)
+  end
+
+  test "bhv misc 014 a bare null success body for an operation that must return a body raises an API error" do
+    api = new_pet_api_for_mock(200, "application/json", "null")
+
+    assert {:error, %{{moduleName}}.Errors.ApiError{}} = {{moduleName}}.Api.PetApi.find_pets_by_status(api)
+  end
+
+  test "bhv misc 025 a typed operation call fails when the server answers with a client error status" do
+    api = new_pet_api_for_mock(401, "application/json", ~s({"code":7}))
+
+    assert {:error, %{{moduleName}}.Errors.UnauthorizedError{status_code: 401}} =
+             {{moduleName}}.Api.PetApi.find_pets_by_status(api)
+  end
+
+  test "bhv misc 026 configuration mistakes and wrong call order produce errors that are not API errors" do
+    {:ok, name} = PathCapturingApiClient.start()
+    config = {{moduleName}}.Configuration.new(base_url: "http://localhost")
+    api = {{moduleName}}.Api.PetApi.new(PathCapturingApiClient, config)
+
+    error =
+      assert_raise ArgumentError, fn ->
+        {{moduleName}}.Api.PetApi.get_pet_summary_with_http_info(api, nil, ~D[2024-01-02], nil)
+      end
+
+    refute {{moduleName}}.Errors.ApiError.api_error?(error)
+    Agent.stop(name)
+  end
+
 end
 {{/generateTests}}

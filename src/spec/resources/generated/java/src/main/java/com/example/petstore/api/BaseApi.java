@@ -469,7 +469,6 @@ public abstract class BaseApi {
       return sendAndDecode(
           operationId,
           method,
-          path,
           url,
           headers,
           body,
@@ -488,7 +487,6 @@ public abstract class BaseApi {
           sendAndDecode(
               operationId,
               method,
-              path,
               url,
               headers,
               body,
@@ -542,6 +540,20 @@ public abstract class BaseApi {
     return url.substring(0, end);
   }
 
+  /**
+   * The path of the request URL, including any path prefix of the base URL, without its query
+   * string.
+   */
+  private static String requestPathOf(String url) {
+    String bare = stripQueryAndFragment(url);
+    int scheme = bare.indexOf("://");
+    if (scheme < 0) {
+      return bare;
+    }
+    int slash = bare.indexOf('/', scheme + 3);
+    return slash < 0 ? "" : bare.substring(slash);
+  }
+
   /** The lower-case host of the URL, without port and without the brackets of an IPv6 literal. */
   private static String serverAddressOf(String url) {
     try {
@@ -564,7 +576,6 @@ public abstract class BaseApi {
   private <T> ApiResult<T> sendAndDecode(
       String operationId,
       String method,
-      String path,
       String url,
       Map<String, String> headers,
       @Nullable Object body,
@@ -639,7 +650,8 @@ public abstract class BaseApi {
     }
 
     if (requestBody == null) {
-      headers.remove("Content-Type");
+      /* A default header may be spelled in any case, so drop every Content-Type name. */
+      headers.keySet().removeIf(name -> name.equalsIgnoreCase("Content-Type"));
     }
 
     ApiHttpResponse response =
@@ -655,7 +667,12 @@ public abstract class BaseApi {
 
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
       throw ApiException.fromResponse(
-          method, path, response.statusCode(), response.headers(), response.body(), errorSchemas);
+          method,
+          requestPathOf(url),
+          response.statusCode(),
+          response.headers(),
+          response.body(),
+          errorSchemas);
     }
 
     T data = null;
@@ -730,6 +747,8 @@ public abstract class BaseApi {
                     + operationId
                     + ": expected a JSON body");
           }
+          /* A String return type is the body unchanged, whatever its content
+           * type (serialization128): only a binary return type decodes base64. */
           T rawBody = (T) response.body();
           data = rawBody;
         } else {
@@ -747,7 +766,7 @@ public abstract class BaseApi {
           response.headers(),
           response.body(),
           method,
-          path);
+          requestPathOf(url));
     }
     return new ApiResult<>(
         response.statusCode(),
@@ -896,8 +915,8 @@ public abstract class BaseApi {
   }
 
   /**
-   * Percent-encodes the JSON text of a {@code content:} cookie parameter. Only the unreserved set
-   * {@code A-Z a-z 0-9 - . _ ~} stays literal; every other byte of the UTF-8 form is written as
+   * Percent-encodes the JSON text of a {@code content:} cookie parameter. Only {@code A-Z a-z 0-9 -
+   * _ ~} stays literal (the dot is encoded too); every other byte of the UTF-8 form is written as
    * {@code %XX} with upper-case hex, so the result is a valid RFC 6265 cookie value and is
    * byte-identical across the SDKs.
    *
@@ -912,7 +931,6 @@ public abstract class BaseApi {
           || (c >= 'a' && c <= 'z')
           || (c >= '0' && c <= '9')
           || c == '-'
-          || c == '.'
           || c == '_'
           || c == '~') {
         out.append((char) c);
@@ -1045,10 +1063,20 @@ public abstract class BaseApi {
         String encodedKey = encode(entry.getKey());
         if (value instanceof List<?> list) {
           for (Object item : list) {
-            joiner.add(encodedKey + "=" + encodeQueryValue(String.valueOf(item), allowReserved));
+            joiner.add(
+                encodedKey
+                    + "="
+                    + encodeQueryValue(
+                        String.valueOf(ValueSerializer.serialize(item, "query", null, null)),
+                        allowReserved));
           }
         } else {
-          joiner.add(encodedKey + "=" + encodeQueryValue(String.valueOf(value), allowReserved));
+          joiner.add(
+              encodedKey
+                  + "="
+                  + encodeQueryValue(
+                      String.valueOf(ValueSerializer.serialize(value, "query", null, null)),
+                      allowReserved));
         }
       }
     }

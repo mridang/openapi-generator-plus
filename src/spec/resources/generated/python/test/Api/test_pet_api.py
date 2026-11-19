@@ -45,6 +45,7 @@ from petstore_client.api.options.upload_pet_document_options import (
 from petstore_client.auth.bearer_authenticator import BearerAuthenticator
 from petstore_client.auth.api_key_authenticator import ApiKeyAuthenticator
 from petstore_client.auth.api_key_location import ApiKeyLocation
+from petstore_client.api_client import ApiClient
 from petstore_client.api_http_response import ApiHttpResponse
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
@@ -553,6 +554,12 @@ class TestPetApi:
         captured = await _capture_get(lambda api: api.get_pet_tag(7, "cute"))
         assert captured["path"].startswith("/pet/;petId=7/tag/.cute")
 
+    async def test_bhv_operations_165_a_path_parameter_uses_the_declared_matrix_and_label_styles(
+        self,
+    ) -> None:
+        captured = await _capture_get(lambda api: api.get_pet_tag(9, "nice"))
+        assert captured["path"].startswith("/pet/;petId=9/tag/.nice")
+
     async def test_bhv_operations_044_find_pets_by_status_sends_a_deep_object_filter_in_key_order(
         self,
     ) -> None:
@@ -586,7 +593,51 @@ class TestPetApi:
         assert result is not None
         assert isinstance(result, list)
 
-    def test_add_pet_photos_requires_options(self) -> None:
+    def test_bhv_misc_004_an_operation_called_without_its_options_names_the_missing_argument(
+        self,
+    ) -> None:
+        with pytest.raises(TypeError, match="options"):
+            cast(Any, self.api).get_pet_summary(7, datetime.date(2024, 1, 5))
+
+    async def test_bhv_misc_007_a_missing_path_parameter_is_named_and_no_request_is_sent(
+        self,
+    ) -> None:
+        class _Capturing(ApiClient):
+            captured_url = ""
+
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict,
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                self.captured_url = url
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="{}",
+                    headers={"content-type": "application/json"},
+                )
+
+        client = _Capturing()
+        api = PetApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        with pytest.raises(ValueError, match="Missing the required parameter 'as_of'"):
+            await api.get_pet_summary(
+                7, cast(Any, None), GetPetSummaryOptions(session="s")
+            )
+        assert client.captured_url == ""
+
+    async def test_bhv_misc_009_a_call_without_options_sends_none_of_the_per_call_headers(
+        self,
+    ) -> None:
+        captured = await _capture_get(lambda api: api.get_pet_by_id(1))
+        assert not any(name.lower() == "x-per-call" for name in captured["headers"])
+
+    def test_bhv_misc_010_add_pet_photos_requires_options(self) -> None:
         # Parity with the other 11 SDKs: when an operation's Options object has
         # required fields, the options argument is required (no default). Omitting
         # it must raise TypeError at call time, not silently pass None through.
@@ -731,6 +782,19 @@ class TestPetApi:
         assert sent["cookie"] == "session=abc"
         assert sent["accept"] == "text/plain"
         assert captured["result"] == "done"
+
+    async def test_bhv_misc_008_a_supplied_required_cookie_is_sent_in_the_cookie_header(
+        self,
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.get_pet_summary(
+                7, datetime.date(2024, 1, 5), GetPetSummaryOptions(session="abc")
+            ),
+            "text/plain",
+            b"done",
+        )
+        sent = {name.lower(): value for name, value in captured["headers"].items()}
+        assert sent["cookie"] == "session=abc"
 
     async def test_bhv_operations_056_get_pet_summary_requires_the_session_cookie(
         self,
@@ -1204,6 +1268,22 @@ class TestPetApi:
         assert isinstance(client.body, dict)
         assert "file" in client.body
 
+    async def test_bhv_misc_003_an_all_optional_operation_runs_with_no_arguments_and_sends_no_omitted_parameter(
+        self,
+    ) -> None:
+        captured = await _capture_get(
+            lambda api: api.find_pets_by_status(), reply=b"[]"
+        )
+
+        assert isinstance(captured["result"], list)
+        assert "status" not in captured["path"]
+
+    async def test_bhv_misc_012_a_nil_required_argument_is_named_and_nothing_is_sent(
+        self,
+    ) -> None:
+        with pytest.raises(ValueError, match="pet"):
+            await self.api.add_pet(None)  # type: ignore[arg-type]
+
 
 def _create_mock_server(
     status: int, content_type: str, body: str
@@ -1292,20 +1372,40 @@ class TestPetApiErrorHandling:
                 "Fido", GetPetByNameOptions(category="", x_correlation_id="r")
             )
 
-    async def test_bhv_operations_125_get_pet_by_name_raises_when_the_required_query_param_is_none(
+    async def test_bhv_operations_164_a_missing_required_parameter_raises_and_sends_no_request(
         self,
     ) -> None:
+        class _Capturing(ApiClient):
+            captured_url = ""
+
+            def send_request(
+                self,
+                method: str,
+                url: str,
+                headers: dict,
+                body: Any = None,
+                no_redirect: bool = False,
+            ) -> ApiHttpResponse:
+                self.captured_url = url
+                return ApiHttpResponse(
+                    status_code=200,
+                    body="{}",
+                    headers={"content-type": "application/json"},
+                )
+
+        client = _Capturing()
         api = PetApi(
-            config=Configuration.builder().base_url("http://localhost").build()
+            api_client=client, config=Configuration(base_url="http://localhost")
         )
-        missing: Any = None
+
         with pytest.raises(
-            ValueError,
-            match="Missing the required parameter 'category' when calling PetApi.get_pet_by_name",
+            ValueError, match="Missing the required parameter 'category'"
         ):
             await api.get_pet_by_name(
-                "Fido", GetPetByNameOptions(category=missing, x_correlation_id="r")
+                "Fido",
+                GetPetByNameOptions(category=cast(Any, None), x_correlation_id="r"),
             )
+        assert client.captured_url == ""
 
     async def test_bhv_operations_034_download_binary_mock(self) -> None:
         api, server = _create_mock_server(
@@ -1323,7 +1423,9 @@ class TestPetApiErrorHandling:
         )
         assert result is not None
 
-    async def test_add_pet_scheme_credential_wins_over_the_default_header(self) -> None:
+    async def test_bhv_auth_045_add_pet_scheme_credential_wins_over_the_default_header(
+        self,
+    ) -> None:
         # add_pet accepts the petStoreBearer scheme. The default header carries
         # one token; the credential the API holds for that scheme carries a
         # different one and must win on the wire.
@@ -1364,7 +1466,9 @@ class TestPetApiErrorHandling:
 
         assert captured.get("Authorization") == "Bearer scheme-token"
 
-    async def test_apikey_authenticator_is_applied_to_secured_request(self) -> None:
+    async def test_bhv_auth_043_apikey_authenticator_is_applied_to_secured_request(
+        self,
+    ) -> None:
         # WAVE A1 AUTH-APPLIED: a configured apiKey authenticator must actually
         # reach the wire on a secured operation. add_pet accepts the apiKeyHeader
         # scheme (X-API-Key). Construct an ApiKeyAuthenticator, hand it over as
@@ -1592,7 +1696,9 @@ class TestPetApiErrorHandling:
     @pytest.mark.parametrize(
         "method", [PetApi.get_pet_summary, PetApi.get_pet_summary_with_http_info]
     )
-    def test_operation_prose_reaches_the_docstring_verbatim(self, method: Any) -> None:
+    def test_bhv_lang_python_001_operation_prose_reaches_the_docstring_verbatim(
+        self, method: Any
+    ) -> None:
         import inspect
 
         doc = inspect.getdoc(method)
@@ -1606,7 +1712,9 @@ class TestPetApiErrorHandling:
     @pytest.mark.parametrize(
         "method", [PetApi.get_pet_summary, PetApi.get_pet_summary_with_http_info]
     )
-    def test_path_parameter_doc_carries_the_required_label(self, method: Any) -> None:
+    def test_bhv_lang_python_002_path_parameter_doc_carries_the_required_label(
+        self, method: Any
+    ) -> None:
         import inspect
 
         doc = inspect.getdoc(method)
@@ -1616,7 +1724,9 @@ class TestPetApiErrorHandling:
             ":param as_of: Summary date, sent as a matrix-style path segment (required)"
         ]
 
-    async def test_inherited_security_op_applies_client_authenticator(self) -> None:
+    async def test_bhv_auth_046_inherited_security_op_applies_client_authenticator(
+        self,
+    ) -> None:
         # INHERITED GLOBAL SECURITY: get_pet_by_id declares no security of its
         # own, so it inherits the global requirement. This generator strips the
         # inherited auth methods off such an operation, so the api method passes
@@ -1704,6 +1814,64 @@ class TestPetApiErrorHandling:
         assert captured.get("Authorization") == "Bearer client-level-token", (
             f"secured op must still apply the client credential, got: {captured}"
         )
+
+    async def test_bhv_misc_005_a_bare_null_body_for_a_list_operation_raises_an_api_error(
+        self,
+    ) -> None:
+        api, server = _create_mock_server(200, "application/json", "null")
+        with pytest.raises(ApiException):
+            await api.find_pets_by_status(FindPetsByStatusOptions(status="available"))
+
+    async def test_bhv_misc_014_a_null_success_body_for_a_body_returning_operation_raises_and_returns_no_value(
+        self,
+    ) -> None:
+        api, server = _create_mock_server(200, "application/json", "null")
+        with pytest.raises(ApiException):
+            await api.get_pet_by_id(1)
+
+    async def test_bhv_misc_019_a_request_target_in_an_error_is_reduced_to_its_path(
+        self,
+    ) -> None:
+        api, server = _create_mock_server(
+            404, "application/json", '{"message":"Pet not found"}'
+        )
+        with pytest.raises(NotFoundException) as exc_info:
+            await api.get_pet_by_id(99999)
+        assert exc_info.value.request_path == "/pet/99999"
+
+    async def test_bhv_misc_024_a_transport_failure_keeps_the_underlying_error_as_its_cause(
+        self,
+    ) -> None:
+        from petstore_client.errors.network_exception import NetworkException
+
+        config = Configuration.builder().base_url("http://127.0.0.1:1").build()
+        api = PetApi(
+            api_client=DefaultApiClient(
+                TransportOptions.builder().max_retries(0).build()
+            ),
+            config=config,
+        )
+        with pytest.raises(NetworkException) as exc_info:
+            await api.get_pet_by_id(1)
+        assert exc_info.value.__cause__ is not None
+
+    async def test_bhv_misc_027_a_transport_failure_without_a_response_is_a_network_or_timeout_error(
+        self,
+    ) -> None:
+        from petstore_client.errors.network_exception import NetworkException
+        from petstore_client.errors.network_timeout_exception import (
+            NetworkTimeoutException,
+        )
+
+        config = Configuration.builder().base_url("http://127.0.0.1:1").build()
+        api = PetApi(
+            api_client=DefaultApiClient(
+                TransportOptions.builder().max_retries(0).build()
+            ),
+            config=config,
+        )
+        with pytest.raises((NetworkException, NetworkTimeoutException)):
+            await api.get_pet_by_id(1)
 
 
 class TestPetApiWithHttpInfo:

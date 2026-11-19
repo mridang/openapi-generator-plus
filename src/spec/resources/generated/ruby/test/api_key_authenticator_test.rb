@@ -13,6 +13,30 @@ require 'petstore_client'
 describe Petstore::Client::Auth::ApiKeyAuthenticator do
   parallelize_me!
 
+  it 'bhv_misc_205 a missing API key error names the variable that should have supplied it' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    error = _(lambda do
+      Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-Api-Key', nil,
+                                                      Petstore::Client::Auth::ApiKeyLocation::HEADER, env: {})
+    end).must_raise ArgumentError
+
+    _(error.message).must_equal "Missing API key for 'X-Api-Key': pass it or set the environment variable #{prefix}_API_KEY"
+  end
+
+  it 'bhv_misc_189 the API-key query wrapper sends its key as the api_key query parameter' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'api_key', 'abc123',
+                                                           Petstore::Client::Auth::ApiKeyLocation::QUERY)
+
+    _(auth.query_params).must_equal({ 'api_key' => 'abc123' })
+  end
+
+  it 'bhv_misc_190 the printed output of the API-key authenticator hides the secret' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', 'abc123',
+                                                           Petstore::Client::Auth::ApiKeyLocation::HEADER)
+
+    _(auth.inspect).wont_include 'abc123'
+  end
+
   it 'bhv_authapikey_014 valid header key is exposed via auth_headers' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-API-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER
@@ -150,7 +174,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
       ['kéy', location::HEADER, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 §3.2.6)"]
     ]
     cases.each do |key, where, message|
-      err = _(-> { Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key, where) }).must_raise ArgumentError
+      err = _(-> { Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key.to_s, where.to_sym) }).must_raise ArgumentError
       _(err.message).must_equal message
     end
   end
@@ -160,6 +184,15 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
       'https://api.example.com', 'session', 'kéy', Petstore::Client::Auth::ApiKeyLocation::COOKIE
     )
     _(auth.cookie_params).must_equal({ 'session' => 'kéy' })
+  end
+
+  it 'bhv_misc_057 an API key configured for one location is never sent at another location' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER
+    )
+    _(auth.auth_headers).must_equal({ 'X-Api-Key' => 'abc123' })
+    _(auth.query_params).must_be_empty
+    _(auth.cookie_params).must_be_empty
   end
 
   it 'bhv_authapikey_022 emits a key only at its own location' do
@@ -202,7 +235,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'explicit')
   end
 
-  it 'fails at construction when the key is neither given nor in the environment' do
+  it 'bhv_langruby_015 fails at construction when the key is neither given nor in the environment' do
     prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
     error = _(lambda {
       Petstore::Client::Auth::ApiKeyAuthenticator.new(
@@ -224,15 +257,47 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'from-other')
   end
 
-  it 'reads the environment once, at construction' do
-    env = { 'OTHER_KEY' => 'first' }
+  it 'bhv_auth_031 sends the key in the header under its exact name and value' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
-      env: env, api_key_env: 'OTHER_KEY'
+      'https://api.example.com', 'X-Custom-Key', 'k-123', Petstore::Client::Auth::ApiKeyLocation::HEADER
     )
-    env['OTHER_KEY'] = 'second'
+    _(auth.auth_headers).must_equal({ 'X-Custom-Key' => 'k-123' })
+  end
 
-    _(auth.auth_headers).must_equal('X-Api-Key' => 'first')
+  it 'bhv_auth_032 sends the session key as the SESSION_ID cookie with its exact name and value' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'SESSION_ID', 'sess-456', Petstore::Client::Auth::ApiKeyLocation::COOKIE
+    )
+    _(auth.cookie_params).must_equal({ 'SESSION_ID' => 'sess-456' })
+  end
+
+  it 'bhv_auth_034 rejects an empty or blank key at construction' do
+    ['', " \t "].each do |key|
+      _(lambda {
+        Petstore::Client::Auth::ApiKeyAuthenticator.new(
+          'https://api.example.com', 'X-API-Key', key, Petstore::Client::Auth::ApiKeyLocation::HEADER
+        )
+      }).must_raise ArgumentError
+    end
+  end
+
+  it 'bhv_auth_035 rejects a control, NUL or non-ASCII key at construction' do
+    location = Petstore::Client::Auth::ApiKeyLocation
+    [["abc\r\n", location::QUERY], ["abc\0def", location::COOKIE], ['kéy', location::HEADER]].each do |key, where|
+      _(lambda {
+        Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key.to_s, where.to_sym)
+      }).must_raise ArgumentError
+    end
+  end
+
+  it 'bhv_auth_042 rejects an explicit empty key instead of reading the environment variable' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    _(lambda {
+      Petstore::Client::Auth::ApiKeyAuthenticator.new(
+        'https://api.example.com', 'X-API-Key', '', Petstore::Client::Auth::ApiKeyLocation::HEADER,
+        env: { "#{prefix}_API_KEY" => 'from-env' }
+      )
+    }).must_raise ArgumentError
   end
 
   it 'bhv_authapikey_016 passes a valid query key at construction' do

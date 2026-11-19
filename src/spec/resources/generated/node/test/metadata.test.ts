@@ -8,7 +8,10 @@
 import * as fs from "node:fs";
 import * as util from "node:util";
 import * as path from "node:path";
-import { ObjectSerializer } from "../src/object-serializer.js";
+import {
+  ObjectSerializer,
+  reattachAdditionalProperties,
+} from "../src/object-serializer.js";
 import { SerializationError } from "../src/errors/index.js";
 import {
   Blobs,
@@ -36,7 +39,7 @@ describe("Metadata", () => {
       expect(pkg.description!.length).toBeGreaterThan(0);
     });
 
-    test("declares sideEffects so a bundler can drop unused operations", () => {
+    test("bhv langnode 082 declares sideEffects so a bundler can drop unused operations", () => {
       // The only module with an import-time side effect is the serializer, which
       // loads reflect-metadata; everything else may be tree-shaken.
       const pkgPath = path.resolve(__dirname, "..", "package.json");
@@ -90,7 +93,7 @@ describe("Metadata", () => {
   });
 
   describe("schema constraints in model doc comments (documentation only)", () => {
-    test("a constrained property lists its pattern and bounds as doc tags", () => {
+    test("bhv langnode 083 a constrained property lists its pattern and bounds as doc tags", () => {
       const source = fs.readFileSync(
         path.resolve(__dirname, "..", "src", "models", "pet.ts"),
         "utf-8",
@@ -101,7 +104,7 @@ describe("Metadata", () => {
       expect(source).toMatch(/@pattern .*\(\?!admin\)/);
     });
 
-    test("the constraints are not enforced at runtime", () => {
+    test("bhv langnode 084 the constraints are not enforced at runtime", () => {
       expect(
         () =>
           new Pet({
@@ -114,7 +117,7 @@ describe("Metadata", () => {
   });
 
   describe("FindPetsByStatusOptions deprecated parameter (L3)", () => {
-    test("deprecated param status is marked deprecated in options", () => {
+    test("bhv langnode 085 deprecated param status is marked deprecated in options", () => {
       // L3: the spec declares the findPetsByStatus `status` query parameter
       // deprecated:true. The deprecation must propagate onto the per-operation
       // Options field — not just operations and model properties — so callers
@@ -266,7 +269,7 @@ describe("Metadata", () => {
   });
 
   describe("Metadata additionalProperties round-trip (H11)", () => {
-    test("undeclared wire keys survive deserialize instead of being dropped", () => {
+    test("bhv langnode 086 undeclared wire keys survive deserialize instead of being dropped", () => {
       // H11: Metadata declares `additionalProperties: {type: string}`, so keys
       // beyond the declared `createdAt` are free-form data that must SURVIVE a
       // round-trip. plainToInstance(excludeExtraneousValues) drops every key
@@ -343,7 +346,7 @@ describe("Metadata", () => {
       expect(metadata.additionalProperties).toEqual({});
     });
 
-    test("exposes the undeclared keys of a constructed instance", () => {
+    test("bhv langnode 087 exposes the undeclared keys of a constructed instance", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
         foo: 1,
@@ -371,20 +374,20 @@ describe("Metadata", () => {
       ).toBe(false);
     });
 
-    test("is typed like the index signature so typed values read without a cast", () => {
+    test("bhv langnode 088 is typed like the index signature so typed values read without a cast", () => {
       const metadata = new Metadata({ foo: "a", bar: "b" });
       const extras: Record<string, Metadata[string]> =
         metadata.additionalProperties;
       expect(extras).toEqual({ foo: "a", bar: "b" });
     });
 
-    test("returns a fresh record on every read", () => {
+    test("bhv misc 145 returns a fresh record on every read", () => {
       const metadata = new Metadata({ foo: 1 });
       metadata.additionalProperties["bar"] = "2";
       expect(metadata.additionalProperties).toEqual({ foo: 1 });
     });
 
-    test("is not serialised as a data key", () => {
+    test("bhv langnode 089 is not serialised as a data key", () => {
       const metadata = new Metadata({
         createdAt: new Date("2024-01-01T00:00:00Z"),
         foo: 1,
@@ -408,7 +411,7 @@ describe("Metadata", () => {
       expect(left.equals(new Metadata({ foo: 2 }))).toBe(false);
     });
 
-    test("a wire key literally named additionalProperties is kept as data", () => {
+    test("bhv misc 287 a wire key literally named additionalProperties is kept as data", () => {
       const metadata = ObjectSerializer.deserialize(
         { createdAt: "2024-01-01T00:00:00Z", additionalProperties: "x" },
         Metadata,
@@ -425,5 +428,81 @@ describe("Metadata", () => {
       } as unknown as Partial<Metadata>);
       expect(built.additionalProperties).toEqual({ additionalProperties: "y" });
     });
+  });
+});
+
+describe("Metadata additional properties misc behaviours", () => {
+  it("bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries", () => {
+    const meta = ObjectSerializer.deserialize(
+      JSON.parse('{"note":"x","owner":"ann"}'),
+      Metadata,
+    ) as Metadata;
+    expect(meta.additionalProperties["note"]).toBe("x");
+    expect(Object.keys(meta.additionalProperties)).toEqual(["note", "owner"]);
+  });
+
+  it("bhv misc 143 a copy keeps the additional properties and compares equal to the original", () => {
+    const original = reattachAdditionalProperties(new Metadata({}), {
+      customField: "a",
+    });
+    const copy = ObjectSerializer.deserialize(
+      JSON.parse(ObjectSerializer.serialize(original)),
+      Metadata,
+    ) as Metadata;
+    expect(copy.additionalProperties).toEqual({ customField: "a" });
+    expect(copy).toEqual(original);
+  });
+});
+
+describe("Metadata map equality misc behaviours", () => {
+  it("bhv misc 151 a model holding a map compares equal when the maps hold the same entries and unequal when any entry differs", () => {
+    const build = (value: string) =>
+      reattachAdditionalProperties(new Metadata({}), { a: "1", b: value });
+    expect(build("2")).toEqual(build("2"));
+    expect(build("2")).not.toEqual(build("3"));
+  });
+});
+
+describe("Metadata undeclared keys (misc)", () => {
+  test("bhv misc 288 a snake_case key at the top level of an object is captured as an undeclared extra", () => {
+    const metadata = ObjectSerializer.deserialize(
+      { region_code: "emea" },
+      Metadata,
+    ) as Metadata;
+    expect(metadata.additionalProperties).toEqual({ region_code: "emea" });
+  });
+
+  test("bhv misc 289 a snake_case key inside a list element is captured as an undeclared extra", () => {
+    const items = ObjectSerializer.deserializeArray(
+      [{ region_code: "emea" }],
+      (x: unknown) => ObjectSerializer.deserialize(x, Metadata),
+    );
+    expect(items[0]!.additionalProperties).toEqual({ region_code: "emea" });
+  });
+
+  test("bhv misc 290 an undeclared key whose value is a dictionary survives a full serialize and deserialize round trip", () => {
+    const first = ObjectSerializer.deserialize(
+      { labels: { a: "b" } },
+      Freeform,
+    ) as Freeform;
+    const second = ObjectSerializer.deserialize(
+      JSON.parse(ObjectSerializer.serialize(first)),
+      Freeform,
+    ) as Freeform;
+    expect(second.additionalProperties).toEqual({ labels: { a: "b" } });
+  });
+});
+
+describe("Metadata misc free-form behaviours", () => {
+  test("bhv misc 249 a free-form object-valued field keeps its object and integer entries through a JSON round trip", () => {
+    const first = ObjectSerializer.deserialize(
+      { labels: { a: 1, b: "x" } },
+      Freeform,
+    ) as Freeform;
+    const second = ObjectSerializer.deserialize(
+      JSON.parse(ObjectSerializer.serialize(first)),
+      Freeform,
+    ) as Freeform;
+    expect(second.additionalProperties).toEqual({ labels: { a: 1, b: "x" } });
   });
 });

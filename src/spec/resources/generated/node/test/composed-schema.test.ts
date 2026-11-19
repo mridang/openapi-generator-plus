@@ -44,14 +44,14 @@ describe("Composed Schema", () => {
     expect(instance).toBeInstanceOf(WetFood);
   });
 
-  test("oneOf: a discriminated variant missing its required field is rejected", () => {
+  test("bhv misc 045 oneOf: a discriminated variant missing its required field is rejected", () => {
     const data = { foodType: "dry" };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
       /^Failed to deserialize JSON: weightKg is required$/,
     );
   });
 
-  test("oneOf: a discriminated variant with a wrong-typed field is rejected", () => {
+  test("bhv langnode 050 oneOf: a discriminated variant with a wrong-typed field is rejected", () => {
     const data = { foodType: "dry", weightKg: "heavy" };
     expect(() => ObjectSerializer.deserialize(data, PetFood)).toThrow(
       /^Failed to deserialize JSON: weightKg must be a number, got string$/,
@@ -116,7 +116,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("oneOf: missing discriminator error names the property", () => {
+  test("bhv serialization 082 oneOf: missing discriminator error names the property", () => {
     const data = { weightKg: 2.5 };
     try {
       ObjectSerializer.deserialize(data, PetFood);
@@ -181,6 +181,38 @@ describe("Composed Schema", () => {
     );
   });
 
+  test("bhv misc 293 anyOf returns every matching variant and skips the candidates that do not match", () => {
+    const both = ObjectSerializer.deserialize(
+      {
+        drugName: "Amoxicillin",
+        dosage: "250mg",
+        procedureName: "Spay",
+        durationMinutes: 45,
+      },
+      PetTreatment,
+    );
+    expect(both!.getMatchedInstances()).toHaveLength(2);
+    expect(
+      both!.getMatchedInstances().some((m) => m instanceof Medication),
+    ).toBe(true);
+    expect(both!.getMatchedInstances().some((m) => m instanceof Surgery)).toBe(
+      true,
+    );
+
+    const medicationOnly = ObjectSerializer.deserialize(
+      { drugName: "Amoxicillin", dosage: "500mg" },
+      PetTreatment,
+    );
+    expect(medicationOnly!.getMatchedInstances()).toHaveLength(1);
+    expect(medicationOnly!.getMatchedInstances()[0]).toBeInstanceOf(Medication);
+  });
+
+  test("bhv misc 294 a subtype payload that omits its discriminator is decoded as the variant the mapping names", () => {
+    const food = ObjectSerializer.deserialize({ weightKg: 2.5 }, DryFood);
+    expect(food).toBeInstanceOf(DryFood);
+    expect(food!.foodType).toBe("dry");
+  });
+
   // -- allOf with a discriminator: Vehicle and Shape --
 
   test("bhv unions 301 allOf: the base decodes to the subtype its explicit mapping names", () => {
@@ -228,7 +260,7 @@ describe("Composed Schema", () => {
 
   // -- anyOf without discriminator: PetTreatment --
 
-  test("anyOf: PetTreatment is a constructable class", () => {
+  test("bhv langnode 051 anyOf: PetTreatment is a constructable class", () => {
     // PetTreatment must be a class (not just a type alias) to support runtime deserialization
     expect(typeof PetTreatment).toBe("function");
   });
@@ -261,7 +293,7 @@ describe("Composed Schema", () => {
     );
   });
 
-  test("anyOf: PetTreatment rejects a type-invalid variant field", () => {
+  test("bhv langnode 052 anyOf: PetTreatment rejects a type-invalid variant field", () => {
     // oneof-nondiscriminator-type-invalid-silent: a non-discriminated variant
     // was matched purely structurally via plainToInstance + a hasValues check,
     // without re-running the variant model's constructor type-assertions. A
@@ -476,6 +508,22 @@ describe("Composed Schema", () => {
     expect(a.equals(b)).toBe(true);
     expect(a.equals(other)).toBe(false);
   });
+  test("bhv misc 046 oneOf: wrappers with equal content are equal and different content is unequal", () => {
+    const a = ObjectSerializer.deserialize(
+      { foodType: "dry", weightKg: 2.5 },
+      PetFood,
+    )!;
+    const b = ObjectSerializer.deserialize(
+      { foodType: "dry", weightKg: 2.5 },
+      PetFood,
+    )!;
+    const c = ObjectSerializer.deserialize(
+      { foodType: "wet", volumeMl: 400 },
+      PetFood,
+    )!;
+    expect(a.equals(b)).toBe(true);
+    expect(a.equals(c)).toBe(false);
+  });
   test("bhv unions 034 oneOf: a wrapper typed accessor returns the held variant and nothing for the other", () => {
     const food = ObjectSerializer.deserialize(
       { foodType: "dry", weightKg: 2.5 },
@@ -538,7 +586,7 @@ describe("Composed Schema", () => {
     }
   });
 
-  test("anyOf: a composite tells which variants matched and hands each back", () => {
+  test("bhv unions 046 anyOf: a composite tells which variants matched and hands each back", () => {
     const both = ObjectSerializer.deserialize(
       { drugName: "Amoxicillin", procedureName: "Spay" },
       PetTreatment,
@@ -565,5 +613,76 @@ describe("Composed Schema", () => {
 
     expect(record.isMedication()).toBe(true);
     expect(record.isSurgery()).toBe(true);
+  });
+});
+
+describe("Composed Schema misc behaviours", () => {
+  test("bhv misc 291 a payload matching several union variants decodes to the first declared variant", () => {
+    const record = ObjectSerializer.deserialize(
+      { drugName: "a", procedureName: "b" },
+      TreatmentRecord,
+    ) as TreatmentRecord;
+    expect(record.getActualInstance()).toBeInstanceOf(Surgery);
+  });
+
+  test("bhv misc 292 serializing a union wrapper emits the bare variant payload and reads back to the same value", () => {
+    const wrapper = new PetTreatment(
+      new Medication({ drugName: "Amoxicillin", dosage: "500mg" }),
+    );
+    const wire = JSON.parse(ObjectSerializer.serialize(wrapper)) as Record<
+      string,
+      unknown
+    >;
+    expect(wire).toEqual({ drugName: "Amoxicillin", dosage: "500mg" });
+    const back = ObjectSerializer.deserialize(
+      wire,
+      PetTreatment,
+    ) as PetTreatment;
+    expect(back.getActualInstance()).toEqual(
+      new Medication({ drugName: "Amoxicillin", dosage: "500mg" }),
+    );
+  });
+
+  test("bhv serialization 076 decoding a union value that matches none of its candidates raises a serialization error", () => {
+    expect(() =>
+      ObjectSerializer.deserialize({ unrelated: 1 }, TreatmentRecord),
+    ).toThrow(SerializationError);
+  });
+});
+
+describe("Composed Schema union accessors and equality", () => {
+  test("bhv unions 044 each variant of a union has a typed constructor or factory and a typed accessor that identify the variant", () => {
+    const treatment = new PetTreatment(
+      new Medication({ drugName: "Amoxicillin" }),
+    );
+    expect(treatment.isMedication()).toBe(true);
+    expect(treatment.isSurgery()).toBe(false);
+    expect(treatment.getActualInstance()).toBeInstanceOf(Medication);
+    expect((treatment.getActualInstance() as Medication).drugName).toBe(
+      "Amoxicillin",
+    );
+  });
+
+  test("bhv unions 045 two union values built from the same data compare equal, whether decoded from identical JSON or built by a constructor", () => {
+    const data = { drugName: "Amoxicillin" };
+    const decoded = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const decodedAgain = ObjectSerializer.deserialize(data, PetTreatment)!;
+    const constructed = new PetTreatment(new Medication(data));
+    expect(decoded.equals(decodedAgain)).toBe(true);
+    expect(decoded.equals(constructed)).toBe(true);
+  });
+
+  test("bhv unions 047 a discriminator value not listed in the mapping, including an empty value, raises an error instead of falling through", () => {
+    for (const foodType of ["triangle", ""]) {
+      expect(() =>
+        ObjectSerializer.deserialize({ foodType, weightKg: 2.5 }, PetFood),
+      ).toThrow(SerializationError);
+    }
+    expect(() =>
+      ObjectSerializer.deserialize(
+        { foodType: "triangle", weightKg: 2.5 },
+        PetFood,
+      ),
+    ).toThrow(/triangle/);
   });
 });

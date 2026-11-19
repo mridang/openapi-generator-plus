@@ -55,7 +55,7 @@ fn test_bhv_options_041_transport_options_user_agent_defaults_to_non_empty_strin
 }
 
 #[test]
-fn test_transport_options_user_agent_set_value_is_applied() {
+fn test_bhv_langrust_055_transport_options_user_agent_set_value_is_applied() {
     let opts = TransportOptionsBuilder::new().user_agent("CustomAgent/2.0").build().expect("valid transport options");
     assert_eq!(opts.user_agent(), Some("CustomAgent/2.0"));
 }
@@ -123,6 +123,17 @@ fn test_bhv_options_021_transport_options_follow_redirects_defaults_to_true_with
 
 /* D79: the proxy messages are the canonical ones, and the userinfo of the
  * rejected URL is shown as `***@`, so a proxy credential never reaches a log. */
+#[test]
+fn test_bhv_misc_298_a_malformed_proxy_url_fails_with_an_invalid_proxy_error() {
+    let result = TransportOptionsBuilder::new().proxy("http://").build();
+
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidProxy(_))),
+        "a proxy URL with no host must fail as InvalidProxy, got: {:?}",
+        result
+    );
+}
+
 #[test]
 fn test_bhv_options_024_transport_options_invalid_proxy_url_throws_exception() {
     for (proxy, message) in [
@@ -271,7 +282,7 @@ fn test_bhv_options_014_transport_options_upper_case_proxy_scheme_is_accepted() 
 }
 
 #[test]
-fn test_transport_options_missing_ca_cert_file_is_rejected() {
+fn test_bhv_misc_270_transport_options_missing_ca_cert_file_is_rejected() {
     let result = TransportOptionsBuilder::new()
         .ca_cert_path("/nonexistent/ca.pem")
         .build();
@@ -311,7 +322,7 @@ fn test_bhv_errors_039_a_garbage_pem_ca_cert_path_is_rejected_when_the_options_a
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_with_invalid_base64_is_rejected() {
+fn test_bhv_langrust_056_transport_options_ca_cert_block_with_invalid_base64_is_rejected() {
     let reason = ca_file_rejection(
         "bad-base64",
         "-----BEGIN CERTIFICATE-----\n!!!!\n-----END CERTIFICATE-----\n",
@@ -324,7 +335,7 @@ fn test_transport_options_ca_cert_block_with_invalid_base64_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
+fn test_bhv_langrust_057_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
     let reason = ca_file_rejection(
         "bad-der",
         "-----BEGIN CERTIFICATE-----\naGVsbG8=\n-----END CERTIFICATE-----\n",
@@ -337,7 +348,7 @@ fn test_transport_options_ca_cert_block_with_invalid_der_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
+fn test_bhv_langrust_058_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
     let reason = ca_file_rejection(
         "not-x509",
         "-----BEGIN CERTIFICATE-----\nMAA=\n-----END CERTIFICATE-----\n",
@@ -346,7 +357,7 @@ fn test_transport_options_ca_cert_block_that_is_not_x509_is_rejected() {
 }
 
 #[test]
-fn test_transport_options_ca_cert_block_without_end_line_is_rejected() {
+fn test_bhv_langrust_059_transport_options_ca_cert_block_without_end_line_is_rejected() {
     let reason = ca_file_rejection("no-end", "-----BEGIN CERTIFICATE-----\nMIIB\n");
     assert!(
         reason.contains("a CERTIFICATE block has no END line"),
@@ -602,7 +613,7 @@ fn test_bhv_options_027_transport_options_max_retries_can_be_set_and_disabled() 
 }
 
 #[test]
-fn test_default_api_client_reports_the_retry_budget_to_the_call() {
+fn test_bhv_langrust_060_default_api_client_reports_the_retry_budget_to_the_call() {
     use {{packageName}}::api_client::ApiClient;
     let opts = TransportOptions::builder()
         .max_retries(4)
@@ -706,4 +717,123 @@ fn test_bhv_transport_077_a_ca_certificate_path_naming_a_directory_is_refused_wh
     let result = TransportOptions::builder().ca_cert_path(dir_text).build();
     assert!(result.is_err(), "a directory is not a certificate file");
     assert!(result.unwrap_err().to_string().contains(dir_text), "the error must name the path");
+}
+
+#[test]
+fn test_bhv_misc_034_a_caller_client_and_a_transport_together_are_refused() {
+    let transport = TransportOptions::builder()
+        .proxy("http://proxy.example.com:8080")
+        .build()
+        .expect("valid transport options");
+    let err = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport))
+        .err()
+        .expect("a caller client and a transport together must be refused");
+    assert!(err.to_string().contains("a proxy"), "the refusal names the conflict, got: {}", err);
+}
+
+#[test]
+fn test_bhv_misc_042_a_caller_client_with_verification_disabled_is_refused_naming_the_setting() {
+    let transport = TransportOptions::builder()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
+    let err = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport))
+        .err()
+        .expect("a caller client with verification disabled must be refused");
+    assert!(err.to_string().contains("verify_ssl(false)"), "the refusal names the setting, got: {}", err);
+}
+
+#[test]
+fn test_bhv_misc_026_a_configuration_mistake_is_not_an_api_error() {
+    let err = TransportOptionsBuilder::new()
+        .timeout(Some(-1))
+        .build()
+        .expect_err("a negative timeout must be refused");
+    let boxed: Box<dyn std::error::Error> = Box::new(err);
+    assert!(boxed.downcast_ref::<ApiError>().is_none(), "a configuration error is not an ApiError, got: {}", boxed);
+}
+
+#[test]
+fn test_bhv_misc_052_when_an_option_is_given_twice_the_last_one_takes_effect() {
+    let opts = TransportOptions::builder()
+        .proxy("http://first.example.com:3128")
+        .proxy("http://second.example.com:3128")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(Some("http://second.example.com:3128"), opts.proxy());
+}
+
+#[test]
+fn test_bhv_misc_053_a_retry_budget_of_zero_is_accepted() {
+    let opts = TransportOptions::builder()
+        .max_retries(0)
+        .build()
+        .expect("a zero retry budget is valid");
+    assert_eq!(0, opts.max_retries());
+}
+
+#[test]
+fn test_bhv_misc_055_a_zero_timeout_is_refused_as_an_invalid_timeout() {
+    let result = TransportOptionsBuilder::new().timeout(Some(0)).build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidTimeout(_))),
+        "a zero timeout must be refused, got: {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_bhv_misc_056_setting_the_proxy_to_an_empty_string_removes_an_earlier_proxy() {
+    let opts = TransportOptions::builder()
+        .proxy("http://proxy.example.com:3128")
+        .proxy("")
+        .build()
+        .expect("valid transport options");
+    assert_eq!(None, opts.proxy());
+}
+
+#[test]
+fn test_bhv_misc_175_credential_header_names_are_hidden_in_any_letter_case() {
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-API-KEY", "key-value-one")
+        .default_header("x-auth-TOKEN", "token-value-two")
+        .default_header("Authorization", "auth-value-three")
+        .build()
+        .expect("valid transport options");
+    let debug = format!("{:?}", opts);
+    assert!(!debug.contains("key-value-one"), "{}", debug);
+    assert!(!debug.contains("token-value-two"), "{}", debug);
+    assert!(!debug.contains("auth-value-three"), "{}", debug);
+}
+
+#[test]
+fn test_bhv_misc_180_the_inspect_form_shows_the_value_of_a_non_sensitive_default_header() {
+    let opts = TransportOptionsBuilder::new()
+        .default_header("X-Trace", "visible-trace-value")
+        .build()
+        .expect("valid transport options");
+    let debug = format!("{:?}", opts);
+    assert!(debug.contains("visible-trace-value"), "{}", debug);
+}
+
+#[test]
+fn test_bhv_misc_134_a_zero_timeout_is_refused_at_build_with_a_configuration_error() {
+    let result = TransportOptionsBuilder::new().timeout(Some(0)).build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidTimeout(0))),
+        "expected InvalidTimeout(0), got {:?}",
+        result
+    );
+}
+
+#[test]
+fn test_bhv_options_068_a_socks_proxy_is_refused_at_construction_with_the_documented_message() {
+    let err = TransportOptionsBuilder::new()
+        .proxy("socks5://proxy.example.com:1080")
+        .build()
+        .expect_err("a socks proxy must be refused at construction");
+    assert_eq!(
+        err.to_string(),
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
+    );
 }

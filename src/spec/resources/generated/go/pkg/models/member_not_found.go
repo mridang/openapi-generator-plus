@@ -37,6 +37,16 @@ func (o *MemberNotFound) Equal(other *MemberNotFound) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o MemberNotFound) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "MemberNotFound{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithCode returns a copy of the model with Code replaced; the receiver is unchanged.
 func (o MemberNotFound) WithCode(value int32) MemberNotFound {
 	o.Code = &value

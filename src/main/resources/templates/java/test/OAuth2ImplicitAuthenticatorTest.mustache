@@ -196,4 +196,13 @@ class OAuth2ImplicitAuthenticatorTest {
         assertTrue(java.util.Objects.requireNonNull(ex.getMessage())
                 .contains("{{envVarPrefix}}_BROWSER_AUTH_CLIENT_ID"), ex.getMessage());
     }
+
+    @Test
+    void bhvAuth049ImplicitAuthorizeUrlPercentEncodesScopesAsTwentyPercent() {
+        String url = createAuthenticator().buildAuthorizationUrl(null);
+        assertTrue(url.startsWith("https://auth.example.com/authorize?"), url);
+        assertTrue(url.contains("response_type=token"), url);
+        assertTrue(url.contains("scope=read%20write"), url);
+        assertFalse(url.contains("scope=read+write"), url);
+    }
 }

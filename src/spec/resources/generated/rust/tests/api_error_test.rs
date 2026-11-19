@@ -529,7 +529,7 @@ fn test_bhv_errors_008_api_error_body_with_leading_bom_parses() {
 }
 
 #[test]
-fn test_api_error_exposes_parsed_error_body() {
+fn test_bhv_langrust_061_api_error_exposes_parsed_error_body() {
     let err = ApiError::new(
         404,
         "not found".to_string(),
@@ -600,7 +600,7 @@ fn test_bhv_errors_018_api_error_is_open_api_error() {
 }
 
 #[test]
-fn test_api_error_kind_is_open_api_error() {
+fn test_bhv_langrust_062_api_error_kind_is_open_api_error() {
     // ApiErrorKind is the pattern-matching enum view of an ApiError.
     let kind = petstore::ApiErrorKind::from(ApiError::new(400, "bad".to_string(), None, None));
     let branded = assert_is_open_api_error(&kind);
@@ -619,7 +619,7 @@ fn test_bhv_errors_052_client_error_is_open_api_error_and_chains_to_api_error() 
 }
 
 #[test]
-fn test_server_error_is_open_api_error_and_chains_to_api_error() {
+fn test_bhv_langrust_063_server_error_is_open_api_error_and_chains_to_api_error() {
     let err = server_chain(503, "unavailable");
     let branded = assert_is_open_api_error(&err);
     let source = std::error::Error::source(branded).expect("ServerError chains to ApiError");
@@ -640,7 +640,7 @@ fn test_bhv_errors_061_bad_request_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_unauthorized_error_is_open_api_error_and_chains() {
+fn test_bhv_langrust_064_unauthorized_error_is_open_api_error_and_chains() {
     let err = UnauthorizedError::try_from(client_chain(401, "nope")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
@@ -650,7 +650,7 @@ fn test_unauthorized_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_forbidden_error_is_open_api_error_and_chains() {
+fn test_bhv_langrust_065_forbidden_error_is_open_api_error_and_chains() {
     let err = ForbiddenError::try_from(client_chain(403, "denied")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
@@ -660,7 +660,7 @@ fn test_forbidden_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_not_found_error_is_open_api_error_and_chains() {
+fn test_bhv_langrust_066_not_found_error_is_open_api_error_and_chains() {
     let err = NotFoundError::try_from(client_chain(404, "missing")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
@@ -670,7 +670,7 @@ fn test_not_found_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_conflict_error_is_open_api_error_and_chains() {
+fn test_bhv_langrust_067_conflict_error_is_open_api_error_and_chains() {
     let err = ConflictError::try_from(client_chain(409, "conflict")).expect("the status matches");
     let branded = assert_is_open_api_error(&err);
     let client = std::error::Error::source(branded)
@@ -680,7 +680,7 @@ fn test_conflict_error_is_open_api_error_and_chains() {
 }
 
 #[test]
-fn test_unprocessable_entity_error_is_open_api_error_and_chains() {
+fn test_bhv_langrust_068_unprocessable_entity_error_is_open_api_error_and_chains() {
     let err = UnprocessableEntityError::try_from(client_chain(422, "unprocessable"))
         .expect("the status matches");
     let branded = assert_is_open_api_error(&err);
@@ -773,7 +773,7 @@ fn test_bhv_errors_025_serialization_error_is_open_api_error() {
 }
 
 #[test]
-fn test_heterogeneous_errors_collect_as_open_api_trait_objects() {
+fn test_bhv_langrust_069_heterogeneous_errors_collect_as_open_api_trait_objects() {
     // The whole point of the branded root: one container can hold any
     // SDK-thrown error behind a single `Box<dyn OpenAPIError>`, and each still
     // behaves as a std::error::Error. The mix below deliberately spans the
@@ -810,7 +810,7 @@ fn assert_type_is_open_api_error<T: OpenAPIError>() {}
 /// `OpenAPIError`: `assert_type_is_open_api_error::<OAuth2AuthorizationCodeError>()`
 /// would not compile.
 #[test]
-fn test_oauth2_authorization_code_error_is_a_plain_error() {
+fn test_bhv_langrust_070_oauth2_authorization_code_error_is_a_plain_error() {
     for err in [
         OAuth2AuthorizationCodeError::CodeNotExchanged,
         OAuth2AuthorizationCodeError::EmptyCode,
@@ -822,7 +822,7 @@ fn test_oauth2_authorization_code_error_is_a_plain_error() {
 }
 
 #[test]
-fn test_network_errors_are_open_api_errors() {
+fn test_bhv_langrust_071_network_errors_are_open_api_errors() {
     assert_type_is_open_api_error::<NetworkError>();
     assert_type_is_open_api_error::<NetworkTimeoutError>();
 }
@@ -839,7 +839,7 @@ fn test_bhv_errors_020_network_errors_wrap_a_status_zero_api_error() {
 }
 
 #[test]
-fn test_oauth2_token_and_server_errors_are_open_api_errors() {
+fn test_bhv_langrust_072_oauth2_token_and_server_errors_are_open_api_errors() {
     let token = OAuth2TokenError::new("token response missing".to_string());
     let server = OAuth2ServerError::new(
         400,
@@ -950,6 +950,141 @@ fn test_bhv_errors_006_from_response_maps_every_status_to_its_type() {
     }
 }
 
+#[test]
+fn test_bhv_misc_015_a_typed_error_body_that_is_not_an_object_is_refused_with_a_serialization_error(
+) {
+    let err = ApiError::new(400, "bad".to_string(), None, Some("[1,2]".to_string()));
+    let failure = err
+        .typed_error_body::<Category>()
+        .expect_err("a JSON array is not a Category and must be rejected");
+    assert!(
+        failure
+            .message()
+            .starts_with("failed to deserialize JSON: "),
+        "unexpected message {:?}",
+        failure.message()
+    );
+}
+
+#[test]
+fn test_bhv_misc_016_the_rendered_error_body_shows_at_most_1_kib_and_counts_the_omitted_bytes() {
+    let body = "z".repeat(2048);
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some(body.clone()));
+    let text = err.to_string();
+    assert_eq!(
+        text.matches('z').count(),
+        1024,
+        "the rendered body must stop at 1 KiB: {}",
+        text
+    );
+    assert!(
+        text.contains("(1024 more bytes)"),
+        "the omitted bytes must be counted: {}",
+        text
+    );
+}
+
+#[test]
+fn test_bhv_misc_019_a_request_target_in_an_error_is_reduced_to_its_path() {
+    let err = ApiError::from_response(
+        404,
+        &HashMap::new(),
+        "",
+        Some("GET"),
+        Some("https://api.example.test/items/7?token=secret#fragment"),
+    );
+    let api_error = std::iter::successors(Some(&*err as &(dyn std::error::Error + 'static)), |e| {
+        e.source()
+    })
+    .find_map(|e| e.downcast_ref::<ApiError>())
+    .expect("every HTTP error chains to an ApiError");
+    assert_eq!(api_error.request_path(), Some("/items/7"));
+    let text = err.to_string();
+    assert!(
+        !text.contains("api.example.test"),
+        "the host must not reach the text: {}",
+        text
+    );
+    assert!(
+        !text.contains("secret"),
+        "the query must not reach the text: {}",
+        text
+    );
+    assert!(
+        !text.contains("fragment"),
+        "the fragment must not reach the text: {}",
+        text
+    );
+}
+
+#[test]
+fn test_bhv_misc_020_the_request_line_is_shown_only_when_both_method_and_path_are_known() {
+    let method_only =
+        ApiError::from_response(404, &HashMap::new(), "", Some("GET"), None).to_string();
+    assert!(
+        !method_only.contains("GET"),
+        "a method without a path must not be shown: {}",
+        method_only
+    );
+    let path_only =
+        ApiError::from_response(404, &HashMap::new(), "", None, Some("/items/7")).to_string();
+    assert!(
+        !path_only.contains("/items/7"),
+        "a path without a method must not be shown: {}",
+        path_only
+    );
+}
+
+#[test]
+fn test_bhv_misc_022_a_server_error_is_the_root_error_type_and_wraps_the_api_error() {
+    assert_type_is_open_api_error::<InternalServerError>();
+    let server_error = ServerError::try_from(ApiError::new(500, "boom".to_string(), None, None))
+        .expect("a 500 is a server error");
+    let server =
+        InternalServerError::try_from(server_error).expect("a 500 is an internal server error");
+    let err: Box<dyn std::error::Error + Send + Sync> = Box::new(server);
+    assert!(
+        is_a::<ApiError>(&*err),
+        "the server error must wrap an ApiError"
+    );
+    assert!(
+        std::error::Error::source(&*err).is_some(),
+        "the server error must have a cause"
+    );
+}
+
+#[test]
+fn test_bhv_misc_023_an_unmapped_status_becomes_the_generic_server_or_api_error() {
+    let server = ApiError::from_response(599, &HashMap::new(), "", None, None);
+    assert!(
+        server.is::<ServerError>(),
+        "an unmapped 5xx is the generic server error"
+    );
+    let other = ApiError::from_response(302, &HashMap::new(), "", None, None);
+    assert!(
+        other.is::<ApiError>(),
+        "an unmapped non-error status is the generic ApiError"
+    );
+    assert!(!is_a::<ServerError>(&*other));
+}
+
+#[test]
+fn test_bhv_misc_024_a_transport_failure_keeps_the_underlying_error_as_its_cause() {
+    let cause = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused");
+    let err = ApiError::with_source(
+        0,
+        "transport failure".to_string(),
+        None,
+        None,
+        std::sync::Arc::new(cause),
+    );
+    let source = std::error::Error::source(&err).expect("the transport error is the cause");
+    let io = source
+        .downcast_ref::<std::io::Error>()
+        .expect("the cause is the io error");
+    assert_eq!(io.kind(), std::io::ErrorKind::ConnectionRefused);
+}
+
 /* F830: the error names the request it belongs to, without the query string, in
  * the message and on the accessors of the root and of every status wrapper. */
 #[test]
@@ -1017,7 +1152,7 @@ fn test_bhv_errors_026_with_request_cuts_the_path_at_the_query_and_reaches_the_k
 }
 
 #[test]
-fn test_package_root_exports_the_whole_error_tree() {
+fn test_bhv_langrust_073_package_root_exports_the_whole_error_tree() {
     assert_type_is_open_api_error::<petstore::ApiError>();
     assert_type_is_open_api_error::<petstore::ApiErrorKind>();
     assert_type_is_open_api_error::<petstore::ClientError>();
@@ -1054,7 +1189,7 @@ fn test_package_root_exports_the_whole_error_tree() {
 /// code, headers and body), the same string `ApiError` and `ApiErrorKind` print,
 /// so logging any of them keeps the response body.
 #[test]
-fn test_status_wrappers_display_the_wrapped_api_error() {
+fn test_bhv_langrust_074_status_wrappers_display_the_wrapped_api_error() {
     let mut headers = HashMap::new();
     headers.insert("x-trace".to_string(), "abc".to_string());
     for status in [400u16, 401, 403, 404, 409, 418, 422, 500, 503] {
@@ -1082,7 +1217,7 @@ fn test_status_wrappers_display_the_wrapped_api_error() {
 }
 
 #[test]
-fn test_network_wrappers_display_the_wrapped_api_error() {
+fn test_bhv_langrust_075_network_wrappers_display_the_wrapped_api_error() {
     let transport = ApiError::new(0, "connection refused".to_string(), None, None);
     let network = NetworkError::try_from(transport).expect("status 0");
     assert_eq!("connection refused", network.to_string());
@@ -1095,7 +1230,7 @@ fn test_network_wrappers_display_the_wrapped_api_error() {
 /// The SKILLS.md error-handling example catches NotFound, Client and Server
 /// and then falls back to any other error, the same arms as the other SDKs.
 #[test]
-fn test_skills_error_handling_example_has_the_common_catch_arms() {
+fn test_bhv_langrust_076_skills_error_handling_example_has_the_common_catch_arms() {
     let skills = include_str!("../SKILLS.md");
     for arm in [
         "Err(e) if is_a::<NotFoundError>(&*e) =>",
@@ -1134,7 +1269,7 @@ fn test_bhv_skills_001_skills_error_section_documents_the_full_error_tree() {
 /// is 4xx, a `ServerError` 5xx and a `NetworkError` status 0, and any other
 /// status is handed back as the original `ApiError`.
 #[test]
-fn test_generic_wrappers_refuse_a_status_that_does_not_belong() {
+fn test_bhv_langrust_077_generic_wrappers_refuse_a_status_that_does_not_belong() {
     let refused = |status: u16| ApiError::new(status, "x".to_string(), None, None);
 
     for status in [0, 200, 399, 500] {
@@ -1159,7 +1294,7 @@ fn test_generic_wrappers_refuse_a_status_that_does_not_belong() {
 // -- Matching SDK errors without downcasting ---------------------------------
 
 #[test]
-fn test_boxed_error_helpers_resolve_every_http_wrapper_to_its_api_error() {
+fn test_bhv_langrust_078_boxed_error_helpers_resolve_every_http_wrapper_to_its_api_error() {
     let boxed: Vec<(Box<dyn std::error::Error + Send + Sync>, u16)> = vec![
         (
             Box::new(ApiError::new(302, "x".to_string(), None, None)),
@@ -1194,7 +1329,7 @@ fn test_boxed_error_helpers_resolve_every_http_wrapper_to_its_api_error() {
 }
 
 #[test]
-fn test_boxed_error_helpers_return_none_for_other_errors() {
+fn test_bhv_langrust_079_boxed_error_helpers_return_none_for_other_errors() {
     let err: Box<dyn std::error::Error + Send + Sync> =
         Box::new(SerializationError::new("failed".to_string(), None));
 
@@ -1204,7 +1339,7 @@ fn test_boxed_error_helpers_return_none_for_other_errors() {
 }
 
 #[test]
-fn test_boxed_error_kind_can_be_matched() {
+fn test_bhv_langrust_080_boxed_error_kind_can_be_matched() {
     let err: Box<dyn std::error::Error + Send + Sync> =
         Box::new(NotFoundError::try_from(client_chain(404, "gone")).expect("404"));
 
@@ -1508,6 +1643,165 @@ fn test_bhv_errors_203_the_error_factory_of_an_operation_is_chosen_by_exact_stat
     );
     assert!(unmatched.is::<NotFoundError>());
 }
+#[test]
+fn test_bhv_errors_085_a_carriage_return_and_line_feed_in_the_body_render_escaped() {
+    let err = ApiError::new(500, "boom".to_string(), None, Some("a\r\nb".to_string()));
+    assert_eq!(
+        "boom\nHTTP status code: 500\nResponse body: a\\r\\nb",
+        err.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_086_a_body_of_exactly_1_kib_is_shown_whole() {
+    let body = "a".repeat(1024);
+    let err = ApiError::new(500, "boom".to_string(), None, Some(body.clone()));
+    assert_eq!(
+        format!("boom\nHTTP status code: 500\nResponse body: {}", body),
+        err.to_string()
+    );
+    assert_eq!(
+        Some(body.as_str()),
+        err.response_body(),
+        "the full body stays on the error"
+    );
+}
+
+#[test]
+fn test_bhv_errors_087_authentication_and_challenge_headers_are_masked_in_the_message() {
+    let mut headers = HashMap::new();
+    headers.insert("authorization".to_string(), "Bearer abc".to_string());
+    headers.insert("cookie".to_string(), "sid=abc".to_string());
+    headers.insert("www-authenticate".to_string(), "Basic realm=x".to_string());
+    headers.insert(
+        "proxy-authenticate".to_string(),
+        "Basic realm=y".to_string(),
+    );
+    let text = ApiError::new(401, "denied".to_string(), Some(headers), None).to_string();
+    assert!(!text.contains("Bearer abc"), "{text}");
+    assert!(!text.contains("sid=abc"), "{text}");
+    assert!(!text.contains("realm=x"), "{text}");
+    assert!(!text.contains("realm=y"), "{text}");
+}
+
+#[test]
+fn test_bhv_errors_088_absent_sections_are_left_out_and_present_ones_are_kept() {
+    let empty = ApiError::new(
+        500,
+        "down".to_string(),
+        Some(HashMap::new()),
+        Some(String::new()),
+    );
+    assert_eq!("down\nHTTP status code: 500", empty.to_string());
+
+    let partial = ApiError::new(500, "down".to_string(), None, Some("upstream".to_string()));
+    assert_eq!(
+        "down\nHTTP status code: 500\nResponse body: upstream",
+        partial.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_089_an_empty_message_renders_the_default_text() {
+    let err = ApiError::new(500, String::new(), None, None);
+    assert_eq!(
+        "Error message: the server returns an error\nHTTP status code: 500",
+        err.to_string()
+    );
+}
+
+#[test]
+fn test_bhv_errors_090_a_request_with_no_response_keeps_headers_and_body_as_none() {
+    let err = ApiError::new(0, "no response".to_string(), None, None);
+    assert!(
+        err.response_headers().is_none(),
+        "absent headers stay None, not an empty map"
+    );
+    assert!(
+        err.response_body().is_none(),
+        "an absent body stays None, not an empty string"
+    );
+}
+
+#[test]
+fn test_bhv_errors_091_the_message_names_the_method_and_path_of_a_request_with_no_response() {
+    let err = ApiError::from_response(0, &HashMap::new(), "", Some("GET"), Some("/items/7"));
+    assert!(err.to_string().contains("GET /items/7"), "{}", err);
+}
+
+#[test]
+fn test_bhv_errors_093_a_bom_prefixed_body_is_decoded_and_the_raw_body_kept() {
+    let raw = "\u{feff}{\"a\":1}";
+    let err = ApiError::new(400, "bad".to_string(), None, Some(raw.to_string()));
+    let body = err.error_body().expect("a BOM-prefixed body must parse");
+    let parsed: serde_json::Value = serde_json::from_str(&body.to_json_string().unwrap()).unwrap();
+    assert_eq!(parsed["a"], serde_json::json!(1));
+    assert_eq!(Some(raw), err.response_body());
+}
+
+#[test]
+fn test_bhv_errors_094_every_sdk_error_is_recognised_as_the_root_error_type() {
+    let api = ApiError::new(500, "boom".to_string(), None, None);
+    assert_is_open_api_error(&api);
+
+    let network = NetworkError::try_from(ApiError::new(0, "refused".to_string(), None, None))
+        .expect("status 0 is a network error");
+    assert_is_open_api_error(&network);
+
+    let token = OAuth2TokenError::new("token response missing".to_string());
+    assert_is_open_api_error(&token);
+}
+
+#[test]
+fn test_bhv_errors_095_a_typed_4xx_error_is_found_by_its_client_family() {
+    let not_found = NotFoundError::try_from(client_chain(404, "gone")).expect("a 404");
+    assert_eq!(404, not_found.client_error().api_error().status_code());
+}
+
+#[test]
+fn test_bhv_errors_096_a_status_outside_every_class_range_falls_back_to_the_base_error() {
+    for status in [399u16, 600u16] {
+        assert!(
+            ClientError::try_from(ApiError::new(status, "odd".to_string(), None, None)).is_err(),
+            "status {status} must not be a client error"
+        );
+        assert!(
+            ServerError::try_from(ApiError::new(status, "odd".to_string(), None, None)).is_err(),
+            "status {status} must not be a server error"
+        );
+    }
+}
+
+#[test]
+fn test_bhv_errors_097_an_unrecognised_4xx_status_raises_the_generic_client_error() {
+    let client = ClientError::try_from(ApiError::new(499, "odd".to_string(), None, None))
+        .expect("an unrecognised 4xx is the generic client error");
+    assert_eq!(499, client.api_error().status_code());
+}
+
+#[test]
+fn test_bhv_errors_098_a_missing_ca_path_is_named_as_an_invalid_ca_certificate() {
+    let missing = "/definitely/not/here/ca.pem";
+    let err = petstore::TransportOptions::builder()
+        .ca_cert_path(missing)
+        .build()
+        .expect_err("a missing CA file must be refused");
+    match err {
+        petstore::errors::ConfigurationError::InvalidCaCertificate(message) => {
+            assert!(
+                message.contains(missing),
+                "the message must name the file: {}",
+                message
+            );
+            assert!(
+                message.contains("failed to read CA certificate"),
+                "{}",
+                message
+            );
+        }
+        other => panic!("expected InvalidCaCertificate, got {}", other),
+    }
+}
 
 #[test]
 fn test_bhv_errors_204_a_body_that_does_not_match_its_declared_error_schema_leaves_the_status_error_with_the_raw_body_and_a_cause(
@@ -1542,7 +1836,8 @@ fn test_bhv_errors_204_a_body_that_does_not_match_its_declared_error_schema_leav
 }
 
 #[test]
-fn test_a_declared_error_schema_decodes_into_its_own_error_below_its_status_error() {
+fn test_bhv_langrust_081_a_declared_error_schema_decodes_into_its_own_error_below_its_status_error()
+{
     use petstore::errors::UnexpectedFailureError;
     use petstore::models::UnexpectedFailure;
 
@@ -1566,4 +1861,60 @@ fn test_a_declared_error_schema_decodes_into_its_own_error_below_its_status_erro
         err.api_error_kind().map(|kind| kind.status_code()),
         Some(400)
     );
+}
+#[test]
+fn test_bhv_misc_280_a_truncated_body_states_how_many_bytes_were_left_out() {
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some("a".repeat(3000)));
+    assert!(err.to_string().contains("1976 more bytes"), "{}", err);
+}
+
+#[test]
+fn test_bhv_misc_281_headers_from_the_response_are_copied_onto_the_error() {
+    let headers = HashMap::from([("retry-after".to_string(), "5".to_string())]);
+    let err = ApiError::from_response(503, &headers, "{}", None, None);
+    let unavailable = err
+        .downcast_ref::<ServiceUnavailableError>()
+        .expect("a 503 is a ServiceUnavailableError");
+    let copied = unavailable
+        .server_error()
+        .api_error()
+        .response_headers()
+        .expect("the headers must be copied");
+    assert_eq!(Some(&"5".to_string()), copied.get("retry-after"));
+}
+
+#[test]
+fn test_bhv_misc_283_package_root_exports_the_whole_error_tree() {
+    fn exported<T: ?Sized>() {}
+    exported::<petstore::ApiError>();
+    exported::<petstore::ClientError>();
+    exported::<petstore::ServerError>();
+    exported::<petstore::NetworkError>();
+    exported::<petstore::NetworkTimeoutError>();
+    exported::<petstore::BadRequestError>();
+    exported::<petstore::UnauthorizedError>();
+    exported::<petstore::ForbiddenError>();
+    exported::<petstore::NotFoundError>();
+    exported::<petstore::ConflictError>();
+    exported::<petstore::UnprocessableEntityError>();
+    exported::<petstore::TooManyRequestsError>();
+    exported::<petstore::InternalServerError>();
+    exported::<petstore::BadGatewayError>();
+    exported::<petstore::ServiceUnavailableError>();
+    exported::<petstore::GatewayTimeoutError>();
+    exported::<petstore::OAuth2ServerError>();
+}
+
+#[test]
+fn test_bhv_misc_286_an_oauth_error_message_names_its_status_and_error_code() {
+    let err = OAuth2ServerError::new(
+        401,
+        Some("invalid_client".to_string()),
+        None,
+        None,
+        "{}".to_string(),
+    );
+    let text = err.to_string();
+    assert!(text.contains("401"), "{}", text);
+    assert!(text.contains("invalid_client"), "{}", text);
 }

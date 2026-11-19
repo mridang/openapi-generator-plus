@@ -16,6 +16,14 @@ describe Petstore::Client::Configuration do
     _(builder).must_be_instance_of(Petstore::Client::Configuration::Builder)
   end
 
+  it 'bhv_config_026 a configuration built through the builder returns the base URL set on the builder' do
+    config = Petstore::Client::Configuration.builder
+      .base_url('https://custom.example.com')
+      .build
+
+    _(config.base_url).must_equal('https://custom.example.com')
+  end
+
   it 'bhv_config_011 builder sets base_url' do
     config = Petstore::Client::Configuration.builder
       .base_url('https://custom.example.com')
@@ -171,6 +179,26 @@ describe Petstore::Client::Configuration do
     _(Petstore::Client::Configuration).wont_respond_to(:default=)
   end
 
+  it 'bhv_misc_276 the default configuration and the default builder both use the base URL from the spec' do
+    _(Petstore::Client::Configuration.default_configuration.base_url).must_equal('/api/v3')
+    _(Petstore::Client::Configuration.builder.build.base_url).must_equal('/api/v3')
+  end
+
+  it 'bhv_misc_277 each call to the default configuration returns a distinct configuration object' do
+    first = Petstore::Client::Configuration.default_configuration
+    second = Petstore::Client::Configuration.default_configuration
+
+    _(first).wont_be_same_as(second)
+  end
+
+  it 'bhv_misc_279 changing a copy of the returned headers does not change the configuration' do
+    config = Petstore::Client::Configuration.builder.default_header('X-Trace', 'trace-1').build
+    copy = config.default_headers.dup
+    copy['X-New'] = 'x'
+
+    _(config.default_headers).must_equal({ 'X-Trace' => 'trace-1' })
+  end
+
   it 'bhv_config_018 a default and a built configuration use the base URL from the spec' do
     _(Petstore::Client::Configuration.default_configuration.base_url).must_equal('/api/v3')
     _(Petstore::Client::Configuration.builder.build.base_url).must_equal('/api/v3')
@@ -275,12 +303,12 @@ describe Petstore::Client::Configuration do
     _(config.default_headers).must_equal({ 'X-Bulk' => 'bulk', 'X-Single' => 'single' })
   end
 
-  it 'has no call hook by default' do
+  it 'bhv_langruby_028 has no call hook by default' do
     _(Petstore::Client::Configuration.builder.build.call_hook).must_be_nil
     _(Petstore::Client::Configuration.default_configuration.call_hook).must_be_nil
   end
 
-  it 'builder sets the call hook and is fluent' do
+  it 'bhv_langruby_029 builder sets the call hook and is fluent' do
     hook = RecordingCallHook.new
     builder = Petstore::Client::Configuration.builder
 
@@ -288,23 +316,35 @@ describe Petstore::Client::Configuration do
     _(builder.build.call_hook).must_be_same_as(hook)
   end
 
-  it 'builder removes the call hook with nil' do
+  it 'bhv_langruby_030 builder removes the call hook with nil' do
     config = Petstore::Client::Configuration.builder.call_hook(RecordingCallHook.new).call_hook(nil).build
 
     _(config.call_hook).must_be_nil
   end
 
-  it 'builder rejects a call hook that cannot start a call' do
+  it 'bhv_langruby_031 builder rejects a call hook that cannot start a call' do
     error = _ { Petstore::Client::Configuration.builder.call_hook(Object.new) }.must_raise ArgumentError
 
     _(error.message).must_equal 'call_hook must respond to start'
   end
 
-  it 'inspect does not print the call hook' do
+  it 'bhv_langruby_032 inspect does not print the call hook' do
     hook = RecordingCallHook.new('secret-hook-name')
     config = Petstore::Client::Configuration.builder.call_hook(hook).build
 
     _(config.inspect).wont_include 'secret-hook-name'
     _(config.inspect).wont_include 'RecordingCallHook'
+  end
+
+  it 'bhv_misc_136 the configuration text shows the base URL and the non-sensitive default headers only' do
+    config = Petstore::Client::Configuration.builder
+      .base_url('http://api.example.com')
+      .default_header('X-Public', 'shown')
+      .default_header('Authorization', 'Bearer secret-token')
+      .build
+    text = config.inspect
+    _(text).must_include 'http://api.example.com'
+    _(text).must_include 'X-Public'
+    _(text).wont_include 'secret-token'
   end
 end

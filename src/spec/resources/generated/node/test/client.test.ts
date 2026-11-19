@@ -26,6 +26,7 @@ import { SessionCookieAuthenticator } from "../src/auth/session-cookie-authentic
 import { SsoAuthAuthenticator } from "../src/auth/oauth/sso-auth-authenticator.js";
 import { UserAuthAuthorizationCodeAuthenticator } from "../src/auth/oauth/user-auth-authorization-code-authenticator.js";
 import type { ApiClient } from "../src/api-client.js";
+import { DefaultApiClient } from "../src/default-api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 import * as entryPoint from "../src/index.js";
 import { PetApi, type PetApiInterface } from "../src/api/pet-api.js";
@@ -46,6 +47,21 @@ import { Pet } from "../src/models/index.js";
 describe("Client", () => {
   const authenticator = new BearerAuthenticator("/api/v3", "test-token");
 
+  test("bhv misc 203 closing a client that is already closed does nothing and raises no error", async () => {
+    const client = new Client(authenticator);
+    await client.close();
+
+    await expect(client.close()).resolves.toBeUndefined();
+  });
+
+  test("bhv misc 206 a client built with only a default authenticator is constructed", () => {
+    const onlyDefault = new BearerAuthenticator(
+      "https://only-default.example.com",
+      "tok",
+    );
+
+    expect(() => new Client(onlyDefault)).not.toThrow();
+  });
   test("bhv lifecycle 012 construct with authenticator only", () => {
     const client = new Client(authenticator);
 
@@ -66,7 +82,7 @@ describe("Client", () => {
     expect(client).toBeDefined();
   });
 
-  test("construct with authenticator, default transport and a client-level signal", () => {
+  test("bhv langnode 037 construct with authenticator, default transport and a client-level signal", () => {
     const controller = new AbortController();
 
     const client = new Client(authenticator, undefined, {
@@ -86,7 +102,7 @@ describe("Client", () => {
     ).toBeDefined();
   });
 
-  test("the client options hand the call hook to the API objects", async () => {
+  test("bhv langnode 038 the client options hand the call hook to the API objects", async () => {
     const stub = (async () =>
       new Response('{"id":1,"name":"x","photoUrls":[]}', {
         status: 200,
@@ -257,12 +273,49 @@ describe("Client", () => {
     expect(calls).toBe(1);
   });
 
-  test("construct with a custom fetch in the transport options", () => {
+  test("bhv lifecycle 042 a client built with a caller-supplied fetch sends its requests through that fetch", async () => {
+    const calls: string[] = [];
     const transport = TransportOptions.builder()
-      .fetch((async () => new Response("{}")) as typeof fetch)
+      .fetch((async (input: string | URL | Request) => {
+        calls.push(String(input));
+        return new Response('{"available":1}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch)
       .build();
 
-    expect(new Client(authenticator, transport)).toBeDefined();
+    await new Client(
+      {
+        authenticator: new BearerAuthenticator(
+          "https://api.example.com",
+          "token",
+        ),
+      },
+      transport,
+    ).store.getInventory();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("/store/inventory");
+  });
+
+  test("bhv lifecycle 045 closing the client does not close a caller-supplied fetch, which keeps sending requests", async () => {
+    let called = 0;
+    const customFetch = (async () => {
+      called++;
+      return new Response("{}");
+    }) as typeof fetch;
+    const client = new Client(
+      authenticator,
+      TransportOptions.builder().fetch(customFetch).build(),
+    );
+
+    await client.close();
+
+    expect(await customFetch("http://example.invalid/")).toBeInstanceOf(
+      Response,
+    );
+    expect(called).toBe(1);
   });
 
   describe("credentials per security scheme", () => {
@@ -301,7 +354,7 @@ describe("Client", () => {
       };
     }
 
-    test("an operation uses the credential of the scheme its spec names", async () => {
+    test("bhv langnode 039 an operation uses the credential of the scheme its spec names", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -313,6 +366,50 @@ describe("Client", () => {
       await client.pet.addPet(newPet());
 
       expect(seen[0]!.headers["Authorization"]).toBe("Bearer bearer-token");
+    });
+
+    test("bhv auth 043 an operation sends only the credential of the scheme its spec names", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+          apiKeyHeader: new ApiKeyHeaderAuthenticator(host, "key-token"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["X-API-Key"]).toBe("key-token");
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+    });
+
+    test("bhv auth 045 a credential for the scheme of the operation replaces a default Authorization header set on the client", async () => {
+      const seen: Array<Record<string, string>> = [];
+      const stub = (async (
+        _input: string | URL | Request,
+        init?: RequestInit,
+      ): Promise<Response> => {
+        seen.push({ ...(init?.headers as Record<string, string>) });
+        return new Response('{"id":1,"name":"x","photoUrls":[]}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }) as typeof fetch;
+      const transport = TransportOptions.builder()
+        .fetch(stub)
+        .defaultHeader("Authorization", "Basic ZGVmYXVsdA==")
+        .build();
+      const client = new Client(
+        {
+          petStoreBearer: new PetStoreBearerAuthenticator(host, "bearer-token"),
+        },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!["Authorization"]).toBe("Bearer bearer-token");
     });
 
     test("bhv operations 148 an operation uses the first scheme of its own list that the client holds", async () => {
@@ -331,7 +428,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["Authorization"]).toBeUndefined();
     });
 
-    test("an operation no scheme credential matches uses the default authenticator", async () => {
+    test("bhv auth 046 an operation no scheme credential matches uses the default authenticator", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         {
@@ -344,6 +441,19 @@ describe("Client", () => {
       await client.pet.addPet(newPet());
 
       expect(seen[0]!.headers["Authorization"]).toBe("Bearer default-token");
+    });
+
+    test("bhv auth 047 an operation that lists several schemes sends no scheme credential when the client holds none", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        { adminBasic: new AdminBasicAuthenticator(host, "a", "b") },
+        transport,
+      );
+
+      await client.pet.addPet(newPet());
+
+      expect(seen[0]!.headers["Authorization"]).toBeUndefined();
+      expect(seen[0]!.headers["X-API-Key"]).toBeUndefined();
     });
 
     test("bhv lifecycle 016 an operation no scheme credential matches is sent without a credential when there is no default", async () => {
@@ -359,7 +469,7 @@ describe("Client", () => {
       expect(seen[0]!.headers["X-API-Key"]).toBeUndefined();
     });
 
-    test("the default authenticator is never sent to an unauthenticated operation", async () => {
+    test("bhv auth 044 the default authenticator is never sent to an unauthenticated operation", async () => {
       const { transport, seen } = recordingTransport();
       const client = new Client(
         { authenticator: new BearerAuthenticator(host, "default-token") },
@@ -418,6 +528,19 @@ describe("Client", () => {
       expect(new Client(credentials)).toBeDefined();
     });
 
+    test("bhv misc 197 an operation none of whose schemes the client holds is sent with the default authenticator", async () => {
+      const { transport, seen } = recordingTransport();
+      const client = new Client(
+        new BearerAuthenticator(host, "default-token"),
+        transport,
+      );
+
+      await client.pet.deletePet(1);
+
+      expect(seen[seen.length - 1]!.headers["Authorization"]).toBe(
+        "Bearer default-token",
+      );
+    });
     test("bhv lifecycle 026 a client with no credential at all is refused", () => {
       expect(() => new Client({})).toThrow(
         new TypeError("At least one credential is required"),
@@ -482,7 +605,7 @@ describe("Client", () => {
       };
     }
 
-    test("a request already running finishes after close()", async () => {
+    test("bhv langnode 040 a request already running finishes after close()", async () => {
       const { transport, started, release } = gatedFetch();
       const client = new Client(closable, transport);
 
@@ -514,7 +637,7 @@ describe("Client", () => {
       await expect(client.close()).resolves.toBeUndefined();
     });
 
-    test("close() does not wait for a request that is still running", async () => {
+    test("bhv misc 184 close() does not wait for a request that is still running", async () => {
       const { transport, started, release } = gatedFetch();
       const client = new Client(closable, transport);
       const pending = client.pet.getPetById(1);
@@ -661,34 +784,33 @@ describe("Client", () => {
 describe("scheme authenticators the spec declares", () => {
   const host = "https://api.example.com";
 
-  test.each([
-    [
-      "ApiKeyHeaderAuthenticator",
-      new ApiKeyHeaderAuthenticator(host, "k-1"),
-      "header",
-      { "X-API-Key": "k-1" },
-    ],
-    [
-      "InternalApiKeyAuthenticator",
-      new InternalApiKeyAuthenticator(host, "k-1"),
-      "header",
-      { "X-Internal-Key": "k-1" },
-    ],
-    [
-      "ApiKeyQueryAuthenticator",
-      new ApiKeyQueryAuthenticator(host, "k-1"),
-      "query",
-      { api_key: "k-1" },
-    ],
-    [
-      "SessionCookieAuthenticator",
-      new SessionCookieAuthenticator(host, "k-1"),
-      "cookie",
-      { SESSION_ID: "k-1" },
-    ],
-  ])(
-    "%s emits its key in the declared location only",
-    (_name, auth, location, expected) => {
+  test("bhv misc 057 every API-key scheme emits its key in the declared location only", () => {
+    for (const [_name, auth, location, expected] of [
+      [
+        "ApiKeyHeaderAuthenticator",
+        new ApiKeyHeaderAuthenticator(host, "k-1"),
+        "header",
+        { "X-API-Key": "k-1" },
+      ],
+      [
+        "InternalApiKeyAuthenticator",
+        new InternalApiKeyAuthenticator(host, "k-1"),
+        "header",
+        { "X-Internal-Key": "k-1" },
+      ],
+      [
+        "ApiKeyQueryAuthenticator",
+        new ApiKeyQueryAuthenticator(host, "k-1"),
+        "query",
+        { api_key: "k-1" },
+      ],
+      [
+        "SessionCookieAuthenticator",
+        new SessionCookieAuthenticator(host, "k-1"),
+        "cookie",
+        { SESSION_ID: "k-1" },
+      ],
+    ] as const) {
       expect(auth.getAuthHeaders()).toEqual(
         location === "header" ? expected : {},
       );
@@ -702,16 +824,18 @@ describe("scheme authenticators the spec declares", () => {
         new RegExp(`^${_name}\\(host=https://api\\.example\\.com, `),
       );
       expect(util.inspect(auth)).not.toContain("k-1");
-    },
-  );
+    }
+  });
 
-  test.each([
-    ["ApiKeyHeaderAuthenticator", ApiKeyHeaderAuthenticator],
-    ["InternalApiKeyAuthenticator", InternalApiKeyAuthenticator],
-    ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator],
-    ["SessionCookieAuthenticator", SessionCookieAuthenticator],
-  ])("%s rejects an empty key at construction", (_name, Wrapper) => {
-    expect(() => new Wrapper(host, "")).toThrow(TypeError);
+  test("bhv langnode 049 every API-key scheme authenticator rejects an empty key at construction", () => {
+    for (const [, Wrapper] of [
+      ["ApiKeyHeaderAuthenticator", ApiKeyHeaderAuthenticator],
+      ["InternalApiKeyAuthenticator", InternalApiKeyAuthenticator],
+      ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator],
+      ["SessionCookieAuthenticator", SessionCookieAuthenticator],
+    ] as const) {
+      expect(() => new Wrapper(host, "")).toThrow(TypeError);
+    }
   });
 
   test("bhv authbasic 019 the generated Basic wrappers emit the same Basic header as the base authenticator", () => {
@@ -793,7 +917,7 @@ describe("scheme authenticators the spec declares", () => {
       }
     }
 
-    test("the client-credentials wrapper posts to the declared token URL with the declared scopes", async () => {
+    test("bhv auth 050 the client-credentials wrapper posts to the declared token URL with the declared scopes", async () => {
       const auth = new MachineAuthClientCredentialsAuthenticator(
         host,
         "cid",
@@ -809,7 +933,7 @@ describe("scheme authenticators the spec declares", () => {
       expect(calls[0]!.params.get("scope")).toBe("pets:read pets:write");
     });
 
-    test("the password wrapper posts to the token URL, then refreshes at the declared refresh URL", async () => {
+    test("bhv auth 051 the password wrapper posts to the token URL, then refreshes at the declared refresh URL", async () => {
       const auth = new LegacyAuthPasswordAuthenticator(
         host,
         "cid",
@@ -961,14 +1085,14 @@ describe("generated documentation", () => {
     ),
   ];
 
-  test("SKILLS imports every symbol from the published package, never from a source path", () => {
+  test("bhv langnode 041 SKILLS imports every symbol from the published package, never from a source path", () => {
     expect(imports.length).toBeGreaterThan(0);
     expect(new Set(imports.map((m) => m[3]))).toEqual(
       new Set(["petstore-client"]),
     );
   });
 
-  test("SKILLS imports only values the package entry point exports", () => {
+  test("bhv langnode 042 SKILLS imports only values the package entry point exports", () => {
     const exported = new Set(Object.keys(entryPoint));
     const missing: string[] = [];
     for (const [, typeOnly, names] of imports) {
@@ -984,7 +1108,7 @@ describe("generated documentation", () => {
     expect(missing).toEqual([]);
   });
 
-  test("SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm", () => {
+  test("bhv langnode 043 SKILLS error handling calls the first operation with real arguments and ends in an ApiError arm", () => {
     const call = /const result = await client\.(\w+)\.(\w+)\((.*)\);/.exec(
       skills,
     );
@@ -1019,7 +1143,7 @@ describe("generated documentation", () => {
     );
   });
 
-  test("README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client", () => {
+  test("bhv langnode 044 README documents schema constraints, uniqueItems order, cancellation and the custom HTTP client", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1037,7 +1161,7 @@ describe("generated documentation", () => {
     expect(readme).not.toContain("no cancellation API");
   });
 
-  test("README opens with a quick start that installs the package by name and catches ApiError", () => {
+  test("bhv langnode 045 README opens with a quick start that installs the package by name and catches ApiError", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1049,7 +1173,7 @@ describe("generated documentation", () => {
     expect(readme).toContain("[SKILLS.md](SKILLS.md)");
   });
 
-  test("README lists the features that are not generated", () => {
+  test("bhv langnode 046 README lists the features that are not generated", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1060,7 +1184,7 @@ describe("generated documentation", () => {
     expect(readme).toContain("### Mutual TLS");
   });
 
-  test("README and SKILLS cancel through the per-call signal, never a Configuration signal", () => {
+  test("bhv langnode 047 README and SKILLS cancel through the per-call signal, never a Configuration signal", () => {
     const readme = fs.readFileSync(
       path.join(process.cwd(), "README.md"),
       "utf8",
@@ -1072,7 +1196,7 @@ describe("generated documentation", () => {
     expect(readme).toContain("{ signal: controller.signal }");
   });
 
-  test("SKILLS Testing shows how to stub the transport with a canned fetch", () => {
+  test("bhv langnode 048 SKILLS Testing shows how to stub the transport with a canned fetch", () => {
     expect(skills).toContain("TransportOptions.builder().fetch(stub).build()");
   });
 
@@ -1382,5 +1506,67 @@ describe("mockable client", () => {
     await fake.close();
 
     expect(closed).toBe(2);
+  });
+});
+
+describe("client credentials and API groups", () => {
+  const host = "https://api.example.com";
+
+  function groupsOf(client: object): object[] {
+    return Object.values(client).filter(
+      (group): group is object =>
+        typeof group === "object" &&
+        group !== null &&
+        "schemeAuthenticators" in group,
+    );
+  }
+
+  it("bhv misc 071 a credential that needs HTTP receives the client transport", () => {
+    const received: unknown[] = [];
+    class TransportAware extends BearerAuthenticator {
+      setApiClient(apiClient: ApiClient): void {
+        received.push(apiClient);
+      }
+    }
+
+    new Client(new TransportAware(host, "tok"));
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toBeInstanceOf(DefaultApiClient);
+  });
+
+  it("bhv misc 065 scheme credentials are copied when the client is built", () => {
+    const held = new BearerAuthenticator(host, "first");
+    const credentials: { serviceToken?: BearerAuthenticator } = {
+      serviceToken: held,
+    };
+    const client = new Client(credentials);
+    credentials.serviceToken = new BearerAuthenticator(host, "second");
+
+    const groups = groupsOf(client);
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      expect(
+        Object.values(Reflect.get(group, "schemeAuthenticators")),
+      ).toContain(held);
+      expect(
+        Object.values(Reflect.get(group, "schemeAuthenticators")),
+      ).not.toContain(credentials.serviceToken);
+    }
+  });
+
+  it("bhv misc 072 every API group holds the default credential and the scheme credentials", () => {
+    const def = new BearerAuthenticator(host, "default");
+    const held = new BearerAuthenticator(host, "scheme");
+    const client = new Client({ authenticator: def, serviceToken: held });
+
+    const groups = groupsOf(client);
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      expect(Reflect.get(group, "authenticator")).toBe(def);
+      expect(Object.values(Reflect.get(group, "schemeAuthenticators"))).toEqual(
+        [held],
+      );
+    }
   });
 });

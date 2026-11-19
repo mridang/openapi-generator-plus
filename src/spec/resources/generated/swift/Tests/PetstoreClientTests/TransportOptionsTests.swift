@@ -105,7 +105,7 @@ import Testing
     #expect(try TransportOptionsBuilder().build().session == nil)
   }
 
-  @Test func testSessionIsKept() throws {
+  @Test func testBhvLangswift071SessionIsKept() throws {
     let session = URLSession(configuration: .ephemeral)
     let opts = try TransportOptionsBuilder().session(session).build()
     #expect(opts.session === session)
@@ -122,6 +122,15 @@ import Testing
         "a supplied URLSession conflicts with the SDK's own settings: caCertPath, verifySsl(false); configure them on the session instead"
       )
     ) {
+      _ = try builder.build()
+    }
+  }
+
+  /* A supplied session refused with the SDK's own redirect setting fails with a configuration error. */
+  @Test func testBhvLifecycle041SuppliedSessionConflictsWithRedirectSettings() throws {
+    let builder = TransportOptionsBuilder().session(URLSession(configuration: .ephemeral))
+    builder.followRedirects(false)
+    #expect(throws: ConfigurationError.self) {
       _ = try builder.build()
     }
   }
@@ -294,7 +303,7 @@ import Testing
     }
   }
 
-  @Test func testEmptyProxyStringClearsTheProxy() throws {
+  @Test func testBhvLangswift072EmptyProxyStringClearsTheProxy() throws {
     let opts = try TransportOptionsBuilder()
       .proxy("http://proxy.example.com:8080")
       .proxy("")
@@ -302,7 +311,7 @@ import Testing
     #expect(opts.proxy == nil)
   }
 
-  @Test func testSocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
+  @Test func testBhvOptions068SocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {
     let urls = [
       "socks://proxy.example.com:1080",
       "socks4://proxy.example.com:1080",
@@ -533,5 +542,37 @@ import Testing
     let proxied = try TransportOptionsBuilder().proxy("http://proxy.example.com:8080").build()
     #expect(proxied.proxy?.absoluteString == "http://proxy.example.com:8080")
     #expect(try TransportOptionsBuilder().build().proxy == nil)
+  }
+
+  /* A caller HTTP session cannot be combined with a transport setting the session cannot take; the build refuses it. */
+  @Test func testBhvMisc034ACallerSessionAndATransportSettingAreRefusedTogether() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder()
+        .session(URLSession(configuration: .ephemeral))
+        .proxy("http://127.0.0.1:8080")
+        .build()
+    }
+  }
+
+  /* Disabled TLS verification with a caller session is refused at build, and the error names the setting. */
+  @Test func testBhvMisc042DisabledVerificationWithASessionIsRefusedNamingTheSetting() {
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder()
+        .session(URLSession(configuration: .ephemeral))
+        .verifySsl(false)
+        .build()
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected an invalidArgument error, got \(String(describing: error))")
+      return
+    }
+    #expect(message.contains("verifySsl(false)"))
+  }
+
+  /* A zero timeout is refused when the options are built, with a configuration error rather than a request error. */
+  @Test func testBhvMisc134AZeroTimeoutIsRefusedAtBuildWithAConfigurationError() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try TransportOptionsBuilder().timeout(0).build()
+    }
   }
 }

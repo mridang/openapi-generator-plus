@@ -80,7 +80,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert String.contains?(url, "state=my-state")
     end
 
-    test "authorization URL parameters are in the fixed order" do
+    test "bhv langelixir 045 authorization URL parameters are in the fixed order" do
       auth = create_authenticator()
 
       url =
@@ -205,6 +205,15 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticatorTest do
       assert shown =~ ~s(host: "https://api.example.com")
       assert shown =~ ~s(client_id: "my-client-id")
       assert shown =~ ~s(authorization_url: "https://auth.example.com/authorize")
+    end
+
+    test "bhv auth 049 the implicit flow builds an authorize URL with response_type token and %20 scopes" do
+      auth = create_authenticator()
+
+      url = PetstoreClient.Auth.OAuth.OAuth2ImplicitAuthenticator.build_authorization_url(auth)
+
+      assert String.contains?(url, "response_type=token")
+      assert String.contains?(url, "scope=read%20write")
     end
   end
 end

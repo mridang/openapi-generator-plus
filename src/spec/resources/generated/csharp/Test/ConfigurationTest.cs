@@ -14,6 +14,31 @@ namespace Test;
 public class ConfigurationTest
 {
     [Fact]
+    public void BhvMisc276TheDefaultConfigurationAndTheDefaultBuilderUseTheSpecBaseUrl()
+    {
+        Assert.Equal("/api/v3", Configuration.DefaultConfiguration().BaseUrl);
+        Assert.Equal("/api/v3", Configuration.Builder().Build().BaseUrl);
+    }
+
+    [Fact]
+    public void BhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject()
+    {
+        Assert.NotSame(Configuration.DefaultConfiguration(), Configuration.DefaultConfiguration());
+    }
+
+    [Fact]
+    public void BhvMisc279ChangingACopyOfTheDefaultHeadersDoesNotChangeTheConfiguration()
+    {
+        var config = Configuration.Builder().DefaultHeader("X-Trace", "abc").Build();
+
+        var copy = new Dictionary<string, string>(config.DefaultHeaders);
+        copy["X-Other"] = "changed";
+
+        Assert.False(config.DefaultHeaders.ContainsKey("X-Other"));
+        Assert.Single(config.DefaultHeaders);
+    }
+
+    [Fact]
     public void BhvConfig018DefaultConstructorUsesSpecBaseUrl()
     {
         var config = new Configuration();
@@ -31,6 +56,21 @@ public class ConfigurationTest
         Assert.Empty(config.DefaultHeaders);
     }
 
+    [Fact]
+    public void BhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders()
+    {
+        var config = Configuration
+            .Builder()
+            .BaseUrl("https://api.example.com/v2")
+            .DefaultHeader("X-Trace", "keep")
+            .Build();
+
+        var text = config.ToString();
+
+        Assert.Contains("https://api.example.com/v2", text, StringComparison.Ordinal);
+        Assert.Contains("keep", text, StringComparison.Ordinal);
+    }
+
     private sealed class NoopHook : ICallHook
     {
         public ICallObserver? Start(CallInfo info, IDictionary<string, string> headers) => null;
@@ -39,7 +79,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void TheBuilderSetsTheCallHookAndTheDefaultIsNone()
+    public void BhvLangcsharp066TheBuilderSetsTheCallHookAndTheDefaultIsNone()
     {
         var hook = new NoopHook();
 
@@ -49,7 +89,7 @@ public class ConfigurationTest
     }
 
     [Fact]
-    public void TheStringFormDoesNotPrintTheCallHook()
+    public void BhvLangcsharp067TheStringFormDoesNotPrintTheCallHook()
     {
         var config = Configuration.Builder().CallHook(new NoopHook()).Build();
 
@@ -164,6 +204,14 @@ public class ConfigurationTest
         Assert.Equal(2, config.DefaultHeaders.Count);
         Assert.Equal("Bearer token", config.DefaultHeaders["Authorization"]);
         Assert.Equal("value", config.DefaultHeaders["X-Custom"]);
+    }
+
+    [Fact]
+    public void BhvConfig026BuilderReturnsTheBaseUrlThatWasSet()
+    {
+        var config = Configuration.Builder().BaseUrl("https://builder.example.com").Build();
+
+        Assert.Equal("https://builder.example.com", config.BaseUrl);
     }
 
     [Fact]
@@ -376,5 +424,16 @@ public class ConfigurationTest
             new Dictionary<string, ServerVariable>()
         );
         Assert.Same(builder, builder.Server(server));
+    }
+
+    [Fact]
+    public void BhvMisc180TheInspectFormShowsTheValueOfANonSensitiveDefaultHeader()
+    {
+        var config = new Configuration(
+            "https://api.example.com",
+            new Dictionary<string, string> { ["X-Trace"] = "visible-value" }
+        );
+
+        Assert.Contains("visible-value", config.ToString(), StringComparison.Ordinal);
     }
 }

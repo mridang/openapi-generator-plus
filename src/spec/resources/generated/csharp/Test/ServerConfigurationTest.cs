@@ -17,6 +17,22 @@ public class ServerConfigurationTest
     private static readonly string[] ExpectedHostileValues = ["o'neil", "a&b"];
 
     [Fact]
+    public void BhvMisc278AServerUrlTemplateWithNoOverridesResolvesToTheDefaultOfEachVariable()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/api/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("staging", null, ["staging", "api"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        Assert.Equal("https://staging.example.com/api/v3", server.GetUrl());
+    }
+
+    [Fact]
     public void BhvServers010GetUrlSubstitutesDefaultValues()
     {
         var server = new ServerConfiguration(
@@ -184,6 +200,95 @@ public class ServerConfigurationTest
     }
 
     [Fact]
+    public void BhvMisc297GetUrlReplacesEveryVariableWhenSeveralArePresent()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com:{port}/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["port"] = new ServerVariable("8443", null, ["8443", "443"]),
+                ["version"] = new ServerVariable("v3", null, ["v2", "v3"]),
+            }
+        );
+
+        var url = server.GetUrl(
+            new Dictionary<string, string>
+            {
+                ["env"] = "staging",
+                ["port"] = "443",
+                ["version"] = "v2",
+            }
+        );
+
+        Assert.Equal("https://staging.example.com:443/v2", url);
+    }
+
+    [Fact]
+    public void BhvMisc258AVariableWithNoOverrideUsesItsDefaultInTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{path}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+                ["path"] = new ServerVariable("v1", null, ["v1", "v2"]),
+            }
+        );
+
+        Assert.Equal("https://api.example.com/v1", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc259APlaceholderWithNoDeclaredVariableStaysInTheUrlAsWritten()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com/{unknown}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api"]),
+            }
+        );
+
+        Assert.Equal("https://api.example.com/{unknown}", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc260ANullOverrideForAnEnumVariableIsRejectedNotSubstituted()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        Assert.ThrowsAny<ArgumentException>(() =>
+            server.GetUrl(new Dictionary<string, string> { ["env"] = null! })
+        );
+    }
+
+    [Fact]
+    public void BhvMisc261ABackslashSequenceInAValueIsInsertedLiterally()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable> { ["env"] = new ServerVariable("api", null, []) }
+        );
+
+        Assert.Equal(
+            "https://a\\nb.example.com",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "a\\nb" })
+        );
+    }
+
+    [Fact]
     public void BhvServers002GetUrlSubstitutesARepeatedVariableEverywhere()
     {
         var server = new ServerConfiguration(
@@ -246,7 +351,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlAcceptsAnyValueWhenEnumIsEmpty()
+    public void BhvMisc257GetUrlAcceptsAnyValueWhenEnumIsEmpty()
     {
         var server = new ServerConfiguration(
             "https://{env}.example.com",
@@ -311,7 +416,7 @@ public class ServerConfigurationTest
     }
 
     [Fact]
-    public void GetUrlNullOverridesThrows()
+    public void BhvLangcsharp070GetUrlNullOverridesThrows()
     {
         var server = new ServerConfiguration(
             "https://api.example.com",
@@ -379,5 +484,124 @@ public class ServerConfigurationTest
                 Assert.Throws<NotSupportedException>(() => allowed.Add("unlisted"));
             }
         }
+    }
+
+    [Fact]
+    public void BhvMisc139ACollectionPassedInIsCopiedAndTheConfigurationCannotChangeIt()
+    {
+        var source = new Dictionary<string, ServerVariable>
+        {
+            ["region"] = new ServerVariable("eu", null, []),
+        };
+        var server = new ServerConfiguration("https://{region}.example.com", null, source);
+        source["zone"] = new ServerVariable("us", null, []);
+        Assert.False(server.Variables.ContainsKey("zone"));
+        Assert.Throws<NotSupportedException>(() =>
+            ((IDictionary<string, ServerVariable>)(object)server.Variables)["zone"] =
+                new ServerVariable("us", null, [])
+        );
+    }
+
+    [Fact]
+    public void BhvMisc154TheVariablesMapReturnedByTheAccessorCannotBeEdited()
+    {
+        var server = new ServerConfiguration(
+            "https://{region}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["region"] = new ServerVariable("eu", null, []),
+            }
+        );
+        Assert.Throws<NotSupportedException>(() =>
+            ((IDictionary<string, ServerVariable>)(object)server.Variables)["region"] =
+                new ServerVariable("us", null, [])
+        );
+        Assert.Equal("https://eu.example.com", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvMisc155AnUnsetEnumVariableWhoseDefaultIsNotAllowedIsRefusedNamingIt()
+    {
+        var server = new ServerConfiguration(
+            "https://{region}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["region"] = new ServerVariable("apac", null, ["eu", "us"]),
+            }
+        );
+        var ex = Assert.Throws<ArgumentException>(() => server.GetUrl());
+        Assert.Contains("'region'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("Allowed values: [eu, us]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvMisc156TheListOfAllServersKeepsTheDeclaredOrder()
+    {
+        Assert.Same(Servers.Server0, Servers.All[0]);
+        Assert.Same(Servers.Server1, Servers.All[1]);
+        Assert.Same(Servers.Server2, Servers.All[2]);
+    }
+
+    [Fact]
+    public void BhvMisc157ExplicitVariableValuesAreResolvedIntoTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.api.example.com/v{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("prod", null, []),
+                ["version"] = new ServerVariable("2", null, []),
+            }
+        );
+
+        Assert.Equal(
+            "https://staging.api.example.com/v5",
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "staging", ["version"] = "5" })
+        );
+    }
+
+    [Fact]
+    public void BhvMisc158AServerWithAFixedUrlReportsExactlyThatUrl()
+    {
+        var server = new ServerConfiguration("https://fixed.example.com/v1/items");
+
+        Assert.Equal("https://fixed.example.com/v1/items", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvServers029APlaceholderFromADefaultStaysLiteralInTheUrl()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.api.example.com/{version}",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("{version}"),
+                ["version"] = new ServerVariable("v2"),
+            }
+        );
+
+        Assert.Equal("https://{version}.api.example.com/v2", server.GetUrl());
+    }
+
+    [Fact]
+    public void BhvServers030AValueOutsideTheDeclaredEnumIsRejectedWithAnError()
+    {
+        var server = new ServerConfiguration(
+            "https://{env}.example.com",
+            null,
+            new Dictionary<string, ServerVariable>
+            {
+                ["env"] = new ServerVariable("api", null, ["api", "staging"]),
+            }
+        );
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            server.GetUrl(new Dictionary<string, string> { ["env"] = "canary" })
+        );
+        Assert.Contains("'canary'", ex.Message, StringComparison.Ordinal);
     }
 }

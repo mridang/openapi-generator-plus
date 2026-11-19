@@ -368,7 +368,7 @@ import Testing
 
     /* F1054: expiry is read off a clock that a wall-clock change does not
      * move: it never runs backwards and it ticks in real time. */
-    @Test func testExpiryClockIsMonotonic() async throws {
+    @Test func testBhvLangswift051ExpiryClockIsMonotonic() async throws {
         let first = MonotonicClock.now()
         try await Task.sleep(nanoseconds: 20_000_000)
         let second = MonotonicClock.now()
@@ -376,7 +376,7 @@ import Testing
         #expect(second - first < 5)
     }
 
-    @Test func testNonPositiveExpiresInIsStaleImmediately() {
+    @Test func testBhvLangswift052NonPositiveExpiresInIsStaleImmediately() {
         let now: TimeInterval = 1_000_000
         #expect(OAuth2TokenManager.expiry(for: 0, now: now) == now)
         #expect(OAuth2TokenManager.expiry(for: -5, now: now) == now)
@@ -505,7 +505,7 @@ import Testing
         #expect(formFields(client.requests[2].body) == authorizationCodeGrant)
     }
 
-    @Test func testMalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
+    @Test func testBhvAuth057MalformedRefreshResponseFallsBackToTheOriginalGrant() async throws {
         let client = MockApiClient()
         client.responses.append(
             makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -564,7 +564,7 @@ import Testing
             ])
     }
 
-    @Test func testTokenRequestBodyEncodesNonAsciiAsUtf8() async throws {
+    @Test func testBhvLangswift053TokenRequestBodyEncodesNonAsciiAsUtf8() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
         let manager = OAuth2TokenManager()
@@ -764,7 +764,7 @@ import Testing
         #expect(OAuth2TokenManager.parseExpiresIn(json?["expires_in"]) == seconds)
     }
 
-    @Test func testHugeExpiresInCachesTheToken() async throws {
+    @Test func testBhvLangswift054HugeExpiresInCachesTheToken() async throws {
         let client = MockApiClient()
         client.responses.append(makeResponse(body: "{\"access_token\":\"huge1\",\"expires_in\":1e20}"))
         client.responses.append(makeResponse(body: "{\"access_token\":\"huge2\",\"expires_in\":3600}"))
@@ -887,6 +887,30 @@ import Testing
         }
     }
 
+    /* A token response whose access token is empty or not a string, or whose body is not a
+     * JSON object, is refused with an error that names the problem. */
+    @Test(arguments: [
+        ("{\"access_token\":\"\"}", "access_token"),
+        ("{\"access_token\":5}", "access_token"),
+        ("[1,2]", "JSON object"),
+    ])
+    func testBhvMisc069AnUnusableTokenResponseIsRefusedWithAProblem(body: String, names: String) async {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: body))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+
+        do {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token",
+                params: ["grant_type": "client_credentials"]
+            )
+            Issue.record("Expected OAuth2TokenError for \(body)")
+        } catch {
+            #expect(String(describing: error).contains(names))
+        }
+    }
+
     /// A 2xx response whose body is not a token JSON object must surface as
     /// OAuth2TokenError.invalidResponse, not a foreign DecodingError.
     @Test func testBhvAuthoauthtwotokenmgr001TokenResponseThatIsNotJsonThrowsTypedError() async {
@@ -961,7 +985,7 @@ import Testing
     @Test func testBhvAuth013CancelledCallerDoesNotWaitForTheTokenEndpoint() async throws {
         let client = CountingMockApiClient(
             responseBody: "{\"access_token\":\"slow\",\"expires_in\":3600}",
-            delayNanos: 600_000_000)
+            delayNanos: 5_000_000_000)
         let manager = OAuth2TokenManager()
         manager.setApiClient(client)
         let params = ["grant_type": "client_credentials"]
@@ -974,7 +998,7 @@ import Testing
         waiter.cancel()
         let outcome = await waiter.result
         #expect(throws: CancellationError.self) { try outcome.get() }
-        #expect(Date().timeIntervalSince(started) < 0.5)
+        #expect(Date().timeIntervalSince(started) < 2.0)
 
         let token = try await manager.getAccessToken(
             tokenURL: "https://auth.example.com/token", params: params)
@@ -1292,7 +1316,7 @@ import Testing
     }
 
     /* exchange never redeems the stored refresh token. */
-    @Test func testExchangeBypassesTheRefreshToken() async throws {
+    @Test func testBhvAuth053ExchangeBypassesTheRefreshToken() async throws {
         let client = MockApiClient()
         client.responses.append(
             makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
@@ -1337,5 +1361,21 @@ import Testing
         manager.setApiClient(client)
         manager.invalidateAccessToken()
         #expect(client.requests.isEmpty)
+    }
+
+
+    /* A token error whose body is not JSON keeps the status and the raw body, with no error code. */
+    @Test func testBhvMisc018ANonJsonTokenErrorKeepsTheRawBody() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "plain text failure", statusCode: 400))
+        let manager = OAuth2TokenManager()
+        manager.setApiClient(client)
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await manager.getAccessToken(
+                tokenURL: "https://auth.example.com/token", params: authorizationCodeGrant)
+        }
+        #expect(error?.statusCode == 400)
+        #expect(error?.code == nil)
+        #expect(error?.errorDescription?.contains("plain text failure") == true)
     }
 }

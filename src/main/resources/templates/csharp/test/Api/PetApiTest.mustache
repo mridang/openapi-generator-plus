@@ -129,7 +129,40 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestFindPetsByStatusNoArgsDoesNotThrow()
+    public async Task BhvMisc003AnAllOptionalOperationRunsWithNoArgumentsAndSendsNoOmittedParameter()
+    {
+        var client = new QueryCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config);
+
+        await api.FindPetsByStatusAsync();
+
+        Assert.DoesNotContain("status=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc004CallingWithRequiredFieldsAndNoOptionsNamesTheFirstMissingField()
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(
+            () => _api.GetPetByNameAsync("Rex", null!));
+        Assert.Equal("options.Category", ex.ParamName);
+        Assert.Contains(
+            "Missing the required parameter 'category' when calling PetApi.GetPetByName",
+            ex.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc005ABareNullBodyForAListOperationRaisesAnApiError()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "null");
+
+        await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(
+            () => mockApi.FindPetsByStatusAsync(new FindPetsByStatusOptions { Status = "available" }));
+    }
+
+    [Fact]
+    public async Task BhvLangcsharp021TestFindPetsByStatusNoArgsDoesNotThrow()
     {
         // L10 regression: findPetsByStatus has ONLY optional params, so the
         // Options arg is generated as `FindPetsByStatusOptions? options = null`.
@@ -213,7 +246,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestAddPetPhotosNullOptionsNamesTheFirstRequiredField()
+    public async Task BhvLangcsharp022TestAddPetPhotosNullOptionsNamesTheFirstRequiredField()
     {
         var ex = await Assert.ThrowsAsync<ArgumentNullException>(
             () => _api.AddPetPhotosAsync(1L, null!));
@@ -278,7 +311,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestDeletePetRejectsControlCharInCookieParam()
+    public async Task BhvLangcsharp023TestDeletePetRejectsControlCharInCookieParam()
     {
         // A bare control character (not only CR/LF) in the operation cookie
         // value is equally forbidden by RFC 6265 and must fail closed.
@@ -632,7 +665,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestGetStagingPetInfoUsesTheResolvedVariableUrl()
+    public async Task BhvLangcsharp024TestGetStagingPetInfoUsesTheResolvedVariableUrl()
     {
         {{! The operation's server has two enum variables. The chosen variant }}
         {{! resolves them into the URL the SDK asks for; the client below sends }}
@@ -1011,6 +1044,167 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvAuth043AnOperationSendsOnlyTheCredentialOfItsNamedScheme()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+            ["apiKeyHeader"] = new ApiKeyHeaderAuthenticator("http://localhost", "key-1"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("key-1", client.CapturedHeaders["X-API-Key"]);
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvAuth044AnOperationWithNoSecurityRequirementSendsNoCredential()
+    {
+        var client = new HeaderCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build(),
+            new BearerAuthenticator("http://localhost", "client-token"));
+
+        try
+        {
+            await api.GetInventoryAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
+    }
+
+    [Fact]
+    public async Task BhvAuth045ASchemeCredentialReplacesADefaultAuthorizationHeader()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("Authorization", "Bearer default-token")
+            .Build();
+        var schemes = new Dictionary<string, IAuthenticator>
+        {
+            ["petStoreBearer"] = new BearerAuthenticator("http://localhost", "scheme-token"),
+        };
+        var api = new PetApi(client, config, null, schemes);
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet);
+
+        Assert.Equal("Bearer scheme-token", client.CapturedHeaders["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvAuth047AnOperationSendsNoSchemeCredentialWhenItHoldsNone()
+    {
+        var client = new HeaderCapturingApiClient();
+        var config = Configuration.Builder().BaseUrl("http://localhost").Build();
+        var api = new PetApi(client, config, null, new Dictionary<string, IAuthenticator>());
+
+        var pet = new Pet("SchemeDog", new HashSet<string> { "http://example.com/p.jpg" }) { Id = 1L };
+        await api.AddPetAsync(pet);
+
+        Assert.False(client.CapturedHeaders.ContainsKey("Authorization"));
+        Assert.False(client.CapturedHeaders.ContainsKey("X-API-Key"));
+    }
+
+    [Fact]
+    public async Task BhvOperations159ASuccessWithAnEmptyBodyRaisesATypedApiError()
+    {
+        var mockApi = NewPetApiForMock(200, "application/json", "");
+
+        var ex = await Assert.ThrowsAsync<{{packageName}}.Errors.ApiException>(
+            () => mockApi.GetPetByIdAsync(1L));
+        Assert.Equal(200, ex.StatusCode);
+
+        var client = new DateWireCapturingApiClient { ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}" };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = "a b", Rank = 3 });
+
+        Assert.EndsWith("?note=a%20b&rank=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations160AnExternalVariantOperationGoesToItsServerVariantUrl()
+    {
+        const string externalServer = "https://external-api.example.com/v1";
+        var redirecting = new RedirectingApiClient(externalServer, _baseUrl);
+        var externalApi = new PetApi(redirecting, _config);
+
+        _ = await externalApi.GetExternalPetInfoAsync(1L, new GetExternalPetInfoServerServer0());
+
+        var requested = Assert.Single(redirecting.RequestedUrls);
+        Assert.StartsWith(externalServer + "/", requested.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations162ADateOnlyParameterIsSentAsABareDate()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        try
+        {
+            await api.GetPetSummaryAsync(7L, new DateOnly(2024, 1, 15), new GetPetSummaryOptions { Session = "s" });
+        }
+        catch (OpenAPIException)
+        {
+            // The request is captured before the empty body fails to deserialize.
+        }
+
+        Assert.Contains("2024-01-15", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("T00:00", client.CapturedUrl!.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations164ACallMissingARequiredParameterIsRefusedBeforeAnyRequest()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAnyAsync<ArgumentException>(() => api.GetPetSummaryAsync(
+            7L, new DateOnly(2024, 1, 15), new GetPetSummaryOptions { Session = "" }));
+
+        Assert.StartsWith("Missing the required parameter 'session'", ex.Message, StringComparison.Ordinal);
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
+    public async Task BhvOperations165APathParameterIsWrittenWithTheDeclaredStyle()
+    {
+        var client = new UrlCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetTagAsync(7L, "cute", new GetPetTagOptions());
+
+        Assert.Contains("/pet/;petId=7/tag/.cute", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvOperations163ABodylessCallSendsNoContentTypeWhateverTheDefaultHeaderCase()
+    {
+        var handler = new CapturingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var config = Configuration.Builder()
+            .BaseUrl("http://localhost")
+            .DefaultHeader("content-type", "application/json")
+            .Build();
+        var api = new PetApi(new DefaultApiClient(transport), config);
+
+        _ = await api.GetPetByIdAsync(1L);
+
+        Assert.DoesNotContain(handler.HeaderNames, name => string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
     public async Task BhvOperations078TestAddPetUsesConfiguredCredentialsWhenAuthOmitted()
     {
         // When no per-call auth is supplied (Options omitted entirely), the
@@ -1031,7 +1225,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
+    public async Task BhvLangcsharp025TestTheClientRoutesEachSchemeCredentialToTheOperationThatRequiresIt()
     {
         // The client holds one credential per scheme, named after the scheme.
         // addPet accepts apiKeyHeader or petStoreBearer, so the credential
@@ -1074,10 +1268,17 @@ public class PetApiTest
     {
         public string? Authorization { get; private set; }
 
+        public List<string> HeaderNames { get; } = new();
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Authorization = request.Headers.Authorization?.ToString();
+            HeaderNames.AddRange(request.Headers.Select(header => header.Key));
+            if (request.Content != null)
+            {
+                HeaderNames.AddRange(request.Content.Headers.Select(header => header.Key));
+            }
             return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK)
             {
                 Content = new StringContent(
@@ -1103,7 +1304,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestPathParamEncodedExactlyOnce()
+    public async Task BhvSerialization109TestPathParamEncodedExactlyOnce()
     {
         // path-double-encoding regression: a string path param carrying an
         // encodable char (space, '/') must be percent-encoded exactly once.
@@ -1198,28 +1399,13 @@ public class PetApiTest
         await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = 3 });
 
         Assert.EndsWith("?note=&rank=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
-    }
 
-    [Fact]
-    public async Task BhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
-    {
-        var client = new DateWireCapturingApiClient { ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}" };
-        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var bothNull = new DateWireCapturingApiClient { ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}" };
+        var bothNullApi = new PetApi(bothNull, Configuration.Builder().BaseUrl("http://localhost").Build());
 
-        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = null });
+        await bothNullApi.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = null });
 
-        Assert.EndsWith("?note=&rank=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task BhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
-    {
-        var client = new DateWireCapturingApiClient { ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}" };
-        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
-
-        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = "a b", Rank = 3 });
-
-        Assert.EndsWith("?note=a%20b&rank=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
+        Assert.EndsWith("?note=&rank=", bothNull.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1405,7 +1591,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task TestJsonNullBodyForCollectionReturningOpThrowsApiException()
+    public async Task BhvLangcsharp026TestJsonNullBodyForCollectionReturningOpThrowsApiException()
     {
         var mockApi = NewPetApiForMock(200, "application/json", "null");
 
@@ -1712,7 +1898,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public async Task FormDateTimeParamEmitsCanonicalStringifyForm()
+    public async Task BhvLangcsharp027FormDateTimeParamEmitsCanonicalStringifyForm()
     {
         var client = new DateWireCapturingApiClient
         {
@@ -1808,7 +1994,7 @@ public class PetApiTest
     }
 
     [Fact]
-    public void OperationsThatAreNotDeprecatedCarryNoObsoleteMarker()
+    public void BhvLangcsharp028OperationsThatAreNotDeprecatedCarryNoObsoleteMarker()
     {
         var method = typeof(PetApi).GetMethods().First(m => m.Name == "AddPetAsync");
 

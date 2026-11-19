@@ -20,6 +20,22 @@ class TestApiResult:
         assert result.raw_body == '{"id": 1}'
         assert result.headers == {"Content-Type": "application/json"}
 
+    def test_bhv_results_007_data_raw_body_and_headers_are_returned_exactly_as_supplied(
+        self,
+    ) -> None:
+        result = ApiResult(
+            status_code=200,
+            data={"id": 1},
+            raw_body='{"id": 1}',
+            headers={"Content-Type": "application/json"},
+        )
+
+        assert (result.data, result.raw_body, result.headers) == (
+            {"id": 1},
+            '{"id": 1}',
+            {"Content-Type": "application/json"},
+        )
+
     def test_bhv_results_004_an_api_result_exposes_the_deserialized_data(self) -> None:
         result = ApiResult(status_code=200, data={"id": 2}, raw_body="", headers={})
 
@@ -55,7 +71,7 @@ class TestApiResult:
         with pytest.raises(TypeError):
             cast(Any, result.headers)["X-New"] = "1"
 
-    def test_is_frozen(self) -> None:
+    def test_bhv_lang_python_008_is_frozen(self) -> None:
         # ApiResult is an immutable @dataclass(frozen=True); attribute
         # assignment must raise.
         result: ApiResult[None] = ApiResult(

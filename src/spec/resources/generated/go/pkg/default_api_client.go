@@ -198,10 +198,11 @@ func redactedTransportMessage(err error) string {
 		return err.Error()
 	}
 	parsed, perr := url.Parse(urlErr.URL)
-	if perr != nil || parsed.RawQuery == "" {
+	if perr != nil {
 		return err.Error()
 	}
-	return fmt.Sprintf("%s %q: %v", urlErr.Op, redactURL(parsed), urlErr.Err)
+	/* The request target is shown as its path only: no scheme, host, query or fragment. */
+	return fmt.Sprintf("%s %q: %v", urlErr.Op, parsed.EscapedPath(), urlErr.Err)
 }
 
 // redirectRefusalMessage is the text of a refused redirect: the CheckRedirect
@@ -264,6 +265,11 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		// no body -- remove Content-Type to avoid sending it without a body
 		removeHeader(merged, "Content-Type")
 	case []byte:
+		/* A generated operation without a body passes a typed nil slice, not an
+		 * untyped nil, so it takes the same path as no body at all. */
+		if b == nil {
+			removeHeader(merged, "Content-Type")
+		}
 		bodyReader = bytes.NewReader(b)
 	case map[string]any:
 		buf, contentType, err := buildTransportMultipartBody(b)
@@ -657,8 +663,14 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 					}
 				}
 			}
+			// Only 303 may cross the downgrade: it coerces to GET and carries no
+			// body. 301, 302, 307 and 308 would put the body on the wire in
+			// cleartext, so a body on the hop that received the redirect is refused.
+			// net/http drops a POST body on 301/302 before this check, so the
+			// body is read from the previous hop, which still holds it.
+			prevHasBody := via[len(via)-1].Body != nil && via[len(via)-1].Body != http.NoBody
 			hasBody := req.Body != nil && req.Body != http.NoBody
-			if (prevStatus == 307 || prevStatus == 308 || replayed) && hasBody &&
+			if prevStatus != 303 && (prevHasBody || hasBody || replayed) &&
 				strings.EqualFold(via[len(via)-1].URL.Scheme, "https") &&
 				strings.EqualFold(req.URL.Scheme, "http") {
 				return fmt.Errorf(
@@ -666,6 +678,9 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 					redactURL(via[len(via)-1].URL), redactURL(req.URL))
 			}
 			if !sameOrigin(origURL, req.URL) {
+				for name := range opts.DefaultHeaders() {
+					req.Header.Del(name)
+				}
 				for _, name := range sensitiveHeaderAllowlist {
 					req.Header.Del(name)
 				}

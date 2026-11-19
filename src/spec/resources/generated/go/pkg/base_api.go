@@ -11,6 +11,8 @@ package petstore
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -192,7 +194,8 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	if params.settings != nil {
 		callTimeout, callMaxRetries, callHeaders = params.settings.timeout, params.settings.maxRetries, params.settings.headers
 	}
-	requestPath := requestPathOf(params.path)
+	/* The path of the full request URL: a relative base URL's path prefix is part of it. */
+	requestPath := requestPathOf(requestURL)
 
 	/* Everything from here on is rebuilt for every attempt: a replayed or
 	 * retried request is a fresh request, so its authentication headers, query
@@ -404,7 +407,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		}
 		if err != nil {
 			attachRequestContext(err, params.method, requestPath)
-			if !streamBody && retries < maxRetries && isRetryableTransportError(err) {
+			if !streamBody && retries < maxRetries && isIdempotentMethod(params.method) && isRetryableTransportError(err) {
 				proceed, cancelErr := waitBeforeRetry(ctx, retries, nil)
 				if cancelErr != nil {
 					return nil, cancelErr
@@ -419,7 +422,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		}
 
 		/* Check for errors */
-		if response.StatusCode >= 200 && response.StatusCode < 300 {
+		if response.StatusCode >= 200 && response.StatusCode < 400 {
 			return response, nil
 		}
 		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)
@@ -472,11 +475,21 @@ func isRetryableStatus(status int) bool {
 }
 
 // isRetryableTransportError reports whether a send failure is a network error
-// that may succeed on another attempt. A timeout, a cancellation and a closed
-// client never are: a timed-out attempt has already spent its budget, and the
-// other languages do not retry it either.
+// that may succeed on another attempt. A timeout, a cancellation, a closed
+// client and a TLS failure never are: a timed-out attempt has already spent its
+// budget, and a certificate the server cannot satisfy fails the same way again.
 func isRetryableTransportError(err error) bool {
 	if errors.Is(err, context.Canceled) || errors.Is(err, ErrClientClosed) {
+		return false
+	}
+	var certErr *tls.CertificateVerificationError
+	var unknownAuthority x509.UnknownAuthorityError
+	var hostnameErr x509.HostnameError
+	var invalidCert x509.CertificateInvalidError
+	var recordErr tls.RecordHeaderError
+	var alertErr tls.AlertError
+	if errors.As(err, &certErr) || errors.As(err, &unknownAuthority) || errors.As(err, &hostnameErr) ||
+		errors.As(err, &invalidCert) || errors.As(err, &recordErr) || errors.As(err, &alertErr) {
 		return false
 	}
 	var timeoutErr *errors_pkg.NetworkTimeoutError
@@ -485,6 +498,17 @@ func isRetryableTransportError(err error) bool {
 	}
 	var networkErr *errors_pkg.NetworkError
 	return errors.As(err, &networkErr)
+}
+
+// isIdempotentMethod reports whether a request may be sent again after its
+// connection dropped without changing server state (RFC 9110 section 9.2.2).
+// A POST or PATCH is sent once, because the server may already have acted on it.
+func isIdempotentMethod(method string) bool {
+	switch strings.ToUpper(method) {
+	case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE":
+		return true
+	}
+	return false
 }
 
 // retryAfterDelay reads a Retry-After header (delay in seconds or an HTTP

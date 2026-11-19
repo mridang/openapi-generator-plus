@@ -84,7 +84,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
 
     # The authenticator generated for the spec's password scheme passes its
     # token and refresh URLs to the flow in the right places.
-    test "scheme authenticator keeps the credentials and the declared URLs" do
+    test "bhv langelixir 018 scheme authenticator keeps the credentials and the declared URLs" do
       auth =
         PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator.new(
           "https://api.example.com",
@@ -692,6 +692,27 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticatorTest do
       assert shown =~ ~s(client_id: "my-client-id")
       assert shown =~ ~s(token_url: "https://auth.example.com/token")
       assert shown =~ ~s(username: "testuser")
+    end
+
+    test "bhv auth 051 the password grant posts to the declared token URL with the declared scopes" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.set_api_client(auth, fake_client)
+
+      PetstoreClient.Auth.OAuth.OAuth2PasswordAuthenticator.auth_headers(auth)
+
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/token"
+      assert String.contains?(FakeApiClient.last_body(fake_client), "grant_type=password")
+      assert String.contains?(FakeApiClient.last_body(fake_client), "scope=read+write")
     end
   end
 end

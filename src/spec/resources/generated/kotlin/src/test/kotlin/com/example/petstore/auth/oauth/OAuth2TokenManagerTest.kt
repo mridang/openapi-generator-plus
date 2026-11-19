@@ -9,9 +9,16 @@ package com.example.petstore.auth.oauth
 
 import com.example.petstore.ApiClient
 import com.example.petstore.ApiHttpResponse
+import com.example.petstore.DefaultApiClient
+import com.example.petstore.TransportOptions
 import com.example.petstore.errors.OAuth2ServerException
 import com.example.petstore.errors.OAuth2TokenException
 import com.example.petstore.errors.OpenAPIException
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -76,6 +83,37 @@ class OAuth2TokenManagerTest {
             } finally {
                 cancelled = true
             }
+    }
+
+    @Test
+    @DisplayName("bhvMisc172 a token request is sent once and not retried when the server answers 503")
+    fun bhvMisc172TokenRequestIsNotRetriedOn503() {
+        var attempts = 0
+        val engine =
+            MockEngine { _ ->
+                attempts++
+                respond(
+                    "{\"error\":\"temporarily_unavailable\"}",
+                    HttpStatusCode.ServiceUnavailable,
+                    headersOf("Content-Type", "application/json"),
+                )
+            }
+        val manager = OAuth2TokenManager()
+        manager.apiClient =
+            DefaultApiClient(
+                HttpClient(engine) { followRedirects = false },
+                TransportOptions
+                    .builder()
+                    .timeout(null)
+                    .maxRetries(2)
+                    .build(),
+            )
+        assertThrows(OAuth2ServerException::class.java) {
+            runBlocking {
+                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+            }
+        }
+        assertEquals(1, attempts)
     }
 
     @Test
@@ -631,7 +669,8 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    fun nonFiniteExpiresInMarksTheTokenStale() {
+    @DisplayName("bhvAuth056 an expires_in value is honoured only as a decimal number and any other value marks the token stale")
+    fun bhvAuth056NonDecimalExpiresInMarksTheTokenStale() {
         val client = FakeApiClient()
         client.enqueue("""{"access_token":"inf1","expires_in":"Infinity"}""")
         client.enqueue("""{"access_token":"inf2","expires_in":3600}""")
@@ -644,6 +683,38 @@ class OAuth2TokenManagerTest {
 
         assertEquals("inf1", runBlocking { manager.getAccessToken(tokenUrl, params) })
         assertEquals("inf2", runBlocking { manager.getAccessToken(tokenUrl, params) })
+    }
+
+    @Test
+    fun bhvLangkotlin036NonFiniteExpiresInMarksTheTokenStale() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"inf1","expires_in":"Infinity"}""")
+        client.enqueue("""{"access_token":"inf2","expires_in":3600}""")
+
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+
+        val params = mapOf("grant_type" to "client_credentials")
+        val tokenUrl = "https://auth.example.com/token"
+
+        assertEquals("inf1", runBlocking { manager.getAccessToken(tokenUrl, params) })
+        assertEquals("inf2", runBlocking { manager.getAccessToken(tokenUrl, params) })
+    }
+
+    @Test
+    @DisplayName("bhvMisc059 a token whose lifetime is not finite, including one that overflows, is not cached")
+    fun bhvMisc059NonFiniteLifetimeIsNotCached() {
+        for (raw in listOf("Infinity", "-Infinity", "NaN", "1e400")) {
+            val client = FakeApiClient()
+            client.enqueue("""{"access_token":"first","expires_in":"$raw"}""")
+            client.enqueue("""{"access_token":"second","expires_in":3600}""")
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+            val params = mapOf("grant_type" to "client_credentials")
+            val tokenUrl = "https://auth.example.com/token"
+            assertEquals("first", runBlocking { manager.getAccessToken(tokenUrl, params) }, raw)
+            assertEquals("second", runBlocking { manager.getAccessToken(tokenUrl, params) }, raw)
+        }
     }
 
     @Test
@@ -1291,6 +1362,48 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    @DisplayName("bhvAuth054 a non-success token response surfaces as an OAuth2 server error naming status and body")
+    fun bhvAuth054TokenServerErrorNamesStatusAndBody() = tokenServerErrorMessageNamesTheStatusCodeAndDescription()
+
+    @Test
+    @DisplayName("bhvAuth057 a refresh that is rejected or returns a malformed response falls back to the original grant")
+    fun bhvAuth057RefreshFailureFallsBackToTheOriginalGrant() {
+        val params = mapOf("grant_type" to "password", "username" to "u", "password" to "p")
+        for ((refreshStatus, refreshBody) in listOf(400 to """{"error":"invalid_grant"}""", 200 to "not json")) {
+            val client = FakeApiClient()
+            val manager = OAuth2TokenManager()
+            manager.apiClient = client
+            client.enqueue("""{"access_token":"first","refresh_token":"ref","expires_in":0}""")
+            runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+            client.enqueue(refreshBody, refreshStatus)
+            client.enqueue("""{"access_token":"second","expires_in":3600}""")
+            val token = runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+            assertEquals("second", token, "refresh status $refreshStatus")
+            assertEquals(
+                "password",
+                client.lastBody?.let { body ->
+                    body.split("&").first { it.startsWith("grant_type=") }.substringAfter("=")
+                },
+                "original grant re-run",
+            )
+        }
+    }
+
+    @Test
+    @DisplayName("bhvAuth055 a network failure during a token request reaches the caller unchanged")
+    fun bhvAuth055NetworkFailureReachesTheCallerUnchanged() {
+        val manager = OAuth2TokenManager()
+        manager.apiClient = FakeApiClient()
+        val ex =
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking {
+                    manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
+                }
+            }
+        assertEquals("No responses queued", ex.message)
+    }
+
+    @Test
     @DisplayName(
         "bhvAuthoauthtwotokenmgr042 a token server error message names the status and, when present, the error code and description",
     )
@@ -1366,5 +1479,31 @@ class OAuth2TokenManagerTest {
             assertEquals("second", runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }, raw)
             assertEquals(2, client.bodies.size, raw)
         }
+    }
+
+    @Test
+    fun bhvMisc286ServerErrorMessageNamesHttpStatusAndOauthCode() =
+        runBlocking<Unit> {
+            val ex = oauth2ErrorFor("""{"error":"invalid_client"}""")
+            assertEquals(400, ex.statusCode)
+            assertEquals("invalid_client", ex.code)
+            assertTrue(ex.message!!.contains("400") && ex.message!!.contains("invalid_client"), ex.message)
+        }
+
+    @Test
+    @DisplayName("bhvMisc198 a new client-credentials grant without expires_in clears the expiry of the previous token")
+    fun bhvMisc198GrantWithoutExpiresInClearsThePreviousExpiry() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"a1","expires_in":60}""")
+        client.enqueue("""{"access_token":"a2"}""")
+        client.enqueue("""{"access_token":"a3"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials")
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        manager.invalidateAccessToken()
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        repeat(2) { runBlocking { manager.getAccessToken("https://auth.example.com/token", params) } }
+        assertEquals(2, client.bodies.size)
     }
 }

@@ -200,7 +200,7 @@ async fn test_bhv_authoauthtwoauthcode_024_refresh_grant_goes_to_the_refresh_url
 /// The scheme wrapper sends the code exchange and the refresh grant to the URLs
 /// its security scheme declares.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
+async fn test_bhv_langrust_040_scheme_wrapper_routes_the_grants_to_the_declared_urls() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
@@ -590,12 +590,20 @@ async fn test_bhv_authoauthtwoauthcode_022_second_exchange_without_refresh_token
     auth.exchange_code("code-b")
         .await
         .expect("second exchange succeeds");
-    let _ = auth.try_auth_headers().await;
+    assert!(
+        auth.try_auth_headers().await.is_err(),
+        "an expired token with no refresh token must not be served"
+    );
 
     let body = client.last_body().expect("should have body");
     assert!(
-        body.starts_with("grant_type=refresh_token&refresh_token=&"),
+        body.starts_with("grant_type=authorization_code&code=code-b&"),
         "{}",
+        body
+    );
+    assert!(
+        !body.contains("grant_type=refresh_token"),
+        "an empty refresh grant was sent: {}",
         body
     );
 }
@@ -914,4 +922,162 @@ async fn test_bhv_auth_028_a_failed_first_exchange_leaves_the_session_unexchange
         err.downcast_ref::<OAuth2AuthorizationCodeError>(),
         Some(&OAuth2AuthorizationCodeError::CodeNotExchanged)
     );
+}
+
+/// auth048: the authorize URL is the declared endpoint with the exact response_type, client id and space-encoded scopes, and the code exchange and refresh go to the declared URLs.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_048_the_authorization_code_flow_uses_the_declared_urls_and_scopes() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":0}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    let mut auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/authorize",
+        "https://auth.example.com/token",
+        "https://app.example.com/callback",
+        vec!["read".to_string(), "write".to_string()],
+        "https://auth.example.com/refresh",
+    );
+    auth.set_api_client(client.clone());
+
+    let url = auth.build_authorization_url("");
+    assert!(
+        url.starts_with("https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri="),
+        "{}",
+        url
+    );
+    assert!(url.contains("&scope=read%20write"), "{}", url);
+
+    auth.exchange_code("auth-code-xyz")
+        .await
+        .expect("should succeed");
+    auth.auth_headers().await;
+    let refresh_body = client
+        .last_body()
+        .expect("the refresh grant must send a body");
+    assert!(
+        refresh_body.contains("grant_type=refresh_token"),
+        "{}",
+        refresh_body
+    );
+}
+
+/// auth053: a code exchange replaces the session, so a refresh token held before it is discarded when the new response carries none.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_053_exchanging_a_code_discards_a_previously_held_refresh_token() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(
+        r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
+        200,
+    );
+    client.enqueue(r#"{"access_token":"tok2","expires_in":3600}"#, 200);
+    client.enqueue(r#"{"error":"invalid_grant"}"#, 400);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.exchange_code("first-code")
+        .await
+        .expect("first exchange");
+    auth.exchange_code("second-code")
+        .await
+        .expect("second exchange");
+    auth.invalidate_access_token().await;
+
+    let body = client.last_body().expect("a token request must follow");
+    assert!(
+        !body.contains("refresh_token"),
+        "the discarded refresh token was used: {}",
+        body
+    );
+    assert!(
+        !body.contains("ref1"),
+        "the discarded refresh token was used: {}",
+        body
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_058_the_configured_endpoint_and_redirect_uri_reach_the_url_unchanged() {
+    let auth = OAuth2AuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://Auth.Example.com:443/authorize",
+        "https://auth.example.com/token",
+        "https://App.Example.com:443/callback",
+        vec!["read".to_string()],
+        "",
+    );
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.starts_with("https://Auth.Example.com:443/authorize?"),
+        "authorization url: {}",
+        url
+    );
+    assert!(
+        url.contains("redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2Fcallback"),
+        "authorization url: {}",
+        url
+    );
+}
+
+#[test]
+fn test_bhv_misc_062_the_authorization_url_carries_the_declared_scopes() {
+    let auth = UserAuthAuthorizationCodeAuthenticator::new(
+        "https://api.example.com",
+        Some("id"),
+        Some("secret"),
+        Some("https://app.example.com/callback"),
+    )
+    .unwrap();
+
+    let url = auth.build_authorization_url("");
+
+    assert!(
+        url.split(['?', '&'])
+            .any(|pair| pair == "scope=pets%3Aread%20pets%3Awrite"),
+        "authorization url: {}",
+        url
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_077_a_generated_pkce_verifier_is_43_unreserved_characters_and_differs_per_call(
+) {
+    let mut verifiers = Vec::new();
+    for _ in 0..2 {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(r#"{"access_token":"tok1","expires_in":3600}"#, 200);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client.clone());
+        auth.build_authorization_url("s");
+        auth.exchange_code("auth-code-xyz")
+            .await
+            .expect("should succeed");
+        let body = client.last_body().expect("should have body");
+        let verifier = body
+            .split('&')
+            .find_map(|p| p.strip_prefix("code_verifier="))
+            .expect("a code_verifier")
+            .to_string();
+        verifiers.push(verifier);
+    }
+    for verifier in &verifiers {
+        assert_eq!(43, verifier.len(), "RFC 7636 verifier length: {}", verifier);
+        assert!(
+            verifier
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "-._~".contains(c)),
+            "verifier: {}",
+            verifier
+        );
+    }
+    assert_ne!(verifiers[0], verifiers[1]);
 }

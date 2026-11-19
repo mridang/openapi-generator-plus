@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class OAuth2PasswordAuthenticatorTest {
 
   private static OAuth2PasswordAuthenticator createAuthenticator() {
@@ -648,5 +649,35 @@ class OAuth2PasswordAuthenticatorTest {
         java.util.Objects.requireNonNull(ex.getMessage())
             .contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME"),
         ex.getMessage());
+  }
+
+  @Test
+  void bhvAuth051PasswordGrantPostsToTheDeclaredTokenUrlWithTheScopes() {
+    java.util.concurrent.atomic.AtomicReference<String> calledUrl =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    java.util.concurrent.atomic.AtomicReference<String> calledBody =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    com.example.petstore.ApiClient client =
+        (method, url, headers, body) -> {
+          calledUrl.set(url);
+          calledBody.set(body != null ? body.toString() : "");
+          return new com.example.petstore.ApiHttpResponse(
+              200, "{\"access_token\":\"at\",\"expires_in\":3600}", Map.of());
+        };
+    com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator auth =
+        new com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator(
+            "https://api.example.com",
+            "my-client-id",
+            "my-client-secret",
+            "https://auth.example.com/token",
+            "alice",
+            "s3cret",
+            List.of("read", "write"));
+    auth.setApiClient(client);
+    auth.getAuthHeaders();
+
+    assertEquals("https://auth.example.com/token", calledUrl.get());
+    assertTrue(calledBody.get().contains("grant_type=password"), calledBody.get());
+    assertTrue(calledBody.get().contains("scope=read+write"), calledBody.get());
   }
 }

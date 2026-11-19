@@ -22,6 +22,7 @@ import Testing
     var lastBody: Data? = nil
     /// The URL of every request received, in order.
     var urls: [String] = []
+    var failure: Error? = nil
 
     /// Satisfies the ApiClient requirement that carries no request options.
     func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
@@ -39,6 +40,9 @@ import Testing
       urls.append(url)
       lastHeaders = headers
       lastBody = body as? Data
+      if let failure = failure {
+        throw failure
+      }
       return responses.removeFirst()
     }
   }
@@ -63,7 +67,7 @@ import Testing
 
   /* The exchanged flag is written by exchangeCode on the callback thread and
      read on request threads; concurrent readers all see a settled value. */
-  @Test func testConcurrentReadsOfTheExchangedFlagWhileExchanging() async throws {
+  @Test func testBhvLangswift047ConcurrentReadsOfTheExchangedFlagWhileExchanging() async throws {
     let client = MockApiClient()
     client.responses.append(makeResponse(body: "{\"access_token\":\"tok\",\"expires_in\":3600}"))
     let auth = createAuthenticator()
@@ -100,6 +104,54 @@ import Testing
     #expect(url.contains("redirect_uri="))
     #expect(url.contains("scope=read%20write"))
     #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+  }
+
+  /* The authorization-code flow builds the authorize URL and exchanges the code at the declared token URL with the declared scopes. */
+  @Test func testBhvAuth048AuthorizationCodeFlowUsesTheDeclaredUrlsAndScopes() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      ApiHttpResponse(
+        statusCode: 200,
+        body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":3600}",
+        headers: [:]))
+    let auth = OAuth2AuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      authorizationURL: "https://auth.example.com/authorize",
+      tokenURL: "https://auth.example.com/token",
+      redirectURI: "https://app.example.com/callback",
+      scopes: ["read", "write"],
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    let url = try auth.buildAuthorizationURL()
+    #expect(url.hasPrefix("https://auth.example.com/authorize?"))
+    #expect(url.contains("scope=read%20write"))
+
+    try await auth.exchangeCode("the-code")
+    #expect(client.urls == ["https://auth.example.com/token"])
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.split(separator: "&").contains("grant_type=authorization_code"))
+  }
+
+  /* An authorization-code authenticator holding no token refuses to produce headers, synchronously-throwing and async alike. */
+  @Test func testBhvAuth052WithoutATokenAuthHeadersRefuseToProduceThem() async {
+    let auth = OAuth2AuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      authorizationURL: "https://auth.example.com/authorize",
+      tokenURL: "https://auth.example.com/token",
+      redirectURI: "https://app.example.com/callback"
+    )
+    await #expect(throws: OAuth2AuthorizationCodeError.codeNotExchanged) {
+      _ = try await auth.authHeadersOrThrow()
+    }
+    await #expect(throws: OAuth2AuthorizationCodeError.self) {
+      _ = try await auth.authHeaders()
+    }
   }
 
   @Test func testBhvAuthoauthtwoauthcode007BuildsAuthorizationURLWithState() throws {
@@ -281,14 +333,14 @@ import Testing
     #expect(client.lastURL.isEmpty)
   }
 
-  @Test func testEmptyCodeErrorCarriesTheCanonicalMessage() {
+  @Test func testBhvLangswift048EmptyCodeErrorCarriesTheCanonicalMessage() {
     #expect(
       OAuth2AuthorizationCodeError.emptyCode.localizedDescription
         == "Authorization code must not be empty")
   }
 
   /* D09: the precondition text names the method with its parentheses. */
-  @Test func testCodeNotExchangedErrorCarriesTheCanonicalMessage() {
+  @Test func testBhvLangswift049CodeNotExchangedErrorCarriesTheCanonicalMessage() {
     #expect(
       OAuth2AuthorizationCodeError.codeNotExchanged.localizedDescription
         == "Must call exchangeCode() before making API requests")
@@ -341,13 +393,8 @@ import Testing
         == "OAuth2AuthorizationCodeAuthenticator(host: https://api.example.com, clientID: my-client-id, clientSecret: ***, authorizationURL: https://auth.example.com/authorize, tokenURL: https://auth.example.com/token, refreshURL: https://auth.example.com/token, redirectURI: https://app.example.com/callback, scopes: [\"read\", \"write\"], tokenExchanged: false)"
     )
     #expect(String(reflecting: auth) == description)
-  }
-
-  /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
-   * included, so the redacted description is not enough: the reflection
-   * must hide the secret too. */
-  @Test func dumpDoesNotLeakSecret() async throws {
-    let auth = createAuthenticator()
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+     * so the redacted description is not enough: the reflection must hide the secret too. */
     var dumped = ""
     dump(auth, to: &dumped)
     #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
@@ -383,6 +430,21 @@ import Testing
       URLComponents(string: first)?.queryItems?.first { $0.name == "code_challenge" }?.value)
     let secondChallenge = try #require(
       URLComponents(string: second)?.queryItems?.first { $0.name == "code_challenge" }?.value)
+    #expect(firstChallenge != secondChallenge)
+  }
+
+  /* The PKCE challenge of each authorization URL is 43 characters and differs per call. */
+  @Test func testBhvMisc077APkceChallengeIsFortyThreeCharactersAndFreshEachCall() throws {
+    let auth = createAuthenticator()
+
+    let first = try auth.buildAuthorizationURL()
+    let second = try auth.buildAuthorizationURL()
+
+    let firstChallenge = try #require(
+      URLComponents(string: first)?.queryItems?.first { $0.name == "code_challenge" }?.value)
+    let secondChallenge = try #require(
+      URLComponents(string: second)?.queryItems?.first { $0.name == "code_challenge" }?.value)
+    #expect(firstChallenge.count == 43)
     #expect(firstChallenge != secondChallenge)
   }
 
@@ -479,7 +541,7 @@ import Testing
       "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"
     ),
   ])
-  func testSha256MatchesTheKnownAnswers(input: String, hex: String) {
+  func testBhvLangswift050Sha256MatchesTheKnownAnswers(input: String, hex: String) {
     let digest = PKCE.sha256(Array(input.utf8))
     #expect(digest.map { String(format: "%02x", $0) }.joined() == hex)
   }
@@ -701,5 +763,59 @@ import Testing
     #expect(url.hasPrefix("https://auth.example.com/authorize?"))
     let items = URLComponents(string: url)?.queryItems ?? []
     #expect(items.first { $0.name == "scope" }?.value == "pets:read pets:write")
+  }
+
+  /* The configured authorization endpoint and redirect URI reach the authorization URL as configured, with no changed case or port. */
+  @Test func testBhvMisc058TheEndpointAndRedirectUriReachTheUrlAsConfigured() throws {
+    let auth = OAuth2AuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      authorizationURL: "https://Auth.Example.com:443/authorize",
+      tokenURL: "https://auth.example.com/token",
+      redirectURI: "https://App.Example.com:443/Callback",
+      scopes: ["read", "write"],
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    let url = try auth.buildAuthorizationURL()
+    #expect(url.hasPrefix("https://Auth.Example.com:443/authorize?"))
+    #expect(url.contains("redirect_uri=https%3A%2F%2FApp.Example.com%3A443%2FCallback"))
+  }
+
+  /* The authorization URL produced by a per-scheme wrapper carries the scopes its security scheme declares. */
+  @Test func testBhvMisc062TheAuthorizationUrlCarriesTheDeclaredScopes() throws {
+    let auth = try UserAuthAuthorizationCodeAuthenticator(
+      host: "https://api.example.com", clientId: "cid", clientSecret: "csecret",
+      redirectUri: "https://app.example.com/cb")
+    let url = try auth.buildAuthorizationURL(state: "s1")
+    let items = URLComponents(string: url)?.queryItems ?? []
+    #expect(items.first { $0.name == "scope" }?.value == "pets:read pets:write")
+  }
+
+  /* A transport failure during the code exchange reaches the caller as the same error. */
+  @Test func testBhvMisc028AnExchangeFailureIsThrownUnchanged() async throws {
+    let client = MockApiClient()
+    let cause = URLError(.networkConnectionLost)
+    client.failure = cause
+    let auth = OAuth2AuthorizationCodeAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      authorizationURL: "https://auth.example.com/authorize",
+      tokenURL: "https://auth.example.com/token",
+      redirectURI: "https://app.example.com/callback",
+      scopes: ["read", "write"],
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+    _ = try auth.buildAuthorizationURL()
+    do {
+      try await auth.exchangeCode("the-code")
+      Issue.record("expected the transport failure to be thrown")
+    } catch let error as URLError {
+      #expect(error.code == .networkConnectionLost)
+    } catch {
+      Issue.record("expected the transport failure unchanged, got \(error)")
+    }
   }
 }

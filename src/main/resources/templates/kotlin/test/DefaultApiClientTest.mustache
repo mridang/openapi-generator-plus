@@ -33,8 +33,8 @@ class DefaultApiClientTest {
     inner class InjectedTransport {
 
         @Test
-        @DisplayName("a caller-supplied HttpClient receives the request with the SDK user agent, and is never closed")
-        fun callerSuppliedClientReceivesTheRequest() {
+        @DisplayName("bhvTransport092 a caller-supplied HttpClient receives the request with the SDK user agent, and is never closed")
+        fun bhvTransport092CallerSuppliedClientReceivesTheRequest() {
             var seenUserAgent: String? = null
             var seenUrl: String? = null
             val engine = MockEngine { req ->
@@ -101,6 +101,14 @@ class DefaultApiClientTest {
             assertEquals("GET", json.get("method").asText())
         }
 
+
+
+        @Test
+        fun bhvMisc269SelfSignedEndpointIsReachedWhenVerificationIsOff() = runBlocking<Unit> {
+            val client = DefaultApiClient(TransportOptions.builder().verifySsl(false).build())
+            val response = client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
+            assertEquals(200, response.statusCode)
+        }
     }
 
     @Nested
@@ -118,6 +126,19 @@ class DefaultApiClientTest {
         private fun mismatchUrl(): String = "${ChasmContainer.getInternalHttpsAddressUrl()}/test/echo"
 
         private fun causes(ex: Throwable): List<Throwable> = generateSequence(ex) { it.cause }.toList()
+
+        @Test
+        @DisplayName("bhvMisc038 with no CA certificate configured, server certificates are verified against the platform trust store")
+        fun bhvMisc038NoCaCertificateUsesThePlatformTrustStore() {
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking {
+                    client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null)
+                }
+            }
+            assertEquals(0, ex.statusCode)
+            assertNotNull(ex.cause, "the certificate failure must be kept as the cause")
+        }
 
         @Test
         @DisplayName("bhvTransport023 the default transport rejects a certificate from an untrusted CA")
@@ -159,6 +180,33 @@ class DefaultApiClientTest {
                 },
                 "the host name check must reject $address (the shared proxy may name it by container), got ${causes(ex)}",
             )
+        }
+
+
+        @Test
+        fun bhvMisc268CustomCaCertStillRejectsHostnameMismatch() = runBlocking<Unit> {
+            val transport = TransportOptions.builder()
+                .proxy(SquidContainer.getProxyUrl())
+                .verifySsl(true)
+                .caCertPath(caCertPath)
+                .maxRetries(0)
+                .build()
+            val client = DefaultApiClient(transport)
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking { client.sendRequest("GET", mismatchUrl(), emptyMap(), null) }
+            }
+            assertEquals(0, ex.statusCode)
+            assertNotNull(ex.cause, "the host name failure must be kept as the cause")
+        }
+
+
+        @Test
+        fun bhvTransport093ServerFromAnotherCaIsRejectedWithANetworkError() = runBlocking<Unit> {
+            val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+            val ex = assertThrowsExactly({{invokerPackage}}.errors.NetworkException::class.java) {
+                runBlocking { client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null) }
+            }
+            assertEquals(0, ex.statusCode)
         }
     }
 
@@ -258,6 +306,22 @@ class DefaultApiClientTest {
             val client = DefaultApiClient(transport)
             // base64("user:pass") == "dXNlcjpwYXNz"
             assertEquals("Basic dXNlcjpwYXNz", client.proxyAuthHeader)
+        }
+
+
+        @Test
+        fun bhvMisc271NoProxyConfiguredRecordsNoProxyAuthentication() = runBlocking<Unit> {
+            val transport = TransportOptions.builder().build()
+            assertNull(transport.proxy)
+            assertNull(DefaultApiClient(transport).proxyAuthHeader)
+        }
+
+        @Test
+        fun bhvMisc272AuthenticatingProxyAcceptsEmbeddedCredentialsEndToEnd() = runBlocking<Unit> {
+            val proxy = "http://user:pass@" + SquidContainer.getAuthProxyUrl().removePrefix("http://")
+            val client = DefaultApiClient(TransportOptions.builder().proxy(proxy).build())
+            val response = client.sendRequest("GET", "${ChasmContainer.getInternalHttpUrl()}/test/echo", emptyMap(), null)
+            assertEquals(200, response.statusCode)
         }
     }
 
@@ -547,8 +611,8 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("an empty Location behaves like a missing one: the 3xx is returned with its body")
-        fun emptyLocationReturnsTheRedirect() {
+        @DisplayName("bhvLangkotlin022 an empty Location behaves like a missing one: the 3xx is returned with its body")
+        fun bhvLangkotlin022EmptyLocationReturnsTheRedirect() {
             var hopCount = 0
             val engine = MockEngine { _ ->
                 hopCount++
@@ -569,8 +633,8 @@ class DefaultApiClientTest {
         }
 
         @Test
-        @DisplayName("a missing or unparseable Location returns the 3xx with its body")
-        fun unusableLocationReturnsTheRedirect() {
+        @DisplayName("bhvLangkotlin023 a missing or unparseable Location returns the 3xx with its body")
+        fun bhvLangkotlin023UnusableLocationReturnsTheRedirect() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val transport = TransportOptions.builder()
                 .followRedirects(true)
@@ -595,8 +659,8 @@ class DefaultApiClientTest {
     @DisplayName("redirect method preservation (Gap T2)")
     inner class RedirectMethodPreservation {
         @Test
-        @DisplayName("307 preserves method and body (POST stays POST)")
-        fun redirect307PreservesMethodAndBody() {
+        @DisplayName("bhvRedirects049 a 307 redirect repeats the request with the same method and body")
+        fun bhvRedirects049RepeatsMethodAndBodyOn307() {
             val chasmUrl = ChasmContainer.getBaseUrl()
             val client = DefaultApiClient()
             val response = runBlocking {
@@ -618,6 +682,10 @@ class DefaultApiClientTest {
          * RFC 7231 §6.4.7 / RFC 7538. The client follows redirects itself and
          * rebuilds the multipart body for every hop.
          */
+        @Test
+        @DisplayName("bhvRetries046 a request body is resent unchanged when a 307 redirect keeps the same scheme")
+        fun bhvRetries046BodyResentUnchangedOn307() = multipartBodyReplayedOn307Redirect()
+
         @Test
         @DisplayName("bhvRetries012 a 307 redirect replays the multipart body to the redirected location (T-new-3)")
         fun multipartBodyReplayedOn307Redirect() {
@@ -681,36 +749,25 @@ class DefaultApiClientTest {
          * easily downgrade HTTPS->HTTP); only the guard logic is under test.
          */
         @Test
-        @DisplayName("bhvRedirects001 N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
-        fun redirect302HttpsToHttpWithBodyProceeds() {
+        @DisplayName("bhvRedirects001 N1: 302 HTTPS->HTTP with a body is refused (the body is never replayed in plain text and the call fails)")
+        fun redirect302HttpsToHttpWithBodyIsRefused() {
             var hopCount = 0
-            var secondHopMethod: String? = null
-            val engine = MockEngine { req ->
+            val engine = MockEngine { _ ->
                 hopCount++
-                if (hopCount == 1) {
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.Found,
-                        headers = headersOf("Location", "http://insecure.example.com/dest"),
-                    )
-                } else {
-                    secondHopMethod = req.method.value
-                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
-                }
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "http://insecure.example.com/dest"),
+                )
             }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
-            val response = runBlocking {
-                apiClient.sendRequest(
-                    "POST",
-                    "https://secure.example.com/x",
-                    emptyMap(),
-                    "secret-body",
-                )
+            assertThrows({{invokerPackage}}.errors.{{errorPrefix}}Exception::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://secure.example.com/x", emptyMap(), "secret-body")
+                }
             }
-            assertEquals(200, response.statusCode)
-            assertEquals(2, hopCount, "302 must be followed across the HTTPS->HTTP downgrade")
-            assertEquals("GET", secondHopMethod, "302 must switch the follow-up to GET (body dropped)")
+            assertEquals(1, hopCount, "the refused redirect must not be followed")
         }
 
         @Test
@@ -746,6 +803,172 @@ class DefaultApiClientTest {
                 assertEquals(expected, secondHopMethod, "$status $method")
             }
         }
+
+        @Test
+        @DisplayName("bhvRedirects046 a redirect chain past the limit raises a too-many-redirects error with the 3xx status")
+        fun bhvRedirects046ChainPastTheLimitRaisesTooManyRedirects() {
+            val engine = MockEngine { _ ->
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "https://secure.example.com/next"),
+                )
+            }
+            val transport = TransportOptions.builder().followRedirects(true).maxRedirects(2).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val ex = assertThrowsExactly(ApiException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "https://secure.example.com/x", emptyMap(), null) }
+            }
+            assertEquals(302, ex.statusCode)
+            assertEquals("Too many redirects (exceeded 2)", ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvRedirects052 a redirect to another origin removes Authorization, Cookie, Proxy-Authorization and secret headers")
+        fun bhvRedirects052CrossOriginRedirectDropsCredentials() {
+            var hopCount = 0
+            var secondHopHeaders: io.ktor.http.Headers? = null
+            val engine = MockEngine { req ->
+                hopCount++
+                if (hopCount == 1) {
+                    respond(
+                        content = "",
+                        status = HttpStatusCode.Found,
+                        headers = headersOf("Location", "https://other.example.com/dest"),
+                    )
+                } else {
+                    secondHopHeaders = req.headers
+                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            runBlocking {
+                apiClient.sendRequest(
+                    "GET",
+                    "https://secure.example.com/x",
+                    mapOf(
+                        "Authorization" to "Bearer t",
+                        "Cookie" to "s=1",
+                        "Proxy-Authorization" to "Basic x",
+                        "X-Api-Key" to "k",
+                    ),
+                    null,
+                )
+            }
+            val headers = secondHopHeaders!!
+            for (name in listOf("Authorization", "Cookie", "Proxy-Authorization", "X-Api-Key")) {
+                assertFalse(headers.contains(name), name)
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects047 a refused redirect and a successful redirect in parallel requests do not affect each other")
+        fun bhvRedirects047ParallelRedirectOutcomesAreIndependent() {
+            val engine = MockEngine { req ->
+                when (req.url.host) {
+                    "refused.example.com" -> respond(
+                        content = "",
+                        status = HttpStatusCode.TemporaryRedirect,
+                        headers = headersOf("Location", "http://refused.example.com/dest"),
+                    )
+                    "ok.example.com" -> if (req.url.encodedPath == "/x") {
+                        respond(
+                            content = "",
+                            status = HttpStatusCode.Found,
+                            headers = headersOf("Location", "https://ok.example.com/dest"),
+                        )
+                    } else {
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                    else -> respond("unexpected", HttpStatusCode.InternalServerError)
+                }
+            }
+            val transport = TransportOptions.builder().followRedirects(true).build()
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+            val (refused, ok) = runBlocking {
+                val refusedCall = async {
+                    runCatching {
+                        apiClient.sendRequest("POST", "https://refused.example.com/x", emptyMap(), "body")
+                    }
+                }
+                val okCall = async { apiClient.sendRequest("POST", "https://ok.example.com/x", emptyMap(), "body") }
+                refusedCall.await() to okCall.await()
+            }
+            assertTrue(refused.isFailure, "a 307 that downgrades https to http with a body is refused")
+            assertEquals(200, ok.statusCode)
+            assertEquals("ok", ok.body)
+        }
+
+        @Test
+        @DisplayName("bhvRedirects048 a 301 or 302 turns a POST follow-up into GET and keeps the method of every other request")
+        fun bhvRedirects048MovedStatusesTurnPostIntoGet() {
+            for (status in listOf(HttpStatusCode.MovedPermanently, HttpStatusCode.Found)) {
+                for (method in listOf("POST", "PUT", "PATCH", "DELETE", "HEAD", "GET")) {
+                    var hopCount = 0
+                    var secondHopMethod: String? = null
+                    val engine = MockEngine { req ->
+                        hopCount++
+                        if (hopCount == 1) {
+                            respond(
+                                content = "",
+                                status = status,
+                                headers = headersOf("Location", "https://secure.example.com/dest"),
+                            )
+                        } else {
+                            secondHopMethod = req.method.value
+                            respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                        }
+                    }
+                    val transport = TransportOptions.builder().followRedirects(true).build()
+                    val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                    runBlocking {
+                        apiClient.sendRequest(method, "https://secure.example.com/x", emptyMap(), "body")
+                    }
+                    val expected = if (method == "POST") "GET" else method
+                    assertEquals(expected, secondHopMethod, "${status.value} after $method")
+                }
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects050 for 301, 302, 303, 307 and 308 the follow-up method matches the RFC 9110 table")
+        fun bhvRedirects050FollowUpMethodMatchesTheRfcTable() {
+            val table = mapOf(
+                HttpStatusCode.MovedPermanently to "GET",
+                HttpStatusCode.Found to "GET",
+                HttpStatusCode.SeeOther to "GET",
+                HttpStatusCode.TemporaryRedirect to "POST",
+                HttpStatusCode.PermanentRedirect to "POST",
+            )
+            for ((status, expected) in table) {
+                var hopCount = 0
+                var secondHopMethod: String? = null
+                val engine = MockEngine { req ->
+                    hopCount++
+                    if (hopCount == 1) {
+                        respond(
+                            content = "",
+                            status = status,
+                            headers = headersOf("Location", "https://secure.example.com/dest"),
+                        )
+                    } else {
+                        secondHopMethod = req.method.value
+                        respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                    }
+                }
+                val transport = TransportOptions.builder().followRedirects(true).build()
+                val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://secure.example.com/x", emptyMap(), "body")
+                }
+                assertEquals(expected, secondHopMethod, "${status.value} after POST")
+            }
+        }
+
+        @Test
+        @DisplayName("bhvRedirects051 a 303 turns a follow-up into GET except that a HEAD request stays HEAD")
+        fun bhvRedirects051HeadStaysHeadOn303() = redirect303TurnsEveryMethodExceptHeadIntoGet()
 
         @Test
         @DisplayName("bhvRedirects036 a 303 redirect turns every method except HEAD into GET")
@@ -1133,8 +1356,8 @@ class DefaultApiClientTest {
          * over plain HTTP.
          */
         @Test
-        @DisplayName("https_to_http_same_host_strips_authorization")
-        fun httpsToHttpSameHostStripsAuthorization() {
+        @DisplayName("bhvRedirects053 Authorization is removed when the scheme changes between https and http on the same host")
+        fun bhvRedirects053StripsAuthorizationOnSchemeChange() {
             assertFalse(
                 sameOrigin(
                     java.net.URI("https://host:8443/x"),
@@ -1164,6 +1387,7 @@ class DefaultApiClientTest {
                 "implicit default port must compare equal to explicit"
             )
         }
+
     }
 
     @Nested

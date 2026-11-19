@@ -424,7 +424,7 @@ func TestBhvAuth017_OAuth2ClientCredentialsAuthenticator_TokenBodyEncodesScopeSp
 }
 
 // The per-scheme wrapper posts to the token URL its security scheme declares.
-func TestOAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_PostsToTheDeclaredTokenUrl(t *testing.T) {
+func TestBhvMisc063_OAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_PostsToTheDeclaredTokenUrl(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -446,7 +446,7 @@ func TestOAuth2ClientCredentialsAuthenticator_MachineAuthWrapper_PostsToTheDecla
 
 // A token endpoint that answers 401 is an *OAuth2ServerError carrying the
 // status and the RFC 6749 error code, not a transport or API error.
-func TestOAuth2ClientCredentialsAuthenticator_TokenEndpointFailureIsOAuth2ServerError(t *testing.T) {
+func TestBhvAuth054_OAuth2ClientCredentialsAuthenticator_TokenEndpointFailureIsOAuth2ServerError(t *testing.T) {
 	t.Parallel()
 	client := &fakeClientCredsClient{
 		responses: []fakeClientCredsResponse{
@@ -562,5 +562,49 @@ func TestBhvAuth002_OAuth2ClientCredentialsAuthenticator_InvalidateBeforeAnyExch
 	authObj.InvalidateAccessToken()
 	if got := atomic.LoadInt32(&client.index); got != 0 {
 		t.Errorf("expected no token request, got %d", got)
+	}
+}
+
+// unreachableTokenClient fails every request with the same network error.
+type unreachableTokenClient struct {
+	cause error
+}
+
+func (c unreachableTokenClient) SendRequest(method, url string, headers map[string]string, body any) (*auth.ApiHttpResponse, error) {
+	return nil, c.cause
+}
+
+func (c unreachableTokenClient) SendRequestWithOptions(method, url string, headers map[string]string, body any, opts *auth.RequestOptions) (*auth.ApiHttpResponse, error) {
+	return nil, c.cause
+}
+
+// The client-credentials grant posts the declared scopes joined by a plus sign.
+func TestBhvAuth050_OAuth2ClientCredentialsAuthenticator_PostsScopesJoinedByPlus(t *testing.T) {
+	t.Parallel()
+	client := &fakeClientCredsClient{
+		responses: []fakeClientCredsResponse{
+			{body: `{"access_token":"tok","token_type":"Bearer","expires_in":3600}`, statusCode: 200},
+		},
+	}
+	authObj := createClientCredentialsAuthenticator()
+	authObj.SetApiClient(client)
+
+	if _, err := authObj.AuthHeadersOrError(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(client.LastBody, "grant_type=client_credentials") || !strings.Contains(client.LastBody, "scope=read+write") {
+		t.Errorf("expected the grant and the plus-joined scopes, got %q", client.LastBody)
+	}
+}
+
+// A network failure during a token request reaches the caller unchanged.
+func TestBhvAuth055_OAuth2ClientCredentialsAuthenticator_NetworkFailureReachesTheCaller(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection refused")
+	authObj := createClientCredentialsAuthenticator()
+	authObj.SetApiClient(unreachableTokenClient{cause: cause})
+
+	if _, err := authObj.AuthHeadersOrError(); err != cause {
+		t.Fatalf("expected the network failure unchanged, got %v", err)
 	}
 }

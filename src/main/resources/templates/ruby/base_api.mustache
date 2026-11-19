@@ -200,10 +200,9 @@ module {{moduleName}}
           throw_api_error(response, method, url, error_schemas) if response.status_code < 200 || response.status_code >= 300
 
           data = nil
-          decode_type = return_type_for_status(return_type, response.status_code)
-          if decode_type && response.body && !response.body.empty?
+          if response.body && !response.body.empty?
             begin
-              data = decode_success_body(response, decode_type, operation_id)
+              data = decode_success_data(response, return_type, operation_id)
             rescue ::{{moduleName}}::Errors::SerializationError => e
               # The error learns which response and request it belongs to.
               raise e.with_response(
@@ -577,6 +576,26 @@ module {{moduleName}}
         return return_type unless return_type.is_a?(Hash)
 
         return_type.fetch(status) { return_type['2XX'] }
+      end
+
+      # Decodes a success body. A status no declared response row names
+      # decodes as the operation's union of declared success types: the first
+      # type that accepts the body wins, and the last refusal is raised when none does.
+      def decode_success_data(response, return_type, operation_id)
+        declared = return_type_for_status(return_type, response.status_code)
+        return decode_success_body(response, declared, operation_id) if declared
+        return nil unless return_type.is_a?(Hash) && response.status_code.between?(200, 299)
+
+        # @type var last_error: StandardError?
+        last_error = nil
+        return_type.values.uniq.each do |type|
+          return decode_success_body(response, type, operation_id)
+        rescue ::{{moduleName}}::Errors::SerializationError => e
+          last_error = e
+        end
+        raise last_error if last_error
+
+        nil
       end
 
       # Whether the operation's target return type denotes raw binary data

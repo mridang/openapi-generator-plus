@@ -816,7 +816,7 @@ async fn test_bhv_authoauthtwotokenmgr_005_expires_in_huge_number_is_clamped_not
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn test_expires_in_huge_string_is_clamped_not_a_panic() {
+async fn test_bhv_langrust_041_expires_in_huge_string_is_clamped_not_a_panic() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"huge-str","expires_in":"99999999999999999999"}"#,
@@ -869,6 +869,28 @@ async fn test_bhv_authoauthtwotokenmgr_034_token_post_uses_no_redirect() {
         captured,
         "OAuth2 token POST must call send_request_with_options with no_redirect=true"
     );
+}
+
+/// misc172: a token request is sent once, even when the token endpoint answers 503,
+/// which a retrying call would repeat.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_172_a_token_request_answered_503_is_sent_once() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("", 503);
+    client.enqueue("", 503);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let outcome = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.requests().len());
 }
 
 /// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
@@ -1180,7 +1202,7 @@ async fn test_bhv_authoauthtwotokenmgr_019_invalidate_triggers_single_refetch_un
 /// `Send` and `Sync` follow from the fields, so the type needs no `unsafe impl`
 /// that would assert them regardless of what the fields hold.
 #[test]
-fn test_oauth2_token_manager_is_send_and_sync_without_unsafe_impls() {
+fn test_bhv_langrust_042_oauth2_token_manager_is_send_and_sync_without_unsafe_impls() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<OAuth2TokenManager>();
 
@@ -1291,7 +1313,7 @@ async fn test_bhv_authoauthtwotokenmgr_016_failed_refresh_falls_back_to_the_orig
 /// A refresh that fails at the transport level also falls back to the
 /// original grant.
 #[tokio::test(flavor = "multi_thread")]
-async fn test_refresh_transport_failure_falls_back_to_the_original_grant() {
+async fn test_bhv_auth_057_refresh_transport_failure_falls_back_to_the_original_grant() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"old","refresh_token":"ref1","expires_in":0}"#,
@@ -1594,7 +1616,7 @@ async fn test_bhv_authoauthtwotokenmgr_035_token_request_is_a_form_post_acceptin
 /* F855: invalidating drops the cached token and keeps the refresh token, so
  * the next call refreshes first. */
 #[tokio::test(flavor = "multi_thread")]
-async fn test_invalidate_then_get_uses_the_refresh_grant_first() {
+async fn test_bhv_auth_058_invalidate_then_get_uses_the_refresh_grant_first() {
     let client = Arc::new(FakeApiClient::new());
     client.enqueue(
         r#"{"access_token":"tok1","refresh_token":"ref1","expires_in":3600}"#,
@@ -1998,4 +2020,108 @@ async fn test_bhv_errors_082_a_malformed_optional_field_is_dropped_and_the_code_
         .downcast_ref::<OAuth2ServerError>()
         .expect("an OAuth2ServerError");
     assert_eq!(None, server_error.code());
+}
+
+/// auth056: expires_in is honoured only as a plain decimal, with ASCII padding allowed; any other value marks the token stale.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_auth_056_expires_in_is_honoured_only_as_a_plain_decimal() {
+    for (value, expected_requests) in [
+        (r#""  120  ""#, 1usize),
+        (r#""1e3""#, 2),
+        (r#""0x10""#, 2),
+        (r#""NaN""#, 2),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(
+            &format!(r#"{{"access_token":"first","expires_in":{}}}"#, value),
+            200,
+        );
+        client.enqueue(r#"{"access_token":"second","expires_in":3600}"#, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client.clone());
+        let params = authorization_code_params();
+
+        manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .unwrap();
+        manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            expected_requests,
+            client.requests().len(),
+            "expires_in {}",
+            value
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_018_a_non_json_token_error_keeps_the_status_and_the_raw_body() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("plain text failure", 400);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client);
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 400 with a non-JSON body must fail");
+    let server_err = err
+        .downcast_ref::<OAuth2ServerError>()
+        .expect("expected OAuth2ServerError");
+    assert_eq!(400, server_err.status_code());
+    assert_eq!(None, server_err.code());
+    assert!(err.to_string().contains("plain text failure"), "{}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_059_a_token_with_a_non_finite_lifetime_is_not_cached() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"inf1","expires_in":1e400}"#, 200);
+    client.enqueue(r#"{"access_token":"inf2","expires_in":1e400}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let _ = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await;
+    let _ = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await;
+
+    assert_eq!(2, client.requests().len());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_069_an_unusable_token_response_is_refused_naming_the_problem() {
+    let cases = [
+        (r#"[1]"#, "not a JSON object"),
+        (r#"{"access_token":42}"#, "access_token"),
+        (r#"{"access_token":""}"#, "access_token"),
+    ];
+    for (body, problem) in cases {
+        let client = Arc::new(FakeApiClient::new());
+        client.enqueue(body, 200);
+        let manager = OAuth2TokenManager::new();
+        manager.set_api_client(client);
+        let mut params = HashMap::new();
+        params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+        let err = manager
+            .get_access_token("https://auth.example.com/token", &params)
+            .await
+            .expect_err("an unusable token response must fail");
+
+        assert!(err.downcast_ref::<OAuth2TokenError>().is_some(), "{}", err);
+        assert!(err.to_string().contains(problem), "{}", err);
+    }
 }

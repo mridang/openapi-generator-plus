@@ -552,13 +552,8 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         let description = String(describing: auth)
         #expect(!description.contains("my-client-secret"))
         #expect(description.contains("***"))
-    }
-
-    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
-     * included, so the redacted description is not enough: the reflection
-     * must hide the secret too. */
-    @Test func dumpDoesNotLeakSecret() async throws {
-        let auth = createAuthenticator()
+        /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+         * so the redacted description is not enough: the reflection must hide the secret too. */
         var dumped = ""
         dump(auth, to: &dumped)
         #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
@@ -571,9 +566,27 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         let auth = createAuthenticator()
         auth.setApiClient(client)
 
-        await #expect(throws: NotFoundError.self) {
+        let error = await #expect(throws: NotFoundError.self) {
             _ = try await auth.buildAuthorizationURL()
         }
+        #expect(error?.requestMethod == "GET")
+        #expect(error?.requestPath == "/.well-known/openid-configuration")
+
+        let tenantClient = MockApiClient()
+        tenantClient.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+        let tenant = OpenIdConnectAuthenticator(
+            host: "https://api.example.com",
+            openIDConnectURL: "https://auth.example.com/tenant/.well-known/openid-configuration?x=1",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            redirectURI: "https://app.example.com/callback",
+            scopes: []
+        )
+        tenant.setApiClient(tenantClient)
+        let tenantError = await #expect(throws: NotFoundError.self) {
+            _ = try await tenant.buildAuthorizationURL(state: "my-state")
+        }
+        #expect(tenantError?.requestPath == "/tenant/.well-known/openid-configuration")
     }
 
     /* The discovery request goes to the identity provider, another origin, so the
@@ -654,6 +667,53 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         #expect(error?.message == "OIDC discovery document is not a JSON object")
     }
 
+    /* A discovery document that is not a JSON object keeps no cause and does not repeat the body. */
+    @Test func testBhvMisc070ANonObjectDiscoveryDocumentKeepsNoCauseAndNoBody() async throws {
+        let client = MockApiClient()
+        client.responses.append(.success(makeResponse(body: "<html>not json</html>")))
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let error = await #expect(throws: SerializationError.self) {
+            _ = try await auth.buildAuthorizationURL()
+        }
+        #expect(error?.message == "OIDC discovery document is not a JSON object")
+        #expect(error?.cause == nil)
+        #expect(!String(describing: error).contains("<html>"))
+    }
+
+    /* The authorization URL carries an S256 PKCE challenge and no nonce. */
+    @Test func testBhvMisc078TheAuthorizationUrlCarriesAnS256ChallengeAndNoNonce() async throws {
+        let client = MockApiClient()
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let url = try await auth.buildAuthorizationURL()
+
+        #expect(url.contains("code_challenge_method=S256"))
+        #expect(!url.contains("nonce="))
+    }
+
+    /* A call made while the code exchange is in flight reuses the discovered configuration. */
+    @Test func testBhvMisc076ACallDuringTheCodeExchangeReusesTheDiscoveredConfiguration() async throws {
+        let client = MockApiClient()
+        client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
+        client.responses.append(.success(makeResponse(body: "{\"access_token\":\"oidc-tok\",\"expires_in\":3600}")))
+        client.delayNanoseconds = 200_000_000
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+        _ = try await auth.buildAuthorizationURL()
+
+        async let exchange: Void = auth.exchangeCode("oidc-code")
+        try await Task.sleep(nanoseconds: 50_000_000)
+        let url = try await auth.buildAuthorizationURL()
+        try await exchange
+
+        #expect(url.contains("code_challenge="))
+        #expect(client.getCount == 1)
+    }
+
     @Test func testBhvAuthoidc018EmptyStateIsOmittedFromTheAuthorizationUrl() async throws {
         let client = MockApiClient()
         client.responses.append(.success(makeResponse(body: Self.discoveryJSON)))
@@ -715,4 +775,54 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
                 == "SsoAuthAuthenticator(host: https://api.example.com, openIDConnectURL: https://auth.example.com/.well-known/openid-configuration, clientID: cid, clientSecret: ***, redirectURI: https://app.example.com/cb, scopes: [\"openid\"])"
         )
     }
+
+    /* Discovery runs again on every use when max-age is zero, so the cached document never outlives its lifetime. */
+    @Test func testBhvMisc199AnExpiredDiscoveryDocumentIsFetchedAgain() async throws {
+        let client = MockApiClient()
+        for _ in 0..<2 {
+            client.responses.append(.success(ApiHttpResponse(
+                statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])))
+        }
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.buildAuthorizationURL()
+        _ = try await auth.buildAuthorizationURL()
+
+        #expect(client.getCount == 2)
+    }
+
+    /* A discovery document whose issuer names another server is rejected. */
+    @Test func testBhvMisc200ADiscoveryDocumentNamingAnotherIssuerIsRejected() async throws {
+        let client = MockApiClient()
+        client.responses.append(.success(makeResponse(body: discoveryWith(issuer: "https://evil.example.com"))))
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let error = await #expect(throws: SerializationError.self) {
+            _ = try await auth.buildAuthorizationURL()
+        }
+        #expect(error?.message == "OIDC discovery issuer 'https://evil.example.com' does not match 'https://auth.example.com'")
+    }
+
+    /* A failed discovery request reports its request path without the query string. */
+    @Test func testBhvMisc201AFailedDiscoveryReportsItsPathWithoutTheQuery() async throws {
+        let client = MockApiClient()
+        client.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+        let auth = OpenIdConnectAuthenticator(
+            host: "https://api.example.com",
+            openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            redirectURI: "https://app.example.com/callback",
+            scopes: ["openid"]
+        )
+        auth.setApiClient(client)
+
+        let error = await #expect(throws: NotFoundError.self) {
+            _ = try await auth.buildAuthorizationURL()
+        }
+        #expect(error?.requestPath == "/.well-known/openid-configuration")
+    }
+
 }

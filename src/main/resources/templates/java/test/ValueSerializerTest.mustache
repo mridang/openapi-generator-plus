@@ -9,8 +9,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import {{invokerPackage}}.BaseApiTest;
+import {{invokerPackage}}.ObjectSerializer;
 import {{invokerPackage}}.errors.SerializationException;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -19,6 +23,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class ValueSerializerTest {
 
     @Nested
@@ -162,7 +167,7 @@ class ValueSerializerTest {
 
         @Test
         @DisplayName("equals preserved (sub-delimiter)")
-        void equalsPreserved() {
+        void bhvLangjava055EqualsPreserved() {
             assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null));
         }
 
@@ -191,7 +196,7 @@ class ValueSerializerTest {
 
         @Test
         @DisplayName("tilde preserved in styled path array items")
-        void tildePreservedInStyledArray() {
+        void bhvLangjava056TildePreservedInStyledArray() {
             assertEquals("a~b,c~d",
                 ValueSerializer.serializeStyled("ids", Arrays.asList("a~b", "c~d"),
                     "path", "array", null, "simple", false));
@@ -700,12 +705,6 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationParam105 SerializeStyled form scalar")
-        void bhvSerializationParam105SerializeStyledFormScalar() {
-            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true));
-        }
-
-        @Test
         @DisplayName("bhvSerializationParam042 single-element array with explode true returns list")
         void bhvSerializationParam042SingleElementArrayExplodeTrueReturnsList() {
             assertEquals(List.of("blue"), ValueSerializer.serializeStyled("color", List.of("blue"), "query", "array", null, "form", true));
@@ -787,6 +786,10 @@ class ValueSerializerTest {
         @DisplayName("bhvSerializationParam106 path with null style behaves like simple")
         void bhvSerializationParam106PathWithNullStyleBehavesLikeSimple() {
             assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false));
+            assertEquals(
+                    "12.345678901234567890123",
+                    ObjectSerializer.stringify(new java.math.BigDecimal("12.345678901234567890123")));
+            assertEquals("1000", ObjectSerializer.stringify(new java.math.BigDecimal("1E+3")));
         }
 
         @Test
@@ -976,5 +979,159 @@ class ValueSerializerTest {
     void bhvSerialization044DateTimeForADateParameterIsWrittenAsItsCalendarDate() {
         java.time.OffsetDateTime at = java.time.OffsetDateTime.parse("2024-05-06T07:08:09Z");
         assertEquals("2024-05-06", ValueSerializer.serialize(at, "query", "date", null));
+    }
+
+
+    @Test
+    void bhvMisc084SetOptionalScalarSendsItsValueInEveryLocationAndStyle() {
+        assertEquals("on-hold", ValueSerializer.serializeStyled("status", "on-hold", "path", "string", null, "simple", false));
+        assertEquals("on-hold", ValueSerializer.serializeStyled("status", "on-hold", "query", "string", null, "form", true));
+        assertEquals("on-hold", ValueSerializer.serializeStyled("status", "on-hold", "header", "string", null, "simple", false));
+        assertEquals("on-hold", ValueSerializer.serializeStyled("status", "on-hold", "cookie", "string", null, "form", true));
+    }
+
+    @Test
+    void bhvMisc120AnObjectParameterIsSortedByWireNameAndOmitsAbsentValues() {
+        Map<String, Object> filter = new java.util.LinkedHashMap<>();
+        filter.put("b", "2");
+        filter.put("c", null);
+        filter.put("a", "1");
+        assertEquals(List.of("filter[a]", "filter[b]"),
+                List.copyOf(ValueSerializer.serializeDeepObject("filter", filter).keySet()));
+    }
+
+    @Test
+    void bhvMisc123AValueTheCallerPercentEncodedIsSentAsGiven() {
+        assertEquals("a%20b", ValueSerializer.serializeStyled("sid", "a%20b", "cookie", "string", null, "form", true));
+    }
+
+
+    @Test
+    @DisplayName("bhvMisc213 an optional array query parameter is joined in its declared style")
+    void bhvMisc213AnOptionalArrayQueryParameterIsJoinedInItsDeclaredStyle() {
+        assertEquals(
+                "blue|black",
+                ValueSerializer.serializeStyled(
+                        "colors", Arrays.asList("blue", "black"), "query", "array", null,
+                        "pipeDelimited", false));
+    }
+
+    @Test
+    @DisplayName("bhvSerialization109 a path value is percent-encoded exactly once")
+    void bhvSerialization109APathValueIsPercentEncodedExactlyOnce() {
+        assertEquals("a%25b", ValueSerializer.serialize("a%b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("bhvSerialization110 an absent path value is empty and an absent query value is null")
+    void bhvSerialization110AnAbsentPathValueIsEmptyAndAnAbsentQueryValueIsNull() {
+        assertEquals("", ValueSerializer.serialize(null, "path", "string", null));
+        assertNull(ValueSerializer.serialize(null, "query", "string", null));
+    }
+
+    @Test
+    @DisplayName("bhvSerialization111 only unreserved characters stay literal and others are UTF-8 encoded")
+    void bhvSerialization111OnlyUnreservedCharactersStayLiteralAndOthersAreUtf8Encoded() {
+        assertEquals("a~b-._z%20%C3%A9", ValueSerializer.serialize("a~b-._z é", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("bhvSerialization113 a string value passes through without normalising its form")
+    void bhvSerialization113AStringValuePassesThroughWithoutNormalisingItsForm() {
+        assertEquals("é", ValueSerializer.serialize("é", "query", "string", null));
+    }
+
+
+    @Test
+    @DisplayName("bhvSerialization107 an exploded array query parameter repeats its key once per element")
+    void bhvSerialization107ExplodedArrayRepeatsItsKey() {
+        assertEquals(List.of("a", "b"), ValueSerializer.serializeStyled("ids", List.of("a", "b"), "query", "array", null, "form", true));
+    }
+
+    @Test
+    @DisplayName("bhvSerialization108 a path parameter with no style matches the simple style")
+    void bhvSerialization108DefaultStyleMatchesSimpleForPaths() {
+        assertEquals(
+                ValueSerializer.serializeStyled("p", "v", "path", "string", null, "simple", false),
+                ValueSerializer.serializeStyled("p", "v", "path", "string", null, null, false));
+    }
+
+    @Test
+    @DisplayName("bhvSerialization118 a date-time query value keeps its time and offset")
+    void bhvSerialization118DateTimeQueryKeepsItsTime() {
+        Object value = ValueSerializer.serializeStyled("at",
+                OffsetDateTime.of(2026, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC), "query", "string", null, "form", true);
+        assertTrue(String.valueOf(value).startsWith("2026-01-02T03:04:05"), String.valueOf(value));
+    }
+
+
+
+    @Test
+    @DisplayName("bhvMisc232 a string path parameter in simple style percent-encodes slashes")
+    void bhvMisc232AStringPathParameterInSimpleStylePercentEncodesSlashes() {
+        assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null));
+    }
+
+    @Test
+    @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded")
+    void bhvMisc233ACookieParameterCarryingAJsonModelIsFullyPercentEncoded() {
+        String rendered =
+                (String) ValueSerializer.serialize("{\"a\":1.5}", "cookie", "string", null);
+        assertTrue(rendered.contains("%7B"), rendered);
+        assertTrue(rendered.contains("%3A"), rendered);
+        assertTrue(rendered.contains("%2E"), rendered);
+        assertFalse(rendered.contains(":"), rendered);
+    }
+
+    @Test
+    @DisplayName("bhvMisc238 a number query parameter is sent as a plain number")
+    void bhvMisc238ANumberQueryParameterIsSentAsAPlainNumber() {
+        assertEquals("2.5", ValueSerializer.serialize(2.5, "query", "number", null));
+    }
+
+
+    @Test
+    @DisplayName("bhvMisc250 array items with a comma keep the literal separator on a path")
+    void bhvMisc250AArrayItemsWithACommaKeepTheLiteralSeparatorOnAPath() {
+        assertEquals(
+                "a%2Cb,c",
+                ValueSerializer.serialize(Arrays.asList("a,b", "c"), "path", "array", "csv"));
+    }
+
+    /** Sends one query parameter through BaseApi and returns the URL that reached the transport. */
+    private static String wireQuery(String key, Object value, boolean allowReserved) throws Exception {
+        var client = new BaseApiTest.CapturingApiClient();
+        var api = new BaseApiTest.TestableApi(client, "http://localhost");
+        Map<String, Object> query = new java.util.HashMap<>();
+        query.put(key, ValueSerializer.maybeAllowReserved(value, allowReserved));
+        api.call("GET", "/test/echo", query, new java.util.HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null);
+        return client.capturedUrl;
+    }
+
+    @Test
+    @DisplayName("bhvMisc253 an allowReserved value still percent-encodes hash and brackets")
+    void bhvMisc253AnAllowReservedValueStillPercentEncodesHashAndBrackets() throws Exception {
+        assertTrue(wireQuery("q", "a/b#c[d]", true).endsWith("?q=a/b%23c%5Bd%5D"));
+    }
+
+    @Test
+    @DisplayName("bhvMisc254 an unmarked query value percent-encodes slash and colon")
+    void bhvMisc254AnUnmarkedQueryValuePercentEncodesSlashAndColon() throws Exception {
+        assertTrue(wireQuery("q", "a/b:c", false).endsWith("?q=a%2Fb%3Ac"));
+    }
+
+    @Test
+    @DisplayName("bhvMisc255 separate query parameters encode a space as %20")
+    void bhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20() throws Exception {
+        assertTrue(wireQuery("q", "a b", false).endsWith("?q=a%20b"));
+    }
+
+    @Test
+    void bhvMisc107AScalarFormQueryParameterIsEmittedUnderItsOwnNameAndValue() {
+        Object styled = ValueSerializer.serializeStyled("filter", "x", "query", "string", null, "form", true);
+        Map<String, Object> query = new java.util.LinkedHashMap<>();
+        ValueSerializer.putQuery(query, "filter", styled, false);
+        assertEquals(Map.of("filter", "x"), query);
     }
 }

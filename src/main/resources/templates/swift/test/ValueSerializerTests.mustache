@@ -7,6 +7,19 @@ import Testing
 
     // MARK: - SerializeValue by location
 
+    private enum WireStatus: String {
+        case onHold = "on-hold"
+    }
+
+    /* An enum is sent as its wire value in every parameter location. */
+    @Test func testBhvMisc082AnEnumIsSentAsItsWireValue() {
+        for location in ["path", "query", "header"] {
+            let result = ValueSerializer.serializeValue(
+                WireStatus.onHold, location: location, schemaType: "string", collectionFormat: "")
+            #expect(result as? String == "on-hold")
+        }
+    }
+
     @Test func testBhvSerializationparam062SerializeValuePathNull() {
         let result = ValueSerializer.serializeValue(nil, location: "path", schemaType: "string", collectionFormat: "")
         #expect(result as? String == "")
@@ -91,7 +104,7 @@ import Testing
         #expect(result as? String == "false")
     }
 
-    @Test func testSerializeValueQueryArray() {
+    @Test func testBhvSerialization106SerializeValueQueryArray() {
         let result = ValueSerializer.serializeValue(["a", "b", "c"], location: "query", schemaType: "array", collectionFormat: "csv")
         #expect(result as? String == "a,b,c")
     }
@@ -412,7 +425,7 @@ import Testing
         var inner: Criteria
     }
 
-    @Test func testObjectFieldsAreWireKeyedSortedAndSkipNulls() throws {
+    @Test func testBhvLangswift073ObjectFieldsAreWireKeyedSortedAndSkipNulls() throws {
         let value = Criteria(breed: "lab", minAge: 3, active: true, note: nil)
         let fields = try #require(try? ValueSerializer.objectFields(value)?.get())
         #expect(fields.map { $0.name } == ["active", "breed", "min_age"])
@@ -706,10 +719,10 @@ import Testing
         #expect(
             ValueSerializer.encodeCookieValue("{\"a\": \"b;c,d\"}")
                 == "%7B%22a%22%3A%20%22b%3Bc%2Cd%22%7D")
-        #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b._~9")
+        #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b%2E_~9")
     }
 
-    @Test func testBhvSerializationparam104EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
+    @Test func testBhvLangswift084EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
         #expect(
             ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
                 == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")
@@ -733,13 +746,13 @@ import Testing
     }
 
     @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
-        #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
+        #expect(ValueSerializer.encodeStyledPathValue("a;b") == "a;b")
     }
 
     // MARK: - Behaviour catalogue: path, header, style and object parameters
 
     @Test func testBhvSerialization005PathSegmentKeepsOnlyUnreservedAndSubDelimitersLiteral() {
-        #expect(ValueSerializer.encodePathSegment("a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r") == "a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
+        #expect(ValueSerializer.encodeStyledPathValue("a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r") == "a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
         #expect(ValueSerializer.encodePathSegment("a/b?c#d%e") == "a%2Fb%3Fc%23d%25e")
     }
 
@@ -788,5 +801,107 @@ import Testing
     @Test func testBhvSerialization008ContentTypedParameterIsEncodedOnlyOnce() {
         #expect(ValueSerializer.encodeCookieValue("{\"a\":1}") == "%7B%22a%22%3A1%7D")
         #expect(ValueSerializer.encodeCookieValue("%7B") == "%257B")
+    }
+
+    /* A set optional scalar parameter is sent in every location. */
+    @Test func testBhvMisc084ASetOptionalScalarIsSentInEveryLocation() {
+        let value: Int? = 7
+        for location in ["path", "header", "cookie", "query"] {
+            let sent = ValueSerializer.serializeValue(value, location: location, schemaType: "integer", collectionFormat: "")
+            #expect("\(sent ?? "")" == "7", "\(location)")
+        }
+    }
+
+    /* An element that holds JSON text is taken as its own value and is never decoded again. */
+    @Test func testBhvMisc086AnElementHoldingJsonTextIsNotDecodedAgain() {
+        let sent = ValueSerializer.serializeValue(["{\"a\":1}"], location: "query", schemaType: "array", collectionFormat: "multi")
+        #expect((sent as? [String]) == ["{\"a\":1}"])
+    }
+
+    /* A scalar form query parameter is emitted with its own name and its string value. */
+    @Test func testBhvMisc107AScalarFormQueryParameterKeepsItsOwnNameAndValue() {
+        let sent = ValueSerializer.serializeStyled("filter", value: "x", location: "query", schemaType: "string", collectionFormat: "", style: "form", explode: true)
+        #expect("\(sent ?? "")" == "x")
+    }
+
+    /* An object parameter becomes name and value pairs keyed by wire name, with absent values left out. */
+    @Test func testBhvMisc120AnObjectParameterIsKeyedByWireNameAndOmitsAbsentValues() {
+        let result = ValueSerializer.serializeDeepObject("filter", value: ["b": "2", "a": "1"])
+        #expect(result == ["filter[a]": "1", "filter[b]": "2"])
+    }
+
+    /* A path parameter string percent-encodes a slash in explicit simple style. */
+    @Test func testBhvMisc232AStringPathParameterPercentEncodesSlashes() throws {
+        #expect(ValueSerializer.encodePathSegment("a/b") == "a%2Fb")
+    }
+
+    /* A cookie carrying a JSON model percent-encodes its colons and dots, so none is sent literally. */
+    @Test func testBhvMisc233ACookieCarryingAJsonModelPercentEncodesItsColons() throws {
+        let cookie = ValueSerializer.encodeCookieValue("{\"label\":\"a.b:c\"}")
+        #expect(!cookie.contains(":"))
+        #expect(cookie.contains("%3A"))
+        #expect(!cookie.contains("."))
+        #expect(cookie.contains("%2E"))
+    }
+
+    /* An array item containing a comma keeps the literal comma across the simple, label and matrix path styles. */
+    @Test(arguments: ["simple", "label", "matrix"]) func testBhvMisc250AnArrayItemContainingACommaKeepsTheLiteralComma(
+        style: String
+    ) throws {
+        let result = ValueSerializer.serializeStyled(
+            "ids", value: ["a,b", "c"], location: "path", schemaType: "array", collectionFormat: "",
+            style: style, explode: false)
+        #expect(String(describing: result ?? "").contains("a,b"))
+    }
+
+    /* An allowReserved query value still percent-encodes hash and bracket characters. */
+    @Test func testBhvMisc253AnAllowReservedValueStillEncodesHashAndBrackets() throws {
+        let query = BaseApi.buildQueryString(["revision": ValueSerializer.AllowReservedValue(value: "a/b#[c]")])
+        #expect(query.contains("a/b"))
+        #expect(query.contains("%23"))
+        #expect(query.contains("%5B"))
+        #expect(query.contains("%5D"))
+    }
+
+    /* An unmarked query value percent-encodes reserved characters such as slash and colon. */
+    @Test func testBhvMisc254AnUnmarkedQueryValuePercentEncodesSlashAndColon() throws {
+        #expect(BaseApi.buildQueryString(["q": "a/b:c"]).contains("a%2Fb%3Ac"))
+    }
+
+    /* Separate query parameters encode a space as %20. */
+    @Test func testBhvMisc255ASpaceInAQueryParameterIsEncodedAsPercent20() throws {
+        #expect(BaseApi.buildQueryString(["q": "a b"]).contains("a%20b"))
+    }
+
+    /* An exploded array or set query parameter repeats its key once for each element. */
+    @Test func testBhvSerialization107AnExplodedArrayQueryParameterRepeatsItsKeyPerElement() {
+        let result = ValueSerializer.serializeValue(
+            ["a", "b"], location: "query", schemaType: "array", collectionFormat: "multi")
+
+        #expect(result as? [String] == ["a", "b"])
+    }
+
+    /* A parameter with no declared style uses the default style for its location, which matches the simple style for path parameters. */
+    @Test func testBhvSerialization108APathValueWithNoStyleMatchesTheSimpleStyle() {
+        let defaulted = ValueSerializer.serializeStyled(
+            "id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "", explode: false)
+        let simple = ValueSerializer.serializeStyled(
+            "id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
+
+        #expect(defaulted as? String == simple as? String)
+        #expect(defaulted as? String == "5")
+    }
+
+    /* A string path parameter is percent-encoded exactly once in the final request URL. */
+    @Test func testBhvSerialization109AStringPathParameterIsPercentEncodedExactlyOnce() {
+        #expect(ValueSerializer.encodePathSegment("a b/c") == "a%20b%2Fc")
+        #expect(ValueSerializer.encodePathSegment("a%20b") == "a%2520b")
+    }
+
+    /* Only RFC 3986 unreserved characters, including tilde, stay literal, and every other character is percent-encoded as UTF-8. */
+    @Test func testBhvSerialization111OnlyUnreservedCharactersStayLiteral() {
+        #expect(ValueSerializer.encodePathSegment("AZaz09-._~") == "AZaz09-._~")
+        #expect(ValueSerializer.encodePathSegment("+") == "%2B")
+        #expect(ValueSerializer.encodePathSegment("é") == "%C3%A9")
     }
 }

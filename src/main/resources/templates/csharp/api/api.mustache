@@ -620,12 +620,26 @@ public class {{classname}} : BaseApi, I{{classname}}
                 decodeByStatus: (status, body) =>
                 {
 {{#vendorExtensions.op.successResponses}}
-{{^isLast}}
                     if ({{#isRange}}status is >= 200 and < 300{{/isRange}}{{^isRange}}status == {{statusCode}}{{/isRange}})
                     {
                         {{{returnType}}}? variant = Serializer.Deserialize<{{{returnType}}}>(body);
                         return variant is null ? null : new {{{vendorExtensions.op.successUnionType}}}(variant);
                     }
+{{/vendorExtensions.op.successResponses}}
+                    /* An undeclared 2xx status names no schema: it decodes as the
+                       first declared success type that accepts the body, in
+                       declaration order. The last type's failure is the one raised. */
+{{#vendorExtensions.op.successResponses}}
+{{^isLast}}
+                    try
+                    {
+                        {{{returnType}}}? tried = Serializer.Deserialize<{{{returnType}}}>(body);
+                        if (tried is not null)
+                        {
+                            return new {{{vendorExtensions.op.successUnionType}}}(tried);
+                        }
+                    }
+                    catch (SerializationException) { }
 {{/isLast}}
 {{#isLast}}
                     {{{returnType}}}? lastVariant = Serializer.Deserialize<{{{returnType}}}>(body);

@@ -46,6 +46,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     )
   end
 
+  defmodule NetworkFailingApiClient do
+    defstruct []
+
+    def send_request(%__MODULE__{}, _method, _url, _headers, _body),
+      do: raise(RuntimeError, "connection reset")
+  end
+
   # Every authorization URL ends in its own PKCE challenge, so a comparison of two
   # URLs drops it first.
   defp strip_pkce(url) do
@@ -79,7 +86,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                    end
     end
 
-    test "scheme authenticator keeps the declared URLs" do
+    test "bhv langelixir 015 scheme authenticator keeps the declared URLs" do
       auth =
         PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator.new(
           "https://api.example.com",
@@ -717,6 +724,47 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
                Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
     end
 
+    test "bhv misc 077 a generated PKCE verifier is 43 unreserved characters and differs on every call" do
+      auth = create_authenticator()
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+      first = PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(auth.token_manager)
+
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(auth)
+      second = PetstoreClient.Auth.OAuth.OAuth2TokenManager.code_verifier(auth.token_manager)
+
+      assert first =~ ~r/\A[A-Za-z0-9\-._~]{43}\z/
+      assert first != second
+    end
+
+    test "bhv misc 076 a call after a dropped code exchange sees the code as not yet exchanged" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          %NetworkFailingApiClient{}
+        )
+
+      assert_raise RuntimeError, "connection reset", fn ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "auth-code-xyz"
+        )
+      end
+
+      caught =
+        try do
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.auth_headers(auth)
+          nil
+        rescue
+          e in RuntimeError -> e
+        end
+
+      assert caught != nil
+      assert caught.message == "Must call exchange_code() before making API requests"
+    end
+
     test "bhv authoauthtwoauthcode 009 every authorization URL starts a new verifier" do
       auth = create_authenticator()
 
@@ -801,7 +849,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
     # The exchange is recorded in the shared token manager, not in the struct, so
     # a copy of the authenticator (such as the one the client holds) is ready as
     # soon as exchange_code ran on any other copy, whatever it returned.
-    test "exchange_code readies the authenticator without using its return value" do
+    test "bhv langelixir 016 exchange_code readies the authenticator without using its return value" do
       fake_client =
         FakeApiClient.new([
           %PetstoreClient.ApiHttpResponse{
@@ -1032,6 +1080,156 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticatorTest do
 
       assert url =~ "scope=read%20write"
       refute url =~ "+"
+    end
+
+    test "bhv auth 048 the authorization-code flow builds the authorize URL with the declared scopes" do
+      auth = create_authenticator()
+
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          auth
+        )
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      assert query_params(url)["scope"] == "read write"
+    end
+
+    test "bhv misc 058 the configured authorization endpoint reaches the authorization URL exactly as configured" do
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          create_authenticator()
+        )
+
+      assert String.starts_with?(url, "https://auth.example.com/authorize?")
+      refute url =~ "/authorize/?"
+    end
+
+    test "bhv misc 062 the scopes the scheme declares reach the authorization URL" do
+      url =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.build_authorization_url(
+          create_authenticator()
+        )
+
+      assert query_params(url)["scope"] == "read write"
+    end
+
+    test "bhv auth 053 exchanging a code discards the refresh token previously held" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body:
+              Jason.encode!(%{
+                "access_token" => "tok1",
+                "refresh_token" => "ref1",
+                "expires_in" => 3600
+              })
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2", "expires_in" => 3600})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "first"
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "second"
+        )
+
+      assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.refresh_token(auth.token_manager) == nil
+    end
+
+    test "bhv auth 054 a non-success token response surfaces as OAuth2ServerError naming the status and body" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 400,
+            body: Jason.encode!(%{"error" => "invalid_grant"})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      error =
+        assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+          PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+            auth,
+            "auth-code-xyz"
+          )
+        end
+
+      assert error.status_code == 400
+      assert error.message =~ "invalid_grant"
+    end
+
+    test "bhv auth 055 a network failure during a token request reaches the caller unchanged" do
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+          auth,
+          %NetworkFailingApiClient{}
+        )
+
+      assert_raise RuntimeError, "connection reset", fn ->
+        PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+          auth,
+          "auth-code-xyz"
+        )
+      end
+    end
+  end
+
+  test "bhv misc 028 a transport failure during the authorization code exchange reaches the caller unwrapped" do
+    {:ok, listen_socket} =
+      :gen_tcp.listen(0, [:binary, packet: :raw, active: false, reuseaddr: true])
+
+    {:ok, port} = :inet.port(listen_socket)
+    :gen_tcp.close(listen_socket)
+
+    auth =
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.new(
+        "https://api.example.com",
+        "my-client-id",
+        "my-client-secret",
+        "https://auth.example.com/authorize",
+        "http://127.0.0.1:#{port}/token",
+        "https://app.example.com/callback",
+        ["read"]
+      )
+
+    auth =
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.set_api_client(
+        auth,
+        PetstoreClient.DefaultApiClient.new()
+      )
+
+    assert_raise PetstoreClient.Errors.NetworkError, fn ->
+      PetstoreClient.Auth.OAuth.OAuth2AuthorizationCodeAuthenticator.exchange_code(
+        auth,
+        "auth-code-xyz"
+      )
     end
   end
 end

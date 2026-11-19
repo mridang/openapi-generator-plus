@@ -115,6 +115,56 @@ import Testing
     #expect(headers["Authorization"] == "Bearer tok-pwd")
   }
 
+  /* The password grant posts to the declared token URL with the declared scopes. */
+  @Test func testBhvAuth051PasswordGrantPostsToTheTokenUrlWithDeclaredScopes() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      scopes: ["read", "write"],
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+
+    #expect(client.lastURL == "https://auth.example.com/token")
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.split(separator: "&").contains("scope=read+write"))
+  }
+
+  /* A request that needs a new token uses the refresh grant first when a refresh token is held. */
+  @Test func testBhvAuth058NeedingANewTokenUsesTheRefreshGrantFirst() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"tok1\",\"refresh_token\":\"ref1\",\"expires_in\":0}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+
+    let auth = OAuth2PasswordAuthenticator(
+      host: "https://api.example.com",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      tokenURL: "https://auth.example.com/token",
+      username: "testuser",
+      password: "testpass",
+      refreshURL: "https://auth.example.com/refresh"
+    )
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
+
+    #expect(client.lastURL == "https://auth.example.com/refresh")
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.split(separator: "&").contains("grant_type=refresh_token"))
+  }
+
   @Test func testBhvAuthoauthtwopassword019UsesRefreshTokenOnSubsequentCalls() async throws {
     let client = MockApiClient()
     client.responses.append(
@@ -312,6 +362,13 @@ import Testing
         == "OAuth2PasswordAuthenticator(host: https://api.example.com, clientID: my-client-id, clientSecret: ***, tokenURL: https://auth.example.com/token, refreshURL: https://auth.example.com/token, username: testuser, password: ***, scopes: [\"read\", \"write\"], clientAuthMethod: body)"
     )
     #expect(String(reflecting: auth) == description)
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+     * so the redacted description is not enough: the reflection must hide the secret too. */
+    var dumped = ""
+    dump(auth, to: &dumped)
+    #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
+    #expect(!dumped.contains("testpass"), "dump leaked the secret: \(dumped)")
+    #expect(Mirror(reflecting: auth).children.isEmpty)
   }
 
   /* The redacted description names the non-secret fields. */
@@ -321,18 +378,6 @@ import Testing
     #expect(description.contains("username: testuser"))
     #expect(description.contains("tokenURL: https://auth.example.com/token"))
     #expect(description.contains("scopes: [\"read\", \"write\"]"))
-  }
-
-  /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
-   * included, so the redacted description is not enough: the reflection
-   * must hide the secret too. */
-  @Test func dumpDoesNotLeakSecret() async throws {
-    let auth = createAuthenticator()
-    var dumped = ""
-    dump(auth, to: &dumped)
-    #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
-    #expect(!dumped.contains("testpass"), "dump leaked the secret: \(dumped)")
-    #expect(Mirror(reflecting: auth).children.isEmpty)
   }
 
   /* The token body is emitted in the fixed cross-SDK parameter order. */

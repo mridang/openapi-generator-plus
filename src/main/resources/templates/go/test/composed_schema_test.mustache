@@ -209,7 +209,7 @@ func TestBhvUnions020_ComposedSchema_PetFood_SerializeDryFood(t *testing.T) {
 	}
 }
 
-func TestComposedSchema_PetFood_ConstructedFromAPointerStoresTheVariantByValue(t *testing.T) {
+func TestBhvLanggo025_ComposedSchema_PetFood_ConstructedFromAPointerStoresTheVariantByValue(t *testing.T) {
 	t.Parallel()
 	food := models.NewPetFood(models.NewDryFood(2.5))
 
@@ -241,7 +241,7 @@ func TestBhvUnions038_ComposedSchema_PetFood_DiscriminatorKeyMatchesCaseSensitiv
 	t.Parallel()
 	var food models.PetFood
 	err := json.Unmarshal([]byte(`{"FOODTYPE":"dry","weightKg":2.5}`), &food)
-	if err == nil || err.Error() != `unknown discriminator value "" for PetFood` {
+	if err == nil || err.Error() != `missing discriminator property "foodType" for PetFood` {
 		t.Fatalf("expected the mis-cased discriminator key to be ignored, got %v", err)
 	}
 }
@@ -697,7 +697,7 @@ func TestBhvUnions019_ComposedSchema_SetPetAvatarThumbnailRequest_ConstructedFro
 // The variants are declared [byte, array-of-byte]; an empty JSON array decodes
 // into both Go types, so the first declared variant (the scalar []byte) must win
 // rather than the alphabetically first one.
-func TestComposedSchema_SetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
+func TestBhvMisc291_ComposedSchema_SetPetAvatarThumbnailRequest_AmbiguousPayloadResolvesToFirstDeclaredVariant(t *testing.T) {
 	t.Parallel()
 
 	var request models.SetPetAvatarThumbnailRequest
@@ -775,7 +775,7 @@ func TestBhvUnions030_ComposedSchema_DryFood_AbsentDiscriminatorPropertyIsFilled
 	}
 }
 
-func TestComposedSchema_DryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
+func TestBhvLanggo026_ComposedSchema_DryFood_NullDiscriminatorPropertyIsStillRejected(t *testing.T) {
 	t.Parallel()
 	var food models.DryFood
 	if err := json.Unmarshal([]byte(`{"foodType":null,"weightKg":2.5}`), &food); err == nil {
@@ -808,7 +808,7 @@ func TestBhvUnions001_ComposedSchema_PetFood_TypedConstructorAndAccessorsNameThe
 	}
 }
 
-func TestComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+func TestBhvMisc047_ComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	t.Parallel()
 	for name, food := range map[string]models.PetFood{
 		"foreign value": models.NewPetFood("kibble"),
@@ -820,7 +820,7 @@ func TestComposedSchema_PetFood_MarshalRejectsAValueThatIsNotAVariant(t *testing
 	}
 }
 
-func TestComposedSchema_PetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
+func TestBhvUnions044_ComposedSchema_PetTreatment_TypedConstructorAndAccessorsNameTheVariant(t *testing.T) {
 	t.Parallel()
 	drug := "Amoxicillin"
 	treatment := models.NewMedicationPetTreatment(models.Medication{DrugName: drug})
@@ -837,7 +837,7 @@ func TestComposedSchema_PetTreatment_TypedConstructorAndAccessorsNameTheVariant(
 	}
 }
 
-func TestComposedSchema_PetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
+func TestBhvLanggo027_ComposedSchema_PetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *testing.T) {
 	t.Parallel()
 	treatment := models.NewPetTreatment("rest")
 	if _, err := json.Marshal(treatment); err == nil || !strings.Contains(err.Error(), "is not a variant of PetTreatment") {
@@ -845,7 +845,7 @@ func TestComposedSchema_PetTreatment_MarshalRejectsAValueThatIsNotAVariant(t *te
 	}
 }
 
-func TestComposedSchema_SetPetAvatarThumbnailRequest_TypedConstructorsNameTheirVariants(t *testing.T) {
+func TestBhvLanggo028_ComposedSchema_SetPetAvatarThumbnailRequest_TypedConstructorsNameTheirVariants(t *testing.T) {
 	t.Parallel()
 	scalar := models.NewByteSliceSetPetAvatarThumbnailRequest([]byte{0x01, 0x02})
 	if !scalar.IsByteSlice() || scalar.IsByteSliceSlice() {
@@ -859,7 +859,7 @@ func TestComposedSchema_SetPetAvatarThumbnailRequest_TypedConstructorsNameTheirV
 
 // ── Models are immutable: a With method returns a copy ──
 
-func TestComposedSchema_Model_WithReturnsACopyAndLeavesTheReceiverAlone(t *testing.T) {
+func TestBhvLanggo029_ComposedSchema_Model_WithReturnsACopyAndLeavesTheReceiverAlone(t *testing.T) {
 	t.Parallel()
 	original := models.DryFood{FoodType: "dry", WeightKg: 2.5}
 	changed := original.WithWeightKg(3)
@@ -958,5 +958,139 @@ func TestBhvUnions042_ComposedSchema_PetFood_EmptyWrapperHoldsNoInstance(t *test
 		if union.ActualInstance() != nil {
 			t.Errorf("%s: expected a nil instance, got %v", name, union.ActualInstance())
 		}
+	}
+}
+
+// Two union values built from the same data compare equal, whether built by a factory or a constructor.
+func TestBhvUnions045_ComposedSchema_EqualBuildsCompareEqual(t *testing.T) {
+	t.Parallel()
+	a := models.NewMedicationPetTreatment(models.Medication{})
+	b := models.NewPetTreatment(models.Medication{})
+	if !a.Equal(&b) {
+		t.Errorf("expected the same data to compare equal, got %+v and %+v", a, b)
+	}
+}
+
+// When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched.
+func TestBhvUnions046_ComposedSchema_EveryMatchingVariantReportsItself(t *testing.T) {
+	t.Parallel()
+	treatment := models.NewPetTreatment(models.Medication{}, models.Surgery{})
+	if !treatment.IsMedication() || !treatment.IsSurgery() || len(treatment.MatchedInstances()) != 2 {
+		t.Errorf("expected both matching variants to report themselves, got %v", treatment.MatchedInstances())
+	}
+}
+
+// A discriminator value that is not one of the listed mapping names, including an empty value, raises an error.
+func TestBhvUnions047_ComposedSchema_AnUnlistedDiscriminatorValueIsAnError(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{`{"shapeType":"triangle"}`, `{"shapeType":""}`} {
+		var shape models.Shape
+		err := json.Unmarshal([]byte(payload), &shape)
+		if err == nil || !strings.Contains(err.Error(), "discriminator") {
+			t.Errorf("%s: expected a discriminator error, got %v", payload, err)
+		}
+	}
+}
+
+// A payload that does not satisfy a variant's schema is not accepted as that variant, and the decode fails.
+func TestBhvMisc045_ComposedSchema_AVariantPayloadThatFailsItsSchemaIsRejected(t *testing.T) {
+	t.Parallel()
+	for _, payload := range []string{`{"foodType":"dry"}`, `{"foodType":"dry","weightKg":"heavy"}`} {
+		var food models.PetFood
+		if err := json.Unmarshal([]byte(payload), &food); err == nil {
+			t.Errorf("%s: expected the payload rejected for not satisfying its variant", payload)
+		}
+	}
+}
+
+// Two union values holding equal content compare equal, and unions holding different content compare unequal.
+func TestBhvMisc046_ComposedSchema_EqualContentComparesEqual(t *testing.T) {
+	t.Parallel()
+	a := models.NewMedicationPetTreatment(models.Medication{})
+	b := models.NewMedicationPetTreatment(models.Medication{})
+	c := models.NewSurgeryPetTreatment(models.Surgery{})
+	if !a.Equal(&b) {
+		t.Error("expected equal content to compare equal")
+	}
+	if a.Equal(&c) {
+		t.Error("expected different content to compare unequal")
+	}
+}
+
+func TestBhvMisc292_ComposedSchema_PetTreatment_WrapperWritesTheBareVariantPayload(t *testing.T) {
+	t.Parallel()
+	wrapper := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
+	data, err := json.Marshal(wrapper)
+	if err != nil {
+		t.Fatalf("failed to serialize PetTreatment: %v", err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(data, &wire); err != nil {
+		t.Fatalf("expected a JSON object, got %s: %v", data, err)
+	}
+	if wire["drugName"] != "Amoxicillin" {
+		t.Errorf("expected the bare Medication payload, got %s", data)
+	}
+	var back models.PetTreatment
+	if err := json.Unmarshal(data, &back); err != nil {
+		t.Fatalf("failed to deserialize PetTreatment: %v", err)
+	}
+	medication, ok := back.ActualInstance().(models.Medication)
+	if !ok || medication.DrugName != "Amoxicillin" {
+		t.Errorf("expected the same Medication back, got %T %v", back.ActualInstance(), back.ActualInstance())
+	}
+}
+
+func TestBhvMisc293_ComposedSchema_PetTreatment_ReturnsEveryMatchingVariantAndSkipsTheRest(t *testing.T) {
+	t.Parallel()
+	var both models.PetTreatment
+	if err := json.Unmarshal([]byte(`{"drugName":"Amoxicillin","procedureName":"Neuter"}`), &both); err != nil {
+		t.Fatalf("failed to deserialize PetTreatment: %v", err)
+	}
+	if n := len(both.MatchedInstances()); n != 2 {
+		t.Fatalf("expected both variants to be kept, got %d: %v", n, both.MatchedInstances())
+	}
+
+	var only models.PetTreatment
+	if err := json.Unmarshal([]byte(`{"drugName":"Amoxicillin"}`), &only); err != nil {
+		t.Fatalf("failed to deserialize PetTreatment: %v", err)
+	}
+	matched := only.MatchedInstances()
+	if len(matched) != 1 {
+		t.Fatalf("expected only the Medication variant, got %v", matched)
+	}
+	if _, ok := matched[0].(models.Medication); !ok {
+		t.Errorf("expected a Medication, got %T", matched[0])
+	}
+}
+
+func TestBhvMisc294_ComposedSchema_Car_PayloadWithoutDiscriminatorDecodesAsTheMappedVariant(t *testing.T) {
+	t.Parallel()
+	var car models.Car
+	if err := json.Unmarshal([]byte(`{"plate":"AB-12","doorCount":4}`), &car); err != nil {
+		t.Fatalf("failed to deserialize Car without a discriminator: %v", err)
+	}
+	if car.VehicleType != "car" {
+		t.Errorf("expected the mapped discriminator \"car\", got %q", car.VehicleType)
+	}
+}
+
+func TestBhvMisc295_ComposedSchema_SetPetAvatarThumbnailRequest_Base64ScalarRoundTripsAndANonListIsRejected(t *testing.T) {
+	t.Parallel()
+	var scalar models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`"AQIDBA=="`), &scalar); err != nil {
+		t.Fatalf("failed to deserialize base64 byte variant: %v", err)
+	}
+	out, err := json.Marshal(scalar)
+	if err != nil {
+		t.Fatalf("failed to serialize base64 byte variant: %v", err)
+	}
+	if string(out) != `"AQIDBA=="` {
+		t.Errorf("expected the base64 string back, got %s", string(out))
+	}
+
+	var notAList models.SetPetAvatarThumbnailRequest
+	if err := json.Unmarshal([]byte(`42`), &notAList); err == nil {
+		t.Error("expected a number to be rejected: it is neither a base64 string nor an array")
 	}
 }

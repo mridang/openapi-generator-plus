@@ -124,6 +124,15 @@ final class ValueSerializer
     }
 
     /**
+     * Percent-encodes the JSON text of a `content:` cookie parameter. Only
+     * A-Za-z0-9 - _ ~ stay literal: rawurlencode keeps the dot, so it is encoded too.
+     */
+    public static function encodeContentCookie(string $json): string
+    {
+        return str_replace('.', '%2E', rawurlencode($json));
+    }
+
+    /**
      * Percent-encodes a value for use as a URL path segment.
      *
      * Encodes characters that are not allowed in a URI path segment per
@@ -292,7 +301,9 @@ final class ValueSerializer
         if ($isList) {
             $items = array_map($stringifier, $value);
             if ($location === 'path') {
-                $items = array_map(self::encodePathSegment(...), $items);
+                /* An item is encoded in full, so a comma inside it is %2C and only the
+                 * structural separators that are added between items stay literal. */
+                $items = array_map(rawurlencode(...), $items);
             }
         } else {
             $scalar = $stringifier($value);
@@ -349,9 +360,12 @@ final class ValueSerializer
      */
     private static function isObjectValue(object $value): bool
     {
+        /* A generated model is Stringable through its string form, so it is recognised by its namespace. */
+        $isModel = str_starts_with($value::class, 'PetstoreClient\\Models\\');
+
         return !$value instanceof \UnitEnum
             && !$value instanceof \DateTimeInterface
-            && !$value instanceof \Stringable
+            && ($isModel || !$value instanceof \Stringable)
             && !$value instanceof \Ds\Collection;
     }
 
@@ -495,6 +509,8 @@ final class ValueSerializer
             $decoded = json_decode(ObjectSerializer::serialize($value), true);
             $value = is_array($decoded) ? $decoded : [];
         }
+        /* Entries are written in name order, so the same object always gives the same pairs. */
+        ksort($value);
 
         foreach ($value as $key => $val) {
             /* A null entry is an unset value and is left out, as an unset model property is. */

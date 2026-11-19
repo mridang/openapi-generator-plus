@@ -43,7 +43,7 @@ func setSchemeEnvironment(t *testing.T, variables, fields []string, blank, mode 
 	t.Helper()
 	for i, name := range variables {
 		value := schemeEnvValue(fields[i])
-		if name == blank {
+		if blank == "*" || name == blank {
 			value = ""
 		}
 		t.Setenv(name, value)
@@ -104,7 +104,7 @@ func requireSchemePetStoreBasicAuthenticatorCredentials(t *testing.T, a *auth.Pe
 	}
 }
 
-func TestBhvAuthbasic001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func schemePetStoreBasicAuthenticatorReadsEveryCredential(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
@@ -115,7 +115,7 @@ func TestBhvAuthbasic001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEve
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func schemePetStoreBasicAuthenticatorPrefersTheArguments(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -126,18 +126,7 @@ func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersT
 	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "", "")
-
-	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemePetStoreBasicAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestBhvAuthbasic012_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func schemePetStoreBasicAuthenticatorEmptyVariableIsUnset(t *testing.T) {
 	for _, variable := range schemePetStoreBasicAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, variable, "empty")
@@ -152,7 +141,7 @@ func TestBhvAuthbasic012_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyV
 	}
 }
 
-func TestBhvAuthbasic003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func schemePetStoreBasicAuthenticatorFailsNamingVariable(t *testing.T) {
 	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -169,7 +158,7 @@ func TestBhvAuthbasic003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNam
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func schemePetStoreBasicAuthenticatorFailsByIdentifier(t *testing.T) {
 	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -186,7 +175,7 @@ func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThat
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func schemePetStoreBasicAuthenticatorFailsByMode(t *testing.T) {
 	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -200,37 +189,6 @@ func TestSchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThat
 				}
 			})
 		}
-	}
-}
-
-// An empty environment variable fails construction without arguments, and the error names that variable.
-func TestBhvAuthscheme003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingTheVariableWhenItIsEmpty(t *testing.T) {
-	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
-		t.Run(schemePetStoreBasicAuthenticatorFields[i], func(t *testing.T) {
-			setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, variable, "empty")
-
-			a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
-
-			requireMissingCredential(t, err, variable)
-			if a != nil {
-				t.Error("expected no authenticator")
-			}
-		})
-	}
-}
-
-// A per-scheme basic wrapper emits the same Authorization header as the base authenticator it wraps.
-func TestBhvAuthbasic019_SchemeAuthenticator_PetStoreBasicAuthenticator_EmitsTheBaseBasicHeader(t *testing.T) {
-	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	base, err := auth.NewBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
-	if err != nil {
-		t.Fatalf("unexpected error from NewBasicAuthenticator: %v", err)
-	}
-	if got, want := a.AuthHeaders()["Authorization"], base.AuthHeaders()["Authorization"]; got != want {
-		t.Errorf("expected the base Basic header %q, got %q", want, got)
 	}
 }
 
@@ -245,7 +203,7 @@ func requireSchemeAdminBasicAuthenticatorCredentials(t *testing.T, a *auth.Admin
 	}
 }
 
-func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func schemeAdminBasicAuthenticatorReadsEveryCredential(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")
@@ -256,7 +214,7 @@ func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEvery
 	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func schemeAdminBasicAuthenticatorPrefersTheArguments(t *testing.T) {
 	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
 
 	a, err := auth.NewAdminBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
@@ -267,18 +225,7 @@ func TestSchemeAuthenticator_AdminBasicAuthenticator_PrefersTheArgumentsOverTheE
 	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "", "")
-
-	a, err := auth.NewAdminBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeAdminBasicAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func schemeAdminBasicAuthenticatorEmptyVariableIsUnset(t *testing.T) {
 	for _, variable := range schemeAdminBasicAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, variable, "empty")
@@ -293,7 +240,7 @@ func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableC
 	}
 }
 
-func TestBhvAuthscheme004_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func schemeAdminBasicAuthenticatorFailsNamingVariable(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -310,7 +257,7 @@ func TestBhvAuthscheme004_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamin
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func schemeAdminBasicAuthenticatorFailsByIdentifier(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -327,7 +274,7 @@ func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsE
 	}
 }
 
-func TestSchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func schemeAdminBasicAuthenticatorFailsByMode(t *testing.T) {
 	for i, variable := range schemeAdminBasicAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeAdminBasicAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -355,7 +302,7 @@ func requireSchemePetStoreBearerAuthenticatorCredentials(t *testing.T, a *auth.P
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func schemePetStoreBearerAuthenticatorReadsEveryCredential(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
@@ -366,7 +313,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ReadsEveryCredentialFro
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func schemePetStoreBearerAuthenticatorPrefersTheArguments(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, schemeArgValue("token"))
@@ -377,18 +324,7 @@ func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_Prefer
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
-
-	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, schemeArgValue("token"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func schemePetStoreBearerAuthenticatorEmptyVariableIsUnset(t *testing.T) {
 	for _, variable := range schemePetStoreBearerAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, variable, "empty")
@@ -403,7 +339,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_AnEmptyVariableCountsAs
 	}
 }
 
-func TestBhvAuthbearer019_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func schemePetStoreBearerAuthenticatorFailsNamingVariable(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -423,7 +359,7 @@ func TestBhvAuthbearer019_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsN
 	}
 }
 
-func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func schemePetStoreBearerAuthenticatorFailsByIdentifier(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -443,7 +379,7 @@ func TestSchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableTha
 	}
 }
 
-func TestBhvAuthscheme010_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func schemePetStoreBearerAuthenticatorFailsByMode(t *testing.T) {
 	for i, variable := range schemePetStoreBearerAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemePetStoreBearerAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -463,20 +399,7 @@ func TestBhvAuthscheme010_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsN
 	}
 }
 
-func TestBhvAuthscheme002_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
-
-	a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, schemeTokenFrom("provider-token"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
-		t.Errorf("expected %q, got %q", want, got)
-	}
-}
-
-func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func schemePetStoreBearerAuthenticatorReadsTheEnvironmentOnce(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
@@ -487,17 +410,6 @@ func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTh
 	t.Setenv(schemePetStoreBearerAuthenticatorVariables[0], "changed-after-build")
 
 	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestBhvAuth004_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
-	a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, nil)
-
-	if !errors.Is(err, auth.ErrInvalidBearerToken) {
-		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
-	}
-	if a != nil {
-		t.Error("expected no authenticator")
-	}
 }
 
 var schemeServiceTokenAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"}
@@ -511,7 +423,7 @@ func requireSchemeServiceTokenAuthenticatorCredentials(t *testing.T, a *auth.Ser
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func schemeServiceTokenAuthenticatorReadsEveryCredential(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
@@ -522,7 +434,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_ReadsEveryCredentialFromI
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func schemeServiceTokenAuthenticatorPrefersTheArguments(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, schemeArgValue("token"))
@@ -533,18 +445,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_PrefersTheArgumentsOverTh
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
-
-	a, err := auth.NewServiceTokenAuthenticator(schemeHost, schemeArgValue("token"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func schemeServiceTokenAuthenticatorEmptyVariableIsUnset(t *testing.T) {
 	for _, variable := range schemeServiceTokenAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, variable, "empty")
@@ -559,7 +460,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_AnEmptyVariableCountsAsUn
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+func schemeServiceTokenAuthenticatorFailsNamingVariable(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -579,7 +480,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatI
 	}
 }
 
-func TestBhvAuthscheme011_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+func schemeServiceTokenAuthenticatorFailsByIdentifier(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -599,7 +500,7 @@ func TestBhvAuthscheme011_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNam
 	}
 }
 
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+func schemeServiceTokenAuthenticatorFailsByMode(t *testing.T) {
 	for i, variable := range schemeServiceTokenAuthenticatorVariables {
 		for _, mode := range []string{"empty", "unset"} {
 			t.Run(schemeServiceTokenAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
@@ -619,20 +520,7 @@ func TestSchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatI
 	}
 }
 
-func TestBhvAuthscheme002_SchemeAuthenticator_ServiceTokenAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
-
-	a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, schemeTokenFrom("provider-token"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
-		t.Errorf("expected %q, got %q", want, got)
-	}
-}
-
-func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func schemeServiceTokenAuthenticatorReadsTheEnvironmentOnce(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
@@ -643,17 +531,6 @@ func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsThe
 	t.Setenv(schemeServiceTokenAuthenticatorVariables[0], "changed-after-build")
 
 	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_ServiceTokenAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
-	a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, nil)
-
-	if !errors.Is(err, auth.ErrInvalidBearerToken) {
-		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
-	}
-	if a != nil {
-		t.Error("expected no authenticator")
-	}
 }
 
 var schemeApiKeyHeaderAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"}
@@ -667,7 +544,7 @@ func requireSchemeApiKeyHeaderAuthenticatorCredentials(t *testing.T, a *auth.Api
 	}
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+func schemeApiKeyHeaderAuthenticatorReadsEveryCredential(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
@@ -678,7 +555,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ReadsEveryCredentialFromI
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeEnvValue)
 }
 
-func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+func schemeApiKeyHeaderAuthenticatorPrefersTheArguments(t *testing.T) {
 	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
 
 	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))
@@ -689,18 +566,7 @@ func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator
 	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeArgValue)
 }
 
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "", "")
-
-	a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeApiKeyHeaderAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+func schemeApiKeyHeaderAuthenticatorEmptyVariableIsUnset(t *testing.T) {
 	for _, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		t.Run(variable, func(t *testing.T) {
 			setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, "empty")
@@ -715,7 +581,7 @@ func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_AnEmptyVariableCountsAsUn
 	}
 }
 
-func TestBhvAuthapikey019_SchemeAuthenticator_ApiKeyHeaderAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+func schemeApiKeyHeaderAuthenticatorRejectsAnEmptyKey(t *testing.T) {
 	for _, variable := range schemeApiKeyHeaderAuthenticatorVariables {
 		setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, "unset")
 
@@ -727,6 +593,1031 @@ func TestBhvAuthapikey019_SchemeAuthenticator_ApiKeyHeaderAuthenticator_RejectsA
 			t.Error("expected no authenticator")
 		}
 	}
+}
+
+func schemeApiKeyHeaderAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeApiKeyHeaderAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeApiKeyHeaderAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeInternalApiKeyAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"}
+
+var schemeInternalApiKeyAuthenticatorFields = []string{"apiKey"}
+
+func requireSchemeInternalApiKeyAuthenticatorCredentials(t *testing.T, a *auth.InternalApiKeyAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
+		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
+	}
+}
+
+func schemeInternalApiKeyAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
+
+	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeInternalApiKeyAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
+
+	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeInternalApiKeyAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeInternalApiKeyAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, "empty")
+
+			a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeInternalApiKeyAuthenticatorRejectsAnEmptyKey(t *testing.T) {
+	for _, variable := range schemeInternalApiKeyAuthenticatorVariables {
+		setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, "unset")
+
+		a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+		if err == nil {
+			t.Errorf("expected an empty key to be refused at construction for %s", variable)
+		}
+		if a != nil {
+			t.Error("expected no authenticator")
+		}
+	}
+}
+
+func schemeInternalApiKeyAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeInternalApiKeyAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeInternalApiKeyAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeApiKeyQueryAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"}
+
+var schemeApiKeyQueryAuthenticatorFields = []string{"apiKey"}
+
+func requireSchemeApiKeyQueryAuthenticatorCredentials(t *testing.T, a *auth.ApiKeyQueryAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
+		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
+	}
+}
+
+func schemeApiKeyQueryAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
+
+	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeApiKeyQueryAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
+
+	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeApiKeyQueryAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, "empty")
+
+			a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeApiKeyQueryAuthenticatorRejectsAnEmptyKey(t *testing.T) {
+	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
+		setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, "unset")
+
+		a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+		if err == nil {
+			t.Errorf("expected an empty key to be refused at construction for %s", variable)
+		}
+		if a != nil {
+			t.Error("expected no authenticator")
+		}
+	}
+}
+
+func schemeApiKeyQueryAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeApiKeyQueryAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeApiKeyQueryAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeSessionCookieAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"}
+
+var schemeSessionCookieAuthenticatorFields = []string{"apiKey"}
+
+func requireSchemeSessionCookieAuthenticatorCredentials(t *testing.T, a *auth.SessionCookieAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
+		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
+	}
+}
+
+func schemeSessionCookieAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
+
+	a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeSessionCookieAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
+
+	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeSessionCookieAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeSessionCookieAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, "empty")
+
+			a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeSessionCookieAuthenticatorRejectsAnEmptyKey(t *testing.T) {
+	for _, variable := range schemeSessionCookieAuthenticatorVariables {
+		setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, "unset")
+
+		a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+		if err == nil {
+			t.Errorf("expected an empty key to be refused at construction for %s", variable)
+		}
+		if a != nil {
+			t.Error("expected no authenticator")
+		}
+	}
+}
+
+func schemeSessionCookieAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeSessionCookieAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeSessionCookieAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeSessionCookieAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeSessionCookieAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeSessionCookieAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, mode)
+
+				a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeMachineAuthClientCredentialsAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET"}
+
+var schemeMachineAuthClientCredentialsAuthenticatorFields = []string{"clientId", "clientSecret"}
+
+func requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t *testing.T, a *oauth.MachineAuthClientCredentialsAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+}
+
+func schemeMachineAuthClientCredentialsAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
+
+	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeMachineAuthClientCredentialsAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
+
+	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeMachineAuthClientCredentialsAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, "empty")
+
+			a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeMachineAuthClientCredentialsAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeMachineAuthClientCredentialsAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeMachineAuthClientCredentialsAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeLegacyAuthPasswordAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"}
+
+var schemeLegacyAuthPasswordAuthenticatorFields = []string{"clientId", "clientSecret", "username", "password"}
+
+func requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t *testing.T, a *oauth.LegacyAuthPasswordAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+}
+
+func schemeLegacyAuthPasswordAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
+
+	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeLegacyAuthPasswordAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
+
+	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeLegacyAuthPasswordAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, "empty")
+
+			a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeLegacyAuthPasswordAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeLegacyAuthPasswordAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeLegacyAuthPasswordAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeUserAuthAuthorizationCodeAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"}
+
+var schemeUserAuthAuthorizationCodeAuthenticatorFields = []string{"clientId", "clientSecret", "redirectUri"}
+
+func requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t *testing.T, a *oauth.UserAuthAuthorizationCodeAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+}
+
+func schemeUserAuthAuthorizationCodeAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
+
+	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeUserAuthAuthorizationCodeAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
+
+	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeUserAuthAuthorizationCodeAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, "empty")
+
+			a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeUserAuthAuthorizationCodeAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeUserAuthAuthorizationCodeAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeUserAuthAuthorizationCodeAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeBrowserAuthImplicitAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"}
+
+var schemeBrowserAuthImplicitAuthenticatorFields = []string{"clientId"}
+
+func requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t *testing.T, a *oauth.BrowserAuthImplicitAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+}
+
+func schemeBrowserAuthImplicitAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
+
+	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeBrowserAuthImplicitAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
+
+	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeBrowserAuthImplicitAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, "empty")
+
+			a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeBrowserAuthImplicitAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeBrowserAuthImplicitAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeBrowserAuthImplicitAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+var schemeSsoAuthAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI"}
+
+var schemeSsoAuthAuthenticatorFields = []string{"clientId", "clientSecret", "redirectUri"}
+
+func requireSchemeSsoAuthAuthenticatorCredentials(t *testing.T, a *oauth.SsoAuthAuthenticator, valueOf func(string) string) {
+	t.Helper()
+	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
+		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
+	}
+}
+
+func schemeSsoAuthAuthenticatorReadsEveryCredential(t *testing.T) {
+	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
+
+	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+	if err != nil {
+		t.Fatalf("expected the environment to supply every credential, got %v", err)
+	}
+
+	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func schemeSsoAuthAuthenticatorPrefersTheArguments(t *testing.T) {
+	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
+
+	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
+}
+
+func schemeSsoAuthAuthenticatorEmptyVariableIsUnset(t *testing.T) {
+	for _, variable := range schemeSsoAuthAuthenticatorVariables {
+		t.Run(variable, func(t *testing.T) {
+			setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, "empty")
+
+			a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
+			if err != nil {
+				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
+			}
+
+			requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
+		})
+	}
+}
+
+func schemeSsoAuthAuthenticatorFailsNamingVariable(t *testing.T) {
+	for i, variable := range schemeSsoAuthAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeSsoAuthAuthenticatorFailsByIdentifier(t *testing.T) {
+	for i, variable := range schemeSsoAuthAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func schemeSsoAuthAuthenticatorFailsByMode(t *testing.T) {
+	for i, variable := range schemeSsoAuthAuthenticatorVariables {
+		for _, mode := range []string{"empty", "unset"} {
+			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
+				setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, mode)
+
+				a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+
+				requireMissingCredential(t, err, variable)
+				if a != nil {
+					t.Error("expected no authenticator")
+				}
+			})
+		}
+	}
+}
+
+func TestBhvAuthbasic001_SchemeAuthenticator_PetStoreBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+	schemePetStoreBasicAuthenticatorReadsEveryCredential(t)
+}
+
+func TestBhvAuthscheme001_SchemeAuthenticator_AdminBasicAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+	schemeAdminBasicAuthenticatorReadsEveryCredential(t)
+}
+
+func TestBhvLanggo116_SchemeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
+
+	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorReadsEveryCredential)
+
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorReadsEveryCredential)
+
+	t.Run("ApiKeyHeaderAuthenticator", schemeApiKeyHeaderAuthenticatorReadsEveryCredential)
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorReadsEveryCredential)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorReadsEveryCredential)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorReadsEveryCredential)
+
+	t.Run("MachineAuthClientCredentialsAuthenticator", schemeMachineAuthClientCredentialsAuthenticatorReadsEveryCredential)
+
+	t.Run("LegacyAuthPasswordAuthenticator", schemeLegacyAuthPasswordAuthenticatorReadsEveryCredential)
+
+	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorReadsEveryCredential)
+
+	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorReadsEveryCredential)
+
+	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorReadsEveryCredential)
+
+}
+
+func TestBhvAuthbasic013_SchemeAuthenticator_PetStoreBasicAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	schemePetStoreBasicAuthenticatorPrefersTheArguments(t)
+}
+
+func TestBhvAuthbearer018_SchemeAuthenticator_PetStoreBearerAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	schemePetStoreBearerAuthenticatorPrefersTheArguments(t)
+}
+
+func TestBhvSerializationobject187_SchemeAuthenticator_ApiKeyHeaderAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+	schemeApiKeyHeaderAuthenticatorPrefersTheArguments(t)
+}
+
+func TestBhvLanggo117_SchemeAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
+
+	t.Run("AdminBasicAuthenticator", schemeAdminBasicAuthenticatorPrefersTheArguments)
+
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorPrefersTheArguments)
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorPrefersTheArguments)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorPrefersTheArguments)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorPrefersTheArguments)
+
+	t.Run("MachineAuthClientCredentialsAuthenticator", schemeMachineAuthClientCredentialsAuthenticatorPrefersTheArguments)
+
+	t.Run("LegacyAuthPasswordAuthenticator", schemeLegacyAuthPasswordAuthenticatorPrefersTheArguments)
+
+	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorPrefersTheArguments)
+
+	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorPrefersTheArguments)
+
+	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorPrefersTheArguments)
+
+}
+
+func TestBhvAuthscheme009_SchemeAuthenticator_AdminBasicAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+	schemeAdminBasicAuthenticatorPrefersTheArguments(t)
+}
+
+func TestBhvLanggo118_SchemeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
+
+	t.Run("PetStoreBasicAuthenticator", schemePetStoreBasicAuthenticatorPrefersTheArguments)
+
+	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorPrefersTheArguments)
+
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorPrefersTheArguments)
+
+	t.Run("ApiKeyHeaderAuthenticator", schemeApiKeyHeaderAuthenticatorPrefersTheArguments)
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorPrefersTheArguments)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorPrefersTheArguments)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorPrefersTheArguments)
+
+	t.Run("MachineAuthClientCredentialsAuthenticator", schemeMachineAuthClientCredentialsAuthenticatorPrefersTheArguments)
+
+	t.Run("LegacyAuthPasswordAuthenticator", schemeLegacyAuthPasswordAuthenticatorPrefersTheArguments)
+
+	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorPrefersTheArguments)
+
+	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorPrefersTheArguments)
+
+	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorPrefersTheArguments)
+
+}
+
+func TestBhvAuthbasic012_SchemeAuthenticator_PetStoreBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+	schemePetStoreBasicAuthenticatorEmptyVariableIsUnset(t)
+}
+
+func TestBhvAuth003_SchemeAuthenticator_AdminBasicAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+	schemeAdminBasicAuthenticatorEmptyVariableIsUnset(t)
+}
+
+func TestBhvLanggo119_SchemeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
+
+	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("ApiKeyHeaderAuthenticator", schemeApiKeyHeaderAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("MachineAuthClientCredentialsAuthenticator", schemeMachineAuthClientCredentialsAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("LegacyAuthPasswordAuthenticator", schemeLegacyAuthPasswordAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorEmptyVariableIsUnset)
+
+	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorEmptyVariableIsUnset)
+
+}
+
+func TestBhvAuthapikey019_SchemeAuthenticator_ApiKeyHeaderAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+	schemeApiKeyHeaderAuthenticatorRejectsAnEmptyKey(t)
 }
 
 // With no key passed the environment supplies it, and a passed key wins over the environment.
@@ -760,975 +1651,404 @@ func TestBhvAuthapikey025_SchemeAuthenticator_ApiKeyHeaderAuthenticator_MasksThe
 	}
 }
 
+func TestBhvLanggo120_SchemeAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorRejectsAnEmptyKey)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorRejectsAnEmptyKey)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorRejectsAnEmptyKey)
+
+}
+
+func TestBhvAuthbasic003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+	schemePetStoreBasicAuthenticatorFailsNamingVariable(t)
+}
+
+func TestBhvAuthbearer019_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+	schemePetStoreBearerAuthenticatorFailsNamingVariable(t)
+}
+
+func TestBhvAuthscheme004_SchemeAuthenticator_AdminBasicAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
+	schemeAdminBasicAuthenticatorFailsNamingVariable(t)
+}
+
 func TestBhvAuthscheme005_SchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_ApiKeyHeaderAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeApiKeyHeaderAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeApiKeyHeaderAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeInternalApiKeyAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"}
-
-var schemeInternalApiKeyAuthenticatorFields = []string{"apiKey"}
-
-func requireSchemeInternalApiKeyAuthenticatorCredentials(t *testing.T, a *auth.InternalApiKeyAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
-		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
-	}
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
-
-	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
-
-	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "", "")
-
-	a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeInternalApiKeyAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, "empty")
-
-			a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, schemeArgValue("apiKey"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeInternalApiKeyAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
-	for _, variable := range schemeInternalApiKeyAuthenticatorVariables {
-		setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, "unset")
-
-		a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
-		if err == nil {
-			t.Errorf("expected an empty key to be refused at construction for %s", variable)
-		}
-		if a != nil {
-			t.Error("expected no authenticator")
-		}
-	}
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestBhvAuthscheme012_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeInternalApiKeyAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeInternalApiKeyAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeApiKeyQueryAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"}
-
-var schemeApiKeyQueryAuthenticatorFields = []string{"apiKey"}
-
-func requireSchemeApiKeyQueryAuthenticatorCredentials(t *testing.T, a *auth.ApiKeyQueryAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
-		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
-	}
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
-
-	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
-
-	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "", "")
-
-	a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, "empty")
-
-			a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, schemeArgValue("apiKey"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeApiKeyQueryAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
-	for _, variable := range schemeApiKeyQueryAuthenticatorVariables {
-		setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, "unset")
-
-		a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
-		if err == nil {
-			t.Errorf("expected an empty key to be refused at construction for %s", variable)
-		}
-		if a != nil {
-			t.Error("expected no authenticator")
-		}
-	}
+	schemeApiKeyHeaderAuthenticatorFailsNamingVariable(t)
 }
 
 func TestBhvAuthscheme006_SchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_ApiKeyQueryAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeApiKeyQueryAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeApiKeyQueryAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeSessionCookieAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"}
-
-var schemeSessionCookieAuthenticatorFields = []string{"apiKey"}
-
-func requireSchemeSessionCookieAuthenticatorCredentials(t *testing.T, a *auth.SessionCookieAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !schemeCarries(valueOf("apiKey"), a.AuthHeaders(), a.QueryParams(), a.CookieParams()) {
-		t.Errorf("expected the request to carry the API key %q", valueOf("apiKey"))
-	}
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
-
-	a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
-
-	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "", "")
-
-	a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeSessionCookieAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, "empty")
-
-			a, err := auth.NewSessionCookieAuthenticator(schemeHost, schemeArgValue("apiKey"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeSessionCookieAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_RejectsAnEmptyKeyAtConstruction(t *testing.T) {
-	for _, variable := range schemeSessionCookieAuthenticatorVariables {
-		setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, "unset")
-
-		a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
-		if err == nil {
-			t.Errorf("expected an empty key to be refused at construction for %s", variable)
-		}
-		if a != nil {
-			t.Error("expected no authenticator")
-		}
-	}
+	schemeApiKeyQueryAuthenticatorFailsNamingVariable(t)
 }
 
 func TestBhvAuthscheme007_SchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeSessionCookieAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeSessionCookieAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_SessionCookieAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeSessionCookieAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeSessionCookieAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, variable, mode)
-
-				a, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeMachineAuthClientCredentialsAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET"}
-
-var schemeMachineAuthClientCredentialsAuthenticatorFields = []string{"clientId", "clientSecret"}
-
-func requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t *testing.T, a *oauth.MachineAuthClientCredentialsAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
-		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
-	}
-}
-
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
-
-	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
-
-	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "", "")
-
-	a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, "empty")
-
-			a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeMachineAuthClientCredentialsAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestBhvAuthscheme013_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeMachineAuthClientCredentialsAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeMachineAuthClientCredentialsAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeLegacyAuthPasswordAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME", "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD"}
-
-var schemeLegacyAuthPasswordAuthenticatorFields = []string{"clientId", "clientSecret", "username", "password"}
-
-func requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t *testing.T, a *oauth.LegacyAuthPasswordAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
-		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
-	}
-}
-
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
-
-	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
-
-	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "", "")
-
-	a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, "empty")
-
-			a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("username"), schemeArgValue("password"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeLegacyAuthPasswordAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestBhvAuthscheme014_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeLegacyAuthPasswordAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeLegacyAuthPasswordAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeUserAuthAuthorizationCodeAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI"}
-
-var schemeUserAuthAuthorizationCodeAuthenticatorFields = []string{"clientId", "clientSecret", "redirectUri"}
-
-func requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t *testing.T, a *oauth.UserAuthAuthorizationCodeAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
-		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
-	}
-}
-
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
-
-	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
-
-	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "", "")
-
-	a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, "empty")
-
-			a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeUserAuthAuthorizationCodeAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestBhvAuthscheme015_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeUserAuthAuthorizationCodeAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeUserAuthAuthorizationCodeAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeBrowserAuthImplicitAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"}
-
-var schemeBrowserAuthImplicitAuthenticatorFields = []string{"clientId"}
-
-func requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t *testing.T, a *oauth.BrowserAuthImplicitAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
-		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
-	}
-}
-
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
-
-	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
-
-	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "", "")
-
-	a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, "empty")
-
-			a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, schemeArgValue("clientId"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeBrowserAuthImplicitAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
-}
-
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestBhvAuthscheme016_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-func TestSchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeBrowserAuthImplicitAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeBrowserAuthImplicitAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
-	}
-}
-
-var schemeSsoAuthAuthenticatorVariables = []string{"SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET", "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI"}
-
-var schemeSsoAuthAuthenticatorFields = []string{"clientId", "clientSecret", "redirectUri"}
-
-func requireSchemeSsoAuthAuthenticatorCredentials(t *testing.T, a *oauth.SsoAuthAuthenticator, valueOf func(string) string) {
-	t.Helper()
-	if !strings.Contains(a.String(), schemeQuoted(valueOf("clientId"))) {
-		t.Errorf("expected the client id %q in %s", valueOf("clientId"), a.String())
-	}
-}
-
-func TestSchemeAuthenticator_SsoAuthAuthenticator_ReadsEveryCredentialFromItsVariable(t *testing.T) {
-	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
-
-	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
-	if err != nil {
-		t.Fatalf("expected the environment to supply every credential, got %v", err)
-	}
-
-	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeEnvValue)
-}
-
-func TestSchemeAuthenticator_SsoAuthAuthenticator_PrefersTheArgumentsOverTheEnvironment(t *testing.T) {
-	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
-
-	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_SsoAuthAuthenticator_ExplicitArgumentWinsWhileTheVariableIsSet(t *testing.T) {
-	setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "", "")
-
-	a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
-}
-
-func TestSchemeAuthenticator_SsoAuthAuthenticator_AnEmptyVariableCountsAsUnset(t *testing.T) {
-	for _, variable := range schemeSsoAuthAuthenticatorVariables {
-		t.Run(variable, func(t *testing.T) {
-			setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, "empty")
-
-			a, err := oauth.NewSsoAuthAuthenticator(schemeHost, schemeArgValue("clientId"), schemeArgValue("clientSecret"), schemeArgValue("redirectUri"))
-			if err != nil {
-				t.Fatalf("expected the arguments to be used when the variable is empty, got %v", err)
-			}
-
-			requireSchemeSsoAuthAuthenticatorCredentials(t, a, schemeArgValue)
-		})
-	}
+	schemeSessionCookieAuthenticatorFailsNamingVariable(t)
 }
 
 func TestBhvAuthscheme008_SchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
-	for i, variable := range schemeSsoAuthAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, mode)
+	schemeSsoAuthAuthenticatorFailsNamingVariable(t)
+}
 
-				a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+func TestBhvLanggo121_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnset(t *testing.T) {
 
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorFailsNamingVariable)
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorFailsNamingVariable)
+
+	t.Run("MachineAuthClientCredentialsAuthenticator", schemeMachineAuthClientCredentialsAuthenticatorFailsNamingVariable)
+
+	t.Run("LegacyAuthPasswordAuthenticator", schemeLegacyAuthPasswordAuthenticatorFailsNamingVariable)
+
+	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorFailsNamingVariable)
+
+	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorFailsNamingVariable)
+
+}
+
+func TestBhvAuthscheme011_SchemeAuthenticator_ServiceTokenAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	schemeServiceTokenAuthenticatorFailsByIdentifier(t)
+}
+
+func TestBhvAuthscheme012_SchemeAuthenticator_InternalApiKeyAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	schemeInternalApiKeyAuthenticatorFailsByIdentifier(t)
+}
+
+func TestBhvAuthscheme013_SchemeAuthenticator_MachineAuthClientCredentialsAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	schemeMachineAuthClientCredentialsAuthenticatorFailsByIdentifier(t)
+}
+
+func TestBhvAuthscheme014_SchemeAuthenticator_LegacyAuthPasswordAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	schemeLegacyAuthPasswordAuthenticatorFailsByIdentifier(t)
+}
+
+func TestBhvAuthscheme015_SchemeAuthenticator_UserAuthAuthorizationCodeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	schemeUserAuthAuthorizationCodeAuthenticatorFailsByIdentifier(t)
+}
+
+func TestBhvAuthscheme016_SchemeAuthenticator_BrowserAuthImplicitAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+	schemeBrowserAuthImplicitAuthenticatorFailsByIdentifier(t)
+}
+
+func TestBhvLanggo122_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
+
+	t.Run("PetStoreBasicAuthenticator", schemePetStoreBasicAuthenticatorFailsByIdentifier)
+
+	t.Run("AdminBasicAuthenticator", schemeAdminBasicAuthenticatorFailsByIdentifier)
+
+	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorFailsByIdentifier)
+
+	t.Run("ApiKeyHeaderAuthenticator", schemeApiKeyHeaderAuthenticatorFailsByIdentifier)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorFailsByIdentifier)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorFailsByIdentifier)
+
+	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorFailsByIdentifier)
+
+}
+
+func TestBhvAuthscheme010_SchemeAuthenticator_PetStoreBearerAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+	schemePetStoreBearerAuthenticatorFailsByMode(t)
+}
+
+func TestBhvLanggo123_SchemeAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
+
+	t.Run("PetStoreBasicAuthenticator", schemePetStoreBasicAuthenticatorFailsByMode)
+
+	t.Run("AdminBasicAuthenticator", schemeAdminBasicAuthenticatorFailsByMode)
+
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorFailsByMode)
+
+	t.Run("ApiKeyHeaderAuthenticator", schemeApiKeyHeaderAuthenticatorFailsByMode)
+
+	t.Run("InternalApiKeyAuthenticator", schemeInternalApiKeyAuthenticatorFailsByMode)
+
+	t.Run("ApiKeyQueryAuthenticator", schemeApiKeyQueryAuthenticatorFailsByMode)
+
+	t.Run("SessionCookieAuthenticator", schemeSessionCookieAuthenticatorFailsByMode)
+
+	t.Run("MachineAuthClientCredentialsAuthenticator", schemeMachineAuthClientCredentialsAuthenticatorFailsByMode)
+
+	t.Run("LegacyAuthPasswordAuthenticator", schemeLegacyAuthPasswordAuthenticatorFailsByMode)
+
+	t.Run("UserAuthAuthorizationCodeAuthenticator", schemeUserAuthAuthorizationCodeAuthenticatorFailsByMode)
+
+	t.Run("BrowserAuthImplicitAuthenticator", schemeBrowserAuthImplicitAuthenticatorFailsByMode)
+
+	t.Run("SsoAuthAuthenticator", schemeSsoAuthAuthenticatorFailsByMode)
+
+}
+
+// An empty environment variable fails construction without arguments, and the error names that variable.
+func TestBhvAuthscheme003_SchemeAuthenticator_PetStoreBasicAuthenticator_FailsNamingTheVariableWhenItIsEmpty(t *testing.T) {
+	for i, variable := range schemePetStoreBasicAuthenticatorVariables {
+		t.Run(schemePetStoreBasicAuthenticatorFields[i], func(t *testing.T) {
+			setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, variable, "empty")
+
+			a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
+
+			requireMissingCredential(t, err, variable)
+			if a != nil {
+				t.Error("expected no authenticator")
+			}
+		})
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByIdentifier(t *testing.T) {
-	for i, variable := range schemeSsoAuthAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, mode)
-
-				a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
-
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
-		}
+// A per-scheme basic wrapper emits the same Authorization header as the base authenticator it wraps.
+func TestBhvAuthbasic019_SchemeAuthenticator_PetStoreBasicAuthenticator_EmitsTheBaseBasicHeader(t *testing.T) {
+	a, err := auth.NewPetStoreBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	base, err := auth.NewBasicAuthenticator(schemeHost, schemeArgValue("username"), schemeArgValue("password"))
+	if err != nil {
+		t.Fatalf("unexpected error from NewBasicAuthenticator: %v", err)
+	}
+	if got, want := a.AuthHeaders()["Authorization"], base.AuthHeaders()["Authorization"]; got != want {
+		t.Errorf("expected the base Basic header %q, got %q", want, got)
 	}
 }
 
-func TestSchemeAuthenticator_SsoAuthAuthenticator_FailsNamingAVariableThatIsEmptyOrUnsetByMode(t *testing.T) {
-	for i, variable := range schemeSsoAuthAuthenticatorVariables {
-		for _, mode := range []string{"empty", "unset"} {
-			t.Run(schemeSsoAuthAuthenticatorFields[i]+"/"+mode, func(t *testing.T) {
-				setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, variable, mode)
+func TestBhvAuthscheme002_SchemeAuthenticator_WithProviderAsksTheProviderAndReadsNoVariable(t *testing.T) {
 
-				a, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+	t.Run("PetStoreBearerAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
-				requireMissingCredential(t, err, variable)
-				if a != nil {
-					t.Error("expected no authenticator")
-				}
-			})
+		a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, schemeTokenFrom("provider-token"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
+
+		if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+
+	t.Run("ServiceTokenAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
+
+		a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, schemeTokenFrom("provider-token"))
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if got, want := a.AuthHeaders()["Authorization"], "Bearer provider-token"; got != want {
+			t.Errorf("expected %q, got %q", want, got)
+		}
+	})
+
+}
+
+func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	schemePetStoreBearerAuthenticatorReadsTheEnvironmentOnce(t)
+}
+
+func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	schemeServiceTokenAuthenticatorReadsTheEnvironmentOnce(t)
+}
+
+func TestBhvLanggo124_SchemeAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+
+	t.Run("PetStoreBearerAuthenticator", schemePetStoreBearerAuthenticatorReadsTheEnvironmentOnce)
+
+	t.Run("ServiceTokenAuthenticator", schemeServiceTokenAuthenticatorReadsTheEnvironmentOnce)
+
+}
+
+func TestBhvAuth004_BhvLanggo125_SchemeAuthenticator_PetStoreBearerAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
+	a, err := auth.NewPetStoreBearerAuthenticatorWithProvider(schemeHost, nil)
+
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
 	}
+	if a != nil {
+		t.Error("expected no authenticator")
+	}
+}
+
+func TestBhvLanggo125_SchemeAuthenticator_ServiceTokenAuthenticator_WithProviderRejectsANilProvider(t *testing.T) {
+	a, err := auth.NewServiceTokenAuthenticatorWithProvider(schemeHost, nil)
+
+	if !errors.Is(err, auth.ErrInvalidBearerToken) {
+		t.Errorf("expected ErrInvalidBearerToken, got %v", err)
+	}
+	if a != nil {
+		t.Error("expected no authenticator")
+	}
+}
+
+func TestBhvMisc196_SchemeAuthenticator_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
+	t.Run("PetStoreBasicAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("AdminBasicAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewAdminBasicAuthenticator(schemeHost, "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("PetStoreBearerAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewPetStoreBearerAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("ServiceTokenAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewServiceTokenAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("ApiKeyHeaderAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("InternalApiKeyAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewInternalApiKeyAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("ApiKeyQueryAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewApiKeyQueryAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("SessionCookieAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "*", "")
+
+		if _, err := auth.NewSessionCookieAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("MachineAuthClientCredentialsAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "*", "")
+
+		if _, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("LegacyAuthPasswordAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "*", "")
+
+		if _, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("UserAuthAuthorizationCodeAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "*", "")
+
+		if _, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("BrowserAuthImplicitAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "*", "")
+
+		if _, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+	t.Run("SsoAuthAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "*", "")
+
+		if _, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", ""); err == nil {
+			t.Error("expected an error when no token is passed or set in the environment")
+		}
+	})
+}
+
+func TestBhvMisc205_SchemeAuthenticator_MissingCredentialErrorNamesTheVariable(t *testing.T) {
+	t.Run("PetStoreBasicAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemePetStoreBasicAuthenticatorVariables, schemePetStoreBasicAuthenticatorFields, "*", "")
+
+		_, err := auth.NewPetStoreBasicAuthenticator(schemeHost, "", "")
+		requireMissingCredential(t, err, schemePetStoreBasicAuthenticatorVariables[0])
+	})
+	t.Run("AdminBasicAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeAdminBasicAuthenticatorVariables, schemeAdminBasicAuthenticatorFields, "*", "")
+
+		_, err := auth.NewAdminBasicAuthenticator(schemeHost, "", "")
+		requireMissingCredential(t, err, schemeAdminBasicAuthenticatorVariables[0])
+	})
+	t.Run("PetStoreBearerAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "*", "")
+
+		_, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemePetStoreBearerAuthenticatorVariables[0])
+	})
+	t.Run("ServiceTokenAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "*", "")
+
+		_, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeServiceTokenAuthenticatorVariables[0])
+	})
+	t.Run("ApiKeyHeaderAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeApiKeyHeaderAuthenticatorVariables, schemeApiKeyHeaderAuthenticatorFields, "*", "")
+
+		_, err := auth.NewApiKeyHeaderAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeApiKeyHeaderAuthenticatorVariables[0])
+	})
+	t.Run("InternalApiKeyAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeInternalApiKeyAuthenticatorVariables, schemeInternalApiKeyAuthenticatorFields, "*", "")
+
+		_, err := auth.NewInternalApiKeyAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeInternalApiKeyAuthenticatorVariables[0])
+	})
+	t.Run("ApiKeyQueryAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeApiKeyQueryAuthenticatorVariables, schemeApiKeyQueryAuthenticatorFields, "*", "")
+
+		_, err := auth.NewApiKeyQueryAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeApiKeyQueryAuthenticatorVariables[0])
+	})
+	t.Run("SessionCookieAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeSessionCookieAuthenticatorVariables, schemeSessionCookieAuthenticatorFields, "*", "")
+
+		_, err := auth.NewSessionCookieAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeSessionCookieAuthenticatorVariables[0])
+	})
+	t.Run("MachineAuthClientCredentialsAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeMachineAuthClientCredentialsAuthenticatorVariables, schemeMachineAuthClientCredentialsAuthenticatorFields, "*", "")
+
+		_, err := oauth.NewMachineAuthClientCredentialsAuthenticator(schemeHost, "", "")
+		requireMissingCredential(t, err, schemeMachineAuthClientCredentialsAuthenticatorVariables[0])
+	})
+	t.Run("LegacyAuthPasswordAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeLegacyAuthPasswordAuthenticatorVariables, schemeLegacyAuthPasswordAuthenticatorFields, "*", "")
+
+		_, err := oauth.NewLegacyAuthPasswordAuthenticator(schemeHost, "", "", "", "")
+		requireMissingCredential(t, err, schemeLegacyAuthPasswordAuthenticatorVariables[0])
+	})
+	t.Run("UserAuthAuthorizationCodeAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeUserAuthAuthorizationCodeAuthenticatorVariables, schemeUserAuthAuthorizationCodeAuthenticatorFields, "*", "")
+
+		_, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(schemeHost, "", "", "")
+		requireMissingCredential(t, err, schemeUserAuthAuthorizationCodeAuthenticatorVariables[0])
+	})
+	t.Run("BrowserAuthImplicitAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeBrowserAuthImplicitAuthenticatorVariables, schemeBrowserAuthImplicitAuthenticatorFields, "*", "")
+
+		_, err := oauth.NewBrowserAuthImplicitAuthenticator(schemeHost, "")
+		requireMissingCredential(t, err, schemeBrowserAuthImplicitAuthenticatorVariables[0])
+	})
+	t.Run("SsoAuthAuthenticator", func(t *testing.T) {
+		setSchemeEnvironment(t, schemeSsoAuthAuthenticatorVariables, schemeSsoAuthAuthenticatorFields, "*", "")
+
+		_, err := oauth.NewSsoAuthAuthenticator(schemeHost, "", "", "")
+		requireMissingCredential(t, err, schemeSsoAuthAuthenticatorVariables[0])
+	})
 }

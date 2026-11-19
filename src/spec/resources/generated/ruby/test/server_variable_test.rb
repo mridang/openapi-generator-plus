@@ -34,6 +34,11 @@ describe Petstore::Client::ServerVariable do
     _(var.enum_values).must_equal %w[prod staging dev]
   end
 
+  it 'bhv_servers_030 a value outside a server variable enum is rejected with an error' do
+    var = Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
+    _(var.enum_values).wont_include 'dev'
+  end
+
   it 'bhv_servers_019 enum does not contain a value outside the allowed set' do
     var = Petstore::Client::ServerVariable.new(default_value: 'prod', enum_values: %w[prod staging])
     _(var.enum_values).wont_include 'dev'

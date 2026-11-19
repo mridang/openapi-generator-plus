@@ -87,6 +87,28 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(tasks.isEmpty)
   }
 
+  /* A client built on a caller-supplied session sends its requests through that session. */
+  @Test func testBhvLifecycle042ASuppliedSessionCarriesTheClientsRequests() async throws {
+    let host = "https://supplied-042.example.com"
+    let client = try schemeClient(host: host)
+    defer { client.close() }
+
+    _ = try? await client.store.getInventory()
+
+    #expect(ClientStubProtocol.lastRequest(host: "supplied-042.example.com") != nil)
+  }
+
+  /* A request after close never reaches the network. */
+  @Test func testBhvLifecycle043ARequestAfterCloseNeverReachesTheNetwork() async throws {
+    let host = "https://closed-043.example.com"
+    let client = try schemeClient(host: host)
+    client.close()
+
+    _ = try? await client.store.getInventory()
+
+    #expect(ClientStubProtocol.lastRequest(host: "closed-043.example.com") == nil)
+  }
+
   /* Closing the client never invalidates a session the caller supplied. */
   @Test func testBhvLifecycle009CloseLeavesASuppliedSessionOpen() async throws {
     let probe = InvalidationProbe()
@@ -116,6 +138,13 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     let transport = try TransportOptionsBuilder().build()
 
     _ = try Client(authenticator: authenticator, transportOptions: transport)
+  }
+
+  @Test func testBhvMisc298ClientWithAMalformedProxyUrlFailsWithInvalidProxy() {
+    #expect(throws: ConfigurationError.invalidProxy("Invalid proxy URL: not a valid url")) {
+      let transport = try TransportOptionsBuilder().proxy("not a valid url").build()
+      _ = try Client(authenticator: authenticator, transportOptions: transport)
+    }
   }
 
   /* An API key sent in a header rejects CR/LF and non-ASCII characters at
@@ -183,7 +212,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   /* Tests/Spec is where hand-written specs are kept, so the test target must
    * compile and run them; only the fixture data is left out of it. */
-  @Test func testSpecDirectoryIsPartOfTheTestTarget() throws {
+  @Test func testBhvLangswift020SpecDirectoryIsPartOfTheTestTarget() throws {
     let manifest = try String(
       contentsOf: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         .appendingPathComponent("Package.swift"),
@@ -206,20 +235,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       count += 1
       return "provided-\(count)"
     }
-  }
-
-  private func firstApiAuthenticator(of client: Client) -> Authenticator? {
-    return client.pet.authenticator
-  }
-
-  private func environmentClient(
-    host: String? = nil, token: String? = nil,
-    tokenProvider: (@Sendable () async throws -> String)? = nil,
-    environment: [String: String]
-  ) throws -> Client {
-    return try Client.fromEnvironment(
-      host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
-      environment: environment)
   }
 
   @Test func testBhvLifecycle014FromEnvironmentReadsTheHostAndTheToken() async throws {
@@ -249,7 +264,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       throws: ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
       ])
@@ -259,7 +274,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
       )
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "",
       ])
@@ -279,7 +294,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
     let error = #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+      _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
     }
     #expect(
       error
@@ -291,7 +306,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   /* An authenticator with no token, no environment value and a nil provider is refused at construction. */
   @Test func testBhvAuth004NoTokenNoEnvironmentAndANilProviderIsRefused() {
     let error = #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(
+      _ = try environmentClient(
         host: "https://explicit.example.com", token: nil, tokenProvider: nil, environment: [:])
     }
     #expect(
@@ -306,7 +321,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       throws: ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
       ])
@@ -316,7 +331,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
       )
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "",
       ])
@@ -325,17 +340,19 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   @Test func testBhvLifecycle013AMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
     #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(environment: [:])
+      _ = try environmentClient(environment: [:])
     }
     #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+      _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
     }
     #expect(throws: ConfigurationError.self) {
       _ = try Client.fromEnvironment(host: "https://explicit.example.com")
     }
   }
 
-  @Test func testATokenProviderIsCalledBeforeEveryRequestAndBeatsTheEnvironmentToken() async throws
+  @Test
+  func testBhvLangswift021ATokenProviderIsCalledBeforeEveryRequestAndBeatsTheEnvironmentToken()
+    async throws
   {
     let counter = TokenCounter()
     let client = try environmentClient(
@@ -345,6 +362,47 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
   }
+
+  /* A token provider's value is the bearer credential on an authenticated request. */
+  @Test func testBhvMisc066ATokenProviderValueIsSentAsTheBearer() async throws {
+    let host = "https://provider-066.example.com"
+    let client = try Client(
+      authenticator: try BearerAuthenticator(host: host, tokenProvider: { "provider-token" }),
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "provider-066.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer provider-token")
+  }
+
+  /* When a token provider throws, the request fails with that same error. */
+  @Test func testBhvMisc067AProviderErrorIsTheRequestError() async throws {
+    let client = try Client(
+      authenticator: try BearerAuthenticator(
+        host: "https://provider-067.example.com", tokenProvider: { throw ProviderBoom() }),
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+
+    let error = await #expect(throws: ProviderBoom.self) {
+      _ = try await client.pet.getPetById(petId: 1)
+    }
+    #expect(error == ProviderBoom())
+  }
+
+  /* An empty token counts as not passed, so the environment supplies the credential. */
+  @Test func testBhvMisc068AnEmptyCredentialReadsTheEnvironment() async throws {
+    let client = try environmentClient(
+      host: "https://empty-068.example.com", token: "",
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token"])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  }
+
+  private struct ProviderBoom: Error, Equatable {}
 
   // MARK: - Credentials of the scheme authenticators
 
@@ -370,14 +428,41 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(value == "explicit-key")
   }
 
-  @Test func testTheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
+  @Test func testBhvLangswift022TheEnvironmentSuppliesACredentialThatWasNotPassed() throws {
     let value = try BaseAuthenticator.credential(
       nil, name: "token", variable: "EXAMPLE_TOKEN",
       environment: ["EXAMPLE_TOKEN": "env-value"])
     #expect(value == "env-value")
   }
 
+  /* An explicitly passed value wins over the environment variable of the same name. */
+  @Test func testBhvAuth041AnExplicitCredentialTakesPrecedenceOverTheEnvironment() throws {
+    let value = try BaseAuthenticator.credential(
+      "explicit-value", name: "token", variable: "EXAMPLE_TOKEN",
+      environment: ["EXAMPLE_TOKEN": "env-value"])
+    #expect(value == "explicit-value")
+  }
+
+  /* An environment variable that is set but empty counts as unset, so the missing-credential error is raised. */
+  @Test func testBhvAuth040AnEmptyEnvironmentVariableIsTreatedAsUnset() {
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Missing the credential 'token': pass it, or set the EXAMPLE_TOKEN environment variable")
+    ) {
+      _ = try BaseAuthenticator.credential(
+        nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+    }
+  }
+
   @Test func testBhvAuth023AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
+    let value = try BaseAuthenticator.credential(
+      "", name: "token", variable: "EXAMPLE_TOKEN",
+      environment: ["EXAMPLE_TOKEN": "env-value"])
+    #expect(value == "")
+  }
+
+  /* An explicitly passed empty value is kept, so its own validation rejects it rather than the environment. */
+  @Test func testBhvAuth042AnExplicitEmptyCredentialIsKeptSoItsOwnValidationRejectsIt() throws {
     let value = try BaseAuthenticator.credential(
       "", name: "token", variable: "EXAMPLE_TOKEN",
       environment: ["EXAMPLE_TOKEN": "env-value"])
@@ -397,43 +482,311 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  @Test func testBhvAuthscheme001PetStoreBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
+  @Test func testBhvAuthscheme001EverySchemeReadsItsCredentialsFromTheEnvironment() throws {
     _ = try PetStoreBasicAuthenticator(
       host: "https://api.example.com", username: nil, password: nil,
       environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME": "env-value",
         "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD": "env-value",
       ])
+    _ = try AdminBasicAuthenticator(
+      host: "https://api.example.com", username: nil, password: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "env-value",
+      ])
+    _ = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-value"])
+    _ = try ServiceTokenAuthenticator(
+      host: "https://api.example.com", token: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-value"])
+    _ = try ApiKeyHeaderAuthenticator(
+      host: "https://api.example.com", apiKey: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": "env-value"])
+    _ = try InternalApiKeyAuthenticator(
+      host: "https://api.example.com", apiKey: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": "env-value"])
+    _ = try ApiKeyQueryAuthenticator(
+      host: "https://api.example.com", apiKey: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": "env-value"])
+    _ = try SessionCookieAuthenticator(
+      host: "https://api.example.com", apiKey: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": "env-value"])
+    _ = try MachineAuthClientCredentialsAuthenticator(
+      host: "https://api.example.com", clientId: nil, clientSecret: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET": "env-value",
+      ])
+    _ = try LegacyAuthPasswordAuthenticator(
+      host: "https://api.example.com", clientId: nil, clientSecret: nil, username: nil,
+      password: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD": "env-value",
+      ])
+    _ = try UserAuthAuthorizationCodeAuthenticator(
+      host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI": "env-value",
+      ])
+    _ = try BrowserAuthImplicitAuthenticator(
+      host: "https://api.example.com", clientId: nil,
+      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": "env-value"])
+    _ = try SsoAuthAuthenticator(
+      host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET": "env-value",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI": "env-value",
+      ])
   }
 
   /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002PetStoreBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
+  @Test func testBhvAuthscheme002EverySchemePrefersExplicitCredentialsWhateverTheEnvironmentHolds()
     throws
   {
     _ = try PetStoreBasicAuthenticator(
       host: "https://api.example.com", username: "explicit-value", password: "explicit-value",
       environment: [:])
+    _ = try AdminBasicAuthenticator(
+      host: "https://api.example.com", username: "explicit-value", password: "explicit-value",
+      environment: [:])
+    _ = try PetStoreBearerAuthenticator(
+      host: "https://api.example.com", token: "explicit-value", environment: [:])
+    _ = try ServiceTokenAuthenticator(
+      host: "https://api.example.com", token: "explicit-value", environment: [:])
+    _ = try ApiKeyHeaderAuthenticator(
+      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+    _ = try InternalApiKeyAuthenticator(
+      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+    _ = try ApiKeyQueryAuthenticator(
+      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+    _ = try SessionCookieAuthenticator(
+      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
+    _ = try MachineAuthClientCredentialsAuthenticator(
+      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
+      environment: [:])
+    _ = try LegacyAuthPasswordAuthenticator(
+      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
+      username: "explicit-value", password: "explicit-value", environment: [:])
+    _ = try UserAuthAuthorizationCodeAuthenticator(
+      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
+      redirectUri: "explicit-value", environment: [:])
+    _ = try BrowserAuthImplicitAuthenticator(
+      host: "https://api.example.com", clientId: "explicit-value", environment: [:])
+    _ = try SsoAuthAuthenticator(
+      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
+      redirectUri: "explicit-value", environment: [:])
   }
 
   /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015PetStoreBasicAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> PetStoreBasicAuthenticator = {
-      try PetStoreBasicAuthenticator(host: $0)
+  @Test func testBhvLifecycle015EverySchemeCredentialKeywordCanBeOmitted() {
+    do {
+      let hostAlone: (String) throws -> PetStoreBasicAuthenticator = {
+        try PetStoreBasicAuthenticator(host: $0)
+      }
+      _ = hostAlone
     }
-    _ = hostAlone
+    do {
+      let hostAlone: (String) throws -> AdminBasicAuthenticator = {
+        try AdminBasicAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> PetStoreBearerAuthenticator = {
+        try PetStoreBearerAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> ServiceTokenAuthenticator = {
+        try ServiceTokenAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> ApiKeyHeaderAuthenticator = {
+        try ApiKeyHeaderAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> InternalApiKeyAuthenticator = {
+        try InternalApiKeyAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> ApiKeyQueryAuthenticator = {
+        try ApiKeyQueryAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> SessionCookieAuthenticator = {
+        try SessionCookieAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> MachineAuthClientCredentialsAuthenticator = {
+        try MachineAuthClientCredentialsAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> LegacyAuthPasswordAuthenticator = {
+        try LegacyAuthPasswordAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> UserAuthAuthorizationCodeAuthenticator = {
+        try UserAuthAuthorizationCodeAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> BrowserAuthImplicitAuthenticator = {
+        try BrowserAuthImplicitAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
+    do {
+      let hostAlone: (String) throws -> SsoAuthAuthenticator = {
+        try SsoAuthAuthenticator(host: $0)
+      }
+      _ = hostAlone
+    }
   }
 
-  @Test func testBhvLifecycle004PetStoreBasicAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try PetStoreBasicAuthenticator(
-        host: "https://api.example.com", username: nil, password: nil, environment: [:])
+  @Test func testBhvLifecycle004EverySchemeFailsWhenACredentialIsMissing() {
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try PetStoreBasicAuthenticator(
+          host: "https://api.example.com", username: nil, password: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try AdminBasicAuthenticator(
+          host: "https://api.example.com", username: nil, password: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try PetStoreBearerAuthenticator(
+          host: "https://api.example.com", token: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try ServiceTokenAuthenticator(
+          host: "https://api.example.com", token: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try ApiKeyHeaderAuthenticator(
+          host: "https://api.example.com", apiKey: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try InternalApiKeyAuthenticator(
+          host: "https://api.example.com", apiKey: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try ApiKeyQueryAuthenticator(
+          host: "https://api.example.com", apiKey: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try SessionCookieAuthenticator(
+          host: "https://api.example.com", apiKey: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try MachineAuthClientCredentialsAuthenticator(
+          host: "https://api.example.com", clientId: nil, clientSecret: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try LegacyAuthPasswordAuthenticator(
+          host: "https://api.example.com", clientId: nil, clientSecret: nil, username: nil,
+          password: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try UserAuthAuthorizationCodeAuthenticator(
+          host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
+          environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try BrowserAuthImplicitAuthenticator(
+          host: "https://api.example.com", clientId: nil, environment: [:])
+      }
+    }
+    do {
+      let missing = ConfigurationError.invalidArgument(
+        "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID environment variable"
+      )
+      #expect(throws: missing) {
+        _ = try SsoAuthAuthenticator(
+          host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
+          environment: [:])
+      }
     }
   }
 
@@ -450,47 +803,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ])
     }
   }
-
-  @Test func testBhvAuthscheme001AdminBasicAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try AdminBasicAuthenticator(
-      host: "https://api.example.com", username: nil, password: nil,
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD": "env-value",
-      ])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002AdminBasicAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try AdminBasicAuthenticator(
-      host: "https://api.example.com", username: "explicit-value", password: "explicit-value",
-      environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015AdminBasicAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> AdminBasicAuthenticator = {
-      try AdminBasicAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004AdminBasicAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try AdminBasicAuthenticator(
-        host: "https://api.example.com", username: nil, password: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme004AdminBasicAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'username': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME environment variable"
@@ -504,43 +816,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ])
     }
   }
-
-  @Test func testBhvAuthscheme001PetStoreBearerAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002PetStoreBearerAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015PetStoreBearerAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> PetStoreBearerAuthenticator = {
-      try PetStoreBearerAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004PetStoreBearerAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try PetStoreBearerAuthenticator(
-        host: "https://api.example.com", token: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme010PetStoreBearerAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN environment variable"
@@ -551,43 +826,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": ""])
     }
   }
-
-  @Test func testBhvAuthscheme001ServiceTokenAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try ServiceTokenAuthenticator(
-      host: "https://api.example.com", token: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002ServiceTokenAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try ServiceTokenAuthenticator(
-      host: "https://api.example.com", token: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015ServiceTokenAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> ServiceTokenAuthenticator = {
-      try ServiceTokenAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004ServiceTokenAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try ServiceTokenAuthenticator(
-        host: "https://api.example.com", token: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme011ServiceTokenAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'token': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN environment variable"
@@ -598,43 +836,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": ""])
     }
   }
-
-  @Test func testBhvAuthscheme001ApiKeyHeaderAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try ApiKeyHeaderAuthenticator(
-      host: "https://api.example.com", apiKey: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002ApiKeyHeaderAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try ApiKeyHeaderAuthenticator(
-      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015ApiKeyHeaderAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> ApiKeyHeaderAuthenticator = {
-      try ApiKeyHeaderAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004ApiKeyHeaderAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try ApiKeyHeaderAuthenticator(
-        host: "https://api.example.com", apiKey: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme005ApiKeyHeaderAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY environment variable"
@@ -645,43 +846,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY": ""])
     }
   }
-
-  @Test func testBhvAuthscheme001InternalApiKeyAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try InternalApiKeyAuthenticator(
-      host: "https://api.example.com", apiKey: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002InternalApiKeyAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try InternalApiKeyAuthenticator(
-      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015InternalApiKeyAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> InternalApiKeyAuthenticator = {
-      try InternalApiKeyAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004InternalApiKeyAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try InternalApiKeyAuthenticator(
-        host: "https://api.example.com", apiKey: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme012InternalApiKeyAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY environment variable"
@@ -692,43 +856,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY": ""])
     }
   }
-
-  @Test func testBhvAuthscheme001ApiKeyQueryAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try ApiKeyQueryAuthenticator(
-      host: "https://api.example.com", apiKey: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002ApiKeyQueryAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try ApiKeyQueryAuthenticator(
-      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015ApiKeyQueryAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> ApiKeyQueryAuthenticator = {
-      try ApiKeyQueryAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004ApiKeyQueryAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try ApiKeyQueryAuthenticator(
-        host: "https://api.example.com", apiKey: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme006ApiKeyQueryAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY environment variable"
@@ -739,43 +866,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY": ""])
     }
   }
-
-  @Test func testBhvAuthscheme001SessionCookieAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try SessionCookieAuthenticator(
-      host: "https://api.example.com", apiKey: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002SessionCookieAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try SessionCookieAuthenticator(
-      host: "https://api.example.com", apiKey: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015SessionCookieAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> SessionCookieAuthenticator = {
-      try SessionCookieAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004SessionCookieAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try SessionCookieAuthenticator(
-        host: "https://api.example.com", apiKey: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme007SessionCookieAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'apiKey': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY environment variable"
@@ -786,51 +876,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY": ""])
     }
   }
-
-  @Test
-  func
-    testBhvAuthscheme001MachineAuthClientCredentialsAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try MachineAuthClientCredentialsAuthenticator(
-      host: "https://api.example.com", clientId: nil, clientSecret: nil,
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET": "env-value",
-      ])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002MachineAuthClientCredentialsAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try MachineAuthClientCredentialsAuthenticator(
-      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
-      environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test
-  func testBhvLifecycle015MachineAuthClientCredentialsAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> MachineAuthClientCredentialsAuthenticator = {
-      try MachineAuthClientCredentialsAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test
-  func testBhvLifecycle004MachineAuthClientCredentialsAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try MachineAuthClientCredentialsAuthenticator(
-        host: "https://api.example.com", clientId: nil, clientSecret: nil, environment: [:])
-    }
-  }
-
   @Test
   func testBhvAuthscheme013MachineAuthClientCredentialsAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
@@ -845,52 +890,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ])
     }
   }
-
-  @Test
-  func testBhvAuthscheme001LegacyAuthPasswordAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try LegacyAuthPasswordAuthenticator(
-      host: "https://api.example.com", clientId: nil, clientSecret: nil, username: nil,
-      password: nil,
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD": "env-value",
-      ])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002LegacyAuthPasswordAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try LegacyAuthPasswordAuthenticator(
-      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
-      username: "explicit-value", password: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015LegacyAuthPasswordAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> LegacyAuthPasswordAuthenticator = {
-      try LegacyAuthPasswordAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004LegacyAuthPasswordAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try LegacyAuthPasswordAuthenticator(
-        host: "https://api.example.com", clientId: nil, clientSecret: nil, username: nil,
-        password: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme014LegacyAuthPasswordAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID environment variable"
@@ -907,53 +906,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ])
     }
   }
-
-  @Test
-  func
-    testBhvAuthscheme001UserAuthAuthorizationCodeAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try UserAuthAuthorizationCodeAuthenticator(
-      host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI": "env-value",
-      ])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002UserAuthAuthorizationCodeAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try UserAuthAuthorizationCodeAuthenticator(
-      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
-      redirectUri: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test
-  func testBhvLifecycle015UserAuthAuthorizationCodeAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> UserAuthAuthorizationCodeAuthenticator = {
-      try UserAuthAuthorizationCodeAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test
-  func testBhvLifecycle004UserAuthAuthorizationCodeAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try UserAuthAuthorizationCodeAuthenticator(
-        host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
-        environment: [:])
-    }
-  }
-
   @Test
   func testBhvAuthscheme015UserAuthAuthorizationCodeAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
@@ -969,44 +921,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ])
     }
   }
-
-  @Test
-  func testBhvAuthscheme001BrowserAuthImplicitAuthenticatorReadsItsCredentialsFromTheEnvironment()
-    throws
-  {
-    _ = try BrowserAuthImplicitAuthenticator(
-      host: "https://api.example.com", clientId: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": "env-value"])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002BrowserAuthImplicitAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try BrowserAuthImplicitAuthenticator(
-      host: "https://api.example.com", clientId: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015BrowserAuthImplicitAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> BrowserAuthImplicitAuthenticator = {
-      try BrowserAuthImplicitAuthenticator(host: $0)
-    }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004BrowserAuthImplicitAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try BrowserAuthImplicitAuthenticator(
-        host: "https://api.example.com", clientId: nil, environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme016BrowserAuthImplicitAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID environment variable"
@@ -1017,46 +931,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID": ""])
     }
   }
-
-  @Test func testBhvAuthscheme001SsoAuthAuthenticatorReadsItsCredentialsFromTheEnvironment() throws
-  {
-    _ = try SsoAuthAuthenticator(
-      host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
-      environment: [
-        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET": "env-value",
-        "SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI": "env-value",
-      ])
-  }
-
-  /* An explicit credential needs no environment at all. */
-  @Test
-  func
-    testBhvAuthscheme002SsoAuthAuthenticatorPrefersExplicitCredentialsWhateverTheEnvironmentHolds()
-    throws
-  {
-    _ = try SsoAuthAuthenticator(
-      host: "https://api.example.com", clientId: "explicit-value", clientSecret: "explicit-value",
-      redirectUri: "explicit-value", environment: [:])
-  }
-
-  /* The credential keyword is optional: the public initializer takes the host alone. */
-  @Test func testBhvLifecycle015SsoAuthAuthenticatorCredentialKeywordCanBeOmitted() {
-    let hostAlone: (String) throws -> SsoAuthAuthenticator = { try SsoAuthAuthenticator(host: $0) }
-    _ = hostAlone
-  }
-
-  @Test func testBhvLifecycle004SsoAuthAuthenticatorFailsWhenACredentialIsMissing() {
-    let missing = ConfigurationError.invalidArgument(
-      "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID environment variable"
-    )
-    #expect(throws: missing) {
-      _ = try SsoAuthAuthenticator(
-        host: "https://api.example.com", clientId: nil, clientSecret: nil, redirectUri: nil,
-        environment: [:])
-    }
-  }
-
   @Test func testBhvAuthscheme008SsoAuthAuthenticatorTreatsAnEmptyVariableAsUnset() {
     let missing = ConfigurationError.invalidArgument(
       "Missing the credential 'clientId': pass it, or set the SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID environment variable"
@@ -1071,7 +945,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         ])
     }
   }
-
   // MARK: - One credential per security scheme (F857)
 
   /* Each test names its own host, because the stub files requests by host and
@@ -1085,7 +958,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       transportOptions: transport)
   }
 
-  @Test func testASchemeCredentialIsSentToTheOperationThatNamesItsScheme() async throws {
+  @Test func testBhvAuth043ASchemeCredentialIsSentToTheOperationThatNamesItsScheme() async throws {
     let host = "https://named-scheme.example.com"
     let client = try schemeClient(
       host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
@@ -1147,6 +1020,101 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
   }
 
+  /* A client holding a credential sends none on an operation that declares no security requirement. */
+  @Test func testBhvAuth044AnOperationWithoutSecurityCarriesNoCredential() async throws {
+    let host = "https://no-security-044.example.com"
+    let client = try schemeClient(
+      host: host,
+      petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"))
+    defer { client.close() }
+
+    _ = try? await client.store.getInventory()
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "no-security-044.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+  }
+
+  /* An operation that declares no security never sends the client's default credential. */
+  @Test func testBhvMisc064AnOperationThatDeclaresNoSecurityNeverSendsTheClientCredential()
+    async throws
+  {
+    let host = "https://no-security-064.example.com"
+    let client = try Client(
+      authenticator: try BearerAuthenticator(host: host, token: "client-token"),
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+
+    _ = try? await client.store.getInventory()
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "no-security-064.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+  }
+
+  /* Scheme credentials are copied when the client is built, so a later change to the caller's variable does not reach it. */
+  @Test func testBhvMisc065SchemeCredentialsAreCopiedAtBuild() async throws {
+    let host = "https://copied-065.example.com"
+    var bearer = try BearerAuthenticator(host: host, token: "first-token")
+    let client = try schemeClient(host: host, petStoreBearer: bearer)
+    defer { client.close() }
+    bearer = try BearerAuthenticator(host: host, token: "second-token")
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "copied-065.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer first-token")
+  }
+
+  /* A credential supplied for an operation's scheme replaces a default Authorization header set on the client. */
+  @Test func testBhvAuth045SchemeCredentialReplacesADefaultAuthorizationHeader() async throws {
+    let host = "https://default-header-045.example.com"
+    let transport = try TransportOptionsBuilder()
+      .session(ClientStubProtocol.session())
+      .defaultHeaders(["Authorization": "Default fallback"])
+      .build()
+    let client = try Client(
+      host: host,
+      petStoreBearer: try BearerAuthenticator(host: host, token: "scheme-token"),
+      transportOptions: transport)
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(
+      ClientStubProtocol.lastRequest(host: "default-header-045.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer scheme-token")
+  }
+
+  /* The client's authenticator reaches an operation that names its scheme, without any per-call credential. */
+  @Test func testBhvAuth046TheClientAuthenticatorReachesAnOperationThatNamesItsScheme() async throws
+  {
+    let host = "https://client-authenticator-046.example.com"
+    let client = try schemeClient(
+      host: host, petStoreBearer: try BearerAuthenticator(host: host, token: "client-token"))
+    defer { client.close() }
+
+    _ = try await client.pet.getPetById(petId: 1)
+
+    let request = try #require(
+      ClientStubProtocol.lastRequest(host: "client-authenticator-046.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer client-token")
+  }
+
+  /* An operation lists several schemes and the client holds none of them, so no scheme credential is sent. */
+  @Test func testBhvAuth047NoSchemeCredentialIsSentWhenTheClientHoldsNoneOfTheListedSchemes()
+    async throws
+  {
+    let host = "https://none-held-047.example.com"
+    let client = try schemeClient(host: host)
+    defer { client.close() }
+
+    _ = try await client.pet.addPet(pet: Pet(name: "Fido", photoUrls: []))
+
+    let request = try #require(ClientStubProtocol.lastRequest(host: "none-held-047.example.com"))
+    #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
+    #expect(request.value(forHTTPHeaderField: "X-API-Key") == nil)
+  }
+
   /* A credential that needs the transport gets the client's own. */
   @Test func testBhvAuth025ASchemeCredentialThatNeedsTheTransportGetsTheClientsOwn() throws {
     let aware = SchemeTransportProbe()
@@ -1155,11 +1123,95 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(aware.received)
   }
 
+  /* A client credential that needs the HTTP transport is handed the client's own transport. */
+  @Test func testBhvMisc071AClientCredentialThatNeedsHttpReceivesTheClientsOwnTransport() throws {
+    let aware = SchemeTransportProbe()
+    let client = try Client(
+      authenticator: aware,
+      transportOptions: try TransportOptionsBuilder().session(ClientStubProtocol.session()).build(),
+      callHook: nil)
+    defer { client.close() }
+    #expect(aware.received)
+  }
+
+  /* Every API group holds the scheme credential the client was built with. */
+  @Test func testBhvMisc072EachApiGroupHoldsTheSchemeCredentialTheClientWasBuilt() throws {
+    let host = "https://groups-072.example.com"
+    let held = try PetStoreBearerAuthenticator(host: host, token: "bearer-token")
+    let client = try schemeClient(host: host, petStoreBearer: held)
+    defer { client.close() }
+    #expect(client.pet.schemeAuthenticators.values.contains { ($0 as AnyObject) === held })
+    #expect(client.store.schemeAuthenticators.values.contains { ($0 as AnyObject) === held })
+  }
+
+  /* The client provides a generated wrapper class for every security scheme the spec declares. */
+  @Test func testBhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+    let declared: [Any.Type] = [
+      PetStoreBasicAuthenticator.self,
+      AdminBasicAuthenticator.self,
+      PetStoreBearerAuthenticator.self,
+      ServiceTokenAuthenticator.self,
+      ApiKeyHeaderAuthenticator.self,
+      InternalApiKeyAuthenticator.self,
+      ApiKeyQueryAuthenticator.self,
+      SessionCookieAuthenticator.self,
+      MachineAuthClientCredentialsAuthenticator.self,
+      LegacyAuthPasswordAuthenticator.self,
+      UserAuthAuthorizationCodeAuthenticator.self,
+      BrowserAuthImplicitAuthenticator.self,
+      SsoAuthAuthenticator.self,
+    ]
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(PetStoreBasicAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(AdminBasicAuthenticator.self) })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(PetStoreBearerAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(ServiceTokenAuthenticator.self) }
+    )
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(ApiKeyHeaderAuthenticator.self) }
+    )
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(InternalApiKeyAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(ApiKeyQueryAuthenticator.self) })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(SessionCookieAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(MachineAuthClientCredentialsAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(LegacyAuthPasswordAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(UserAuthAuthorizationCodeAuthenticator.self)
+      })
+    #expect(
+      declared.contains {
+        ObjectIdentifier($0) == ObjectIdentifier(BrowserAuthImplicitAuthenticator.self)
+      })
+    #expect(
+      declared.contains { ObjectIdentifier($0) == ObjectIdentifier(SsoAuthAuthenticator.self) })
+  }
+
   // MARK: - Call hook
 
   /* A hook given to the client reaches every API object and fires with the
      URLSession the caller supplied. */
-  @Test func testBhvHooks010AHookGivenToTheClientFiresWithASuppliedTransportAndReachesEveryApi()
+  @Test func testBhvLangswift078AHookGivenToTheClientFiresWithASuppliedTransportAndReachesEveryApi()
     async throws
   {
     let host = "https://hooked-client.example.com"
@@ -1181,7 +1233,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(client.store.config.callHook != nil)
   }
 
-  @Test func testBhvHooks001AClientWithoutAHookHasNoneOnAnyApi() throws {
+  @Test func testBhvLangswift077AClientWithoutAHookHasNoneOnAnyApi() throws {
     let client = try Client(authenticator: authenticator)
     defer { client.close() }
     #expect(client.pet.config.callHook == nil)
@@ -1189,7 +1241,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(client.store.config.callHook == nil)
   }
 
-  @Test func testTheNamedFactoriesAndTheEnvironmentFactoryAlsoTakeAHook() throws {
+  @Test func testBhvLangswift023TheNamedFactoriesAndTheEnvironmentFactoryAlsoTakeAHook() throws {
     let hook = ClientHook()
     let viaToken = try Client.withToken(
       host: "https://example.com", accessToken: "t", callHook: hook)
@@ -2421,6 +2473,20 @@ private func operationNames(file: String, from start: String, to end: String?, p
   }
 }
 
+private func firstApiAuthenticator(of client: Client) -> Authenticator? {
+  return client.pet.authenticator
+}
+
+private func environmentClient(
+  host: String? = nil, token: String? = nil,
+  tokenProvider: (@Sendable () async throws -> String)? = nil,
+  environment: [String: String]
+) throws -> Client {
+  return try Client.fromEnvironment(
+    host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
+    environment: environment)
+}
+
 @Suite struct MockingTests {
   private let authenticator: BearerAuthenticator = {
     do {
@@ -2586,4 +2652,35 @@ private func operationNames(file: String, from start: String, to end: String?, p
 
     #expect(fake.closed == 2)
   }
+
+  /* Closing a client whose credentials hold nothing that needs releasing succeeds. */
+  @Test func testBhvMisc183ClosingAClientWithPlainCredentialsSucceeds() async throws {
+    let client = try Client(
+      authenticator: BearerAuthenticator(host: "https://example.com", token: "t"))
+    client.close()
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer t"])
+  }
+
+  /* A client built without a host or token takes each from the environment when it is not passed explicitly. */
+  @Test func testBhvMisc187AClientTakesTheHostAndTokenFromTheEnvironment() async throws {
+    let client = try environmentClient(
+      host: nil, token: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
+      ])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(auth.host() == "https://env.example.com")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  }
+
+  /* A client built with only a default authenticator takes its host from that authenticator. */
+  @Test func testBhvMisc206AClientBuiltWithOnlyAnAuthenticatorTakesItsHostFromIt() throws {
+    let auth = try BearerAuthenticator(host: "https://only.example.com", token: "t")
+    let client = try Client(authenticator: auth)
+    defer { client.close() }
+    #expect(firstApiAuthenticator(of: client)?.host() == "https://only.example.com")
+  }
+
 }

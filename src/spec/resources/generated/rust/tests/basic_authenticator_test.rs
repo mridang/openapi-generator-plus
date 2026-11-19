@@ -83,7 +83,7 @@ fn test_bhv_authbasic_005_password_is_not_leaked_in_default_to_string() {
 }
 
 #[test]
-fn test_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
+fn test_bhv_auth_033_scheme_wrapper_debug_names_the_wrapper_and_redacts_the_password() {
     let auth =
         AdminBasicAuthenticator::new("https://api.example.com", Some("alice"), Some("s3cret"))
             .unwrap();
@@ -186,4 +186,18 @@ fn test_bhv_errors_081_a_basic_credential_refused_at_construction_names_the_fiel
         "{}",
         bad_password
     );
+}
+
+/// A colon separates user id from password in the Basic credential, so a username holding one is refused.
+#[test]
+fn test_bhv_auth_036_a_basic_username_containing_a_colon_is_rejected() {
+    match BasicAuthenticator::new("https://api.example.com", "ali:ce", "s3cret") {
+        Err(ConfigurationError::InvalidArgument(reason)) => {
+            assert!(reason.contains("':'"), "{}", reason)
+        }
+        other => panic!(
+            "expected ConfigurationError::InvalidArgument, got {:?}",
+            other
+        ),
+    }
 }

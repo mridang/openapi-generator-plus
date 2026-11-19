@@ -55,6 +55,10 @@ module {{moduleName}}
     # every server error except 501 (not implemented), which a retry cannot fix.
     RETRYABLE_STATUS_CODES = [408, 409, 429, *((500..599).to_a - [501])].freeze
 
+    # Methods RFC 9110 defines as idempotent, plus QUERY: only these are sent
+    # again after a connection failed before any response.
+    IDEMPOTENT_METHODS = %w[GET HEAD OPTIONS TRACE PUT DELETE QUERY].freeze
+
     # The wait before the first retry, in seconds; it doubles up to the cap.
     RETRY_BASE_DELAY_S = 0.5
 
@@ -195,8 +199,11 @@ module {{moduleName}}
       # The timeout is one budget for the whole call: every redirect hop and
       # every retry is sent with what is left of it, measured on the monotonic
       # clock.
-      timeout_ms = timeout || @transport_options.timeout
-      deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
+      # timeout: false lifts the deadline for this call alone; nil keeps the transport's.
+      timeout_ms = timeout == false ? nil : (timeout || @transport_options.timeout)
+      ms = timeout_ms
+      seconds = ms ? ms.to_f / 1000.0 : nil
+      deadline = seconds ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds.to_f).to_f : nil
 
       response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers,
                                        timeout_ms, max_retries || @transport_options.max_retries)
@@ -301,10 +308,15 @@ module {{moduleName}}
 
       if body.is_a?(Hash)
         boundary = SecureRandom.uuid
-        merged['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+        # A multipart type the caller declared (multipart/related, say) keeps its subtype.
+        declared = (merged.find { |name, _value| name.to_s.casecmp?('Content-Type') } || [nil, ''])[1].to_s
+        subtype = declared.split(';').first.to_s.strip
+        subtype = 'multipart/form-data' unless subtype.start_with?('multipart/')
+        merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }
+        merged['Content-Type'] = "#{subtype}; boundary=#{boundary}"
         serialized_body = build_multipart_body(body, boundary)
       elsif body.nil?
-        merged.delete('Content-Type')
+        merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }
         serialized_body = nil
         # Some servers / WAFs treat POST/PUT/PATCH with no body and no
         # Content-Length as malformed (411 Length Required) or behave
@@ -319,6 +331,7 @@ module {{moduleName}}
         end
       else
         serialized_body = body
+        merged['Content-Type'] = 'application/json' unless header?(merged, 'Content-Type')
       end
 
       # Field names are case-insensitive: a caller's accept-encoding in any casing
@@ -395,8 +408,12 @@ module {{moduleName}}
             # drops the body and is allowed. The empty body substituted for a
             # bodyless POST/PUT/PATCH (the Content-Length: 0 workaround above)
             # is not a body either, so it is followed like the other SDKs do.
+            # misc124: a 301 or 302 is refused across the downgrade whenever the
+            # original request carried a body, even though the follow-up drops it.
             replays_body = !rewrite_to_get && !next_body.nil? && !next_body.to_s.empty?
-            if replays_body && https_to_http_downgrade?(url, next_url)
+            body_sent = !current_body.nil? && !current_body.to_s.empty?
+            refuses_body = [301, 302].include?(status_code) ? body_sent : replays_body
+            if refuses_body && https_to_http_downgrade?(url, next_url)
               raise unusable_response(response, 'Refusing to replay request body across HTTPS->HTTP ' \
                                                 "redirect: #{url} -> #{next_url}")
             end
@@ -469,7 +486,8 @@ module {{moduleName}}
           response = transmit(method, url, current_headers, body, no_redirect, deadline, no_default_headers, timeout_ms)
           return response unless attempt < max_retries && RETRYABLE_STATUS_CODES.include?(response.status.to_i)
         rescue Errors::NetworkError => e
-          raise unless attempt < max_retries && retryable_network_error?(e)
+          raise unless attempt < max_retries && retryable_network_error?(e) &&
+                       IDEMPOTENT_METHODS.include?(method.to_s.upcase)
 
           failure = e
         end
@@ -504,7 +522,20 @@ module {{moduleName}}
     def retryable_network_error?(error)
       return false if error.is_a?(Errors::NetworkTimeoutError)
 
-      !error.cause.is_a?(Faraday::SSLError)
+      !tls_failure?(error)
+    end
+
+    # Whether an error, or any error it wraps or was raised from, is an OpenSSL
+    # or Faraday SSL error (misc170).
+    def tls_failure?(error)
+      seen = error
+      while seen
+        return true if seen.is_a?(OpenSSL::SSL::SSLError) || seen.is_a?(Faraday::SSLError)
+
+        wrapped = seen.respond_to?(:wrapped_exception) ? seen.wrapped_exception : nil
+        seen = wrapped || seen.cause
+      end
+      false
     end
 
     # The headers of a retry, or +nil+ when they cannot be built (a failed
@@ -609,9 +640,9 @@ module {{moduleName}}
     # @raise [ArgumentError] if a value contains CR or LF
     def validate_header_values!(headers)
       headers.each do |name, value|
-        next unless value.to_s.match?(/[\r\n]/)
+        next unless value.to_s.match?(/[\r\n\0]/)
 
-        raise ArgumentError, "Header #{name} value must not contain a carriage return or line feed"
+        raise ArgumentError, "Header #{name} value must not contain a carriage return, line feed or NUL byte"
       end
     end
 

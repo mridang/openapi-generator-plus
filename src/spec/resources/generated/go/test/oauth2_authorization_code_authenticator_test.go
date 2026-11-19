@@ -10,6 +10,7 @@
 package petstore_test
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
@@ -96,7 +97,7 @@ func TestBhvAuthoauthtwoauthcode006_OAuth2AuthorizationCodeAuthenticator_BuildsA
 }
 
 // The per-scheme wrapper requests the scopes its security scheme declares.
-func TestOAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
+func TestBhvLanggo059_OAuth2AuthorizationCodeAuthenticator_UserAuthWrapper_AuthorizationUrlCarriesDeclaredScopes(t *testing.T) {
 	t.Parallel()
 	auth, err := oauth.NewUserAuthAuthorizationCodeAuthenticator(
 		"https://api.example.com", "my-client-id", "my-client-secret", "https://app.example.com/callback")
@@ -125,7 +126,7 @@ func TestBhvAuthoauthtwoauthcode007_OAuth2AuthorizationCodeAuthenticator_BuildsA
 // ExchangeCode runs on a callback goroutine while requests read the exchanged
 // flag on others. Run under the race detector (make test), this fails when the
 // flag is a plain bool.
-func TestOAuth2AuthorizationCodeAuthenticator_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
+func TestBhvLanggo060_OAuth2AuthorizationCodeAuthenticator_ExchangeCodeIsSafeAgainstConcurrentRequests(t *testing.T) {
 	t.Parallel()
 	client := &fakeAuthCodeClient{
 		responses: []fakeAuthCodeResponse{
@@ -882,5 +883,92 @@ func TestBhvAuth028_OAuth2AuthorizationCodeAuthenticator_FailedFirstExchangeReco
 	}
 	if _, err := authObj.AuthHeadersOrError(); err == nil {
 		t.Error("expected the client to still report the code as unexchanged")
+	}
+}
+
+// The authorization-code flow builds the authorize URL with the declared scopes and the exact fixed parameters.
+func TestBhvAuth048_OAuth2AuthorizationCodeAuthenticator_BuildsTheExactAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+
+	got := a.BuildAuthorizationURL("xyz")
+	prefix := "https://auth.example.com/authorize?response_type=code&client_id=my-client-id&redirect_uri=https%3A%2F%2Fapp.example.com%2Fcallback&scope=read%20write&state=xyz&code_challenge="
+	if !strings.HasPrefix(got, prefix) || !strings.HasSuffix(got, "&code_challenge_method=S256") {
+		t.Errorf("expected the exact authorize URL prefix %q, got %q", prefix, got)
+	}
+}
+
+// Before a code is exchanged the authenticator holds no token, so it refuses to produce auth headers.
+func TestBhvAuth052_OAuth2AuthorizationCodeAuthenticator_RefusesHeadersBeforeAnExchange(t *testing.T) {
+	t.Parallel()
+	a := createAuthCodeAuthenticator()
+
+	if _, err := a.AuthHeadersOrError(); err == nil {
+		t.Error("expected AuthHeadersOrError to refuse before an exchange")
+	}
+	if _, err := a.AuthHeadersOrErrorContext(context.Background()); err == nil {
+		t.Error("expected AuthHeadersOrErrorContext to refuse before an exchange")
+	}
+	if headers := a.AuthHeaders(); len(headers) != 0 {
+		t.Errorf("expected no headers before an exchange, got %v", headers)
+	}
+}
+
+// A transport failure during the authorization code exchange reaches the caller as the same error.
+func TestBhvMisc028_OAuth2AuthorizationCodeAuthenticator_AnExchangeFailureIsReturnedUnchanged(t *testing.T) {
+	t.Parallel()
+	cause := errors.New("connection reset")
+	authObj := createAuthCodeAuthenticator()
+	authObj.SetApiClient(unreachableTokenClient{cause: cause})
+	_ = authObj.BuildAuthorizationURL("state")
+
+	if err := authObj.ExchangeCode("the-code"); err != cause {
+		t.Errorf("expected the transport error unchanged, got %T: %v", err, err)
+	}
+}
+
+// The authorization URL keeps the configured endpoint and redirect URI exactly: no added trailing slash,
+// no dropped default port and no changed host case.
+func TestBhvMisc058_OAuth2AuthorizationCodeAuthenticator_TheConfiguredUrlsReachTheAuthorizeUrlExactly(t *testing.T) {
+	t.Parallel()
+	authObj := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com",
+		"my-client-id",
+		"my-client-secret",
+		"https://Auth.Example.COM:443/authorize/",
+		"https://auth.example.com/token",
+		"https://App.example.com:8443/cb",
+		[]string{"read"},
+		"",
+	)
+	got := authObj.BuildAuthorizationURL("xyz")
+	if !strings.HasPrefix(got, "https://Auth.Example.COM:443/authorize/?") || !strings.Contains(got, "redirect_uri=https%3A%2F%2FApp.example.com%3A8443%2Fcb") {
+		t.Errorf("expected the configured endpoint and redirect URI exact, got %q", got)
+	}
+}
+
+// The authorization URL produced by a per-scheme wrapper carries the scopes that its security scheme declares.
+func TestBhvMisc062_OAuth2AuthorizationCodeAuthenticator_TheDeclaredScopesReachTheAuthorizeUrl(t *testing.T) {
+	t.Parallel()
+	authObj := createAuthCodeAuthenticator()
+	if got := authObj.BuildAuthorizationURL(""); !strings.Contains(got, "scope=read%20write") {
+		t.Errorf("expected the declared scopes in the authorize URL, got %q", got)
+	}
+}
+
+// A generated PKCE verifier is 43 characters from the unreserved set and differs on every call.
+func TestBhvMisc077_OAuth2AuthorizationCodeAuthenticator_PkceChallengeIsFreshEachCall(t *testing.T) {
+	t.Parallel()
+	challengeOf := func(raw string) string {
+		parsed, err := neturl.Parse(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		return parsed.Query().Get("code_challenge")
+	}
+	first := challengeOf(createAuthCodeAuthenticator().BuildAuthorizationURL("s"))
+	second := challengeOf(createAuthCodeAuthenticator().BuildAuthorizationURL("s"))
+	if len(first) != 43 || first == second {
+		t.Errorf("expected a 43-character challenge that differs per call, got %q and %q", first, second)
 	}
 }

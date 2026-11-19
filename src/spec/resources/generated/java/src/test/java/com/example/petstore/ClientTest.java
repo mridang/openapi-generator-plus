@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
+import com.example.petstore.auth.Authenticator;
 import com.example.petstore.auth.BearerAuthenticator;
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
 import com.example.petstore.errors.ApiException;
@@ -27,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class ClientTest {
 
   private final BearerAuthenticator authenticator =
@@ -100,7 +102,7 @@ class ClientTest {
   }
 
   @Test
-  void builderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther() {
+  void bhvLifecycle043BuilderWithNoCredentialsBuildsAClientThatClosesLikeAnyOther() {
     Client client =
         Client.builder("/api/v3").transportOptions(TransportOptions.builder().build()).build();
 
@@ -244,7 +246,7 @@ class ClientTest {
   }
 
   @Test
-  void pomDeclaresADescription() throws Exception {
+  void bhvLangjava057PomDeclaresADescription() throws Exception {
     // Publish metadata parity: the generated pom.xml must carry a
     // non-empty <description> so the artifact has a description on
     // Maven Central, matching the python/ruby/dart manifests.
@@ -273,6 +275,35 @@ class ClientTest {
     try (Client client = Client.withToken("/api/v3", "test-token", null)) {
       assertNotNull(client);
     }
+  }
+
+  @Test
+  void bhvMisc204ClientWithoutHostOrTokenFailsAtOnce() {
+    assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", null));
+  }
+
+  @Test
+  void bhvMisc206ClientWithOnlyAnAuthenticatorTakesItsHost() throws Exception {
+    java.util.concurrent.atomic.AtomicReference<String> seenPath =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          seenPath.set(exchange.getRequestURI().getPath());
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      String host = "http://localhost:" + server.getAddress().getPort();
+      try (Client client = new Client(new BearerAuthenticator(host, "test-token"))) {
+        client.store.deleteOrder(2L);
+      }
+    } finally {
+      server.stop(0);
+    }
+    assertEquals("/store/order/2", seenPath.get());
   }
 
   @Test
@@ -624,5 +655,171 @@ class ClientTest {
     } finally {
       server.stop(0);
     }
+  }
+
+  @Test
+  void bhvLifecycle042RequestsGoThroughTheSuppliedHttpClient() throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+    java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    server.createContext(
+        "/ping",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    try {
+      com.example.petstore.DefaultApiClient apiClient =
+          new com.example.petstore.DefaultApiClient(
+              TransportOptions.builder().httpClient(supplied).build());
+      com.example.petstore.ApiHttpResponse response =
+          apiClient.sendRequest(
+              "GET",
+              "http://localhost:" + server.getAddress().getPort() + "/ping",
+              java.util.Map.of(),
+              null);
+      assertEquals(200, response.statusCode());
+      assertEquals(1, hits.get());
+    } finally {
+      supplied.close();
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle044RequestInFlightWhenClosedStillCompletes() throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+    server.createContext(
+        "/slow",
+        exchange -> {
+          try {
+            Thread.sleep(400);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+          byte[] out = "ok".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+          exchange.sendResponseHeaders(200, out.length);
+          exchange.getResponseBody().write(out);
+          exchange.close();
+        });
+    server.start();
+    com.example.petstore.DefaultApiClient apiClient = new com.example.petstore.DefaultApiClient();
+    java.util.concurrent.atomic.AtomicReference<com.example.petstore.ApiHttpResponse> result =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    Thread caller =
+        new Thread(
+            () -> {
+              try {
+                result.set(
+                    apiClient.sendRequest(
+                        "GET",
+                        "http://localhost:" + server.getAddress().getPort() + "/slow",
+                        java.util.Map.of(),
+                        null));
+              } catch (RuntimeException e) {
+                result.set(null);
+              }
+            });
+    try {
+      caller.start();
+      Thread.sleep(100);
+      apiClient.close();
+      caller.join(5000);
+      assertNotNull(result.get());
+      assertEquals(200, result.get().statusCode());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvLifecycle045ClosingTheClientLeavesTheSuppliedHttpClientSendingRequests()
+      throws Exception {
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(0), 0);
+    server.createContext(
+        "/after",
+        exchange -> {
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+    try {
+      com.example.petstore.DefaultApiClient apiClient =
+          new com.example.petstore.DefaultApiClient(
+              TransportOptions.builder().httpClient(supplied).build());
+      apiClient.close();
+      java.net.http.HttpResponse<Void> response =
+          supplied.send(
+              java.net.http.HttpRequest.newBuilder(
+                      java.net.URI.create(
+                          "http://localhost:" + server.getAddress().getPort() + "/after"))
+                  .build(),
+              java.net.http.HttpResponse.BodyHandlers.discarding());
+      assertEquals(200, response.statusCode());
+    } finally {
+      supplied.close();
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc071ACredentialThatNeedsHttpReceivesTheClientsTransport() throws Exception {
+    // The credential has no transport of its own: the token request it sends must go
+    // through the transport the client was built with, which reaches this server.
+    HttpServer tokenServer = HttpServer.create(new InetSocketAddress(0), 0);
+    tokenServer.createContext(
+        "/token",
+        exchange -> {
+          byte[] body =
+              "{\"access_token\":\"from-transport\",\"expires_in\":3600}"
+                  .getBytes(StandardCharsets.UTF_8);
+          exchange.getResponseHeaders().add("Content-Type", "application/json");
+          exchange.sendResponseHeaders(200, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    tokenServer.start();
+    try {
+      String tokenUrl = "http://127.0.0.1:" + tokenServer.getAddress().getPort() + "/token";
+      OAuth2ClientCredentialsAuthenticator credential =
+          new OAuth2ClientCredentialsAuthenticator(
+              "/api/v3", "client-id", "client-secret", tokenUrl, List.of());
+      try (Client client = new Client(credential, TransportOptions.builder().build())) {
+        assertNotNull(client);
+        assertEquals("Bearer from-transport", credential.getAuthHeaders().get("Authorization"));
+      }
+    } finally {
+      tokenServer.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc073TheClientHasAWrapperClassForEveryDeclaredScheme() {
+    java.util.stream.Stream.of(
+            com.example.petstore.auth.PetStoreBasicAuthenticator.class,
+            com.example.petstore.auth.AdminBasicAuthenticator.class,
+            com.example.petstore.auth.PetStoreBearerAuthenticator.class,
+            com.example.petstore.auth.ServiceTokenAuthenticator.class,
+            com.example.petstore.auth.ApiKeyHeaderAuthenticator.class,
+            com.example.petstore.auth.InternalApiKeyAuthenticator.class,
+            com.example.petstore.auth.ApiKeyQueryAuthenticator.class,
+            com.example.petstore.auth.SessionCookieAuthenticator.class,
+            com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator.class,
+            com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator.class,
+            com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator.class,
+            com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator.class,
+            com.example.petstore.auth.oauth.SsoAuthAuthenticator.class,
+            Authenticator.class)
+        .forEach(
+            wrapper ->
+                assertTrue(Authenticator.class.isAssignableFrom(wrapper), wrapper.getName()));
   }
 }
