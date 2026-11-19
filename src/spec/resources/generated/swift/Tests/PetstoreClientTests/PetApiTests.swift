@@ -1200,6 +1200,63 @@ final class PetApiTests {
   // required-date-path-validation: a required `format: date` path param is a
   // String in swift, so an empty value must be rejected before dispatch just
   // like an empty string path param, never sent as `/pet/born-on/`.
+  /* A call with a missing required argument raises an argument error that names it and sends nothing; the
+     argument cannot be left out or nil, so the empty value that stands for it is refused. */
+  @Test func testBhvMisc012ARequiredArgumentThatIsEmptyIsRefusedByName() async throws {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.findPetsBornOn(bornOn: "")
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected invalidArgument")
+      return
+    }
+    #expect(message.contains("'bornOn'"))
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  @Test func testBhvOperations164AMissingRequiredParameterRaisesAnArgumentErrorAndSendsNoRequest()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await api.findPetsBornOn(bornOn: "")
+    }
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  /* An options object with an empty required field is refused naming the first missing field. */
+  @Test func testBhvMisc004AnOptionsObjectWithAMissingRequiredFieldNamesTheFirstOne() async throws {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "x", options: GetPetByNameOptions(category: "dog", xCorrelationId: ""))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected invalidArgument")
+      return
+    }
+    #expect(message.contains("'xCorrelationId'"))
+  }
+
+  @Test func testBhvMisc010AnOperationWhoseOptionsHaveRequiredFieldsRefusesEmptyOnes() async throws
+  {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "x", options: GetPetByNameOptions(category: "dog", xCorrelationId: ""))
+    }
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
   @Test func testBhvOperations052RequiredDatePathParamEmptyThrows() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200

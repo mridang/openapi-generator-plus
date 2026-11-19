@@ -23,9 +23,6 @@ php | lifecycle021 | PHP runs one request at a time in one process, so a close()
 node | transport049 | Node fetch (undici) decodes a headerless raw DEFLATE body under Content-Encoding: deflate without error, so the SDK never receives a decode failure to wrap as ApiError
 node | serializationobject107 | A JS Date is an absolute instant with no zone, so the input offset (-08:00) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
 node | serializationobject116 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
-swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentType String, so a nil Content-Type cannot be passed; the empty-string default is covered by headers001
-swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
-swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 kotlin | transport009 | The Ktor CIO engine asks the JVM default ProxySelector when no proxy is configured and has no way to say direct, so ambient proxy settings are not ignored; the pinned behaviour is bhv transport 046
 elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
 elixir | retries019 | The psr18 client is a PHP transport object with its own timeout budget; the Elixir deadline is fixed once per call and retries never extend it (bhv retries 025)
@@ -141,8 +138,6 @@ kotlin | transport062 | kotlin: the Ktor CIO engine verifies the certificate hos
 php | transport060 | PHP has no per-call cancellation handle and no cancellation error (S7): a call runs synchronously and is bounded only by the TransportOptions timeout, pinned by bhv transport 024
 ruby | transport064 | Net::HTTP reads each response body in full before Faraday hands it to the SDK, so a refused redirect never holds an intermediate connection or body the SDK has to release
 rust | servers020 | the per-operation server variable is a Rust enum (GetStagingPetInfoServerEnvironment), so a value outside its enum cannot be constructed; the compiler rejects it before the call
-swift | servers020 | a per-operation server is a generated struct whose variables are Swift enums (GetStagingPetInfoServerStagingServer takes environment as an enum), so a value outside the enum cannot be constructed and the compiler rejects it before the SDK runs
-swift | servers024 | ServerVariable is an immutable struct whose enumValues is a let property of value type, so no caller can change the list and the only probe of that is a compile error
 swift | transport062 | libcurl on Linux takes its CA bundle from fixed system paths and swift-corelibs-foundation reads URLSessionCertificateAuthorityInfoFile only on Android and raises no server-trust challenge, so a CA file or disabled verification cannot be applied there and the SDK refuses both at construction (D72); no CA can be pinned or trusted in the Linux suite
 swift | transport063 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
 swift | transport064 | swift-corelibs-foundation reads the whole body of a redirect response before it asks the delegate, and Apple's URLSession releases the refused response itself; neither release is observable through URLSession's public API, and the call returning the refusal promptly is asserted by the redirect refusal tests
@@ -222,7 +217,6 @@ rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generate
 rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
 rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
 rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists
-swift | models014 | Swift model properties are declared with let, so reassigning one is a compile-time error that no runtime test can observe
 swift | options063 | Swift per-call options are structs whose fields are declared with let, so changing a built one is a compile-time error that no runtime test can observe
 swift | servers028 | Swift generated server lists are let constants, so changing one after creation is a compile-time error that no runtime test can observe
 swift | serialization011 | Swift writes model keys sorted through JSONEncoder with sortedKeys, a forced divergence recorded as D85, so model keys are not in declaration order
@@ -331,7 +325,6 @@ go | auth042 | Go strings have no absent value, so an explicitly passed empty st
 rust | auth039 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test
 swift | auth039 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it
 swift | auth038 | a token provider is a caller closure the SDK never reads from the environment, and the generated bearer wrappers take a static token and an environment variable but no provider, so the provider cannot be ranked against the environment
-swift | operations164 | Swift required parameters are non-optional typed arguments, so a missing or nil required argument does not compile; the empty required path value is refused by ValueSerializer.requirePathParam and covered by the value serializer tests
 elixir | auth039 | Elixir has one credential argument that is either a string or a zero-arity function, so a token and a token provider cannot be passed together (the same reason as authbearer026)
 elixir | auth052 | Elixir has no async accessor: auth_headers/1 is the only way to read headers and it is synchronous, so the asynchronous refusal the promise names cannot exist; the synchronous refusal is asserted by bhv auth 001
 go | operations161 | the only text/plain operation in the fixture is testTextPlain, an x-internal mock that DropInternalOperationsRule removes from every SDK, so no generated Go operation returns text/plain; a text/plain body for a model return is already pinned by TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError
@@ -377,7 +370,6 @@ go | misc100 | The Go SDK always sends a multipart body as multipart/form-data w
 go | misc103 | Go decodes every model leniently and has no strict-mode option, so no single model can reject undeclared keys while others ignore them
 go | misc105 | Go models have no validation step at construction or copy, so copying a model cannot validate its values; there is no validator to run
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
-swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
 rust | misc083 | Rust builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
 rust | misc085 | the trackingId parameter is typed uuid::Uuid, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder
 rust | misc088 | Rust's number is f64 and documented lossy (serializationobject002), so the decimal places a value was written with are not kept and the exact-decimal writing this promise needs is not the Rust contract
@@ -398,8 +390,6 @@ ruby | misc054 | a call reads its header hash before it returns and keeps no ref
 ruby | misc059 | JSON.parse rejects the NaN and Infinity literals by default, so a token response cannot carry a non-finite lifetime for the cache to refuse
 ruby | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so there is no combined credential to send
 kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made
-swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
-swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
 swift | misc030 | the SDK takes only a relative timeout per call and has no absolute deadline argument, so a deadline cannot already have passed when a call starts
 swift | misc033 | libcurl on Linux takes its CA bundle from fixed system paths and swift-corelibs-foundation reads URLSessionCertificateAuthorityInfoFile only on Android and raises no server-trust challenge, so a CA file or disabled verification cannot be applied there and the SDK refuses both at construction (D72); no CA can be pinned or trusted in the Linux suite
 swift | misc047 | a union wrapper holds only a declared variant and is built only from one, so a value that is not a variant cannot be constructed; an empty union is nil (testBhvUnions042), so the compile-time guarantee covers both cases
@@ -587,7 +577,6 @@ dart | misc112 | the generic fixture models have no unique-array field outside t
 swift | misc128 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
 swift | misc129 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
 swift | misc135 | the Swift client has no client-level cancellation handle: cancellation is the task that awaits each call, and ConfigurationBuilder has no setter for one
-swift | misc140 | the Swift initializer takes each required property as a parameter with no default, so omitting one is a compile-time error and no runtime error naming the property can occur
 swift | misc147 | Swift models are value types, so a copy's nested model is an independent value and cannot be the same object as the original
 swift | misc149 | copy takes only the model's declared properties as typed parameters, so an undeclared attribute is a compile-time error and no runtime error naming it can occur
 swift | misc152 | Swift has no abort signal: a call is cancelled through Task cancellation, and no call takes a signal that could already be aborted
@@ -672,7 +661,6 @@ java | transport083 | Java has no client-level cancellation handle: TransportOpt
 php | serialization068 | PHP typed constructor parameters and enum-typed properties reject a wrong-typed or unknown value at construction under strict types, so a model cannot hold one as given
 swift | misc214 | Query content is a typed Codable value at the call site, so a value that cannot be serialized (a cyclic or NaN-bearing object) cannot be passed to the operation; the compiler rules it out
 swift | misc241 | Swift has no time-of-day type: a time value is a String the caller supplies and checks at the call site, so the SDK never truncates milliseconds from a time
-swift | misc260 | Server variable overrides are a [String: String] map, so a nil value for an enum variable cannot be passed; the compiler rules it out
 swift | misc271 | swift-corelibs-foundation ignores connectionProxyDictionary on Linux: libcurl reads http_proxy, https_proxy and all_proxy from the environment itself and the handle exposes no proxy option, so a proxy environment variable does route a request there (D74)
 swift | misc272 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself

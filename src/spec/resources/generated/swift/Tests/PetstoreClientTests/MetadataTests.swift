@@ -275,6 +275,22 @@ import Testing
     #expect(!bytes.contains("Data<"))
   }
 
+  /* A model is a value: changing a copy leaves the original as it was. */
+  @Test func testBhvModels014ChangingACopyLeavesTheOriginalModelUnchanged() {
+    let original = Pet(name: "Rex", photoUrls: [])
+    let changed = original.copy(name: "Max")
+    #expect(original.name == "Rex")
+    #expect(changed.name == "Max")
+  }
+
+  /* Decoding a model without one of its required properties fails with an error that names the property. */
+  @Test func testBhvMisc140ADecodeWithoutARequiredPropertyNamesIt() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"photoUrls\":[]}", as: Pet.self)
+    }
+    #expect(String(describing: error).contains("name"))
+  }
+
   @Test func testBhvModels021IntegerEnumMembersAreLowerCamelCase() {
     #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
     #expect(Priority.number1.rawValue == 1)
