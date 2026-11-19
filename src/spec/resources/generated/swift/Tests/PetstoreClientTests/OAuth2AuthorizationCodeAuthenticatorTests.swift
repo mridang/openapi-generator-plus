@@ -393,13 +393,8 @@ import Testing
         == "OAuth2AuthorizationCodeAuthenticator(host: https://api.example.com, clientID: my-client-id, clientSecret: ***, authorizationURL: https://auth.example.com/authorize, tokenURL: https://auth.example.com/token, refreshURL: https://auth.example.com/token, redirectURI: https://app.example.com/callback, scopes: [\"read\", \"write\"], tokenExchanged: false)"
     )
     #expect(String(reflecting: auth) == description)
-  }
-
-  /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
-   * included, so the redacted description is not enough: the reflection
-   * must hide the secret too. */
-  @Test func dumpDoesNotLeakSecret() async throws {
-    let auth = createAuthenticator()
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+     * so the redacted description is not enough: the reflection must hide the secret too. */
     var dumped = ""
     dump(auth, to: &dumped)
     #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
