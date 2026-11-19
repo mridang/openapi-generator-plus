@@ -784,34 +784,33 @@ describe("Client", () => {
 describe("scheme authenticators the spec declares", () => {
   const host = "https://api.example.com";
 
-  test.each([
-    [
-      "ApiKeyHeaderAuthenticator",
-      new ApiKeyHeaderAuthenticator(host, "k-1"),
-      "header",
-      { "X-API-Key": "k-1" },
-    ],
-    [
-      "InternalApiKeyAuthenticator",
-      new InternalApiKeyAuthenticator(host, "k-1"),
-      "header",
-      { "X-Internal-Key": "k-1" },
-    ],
-    [
-      "ApiKeyQueryAuthenticator",
-      new ApiKeyQueryAuthenticator(host, "k-1"),
-      "query",
-      { api_key: "k-1" },
-    ],
-    [
-      "SessionCookieAuthenticator",
-      new SessionCookieAuthenticator(host, "k-1"),
-      "cookie",
-      { SESSION_ID: "k-1" },
-    ],
-  ])(
-    "bhv misc 057 %s emits its key in the declared location only",
-    (_name, auth, location, expected) => {
+  test("bhv misc 057 every API-key scheme emits its key in the declared location only", () => {
+    for (const [_name, auth, location, expected] of [
+      [
+        "ApiKeyHeaderAuthenticator",
+        new ApiKeyHeaderAuthenticator(host, "k-1"),
+        "header",
+        { "X-API-Key": "k-1" },
+      ],
+      [
+        "InternalApiKeyAuthenticator",
+        new InternalApiKeyAuthenticator(host, "k-1"),
+        "header",
+        { "X-Internal-Key": "k-1" },
+      ],
+      [
+        "ApiKeyQueryAuthenticator",
+        new ApiKeyQueryAuthenticator(host, "k-1"),
+        "query",
+        { api_key: "k-1" },
+      ],
+      [
+        "SessionCookieAuthenticator",
+        new SessionCookieAuthenticator(host, "k-1"),
+        "cookie",
+        { SESSION_ID: "k-1" },
+      ],
+    ]) {
       expect(auth.getAuthHeaders()).toEqual(
         location === "header" ? expected : {},
       );
@@ -825,20 +824,19 @@ describe("scheme authenticators the spec declares", () => {
         new RegExp(`^${_name}\\(host=https://api\\.example\\.com, `),
       );
       expect(util.inspect(auth)).not.toContain("k-1");
-    },
-  );
+    }
+  });
 
-  test.each([
-    ["ApiKeyHeaderAuthenticator", ApiKeyHeaderAuthenticator],
-    ["InternalApiKeyAuthenticator", InternalApiKeyAuthenticator],
-    ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator],
-    ["SessionCookieAuthenticator", SessionCookieAuthenticator],
-  ])(
-    "bhv langnode 049 %s rejects an empty key at construction",
-    (_name, Wrapper) => {
+  test("bhv langnode 049 every API-key scheme authenticator rejects an empty key at construction", () => {
+    for (const [_name, Wrapper] of [
+      ["ApiKeyHeaderAuthenticator", ApiKeyHeaderAuthenticator],
+      ["InternalApiKeyAuthenticator", InternalApiKeyAuthenticator],
+      ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator],
+      ["SessionCookieAuthenticator", SessionCookieAuthenticator],
+    ]) {
       expect(() => new Wrapper(host, "")).toThrow(TypeError);
-    },
-  );
+    }
+  });
 
   test("bhv authbasic 019 the generated Basic wrappers emit the same Basic header as the base authenticator", () => {
     const base = new BasicAuthenticator(

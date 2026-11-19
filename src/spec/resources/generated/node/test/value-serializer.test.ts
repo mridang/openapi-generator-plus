@@ -61,36 +61,35 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.serialize(42, "path", "integer")).toBe("42");
     });
 
-    test.each([
-      [";", ";"],
-      ["=", "="],
-      [",", ","],
-      [":", ":"],
-      ["@", "@"],
-      ["!", "!"],
-      ["$", "$"],
-      ["&", "&"],
-      ["'", "'"],
-      ["(", "("],
-      [")", ")"],
-      ["*", "*"],
-      ["+", "+"],
-      ["~", "~"],
-      ["%", "%25"],
-      ["%20", "%2520"],
-      ["?", "%3F"],
-      ["#", "%23"],
-      ["[", "%5B"],
-      [" ", "%20"],
-    ])(
-      "bhv serialization 109 path segment %p is encoded as %p",
-      (raw, encoded) => {
+    test("bhv serialization 109 every listed path segment is percent-encoded", () => {
+      for (const [raw, encoded] of [
+        [";", ";"],
+        ["=", "="],
+        [",", ","],
+        [":", ":"],
+        ["@", "@"],
+        ["!", "!"],
+        ["$", "$"],
+        ["&", "&"],
+        ["'", "'"],
+        ["(", "("],
+        [")", ")"],
+        ["*", "*"],
+        ["+", "+"],
+        ["~", "~"],
+        ["%", "%25"],
+        ["%20", "%2520"],
+        ["?", "%3F"],
+        ["#", "%23"],
+        ["[", "%5B"],
+        [" ", "%20"],
+      ]) {
         expect(ValueSerializer.encodePathSegment(raw)).toBe(encoded);
         expect(ValueSerializer.serialize(`a${raw}b`, "path", "string")).toBe(
           `a${encoded}b`,
         );
-      },
-    );
+      }
+    });
 
     test('bhv serializationparam 021 boolean true returns "true"', () => {
       expect(ValueSerializer.serialize(true, "path", "boolean")).toBe("true");
@@ -182,19 +181,18 @@ describe("ValueSerializer", () => {
       ).toEqual(["a", "b", "c"]);
     });
 
-    test.each([
-      ["csv", "1,,3"],
-      ["ssv", "1  3"],
-      ["tsv", "1\t\t3"],
-      ["pipes", "1||3"],
-    ])(
-      "bhv misc 106 a null element keeps its empty slot for %s",
-      (format, expected) => {
+    test("bhv misc 106 a null element keeps its empty slot for every listed format", () => {
+      for (const [format, expected] of [
+        ["csv", "1,,3"],
+        ["ssv", "1  3"],
+        ["tsv", "1\t\t3"],
+        ["pipes", "1||3"],
+      ]) {
         expect(
           ValueSerializer.serialize([1, null, 3], "query", "array", format),
         ).toBe(expected);
-      },
-    );
+      }
+    });
 
     test("bhv serializationparam 011 a null element keeps its empty slot for multi", () => {
       expect(
@@ -272,9 +270,8 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - path dot segments", () => {
-    test.each([".", ".."])(
-      "bhv langnode 171 rejects a simple-style path value of %p",
-      (value) => {
+    test("bhv langnode 171 rejects a simple-style path value of a single or double dot", () => {
+      for (const value of [".", ".."]) {
         expect(() =>
           ValueSerializer.serializeStyled(
             "name",
@@ -288,8 +285,8 @@ describe("ValueSerializer", () => {
         ).toThrow(
           new TypeError(`Path parameter 'name' must not be '.' or '..'`),
         );
-      },
-    );
+      }
+    });
 
     test("bhv serializationparam 072 keeps a value that only contains dots", () => {
       expect(
@@ -598,12 +595,11 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - Set values", () => {
-    test.each([
-      [true, ["red", "blue"]],
-      [false, "red,blue"],
-    ])(
-      "bhv serialization 107 form style with explode=%p expands a Set like an array",
-      (explode, expected) => {
+    test("bhv serialization 107 form style with either explode value expands a Set like an array", () => {
+      for (const [explode, expected] of [
+        [true, ["red", "blue"]],
+        [false, "red,blue"],
+      ]) {
         const value = new Set(["red", "blue"]);
         expect(
           ValueSerializer.serializeStyled(
@@ -627,8 +623,8 @@ describe("ValueSerializer", () => {
             explode,
           ),
         ).toEqual(expected);
-      },
-    );
+      }
+    });
 
     test("bhv serializationparam 117 a Set in form style without explode joins its elements with commas like an array", () => {
       expect(
@@ -660,9 +656,8 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - uuid values", () => {
-    test.each(["path", "query", "header"])(
-      "bhv langnode 172 writes an uppercase uuid in lowercase in the %s",
-      (location) => {
+    test("bhv langnode 172 writes an uppercase uuid in lowercase in the path, query and header", () => {
+      for (const location of ["path", "query", "header"]) {
         expect(
           ValueSerializer.serializeStyled(
             "id",
@@ -674,8 +669,8 @@ describe("ValueSerializer", () => {
             false,
           ),
         ).toBe("e621e1f8-c36c-495a-93fc-0c247a3e6e5f");
-      },
-    );
+      }
+    });
 
     test("bhv langnode 169 rejects a malformed uuid", () => {
       expect(() =>
@@ -1026,18 +1021,17 @@ describe("ValueSerializer", () => {
       ]);
     });
 
-    test.each([
-      ["simple", false, "color,red,min_count,3"],
-      ["simple", true, "color=red,min_count=3"],
-      ["matrix", false, ";criteria=color,red,min_count,3"],
-      ["matrix", true, ";color=red;min_count=3"],
-      ["label", false, ".color,red,min_count,3"],
-      ["label", true, ".color=red.min_count=3"],
-      ["pipeDelimited", false, "color|red|min_count|3"],
-      ["spaceDelimited", false, "color red min_count 3"],
-    ])(
-      "bhv langnode 173 style %s with explode %p",
-      (style, explode, expected) => {
+    test("bhv langnode 173 every object style and explode combination is written as expected", () => {
+      for (const [style, explode, expected] of [
+        ["simple", false, "color,red,min_count,3"],
+        ["simple", true, "color=red,min_count=3"],
+        ["matrix", false, ";criteria=color,red,min_count,3"],
+        ["matrix", true, ";color=red;min_count=3"],
+        ["label", false, ".color,red,min_count,3"],
+        ["label", true, ".color=red.min_count=3"],
+        ["pipeDelimited", false, "color|red|min_count|3"],
+        ["spaceDelimited", false, "color red min_count 3"],
+      ]) {
         expect(
           ValueSerializer.serializeStyled(
             "criteria",
@@ -1049,8 +1043,8 @@ describe("ValueSerializer", () => {
             explode,
           ),
         ).toBe(expected);
-      },
-    );
+      }
+    });
 
     test("bhv serializationparam 048 a Date is still a single value, not an object", () => {
       expect(
@@ -1358,24 +1352,23 @@ describe("ValueSerializer", () => {
       expect(ValueSerializer.stringifyDate("2024-02-29")).toBe("2024-02-29");
     });
 
-    test.each([
-      "2024-01-15T14:30:45Z",
-      "2024-1-15",
-      "20240115",
-      "2023-02-29",
-      "2024-13-01",
-      "2024-00-10",
-      "2024-04-31",
-      " 2024-01-15",
-      "2024-01-15 ",
-      "",
-      "tomorrow",
-    ])(
-      "bhv langnode 174 refuses %p, which is not a YYYY-MM-DD date",
-      (value) => {
+    test("bhv langnode 174 refuses every listed value that is not a YYYY-MM-DD date", () => {
+      for (const value of [
+        "2024-01-15T14:30:45Z",
+        "2024-1-15",
+        "20240115",
+        "2023-02-29",
+        "2024-13-01",
+        "2024-00-10",
+        "2024-04-31",
+        " 2024-01-15",
+        "2024-01-15 ",
+        "",
+        "tomorrow",
+      ]) {
         expect(() => ValueSerializer.stringifyDate(value)).toThrow(TypeError);
-      },
-    );
+      }
+    });
 
     test("bhv serializationparam 029 refuses an invalid Date", () => {
       expect(() => ValueSerializer.stringifyDate(new Date(Number.NaN))).toThrow(
@@ -1531,12 +1524,11 @@ describe("ValueSerializer", () => {
   });
 
   describe("misc scalar and array writing", () => {
-    test.each(["path", "header", "cookie", "query"] as const)(
-      "bhv misc 084 a set optional scalar writes its value in the %s location",
-      (location) => {
+    test("bhv misc 084 a set optional scalar writes its value in every location", () => {
+      for (const location of ["path", "header", "cookie", "query"] as const) {
         expect(ValueSerializer.serialize(7, location, "integer")).toBe("7");
-      },
-    );
+      }
+    });
 
     test("bhv misc 086 an element holding json text is taken as its own value", () => {
       expect(
@@ -1571,7 +1563,7 @@ describe("ValueSerializer misc behaviours", () => {
   });
 });
 
-describe("ValueSerializer absent-value behaviour (bhv serialization 110)", () => {
+describe("ValueSerializer absent-value behaviour", () => {
   test("bhv serialization 110 an absent or nil value is sent as null in the query location and as an empty value elsewhere", () => {
     expect(ValueSerializer.serialize(null, "query", "string")).toBeUndefined();
     expect(
@@ -1594,7 +1586,7 @@ describe("ValueSerializer misc behaviours (chunk 11)", () => {
   });
 });
 
-describe("ValueSerializer date-time query behaviour (bhv serialization 118)", () => {
+describe("ValueSerializer date-time query behaviour", () => {
   test("bhv serialization 118 a date-time query or path parameter keeps its full ISO-8601 time and offset rather than being cut to the date", () => {
     const at = new Date(Date.UTC(2026, 0, 2, 3, 4, 5));
     expect(

@@ -216,9 +216,8 @@ describe("BearerAuthenticator", () => {
       expect(auth.getAuthHeaders()).toEqual({ Authorization: "Bearer first" });
     });
 
-    it.each([undefined, ""])(
-      "bhv misc 196 fails when it is built with no token and the variable is %p",
-      (value) => {
+    it("bhv misc 196 fails when it is built with no token and the variable is unset or empty", () => {
+      for (const value of [undefined, ""]) {
         if (value === undefined) {
           delete process.env[variable];
         } else {
@@ -231,8 +230,8 @@ describe("BearerAuthenticator", () => {
             `Bearer token is required: pass it explicitly or set ${variable}`,
           ),
         );
-      },
-    );
+      }
+    });
 
     it("bhv authbearer 019 an empty environment value counts as unset and fails construction naming the variable", () => {
       process.env[variable] = "";

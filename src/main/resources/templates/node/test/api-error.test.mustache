@@ -202,7 +202,8 @@ describe('ApiError', () => {
       expect(new SerializationError('bad input')).toBeInstanceOf({{errorPrefix}}Error);
     });
 
-    test.each([
+    test('bhv errors 006 fromResponse maps every listed status to its exception class', () => {
+      for (const [status, expected] of [
       [400, BadRequestError],
       [401, UnauthorizedError],
       [403, ForbiddenError],
@@ -225,8 +226,9 @@ describe('ApiError', () => {
       [599, ServerError],
       [418, ClientError],
       [302, ApiError],
-    ])('bhv errors 006 fromResponse maps status %i to its exception class', (status, expected) => {
-      expect(ApiError.fromResponse(status, null, null).constructor).toBe(expected);
+    ]) {
+        expect(ApiError.fromResponse(status, null, null).constructor).toBe(expected);
+      }
     });
 
     test('bhv errors 084 an error built without an HTTP response reports status zero by default', () => {
@@ -245,7 +247,8 @@ describe('ApiError', () => {
       expect(new NetworkError('refused').statusCode).toBe(0);
     });
 
-    test.each([
+    test('bhv langnode 002 every error class accepts an optional cause', () => {
+      for (const [_name, build, status] of [
       ['BadRequestError', (c: Error) => new BadRequestError('m', null, null, null, { cause: c }), 400],
       ['UnauthorizedError', (c: Error) => new UnauthorizedError('m', null, null, null, { cause: c }), 401],
       ['ForbiddenError', (c: Error) => new ForbiddenError('m', null, null, null, { cause: c }), 403],
@@ -267,11 +270,12 @@ describe('ApiError', () => {
       ['InternalServerError', (c: Error) => new InternalServerError('m', null, null, null, { cause: c }), 500],
       ['ClientError', (c: Error) => new ClientError(418, 'm', null, null, null, { cause: c }), 418],
       ['ServerError', (c: Error) => new ServerError(503, 'm', null, null, null, { cause: c }), 503],
-    ])('bhv langnode 002 %s accepts an optional cause', (_name, build, status) => {
-      const cause = new Error('root cause');
-      const err = build(cause);
-      expect(err.cause).toBe(cause);
-      expect(err.statusCode).toBe(status);
+    ]) {
+        const cause = new Error('root cause');
+        const err = build(cause);
+        expect(err.cause).toBe(cause);
+        expect(err.statusCode).toBe(status);
+      }
     });
   });
 
@@ -417,8 +421,10 @@ describe('ApiError', () => {
       expect(ApiError.fromResponse(600, {}, null).constructor).toBe(ApiError);
     });
 
-    test.each([418, 425, 451])('bhv errors 097 an unrecognised 4xx status %i raises the generic client error', (status) => {
-      expect(ApiError.fromResponse(status, {}, null).constructor).toBe(ClientError);
+    test('bhv errors 097 an unrecognised 4xx status raises the generic client error', () => {
+      for (const status of [418, 425, 451]) {
+        expect(ApiError.fromResponse(status, {}, null).constructor).toBe(ClientError);
+      }
     });
 
     test('bhv errors 048 a 418 response throws ClientError', () => {
@@ -505,12 +511,14 @@ describe('ApiError', () => {
   describe('TooManyRequestsError.retryAfter', () => {
     const tooMany = (headers: Record<string, string> | null) => new TooManyRequestsError('m', headers);
 
-    test.each([
+    test('bhv langnode 003 reads seconds, fractional seconds and a date in the past', () => {
+      for (const [_label, headers, expected] of [
       ['seconds', { 'retry-after': '7' }, 7],
       ['fractional seconds', { 'Retry-After': ' 1.5 ' }, 1.5],
       ['a date in the past', { 'retry-after': 'Wed, 21 Oct 2015 07:28:00 GMT' }, 0]
-    ])('bhv langnode 003 reads %s', (_label, headers, expected) => {
-      expect(tooMany(headers).retryAfter).toBe(expected);
+    ]) {
+        expect(tooMany(headers).retryAfter).toBe(expected);
+      }
     });
 
     test('bhv langnode 001 reads an HTTP date as the seconds left until it', () => {
@@ -519,18 +527,21 @@ describe('ApiError', () => {
       expect(seconds).toBeLessThanOrEqual(31);
     });
 
-    test.each([
+    test('bhv langnode 004 is null with an empty value, an unparseable value or no header', () => {
+      for (const [_label, headers] of [
       ['no headers', null],
       ['no Retry-After', { 'x-other': '1' }],
       ['an unparseable value', { 'retry-after': 'soon' }],
       ['an empty value', { 'retry-after': '' }]
-    ])('bhv langnode 004 is null with %s', (_label, headers) => {
-      expect(tooMany(headers).retryAfter).toBeNull();
+    ]) {
+        expect(tooMany(headers).retryAfter).toBeNull();
+      }
     });
   });
 
   describe('fromResponse', () => {
-    test.each([
+    test('bhv langnode 005 maps every listed status to its exception class and keeps the response context', () => {
+      for (const [status, expected] of [
       [400, BadRequestError],
       [401, UnauthorizedError],
       [403, ForbiddenError],
@@ -553,14 +564,15 @@ describe('ApiError', () => {
       [500, InternalServerError],
       [599, ServerError],
       [302, ApiError],
-    ])('bhv langnode 005 maps status %i to its exception class and keeps the response context', (status, expected) => {
-      const err = ApiError.fromResponse(status, { 'x-request-id': 'abc' }, '{"code":7}');
-      expect(err.constructor).toBe(expected);
-      expect(err).toBeInstanceOf({{errorPrefix}}Error);
-      expect(err.statusCode).toBe(status);
-      expect(err.responseHeaders).toEqual({ 'x-request-id': 'abc' });
-      expect(err.responseBody).toBe('{"code":7}');
-      expect(err.errorBody).toEqual({ code: 7 });
+    ]) {
+        const err = ApiError.fromResponse(status, { 'x-request-id': 'abc' }, '{"code":7}');
+        expect(err.constructor).toBe(expected);
+        expect(err).toBeInstanceOf({{errorPrefix}}Error);
+        expect(err.statusCode).toBe(status);
+        expect(err.responseHeaders).toEqual({ 'x-request-id': 'abc' });
+        expect(err.responseBody).toBe('{"code":7}');
+        expect(err.errorBody).toEqual({ code: 7 });
+      }
     });
 
     test('bhv errors 056 a status at or above 600 yields the base error and not a server error', () => {
@@ -580,15 +592,17 @@ describe('ApiError', () => {
       expect(err.errorBody).toBeNull();
     });
 
-    test.each([
+    test('bhv errors 093 keeps a JSON string, number or boolean as the error body', () => {
+      for (const [_label, body, expected] of [
       ['a JSON string', '"plain text"', 'plain text'],
       ['a JSON number', '42', 42],
       ['a JSON boolean', 'true', true]
-    ])('bhv errors 093 keeps %s as the error body', (_label, body, expected) => {
-      const err = ApiError.fromResponse(400, {}, body);
-      expect(err.constructor).toBe(BadRequestError);
-      expect(err.responseBody).toBe(body);
-      expect(err.errorBody).toBe(expected);
+    ]) {
+        const err = ApiError.fromResponse(400, {}, body);
+        expect(err.constructor).toBe(BadRequestError);
+        expect(err.responseBody).toBe(body);
+        expect(err.errorBody).toBe(expected);
+      }
     });
 
     test('bhv errors 012 fromResponse without a request keeps the plain message', () => {
@@ -606,15 +620,17 @@ describe('ApiError', () => {
       expect(err.message).toBe('API returned status code 404');
     });
 
-    test.each([
+    test('bhv langnode 006 fromResponse records the request on every fallback error', () => {
+      for (const [status, expected] of [
       [418, ClientError],
       [599, ServerError],
       [200, ApiError]
-    ])('bhv langnode 006 fromResponse records the request on the %i fallback error', (status, expected) => {
-      const err = ApiError.fromResponse(status, {}, null, { method: 'POST', path: '/items' });
-      expect(err.constructor).toBe(expected);
-      expect(err.requestMethod).toBe('POST');
-      expect(err.requestPath).toBe('/items');
+    ]) {
+        const err = ApiError.fromResponse(status, {}, null, { method: 'POST', path: '/items' });
+        expect(err.constructor).toBe(expected);
+        expect(err.requestMethod).toBe('POST');
+        expect(err.requestPath).toBe('/items');
+      }
     });
 
     test('bhv errors 073 keeps an error body nested within the depth limit as structured data', () => {
@@ -787,11 +803,13 @@ describe('ApiError', () => {
 });
 
 describe('ApiError typed errors', () => {
-  test.each([
+  test('bhv errors 201 every status is retryable exactly when the client retries it', () => {
+    for (const [status, retryable] of [
     ...[408, 409, 429, 500, 502, 503, 504, 599].map((status): [number, boolean] => [status, true]),
     ...[302, 400, 401, 403, 404, 422, 501].map((status): [number, boolean] => [status, false])
-  ])('bhv errors 201 status %i is retryable exactly when the client retries it (expected %p)', (status, retryable) => {
-    expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(retryable);
+  ]) {
+      expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(retryable);
+    }
   });
 
   test('bhv errors 202 exposes the x-request-id response header as the request id', () => {

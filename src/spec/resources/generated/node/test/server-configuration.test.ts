@@ -280,7 +280,7 @@ describe("ServerConfiguration misc behaviours", () => {
   });
 });
 
-describe("ServerConfiguration substitution behaviours (bhv servers 029 to 030)", () => {
+describe("ServerConfiguration substitution behaviours", () => {
   it("bhv servers 029 a placeholder introduced by a substituted value stays literal in the resulting URL and is never expanded again", () => {
     const config = new ServerConfiguration(
       "https://{env}.api.example.com/{version}",

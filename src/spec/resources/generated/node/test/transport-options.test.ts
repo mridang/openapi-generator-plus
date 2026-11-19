@@ -235,32 +235,31 @@ describe("TransportOptions", () => {
     ).toThrow("Invalid proxy URL (unparseable): http://");
   });
 
-  test.each([
-    [
-      "a socks scheme",
-      "socks5://u:p@h:1",
-      "Invalid proxy URL (must use http or https scheme): socks5://***@h:1",
-    ],
-    [
-      "an ftp scheme",
-      "ftp://user:hunter2@proxy.example.com:21",
-      "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21",
-    ],
-    [
-      "an unparseable value",
-      "http://u:p@",
-      "Invalid proxy URL (unparseable): http://***@",
-    ],
-  ])(
-    "bhv options 008 the proxy error for %s never prints the userinfo",
-    (_label, proxy, message) => {
+  test("bhv options 008 the proxy error for every listed proxy never prints the userinfo", () => {
+    for (const [_label, proxy, message] of [
+      [
+        "a socks scheme",
+        "socks5://u:p@h:1",
+        "Invalid proxy URL (must use http or https scheme): socks5://***@h:1",
+      ],
+      [
+        "an ftp scheme",
+        "ftp://user:hunter2@proxy.example.com:21",
+        "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21",
+      ],
+      [
+        "an unparseable value",
+        "http://u:p@",
+        "Invalid proxy URL (unparseable): http://***@",
+      ],
+    ]) {
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
       expect(() => new TransportOptions({ ...directOptions, proxy })).toThrow(
         message,
       );
-    },
-  );
+    }
+  });
 
   test("bhv options 009 a proxy URL with an IPv6 literal host is accepted and kept verbatim", () => {
     expect(

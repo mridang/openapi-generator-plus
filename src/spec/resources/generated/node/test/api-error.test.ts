@@ -294,37 +294,36 @@ describe("ApiError", () => {
       expect(new SerializationError("bad input")).toBeInstanceOf(OpenAPIError);
     });
 
-    test.each([
-      [400, BadRequestError],
-      [401, UnauthorizedError],
-      [403, ForbiddenError],
-      [404, NotFoundError],
-      [409, ConflictError],
-      [422, UnprocessableEntityError],
-      [429, TooManyRequestsError],
-      [402, PaymentRequiredError],
-      [405, MethodNotAllowedError],
-      [408, RequestTimeoutError],
-      [410, GoneError],
-      [413, PayloadTooLargeError],
-      [415, UnsupportedMediaTypeError],
-      [423, LockedError],
-      [501, NotImplementedError],
-      [502, BadGatewayError],
-      [503, ServiceUnavailableError],
-      [504, GatewayTimeoutError],
-      [500, InternalServerError],
-      [599, ServerError],
-      [418, ClientError],
-      [302, ApiError],
-    ])(
-      "bhv errors 006 fromResponse maps status %i to its exception class",
-      (status, expected) => {
+    test("bhv errors 006 fromResponse maps every listed status to its exception class", () => {
+      for (const [status, expected] of [
+        [400, BadRequestError],
+        [401, UnauthorizedError],
+        [403, ForbiddenError],
+        [404, NotFoundError],
+        [409, ConflictError],
+        [422, UnprocessableEntityError],
+        [429, TooManyRequestsError],
+        [402, PaymentRequiredError],
+        [405, MethodNotAllowedError],
+        [408, RequestTimeoutError],
+        [410, GoneError],
+        [413, PayloadTooLargeError],
+        [415, UnsupportedMediaTypeError],
+        [423, LockedError],
+        [501, NotImplementedError],
+        [502, BadGatewayError],
+        [503, ServiceUnavailableError],
+        [504, GatewayTimeoutError],
+        [500, InternalServerError],
+        [599, ServerError],
+        [418, ClientError],
+        [302, ApiError],
+      ]) {
         expect(ApiError.fromResponse(status, null, null).constructor).toBe(
           expected,
         );
-      },
-    );
+      }
+    });
 
     test("bhv errors 084 an error built without an HTTP response reports status zero by default", () => {
       expect(new NetworkError("no response").statusCode).toBe(0);
@@ -342,133 +341,136 @@ describe("ApiError", () => {
       expect(new NetworkError("refused").statusCode).toBe(0);
     });
 
-    test.each([
-      [
-        "BadRequestError",
-        (c: Error) => new BadRequestError("m", null, null, null, { cause: c }),
-        400,
-      ],
-      [
-        "UnauthorizedError",
-        (c: Error) =>
-          new UnauthorizedError("m", null, null, null, { cause: c }),
-        401,
-      ],
-      [
-        "ForbiddenError",
-        (c: Error) => new ForbiddenError("m", null, null, null, { cause: c }),
-        403,
-      ],
-      [
-        "NotFoundError",
-        (c: Error) => new NotFoundError("m", null, null, null, { cause: c }),
-        404,
-      ],
-      [
-        "ConflictError",
-        (c: Error) => new ConflictError("m", null, null, null, { cause: c }),
-        409,
-      ],
-      [
-        "UnprocessableEntityError",
-        (c: Error) =>
-          new UnprocessableEntityError("m", null, null, null, { cause: c }),
-        422,
-      ],
-      [
-        "TooManyRequestsError",
-        (c: Error) =>
-          new TooManyRequestsError("m", null, null, null, { cause: c }),
-        429,
-      ],
-      [
-        "PaymentRequiredError",
-        (c: Error) =>
-          new PaymentRequiredError("m", null, null, null, { cause: c }),
-        402,
-      ],
-      [
-        "MethodNotAllowedError",
-        (c: Error) =>
-          new MethodNotAllowedError("m", null, null, null, { cause: c }),
-        405,
-      ],
-      [
-        "RequestTimeoutError",
-        (c: Error) =>
-          new RequestTimeoutError("m", null, null, null, { cause: c }),
-        408,
-      ],
-      [
-        "GoneError",
-        (c: Error) => new GoneError("m", null, null, null, { cause: c }),
-        410,
-      ],
-      [
-        "PayloadTooLargeError",
-        (c: Error) =>
-          new PayloadTooLargeError("m", null, null, null, { cause: c }),
-        413,
-      ],
-      [
-        "UnsupportedMediaTypeError",
-        (c: Error) =>
-          new UnsupportedMediaTypeError("m", null, null, null, { cause: c }),
-        415,
-      ],
-      [
-        "LockedError",
-        (c: Error) => new LockedError("m", null, null, null, { cause: c }),
-        423,
-      ],
-      [
-        "NotImplementedError",
-        (c: Error) =>
-          new NotImplementedError("m", null, null, null, { cause: c }),
-        501,
-      ],
-      [
-        "BadGatewayError",
-        (c: Error) => new BadGatewayError("m", null, null, null, { cause: c }),
-        502,
-      ],
-      [
-        "ServiceUnavailableError",
-        (c: Error) =>
-          new ServiceUnavailableError("m", null, null, null, { cause: c }),
-        503,
-      ],
-      [
-        "GatewayTimeoutError",
-        (c: Error) =>
-          new GatewayTimeoutError("m", null, null, null, { cause: c }),
-        504,
-      ],
-      [
-        "InternalServerError",
-        (c: Error) =>
-          new InternalServerError("m", null, null, null, { cause: c }),
-        500,
-      ],
-      [
-        "ClientError",
-        (c: Error) => new ClientError(418, "m", null, null, null, { cause: c }),
-        418,
-      ],
-      [
-        "ServerError",
-        (c: Error) => new ServerError(503, "m", null, null, null, { cause: c }),
-        503,
-      ],
-    ])(
-      "bhv langnode 002 %s accepts an optional cause",
-      (_name, build, status) => {
+    test("bhv langnode 002 every error class accepts an optional cause", () => {
+      for (const [_name, build, status] of [
+        [
+          "BadRequestError",
+          (c: Error) =>
+            new BadRequestError("m", null, null, null, { cause: c }),
+          400,
+        ],
+        [
+          "UnauthorizedError",
+          (c: Error) =>
+            new UnauthorizedError("m", null, null, null, { cause: c }),
+          401,
+        ],
+        [
+          "ForbiddenError",
+          (c: Error) => new ForbiddenError("m", null, null, null, { cause: c }),
+          403,
+        ],
+        [
+          "NotFoundError",
+          (c: Error) => new NotFoundError("m", null, null, null, { cause: c }),
+          404,
+        ],
+        [
+          "ConflictError",
+          (c: Error) => new ConflictError("m", null, null, null, { cause: c }),
+          409,
+        ],
+        [
+          "UnprocessableEntityError",
+          (c: Error) =>
+            new UnprocessableEntityError("m", null, null, null, { cause: c }),
+          422,
+        ],
+        [
+          "TooManyRequestsError",
+          (c: Error) =>
+            new TooManyRequestsError("m", null, null, null, { cause: c }),
+          429,
+        ],
+        [
+          "PaymentRequiredError",
+          (c: Error) =>
+            new PaymentRequiredError("m", null, null, null, { cause: c }),
+          402,
+        ],
+        [
+          "MethodNotAllowedError",
+          (c: Error) =>
+            new MethodNotAllowedError("m", null, null, null, { cause: c }),
+          405,
+        ],
+        [
+          "RequestTimeoutError",
+          (c: Error) =>
+            new RequestTimeoutError("m", null, null, null, { cause: c }),
+          408,
+        ],
+        [
+          "GoneError",
+          (c: Error) => new GoneError("m", null, null, null, { cause: c }),
+          410,
+        ],
+        [
+          "PayloadTooLargeError",
+          (c: Error) =>
+            new PayloadTooLargeError("m", null, null, null, { cause: c }),
+          413,
+        ],
+        [
+          "UnsupportedMediaTypeError",
+          (c: Error) =>
+            new UnsupportedMediaTypeError("m", null, null, null, { cause: c }),
+          415,
+        ],
+        [
+          "LockedError",
+          (c: Error) => new LockedError("m", null, null, null, { cause: c }),
+          423,
+        ],
+        [
+          "NotImplementedError",
+          (c: Error) =>
+            new NotImplementedError("m", null, null, null, { cause: c }),
+          501,
+        ],
+        [
+          "BadGatewayError",
+          (c: Error) =>
+            new BadGatewayError("m", null, null, null, { cause: c }),
+          502,
+        ],
+        [
+          "ServiceUnavailableError",
+          (c: Error) =>
+            new ServiceUnavailableError("m", null, null, null, { cause: c }),
+          503,
+        ],
+        [
+          "GatewayTimeoutError",
+          (c: Error) =>
+            new GatewayTimeoutError("m", null, null, null, { cause: c }),
+          504,
+        ],
+        [
+          "InternalServerError",
+          (c: Error) =>
+            new InternalServerError("m", null, null, null, { cause: c }),
+          500,
+        ],
+        [
+          "ClientError",
+          (c: Error) =>
+            new ClientError(418, "m", null, null, null, { cause: c }),
+          418,
+        ],
+        [
+          "ServerError",
+          (c: Error) =>
+            new ServerError(503, "m", null, null, null, { cause: c }),
+          503,
+        ],
+      ]) {
         const cause = new Error("root cause");
         const err = build(cause);
         expect(err.cause).toBe(cause);
         expect(err.statusCode).toBe(status);
-      },
-    );
+      }
+    });
   });
 
   describe("getTypedErrorBody", () => {
@@ -650,14 +652,13 @@ describe("ApiError", () => {
       expect(ApiError.fromResponse(600, {}, null).constructor).toBe(ApiError);
     });
 
-    test.each([418, 425, 451])(
-      "bhv errors 097 an unrecognised 4xx status %i raises the generic client error",
-      (status) => {
+    test("bhv errors 097 an unrecognised 4xx status raises the generic client error", () => {
+      for (const status of [418, 425, 451]) {
         expect(ApiError.fromResponse(status, {}, null).constructor).toBe(
           ClientError,
         );
-      },
-    );
+      }
+    });
 
     test("bhv errors 048 a 418 response throws ClientError", () => {
       const err = ApiError.fromResponse(418, {}, null);
@@ -744,16 +745,18 @@ describe("ApiError", () => {
     const tooMany = (headers: Record<string, string> | null) =>
       new TooManyRequestsError("m", headers);
 
-    test.each([
-      ["seconds", { "retry-after": "7" }, 7],
-      ["fractional seconds", { "Retry-After": " 1.5 " }, 1.5],
-      [
-        "a date in the past",
-        { "retry-after": "Wed, 21 Oct 2015 07:28:00 GMT" },
-        0,
-      ],
-    ])("bhv langnode 003 reads %s", (_label, headers, expected) => {
-      expect(tooMany(headers).retryAfter).toBe(expected);
+    test("bhv langnode 003 reads seconds, fractional seconds and a date in the past", () => {
+      for (const [_label, headers, expected] of [
+        ["seconds", { "retry-after": "7" }, 7],
+        ["fractional seconds", { "Retry-After": " 1.5 " }, 1.5],
+        [
+          "a date in the past",
+          { "retry-after": "Wed, 21 Oct 2015 07:28:00 GMT" },
+          0,
+        ],
+      ]) {
+        expect(tooMany(headers).retryAfter).toBe(expected);
+      }
     });
 
     test("bhv langnode 001 reads an HTTP date as the seconds left until it", () => {
@@ -764,43 +767,44 @@ describe("ApiError", () => {
       expect(seconds).toBeLessThanOrEqual(31);
     });
 
-    test.each([
-      ["no headers", null],
-      ["no Retry-After", { "x-other": "1" }],
-      ["an unparseable value", { "retry-after": "soon" }],
-      ["an empty value", { "retry-after": "" }],
-    ])("bhv langnode 004 is null with %s", (_label, headers) => {
-      expect(tooMany(headers).retryAfter).toBeNull();
+    test("bhv langnode 004 is null with an empty value, an unparseable value or no header", () => {
+      for (const [_label, headers] of [
+        ["no headers", null],
+        ["no Retry-After", { "x-other": "1" }],
+        ["an unparseable value", { "retry-after": "soon" }],
+        ["an empty value", { "retry-after": "" }],
+      ]) {
+        expect(tooMany(headers).retryAfter).toBeNull();
+      }
     });
   });
 
   describe("fromResponse", () => {
-    test.each([
-      [400, BadRequestError],
-      [401, UnauthorizedError],
-      [403, ForbiddenError],
-      [404, NotFoundError],
-      [409, ConflictError],
-      [422, UnprocessableEntityError],
-      [429, TooManyRequestsError],
-      [402, PaymentRequiredError],
-      [405, MethodNotAllowedError],
-      [408, RequestTimeoutError],
-      [410, GoneError],
-      [413, PayloadTooLargeError],
-      [415, UnsupportedMediaTypeError],
-      [423, LockedError],
-      [501, NotImplementedError],
-      [502, BadGatewayError],
-      [503, ServiceUnavailableError],
-      [504, GatewayTimeoutError],
-      [418, ClientError],
-      [500, InternalServerError],
-      [599, ServerError],
-      [302, ApiError],
-    ])(
-      "bhv langnode 005 maps status %i to its exception class and keeps the response context",
-      (status, expected) => {
+    test("bhv langnode 005 maps every listed status to its exception class and keeps the response context", () => {
+      for (const [status, expected] of [
+        [400, BadRequestError],
+        [401, UnauthorizedError],
+        [403, ForbiddenError],
+        [404, NotFoundError],
+        [409, ConflictError],
+        [422, UnprocessableEntityError],
+        [429, TooManyRequestsError],
+        [402, PaymentRequiredError],
+        [405, MethodNotAllowedError],
+        [408, RequestTimeoutError],
+        [410, GoneError],
+        [413, PayloadTooLargeError],
+        [415, UnsupportedMediaTypeError],
+        [423, LockedError],
+        [501, NotImplementedError],
+        [502, BadGatewayError],
+        [503, ServiceUnavailableError],
+        [504, GatewayTimeoutError],
+        [418, ClientError],
+        [500, InternalServerError],
+        [599, ServerError],
+        [302, ApiError],
+      ]) {
         const err = ApiError.fromResponse(
           status,
           { "x-request-id": "abc" },
@@ -812,8 +816,8 @@ describe("ApiError", () => {
         expect(err.responseHeaders).toEqual({ "x-request-id": "abc" });
         expect(err.responseBody).toBe('{"code":7}');
         expect(err.errorBody).toEqual({ code: 7 });
-      },
-    );
+      }
+    });
 
     test("bhv errors 056 a status at or above 600 yields the base error and not a server error", () => {
       /* The 5xx arm is bounded at < 600: a status outside 400-599 yields the
@@ -832,19 +836,18 @@ describe("ApiError", () => {
       expect(err.errorBody).toBeNull();
     });
 
-    test.each([
-      ["a JSON string", '"plain text"', "plain text"],
-      ["a JSON number", "42", 42],
-      ["a JSON boolean", "true", true],
-    ])(
-      "bhv errors 093 keeps %s as the error body",
-      (_label, body, expected) => {
+    test("bhv errors 093 keeps a JSON string, number or boolean as the error body", () => {
+      for (const [_label, body, expected] of [
+        ["a JSON string", '"plain text"', "plain text"],
+        ["a JSON number", "42", 42],
+        ["a JSON boolean", "true", true],
+      ]) {
         const err = ApiError.fromResponse(400, {}, body);
         expect(err.constructor).toBe(BadRequestError);
         expect(err.responseBody).toBe(body);
         expect(err.errorBody).toBe(expected);
-      },
-    );
+      }
+    });
 
     test("bhv errors 012 fromResponse without a request keeps the plain message", () => {
       const err = ApiError.fromResponse(404, {}, null);
@@ -864,13 +867,12 @@ describe("ApiError", () => {
       expect(err.message).toBe("API returned status code 404");
     });
 
-    test.each([
-      [418, ClientError],
-      [599, ServerError],
-      [200, ApiError],
-    ])(
-      "bhv langnode 006 fromResponse records the request on the %i fallback error",
-      (status, expected) => {
+    test("bhv langnode 006 fromResponse records the request on every fallback error", () => {
+      for (const [status, expected] of [
+        [418, ClientError],
+        [599, ServerError],
+        [200, ApiError],
+      ]) {
         const err = ApiError.fromResponse(status, {}, null, {
           method: "POST",
           path: "/items",
@@ -878,8 +880,8 @@ describe("ApiError", () => {
         expect(err.constructor).toBe(expected);
         expect(err.requestMethod).toBe("POST");
         expect(err.requestPath).toBe("/items");
-      },
-    );
+      }
+    });
 
     test("bhv errors 073 keeps an error body nested within the depth limit as structured data", () => {
       const body = "[".repeat(900) + "]".repeat(900);
@@ -1100,22 +1102,20 @@ describe("ApiError", () => {
 });
 
 describe("ApiError typed errors", () => {
-  test.each([
-    ...[408, 409, 429, 500, 502, 503, 504, 599].map(
-      (status): [number, boolean] => [status, true],
-    ),
-    ...[302, 400, 401, 403, 404, 422, 501].map((status): [number, boolean] => [
-      status,
-      false,
-    ]),
-  ])(
-    "bhv errors 201 status %i is retryable exactly when the client retries it (expected %p)",
-    (status, retryable) => {
+  test("bhv errors 201 every status is retryable exactly when the client retries it", () => {
+    for (const [status, retryable] of [
+      ...[408, 409, 429, 500, 502, 503, 504, 599].map(
+        (status): [number, boolean] => [status, true],
+      ),
+      ...[302, 400, 401, 403, 404, 422, 501].map(
+        (status): [number, boolean] => [status, false],
+      ),
+    ]) {
       expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(
         retryable,
       );
-    },
-  );
+    }
+  });
 
   test("bhv errors 202 exposes the x-request-id response header as the request id", () => {
     expect(

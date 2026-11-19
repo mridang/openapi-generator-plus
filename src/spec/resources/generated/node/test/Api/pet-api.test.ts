@@ -515,12 +515,11 @@ describe("PetApi", () => {
     }
   });
 
-  it.each([
-    [404, NotFoundError],
-    [500, InternalServerError],
-  ])(
-    "bhv misc 212 a %i response from a call raises the matching error class through the API layer",
-    async (status, errorClass) => {
+  it("bhv misc 212 an error response from a call raises the matching error class through the API layer", async () => {
+    for (const [status, errorClass] of [
+      [404, NotFoundError],
+      [500, InternalServerError],
+    ]) {
       const { api: mockApi, close } = await createMockServer(
         status,
         "application/json",
@@ -531,8 +530,8 @@ describe("PetApi", () => {
       } finally {
         close();
       }
-    },
-  );
+    }
+  });
   test("bhv operations 038 error handling server error throws InternalServerError", async () => {
     const { api: mockApi, close } = await createMockServer(
       500,
@@ -548,19 +547,18 @@ describe("PetApi", () => {
     }
   });
 
-  test.each([
-    [400, BadRequestError],
-    [401, UnauthorizedError],
-    [403, ForbiddenError],
-    [404, NotFoundError],
-    [409, ConflictError],
-    [418, ClientError],
-    [422, UnprocessableEntityError],
-    [500, InternalServerError],
-    [502, BadGatewayError],
-  ])(
-    "bhv operations 138 getPetById picks the status-specific error for status %i",
-    async (status, expected) => {
+  test("bhv operations 138 getPetById picks the status-specific error for every listed status", async () => {
+    for (const [status, expected] of [
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [418, ClientError],
+      [422, UnprocessableEntityError],
+      [500, InternalServerError],
+      [502, BadGatewayError],
+    ]) {
       const statusApi = new PetApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()
@@ -572,8 +570,8 @@ describe("PetApi", () => {
 
       expect((error as Error).constructor).toBe(expected);
       expect((error as ClientError).statusCode).toBe(status);
-    },
-  );
+    }
+  });
 
   test("bhv operations 034 download binary mock", async () => {
     const { api: mockApi, close } = await createMockServer(
@@ -1311,18 +1309,17 @@ describe("PetApi doc comments", () => {
     expect(source).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
   });
 
-  test.each([
-    [
-      "deletePet",
-      "* @param options options for query, header, form, and cookie parameters\n",
-    ],
-    [
-      "getPetSummary",
-      "* @param options options for query, header, form, and cookie parameters\n",
-    ],
-  ])(
-    "bhv langnode 013 %s documents its options argument",
-    (operation, line) => {
+  test("bhv langnode 013 every operation documents its options argument", () => {
+    for (const [operation, line] of [
+      [
+        "deletePet",
+        "* @param options options for query, header, form, and cookie parameters\n",
+      ],
+      [
+        "getPetSummary",
+        "* @param options options for query, header, form, and cookie parameters\n",
+      ],
+    ]) {
       const start = source.lastIndexOf(
         "/**",
         source.indexOf(`  async ${operation}(`),
@@ -1330,8 +1327,8 @@ describe("PetApi doc comments", () => {
       const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
 
       expect(doc).toContain(line);
-    },
-  );
+    }
+  });
 
   test("bhv operations 032 a deprecated operation carries the deprecated doc tag", () => {
     const start = source.lastIndexOf(
@@ -1527,9 +1524,9 @@ describe("PetApi against a recording client", () => {
     expect(recorded[0]!.url).toContain("/pet/byName/a..b?");
   });
 
-  test.each(["a$&b", "US$$", "x$'y", "$1"])(
-    "bhv langnode 014 getPetByName puts the value %p in the path as written, never as a replacement pattern",
-    async (name) => {
+  test("bhv langnode 014 getPetByName puts every listed value in the path as written, never as a replacement pattern", async () => {
+    for (const name of ["a$&b", "US$$", "x$'y", "$1"]) {
+      recorded.length = 0;
       await recordingApi.getPetByName(name, {
         category: "sample",
         xCorrelationId: "sample-correlation",
@@ -1537,8 +1534,8 @@ describe("PetApi against a recording client", () => {
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.url).toContain(`/pet/byName/${name}?`);
-    },
-  );
+    }
+  });
 
   test("bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire", async () => {
     await recordingApi.getPetTag(5, "sample", {
@@ -1953,15 +1950,15 @@ describe("PetApi against a recording client", () => {
     );
     expect(recorded).toHaveLength(0);
   });
-  test.each(["abc123", "a%20b%3Bc", "a=b", "x/y:z"])(
-    "bhv misc 123 deletePet sends the cookie value %p exactly as given",
-    async (value) => {
+  test("bhv misc 123 deletePet sends every listed cookie value exactly as given", async () => {
+    for (const value of ["abc123", "a%20b%3Bc", "a=b", "x/y:z"]) {
+      recorded.length = 0;
       await recordingApi.deletePet(1, { apiKey: value });
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.headers["Cookie"]).toBe(`api_key=${value}`);
-    },
-  );
+    }
+  });
 
   test("bhv misc 192 deletePet sends a cookie value made only of cookie octets exactly as given", async () => {
     const octets = Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) =>
@@ -1975,12 +1972,11 @@ describe("PetApi against a recording client", () => {
     expect(recorded[0]!.headers["Cookie"]).toBe(`api_key=${value}`);
   });
 
-  it.each([
-    ["text/plain", "ok"],
-    ["application/json", "42"],
-  ])(
-    "bhv misc 209 a void operation ignores a %s success body and returns no data",
-    async (contentType, body) => {
+  it("bhv misc 209 a void operation ignores a success body and returns no data", async () => {
+    for (const [contentType, body] of [
+      ["text/plain", "ok"],
+      ["application/json", "42"],
+    ]) {
       const textClient: ApiClient = {
         async sendRequest(): Promise<ApiHttpResponse> {
           return {
@@ -1998,8 +1994,8 @@ describe("PetApi against a recording client", () => {
       );
 
       await expect(textApi.deletePet(1)).resolves.toBeUndefined();
-    },
-  );
+    }
+  });
 
   test("bhv misc 213 an optional array query parameter is sent in its declared style, never bracketed or comma-joined", async () => {
     await recordingApi.getPetTag(5, "cute", { colors: ["blue", "black"] });
@@ -2009,9 +2005,8 @@ describe("PetApi against a recording client", () => {
     expect(url).not.toContain("colors%5B");
     expect(url).not.toContain("blue%2Cblack");
   });
-  test.each(["a b", "a;b", "a,b", 'a"b', "a\\b", "café", "a\tb"])(
-    "bhv langnode 015 deletePet refuses the cookie value %p before sending",
-    async (value) => {
+  test("bhv langnode 015 deletePet refuses every listed cookie value before sending", async () => {
+    for (const value of ["a b", "a;b", "a,b", 'a"b', "a\\b", "café", "a\tb"]) {
       const error = await recordingApi
         .deletePet(1, { apiKey: value })
         .catch((e: unknown) => e);
@@ -2021,8 +2016,8 @@ describe("PetApi against a recording client", () => {
         "Cookie value for 'api_key' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it",
       );
       expect(recorded).toHaveLength(0);
-    },
-  );
+    }
+  });
 
   describe("credentials per security scheme", () => {
     const host = "https://client-base.example.com";
