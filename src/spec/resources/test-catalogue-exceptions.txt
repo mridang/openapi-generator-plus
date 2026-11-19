@@ -506,7 +506,6 @@ php | misc052 | PHP named arguments refuse the same option twice in one call at 
 php | misc061 | the SDK has no per-call cancellation or call context (see Cancellation in the readme), so an authenticator receives no caller cancellation or context values to forward
 swift | misc051 | Swift's per-call options are typed structs with fixed fields, so an unknown key or a server setting on an operation without servers cannot be passed to compile at all
 swift | misc052 | Swift's per-call options are struct initializers that take each field once, so a repeated argument label is a compile error and no second value of the same option can be given
-swift | misc059 | the token response decodes expires_in as a whole Int, so NaN, Infinity or an overflowing lifetime never reaches the expiry computation as a value to cache
 swift | misc060 | Swift's BearerAuthenticator has a token initializer and a separate token provider initializer, so one construction cannot pass both
 swift | misc061 | the Swift Authenticator protocol takes no call-context argument and the SDK has no caller-context API, so an authenticator receives no caller cancellation or context value to test
 java | misc047 | A Java union wrapper never validates the value it holds (bhvUnions039), so serializing a non-variant value writes it without failing and no error names the union

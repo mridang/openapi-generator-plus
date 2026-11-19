@@ -848,6 +848,21 @@ import Testing
     #expect(client.requests.count == 1)
   }
 
+  /* A token whose lifetime is not a finite number, including one that overflows, is not cached. */
+  @Test(arguments: ["Infinity", "-Infinity", "NaN", "1e400"])
+  func testBhvMisc059ANonFiniteLifetimeIsNotCached(raw: String) async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      makeResponse(body: "{\"access_token\":\"first\",\"expires_in\":\"\(raw)\"}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"second\",\"expires_in\":3600}"))
+    let manager = OAuth2TokenManager()
+    manager.setApiClient(client)
+    let params = ["grant_type": "client_credentials"]
+    let tokenURL = "https://auth.example.com/token"
+    #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "first")
+    #expect(try await manager.getAccessToken(tokenURL: tokenURL, params: params) == "second")
+  }
+
   @Test func testBhvAuthoauthtwotokenmgr011ExpiresInNegativeSkipsCaching() async throws {
     // D1: a negative expires_in (e.g. -1) must mark the token as
     // immediately stale so the very next call refetches.
