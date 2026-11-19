@@ -34,7 +34,13 @@ public sealed class UploadPetDocumentOptions
     /// default and authentication headers and replace a header of the same
     /// name, whatever its casing.
     /// </summary>
-    public IReadOnlyDictionary<string, string>? Headers { get; init; }
+    public IReadOnlyDictionary<string, string>? Headers
+    {
+        get => _headers;
+        init => _headers = value is null ? null : new Dictionary<string, string>(value);
+    }
+
+    private readonly IReadOnlyDictionary<string, string>? _headers;
 
     /// <summary>
     /// Maximum number of retries for this call only: it replaces

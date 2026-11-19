@@ -63,6 +63,9 @@ public class SetPetAvatarThumbnailRequest(object value)
         return ActualInstance is List<byte[]> variant ? variant : null;
     }
 
+    bool global::PetstoreClient.IOneOfWrapper.HoldsVariant =>
+        false || ActualInstance is byte[] || ActualInstance is List<byte[]>;
+
     /// <summary>Value equality on the wrapped variant.</summary>
     public bool Equals(SetPetAvatarThumbnailRequest? other)
     {
@@ -129,6 +132,12 @@ public class SetPetAvatarThumbnailRequest(object value)
             JsonSerializerOptions options
         )
         {
+            if (!((global::PetstoreClient.IOneOfWrapper)value).HoldsVariant)
+            {
+                throw new JsonException(
+                    $"A value of type {value.ActualInstance?.GetType().Name ?? "null"} is not a variant of the SetPetAvatarThumbnailRequest union"
+                );
+            }
             JsonSerializer.Serialize(writer, value.ActualInstance, options);
         }
     }

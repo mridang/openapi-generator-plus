@@ -775,6 +775,14 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc047SerializingAUnionHoldingANonVariantFailsNamingTheUnion()
+        {
+            var ex = Assert.Throws<SerializationException>(() => _serializer.Serialize(new ReserveStockResponse("raw")));
+
+            Assert.Contains("ReserveStockResponse", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void BhvUnions042BuildingAUnionFromANullVariantDoesNotThrow()
         {
             var union = ReserveStockResponse.FromReservation(null!);
@@ -859,6 +867,20 @@ public static class ObjectSerializerTest
         {
             var durations = new Dictionary<string, TimeSpan> { { "retry", TimeSpan.FromMilliseconds(1500) } };
             Assert.Contains("\"retry\":\"1.500s\"", _serializer.Serialize(durations), StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc256ADurationFractionIsNeverTrimmedBelowThreeDigits()
+        {
+            Assert.Equal("1.500s", ObjectSerializer.Stringify(TimeSpan.FromMilliseconds(1500)));
+            Assert.Equal("1.100s", ObjectSerializer.Stringify(TimeSpan.FromMilliseconds(1100)));
+        }
+
+        [Fact]
+        public void BhvMisc241ATimeOfDayKeepsNonZeroMillisecondsAndDropsFinerPrecision()
+        {
+            Assert.Equal("10:20:30.999", ObjectSerializer.Stringify(new TimeOnly(10, 20, 30, 999, 999)));
+            Assert.Equal("10:20:30", ObjectSerializer.Stringify(new TimeOnly(10, 20, 30, 0, 500)));
         }
 
         [Fact]
@@ -3116,6 +3138,18 @@ public static class ObjectSerializerTest
             string back = _serializer.Serialize(decoded);
             Assert.Contains("\"lastError\":{\"code\":1,\"message\":\"m\"}", back, StringComparison.Ordinal);
             Assert.Contains("\"outcome\":{\"ok\":true}", back, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc242AReadOnlyAndAWriteOnlyPropertyHaveNoWireEffect()
+        {
+            string json = _serializer.Serialize(new Account("u") { Id = 7, Password = "p" });
+
+            Assert.Contains("\"id\":7", json, StringComparison.Ordinal);
+            Assert.Contains("\"password\":\"p\"", json, StringComparison.Ordinal);
+            Account? decoded = _serializer.Deserialize<Account>("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}");
+            Assert.Equal(7L, decoded!.Id);
+            Assert.Equal("p", decoded.Password);
         }
 
         [Fact]

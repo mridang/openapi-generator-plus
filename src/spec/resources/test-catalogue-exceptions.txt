@@ -81,7 +81,6 @@ dart | operations125 | Dart types the required category as a non-nullable String
 java | errors047 | java Throwable has no name property, and the base type is named ApiException by the Java naming of exception classes (the normaliser maps that to ApiError), so there is no name value to assert; the type identity is pinned by the hierarchy rows of ApiExceptionTest
 php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025
 swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035; Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-csharp | authbearer026 | the bearer constructors take either a token or a token provider and never both, so passing both is a compile-time error
 csharp | options046 | the TransportOptions constructor is internal, so csharp callers reach it only through TransportOptions.Builder(), and proxy validation runs in Build() (S16); there is no public direct-construction path to reject
 dart | config024 | Dart has no run-time reflection (dart:mirrors is absent from the AOT and web builds), and a missing static setter on Configuration is a compile-time fact the analyzer enforces, so no test can observe its absence
 dart | operations132 | Dart types the Options parameter and every required field as non-nullable, so a null options object or a null required field is refused by the type system at the call before the SDK's required-field check runs; an empty required value is refused with the canonical message by bhv operations 052
@@ -289,7 +288,6 @@ ruby | tracing014 | the call is blocking and builds the headers on the caller's 
 go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
 elixir | tracing014 | the headers are built in the calling process with no hand-off; tracing013 covers the path
 kotlin | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
-csharp | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 node | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
@@ -300,7 +298,6 @@ elixir | mocking008 | There is no client behaviour to implement, so no fake clie
 dart | hooks015 | Dart has no per-call cancellation (S7), so there is no cancelled call to report to finish; the timeout path is bhv hooks 014
 php | hooks015 | PHP has no per-call cancellation (S7) and runs one request at a time, so there is no cancelled call to observe; the timeout path is bhv hooks 014
 java | auth038 | the generated scheme wrappers take one static token and no token provider, so there is no provider to rank above an environment variable; a provider is covered by bhv auth 037 on BearerAuthenticator
-csharp | auth039 | settled credential order F862: the environment variable is read before the token provider
 python | retries045 | python has no streamed request body: the SDK materialises a body as a dict, bytes, bytearray, memoryview or str before the call, so a replay after a 401 never has a stream to exhaust
 python | serialization129 | python datetime.timedelta stores microseconds at most, so a nanosecond-precision duration cannot be represented; the duration test pins the refusal of a nanosecond argument instead
 ruby | transport083 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no client-level signal can abort a request in flight
@@ -385,8 +382,6 @@ swift | misc033 | the test certificates are one CA and one server leaf, so the p
 swift | misc038 | the Swift suite starts no TLS listener of its own and its unit tests stub the transport, so there is no server certificate for the platform trust store to refuse
 swift | misc047 | a union wrapper holds only a declared variant and is built only from one, so a value that is not a variant cannot be constructed; an empty union is nil (testBhvUnions042), so the compile-time guarantee covers both cases
 csharp | misc007 | the generated code checks no path parameter for nil, and the options null check runs first, so the error names options and never the path parameter
-csharp | misc010 | the options argument is a required C# method parameter, so a call that omits it is a compile-time error and never reaches the runtime
-csharp | misc011 | an operation with no parameters gets no options class in C#, so its call takes no argument and has no per-call timeout, header or retry settings to default
 python | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
 python | misc035 | the SDK has no abort signal: a cancelled call is the task's CancelledError (transport_060) and a deadline is a timeout (misc030), so a call aborted before it starts cannot be expressed
 python | misc036 | multipart parts are plain values the caller passes in and are read into the request before it is sent, so no caller-owned readable body part exists after a failure
@@ -407,7 +402,6 @@ node | misc030 | Node's per-call timeout is a duration, not an absolute deadline
 node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
 java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
 java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
-csharp | misc030 | C# has no request deadline: its timeout is a duration that starts when the call starts, so no call can begin already past its deadline
 elixir | misc029 | The SDK has no cancellation argument (readme: a caller stops a call by terminating its process), so the SDK never sees a caller's cancellation and cannot wrap it in its error type
 elixir | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
@@ -453,7 +447,6 @@ python | misc052 | Python passes per-call options as keyword arguments, so givin
 python | misc056 | the Python proxy setter takes None to clear a proxy and rejects an empty string as a URL with no scheme (TransportOptions builder raises ValueError), so an empty string cannot clear a proxy
 python | misc065 | Python takes each scheme credential as its own keyword argument and copies them into a dict inside the constructor, so no caller-owned map exists that could change after the API is built
 python | misc074 | Python sends one credential per operation, the first configured scheme its requirement lists (BaseApi._scheme_authenticator), so an alternative that names two schemes sends only one
-csharp | misc135 | the C# client has no client-level cancellation handle: cancellation is a CancellationToken passed to each call, and ConfigurationBuilder has no setter for one
 kotlin | misc051 | Kotlin builders and operation option classes are typed, so an option the builder does not know is a compile error rather than a refusal at runtime
 kotlin | misc052 | Kotlin named arguments can be passed only once per call, so a repeated per-call option cannot be written and there is no second value to resolve
 kotlin | misc056 | the Kotlin proxy setter takes null to clear a proxy and an empty string is not a URL with a scheme, so an empty string cannot clear a proxy
@@ -482,8 +475,6 @@ java | misc061 | The Java Authenticator receives only the ApiClient and no cance
 csharp | misc051 | per-call options are init properties on each operation's options class and an operation has no server option, so an unknown key or a server setting is a compile-time error rather than a runtime refusal
 csharp | misc052 | per-call options are init properties and a repeated property in an object initializer is a compile-time error, so a second option of the same kind cannot be given
 csharp | misc060 | the API key constructor takes one key string and has no provider overload, so passing both an API key and a provider is a compile-time error
-csharp | misc047 | the C# union serializer writes a foreign value without a not-a-variant error (known difference)
-csharp | misc054 | C# per-call Headers are kept by reference, so a caller mutation before the call reaches the request (known difference)
 csharp | misc065 | C# takes each scheme credential as its own named constructor parameter and the client builds its own dictionary from them, so the caller holds no map whose later changes could reach the API
 csharp | misc068 | contradicts auth023 and auth042: C# refuses an explicitly passed empty token in FromEnvironment and never reads the environment in its place, so an empty string is not treated as not passed
 csharp | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so no request needs two credentials
@@ -518,7 +509,6 @@ dart | misc088 | Dart's number is a binary double with no decimal type, so the d
 csharp | misc178 | the C# client builds every multipart body as MultipartFormDataContent, which always writes multipart/form-data, and ignores any content type a caller declares for a dictionary body, so no other declared multipart type can reach the transport
 csharp | misc182 | the C# SDK has no API that removes a default or per-call header by name, so there is no removal call whose name matching could be tested
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
-csharp | misc188 | the C# client exposes no public closed state to read, so the only observable effect of closing it is the transport release already pinned by the lifecycle tests
 kotlin | misc074 | The petstore fixture names one scheme per security alternative, so no operation sends the credentials of two schemes at once
 kotlin | misc075 | The scheme constructor takes one optional parameter per declared scheme, so a credential cannot be keyed to an undeclared scheme; the compiler refuses it
 go | misc185 | the Go OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed

@@ -23,6 +23,9 @@ internal interface IOneOfWrapper
 {
     /// <summary>The wrapped variant.</summary>
     object? ActualInstance { get; }
+
+    /// <summary>Whether the wrapped value is one of the union's declared variants.</summary>
+    bool HoldsVariant { get; }
 }
 
 /// <summary>
@@ -70,6 +73,12 @@ internal partial class ObjectSerializer
          * single ActualInstance. */
         if (value is IOneOfWrapper wrapper)
         {
+            if (!wrapper.HoldsVariant)
+            {
+                throw new SerializationException(
+                    $"A value of type {wrapper.ActualInstance?.GetType().Name ?? "null"} is not a variant of the {value.GetType().Name} union"
+                );
+            }
             value = wrapper.ActualInstance;
         }
         value = WithSortedKeys(value);

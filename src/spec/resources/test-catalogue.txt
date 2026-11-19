@@ -1305,7 +1305,7 @@ auth018 | A secret passed to an authenticator, or rejected at construction, neve
 auth019 | The authorization URL and token request bodies list their parameters in one fixed order and encoding, so the exact string is the same on every build.
 auth020 | A PKCE code verifier is sent with the first successful code exchange and never with a refresh or any later exchange.
 auth021 | A request made with no client-level or operation-level credential is sent with no Authorization header and is not refused.
-auth022 | An explicit argument is used first, then the environment variable, then the token provider, and the provider is used when the variable is unset or empty.
+auth022 | An explicit argument is used first, then the token provider, then the environment variable, which fills only a credential that was not passed.
 auth023 | An explicitly passed empty credential is kept as given and refused, and is not replaced by the environment value.
 auth024 | Each credential field takes its passed value or else its own environment variable, independently of the other fields.
 auth025 | A credential that needs to send HTTP requests is given the client's transport when the client is built.

@@ -44,6 +44,25 @@ public class BaseApiTest
         public TestableApi(IApiClient apiClient, string baseUrl, IAuthenticator? authenticator)
             : base(apiClient, new Configuration(baseUrl), authenticator) { }
 
+        public Task<ApiResult<T>> CallWithTimeoutAsync<T>(
+            IAuthenticator auth,
+            int timeoutMilliseconds
+        )
+        {
+            return InvokeApiForResultAsync<T>(
+                "GET",
+                "/test/echo",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json",
+                typeof(T),
+                auth,
+                timeout: timeoutMilliseconds
+            );
+        }
+
         public async Task<T?> CallAsync<T>(
             string method,
             string path,
@@ -934,6 +953,19 @@ public class BaseApiTest
             await Task.Delay(20).ConfigureAwait(false);
             return [];
         }
+    }
+
+    [Fact]
+    public async Task BhvMisc030ACallPastItsDeadlineAfterObtainingCredentialsNeverReachesTheTransport()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://localhost");
+
+        await Assert.ThrowsAsync<NetworkTimeoutException>(() =>
+            api.CallWithTimeoutAsync<JsonNode>(new DelayedAuthenticator(), 5)
+        );
+
+        Assert.Null(client.CapturedUrl);
     }
 
     private static string TraceparentOf(Activity activity) =>
@@ -2707,7 +2739,7 @@ public class BaseApiTest
             Body = Convert.ToBase64String(original),
         };
         var testApi = new TestableApi(client, "http://localhost");
-        var result = await testApi.CallAsync<string>(
+        var result = await testApi.CallAsync<byte[]>(
             "GET",
             "/test/echo",
             new Dictionary<string, object?>(),
@@ -2717,7 +2749,7 @@ public class BaseApiTest
             "application/json"
         );
         Assert.NotNull(result);
-        Assert.Equal(original, Convert.FromBase64String(result!));
+        Assert.Equal(original, result);
     }
 
     [Fact]
@@ -2731,7 +2763,7 @@ public class BaseApiTest
             Body = "AP9C",
         };
         var testApi = new TestableApi(client, "http://localhost");
-        var result = await testApi.CallAsync<string>(
+        var result = await testApi.CallAsync<byte[]>(
             "GET",
             "/test/echo",
             new Dictionary<string, object?>(),
@@ -2740,9 +2772,28 @@ public class BaseApiTest
             ["application/octet-stream"],
             "application/json"
         );
-        Assert.NotNull(result);
-        byte[] decoded = Convert.FromBase64String(result!);
-        Assert.Equal(original, decoded);
+        Assert.Equal(original, result);
+    }
+
+    [Fact]
+    public async Task BhvMisc081AStringResultUnderABinaryContentTypeIsTheDecodedBody()
+    {
+        var client = new BinaryResponseApiClient
+        {
+            ContentType = "application/pdf",
+            Body = "aGVsbG8=",
+        };
+        var testApi = new TestableApi(client, "http://localhost");
+        var result = await testApi.CallAsync<string>(
+            "GET",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            null,
+            ["application/pdf"],
+            "application/json"
+        );
+        Assert.Equal("hello", result);
     }
 
     [Fact]

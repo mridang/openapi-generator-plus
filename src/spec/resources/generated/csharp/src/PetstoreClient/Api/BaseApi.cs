@@ -344,6 +344,7 @@ public abstract class BaseApi
             return built;
         }
 
+        System.Diagnostics.Stopwatch callClock = System.Diagnostics.Stopwatch.StartNew();
         Dictionary<string, string> headers = await BuildHeadersAsync(false).ConfigureAwait(false);
 
         /* The call hook starts once per call, on the final header set and before
@@ -486,6 +487,17 @@ public abstract class BaseApi
             }
 
             Uri requestUri = new(url);
+            if (timeout.HasValue)
+            {
+                /* One end-to-end budget: time spent obtaining credentials counts against it, and a
+                   call that is already past its deadline never reaches the transport. */
+                long remaining = timeout.Value - callClock.ElapsedMilliseconds;
+                if (remaining <= 0)
+                {
+                    throw new NetworkTimeoutException("Request timed out");
+                }
+                timeout = (int)remaining;
+            }
             ApiHttpResponse response = await SendRecordingRequestAsync(
                     ApiClient,
                     method,
@@ -611,9 +623,15 @@ public abstract class BaseApi
                     }
                     else if (decodeByStatus is null && typeof(T) == typeof(string))
                     {
-                        /* A string return is the body text itself, whatever its content type:
-                           it is never JSON-parsed, so a body that is not valid JSON comes back unchanged. */
-                        data = (T)(object)response.Body;
+                        /* A string return is the body text itself: it is never JSON-parsed, so a body
+                           that is not valid JSON comes back unchanged. Under a binary content type the
+                           transport carries the bytes as base64, which never reaches the caller (D107). */
+                        data = (T)
+                            (object)(
+                                IsTextResponseContentType(responseContentType)
+                                    ? response.Body
+                                    : DecodeBinaryText(response.Body)
+                            );
                     }
                     else if (
                         responseContentType != null
@@ -979,6 +997,22 @@ public abstract class BaseApi
         return new SerializationException(
             "form-urlencoded field " + name + " must be a scalar or array of scalars"
         );
+    }
+
+    /// <summary>
+    /// Decodes the transport's base64 carrier of a binary body to text; a body that is not
+    /// valid base64 (a custom client that returns the text itself) comes back unchanged.
+    /// </summary>
+    private static string DecodeBinaryText(string body)
+    {
+        try
+        {
+            return System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(body));
+        }
+        catch (FormatException)
+        {
+            return body;
+        }
     }
 
     /// <summary>
