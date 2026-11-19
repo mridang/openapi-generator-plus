@@ -1098,14 +1098,14 @@ class TestUuidParameterTypedAsString:
     ) -> None:
         with pytest.raises(ValueError):
             ValueSerializer.serialize_styled(
-                "trackingId", "not-a-uuid", "path", "uuid.UUID", None, "simple", False
+                "token_id", "not-a-uuid", "path", "uuid.UUID", None, "simple", False
             )
 
     def test_bhv_lang_python_211_a_canonical_uuid_string_is_written_lowercase(
         self,
     ) -> None:
         written = ValueSerializer.serialize_styled(
-            "trackingId",
+            "token_id",
             "E621E1F8-C36C-495A-93FC-0C247A3E6E5F",
             "path",
             "uuid.UUID",

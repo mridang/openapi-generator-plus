@@ -638,10 +638,10 @@ class TestValueSerializerBehaviours:
 class TestUuidParameterTypedAsString:
     def test_bhv_operations_111_a_malformed_uuid_string_is_rejected_before_any_request(self) -> None:
         with pytest.raises(ValueError):
-            ValueSerializer.serialize_styled('trackingId', 'not-a-uuid', 'path', 'uuid.UUID', None, 'simple', False)
+            ValueSerializer.serialize_styled('token_id', 'not-a-uuid', 'path', 'uuid.UUID', None, 'simple', False)
 
     def test_bhv_lang_python_211_a_canonical_uuid_string_is_written_lowercase(self) -> None:
         written = ValueSerializer.serialize_styled(
-            'trackingId', 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F', 'path', 'uuid.UUID', None, 'simple', False
+            'token_id', 'E621E1F8-C36C-495A-93FC-0C247A3E6E5F', 'path', 'uuid.UUID', None, 'simple', False
         )
         assert written == 'e621e1f8-c36c-495a-93fc-0c247a3e6e5f'
