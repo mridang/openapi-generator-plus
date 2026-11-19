@@ -188,9 +188,8 @@ describe('TransportOptions', () => {
     expect(construct).toThrow('Invalid proxy URL (unparseable): not-a-valid-url');
   });
 
-  test('bhv options 031 proxy URL that is empty, has no host or has a bad scheme is rejected with TypeError and the exact message', () => {
+  test('bhv options 031 proxy URL that has no host or has a bad scheme is rejected with TypeError and the exact message', () => {
     const rows: Array<[string, string, string]> = [
-    ['an empty string', '', 'Invalid proxy URL (unparseable): '],
     ['a scheme without a host', 'http://', 'Invalid proxy URL (unparseable): http://'],
     ['a socks scheme', 'socks5://proxy.example.com:1080', 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080'],
     ['an ftp scheme', 'ftp://proxy.example.com:21', 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21']

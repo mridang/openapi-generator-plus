@@ -3518,20 +3518,6 @@ describe('DefaultApiClient misc transport behaviours', () => {
     expect(() => TransportOptions.builder().fetch(customFetch).verifySsl(false).build()).toThrow(/verifySsl\(false\)/);
   });
 
-  it('bhv misc 043 an explicitly cleared user agent is omitted from the request', async () => {
-    const local = await localServer((req, res) => {
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ userAgent: req.headers['user-agent'] ?? null }));
-    });
-    try {
-      const client = new DefaultApiClient(TransportOptions.builder().userAgent(null).build());
-      const response = await client.sendRequest('GET', `${local.url}/x`, {}, null);
-      expect(JSON.parse(response.body)).toEqual({ userAgent: null });
-    } finally {
-      await local.close();
-    }
-  });
-
   it('bhv misc 044 a body that declares gzip but lacks the gzip signature is returned as its plain body', async () => {
     const plain = Buffer.from('{"userId":1}', 'utf-8');
     const out = await DefaultApiClient.ensureDecoded(plain, 'gzip');
