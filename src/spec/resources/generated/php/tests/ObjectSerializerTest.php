@@ -3037,3 +3037,33 @@ test('bhv misc 235 a duration with fractional seconds keeps its fraction when se
     $interval->f = 0.5;
     expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('1.5s');
 });
+test('bhv serialization 115 an integral json number decoded into a floating point field becomes a float', function (): void {
+    /** @var DryFood $food */
+    $food = ObjectSerializer::deserialize('{"foodType":"dry","weightKg":5}', DryFood::class);
+
+    expect($food->weightKg)->toBeFloat();
+    expect($food->weightKg)->toBe(5.0);
+});
+
+test('bhv serialization 116 a property named as a language keyword keeps its exact wire key', function (): void {
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"class":"x"}', EdgeCases::class);
+
+    expect(json_decode(ObjectSerializer::serialize($model), true))->toHaveKey('class', 'x');
+});
+
+test('bhv serialization 121 a model sent as a part is serialized with its wire names and the sdk date time format', function (): void {
+    $out = json_decode(ObjectSerializer::serialize(new Metadata(createdAt: new \DateTime('2024-01-02T03:04:05+00:00'))), true);
+
+    expect($out)->toHaveKey('createdAt');
+    expect($out['createdAt'])->toStartWith('2024-01-02T03:04:05');
+});
+
+test('bhv serialization 129 a nanosecond precision duration is written with a nine digit fraction', function (): void {
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('0.000000001s')))->toBe('0.000000001s');
+});
+
+test('bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix', function (): void {
+    expect(fn (): mixed => ObjectSerializer::serialize(['val' => NAN]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Failed to serialize object to JSON: ');
+});

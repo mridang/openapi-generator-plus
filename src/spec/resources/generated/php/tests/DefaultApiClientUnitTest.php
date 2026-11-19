@@ -3439,3 +3439,62 @@ test('bhv misc 228 an unparseable retry after header falls back to the normal ba
     expect($calls)->toBe(2);
     expect($client->pauses)->toHaveCount(1);
 });
+test('bhv serialization 120 a multipart file with an unknown extension falls back to octet stream', function (): void {
+    $client = new StubbedDefaultApiClient(new MockHttpClient());
+    $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');
+
+    expect($guess->invoke($client, null, 'blob.xyzzy'))->toBe('application/octet-stream');
+});
+
+test('bhv serialization 123 a multipart filename containing a NUL byte is rejected', function (): void {
+    expect(fn () => DefaultApiClient::validateMultipartFilename("a\x00b.pdf"))
+        ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv transport 086 a timeout is not retried', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $timeout = new \Symfony\Component\HttpClient\Exception\TimeoutException('Idle timeout reached');
+    $client = retryTestClient([$timeout, 200], null, $log);
+
+    expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/slow', static fn (): array => [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect(count($log))->toBe(1);
+});
+
+test('bhv serialization 122 a form array repeats its key in order', function (): void {
+    /** @var list<string> $bodies */
+    $bodies = [];
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$bodies): MockResponse {
+        $bodies[] = collectDefaultApiClientRequestBody($options['body'] ?? '');
+
+        return new MockResponse('{}', ['http_code' => 200]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
+
+    $client->sendRequest('POST', 'http://example.com/form', ['Content-Type' => 'application/x-www-form-urlencoded'], ['ids' => [1, 2]]);
+
+    expect($bodies)->toBe(['ids=1&ids=2']);
+});
+
+test('bhv transport 087 a connection that cannot be established raises the network error', function (): void {
+    $socket = stream_socket_server('tcp://127.0.0.1:0');
+    expect($socket)->toBeResource();
+    $address = stream_socket_get_name($socket, false);
+    fclose($socket);
+
+    expect(fn (): mixed => (new DefaultApiClient())->sendRequest('GET', 'http://' . $address . '/x', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+});
+
+test('bhv transport 091 a caller supplied upload stream is left open after the send', function (): void {
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, 'data');
+    rewind($stream);
+    $client = new StubbedDefaultApiClient(new MockHttpClient([new MockResponse('{}', ['http_code' => 200])]));
+
+    $client->sendRequest('POST', 'http://example.com/upload', [], ['file' => $stream]);
+
+    expect(is_resource($stream))->toBeTrue();
+});

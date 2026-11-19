@@ -871,3 +871,35 @@ test('bhv misc 240 a multipart file part is echoed back with its content', funct
     $response = (new DefaultApiClient())->sendRequest('POST', $chasmUrl . '/test/echo', [], ['file' => 'file content']);
     expect($response->body)->toContain('file content');
 });
+test('bhv transport 093 a configured ca cert is the only trust anchor so an unrelated ca rejects the server', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $key = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+    assert($key !== false);
+    $csr = openssl_csr_new(['commonName' => 'unrelated-ca'], $key);
+    assert($csr instanceof \OpenSSLCertificateSigningRequest);
+    $cert = openssl_csr_sign($csr, null, $key, 1);
+    assert($cert instanceof \OpenSSLCertificate);
+    openssl_x509_export($cert, $pem);
+    $path = tempnam(sys_get_temp_dir(), 'ca-');
+    assert(is_string($path));
+    file_put_contents($path, $pem);
+
+    try {
+        $transport = TransportOptions::builder()
+            ->verifySsl(true)
+            ->caCertPath($path)
+            ->build();
+        $client = new DefaultApiClient($transport);
+
+        expect(fn () => $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+            ->toThrow(function (\Exception $e): void {
+                expect($e::class)->toBe(\PetstoreClient\Errors\NetworkException::class);
+                assert($e instanceof \PetstoreClient\Errors\NetworkException);
+                expect($e->getStatusCode())->toBe(0);
+                expect($e->getMessage())->toMatch('/certificate|SSL/i');
+            });
+    } finally {
+        unlink($path);
+    }
+});
