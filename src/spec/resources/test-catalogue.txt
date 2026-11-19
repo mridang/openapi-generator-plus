@@ -1590,7 +1590,7 @@ misc052 | When the same kind of per-call option is given more than once, the las
 misc053 | A per-call retry budget of zero is accepted, and a negative or non-whole budget is refused.
 misc054 | Per-call headers are a read-only copy that later changes to the caller's own map do not reach.
 misc055 | A per-call timeout, retry count or header set that is not valid is refused with an argument error.
-misc056 | Setting the proxy to an empty string removes a proxy set earlier.
+misc056 | Clearing the proxy with no value removes a proxy set earlier; an empty string is never a way to clear it (options031 rejects it).
 misc057 | An API key configured for one location is never sent at another location, such as a header or cookie.
 misc058 | The configured authorization endpoint and redirect URI reach the authorization URL exactly as configured, with no added trailing slash, no dropped default port and no changed host case.
 misc059 | A token whose lifetime is not a finite number, including one that overflows, is not cached, so the next call fetches a new token.
@@ -1602,7 +1602,7 @@ misc064 | An operation that declares no security never sends the client's defaul
 misc065 | Scheme credentials are copied when the API is built, so later changes to the caller's map do not affect the API.
 misc066 | A token provider's value is sent as the bearer credential on the authenticated request.
 misc067 | When a token provider raises an error, the request fails with that same error.
-misc068 | An empty string passed for a credential counts as not passed, so the value is read from its environment variable instead.
+misc068 | A credential environment variable that is set but empty counts as unset; an explicitly passed empty value is refused (auth023), never replaced by the environment.
 misc069 | A token response whose access token is empty or not a string, or whose body is not a JSON object, is refused as an error that names the problem.
 misc070 | A discovery document that is not a JSON object raises the serialization error with the canonical message, keeps no cause, and does not repeat the response body.
 misc071 | A client-level credential that needs the HTTP transport receives the client's own transport.

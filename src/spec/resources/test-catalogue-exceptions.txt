@@ -330,7 +330,6 @@ go | misc087 | Go's number is float64 and documented lossy (serializationobject0
 go | misc088 | Go's number is float64 (no stdlib decimal, documented lossy), so the decimal places a value was written with are not kept, as serializationobject002 records
 go | misc092 | encoding/json matches a key to a field by case-folding the tag, so a key differing from the wire name only by case is matched; the petstore has no property whose Go name differs from its wire name by more than case
 kotlin | operations164 | a required parameter is a non-null Kotlin type, so a nil argument is rejected by the compiler and cannot reach the call; a missing required Options field is refused with an argument error by bhv operations 132
-python | misc068 | python keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
 swift | operations161 | the fixture has no operation whose success response is text/plain, so no generated call returns a raw text body to test
 swift | operations162 | the fixture has no date-only (format: date) parameter in form, query, header or path positions; its only temporal values are date-time fields
@@ -420,7 +419,6 @@ rust | misc060 | Rust has no API key provider: a credential is a typed value pas
 rust | misc061 | Rust has no cancellation parameter or context values on a call (S7), so the authenticator receives no caller cancellation or context to pass on, the same limit as misc029
 rust | misc065 | Rust moves each credential into Credentials by value, so the caller holds no reference left to change after the API is built and no copy-on-build behaviour can be observed
 rust | misc067 | the Rust token provider returns a plain String and cannot fail, so there is no provider error for the request to surface
-rust | misc068 | Rust refuses an empty string passed as a credential at construction instead of falling back to the environment variable, so an empty argument is never read as unset
 rust | misc071 | Rust exposes no accessor for a client's transport, so the transport an authenticator is given cannot be compared with the client's own from outside the client
 rust | misc072 | Rust clients take either one default credential or per-scheme credentials, never both, so no API group is built holding the default and the scheme credentials together
 rust | misc074 | Rust operations send the credential of the first scheme the specification requires that is set, so an alternative naming two schemes sends one credential, not both
@@ -429,7 +427,6 @@ dart | misc051 | Dart rejects an unknown named option and a server setting on an
 dart | misc052 | Dart rejects a repeated named argument at compile time and per-call options fields are final, so the same kind of option cannot be given twice at run time
 dart | misc061 | Dart has no per-call cancellation handle and no context-value channel (S7), so an authenticator receives no cancel signal or context values to pass on
 python | misc052 | Python passes per-call options as keyword arguments, so giving the same option twice is a syntax error rather than a runtime choice, and no list of options exists to resolve
-python | misc056 | the Python proxy setter takes None to clear a proxy and rejects an empty string as a URL with no scheme (TransportOptions builder raises ValueError), so an empty string cannot clear a proxy
 python | misc065 | Python takes each scheme credential as its own keyword argument and copies them into a dict inside the constructor, so no caller-owned map exists that could change after the API is built
 python | misc074 | Python sends one credential per operation, the first configured scheme its requirement lists (BaseApi._scheme_authenticator), so an alternative that names two schemes sends only one
 kotlin | misc051 | Kotlin builders and operation option classes are typed, so an option the builder does not know is a compile error rather than a refusal at runtime
@@ -459,7 +456,6 @@ csharp | misc051 | per-call options are init properties on each operation's opti
 csharp | misc052 | per-call options are init properties and a repeated property in an object initializer is a compile-time error, so a second option of the same kind cannot be given
 csharp | misc060 | the API key constructor takes one key string and has no provider overload, so passing both an API key and a provider is a compile-time error
 csharp | misc065 | C# takes each scheme credential as its own named constructor parameter and the client builds its own dictionary from them, so the caller holds no map whose later changes could reach the API
-csharp | misc068 | contradicts auth023 and auth042: C# refuses an explicitly passed empty token in FromEnvironment and never reads the environment in its place, so an empty string is not treated as not passed
 csharp | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so no request needs two credentials
 csharp | misc075 | C# takes each scheme credential as a named optional constructor parameter, so a credential keyed to an undeclared scheme is a compile-time error rather than a refusal at build
 go | misc145 | Go exposes the additional-properties map as a plain exported field, so reading it hands back the live map; the copy is taken only when the map is set through WithAdditionalProperties
@@ -481,7 +477,6 @@ swift | misc111 | The Swift client writes uniqueItems collections in their natur
 swift | misc113 | Swift models print through the default Mirror description of their stored properties, so the Python type-name string form does not exist to be replaced
 swift | misc114 | A Swift operation returns the single success type its spec declares, so there is no per-status decoder to choose from the status code received
 swift | misc116 | The Swift generator emits no minimum or maximum checks into its models, so an integer field's declared bounds are never enforced at decode
-java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
 java | misc075 | Java's client Builder takes one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists
 dart | misc074 | Dart sends one credential per operation, the first configured scheme its requirement lists (schemeAuthenticator), so an alternative that names two schemes applies a single credential and never both
@@ -693,4 +688,3 @@ swift | retries051 | swift-corelibs-foundation on Linux traps when a stub URLPro
 swift | transport088 | URLSession on Linux decodes only gzip and deflate and the Linux toolchain image has no importable zlib module, so this decoding cannot be exercised there; the test runs on Apple platforms only (A response body that is validly gzip-encoded is decoded before it is returned)
 
 dart | misc241 | Dart has no time-of-day type: a format: time property is a String passed through unchanged (serializationobject114), so the SDK formats no milliseconds
-kotlin | misc056 | options051 and options031 refuse an empty proxy URL as missing its scheme, so an empty string cannot also clear a proxy; clearing is proxy(null) (the two promises contradict each other)

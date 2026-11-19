@@ -125,6 +125,7 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **A duration fraction has at least three digits.** `1.5` seconds is written `1.500s`; the fraction grows to six or nine digits only when it needs them.
 * **Multipart names that cannot be written are rejected.** A field name or filename with a carriage return, line feed or NUL fails before any request is sent; a double quote is escaped with a backslash.
 * **A string result under a binary content type is decoded.** The internal base64 carrier the transport uses for binary bodies never reaches your code.
+* **Blank credentials fail; blank variables are unset.** A credential you pass as an empty string is refused, never swapped for the environment. An environment variable that is set but empty counts as unset. A proxy is cleared by passing no value, never an empty string.
 
 ## Under review
 
