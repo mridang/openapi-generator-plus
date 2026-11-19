@@ -29,7 +29,11 @@ public abstract record PetFood
             string raw = doc.RootElement.GetRawText();
             if (doc.RootElement.TryGetProperty("foodType", out JsonElement disc))
             {
-                if (disc.ValueKind != JsonValueKind.String && disc.ValueKind != JsonValueKind.Null)
+                if (disc.ValueKind == JsonValueKind.Null)
+                {
+                    throw new JsonException("Missing discriminator property 'foodType'");
+                }
+                if (disc.ValueKind != JsonValueKind.String)
                 {
                     throw new JsonException(
                         $"Discriminator property 'foodType' of PetFood must be a string, got {disc.ValueKind}"

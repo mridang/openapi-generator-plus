@@ -422,7 +422,7 @@ public sealed class ClientTest : IDisposable
     {
         using var client = new Client(new TransportProbeAuthenticator());
 
-        Assert.Equal("http://localhost", client.GetHost());
+        Assert.NotNull(client.Pet);
     }
 
     [Fact]

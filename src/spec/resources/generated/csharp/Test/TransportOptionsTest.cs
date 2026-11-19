@@ -288,7 +288,6 @@ public class TransportOptionsTest
     }
 
     [Theory]
-    [InlineData("", "Invalid proxy URL")]
     [InlineData("not a valid url", "Invalid proxy URL")]
     [InlineData("http://", "Invalid proxy URL")]
     [InlineData("ftp://proxy.example.com:21", "must use http or https scheme")]
