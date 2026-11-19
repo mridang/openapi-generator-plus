@@ -1,4 +1,4 @@
-.PHONY: build test lint format format-dotnet analyze audit docs clean
+.PHONY: build test lint format format-dotnet analyze audit docs clean examples examples-run
 
 build:
 	dotnet build
@@ -32,3 +32,10 @@ docs:
 
 clean:
 	dotnet clean
+
+# examples/Quickstart is a project of its own; building it builds every file under examples.
+examples:
+	dotnet build examples/Quickstart/Quickstart.csproj
+
+examples-run: examples
+	{{envVarPrefix}}_HOST="$(API_BASE_URL)" {{envVarPrefix}}_TOKEN=placeholder dotnet run --no-build --project examples/Quickstart/Quickstart.csproj

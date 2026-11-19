@@ -37,6 +37,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * Read a fallback, declaring a default response
      * @param GetFallbackOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\UnexpectedFailureException on HTTP default with a {@see \PetstoreClient\Models\UnexpectedFailure} body
      */
     public function getFallback(string $fallbackId, ?GetFallbackOptions $options = null): \PetstoreClient\Models\Result
@@ -64,6 +65,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * @param GetFallbackOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\UnexpectedFailureException on HTTP default with a {@see \PetstoreClient\Models\UnexpectedFailure} body
      */
     public function getFallbackWithHttpInfo(string $fallbackId, ?GetFallbackOptions $options = null): ApiResult
@@ -134,6 +136,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * Read a member, declaring a 404 with a different schema
      * @param GetMemberOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\MemberNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\MemberNotFound} body
      */
     public function getMember(string $memberId, ?GetMemberOptions $options = null): \PetstoreClient\Models\Result
@@ -161,6 +164,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * @param GetMemberOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\MemberNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\MemberNotFound} body
      */
     public function getMemberWithHttpInfo(string $memberId, ?GetMemberOptions $options = null): ApiResult
@@ -231,6 +235,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * Read a project, declaring a 404 with its own schema
      * @param GetProjectOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\ProjectNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\ProjectNotFound} body
      */
     public function getProject(string $projectId, ?GetProjectOptions $options = null): \PetstoreClient\Models\Result
@@ -258,6 +263,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * @param GetProjectOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\ProjectNotFoundException on HTTP 404 with a {@see \PetstoreClient\Models\ProjectNotFound} body
      */
     public function getProjectWithHttpInfo(string $projectId, ?GetProjectOptions $options = null): ApiResult
@@ -328,6 +334,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * Read a range, declaring one schema for every 4XX status
      * @param GetRangeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\RejectedRequestException on HTTP 4XX with a {@see \PetstoreClient\Models\RejectedRequest} body
      */
     public function getRange(string $rangeId, ?GetRangeOptions $options = null): \PetstoreClient\Models\Result
@@ -355,6 +362,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * @param GetRangeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\RejectedRequestException on HTTP 4XX with a {@see \PetstoreClient\Models\RejectedRequest} body
      */
     public function getRangeWithHttpInfo(string $rangeId, ?GetRangeOptions $options = null): ApiResult
@@ -425,6 +433,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * Read an upstream, declaring one schema for every 5XX status
      * @param GetUpstreamOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\UpstreamFailureException on HTTP 5XX with a {@see \PetstoreClient\Models\UpstreamFailure} body
      */
     public function getUpstream(string $upstreamId, ?GetUpstreamOptions $options = null): \PetstoreClient\Models\Result
@@ -452,6 +461,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * @param GetUpstreamOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\UpstreamFailureException on HTTP 5XX with a {@see \PetstoreClient\Models\UpstreamFailure} body
      */
     public function getUpstreamWithHttpInfo(string $upstreamId, ?GetUpstreamOptions $options = null): ApiResult
@@ -522,6 +532,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * Take a lock, declaring one schema under two statuses
      * @param TakeLockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 409 with a {@see \PetstoreClient\Models\StateConflict} body
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 423 with a {@see \PetstoreClient\Models\StateConflict} body
      */
@@ -550,6 +561,7 @@ class ProblemsApi extends BaseApi implements ProblemsApiInterface
      * @param TakeLockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Result>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 409 with a {@see \PetstoreClient\Models\StateConflict} body
      * @throws \PetstoreClient\Errors\StateConflictException on HTTP 423 with a {@see \PetstoreClient\Models\StateConflict} body
      */

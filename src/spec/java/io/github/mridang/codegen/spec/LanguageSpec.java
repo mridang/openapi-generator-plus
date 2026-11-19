@@ -10,6 +10,16 @@ public interface LanguageSpec {
 
   DockerImageName getRuntimeImage();
 
+  /**
+   * Names a variant of the runtime image, such as {@code -min} for the oldest runtime an SDK
+   * supports. It is part of the key of the shared container and of its cache directory, so a
+   * variant never reuses the container, or the build caches, of the default image. The default
+   * image has no variant.
+   */
+  default String getImageVariant() {
+    return "";
+  }
+
   default Map<String, Object> getCodegenProperties() {
     return Map.of();
   }

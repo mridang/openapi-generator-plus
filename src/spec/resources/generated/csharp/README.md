@@ -22,10 +22,18 @@ dotnet add package PetstoreClient
 
 ## Usage
 
-```csharp
+```csharp statements
 using PetstoreClient;
 
-using var client = Client.WithToken("https://api.example.com", "your-token");
+var host =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_HOST")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_HOST is not set");
+var token =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+using var client = Client.WithToken(host, token);
+var result = await client.Store.GetDefaultsAsync();
+Console.WriteLine(result);
 ```
 
 The client is `IDisposable`: dispose it to release its connections. A disposed
@@ -236,9 +244,17 @@ is linked with every call's token, so either one cancels the request. Pass
 the built options as the second constructor argument:
 `new Client(authenticator, transport)`.
 
-```csharp
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-await client.Store.GetInventoryAsync(cancellationToken: cts.Token);
+```csharp file
+using PetstoreClient;
+
+public static class Cancellation
+{
+    public static async Task GetDefaultsWithinTwoSecondsAsync(Client client)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await client.Store.GetDefaultsAsync(cancellationToken: cts.Token);
+    }
+}
 ```
 
 ### Custom HTTP transport

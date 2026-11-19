@@ -79,6 +79,7 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 - **OpenTelemetry adapter.** `otelhook.New(opts...)` in `pkg/otelhook` (options `WithTracerProvider`, `WithMeterProvider`, `WithPropagator`) is a `CallHook` that records one span (named with the operation id, kind client), the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type`. It uses the OpenTelemetry API only and writes `traceparent` itself.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - A model struct can be created without its required properties. Decoding enforces them.
+- With `generateExamples` on, the module ships `examples/quickstart/main.go`, a `package main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation and closes the client; `make examples` vets and builds everything under `examples/` and `make examples-run` runs the quickstart. `go vet ./...` and `staticcheck ./...` cover it, and `make docs` skips it.
 
 ## Recipes
 

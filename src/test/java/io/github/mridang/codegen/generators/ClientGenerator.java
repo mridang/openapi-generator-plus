@@ -60,6 +60,7 @@ public final class ClientGenerator {
 
     Map<String, Object> props = new HashMap<>(properties);
     props.put("generateTests", "true");
+    props.put("generateExamples", "true");
 
     CodegenConfigurator configurator =
         new CodegenConfigurator()

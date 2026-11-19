@@ -21,6 +21,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="src/**" />
+{{#generateExamples}}
+    <Compile Remove="examples/**" />
+{{/generateExamples}}
     <ProjectReference Include="src/{{packageName}}/{{packageName}}.csproj" />
   </ItemGroup>
   <ItemGroup>

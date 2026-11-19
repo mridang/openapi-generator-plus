@@ -2,24 +2,26 @@
 
 ## Installation
 
-Add to your `Gemfile`:
-
-```ruby
-gem 'petstore_client'
-```
-
-Then run:
+Add the gem to your `Gemfile` and install it with Bundler:
 
 ```bash
-bundle install
+bundle add petstore_client
 ```
 
 ## Quick Start
 
-```ruby
+```ruby statements
 require 'petstore_client'
 
-client = Petstore::Client::Petstore.with_token('https://api.example.com', 'your-token')
+host = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL')
+token = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN')
+client = Petstore::Client::Petstore.with_token(host, token)
+begin
+  result = client.store.get_defaults
+  pp result
+ensure
+  client.close
+end
 ```
 
 ## Authentication
@@ -28,7 +30,9 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'your-token')
 client = Petstore::Client::Petstore.new(authenticator)
 ```
@@ -37,9 +41,13 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 `Petstore.new` takes one optional credential for each security scheme of the API, named after the scheme: `pet_store_basic:`, `admin_basic:`, `pet_store_bearer:`, `service_token:`, `api_key_header:`, `internal_api_key:`, `api_key_query:`, `session_cookie:`, `machine_auth:`, `legacy_auth:`, `user_auth:`, `browser_auth:`, `sso_auth:`. Each operation uses the credential of the first scheme in its own security requirement that you configured; there is no per-call override. An optional `authenticator` (the first argument) serves any operation no scheme credential matches, and an operation that declares no security sends no credential of its own. The client is refused, with an `ArgumentError`, when it gets no credential at all.
 
-```ruby
+```ruby file
+require 'petstore_client'
+
 # credential is the Auth::Authenticator you built for that scheme
-client = Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
+def client_with_scheme_credential(credential)
+  Petstore::Client::Petstore.new(nil, nil, pet_store_basic: credential)
+end
 ```
 
 ### Credentials from the environment
@@ -72,21 +80,27 @@ A credential you leave out is read, once, when the authenticator is built, from 
 | `userAuth` | `CLIENT_SECRET` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` |
 | `userAuth` | `REDIRECT_URI` | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` |
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com')
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### Basic Auth
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::BasicAuthenticator.new('https://api.example.com', 'username', 'password')
 client = Petstore::Client::Petstore.new(authenticator)
 ```
 
 ### API Key
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::ApiKeyAuthenticator.new(
   'https://api.example.com', 'key-name', 'key-value', Petstore::Client::Auth::ApiKeyLocation::HEADER)
 client = Petstore::Client::Petstore.new(authenticator)
@@ -94,7 +108,9 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 ### OAuth2 Client Credentials
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'])
 client = Petstore::Client::Petstore.new(authenticator)
@@ -102,7 +118,9 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 ### OAuth2 Authorization Code
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::OAuth::OAuth2AuthorizationCodeAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/authorize', 'https://auth.example.com/token',
@@ -114,7 +132,9 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 ### OAuth2 Password
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::OAuth::OAuth2PasswordAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret',
   'https://auth.example.com/token', 'username', 'password', ['read'])
@@ -125,7 +145,9 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator.new(
   'https://api.example.com', 'client-id', 'https://auth.example.com/authorize', ['read']
 )
@@ -135,7 +157,9 @@ client = Petstore::Client::Petstore.new(authenticator)
 
 ### OpenID Connect
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
   'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
   'client-id', 'client-secret', 'https://app.example.com/callback', ['openid'])
@@ -169,7 +193,9 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
   'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read'],
   client_auth_method: Petstore::Client::Auth::OAuth::ClientAuthMethod::BASIC)
@@ -179,7 +205,9 @@ authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthentica
 
 If the OpenAPI spec defines multiple servers, the generated `Petstore::Client::Servers` module exposes each as a `ServerConfiguration` constant (e.g., `SERVER_0`, `SERVER_1`, ...) plus an `ALL` array. Pass the desired server's URL to the client:
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 client = Petstore::Client::Petstore.with_token(Petstore::Client::Servers::SERVER_0.url, 'your-token')
 ```
 
@@ -187,7 +215,9 @@ client = Petstore::Client::Petstore.with_token(Petstore::Client::Servers::SERVER
 
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 fake_authenticator = Class.new do
   def host = 'https://api.example.com'
   def auth_headers = { 'Authorization' => 'Bearer test-token' }
@@ -231,7 +261,9 @@ Every error the SDK raises derives from `::Petstore::Client::Errors::OpenAPIErro
   - `OAuth2ServerError` (the token endpoint answered with an error status)
   - `OAuth2TokenError` (the token response was unusable)
 
-```ruby
+```ruby file
+require 'petstore_client'
+
 def add_pet_or_report(client, pet)
   client.pet.add_pet(pet)
 rescue Petstore::Client::Errors::NotFoundError => e
@@ -253,31 +285,41 @@ end
 
 ### Custom Transport Options
 
-```ruby
-transport = Petstore::Client::TransportOptions.builder
-  .proxy('http://proxy:3128')
-  .timeout(5000)
-  .build
+```ruby file
+require 'petstore_client'
 
-client = Petstore::Client::Petstore.new(authenticator, transport)
+def client_with_transport(authenticator)
+  transport = Petstore::Client::TransportOptions.builder
+    .proxy('http://proxy:3128')
+    .timeout(5000)
+    .build
+
+  Petstore::Client::Petstore.new(authenticator, transport)
+end
 ```
 
 ### Custom HTTP client
 
 Supply your own `Faraday::Connection` to control the adapter or middleware. The SDK still applies its timeouts, user agent, redirect policy and query encoding on top, and never closes a connection you supplied. Combining it with `proxy`, `ca_cert_path` or `verify_ssl(false)` raises `ArgumentError`; configure those on the connection instead.
 
-```ruby
-connection = Faraday.new { |f| f.adapter :net_http }
-transport = Petstore::Client::TransportOptions.builder.connection(connection).build
+```ruby file
+require 'petstore_client'
 
-client = Petstore::Client::Petstore.new(authenticator, transport)
+def client_with_connection(authenticator)
+  connection = Faraday.new { |f| f.adapter :net_http }
+  transport = Petstore::Client::TransportOptions.builder.connection(connection).build
+
+  Petstore::Client::Petstore.new(authenticator, transport)
+end
 ```
 
 ### Retries
 
 `max_retries` (default `2`; `0` disables) sets how many times a failed request is sent again: after a network error before any response, and after a `408`, `409`, `429` or `5xx` (not `501`) status. The wait is 0.5 seconds doubling to 8 with up to 25% jitter, or the `Retry-After` header (at most 60 seconds). Retries never extend the `timeout` budget, a TLS failure is not retried, and a multipart or stream body is never sent twice.
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 transport = Petstore::Client::TransportOptions.builder.max_retries(0).build
 ```
 
@@ -285,8 +327,13 @@ transport = Petstore::Client::TransportOptions.builder.max_retries(0).build
 
 Every operation takes an optional Options object whose `timeout` (milliseconds), `headers` and `max_retries` apply to that call alone; a member left `nil` keeps the client's value. An operation with no query, header, form or cookie parameter and no security still has one, carrying only these three members.
 
-```ruby
-options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, max_retries: 0)
+```ruby file
+require 'petstore_client'
+
+def get_defaults_within_two_seconds(client)
+  options = Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: 2_000, max_retries: 0)
+  client.store.get_defaults(options)
+end
 ```
 
 ### Hooks and telemetry
@@ -336,7 +383,9 @@ Each API group is exposed as a typed attribute on the client (e.g., `client.pet`
 
 Models are generated as Ruby classes under the `Petstore::Client::Models` namespace.
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 model = Petstore::Client::Models::Account.new(username: 'example')
 model.username
 ```

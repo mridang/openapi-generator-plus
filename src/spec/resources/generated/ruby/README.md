@@ -11,20 +11,26 @@ Auto-generated Ruby SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Installation
 
-Add the gem to your `Gemfile` and run `bundle install`:
+Add the gem to your `Gemfile` and install it with Bundler:
 
-```ruby
-gem 'petstore_client'
+```bash
+bundle add petstore_client
 ```
 
 ## Usage
 
-```ruby
+```ruby statements
 require 'petstore_client'
 
-client = Petstore::Client::Petstore.with_token('https://api.example.com', 'your-token')
-# Call an operation through an API group, e.g. client.<group>.<operation>(...), and read fields off the result.
-client.close
+host = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL')
+token = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN')
+client = Petstore::Client::Petstore.with_token(host, token)
+begin
+  result = client.store.get_defaults
+  pp result
+ensure
+  client.close
+end
 ```
 
 ### Credentials
@@ -109,8 +115,13 @@ A new operation in the API adds a method to the interface, so a fake that must s
 
 Every operation takes an optional Options object, which accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security has an Options object that carries only these three members.
 
-```ruby
-options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+```ruby file
+require 'petstore_client'
+
+def get_defaults_within_two_seconds(client)
+  options = Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+  client.store.get_defaults(options)
+end
 ```
 
 ### `Configuration` and `TransportOptions`
@@ -272,7 +283,9 @@ binary-encoded Ruby `String`s on the model surface — **not** as the
 base64 text from the wire. The transport layer base64-decodes on
 read and base64-encodes (strict, no line breaks) on write.
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 json = '{"seal":"aGVsbG8="}'
 model = Petstore::Client::ObjectSerializer.deserialize(json, 'BinaryVault')
 model.seal.encoding  # => #<Encoding:ASCII-8BIT>

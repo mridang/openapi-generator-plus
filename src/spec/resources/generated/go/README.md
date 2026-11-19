@@ -30,14 +30,18 @@ go get petstore
 
 ## Usage
 
-```go
-import "petstore/pkg"
+```go statements
+import (
+	"os"
 
-client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil)
+	"petstore/pkg"
+)
+
+client, err := petstore.NewClientWithToken(os.Getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"), os.Getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), nil)
 if err != nil {
-    return err
+	return err
 }
-defer client.Close()
+defer func() { _ = client.Close() }()
 ```
 
 Close the client to release its connections: requests already in flight finish, a request sent afterwards returns `ErrClientClosed`, and a second `Close` does nothing. Cancel a single request through its context. Errors satisfy the `OpenAPIError` interface; `NetworkError` and `NetworkTimeoutError` mean no HTTP response arrived, and `TooManyRequestsError` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
@@ -56,10 +60,14 @@ Every operation has a `...WithHTTPInfo` variant returning an `*ApiResult[T]` wit
 
 A failed request is retried automatically, up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries). The retry applies to a network error that happened before a response and to the statuses 408, 409, 429 and 500-599 except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date, capped at 60 seconds) replaces it. The retries never extend the end-to-end `Timeout`: a wait that would outlast it ends the retries and the last failure is returned. Cancelling the context stops them. Every retry is a fresh request, so the authentication headers are applied again. A `multipart/form-data` request is sent once and never retried, because its file parts are streams.
 
-```go
-transport, err := petstore.NewTransportOptionsBuilder().
-    MaxRetries(5).
-    Build()
+```go file
+import "petstore/pkg"
+
+func newTransport() (*petstore.TransportOptions, error) {
+	return petstore.NewTransportOptionsBuilder().
+		MaxRetries(5).
+		Build()
+}
 ```
 
 ### Expired tokens
@@ -146,21 +154,38 @@ Each security scheme has an authenticator of its own in `pkg/auth` (`pkg/auth/oa
 | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` | `userAuth` | `clientSecret` |
 | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` | `userAuth` | `redirectUri` |
 
-```go
-client, err := petstore.NewClientWithTokenProvider("https://api.example.com", func(ctx context.Context) (string, error) {
-    return os.Getenv("API_TOKEN"), nil
-}, nil)
+```go file
+import (
+	"context"
+	"os"
+
+	"petstore/pkg"
+)
+
+func newClient() (*petstore.Client, error) {
+	return petstore.NewClientWithTokenProvider("https://api.example.com", func(ctx context.Context) (string, error) {
+		return os.Getenv("API_TOKEN"), nil
+	}, nil)
+}
 ```
 
 ### Per-call options
 
 Every operation takes any number of `RequestOption` values as its last arguments, including an operation with no parameters and no security, which has no options struct of its own: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.
 
-```go
-callOptions := []petstore.RequestOption{
-    petstore.WithTimeout(2 * time.Second),
-    petstore.WithHeaders(map[string]string{"X-Trace": "abc"}),
-    petstore.WithMaxRetries(0),
+```go file
+import (
+	"time"
+
+	"petstore/pkg"
+)
+
+func newCallOptions() []petstore.RequestOption {
+	return []petstore.RequestOption{
+		petstore.WithTimeout(2 * time.Second),
+		petstore.WithHeaders(map[string]string{"X-Trace": "abc"}),
+		petstore.WithMaxRetries(0),
+	}
 }
 ```
 

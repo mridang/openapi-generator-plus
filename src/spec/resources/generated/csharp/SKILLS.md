@@ -8,11 +8,18 @@ dotnet add package PetstoreClient
 
 ## Quick Start
 
-```csharp
+```csharp statements
 using PetstoreClient;
-using PetstoreClient.Auth;
 
-var client = global::PetstoreClient.Client.WithToken("https://api.example.com", "your-token");
+var host =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_HOST")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_HOST is not set");
+var token =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+using var client = Client.WithToken(host, token);
+var result = await client.Store.GetDefaultsAsync();
+Console.WriteLine(result);
 ```
 
 ## Authentication
@@ -21,7 +28,7 @@ All authentication is handled via `IAuthenticator` implementations passed to the
 
 ### Bearer Token
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth;
 
 var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
@@ -30,7 +37,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 
 ### Basic Auth
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth;
 
 var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
@@ -39,7 +46,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 
 ### API Key
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth;
 
 var authenticator = new ApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", ApiKeyLocation.Header);
@@ -48,7 +55,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 
 ### OAuth2 Client Credentials
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
@@ -59,7 +66,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 
 ### OAuth2 Authorization Code
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2AuthorizationCodeAuthenticator(
@@ -72,7 +79,7 @@ await authenticator.ExchangeCodeAsync("authorization-code");
 
 ### OAuth2 Password
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2PasswordAuthenticator(
@@ -85,7 +92,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ImplicitAuthenticator(
@@ -96,7 +103,7 @@ var client = new global::PetstoreClient.Client(authenticator);
 
 ### OpenID Connect
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OpenIdConnectAuthenticator(
@@ -129,7 +136,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```csharp
+```csharp statements
 using PetstoreClient.Auth.OAuth;
 
 var authenticator = new OAuth2ClientCredentialsAuthenticator(
@@ -141,7 +148,7 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` field (e.g., `Servers.Server0`, `Servers.Server1`, ...) plus a `Servers.All` collection. Pass the desired server's URL to the client:
 
-```csharp
+```csharp statements
 using PetstoreClient;
 
 var client = global::PetstoreClient.Client.WithToken(Servers.Server0.GetUrl(), "your-token");
@@ -151,10 +158,8 @@ var client = global::PetstoreClient.Client.WithToken(Servers.Server0.GetUrl(), "
 
 The `IAuthenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```csharp
+```csharp file
 using PetstoreClient.Auth;
-
-var client = new global::PetstoreClient.Client(new FakeAuthenticator());
 
 public sealed class FakeAuthenticator : IAuthenticator
 {
@@ -162,6 +167,9 @@ public sealed class FakeAuthenticator : IAuthenticator
 
     public Dictionary<string, string> GetAuthHeaders() =>
         new() { ["Authorization"] = "Bearer test-token" };
+
+    public static global::PetstoreClient.Client CreateClient() =>
+        new(new FakeAuthenticator());
 }
 ```
 
@@ -200,36 +208,39 @@ Every error the SDK raises derives from `OpenAPIException`, so one `catch (OpenA
 
 `SerializationException`, `OAuth2ServerException` and `OAuth2TokenException` are siblings of `ApiException`, not subclasses, so a `catch (ApiException)` alone does not handle them; end with a catch of the root type.
 
-```csharp
-using PetstoreClient;
+```csharp file
 using PetstoreClient.Errors;
 using PetstoreClient.Models;
+using PetstoreClient.Api.Options;
 
-async Task AddPetOrReportAsync(global::PetstoreClient.Client client, Pet pet)
+public static class ErrorHandling
 {
-    try
+    public static async Task AddPetOrReportAsync(global::PetstoreClient.Client client, Pet pet, AddPetOptions? options)
     {
-        await client.Pet.AddPetAsync(pet);
-    }
-    catch (NotFoundException e)
-    {
-        Console.WriteLine($"Not found: {e.Message}");
-    }
-    catch (ClientException e)
-    {
-        Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
-    }
-    catch (ServerException e)
-    {
-        Console.WriteLine($"Server error: {e.Message}");
-    }
-    catch (ApiException e)
-    {
-        Console.WriteLine($"API error: {e.Message}");
-    }
-    catch (OpenAPIException e)
-    {
-        Console.WriteLine($"SDK error: {e.Message}");
+        try
+        {
+            await client.Pet.AddPetAsync(pet, options);
+        }
+        catch (NotFoundException e)
+        {
+            Console.WriteLine($"Not found: {e.Message}");
+        }
+        catch (ClientException e)
+        {
+            Console.WriteLine($"Client error {e.StatusCode}: {e.Message}");
+        }
+        catch (ServerException e)
+        {
+            Console.WriteLine($"Server error: {e.Message}");
+        }
+        catch (ApiException e)
+        {
+            Console.WriteLine($"API error: {e.Message}");
+        }
+        catch (OpenAPIException e)
+        {
+            Console.WriteLine($"SDK error: {e.Message}");
+        }
     }
 }
 ```
@@ -238,15 +249,22 @@ async Task AddPetOrReportAsync(global::PetstoreClient.Client client, Pet pet)
 
 ### Custom Transport Options
 
-```csharp
+```csharp file
 using PetstoreClient;
+using PetstoreClient.Auth;
 
-var transport = TransportOptions.Builder()
-    .Proxy("http://proxy:3128")
-    .Timeout(5000)
-    .Build();
+public static class Transport
+{
+    public static global::PetstoreClient.Client ClientWithTransport(IAuthenticator authenticator)
+    {
+        var transport = TransportOptions.Builder()
+            .Proxy("http://proxy:3128")
+            .Timeout(5000)
+            .Build();
 
-var client = new global::PetstoreClient.Client(authenticator, transport);
+        return new global::PetstoreClient.Client(authenticator, transport);
+    }
+}
 ```
 
 The client implements `IDisposable`. Use `using` statements or call `Dispose()` when done.
@@ -311,10 +329,14 @@ All API methods are asynchronous; call them with `await`.
 
 Models are generated as immutable C# records under the `PetstoreClient.Models` namespace: properties are `init`-only, and `var next = model with { Property = value };` copies one.
 
-```csharp
+```csharp file
 using PetstoreClient.Models;
 
-var model = new Account("example");
+public static class Copies
+{
+    public static Account WithSameId(Account model, Account other) =>
+        model with { Id = other.Id };
+}
 ```
 
 ## Binary / File Uploads

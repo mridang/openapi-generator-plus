@@ -319,14 +319,14 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvLangcsharp035SkillsModelSampleSuppliesTheRequiredField()
+    public void BhvLangcsharp035SkillsModelSampleCopiesAModelInsteadOfBuildingOne()
     {
         /* The first model has a required property, so a bare constructor call would
-           not compile; the sample passes a value for it. */
+           not compile; the sample copies a model it is given with a with expression. */
         var skills = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "SKILLS.md"));
 
-        Assert.Contains("var model = new Account(\"example\");", skills, StringComparison.Ordinal);
-        Assert.DoesNotContain("new Account()", skills, StringComparison.Ordinal);
+        Assert.Contains("model with {", skills, StringComparison.Ordinal);
+        Assert.DoesNotContain("new Account(", skills, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -530,4 +530,125 @@ public class MetadataTest
 
         Assert.Contains("\"k\":\"2\"", _serializer.Serialize(metadata), StringComparison.Ordinal);
     }
+{{#generateExamples}}
+
+    private static string Quickstart() =>
+        File.ReadAllText(Path.Combine(ProjectRoot().FullName, "examples", "Quickstart", "Program.cs"));
+
+    private static string ReadRootFile(string name) =>
+        File.ReadAllText(Path.Combine(ProjectRoot().FullName, name));
+
+    /* The info string and the body of every fence tagged csharp, in file order. */
+    private static List<(string Info, string Body)> CSharpFences(string text) =>
+        System.Text.RegularExpressions.Regex.Matches(
+                text,
+                "^```(csharp[^\n]*)\n(.*?)^```$",
+                System.Text.RegularExpressions.RegexOptions.Multiline
+                    | System.Text.RegularExpressions.RegexOptions.Singleline)
+            .Select(match => (match.Groups[1].Value, match.Groups[2].Value))
+            .ToList();
+
+    private static string WithoutWhitespace(string text) =>
+        string.Concat(text.Where(character => !char.IsWhiteSpace(character)));
+
+    [Fact]
+    public void BhvExamples001TheQuickstartBuildsAClientCallsAnOperationAndClosesIt()
+    {
+        var quickstart = Quickstart();
+
+        Assert.Contains("using var client = {{clientClassName}}.WithToken(host, token);", quickstart, StringComparison.Ordinal);
+{{#hasExampleOperation}}
+        Assert.Contains(
+            "await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}{{/exampleOperation}}Async()",
+            quickstart,
+            StringComparison.Ordinal);
+{{/hasExampleOperation}}
+    }
+
+    [Fact]
+    public void BhvExamples002TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment()
+    {
+        var quickstart = Quickstart();
+        var readme = ReadRootFile("README.md");
+
+        foreach (var name in new[] { "{{envVarPrefix}}_HOST", "{{envVarPrefix}}_TOKEN" })
+        {
+            Assert.Contains($"Environment.GetEnvironmentVariable(\"{name}\")", quickstart, StringComparison.Ordinal);
+            Assert.Contains(name, readme, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("your-token", quickstart, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BhvExamples003TheUsageFenceAndTheQuickstartHoldTheSameStatements()
+    {
+        /* The quickstart is formatted by CSharpier and the README is not, so the
+           statements are compared with the whitespace taken out. */
+        var readme = ReadRootFile("README.md");
+        var start = readme.IndexOf("\n## Usage\n", StringComparison.Ordinal);
+        Assert.True(start >= 0, "README.md has no Usage section");
+        var end = readme.IndexOf("\n## ", start + 1, StringComparison.Ordinal);
+        var usage = end < 0 ? readme[start..] : readme[start..end];
+        var fences = CSharpFences(usage);
+        Assert.NotEmpty(fences);
+        var quickstart = WithoutWhitespace(Quickstart());
+
+        var position = 0;
+        foreach (var line in fences[0].Body.Split('\n'))
+        {
+            var statement = WithoutWhitespace(line);
+            var directive =
+                line.StartsWith("using ", StringComparison.Ordinal)
+                && !line.StartsWith("using var ", StringComparison.Ordinal);
+            if (statement.Length == 0 || directive)
+            {
+                continue;
+            }
+            var found = quickstart.IndexOf(statement, position, StringComparison.Ordinal);
+            Assert.True(found >= 0, $"expected the quickstart to hold, in order: {line}");
+            position = found + statement.Length;
+        }
+    }
+
+    [Fact]
+    public void BhvExamples004EveryCSharpFenceDeclaresItsKind()
+    {
+        foreach (var name in new[] { "README.md", "SKILLS.md" })
+        {
+            foreach (var (info, _) in CSharpFences(ReadRootFile(name)))
+            {
+                Assert.True(info is "csharp file" or "csharp statements", $"{name}: {info}");
+            }
+        }
+    }
+
+    [Fact]
+    public void BhvExamples005NoCSharpFenceHoldsAPlaceholderOrAModelBuiltFromNothing()
+    {
+        foreach (var name in new[] { "README.md", "SKILLS.md" })
+        {
+            foreach (var (_, body) in CSharpFences(ReadRootFile(name)))
+            {
+                foreach (var line in body.Split('\n'))
+                {
+                    var stripped = line.Trim();
+                    Assert.False(stripped == "..." || line.Contains("(...)", StringComparison.Ordinal), $"{name}: {line}");
+                    Assert.False(stripped.StartsWith('<') && stripped.EndsWith('>'), $"{name}: {line}");
+                    Assert.False(line.Contains("default!", StringComparison.Ordinal), $"{name}: {line}");
+                    Assert.False(line.Contains("SomeOperation", StringComparison.Ordinal), $"{name}: {line}");
+                }
+            }
+        }
+    }
+
+    [Fact]
+    public void BhvExamples006TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
+    {
+        var makefile = ReadRootFile("Makefile");
+
+        Assert.Contains("\nexamples:\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("\nexamples-run: examples\n", makefile, StringComparison.Ordinal);
+        Assert.Contains("dotnet build examples/Quickstart/Quickstart.csproj", makefile, StringComparison.Ordinal);
+    }
+{{/generateExamples}}
 }

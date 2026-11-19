@@ -15,20 +15,12 @@ pip install {{projectName}}
 
 ## Usage
 
-```python
-import asyncio
+```python statements
+import os
 
 from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
-{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}{{#bodyParam}}{{#isModel}}from {{packageName}}.models import {{{dataType}}}
-{{/isModel}}{{/bodyParam}}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
-async def main() -> None:
-    with {{clientClassName}}.with_token("https://api.example.com", "your-token") as client:
-        result = await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}{{>skills_example_arg}}{{/bodyParam}}){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
-        print(result)
-
-
-asyncio.run(main())
+{{>usage_statements}}
 ```
 
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
@@ -76,8 +68,12 @@ A new operation in the API adds a method to the interface, so a fake that implem
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.
 
-```python
-transport = TransportOptions.builder().max_retries(4).build()
+```python file
+from {{packageName}}.transport_options import TransportOptions
+
+
+def make_transport() -> TransportOptions:
+    return TransportOptions.builder().max_retries(4).build()
 ```
 
 A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported, and a timeout itself is not retried. A stream or multipart body is never retried, and every retry is a new request with freshly built authentication headers.
@@ -141,8 +137,13 @@ This API declares no security scheme, so there are none.
 {{#clientSchemes}}
 {{#-first}}
 
-```python
-client = {{clientClassName}}({{paramName}}={{className}}())
+```python file
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+from {{packageName}}.auth.{{#lambda.snakecase}}{{className}}{{/lambda.snakecase}} import {{className}}
+
+
+def make_client() -> {{clientClassName}}:
+    return {{clientClassName}}({{paramName}}={{className}}("https://api.example.com"))
 ```
 {{/-first}}
 {{/clientSchemes}}
@@ -155,9 +156,16 @@ A cookie parameter is sent exactly as you give it when every character is a lega
 
 Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
 
-```python
-await client.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{clientPropertyName}}.{{#operation}}{{#-first}}{{operationId}}({{#pathParams}}{{>skills_example_arg}}, {{/pathParams}}{{#bodyParam}}{{>skills_example_arg}}, {{/bodyParam}}options={{vendorExtensions.op.optionsClassName}}(timeout=2000, max_retries=0)){{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
+{{#hasExampleOperation}}
+```python file
+from {{packageName}}.api.options import {{#exampleOperation}}{{vendorExtensions.op.optionsClassName}}{{/exampleOperation}}
+from {{packageName}}.{{clientClassFile}} import {{clientClassName}}
+
+
+async def call(client: {{clientClassName}}) -> object:
+    return await client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{#exampleOperation}}{{operationId}}(options={{vendorExtensions.op.optionsClassName}}(timeout=2000, max_retries=0)){{/exampleOperation}}
 ```
+{{/hasExampleOperation}}
 
 A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.
 

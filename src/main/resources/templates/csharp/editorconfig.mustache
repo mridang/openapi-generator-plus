@@ -95,3 +95,11 @@ dotnet_diagnostic.CA1515.severity = none
 # xunit's own analyzer (xUnit1030) forbids ConfigureAwait(false) in a test, as
 # it would let the test leave the runner's synchronization context.
 dotnet_diagnostic.CA2007.severity = none
+{{#generateExamples}}
+
+[examples/**.cs]
+# The examples are applications: an entry point has no caller whose
+# synchronization context ConfigureAwait(false) could protect, so the rule is
+# limited to libraries with the option the analyzer itself offers.
+dotnet_code_quality.CA2007.output_kind = DynamicallyLinkedLibrary
+{{/generateExamples}}

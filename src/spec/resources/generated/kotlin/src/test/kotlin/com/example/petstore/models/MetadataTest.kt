@@ -345,7 +345,7 @@ class MetadataTest {
         val testSources = Regex("""val jvmTest by getting \{\s*kotlin\.srcDirs\(([^)]*)\)""").find(manifest)
         assertNotNull(testSources, "build.gradle.kts must declare the jvmTest source directories")
         assertEquals(
-            listOf("\"src/test/kotlin\"", "\"src/spec/kotlin\""),
+            listOf("\"src/test/kotlin\"", "\"src/spec/kotlin\"", "\"src/examples/kotlin\""),
             testSources!!.groupValues[1].split(",").map { it.trim() },
         )
         val lintSources = Regex("""detekt \{[^}]*source\.setFrom\(files\(([^)]*)\)\)""").find(manifest)
@@ -569,5 +569,98 @@ class MetadataTest {
         val metadata = ObjectSerializer().deserialize<Metadata>("{\"toString\":\"x\",\"hashCode\":\"y\"}")
         assertEquals("x", metadata!!.additionalProperties["toString"])
         assertEquals("y", metadata.additionalProperties["hashCode"])
+    }
+
+    private fun quickstart(): String {
+        val folder = "src/examples/kotlin/" + "com.example.petstore".replace('.', '/')
+        return java.io.File("$folder/examples/Quickstart.kt").readText()
+    }
+
+    /** The info string and the body of every fence tagged kotlin, in file order. */
+    private fun kotlinFences(text: String): List<Pair<String, String>> =
+        Regex("^```(kotlin[^\\n]*)\\n(.*?)^```$", setOf(RegexOption.MULTILINE, RegexOption.DOT_MATCHES_ALL))
+            .findAll(text)
+            .map { it.groupValues[1] to it.groupValues[2] }
+            .toList()
+
+    @Test
+    @DisplayName("bhvExamples001 the quickstart builds a client, calls an operation and closes the client")
+    fun bhvExamples001TheQuickstartBuildsAClientCallsAnOperationAndClosesIt() {
+        val quickstart = quickstart()
+        assertTrue(quickstart.contains("fun main()"), "the quickstart must have a main function")
+        assertTrue(quickstart.contains("Client.withToken(host, token).use { client ->"), "the client must be closed by use")
+        val call = "client.store.getDefaults()"
+        assertTrue(quickstart.contains("runBlocking { $call }"), "the quickstart must call $call")
+    }
+
+    @Test
+    @DisplayName("bhvExamples002 the quickstart reads the host and the token from the environment variables the README names")
+    fun bhvExamples002TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() {
+        val quickstart = quickstart()
+        val readme = java.io.File("README.md").readText()
+        for (name in listOf("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")) {
+            assertTrue(quickstart.contains("System.getenv(\"$name\")"), "the quickstart must read $name")
+            assertTrue(readme.contains(name), "the README must name $name")
+        }
+        assertFalse(quickstart.contains("your-token"), "the quickstart must hold no literal credential")
+    }
+
+    @Test
+    @DisplayName("bhvExamples003 the README Usage fence and the quickstart hold the same statements")
+    fun bhvExamples003TheUsageFenceAndTheQuickstartHoldTheSameStatements() {
+        val usage =
+            java.io
+                .File("README.md")
+                .readText()
+                .substringAfter("\n## Usage\n")
+                .substringBefore("\n## ")
+        val fences = kotlinFences(usage)
+        assertFalse(fences.isEmpty(), "expected a kotlin fence in the Usage section")
+        val quickstart = quickstart()
+        var position = 0
+        for (line in fences.first().second.lines()) {
+            val statement = line.trim()
+            if (statement.isEmpty() || statement.startsWith("import ")) {
+                continue
+            }
+            val found = quickstart.indexOf(statement, position)
+            assertTrue(found >= 0, "expected the quickstart to hold, in order: $statement")
+            position = found + statement.length
+        }
+    }
+
+    @Test
+    @DisplayName("bhvExamples004 every kotlin fence of the README and SKILLS files declares its kind")
+    fun bhvExamples004EveryKotlinFenceDeclaresItsKind() {
+        for (name in listOf("README.md", "SKILLS.md")) {
+            for ((info, _) in kotlinFences(java.io.File(name).readText())) {
+                assertTrue(info == "kotlin file" || info == "kotlin statements", "$name: $info")
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvExamples005 no kotlin fence holds a placeholder line or a model built from nothing")
+    fun bhvExamples005NoKotlinFenceHoldsAPlaceholderOrAModelBuiltFromNothing() {
+        for (name in listOf("README.md", "SKILLS.md")) {
+            for ((_, body) in kotlinFences(java.io.File(name).readText())) {
+                for (line in body.lines()) {
+                    val stripped = line.trim()
+                    assertFalse(stripped == "..." || line.contains("(...)"), "$name: $line")
+                    assertFalse(stripped.startsWith("<") && stripped.endsWith(">"), "$name: $line")
+                    assertFalse(line.contains("TODO()"), "$name: $line")
+                    assertFalse(line.contains("someApi") || line.contains("SomeOperation"), "$name: $line")
+                }
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvExamples006 the Makefile has an examples target that builds the examples directory")
+    fun bhvExamples006TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory() {
+        val makefile = java.io.File("Makefile").readText()
+        assertTrue(makefile.contains("\nexamples:\n"), "the Makefile must have an examples target")
+        assertTrue(makefile.contains("\nexamples-run: examples\n"), "the Makefile must have an examples-run target")
+        assertTrue(makefile.contains("src/examples/kotlin"), "the examples target must name the examples directory")
     }
 }

@@ -88,6 +88,7 @@ The variable for a field is `{PREFIX}_{FIELD}` in upper snake case, for example 
 - Server URLs are module constants `SERVER_0`, `SERVER_1` and so on, with one `Enum` per server variable.
 - Names follow PEP 8: snake_case operations, attributes and modules.
 - Testing your code: `<Group>ApiProtocol(Protocol)` in the group file and `ClientProtocol(Protocol)` in the client file, both exported from `__init__`. `PetApi` is not changed: it satisfies the protocol structurally, and a fake subclasses the protocol so only the operations it fakes are written (the stubs return `None`).
+- With `generateExamples` on, the package ships `examples/quickstart.py`, a script that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_ACCESS_TOKEN`, calls the example operation inside `with ... as client:` and runs through `asyncio.run(main())`; `make examples` type-checks everything under `examples/` with mypy and byte-compiles it, and `make examples-run` runs the quickstart. `pyproject.toml` packages only the SDK package, so `examples/` never ships in the wheel.
 
 ## Recipes
 

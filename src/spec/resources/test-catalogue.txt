@@ -2524,7 +2524,7 @@ langcsharp031 | Every dev dependency the test suite uses is declared in the proj
 langcsharp032 | The project file writes the documentation file and packs the readme and symbols
 langcsharp033 | The readme documents the behaviour that most surprises callers
 langcsharp034 | The readme names the versioning policy the package follows
-langcsharp035 | The skills model sample supplies every required field
+langcsharp035 | The skills model sample copies a model it is given with a with expression instead of building one
 langcsharp036 | The makefile carries a dependency audit target
 langcsharp037 | An enum query parameter is sent as its wire value
 langcsharp038 | An enum header parameter is sent as its wire value
@@ -3200,3 +3200,9 @@ sse013 | An SSE reconnect rebuilds the headers so a refreshed token is the one s
 sse014 | An SSE retry field that is not digits and an id containing NUL are ignored
 sse015 | An idle timeout on an SSE stream counts as a lost connection and reconnects
 sse016 | An SSE request with a single use body is not reconnected
+examples001 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+examples002 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+examples003 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+examples004 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+examples005 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+examples006 | The SDK Makefile has an examples target that builds every file under examples

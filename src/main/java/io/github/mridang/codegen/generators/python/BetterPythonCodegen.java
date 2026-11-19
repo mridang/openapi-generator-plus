@@ -596,7 +596,7 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
         final String modelPath = Path.of(packagePath, "models").toString();
         final String errorsPath = Path.of(packagePath, "errors").toString();
         final String authPath = Path.of(packagePath, "auth").toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("models/__init__.mustache", modelPath, "__init__.py"),
@@ -654,7 +654,11 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec("editorconfig.mustache", "", ".editorconfig"),
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore")
-        );
+        ));
+        if (generateExamples) {
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.py"));
+        }
+        return specs;
     }
 
     @Override
