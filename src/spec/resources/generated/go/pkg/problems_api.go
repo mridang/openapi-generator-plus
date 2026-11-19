@@ -175,6 +175,15 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -312,6 +321,15 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -449,6 +467,15 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -586,6 +613,15 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -723,6 +759,15 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -862,6 +907,15 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "PUT", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */

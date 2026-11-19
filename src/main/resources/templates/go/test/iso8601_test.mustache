@@ -253,12 +253,50 @@ func TestBhvLanggo051_Iso8601_TimeOfDay_RoundTrip(t *testing.T) {
 	}
 }
 
-// A time of day is written as HH:MM:SS with its milliseconds truncated.
-func TestBhvMisc241_Iso8601_FormatTimeOfDay_TruncatesMilliseconds(t *testing.T) {
+// A time of day keeps non-zero milliseconds and drops any finer precision.
+func TestBhvMisc241_Iso8601_FormatTimeOfDay_KeepsMillisecondsAndDropsFinerPrecision(t *testing.T) {
 	t.Parallel()
-	at := time.Date(2024, 1, 2, 3, 4, 5, 678000000, time.UTC)
-	if got := {{packageName}}.FormatTimeOfDay(at); got != "03:04:05" {
+	for in, want := range map[int]string{999999000: "03:04:05.999", 678000000: "03:04:05.678", 0: "03:04:05", 400000: "03:04:05"} {
+		at := time.Date(2024, 1, 2, 3, 4, 5, in, time.UTC)
+		if got := {{packageName}}.FormatTimeOfDay(at); got != want {
+			t.Errorf("expected %s, got %q", want, got)
+		}
+	}
+}
+
+// A time of day is zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
+func TestBhvSerialization078_Iso8601_FormatTimeOfDay_FractionOnlyWhenSubSecond(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.FormatTimeOfDay(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC)); got != "03:04:05" {
 		t.Errorf("expected 03:04:05, got %q", got)
+	}
+	if got := {{packageName}}.FormatTimeOfDay(time.Date(2024, 1, 2, 3, 4, 5, 250000000, time.UTC)); got != "03:04:05.250" {
+		t.Errorf("expected 03:04:05.250, got %q", got)
+	}
+}
+
+// A time of day stringifies as HH:mm:ss, with .SSS only for a non-zero millisecond part.
+func TestBhvSerializationobject164_Iso8601_FormatTimeOfDay_StringifiesWithMillisecondsOnlyWhenNonZero(t *testing.T) {
+	t.Parallel()
+	if got := {{packageName}}.FormatTimeOfDay(time.Date(2024, 1, 2, 9, 0, 0, 7000000, time.UTC)); got != "09:00:00.007" {
+		t.Errorf("expected 09:00:00.007, got %q", got)
+	}
+	if got := {{packageName}}.FormatTimeOfDay(time.Date(2024, 1, 2, 9, 0, 0, 0, time.UTC)); got != "09:00:00" {
+		t.Errorf("expected 09:00:00, got %q", got)
+	}
+}
+
+// A time of day round-trips through its string form and back to the same time.
+func TestBhvSerialization092_Iso8601_TimeOfDay_RoundTripsThroughItsStringForm(t *testing.T) {
+	t.Parallel()
+	for _, original := range []string{"03:04:05", "23:59:59.999", "00:00:00.001"} {
+		parsed, err := {{packageName}}.ParseTimeOfDay(original)
+		if err != nil {
+			t.Fatalf("parse %q: %v", original, err)
+		}
+		if got := {{packageName}}.FormatTimeOfDay(parsed); got != original {
+			t.Errorf("round-trip mismatch: original=%q got=%q", original, got)
+		}
 	}
 }
 
@@ -298,8 +336,8 @@ func TestBhvMisc251_Iso8601_UnmarshalDuration_DayDesignatorIsRejected(t *testing
 	}
 }
 
-// A fractional second is written with trailing zeros trimmed, keeping only the digits present.
-func TestBhvMisc256_Iso8601_MarshalDuration_TrailingZerosAreTrimmed(t *testing.T) {
+// A duration fraction is never trimmed below three digits, so 1.5 seconds is 1.500s.
+func TestBhvMisc256_Iso8601_MarshalDuration_FractionIsNeverTrimmedBelowThreeDigits(t *testing.T) {
 	t.Parallel()
 	if got := {{packageName}}.MarshalDurationProtoJSON(1100 * time.Millisecond); got != "1.100s" {
 		t.Errorf("expected 1.100s, got %q", got)

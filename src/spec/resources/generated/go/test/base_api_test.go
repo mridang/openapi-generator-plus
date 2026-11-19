@@ -1423,6 +1423,24 @@ func TestBhvSerializationwire018_BaseApi_BinaryResponse_OctetStreamDecodedFromBa
 	}
 }
 
+// A binary return type gets the raw bytes of a JSON body.
+func TestBhvSerializationwire060_BaseApi_BinaryReturnGetsTheRawBytesOfAJsonBody(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        `{"a":1}`,
+		responseContentType: "application/json",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(got) != `{"a":1}` {
+		t.Errorf("expected the raw JSON bytes, got %q", got)
+	}
+}
+
 // encodeBase64 encodes bytes to a standard base64 string.
 // Query names and values percent-encode reserved characters, so a value cannot add
 // a parameter of its own.
@@ -1618,6 +1636,23 @@ func TestBhvErrors035_BaseApi_BinaryResponse_TextPlainBodyForModelReturnIsASeria
 	}
 	if got != nil {
 		t.Errorf("expected no model for a plain-text body, got %+v", got)
+	}
+}
+
+func TestBhvMisc081_BaseApi_StringResultUnderBinaryContentTypeIsTheDecodedBody(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "aGVsbG8=",
+		responseContentType: "application/pdf",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	got, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{Session: "s"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "hello" {
+		t.Errorf("expected the decoded body hello, got %q", got)
 	}
 }
 

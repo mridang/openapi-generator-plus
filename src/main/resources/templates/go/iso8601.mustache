@@ -46,12 +46,13 @@ func UnmarshalDurationProtoJSON(s string) (time.Duration, error) {
 }
 
 // FormatTimeOfDay returns the HH:MM:SS portion of a time.Time, matching
-// the wire format for OAS `format: time` (RFC 3339 partial-time). Sub-
-// second precision is dropped to keep parity with the other generators
-// (Java LocalTime#toString, C# TimeOnly, Python datetime.time isoformat
-// at second granularity for spec values).
+// the wire format for OAS `format: time` (RFC 3339 partial-time). Non-zero
+// milliseconds are kept as .SSS and any finer precision is dropped (D103).
 func FormatTimeOfDay(t time.Time) string {
-	return t.Format("15:04:05")
+	if t.Nanosecond()/1000000 == 0 {
+		return t.Format("15:04:05")
+	}
+	return t.Format("15:04:05.000")
 }
 
 // ParseTimeOfDay parses an ISO-8601 partial-time string (HH:MM:SS or
