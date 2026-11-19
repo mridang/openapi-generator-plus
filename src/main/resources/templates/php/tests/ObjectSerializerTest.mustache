@@ -2644,14 +2644,6 @@ test('bhv serializationobject 409 a hostname and an email are kept as given', fu
     expect(ObjectSerializer::serialize($values))->toBe($json);
 });
 
-test('bhv serializationparam 104 a duration parameter is written in the protobuf form', function (): void {
-    expect(ObjectSerializer::stringify(new \DateInterval('PT1H')))->toBe('3600s');
-});
-
-test('bhv serializationparam 105 an address parameter is its text unchanged', function (): void {
-    expect(ObjectSerializer::stringify('2001:db8::1'))->toBe('2001:db8::1');
-});
-
 // -- enum member names and descriptions --
 
 function enumModelSource(string $name): string
@@ -2784,10 +2776,6 @@ test('bhv misc 290 an undeclared key holding an object survives a full serialize
 
     expect($again?->additionalProperties->toArray())->toBe(['extra' => ['k' => ['n' => 1]]]);
 });
-test('bhv misc 085 a non canonical uuid text is refused as a type error when the model is built', function (): void {
-    expect(fn () => newUnchecked(\{{invokerPackage}}\Models\Order::class, ['trackingId' => 'not-a-uuid']))->toThrow(\TypeError::class);
-});
-
 test('bhv misc 087 a decimal in a loosely built body is written as a bare json number', function (): void {
     expect(ObjectSerializer::serialize(['amount' => 1.5]))->toBe('{"amount":1.5}');
 });

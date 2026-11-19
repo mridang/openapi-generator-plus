@@ -13,7 +13,13 @@ declare(strict_types=1);
 
 namespace PetstoreClient\Test;
 
+use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\BasicAuthenticator;
+use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
+use PetstoreClient\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
+use PetstoreClient\Auth\OAuth\OAuth2PasswordAuthenticator;
+use PetstoreClient\Auth\OAuth\OpenIdConnectAuthenticator;
 use PetstoreClient\Auth\PetStoreBasicAuthenticator;
 
 test('bhv authbasic 011 valid credentials produce basic header', function (): void {
@@ -72,13 +78,24 @@ test('bhv authbasic 006 redacts secret', function (): void {
 });
 
 test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
-    $sensitive = [];
-    foreach ((new \ReflectionMethod(BasicAuthenticator::class, '__construct'))->getParameters() as $param) {
-        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
-            $sensitive[] = $param->getName();
+    $expected = [
+        BasicAuthenticator::class => ['password'],
+        BearerAuthenticator::class => ['token'],
+        ApiKeyAuthenticator::class => ['apiKey'],
+        OAuth2PasswordAuthenticator::class => ['clientSecret', 'password'],
+        OAuth2ClientCredentialsAuthenticator::class => ['clientSecret'],
+        OAuth2AuthorizationCodeAuthenticator::class => ['clientSecret'],
+        OpenIdConnectAuthenticator::class => ['clientSecret'],
+    ];
+    foreach ($expected as $class => $names) {
+        $sensitive = [];
+        foreach ((new \ReflectionMethod($class, '__construct'))->getParameters() as $param) {
+            if ($param->getAttributes(\SensitiveParameter::class) !== []) {
+                $sensitive[] = $param->getName();
+            }
         }
+        expect($sensitive)->toBe($names);
     }
-    expect($sensitive)->toBe(['password']);
 });
 
 test('bhv authbasic 004 non ascii credentials are encoded as utf 8 bytes', function (): void {
@@ -190,6 +207,20 @@ test('bhv langphp 050 the base class reads no environment variable', function ()
         }
         expect($message)->toBe('Basic auth credentials are required: pass a username and a password');
     });
+    $bearerName = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $bearerPrevious = getenv($bearerName);
+    putenv($bearerName . '=from-environment');
+    try {
+        $message = '';
+        try {
+            new BearerAuthenticator('https://api.example.com');
+        } catch (\InvalidArgumentException $e) {
+            $message = $e->getMessage();
+        }
+        expect($message)->toBe('Bearer token is required: pass a token or a token provider');
+    } finally {
+        putenv($bearerPrevious === false ? $bearerName : $bearerName . '=' . $bearerPrevious);
+    }
 });
 
 test('bhv authbasic 005 password is not leaked in default to string', function (): void {
@@ -314,9 +345,11 @@ test('bhv auth 036 a basic username containing a colon is refused at constructio
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bhv misc 193 a basic scheme sends the same header as its base authenticator and rejects invalid input the same way', function (): void {
+test('bhv misc 193 a basic and a bearer scheme send the same header as their base authenticators, and a basic scheme rejects invalid input the same way', function (): void {
     $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
     expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Basic ' . base64_encode('alice:s3cret')]);
+    $bearer = new BearerAuthenticator('https://api.example.com', 'xyz');
+    expect($bearer->getAuthHeaders())->toBe(['Authorization' => 'Bearer xyz']);
 
     expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
         ->toThrow(\InvalidArgumentException::class);

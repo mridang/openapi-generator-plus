@@ -48,10 +48,11 @@ namespace {
         expect(ValueSerializer::encodeContentCookie('{"a":1.5}'))->toBe('%7B%22a%22%3A1%2E5%7D');
     });
 
-    test('bhv serializationparam 104 a content cookie keeps only the unreserved set literal', function (): void {
+    test('bhv serializationparam 104 a content cookie keeps only the unreserved set literal, and a duration parameter is written in the protobuf form', function (): void {
         expect(ValueSerializer::encodeContentCookie('AZaz09-_~'))->toBe('AZaz09-_~');
         expect(ValueSerializer::encodeContentCookie('.'))->toBe('%2E');
         expect(ValueSerializer::encodeContentCookie("!'()*,"))->toBe('%21%27%28%29%2A%2C');
+        expect(ObjectSerializer::stringify(new \DateInterval('PT1H')))->toBe('3600s');
     });
 
     test('bhv serializationparam 062 path null returns empty string', function (): void {
@@ -377,8 +378,9 @@ namespace {
         expect(ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false))->toBe('5');
     });
 
-    test('bhv serializationparam 105 a form scalar serializes styled as its own value', function (): void {
+    test('bhv serializationparam 105 a form scalar serializes styled as its own value, and an address parameter is its text unchanged', function (): void {
         expect(ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'form', true))->toBe('blue');
+        expect(ObjectSerializer::stringify('2001:db8::1'))->toBe('2001:db8::1');
     });
 
     test('bhv serializationparam 035 empty style falls back', function (): void {

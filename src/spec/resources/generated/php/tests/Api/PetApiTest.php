@@ -27,6 +27,7 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Errors\ApiException;
 use PetstoreClient\Errors\SerializationException;
 use PetstoreClient\Test\CapturingApiClient;
+use PetstoreClient\Test\TestableApi;
 use PetstoreClient\Auth\AdminBasicAuthenticator;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyHeaderAuthenticator;
@@ -1599,7 +1600,7 @@ test('bhv operations 065 get pet by name sends the required query param when sup
     expect($captured->headers)->not->toBeEmpty();
 });
 
-test('bhv operations 157 get pet by note sends a null required nullable query parameter as an empty value', function (): void {
+test('bhv operations 157 get pet by note sends a null required nullable query parameter as an empty value, and a binary body is sent as raw bytes whatever its input type', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
     try {
@@ -1609,6 +1610,26 @@ test('bhv operations 157 get pet by note sends a null required nullable query pa
     }
 
     expect($captured->url)->toEndWith('?note=&rank=3');
+
+    foreach (['string', 'resource', 'psr7'] as $kind) {
+        $binaryClient = new CapturingApiClient();
+        $binaryApi = new TestableApi($binaryClient, new Configuration('http://localhost'));
+        $resource = fopen('php://memory', 'r+');
+        expect($resource)->not->toBeFalse();
+        assert(is_resource($resource));
+        fwrite($resource, 'raw-bytes');
+        rewind($resource);
+        $body = match ($kind) {
+            'string' => 'raw-bytes',
+            'resource' => $resource,
+            default => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('raw-bytes'),
+        };
+
+        $binaryApi->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream');
+
+        expect($binaryClient->capturedBody)->toBe('raw-bytes');
+        fclose($resource);
+    }
 });
 
 test('bhv operations 158 get pet by note sends every null required nullable query parameter in declaration order, and a header supplied on an individual call is sent with that call', function (): void {

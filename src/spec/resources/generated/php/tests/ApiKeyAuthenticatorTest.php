@@ -97,16 +97,6 @@ test('bhv authapikey 008 api key header rejects non ascii at construction', func
         ->toThrow(\InvalidArgumentException::class);
 });
 
-test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
-    $sensitive = [];
-    foreach ((new \ReflectionMethod(ApiKeyAuthenticator::class, '__construct'))->getParameters() as $param) {
-        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
-            $sensitive[] = $param->getName();
-        }
-    }
-    expect($sensitive)->toBe(['apiKey']);
-});
-
 test('bhv authapikey 013 valid cookie key is emitted through cookie params only', function (): void {
     $auth = new ApiKeyAuthenticator('https://api.example.com', 'session', 'abc123', ApiKeyLocation::COOKIE);
 
@@ -238,12 +228,22 @@ test('bhv authscheme 001 the api key is read from the environment when none is p
     });
 });
 
-test('bhv lifecycle 025 the api key environment variable is read once, when the authenticator is built', function (): void {
+test('bhv lifecycle 025 reads the environment once, when the authenticator is built', function (): void {
     withApiKeyEnvironment('first', function (): void {
         $auth = new ApiKeyHeaderAuthenticator('https://api.example.com');
         putenv('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY=second');
         expect(sentApiKeys($auth))->toBe(['first']);
     });
+    $bearerName = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $bearerPrevious = getenv($bearerName);
+    putenv($bearerName . '=first');
+    try {
+        $bearerAuth = new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com');
+        putenv($bearerName . '=second');
+        expect($bearerAuth->getAuthHeaders()['Authorization'])->toBe('Bearer first');
+    } finally {
+        putenv($bearerPrevious === false ? $bearerName : $bearerName . '=' . $bearerPrevious);
+    }
 });
 
 test('bhv authscheme 012 an empty or unset environment api key is treated as unset and fails naming the variable', function (?string $value): void {

@@ -239,16 +239,6 @@ test('bhv authoauthtwoclientcred 007 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
-test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
-    $sensitive = [];
-    foreach ((new \ReflectionMethod(OAuth2ClientCredentialsAuthenticator::class, '__construct'))->getParameters() as $param) {
-        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
-            $sensitive[] = $param->getName();
-        }
-    }
-    expect($sensitive)->toBe(['clientSecret']);
-});
-
 test('bhv authoauthtwoclientcred 001 client credentials basic auth keeps only the unreserved characters literal', function (): void {
     /* R8-10: exactly '-._~' stay literal; '*', '!', the quote and the
      * parentheses are percent-encoded in the Basic client credentials. */

@@ -339,16 +339,6 @@ test('bhv authoauthtwoauthcode 019 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
-test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
-    $sensitive = [];
-    foreach ((new \ReflectionMethod(OAuth2AuthorizationCodeAuthenticator::class, '__construct'))->getParameters() as $param) {
-        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
-            $sensitive[] = $param->getName();
-        }
-    }
-    expect($sensitive)->toBe(['clientSecret']);
-});
-
 test('bhv authoauthtwoauthcode 024 auth code sends the code grant to the token url and the refresh grant to the refresh url', function (?string $refreshUrl, string $expectedRefreshTarget): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode([
