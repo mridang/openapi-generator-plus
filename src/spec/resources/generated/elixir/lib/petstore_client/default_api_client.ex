@@ -552,7 +552,8 @@ defmodule PetstoreClient.DefaultApiClient do
   @doc """
   Decode a response body to a binary string honouring the `charset` directive
   parsed from the `Content-Type` header. Defaults to UTF-8 when no charset is
-  provided. Falls back to the raw bytes (treated as UTF-8) when the charset is
+  provided. A byte that is invalid in UTF-8 is replaced with U+FFFD, one per
+  bad byte. Falls back to the raw bytes (treated as UTF-8) when the charset is
   unknown or conversion fails -- never raises.
 
   This is exposed for use by error-body decoding paths as well.
@@ -566,10 +567,10 @@ defmodule PetstoreClient.DefaultApiClient do
         body
 
       "utf-8" ->
-        body
+        String.replace_invalid(body)
 
       "utf8" ->
-        body
+        String.replace_invalid(body)
 
       "us-ascii" ->
         body
@@ -1049,7 +1050,9 @@ defmodule PetstoreClient.DefaultApiClient do
 
               stripped_headers =
                 if cross_origin do
-                  strip_sensitive_headers(headers)
+                  headers
+                  |> strip_sensitive_headers()
+                  |> drop_default_headers(client.transport_options.default_headers)
                 else
                   headers
                 end
@@ -1230,6 +1233,16 @@ defmodule PetstoreClient.DefaultApiClient do
     |> Map.new()
   end
 
+  # The transport's default headers are meant for the API origin only, so a
+  # redirect to another origin does not carry them (matched by name, any case).
+  defp drop_default_headers(headers, defaults) when is_map(headers) do
+    names = defaults |> Map.keys() |> Enum.map(&String.downcase(to_string(&1))) |> MapSet.new()
+
+    headers
+    |> Enum.reject(fn {k, _v} -> MapSet.member?(names, String.downcase(to_string(k))) end)
+    |> Map.new()
+  end
+
   defp strip_body_headers(headers) when is_map(headers) do
     Enum.reject(headers, fn {k, _v} ->
       String.downcase(to_string(k)) in ["content-type", "content-length"]
@@ -1237,7 +1250,9 @@ defmodule PetstoreClient.DefaultApiClient do
     |> Map.new()
   end
 
-  defp prepare_body(nil, headers), do: {nil, Map.delete(headers, "Content-Type")}
+  defp prepare_body(nil, headers) do
+    {nil, Map.reject(headers, fn {k, _v} -> String.downcase(to_string(k)) == "content-type" end)}
+  end
 
   defp prepare_body(body, headers) when is_map(body) and not is_struct(body) do
     boundary = generate_uuid()
@@ -1326,14 +1341,14 @@ defmodule PetstoreClient.DefaultApiClient do
 
   # Validate/escape a multipart form field name before
   # interpolating it into a Content-Disposition header. Rejects
-  # CR/LF/NUL (header-injection) and backslash-escapes embedded
-  # quotes and backslashes.
+  # CR/LF/NUL (header-injection) and quotes, and backslash-escapes
+  # any backslash.
   defp sanitize_multipart_field_name(name) do
     str = to_string(name)
 
-    if String.contains?(str, ["\r", "\n", <<0>>]) do
+    if String.contains?(str, ["\r", "\n", <<0>>, "\""]) do
       raise ArgumentError,
-            "multipart field name must not contain CR, LF, or NUL characters (got: #{inspect(str)})"
+            "multipart field name must not contain CR, LF, NUL or quote characters (got: #{inspect(str)})"
     end
 
     escape_quoted(str)

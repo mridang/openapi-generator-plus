@@ -1098,7 +1098,10 @@ public class OpenIdConnectAuthenticatorTest
         _ = await auth.BuildAuthorizationUrlAsync("s");
 
         var exchange = auth.ExchangeCodeAsync("oidc-code");
-        await client.Entered.WaitAsync(TimeSpan.FromSeconds(5));
+        await client.Entered.WaitAsync(
+            TimeSpan.FromSeconds(5),
+            TestContext.Current.CancellationToken
+        );
         Uri url = await auth.BuildAuthorizationUrlAsync("s");
         client.Release();
         await exchange;

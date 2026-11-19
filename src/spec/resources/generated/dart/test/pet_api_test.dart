@@ -982,6 +982,7 @@ void main() {
           await api.getStagingPetInfo(
             1,
             _LocalStagingPetInfoServer('http://localhost:${server.port}'),
+            null,
           );
 
           expect(received, isTrue);

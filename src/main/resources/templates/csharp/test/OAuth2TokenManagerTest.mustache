@@ -1525,6 +1525,7 @@ public class OAuth2TokenManagerTest
         manager.SetApiClient(client);
 
         _ = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant(), cancellationToken: TestContext.Current.CancellationToken);
+        manager.InvalidateAccessToken();
         var second = await manager.GetAccessTokenAsync(TokenUrl, ClientCredentialsGrant(), cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal("tok2", second);

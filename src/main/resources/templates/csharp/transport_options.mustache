@@ -274,7 +274,8 @@ public sealed class TransportOptionsBuilder
     /// <remarks>The URL is validated by <see cref="Build"/>, not here.</remarks>
     public TransportOptionsBuilder Proxy(string? proxy)
     {
-        _proxy = proxy;
+        /* An empty string clears a proxy set earlier, the same as null. */
+        _proxy = string.IsNullOrEmpty(proxy) ? null : proxy;
         return this;
     }
 

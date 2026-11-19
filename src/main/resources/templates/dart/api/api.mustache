@@ -566,19 +566,24 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
       },
 {{/vendorExtensions.op.hasErrorSchemaResponses}}
 {{#vendorExtensions.op.hasMultiple2xx}}
-{{! Several distinct 2xx schemas: the body is decoded by the status code the }}
-{{! server answered with, never by trying the variants in turn. }}
+{{! Several distinct 2xx schemas: a status a row declares is decoded by that row. }}
+{{! A success status no row names decodes as the first declared success type the }}
+{{! body fits, in declaration order; when none fits the last refusal is raised. }}
       deserializeByStatus: (body, statusCode) {
 {{#vendorExtensions.op.successResponses}}
-{{^isLast}}
         if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode == {{statusCode}}{{/isRange}}) {
           return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
         }
-{{/isLast}}
-{{#isLast}}
-        return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
-{{/isLast}}
 {{/vendorExtensions.op.successResponses}}
+        final failures = <SerializationException>[];
+{{#vendorExtensions.op.successResponses}}
+        try {
+          return {{{vendorExtensions.op.successUnionType}}}(deserialize(body, {{{returnType}}}.fromJson) as {{{returnType}}});
+        } on SerializationException catch (e) {
+          failures.add(e);
+        }
+{{/vendorExtensions.op.successResponses}}
+        throw failures.last;
       },
 {{/vendorExtensions.op.hasMultiple2xx}}
 {{^vendorExtensions.op.hasMultiple2xx}}

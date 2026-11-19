@@ -1373,27 +1373,20 @@ public class PetApiTest
     [Fact]
     public async Task BhvOperations163ABodylessCallSendsNoContentTypeWhateverTheDefaultHeaderCase()
     {
-        var client = new HeaderCapturingApiClient();
+        var handler = new CapturingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
         var config = Configuration
             .Builder()
             .BaseUrl("http://localhost")
             .DefaultHeader("content-type", "application/json")
             .Build();
-        var api = new PetApi(client, config);
+        var api = new PetApi(new DefaultApiClient(transport), config);
 
-        try
-        {
-            await api.GetPetByIdAsync(1L);
-        }
-        catch (OpenAPIException)
-        {
-            // The request is captured before the empty body fails to deserialize.
-        }
+        _ = await api.GetPetByIdAsync(1L);
 
-        Assert.False(
-            client.CapturedHeaders.Keys.Any(key =>
-                string.Equals(key, "Content-Type", StringComparison.OrdinalIgnoreCase)
-            )
+        Assert.DoesNotContain(
+            handler.HeaderNames,
+            name => string.Equals(name, "Content-Type", StringComparison.OrdinalIgnoreCase)
         );
     }
 
@@ -1474,12 +1467,19 @@ public class PetApiTest
     {
         public string? Authorization { get; private set; }
 
+        public List<string> HeaderNames { get; } = new();
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
             Authorization = request.Headers.Authorization?.ToString();
+            HeaderNames.AddRange(request.Headers.Select(header => header.Key));
+            if (request.Content != null)
+            {
+                HeaderNames.AddRange(request.Content.Headers.Select(header => header.Key));
+            }
             return Task.FromResult(
                 new HttpResponseMessage(System.Net.HttpStatusCode.OK)
                 {

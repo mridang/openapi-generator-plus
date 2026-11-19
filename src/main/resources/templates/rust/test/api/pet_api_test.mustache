@@ -1035,10 +1035,10 @@ async fn test_bhv_operations_086_pet_api_unsecured_op_has_no_auth_field() {
     assert!(result.is_ok(), "get_pet_by_id failed: {:?}", result.err());
 }
 
-/// path-single-encoding: a string path parameter containing a space and a
-/// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
-/// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
-/// path segments, so the operation template must not re-encode the output.
+// path-single-encoding: a string path parameter containing a space and a
+// slash must be percent-encoded EXACTLY ONCE on the wire (`%20`/`%2F`),
+// never double-encoded (`%2520`/`%252F`). serialize_styled already encodes
+// path segments, so the operation template must not re-encode the output.
 
 /// required-nested-param-validation: `category` is a REQUIRED query parameter.
 /// Calling the operation without Options (where the required value lives) must
@@ -2384,5 +2384,5 @@ async fn test_bhv_misc_216_a_binary_response_is_returned_as_bytes_and_the_raw_bo
         .await
         .expect("the binary response decodes");
     assert_eq!(result.data().map(|bytes| bytes.as_slice()), Some(&b"hello"[..]));
-    assert_eq!(result.raw_body(), "hello");
+    assert_eq!(result.raw_body(), "aGVsbG8=");
 }

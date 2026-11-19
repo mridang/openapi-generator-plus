@@ -528,6 +528,7 @@ internal partial class ObjectSerializer
         options.Converters.Add(new IPAddressConverter());
         options.Converters.Add(new LiteralStringConverter());
         options.Converters.Add(new FiniteDoubleConverter());
+        options.Converters.Add(new HashSetJsonConverterFactory());
         return options;
     }
 
@@ -693,9 +694,11 @@ internal partial class ObjectSerializer
     /// comparison, so its keys are written in ascending order. Models and other
     /// values are returned unchanged and keep their declared property order.
     /// </summary>
-    private static object? WithSortedKeys(object? value)
+    private static object? WithSortedKeys(object? value, int depth = 0)
     {
-        if (value is not IDictionary dictionary || value is JsonNode)
+        /* A self-referencing dictionary would recurse forever: stop sorting past a sane depth and let
+           the JSON writer report the cycle through its own maximum depth. */
+        if (depth > 64 || value is not IDictionary dictionary || value is JsonNode)
         {
             return value;
         }
@@ -706,7 +709,7 @@ internal partial class ObjectSerializer
             {
                 return value;
             }
-            sorted.Add(key, WithSortedKeys(entry.Value));
+            sorted.Add(key, WithSortedKeys(entry.Value, depth + 1));
         }
         return sorted;
     }
@@ -1559,6 +1562,123 @@ internal sealed class FiniteDoubleConverter : JsonConverter<double>
     public override void Write(Utf8JsonWriter writer, double value, JsonSerializerOptions options)
     {
         writer.WriteNumberValue(value);
+    }
+}
+
+/// <summary>
+/// Writes a <c>HashSet{T}</c> as a JSON array in a defined sorted order: strings in
+/// code point order, numbers numerically, and any other element by its serialized
+/// text. A set has no enumeration order, so the wire form must not depend on the
+/// insertion order. Reading and the set's equality are unchanged.
+/// </summary>
+internal sealed class HashSetJsonConverterFactory : JsonConverterFactory
+{
+    public override bool CanConvert(Type typeToConvert)
+    {
+        return typeToConvert.IsGenericType
+            && typeToConvert.GetGenericTypeDefinition() == typeof(HashSet<>);
+    }
+
+    public override JsonConverter? CreateConverter(
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
+    {
+        Type element = typeToConvert.GetGenericArguments()[0];
+        return (JsonConverter?)
+            Activator.CreateInstance(typeof(HashSetJsonConverter<>).MakeGenericType(element));
+    }
+}
+
+internal sealed class HashSetJsonConverter<T> : JsonConverter<HashSet<T>>
+{
+    public override HashSet<T>? Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options
+    )
+    {
+        List<T>? items = JsonSerializer.Deserialize<List<T>>(ref reader, options);
+        return items is null ? null : new HashSet<T>(items);
+    }
+
+    public override void Write(
+        Utf8JsonWriter writer,
+        HashSet<T> value,
+        JsonSerializerOptions options
+    )
+    {
+        ArgumentNullException.ThrowIfNull(writer);
+        ArgumentNullException.ThrowIfNull(value);
+        List<T> items = new(value);
+        if (typeof(T) == typeof(string))
+        {
+            items.Sort((a, b) => CompareCodePoints((string)(object)a!, (string)(object)b!));
+        }
+        else if (IsNumeric(typeof(T)))
+        {
+            items.Sort(Comparer<T>.Default);
+        }
+        else
+        {
+            List<(string Text, T Item)> keyed = new(items.Count);
+            foreach (T item in items)
+            {
+                keyed.Add((JsonSerializer.Serialize(item, options), item));
+            }
+            keyed.Sort((a, b) => CompareCodePoints(a.Text, b.Text));
+            items = keyed.ConvertAll(entry => entry.Item);
+        }
+        JsonSerializer.Serialize(writer, items, options);
+    }
+
+    private static bool IsNumeric(Type type)
+    {
+        return Type.GetTypeCode(type) switch
+        {
+            TypeCode.SByte
+            or TypeCode.Byte
+            or TypeCode.Int16
+            or TypeCode.UInt16
+            or TypeCode.Int32
+            or TypeCode.UInt32
+            or TypeCode.Int64
+            or TypeCode.UInt64
+            or TypeCode.Single
+            or TypeCode.Double
+            or TypeCode.Decimal => true,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Compares two strings by Unicode code point, so a supplementary character
+    /// sorts after U+FFFF, unlike a UTF-16 ordinal comparison.
+    /// </summary>
+    private static int CompareCodePoints(string left, string right)
+    {
+        System.Text.StringRuneEnumerator leftRunes = left.EnumerateRunes();
+        System.Text.StringRuneEnumerator rightRunes = right.EnumerateRunes();
+        while (true)
+        {
+            bool leftHasNext = leftRunes.MoveNext();
+            bool rightHasNext = rightRunes.MoveNext();
+            if (!leftHasNext)
+            {
+                return rightHasNext ? -1 : 0;
+            }
+
+            if (!rightHasNext)
+            {
+                return 1;
+            }
+
+            int comparison = leftRunes.Current.Value.CompareTo(rightRunes.Current.Value);
+            if (comparison != 0)
+            {
+                return comparison;
+            }
+        }
     }
 }
 

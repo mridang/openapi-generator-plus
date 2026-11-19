@@ -157,6 +157,23 @@ pub(crate) struct BaseApi {
 }
 
 impl BaseApi {
+    /// The full URL a call's path is sent to: an absolute URL is used as it is,
+    /// and a relative path is joined to the base URL. A trailing slash on the
+    /// base URL is dropped before a path that starts with a slash, so
+    /// `https://x/` + `/y` yields `https://x/y` rather than `https://x//y`.
+    fn request_url_of(&self, path: &str) -> String {
+        if path.starts_with("http://") || path.starts_with("https://") {
+            return path.to_string();
+        }
+        let base = self.config.base_url();
+        let base_trimmed = if path.starts_with('/') {
+            base.trim_end_matches('/')
+        } else {
+            base
+        };
+        format!("{}{}", base_trimmed, path)
+    }
+
     /// Creates an API instance with a custom API client, configuration, and
     /// default authenticator (used for operations without explicit auth).
     pub fn new(api_client: Arc<dyn ApiClient>, config: Configuration, authenticator: Option<Arc<dyn Authenticator>>) -> Self {
@@ -215,7 +232,7 @@ impl BaseApi {
         scope: &mut CallScope,
     ) -> Result<ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>> {
         let method = params.method;
-        let request_path = crate::errors::api_error::request_path_of(params.path);
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
         /* Read on the first poll, in the caller's task, before any await. */
         let trace = trace_context_util::TraceContext::capture();
         self.invoke_api_inner(params, &request_path, &trace, scope)
@@ -244,19 +261,7 @@ impl BaseApi {
                 ))));
             }
         }
-        let mut request_url = params.path.to_string();
-        if !request_url.starts_with("http://") && !request_url.starts_with("https://") {
-            /* Strip trailing slash from baseUrl when the path starts with a
-             * slash so baseUrl='https://x/' + path='/y' yields 'https://x/y'
-             * rather than 'https://x//y', which most servers route to 404. */
-            let base = self.config.base_url();
-            let base_trimmed = if params.path.starts_with('/') {
-                base.trim_end_matches('/')
-            } else {
-                base
-            };
-            request_url = format!("{}{}", base_trimmed, params.path);
-        }
+        let mut request_url = self.request_url_of(params.path);
 
         /* Three-state auth resolution. The no-auth sentinel (security: [])
          * suppresses the client authenticator; None falls back to it (secured
@@ -512,7 +517,7 @@ impl BaseApi {
         let is_binary_return = params.return_type == "Vec<u8>";
         let operation = params.operation;
         let method = params.method;
-        let request_path = crate::errors::api_error::request_path_of(params.path);
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
         let mut scope = CallScope::new();
         let result = match self.invoke_scoped(params, &mut scope).await {
             Ok(response) => decode_response(&response, is_binary_return, operation)
@@ -540,7 +545,7 @@ impl BaseApi {
         ) -> Result<Option<T>, crate::errors::serialization_error::SerializationError>,
     {
         let method = params.method;
-        let request_path = crate::errors::api_error::request_path_of(params.path);
+        let request_path = crate::errors::api_error::request_path_of(&self.request_url_of(params.path));
         let mut scope = CallScope::new();
         let result = match self.invoke_scoped(params, &mut scope).await {
             Ok(response) => {
@@ -1057,7 +1062,6 @@ mod tests {
         }
     }
 
-    #[test]
 
     #[test]
     fn test_bhv_retries_022_retry_after_parses_seconds_and_http_dates() {

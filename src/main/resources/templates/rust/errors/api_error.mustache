@@ -208,7 +208,7 @@ impl ApiError {
             return self;
         }
         self.request_method = Some(method.to_string());
-        self.request_path = Some(strip_query(path).to_string());
+        self.request_path = Some(request_path_of(path));
         self
     }
 
@@ -293,7 +293,7 @@ impl ApiError {
                         "API returned status code {} for {} {}",
                         status_code,
                         method,
-                        strip_query(path)
+                        request_path_of(path)
                     )
                 }
                 _ => format!("API returned status code {}", status_code),
