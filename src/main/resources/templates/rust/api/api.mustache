@@ -687,7 +687,7 @@ impl {{classname}} {
 {{/isString}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
-            {{#vendorExtensions.param.queryContent}}Some(&urlencoding::encode(&object_serializer::serialize(&opts.{{paramName}})?).into_owned()){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/vendorExtensions.param.queryContent}},
+            {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(&opts.{{paramName}})?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/vendorExtensions.param.queryContent}},
             None,
             "cookie",
             "{{{dataType}}}",
@@ -725,7 +725,7 @@ impl {{classname}} {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    {{#vendorExtensions.param.queryContent}}Some(&urlencoding::encode(&object_serializer::serialize(val)?).into_owned()){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(val)){{/vendorExtensions.param.queryContent}},
+                    {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(val)?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(val)){{/vendorExtensions.param.queryContent}},
                     None,
                     "cookie",
                     "{{{dataType}}}",

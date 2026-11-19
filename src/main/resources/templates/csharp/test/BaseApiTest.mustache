@@ -2392,6 +2392,16 @@ public class BaseApiTest
     }
 
     [Fact]
+    public void BhvMisc233ACookieCarryingAJsonModelEncodesItsDot()
+    {
+        var api = new TestableApi("http://localhost");
+
+        var encoded = api.ContentParameter(new Dictionary<string, string> { ["a"] = "x.y" }, "cookie");
+
+        Assert.Equal("%7B%22a%22%3A%22x%2Ey%22%7D", encoded);
+    }
+
+    [Fact]
     public void BhvSerializationobject224ContentCookieValueIsJsonPercentEncodedKeepingOnlyTheUnreservedSet()
     {
         var api = new TestableApi("http://localhost");

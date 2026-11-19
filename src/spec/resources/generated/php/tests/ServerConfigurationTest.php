@@ -266,3 +266,45 @@ test('bhv servers 030 override not in enum is rejected', function (): void {
             expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
         });
 });
+
+test('bhv misc 257 a variable declared with an empty enum accepts any value and the url is built from it', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: [])],
+    );
+
+    expect($server->getUrl(['env' => 'anything']))->toBe('https://anything.example.com');
+});
+
+test('bhv misc 258 when no override is supplied for a variable its default value is used in the url', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging'])],
+    );
+
+    expect($server->getUrl())->toBe('https://api.example.com');
+});
+
+test('bhv misc 259 a placeholder in the template with no declared variable stays in the url as written', function (): void {
+    $server = new ServerConfiguration(urlTemplate: 'https://api.example.com/{unknown}/{env}');
+
+    expect($server->getUrl(['env' => 'v1']))->toBe('https://api.example.com/{unknown}/v1');
+});
+
+test('bhv misc 260 passing null for an enum variable is rejected instead of being substituted', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging'])],
+    );
+
+    expect(fn () => $server->getUrl(['env' => null]))->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv misc 261 a value containing backslash sequences is inserted into the url exactly as given', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api')],
+    );
+
+    expect($server->getUrl(['env' => 'a\\nb']))->toBe('https://a\\nb.example.com');
+});

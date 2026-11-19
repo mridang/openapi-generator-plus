@@ -339,6 +339,12 @@ impl serde::ser::SerializeStructVariant for FiniteFloatCheck {
     }
 }
 
+/// Percent-encodes the JSON text of a `content:` cookie parameter. Only
+/// A-Z a-z 0-9 - _ ~ stay literal: `urlencoding` keeps the dot, so it is encoded too.
+pub fn encode_content_cookie(json: &str) -> String {
+    urlencoding::encode(json).replace('.', "%2E")
+}
+
 /// Serializes an object to a JSON string.
 ///
 /// Returns a [`SerializationError`] if serialization fails. Rejects a
@@ -969,8 +975,8 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 #[cfg(test)]
 mod tests {
     use super::{
-        self as object_serializer, deserialize, object_query_pairs, serialize, to_header_value,
-        to_query_value, QueryValue, SerializationError,
+        self as object_serializer, deserialize, encode_content_cookie, object_query_pairs,
+        serialize, to_header_value, to_query_value, QueryValue, SerializationError,
     };
 
     fn sample_object() -> std::collections::HashMap<String, serde_json::Value> {
@@ -1183,7 +1189,7 @@ mod tests {
     }
 
     /* F833: a content cookie is the SDK's JSON, percent-encoded keeping only
-     * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs
+     * A-Z a-z 0-9 - _ ~ literal, so the bytes match the other eleven SDKs
      * and the value passes the RFC 6265 cookie-octet check. */
     #[test]
     fn test_bhv_serializationparam_118_a_content_cookie_value_is_encoded_to_the_shared_percent_encoded_bytes(
@@ -1483,15 +1489,23 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded() {
+        assert_eq!(
+            encode_content_cookie(r#"{"a":1.5}"#),
+            "%7B%22a%22%3A1%2E5%7D"
+        );
+    }
+
+    #[test]
     fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal(
     ) {
-        /* Every ASCII byte: the unreserved set A-Z a-z 0-9 - . _ ~ stays literal and
-         * every other byte is written as %XX, the encoding a content cookie uses. */
+        /* Every ASCII byte: A-Z a-z 0-9 - _ ~ stays literal and every other byte,
+         * the dot included, is written as %XX, the encoding a content cookie uses. */
         for byte in 0u8..=0x7f {
             let text = (byte as char).to_string();
-            let encoded = urlencoding::encode(&text).into_owned();
+            let encoded = encode_content_cookie(&text);
             let unreserved =
-                (byte as char).is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~');
+                (byte as char).is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'~');
             if unreserved {
                 assert_eq!(text, encoded, "byte {:#04x} must stay literal", byte);
             } else {

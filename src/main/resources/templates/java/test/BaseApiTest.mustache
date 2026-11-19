@@ -2045,6 +2045,12 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded, dots included")
+        void bhvMisc233ACookieCarryingAJsonModelEncodesItsDot() {
+            assertEquals("%7B%22a%22%3A1%2E5%7D", TestableApi.encodeCookie("{\"a\":1.5}"));
+        }
+
+        @Test
         @DisplayName("bhvSerializationObject224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal")
         void bhvSerializationObject224ContentCookieIsPercentEncodedJson() {
             String json = "{\"k\":\"a b~*é\"}";
