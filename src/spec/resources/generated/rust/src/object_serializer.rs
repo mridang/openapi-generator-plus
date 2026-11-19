@@ -883,6 +883,10 @@ pub enum QueryValue {
 /// For collections, joins using the specified collection format delimiter.
 /// Returns `QueryValue::Multi` for the "multi" format, `QueryValue::Single` otherwise.
 pub fn to_query_value<T: Serialize + 'static>(value: &T, collection_format: &str) -> QueryValue {
+    /* A time-of-day query value is HH:mm:ss; the fraction of a second is dropped. */
+    if let Some(time) = (value as &dyn std::any::Any).downcast_ref::<chrono::NaiveTime>() {
+        return QueryValue::Single(time.format("%H:%M:%S").to_string());
+    }
     if let Some(text) = scalar_override(value) {
         return QueryValue::Single(text);
     }
@@ -2822,5 +2826,51 @@ mod tests {
             object_serializer::to_path_value(&"12:34:56".to_string()),
             "12:34:56"
         );
+    }
+
+    #[test]
+    fn test_bhv_misc_230_a_model_with_no_extra_properties_writes_only_its_declared_keys() {
+        let parsed: serde_json::Value =
+            serde_json::from_str(&serialize(&crate::models::Category::new()).unwrap()).unwrap();
+        assert!(parsed.get("data").is_none(), "{}", parsed);
+        assert!(parsed.get("additionalProperties").is_none(), "{}", parsed);
+    }
+
+    #[test]
+    fn test_bhv_misc_234_a_model_in_a_list_keeps_its_additional_properties_through_a_round_trip() {
+        let items: Vec<crate::models::Freeform> =
+            serde_json::from_str(r#"[{"label":"x","extra":"y"}]"#).unwrap();
+        let restored: Vec<crate::models::Freeform> =
+            deserialize(serialize(&items).unwrap().as_bytes())
+                .unwrap()
+                .unwrap();
+        assert_eq!(
+            serde_json::json!("y"),
+            serde_json::to_value(restored[0].additional_properties.get("extra")).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_bhv_misc_241_a_time_of_day_query_value_is_sent_as_hh_mm_ss_with_milliseconds_truncated()
+    {
+        let time = chrono::NaiveTime::from_hms_milli_opt(10, 20, 30, 999).unwrap();
+        assert!(matches!(to_query_value(&time, ""), QueryValue::Single(ref s) if s == "10:20:30"));
+    }
+
+    #[test]
+    fn test_bhv_misc_244_a_body_with_a_leading_byte_order_mark_decodes_into_the_model() {
+        let category: Option<crate::models::Category> =
+            deserialize(b"\xEF\xBB\xBF{\"id\":1,\"name\":\"Dogs\"}").unwrap();
+        assert_eq!(Some(1), category.and_then(|c| c.id));
+    }
+
+    #[test]
+    fn test_bhv_misc_245_a_time_of_day_in_a_plain_object_is_serialized_as_a_json_string() {
+        let mut map = std::collections::HashMap::new();
+        map.insert(
+            "at".to_string(),
+            chrono::NaiveTime::from_hms_opt(10, 20, 30).unwrap(),
+        );
+        assert_eq!(r#"{"at":"10:20:30"}"#, serialize(&map).unwrap());
     }
 }

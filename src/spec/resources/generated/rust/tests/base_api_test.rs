@@ -4289,3 +4289,85 @@ async fn test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_list
         );
     }
 }
+
+/// Answers every request with one fixed status and an empty body.
+struct EmptyBodyApiClient {
+    status: u16,
+}
+
+impl petstore::api_client::ApiClient for EmptyBodyApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        let status = self.status;
+        Box::pin(async move {
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
+                status,
+                String::new(),
+                HashMap::new(),
+            ))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_222_a_success_response_with_a_201_status_and_an_empty_body_returns_no_data()
+{
+    let config = ConfigurationBuilder::new()
+        .base_url("https://example.test")
+        .build();
+    let api = PetApi::new(Arc::new(EmptyBodyApiClient { status: 201 }), config, None);
+    api.delete_pet(1, None)
+        .await
+        .expect("an empty 201 body is not an error");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_236_query_and_header_date_params_emit_date_only() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let opts = FindPetsByStatusOptions::new()
+        .born_after(date)
+        .report_date(date);
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.contains("bornAfter=2024-01-01"), "got: {}", url);
+    assert!(!url.contains("bornAfter=2024-01-01T"), "got: {}", url);
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        Some("2024-01-01"),
+        headers.get("Report-Date").map(|s| s.as_str())
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_239_an_operation_query_parameter_is_serialized_when_no_authenticator_is_configured(
+) {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::FindPetsByStatusOptions::new().status("a b".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.ends_with("status=a%20b"), "got: {}", url);
+}

@@ -1781,3 +1781,15 @@ fn test_bhv_serialization_112_a_password_is_masked_in_the_debug_form_and_not_on_
     let text = serde_json::to_string(&account).unwrap();
     assert!(text.contains(r#""password":"p-secret-value""#), "got: {}", text);
 }
+
+#[test]
+fn test_bhv_misc_243_an_absent_optional_array_field_decodes_to_none_not_an_empty_list() {
+    use {{packageName}}::models::NativeValues;
+    let values: NativeValues = serde_json::from_str("{}").expect("an empty object decodes");
+    assert!(values.addresses.is_none());
+}
+
+#[test]
+fn test_bhv_misc_247_a_uuid_string_with_the_wrong_segment_lengths_is_rejected() {
+    assert!(serde_json::from_str::<uuid::Uuid>(r#""1234-5678-1234-5678-1234567890""#).is_err());
+}
