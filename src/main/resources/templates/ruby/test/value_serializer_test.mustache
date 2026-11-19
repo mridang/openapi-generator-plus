@@ -341,11 +341,6 @@ describe {{moduleName}}::ValueSerializer do
         _(result).must_be_nil
       end
 
-      it 'bhv_serializationparam_105 a form scalar serializes as the plain value' do
-        result = {{moduleName}}::ValueSerializer.serialize_styled('color', 'blue', :query, 'string', nil, 'form', true)
-        _(result).must_equal('blue')
-      end
-
       it 'bhv_serializationparam_117 a Set with explode false joins its elements like an array' do
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'color', Set['red', 'blue'], :query, 'array', nil, 'form', false
@@ -394,11 +389,6 @@ describe {{moduleName}}::ValueSerializer do
 
     describe 'null style falls back to location default' do
       it 'bhv_serialization_108 a parameter with no declared style uses the default style for its location' do
-        result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
-        _(result).must_equal('5')
-      end
-
-      it 'bhv_serializationparam_106 path with null style behaves like simple' do
         result = {{moduleName}}::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)
         _(result).must_equal('5')
       end

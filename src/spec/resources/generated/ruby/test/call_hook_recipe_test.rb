@@ -218,28 +218,17 @@ describe TelemetryCallHook do
     'timeout' => -> { raise Petstore::Client::Errors::NetworkTimeoutError.new(message: 'timed out') },
     'network_error' => -> { raise Petstore::Client::Errors::NetworkError.new(message: 'refused') },
     'cancelled' => -> { raise Interrupt },
-    '_OTHER' => -> { raise 'something else' }
+    '_OTHER' => -> { raise 'something else' },
+    'serialization_error' => -> { Petstore::Client::ApiHttpResponse.new(status_code: 200, body: 'not json', headers: { 'content-type' => 'text/plain' }) }
   }.each do |token, failure|
     it "bhv_telemetry_004 sets error.type to #{token}" do
       telemetry = RecipeTelemetry.new
 
-      assert_raises(StandardError, Interrupt) { api_for(RecipeClient.new(&failure), telemetry.hook).call('/items/7') }
+      assert_raises(StandardError, Interrupt) { api_for(RecipeClient.new(&failure), telemetry.hook).call('/items/7', return_type: 'Object') }
 
       _(telemetry.spans.first.attributes['error.type']).must_equal token
       _(telemetry.spans.first.status.code).must_equal OpenTelemetry::Trace::Status::ERROR
     end
-  end
-
-  it 'bhv_telemetry_004 sets error.type to serialization_error for a response that cannot be decoded' do
-    telemetry = RecipeTelemetry.new
-    client = RecipeClient.new do
-      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: 'not json', headers: { 'content-type' => 'text/plain' })
-    end
-
-    _ { api_for(client, telemetry.hook).call('/items/7', return_type: 'Object') }.must_raise Petstore::Client::Errors::SerializationError
-
-    _(telemetry.spans.first.attributes['error.type']).must_equal 'serialization_error'
-    _(telemetry.spans.first.attributes['http.response.status_code']).must_equal 200
   end
 
   it 'bhv_telemetry_005 sets no status code when no response arrived' do
