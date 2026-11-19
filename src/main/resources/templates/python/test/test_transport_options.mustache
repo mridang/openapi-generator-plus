@@ -195,6 +195,12 @@ class TestTransportOptions:
         )
         assert TransportOptions().proxy is None
 
+    def test_bhv_misc_056_clearing_the_proxy_with_none_removes_a_proxy_set_earlier(self) -> None:
+        opts = TransportOptions.builder().proxy('http://proxy.example.com:3128').proxy(None).build()
+        assert opts.proxy is None
+        with pytest.raises(ValueError):
+            TransportOptions.builder().proxy('http://proxy.example.com:3128').proxy('').build()
+
     def test_bhv_options_030_null_proxy_url_is_accepted(self) -> None:
         opts = TransportOptions.builder().proxy(None).build()
         assert opts.proxy is None

@@ -2840,6 +2840,8 @@ langpython206 | A date value is written as year, month and day with no time part
 langpython207 | Each model property is written under its own name as the key.
 langpython208 | A nested object used as a leaf value is a serialization error.
 langpython209 | A cookie value is fully percent-encoded on the wire.
+langpython210 | Python rejects a value outside the declared constraints at decode (native enforcement, S3).
+langpython211 | A canonical uuid given as a string to a uuid parameter is written in lower case.
 langruby001 | The generated YARD documentation shows operation prose without literal escape sequences
 langruby002 | The generated YARD options documentation shows prose without literal escape sequences
 langruby003 | A generated server class built from enum-valued variables resolves its URL from those values
