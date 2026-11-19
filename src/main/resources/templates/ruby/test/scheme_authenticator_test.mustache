@@ -289,6 +289,10 @@ describe 'scheme authenticators' do
     assert_empty_variable_is_unset_and_named
   end
 
+  it 'bhv_misc_208 an empty environment variable for an implicit credential fails as if it were unset' do
+    assert_empty_variable_is_unset_and_named
+  end
+
   it 'bhv_authscheme_010 an empty bearer variable is treated as unset and fails naming it' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
