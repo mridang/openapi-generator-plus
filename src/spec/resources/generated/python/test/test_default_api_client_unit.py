@@ -211,12 +211,31 @@ class TestDefaultApiClientUnit:
         assert body["body"] == '{"key":"value"}'
 
     def test_bhv_misc_048_an_undeclared_success_status_decodes_as_the_union_return_type(
-        self,
+        self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import asyncio
+        from typing import Any as _Any
+
+        from pydantic import BaseModel, ConfigDict, Field
+
+        import petstore_client.models as models_module
         from petstore_client.api.base_api import BaseApi
         from petstore_client.configuration import Configuration
-        from petstore_client.models.dry_food import DryFood
+
+        class LocalLiquid(BaseModel):
+            model_config = ConfigDict(extra="forbid")
+            volume: float
+
+        class LocalSolid(BaseModel):
+            kind_of: str = Field(alias="kindOf")
+            mass_kg: float = Field(alias="massKg")
+
+        class LocalUnion(BaseModel):
+            one_of_schemas: ClassVar[tuple[str, ...]] = ("LocalLiquid", "LocalSolid")
+            actual_instance: _Any = None
+
+        for local in (LocalLiquid, LocalSolid, LocalUnion):
+            monkeypatch.setattr(models_module, local.__name__, local, raising=False)
 
         api = BaseApi(
             api_client=DefaultApiClient(), config=Configuration(base_url=self.base_url)
@@ -230,10 +249,11 @@ class TestDefaultApiClientUnit:
                 None,
                 ["application/json"],
                 "application/json",
-                "WidgetFood",
+                "LocalUnion",
             )
         )
-        assert isinstance(result.actual_instance, DryFood)
+        assert isinstance(result.actual_instance, LocalSolid)
+        assert result.actual_instance.mass_kg == 2.5
 
     def test_bhv_misc_050_per_call_headers_override_and_an_unset_option_falls_through(
         self,
