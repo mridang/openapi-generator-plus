@@ -201,7 +201,9 @@ module {{moduleName}}
       # clock.
       # timeout: false lifts the deadline for this call alone; nil keeps the transport's.
       timeout_ms = timeout == false ? nil : (timeout || @transport_options.timeout)
-      deadline = timeout_ms ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + (timeout_ms / 1000.0)).to_f : nil
+      ms = timeout_ms
+      seconds = ms ? ms.to_f / 1000.0 : nil
+      deadline = seconds ? (Process.clock_gettime(Process::CLOCK_MONOTONIC) + seconds.to_f).to_f : nil
 
       response = transmit_with_retries(method, url, headers, body, no_redirect, deadline, retry_headers, no_default_headers,
                                        timeout_ms, max_retries || @transport_options.max_retries)

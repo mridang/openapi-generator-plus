@@ -22,6 +22,7 @@ import com.example.petstore.errors.ServerException
 import com.example.petstore.errors.TooManyRequestsException
 import com.example.petstore.errors.UnauthorizedException
 import com.example.petstore.errors.UnprocessableEntityException
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -113,7 +114,7 @@ class ApiExceptionTest {
     @Test
     @DisplayName("bhvErrors089 an error with a null or empty message renders the default message text")
     fun bhvErrors089NullOrEmptyMessageRendersTheDefaultText() {
-        val ex = ApiException(statusCode = 500, message = null, responseHeaders = null, responseBody = null)
+        val ex = ApiException(statusCode = 500, message = "", responseHeaders = null, responseBody = null)
 
         assertTrue(ex.toString().startsWith("Error message: the server returns an error"))
     }

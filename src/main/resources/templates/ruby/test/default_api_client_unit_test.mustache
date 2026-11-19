@@ -2060,7 +2060,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   it 'bhv_misc_033 a pinned CA file holding only the root accepts a server that also sends the intermediate' do
-    issue = lambda do |subject, key, signer, signer_key, ca:|
+    issue = lambda do |subject, key, signer, signer_key, ca|
       cert = OpenSSL::X509::Certificate.new
       cert.version = 2
       cert.serial = OpenSSL::BN.new(Random.rand(2..(2**31)).to_s)
@@ -2078,11 +2078,11 @@ describe 'DefaultApiClientUnit' do
     root_key = OpenSSL::PKey::RSA.new(2048)
     intermediate_key = OpenSSL::PKey::RSA.new(2048)
     leaf_key = OpenSSL::PKey::RSA.new(2048)
-    root = issue.call('bhv-root-ca', root_key, nil, nil, ca: true)
-    intermediate = issue.call('bhv-intermediate-ca', intermediate_key, root, root_key, ca: true)
-    leaf = issue.call('localhost', leaf_key, intermediate, intermediate_key, ca: false)
+    root = issue.call('bhv-root-ca', root_key, nil, nil, true)
+    intermediate = issue.call('bhv-intermediate-ca', intermediate_key, root, root_key, true)
+    leaf = issue.call('localhost', leaf_key, intermediate, intermediate_key, false)
 
-    tcp = TCPServer.new('127.0.0.1', 0)
+    tcp = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
     port = tcp.addr[1]
     context = OpenSSL::SSL::SSLContext.new
     context.cert = leaf
@@ -3080,7 +3080,7 @@ describe 'DefaultApiClientUnit' do
   end
 
   it 'bhv_retries_048 the default client retries a 503 over a real connection and returns the later success' do
-    server = TCPServer.new('127.0.0.1', 0)
+    server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
     port = server.addr[1]
     replies = [
       "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbusy",

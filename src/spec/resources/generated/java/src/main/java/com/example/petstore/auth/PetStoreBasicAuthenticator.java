@@ -14,8 +14,8 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the {@code petStoreBasic} security scheme.
  *
- * <p>A credential that is {@code null} or empty is read once, when the authenticator is built, from
- * its environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
+ * <p>A credential that is {@code null} is read once, when the authenticator is built, from its
+ * environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
  */
 public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
   private final BasicAuthenticator delegate;
@@ -24,9 +24,9 @@ public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
    * Creates an authenticator for the {@code petStoreBasic} security scheme.
    *
    * @param host the host credential
-   * @param username the username credential; when {@code null} or empty it is read from the {@code
+   * @param username the username credential; when {@code null} it is read from the {@code
    *     SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME} environment variable
-   * @param password the password credential; when {@code null} or empty it is read from the {@code
+   * @param password the password credential; when {@code null} it is read from the {@code
    *     SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD} environment variable
    */
   public PetStoreBasicAuthenticator(
@@ -96,11 +96,11 @@ public final class PetStoreBasicAuthenticator extends BaseAuthenticator {
     return getClass().getSimpleName() + repr.substring(repr.indexOf('('));
   }
 
-  /* A credential comes from the caller first, then from its environment variable; an empty
-   * value counts as unset, and a credential found nowhere is refused. */
+  /* A credential comes from the caller first, then from its environment variable; an explicit
+   * empty value is kept and refused by the base authenticator; a credential found nowhere is refused. */
   private static String resolveCredential(
       @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-    if (explicit != null && !explicit.isEmpty()) {
+    if (explicit != null) {
       return explicit;
     }
     String fromEnvironment = environment.get(envName);

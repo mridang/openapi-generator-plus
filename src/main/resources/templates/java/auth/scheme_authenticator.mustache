@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the {@code {{schemeName}}} security scheme.
  *
- * <p>A credential that is {@code null} or empty is read once, when the authenticator is built,
+ * <p>A credential that is {@code null} is read once, when the authenticator is built,
  * from its environment variable. A credential found nowhere raises an
  * {@link IllegalArgumentException}.
  */
@@ -20,7 +20,7 @@ public final class {{className}} extends {{baseClass}} {
      * Creates an authenticator for the {@code {{schemeName}}} security scheme.
      *
 {{#constructorParams}}
-     * @param {{name}} the {{name}} credential{{#hasEnv}}; when {@code null} or empty it is read from the {@code {{envName}}} environment variable{{/hasEnv}}
+     * @param {{name}} the {{name}} credential{{#hasEnv}}; when {@code null} it is read from the {@code {{envName}}} environment variable{{/hasEnv}}
 {{/constructorParams}}
      */
     public {{className}}({{#constructorParams}}{{#hasEnv}}@Nullable {{/hasEnv}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
@@ -42,11 +42,11 @@ public final class {{className}} extends {{baseClass}} {
     }
 {{#hasEnvVars}}
 
-    /* A credential comes from the caller first, then from its environment variable; an empty
-     * value counts as unset, and a credential found nowhere is refused. */
+    /* A credential comes from the caller first, then from its environment variable; an explicit
+     * empty value is kept and refused by the base authenticator; a credential found nowhere is refused. */
     private static String resolveCredential(
             @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-        if (explicit != null && !explicit.isEmpty()) {
+        if (explicit != null) {
             return explicit;
         }
         String fromEnvironment = environment.get(envName);
@@ -75,7 +75,7 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the {@code {{schemeName}}} security scheme.
  *
- * <p>A credential that is {@code null} or empty is read once, when the authenticator is built,
+ * <p>A credential that is {@code null} is read once, when the authenticator is built,
  * from its environment variable. A credential found nowhere raises an
  * {@link IllegalArgumentException}.
  */
@@ -86,7 +86,7 @@ public final class {{className}} extends BaseAuthenticator {
      * Creates an authenticator for the {@code {{schemeName}}} security scheme.
      *
 {{#constructorParams}}
-     * @param {{name}} the {{name}} credential{{#hasEnv}}; when {@code null} or empty it is read from the {@code {{envName}}} environment variable{{/hasEnv}}
+     * @param {{name}} the {{name}} credential{{#hasEnv}}; when {@code null} it is read from the {@code {{envName}}} environment variable{{/hasEnv}}
 {{/constructorParams}}
      */
     public {{className}}({{#constructorParams}}{{#hasEnv}}@Nullable {{/hasEnv}}{{type}} {{name}}{{^-last}}, {{/-last}}{{/constructorParams}}) {
@@ -140,11 +140,11 @@ public final class {{className}} extends BaseAuthenticator {
     }
 {{#hasEnvVars}}
 
-    /* A credential comes from the caller first, then from its environment variable; an empty
-     * value counts as unset, and a credential found nowhere is refused. */
+    /* A credential comes from the caller first, then from its environment variable; an explicit
+     * empty value is kept and refused by the base authenticator; a credential found nowhere is refused. */
     private static String resolveCredential(
             @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-        if (explicit != null && !explicit.isEmpty()) {
+        if (explicit != null) {
             return explicit;
         }
         String fromEnvironment = environment.get(envName);

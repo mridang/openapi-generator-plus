@@ -641,7 +641,8 @@ public abstract class BaseApi {
         }
 
         if (requestBody == null) {
-            headers.remove("Content-Type");
+            /* A default header may be spelled in any case, so drop every Content-Type name. */
+            headers.keySet().removeIf(name -> name.equalsIgnoreCase("Content-Type"));
         }
 
         ApiHttpResponse response =
@@ -734,8 +735,18 @@ public abstract class BaseApi {
                                         + operationId
                                         + ": expected a JSON body");
                     }
-                    T rawBody = (T) response.body();
-                    data = rawBody;
+                    if (returnType == String.class && !isTextResponseContentType(responseContentType)) {
+                        /* A binary content type carries its body as base64 text, so a String
+                         * result is the decoded bytes read as UTF-8 text. */
+                        String decoded = new String(
+                                java.util.Base64.getDecoder().decode(response.body()),
+                                StandardCharsets.UTF_8);
+                        T decodedBody = (T) decoded;
+                        data = decodedBody;
+                    } else {
+                        T rawBody = (T) response.body();
+                        data = rawBody;
+                    }
                 } else {
                     data = objectSerializer.deserialize(response.body(), returnType);
                 }
@@ -1043,10 +1054,12 @@ public abstract class BaseApi {
                 String encodedKey = encode(entry.getKey());
                 if (value instanceof List<?> list) {
                     for (Object item : list) {
-                        joiner.add(encodedKey + "=" + encodeQueryValue(String.valueOf(item), allowReserved));
+                        joiner.add(encodedKey + "=" + encodeQueryValue(
+                                String.valueOf(ValueSerializer.serialize(item, "query", null, null)), allowReserved));
                     }
                 } else {
-                    joiner.add(encodedKey + "=" + encodeQueryValue(String.valueOf(value), allowReserved));
+                    joiner.add(encodedKey + "=" + encodeQueryValue(
+                            String.valueOf(ValueSerializer.serialize(value, "query", null, null)), allowReserved));
                 }
             }
         }

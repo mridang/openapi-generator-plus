@@ -1233,8 +1233,12 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("bhvMisc272 an authenticating proxy accepts credentials from the proxy URL")
         void bhvMisc272AnAuthenticatingProxyAcceptsCredentialsFromTheProxyUrl() throws Exception {
+            String authProxy = SquidContainer.getAuthProxyUrl();
+            if (!authProxy.contains("@")) {
+                authProxy = authProxy.replaceFirst("^(https?://)", "$1user:pass@");
+            }
             DefaultApiClient client = new DefaultApiClient(
-                    TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build());
+                    TransportOptions.builder().proxy(authProxy).build());
             ApiHttpResponse response = client.sendRequest(
                     "GET", ChasmContainer.getInternalHttpUrl() + "/test/echo", new HashMap<>(), null);
             assertEquals(200, response.statusCode());
