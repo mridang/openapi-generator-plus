@@ -1378,37 +1378,41 @@ func TestBhvErrors204_ApiError_ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeaves
 {{/-first}}
 {{/errorSchemas}}
 
-{{#errorSchemas}}
-func TestBhvLanggo126_ApiError_{{{className}}}_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+{{#errorSchemas}}{{#-first}}
+func TestBhvLanggo126_ApiError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
-	got := apierrors.New{{{className}}}FromResponse("GET", "/x?q=1", {{sampleStatus}}, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.{{{className}}})
-	if !ok {
-		t.Fatalf("expected *{{{className}}}, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != {{sampleStatus}} || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.{{{parentClassName}}}
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach {{{parentClassName}}}")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.{{errorPrefix}}Error
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the {{errorPrefix}}Error root")
-	}
+{{/-first}}
+	t.Run("{{{className}}}", func(t *testing.T) {
+		got := apierrors.New{{{className}}}FromResponse("GET", "/x?q=1", {{sampleStatus}}, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.{{{className}}})
+		if !ok {
+			t.Fatalf("expected *{{{className}}}, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != {{sampleStatus}} || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.{{{parentClassName}}}
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach {{{parentClassName}}}")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.{{errorPrefix}}Error
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the {{errorPrefix}}Error root")
+		}
+	})
+{{#-last}}
 }
-
+{{/-last}}
 {{/errorSchemas}}
 {{/hasErrorSchemas}}
 
