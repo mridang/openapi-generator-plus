@@ -24,6 +24,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
 
+async function ipHttpsUrl(): Promise<string> {
+  const chasmUrl = new URL(process.env["CHASM_HTTPS_URL"]!);
+  const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
+  return `https://${address}:${chasmUrl.port}`;
+}
+
 describe("DefaultApiClient", () => {
   test("bhv transport 018 makes HTTPS request with verifySsl=false", async () => {
     const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
@@ -52,12 +58,6 @@ describe("DefaultApiClient", () => {
      * independent of chain trust, so we can assert that turning off
      * verification skips the hostname check too.
      */
-
-    async function ipHttpsUrl(): Promise<string> {
-      const chasmUrl = new URL(process.env["CHASM_HTTPS_URL"]!);
-      const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
-      return `https://${address}:${chasmUrl.port}`;
-    }
 
     test("bhv transport 025 verifySsl=true rejects hostname mismatch (the cert does not name the address)", async () => {
       const caCertPath = process.env["CA_CERT_PATH"]!;
@@ -301,23 +301,23 @@ describe("DefaultApiClient", () => {
     expect(error).toBeInstanceOf(NetworkError);
     expect((error as NetworkTimeoutError).statusCode).toBe(0);
     expect((error as NetworkTimeoutError).cause).toBeDefined();
+  });
 
-    test("bhv misc 268 a server presenting a certificate from a trusted CA is still rejected when the hostname does not match", async () => {
-      const url = await ipHttpsUrl();
-      const client = new DefaultApiClient(
-        TransportOptions.builder()
-          .verifySsl(true)
-          .caCertPath(process.env["CA_CERT_PATH"]!)
-          .build(),
-      );
-      try {
-        await expect(
-          client.sendRequest("GET", `${url}/test/echo`, {}, null),
-        ).rejects.toThrow();
-      } finally {
-        await client.close();
-      }
-    });
+  test("bhv misc 268 a server presenting a certificate from a trusted CA is still rejected when the hostname does not match", async () => {
+    const url = await ipHttpsUrl();
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .verifySsl(true)
+        .caCertPath(process.env["CA_CERT_PATH"]!)
+        .build(),
+    );
+    try {
+      await expect(
+        client.sendRequest("GET", `${url}/test/echo`, {}, null),
+      ).rejects.toThrow();
+    } finally {
+      await client.close();
+    }
   });
 
   describe("redirect chain timeout is one budget", () => {

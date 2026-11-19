@@ -211,17 +211,17 @@ describe('SchemeAuthenticators', () => {
   for (const [name, cls, base] of schemeWrappers.filter(([, , base]) => base.name === 'BasicAuthenticator')) {
     it(`bhv misc 193 ${name} sends the same header as its base and refuses a colon in the username as the base does`, () => {
       const wrapped = new cls('https://api.example.com', 'alice', 's3cret') as { getAuthHeaders(): Record<string, string> };
-      const plain = new base('https://api.example.com', 'alice', 's3cret') as { getAuthHeaders(): Record<string, string> };
+      const plain = new (base as unknown as SchemeWrapper)('https://api.example.com', 'alice', 's3cret') as { getAuthHeaders(): Record<string, string> };
       expect(wrapped.getAuthHeaders()).toEqual(plain.getAuthHeaders());
       expect(() => new cls('https://api.example.com', 'ali:ce', 's3cret')).toThrow(TypeError);
-      expect(() => new base('https://api.example.com', 'ali:ce', 's3cret')).toThrow(TypeError);
+      expect(() => new (base as unknown as SchemeWrapper)('https://api.example.com', 'ali:ce', 's3cret')).toThrow(TypeError);
     });
   }
 
   for (const [name, cls, base] of schemeWrappers.filter(([, , base]) => base.name === 'BearerAuthenticator')) {
     it(`bhv misc 193 ${name} sends the same bearer header as its base for the same token`, () => {
       const wrapped = new cls('https://api.example.com', 'Bearer abc-123') as { getAuthHeaders(): Record<string, string> };
-      const plain = new base('https://api.example.com', 'Bearer abc-123') as { getAuthHeaders(): Record<string, string> };
+      const plain = new (base as unknown as SchemeWrapper)('https://api.example.com', 'Bearer abc-123') as { getAuthHeaders(): Record<string, string> };
       expect(wrapped.getAuthHeaders()).toEqual(plain.getAuthHeaders());
     });
   }

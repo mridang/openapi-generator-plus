@@ -958,6 +958,8 @@ describe("OpenIdConnectAuthenticator discovery document", () => {
       "https://auth.example.com/.well-known/openid-configuration",
       "my-client-id",
       "my-client-secret",
+      "https://myapp.example.com/callback",
+      ["openid", "profile"],
     );
     auth.setApiClient(client);
 
