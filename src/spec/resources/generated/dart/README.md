@@ -72,7 +72,7 @@ and `null` waits indefinitely. A call that exceeds it fails with
 
 `TransportOptions.builder().maxRetries(n)` sets how many times a failed call is
 sent again; the default is 2 and `0` turns retries off. A call is retried after
-a network error that happened before a response arrived, and after a response
+a network error that happened before a response arrived (only for GET, HEAD, OPTIONS, TRACE, PUT, DELETE and QUERY; TLS and certificate failures are never retried), and after a response
 with status 408, 409, 429 or 500-599 (not 501). The wait starts at 0.5 seconds,
 doubles up to 8 seconds and carries up to 25% jitter; a `Retry-After` header
 (seconds or an HTTP date, at most 60 seconds) replaces it. Retries never extend
