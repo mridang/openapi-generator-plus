@@ -129,12 +129,30 @@ public class Metadata {
      * @param value the property value
      * @return this builder
      */
-    @com.fasterxml.jackson.annotation.JsonAnySetter
     public Builder putAdditionalProperty(String key, String value) {
       /* A null extra is rejected unless the value schema is nullable, like a null element of a map. */
       java.util.Objects.requireNonNull(value, "additional property value must not be null");
       this.additionalProperties.put(key, value);
       return this;
+    }
+
+    /**
+     * Captures an undeclared JSON property whose value is a string. A null is kept only when the
+     * value schema is nullable; a number, a boolean, an object or an array is the wrong JSON type.
+     *
+     * @param key the property name
+     * @param value the JSON value
+     */
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void absorbAdditionalProperty(String key, com.fasterxml.jackson.databind.JsonNode value) {
+      if (value.isNull()) {
+        throw new IllegalArgumentException("additional property value must not be null");
+      }
+      if (!value.isTextual()) {
+        throw new IllegalArgumentException(
+            "additional property '" + key + "' must be a JSON string");
+      }
+      putAdditionalProperty(key, value.asText());
     }
 
     /**

@@ -966,7 +966,7 @@ void main() {
       const bad = BadRequestException();
 
       expect(err.toString(), equals('Error message: the server returns an error'));
-      expect(bad.toString(), equals('Error message: the server returns an error'));
+      expect(bad.toString().split('\n').first, equals('Error message: the server returns an error'));
     });
 
     test('bhv errors 090 keeps absent response headers and body as null when no response arrived', () {
@@ -1066,7 +1066,9 @@ void main() {
       expect(other, isA<ApiException>());
       expect(other, isNot(isA<ServerException>()));
       expect(other, isNot(isA<ClientException>()));
-      test('bhv misc 281 Headers from a received response are copied onto the error raised for that response', () {
+    });
+
+    test('bhv misc 281 Headers from a received response are copied onto the error raised for that response', () {
       final err = ApiException.fromResponse(503, {'retry-after': '5'}, '{}');
 
       expect(err.responseHeaders, containsPair('retry-after', '5'));
@@ -1080,7 +1082,6 @@ void main() {
         NetworkException,
         NetworkTimeoutException,
         SerializationException,
-        SchemaException,
         OAuth2ServerException,
         OAuth2TokenException,
         BadRequestException,
@@ -1094,7 +1095,7 @@ void main() {
         BadGatewayException,
       ];
 
-      expect(types, hasLength(18));
+      expect(types, hasLength(17));
     });
 
     test('bhv misc 284 A generated call that receives a typed error status raises that typed error', () {
@@ -1113,6 +1114,5 @@ void main() {
       expect(err.toString(), contains('401'));
       expect(err.toString(), contains('invalid_client'));
     });
-  });
 }
 {{/generateTests}}

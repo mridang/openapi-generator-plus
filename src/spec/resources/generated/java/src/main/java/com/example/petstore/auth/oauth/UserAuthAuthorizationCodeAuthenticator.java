@@ -76,10 +76,10 @@ public final class UserAuthAuthorizationCodeAuthenticator
   }
 
   /* A credential comes from the caller first, then from its environment variable; an explicit
-   * empty value is kept and refused by the base authenticator; a credential found nowhere is refused. */
+   * empty value counts as not passed, so the environment is consulted; a credential found nowhere is refused. */
   private static String resolveCredential(
       @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-    if (explicit != null) {
+    if (explicit != null && !explicit.isEmpty()) {
       return explicit;
     }
     String fromEnvironment = environment.get(envName);

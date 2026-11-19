@@ -574,7 +574,13 @@ void main() {
         'bhv langdart 024 the scheme name in this test identifies the scheme under test',
         () {
           expect(
-            AdminBasicAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            AdminBasicAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
+              },
+            ).toString(),
             startsWith('AdminBasicAuthenticator('),
           );
         },
@@ -665,7 +671,12 @@ void main() {
         'bhv langdart 024 the scheme name in this test identifies the scheme under test',
         () {
           expect(
-            ApiKeyHeaderAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            ApiKeyHeaderAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
+              },
+            ).toString(),
             startsWith('ApiKeyHeaderAuthenticator('),
           );
         },
@@ -750,7 +761,12 @@ void main() {
         'bhv langdart 024 the scheme name in this test identifies the scheme under test',
         () {
           expect(
-            ApiKeyQueryAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            ApiKeyQueryAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
+              },
+            ).toString(),
             startsWith('ApiKeyQueryAuthenticator('),
           );
         },
@@ -865,7 +881,9 @@ void main() {
           expect(
             BrowserAuthImplicitAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': 'value',
+              },
             ).toString(),
             startsWith('BrowserAuthImplicitAuthenticator('),
           );
@@ -960,7 +978,10 @@ void main() {
           expect(
             InternalApiKeyAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY':
+                    'value',
+              },
             ).toString(),
             startsWith('InternalApiKeyAuthenticator('),
           );
@@ -1076,7 +1097,13 @@ void main() {
           expect(
             LegacyAuthPasswordAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET':
+                    'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD': 'value',
+              },
             ).toString(),
             startsWith('LegacyAuthPasswordAuthenticator('),
           );
@@ -1195,7 +1222,11 @@ void main() {
           expect(
             MachineAuthClientCredentialsAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET':
+                    'value',
+              },
             ).toString(),
             startsWith('MachineAuthClientCredentialsAuthenticator('),
           );
@@ -1292,7 +1323,12 @@ void main() {
           expect(
             PetStoreBasicAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME':
+                    'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD':
+                    'value',
+              },
             ).toString(),
             startsWith('PetStoreBasicAuthenticator('),
           );
@@ -1386,7 +1422,9 @@ void main() {
           expect(
             PetStoreBearerAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
+              },
             ).toString(),
             startsWith('PetStoreBearerAuthenticator('),
           );
@@ -1472,7 +1510,12 @@ void main() {
         'bhv langdart 024 the scheme name in this test identifies the scheme under test',
         () {
           expect(
-            ServiceTokenAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            ServiceTokenAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
+              },
+            ).toString(),
             startsWith('ServiceTokenAuthenticator('),
           );
         },
@@ -1565,7 +1608,9 @@ void main() {
           expect(
             SessionCookieAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
+              },
             ).toString(),
             startsWith('SessionCookieAuthenticator('),
           );
@@ -1672,7 +1717,14 @@ void main() {
         'bhv langdart 024 the scheme name in this test identifies the scheme under test',
         () {
           expect(
-            SsoAuthAuthenticator(host: '/api/v3', token: 'xyz').toString(),
+            SsoAuthAuthenticator(
+              host: '/api/v3',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI': 'value',
+              },
+            ).toString(),
             startsWith('SsoAuthAuthenticator('),
           );
         },
@@ -1785,7 +1837,12 @@ void main() {
           expect(
             UserAuthAuthorizationCodeAuthenticator(
               host: '/api/v3',
-              token: 'xyz',
+              environment: {
+                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': 'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET':
+                    'value',
+                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI': 'value',
+              },
             ).toString(),
             startsWith('UserAuthAuthorizationCodeAuthenticator('),
           );
@@ -1955,21 +2012,6 @@ void main() {
       );
 
       await expectLater(auth.authHeadersAsync(), throwsA(same(cause)));
-    },
-  );
-
-  test(
-    'bhv misc 068 an empty token counts as not passed, so the value is read from the environment',
-    () {
-      final auth = BearerAuthenticator(
-        host: '/api/v3',
-        token: '',
-        environment: {
-          BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
-        },
-      );
-
-      expect(auth.authHeaders()['Authorization'], equals('Bearer from-env'));
     },
   );
 

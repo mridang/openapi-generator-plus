@@ -735,18 +735,10 @@ public abstract class BaseApi {
                                         + operationId
                                         + ": expected a JSON body");
                     }
-                    if (returnType == String.class && !isTextResponseContentType(responseContentType)) {
-                        /* A binary content type carries its body as base64 text, so a String
-                         * result is the decoded bytes read as UTF-8 text. */
-                        String decoded = new String(
-                                java.util.Base64.getDecoder().decode(response.body()),
-                                StandardCharsets.UTF_8);
-                        T decodedBody = (T) decoded;
-                        data = decodedBody;
-                    } else {
-                        T rawBody = (T) response.body();
-                        data = rawBody;
-                    }
+                    /* A String return type is the body unchanged, whatever its content
+                     * type (serialization128): only a binary return type decodes base64. */
+                    T rawBody = (T) response.body();
+                    data = rawBody;
                 } else {
                     data = objectSerializer.deserialize(response.body(), returnType);
                 }

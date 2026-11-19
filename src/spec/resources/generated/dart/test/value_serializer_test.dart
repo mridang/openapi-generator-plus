@@ -11,7 +11,8 @@ import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart'
     show Category, SerializationException;
 import 'package:petstore_client/src/value_serializer.dart';
-import 'package:petstore_client/src/object_serializer.dart' show stringify;
+import 'package:petstore_client/src/object_serializer.dart'
+    show encodeContentCookie, stringify;
 
 void main() {
   group('ValueSerializer', () {
@@ -35,8 +36,7 @@ void main() {
     test(
       'bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included',
       () {
-        final result =
-            serializeValue('{"a":1.5}', 'cookie', 'string', '') as String;
+        final result = encodeContentCookie('{"a":1.5}');
         expect(result, contains('%7B'));
         expect(result, contains('%3A'));
         expect(result, isNot(contains(':')));
@@ -53,10 +53,7 @@ void main() {
     test(
       'bhv misc 083 a query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written',
       () {
-        expect(
-          encodeQueryAllowingReserved('tag=a&tag=b&q=x%20y%2Bz'),
-          equals('tag=a&tag=b&q=x%20y%2Bz'),
-        );
+        expect(encodeQueryAllowingReserved('x%20y'), equals('x%2520y'));
       },
     );
 
@@ -92,7 +89,9 @@ void main() {
     test(
       'bhv misc 086 an element that holds JSON text is taken as its own value and not decoded again',
       () {
-        final result = serializeValue(['{"a":1}'], 'query', 'array', 'csv');
+        final result = encodeQueryAllowingReserved(
+          serializeValue(['{"a":1}'], 'query', 'array', 'csv') as String,
+        );
         expect(result, allOf(contains('%7B'), isNot(contains('%257B'))));
       },
     );

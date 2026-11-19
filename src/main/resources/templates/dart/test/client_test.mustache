@@ -76,6 +76,20 @@ void main() {
       );
     });
 
+    test('bhv misc 068 an empty token counts as not passed, so the value is read from the environment', () {
+      const host = '{{{basePath}}}';
+      if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
+        expect(() => {{clientClassName}}.withToken(host: host, accessToken: ''), returnsNormally);
+        return;
+      }
+
+      expect(
+        () => {{clientClassName}}.withToken(host: host, accessToken: ''),
+        throwsA(isA<ArgumentError>().having((e) => '${e.message}', 'message',
+            contains(BearerAuthenticator.defaultEnvironmentVariable))),
+      );
+    });
+
     test('bhv misc 204 Constructing a client without a required host or token fails immediately with a missing-credential error.', () {
       if (Platform.environment[BearerAuthenticator.defaultEnvironmentVariable] != null) {
         return;

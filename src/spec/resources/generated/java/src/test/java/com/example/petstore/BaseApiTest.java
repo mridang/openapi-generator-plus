@@ -66,15 +66,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+/**
+ * Shared helpers for the API tests: a testable API, a capturing transport and a test authenticator.
+ */
 @SuppressWarnings("NullAway")
-class BaseApiTest {
+public class BaseApiTest {
 
   private static final java.lang.reflect.Type JSON_NODE_TYPE =
       new TypeReference<JsonNode>() {}.getType();
   private static final java.lang.reflect.Type STRING_TYPE =
       new TypeReference<String>() {}.getType();
 
-  static class TestableApi extends com.example.petstore.api.BaseApi {
+  /** An API whose calls go through the test transport, for the package's tests. */
+  public static class TestableApi extends com.example.petstore.api.BaseApi {
 
     /* Re-expose the protected NO_AUTH sentinel so tests in this (non-
      * subclass) test class can pass it as the per-call auth argument and
@@ -96,7 +100,8 @@ class BaseApiTest {
           new Configuration(baseUrl, Map.of()));
     }
 
-    TestableApi(ApiClient apiClient, String baseUrl) {
+    /** Creates the API over a transport at the given base URL. */
+    public TestableApi(ApiClient apiClient, String baseUrl) {
       super(apiClient, new Configuration(baseUrl, Map.of()));
     }
 
@@ -117,7 +122,8 @@ class BaseApiTest {
       return resolveSchemeAuth(schemes);
     }
 
-    <T> @Nullable T call(
+    /** Invokes the echo operation with the given request parts. */
+    public <T> @Nullable T call(
         String method,
         String path,
         Map<String, Object> queryParams,
@@ -192,8 +198,9 @@ class BaseApiTest {
     }
   }
 
-  static class CapturingApiClient implements ApiClient {
-    String capturedUrl = "";
+  /** A transport that records the URL, headers and body of the last request. */
+  public static class CapturingApiClient implements ApiClient {
+    public String capturedUrl = "";
     Map<String, String> capturedHeaders = Map.of();
     @Nullable Object capturedBody = null;
 
@@ -3678,28 +3685,6 @@ class BaseApiTest {
       // Response shape is irrelevant; only the outbound headers are asserted.
     }
     assertEquals("scheme-cred", client.capturedHeaders.get("X-Credential"));
-  }
-
-  @Test
-  void bhvMisc081AStringResultWithABase64TransportBodyIsDecoded() throws ApiException {
-    ApiClient client =
-        (method, url, headers, body) ->
-            new ApiHttpResponse(200, "aGVsbG8=", Map.of("Content-Type", "application/pdf"));
-
-    String result =
-        new TestableApi(client, "http://localhost", null)
-            .call(
-                "GET",
-                "/test/echo",
-                new HashMap<>(),
-                new HashMap<>(),
-                null,
-                new String[] {"application/pdf"},
-                "application/json",
-                STRING_TYPE,
-                null);
-
-    assertEquals("hello", result);
   }
 
   @Test
