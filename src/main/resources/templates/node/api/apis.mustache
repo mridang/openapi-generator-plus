@@ -403,15 +403,26 @@ export class {{classname}} extends BaseApi implements {{classname}}Interface {
       {{#vendorExtensions.op.hasContentTypeSelector}}requestContentType ?? '{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}}{{^vendorExtensions.op.hasContentTypeSelector}}'{{vendorExtensions.op.effectiveConsumes}}'{{/vendorExtensions.op.hasContentTypeSelector}},
       {{#vendorExtensions.op.hasMultiple2xx}}(json: unknown, statusCode: number): {{{returnType}}} => {
 {{#vendorExtensions.op.successResponses}}
-{{^isLast}}
         if ({{#isRange}}statusCode >= 200 && statusCode < 300{{/isRange}}{{^isRange}}statusCode === {{statusCode}}{{/isRange}}) {
           return ObjectSerializer.deserialize(json, {{{returnType}}})!;
         }
-{{/isLast}}
-{{#isLast}}
-        return ObjectSerializer.deserialize(json, {{{returnType}}})!;
-{{/isLast}}
 {{/vendorExtensions.op.successResponses}}
+        /* An undeclared success status decodes as the union return type: the
+         * first member, in declaration order, that the body decodes as wins. */
+        const candidates: Array<(value: unknown) => unknown> = [
+{{#vendorExtensions.op.successResponses}}
+          (value: unknown) => ObjectSerializer.deserialize(value, {{{returnType}}}),
+{{/vendorExtensions.op.successResponses}}
+        ];
+        let lastError: unknown;
+        for (const decode of candidates) {
+          try {
+            return decode(json) as {{{returnType}}};
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        throw lastError;
       },
 {{/vendorExtensions.op.hasMultiple2xx}}
       {{^vendorExtensions.op.hasMultiple2xx}}{{#returnType}}{{#isArray}}(json: unknown) => ObjectSerializer.deserializeArray(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isArray}}{{#isMap}}(json: unknown) => ObjectSerializer.deserializeMap(json, {{#returnProperty}}{{#items}}{{>deserialize_arg}}{{/items}}{{/returnProperty}}){{/isMap}}{{^isArray}}{{^isMap}}{{#returnTypeIsPrimitive}}{{#returnProperty}}{{#isByteArray}}{{^isBinary}}(json: unknown) => ObjectSerializer.decodeBase64(json as string){{/isBinary}}{{#isBinary}}(json: unknown) => ObjectSerializer.toBinary(json){{/isBinary}}{{/isByteArray}}{{^isByteArray}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => json as {{{returnType}}}{{/isEnumRef}}{{/isByteArray}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{^returnTypeIsPrimitive}}{{#returnProperty}}{{#isEnumRef}}(json: unknown) => ObjectSerializer.deserializeEnum<{{{returnType}}}>(json, {{{returnType}}} as unknown as Record<string, unknown>){{/isEnumRef}}{{^isEnumRef}}(json: unknown) => ObjectSerializer.deserialize(json, {{returnBaseType}})!{{/isEnumRef}}{{/returnProperty}}{{/returnTypeIsPrimitive}}{{/isMap}}{{/isArray}}{{/returnType}}{{^returnType}}null{{/returnType}},{{/vendorExtensions.op.hasMultiple2xx}}

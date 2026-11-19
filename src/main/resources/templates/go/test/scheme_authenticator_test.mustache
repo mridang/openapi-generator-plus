@@ -43,7 +43,7 @@ func setSchemeEnvironment(t *testing.T, variables, fields []string, blank, mode 
 	t.Helper()
 	for i, name := range variables {
 		value := schemeEnvValue(fields[i])
-		if name == blank {
+		if blank == "*" || name == blank {
 			value = ""
 		}
 		t.Setenv(name, value)
@@ -378,7 +378,7 @@ func Test{{#firstBearer}}BhvAuth004_{{/firstBearer}}BhvLanggo125_SchemeAuthentic
 }
 {{/isBearer}}
 func TestBhvMisc196_SchemeAuthenticator_{{className}}_WithNoTokenFromArgumentOrEnvironmentFailsWithAnError(t *testing.T) {
-	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "*", "")
 
 	if _, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}}); err == nil {
 		t.Error("expected an error when no token is passed or set in the environment")
@@ -386,7 +386,7 @@ func TestBhvMisc196_SchemeAuthenticator_{{className}}_WithNoTokenFromArgumentOrE
 }
 
 func TestBhvMisc205_SchemeAuthenticator_{{className}}_MissingCredentialErrorNamesTheVariable(t *testing.T) {
-	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "*", "")
 
 	_, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
 	requireMissingCredential(t, err, scheme{{className}}Variables[0])

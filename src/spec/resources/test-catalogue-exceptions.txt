@@ -749,3 +749,5 @@ rust | misc214 | A Rust JSON content value is a serde_json::Value tree with stri
 rust | misc217 | Streaming request bodies are not implemented yet (issue #114, deferred); only in-memory bytes are accepted
 node | misc139 | a model constructor assigns its data and never copies or freezes a collection (settled F868 in the node AGENTS.md: there is no runtime freeze and the constructor checks nothing); the decode path freezes a copy of decoded collections instead, which the decode tests pin
 node | misc090 | a duration's fractional seconds are written as the shortest 3, 6 or 9 digit group, so 1.5 seconds is written as 1.500s (settled decision, pinned by bhv misc 090 variants that expect 1.500s)
+go | misc256 | Go writes a duration fraction as its shortest 3, 6 or 9 digit group ('1.100s', settled serialization046), so trailing zeros are kept to that group rather than trimmed
+go | misc216 | Go returns a binary response body as base64 text, not decoded bytes (settled serializationwire), and the raw body keeps the same encoded text

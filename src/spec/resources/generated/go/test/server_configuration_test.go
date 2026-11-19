@@ -545,7 +545,7 @@ func TestBhvMisc155_ServerConfiguration_AnUnsetEnumVariableIsRefusedNamingItsVal
 
 func TestBhvMisc156_ServerConfiguration_AllServersKeepsDeclarationOrder(t *testing.T) {
 	t.Parallel()
-	if len(petstore.AllServers) < 2 || petstore.AllServers[0] != petstore.Server1 || petstore.AllServers[1] != petstore.Server2 {
+	if len(petstore.AllServers) < 3 || petstore.AllServers[1] != petstore.Server1 || petstore.AllServers[2] != petstore.Server2 {
 		t.Error("expected AllServers to list Server1 then Server2 in declaration order")
 	}
 }

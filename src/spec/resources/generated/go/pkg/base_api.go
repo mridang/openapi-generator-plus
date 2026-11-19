@@ -422,7 +422,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		}
 
 		/* Check for errors */
-		if response.StatusCode >= 200 && response.StatusCode < 300 {
+		if response.StatusCode >= 200 && response.StatusCode < 400 {
 			return response, nil
 		}
 		failure := throwAPIError(response, params.method, requestPath, params.errorFactories)

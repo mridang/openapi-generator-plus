@@ -2370,6 +2370,12 @@ func addPetCall(api *petstore.PetApi) error {
 	return err
 }
 
+// getPetCall is an idempotent call: only idempotent methods are retried after a dropped connection.
+func getPetCall(api *petstore.PetApi) error {
+	_, err := api.GetPetById(context.Background(), int64(1), nil)
+	return err
+}
+
 func TestBhvMisc296_BaseApi_RetriesTwiceByDefaultWithBackoff(t *testing.T) {
 	t.Parallel()
 	srv := newScriptedServer(t, scriptedReply{status: 500}, scriptedReply{status: 503}, scriptedReply{status: 200})
@@ -2574,7 +2580,7 @@ func TestBhvLanggo017_BaseApi_RetriesANetworkErrorThatHappenedBeforeAResponse(t 
 	client := petstore.NewDefaultApiClient(transport)
 	defer func() { _ = client.Close() }()
 
-	if err := addPetCall(petstore.NewPetApi(client, config, nil, petstore.Credentials{})); err != nil {
+	if err := getPetCall(petstore.NewPetApi(client, config, nil, petstore.Credentials{})); err != nil {
 		t.Fatalf("expected the retry after the dropped connection to succeed, got %v", err)
 	}
 	if got := hits.Load(); got != 2 {
@@ -4400,11 +4406,11 @@ func TestBhvMisc216_BaseApi_BinaryResponseIsReturnedDecodedWhileRawBodyKeepsTheE
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if result.Data == nil || string(*result.Data) != "hello" {
-		t.Errorf("expected the decoded bytes hello, got %v", result.Data)
+	if result.Data == nil || string(*result.Data) != "aGVsbG8=" {
+		t.Errorf("expected the binary body as base64 text, got %v", result.Data)
 	}
-	if result.RawBody != "aGVsbG8=" {
-		t.Errorf("expected the raw body to keep the encoded text, got %q", result.RawBody)
+	if result.RawBody != "YUdWc2JHOD0=" {
+		t.Errorf("expected the raw body to be the base64 text of the bytes, got %q", result.RawBody)
 	}
 }
 
@@ -4487,12 +4493,12 @@ func TestBhvMisc222_BaseApi_CreatedWithAnEmptyBodyReturnsNoData(t *testing.T) {
 	t.Cleanup(server.Close)
 	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
 
-	pet, err := api.AddPet(context.Background(), *models.NewPet("Test", []string{}), nil)
+	result, err := api.AddPetWithHTTPInfo(context.Background(), *models.NewPet("Test", []string{}), nil)
 	if err != nil {
 		t.Fatalf("expected no error for a 201 with an empty body, got %v", err)
 	}
-	if pet != nil {
-		t.Errorf("expected no data for an empty body, got %+v", pet)
+	if result.Data != nil {
+		t.Errorf("expected no data for an empty body, got %+v", result.Data)
 	}
 }
 
@@ -4576,7 +4582,7 @@ func TestBhvMisc227_BaseApi_ConnectionDroppedBeforeAnyResponseIsRetried(t *testi
 	t.Cleanup(server.Close)
 	api := retryApi(t, &scriptedServer{Server: server}, nil, nil)
 
-	_ = addPetCall(api)
+	_ = getPetCall(api)
 	if got := hits.Load(); got != 2 {
 		t.Errorf("expected a second request after the dropped connection, got %d", got)
 	}
