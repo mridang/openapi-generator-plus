@@ -1632,4 +1632,16 @@ class DefaultApiClientTest {
               "image/png", "raw-text".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
   }
+
+  @Test
+  @DisplayName("bhvMisc240 a multipart file part is echoed back with its content")
+  void bhvMisc240AMultipartFilePartIsEchoedBackWithItsContent() throws ApiException {
+    Map<String, Object> formFields = new HashMap<>();
+    formFields.put("file", "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    ApiHttpResponse response =
+        new DefaultApiClient()
+            .sendRequest(
+                "POST", ChasmContainer.getBaseUrl() + "/test/echo", new HashMap<>(), formFields);
+    assertTrue(response.body().contains("file content"), response.body());
+  }
 }

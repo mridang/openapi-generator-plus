@@ -1862,3 +1862,59 @@ fn test_bhv_langrust_081_a_declared_error_schema_decodes_into_its_own_error_belo
         Some(400)
     );
 }
+#[test]
+fn test_bhv_misc_280_a_truncated_body_states_how_many_bytes_were_left_out() {
+    let err = ApiError::new(502, "bad gateway".to_string(), None, Some("a".repeat(3000)));
+    assert!(err.to_string().contains("1976 more bytes"), "{}", err);
+}
+
+#[test]
+fn test_bhv_misc_281_headers_from_the_response_are_copied_onto_the_error() {
+    let headers = HashMap::from([("retry-after".to_string(), "5".to_string())]);
+    let err = ApiError::from_response(503, &headers, "{}", None, None);
+    let unavailable = err
+        .downcast_ref::<ServiceUnavailableError>()
+        .expect("a 503 is a ServiceUnavailableError");
+    let copied = unavailable
+        .server_error()
+        .api_error()
+        .response_headers()
+        .expect("the headers must be copied");
+    assert_eq!(Some(&"5".to_string()), copied.get("retry-after"));
+}
+
+#[test]
+fn test_bhv_misc_283_package_root_exports_the_whole_error_tree() {
+    fn exported<T: ?Sized>() {}
+    exported::<petstore::ApiError>();
+    exported::<petstore::ClientError>();
+    exported::<petstore::ServerError>();
+    exported::<petstore::NetworkError>();
+    exported::<petstore::NetworkTimeoutError>();
+    exported::<petstore::BadRequestError>();
+    exported::<petstore::UnauthorizedError>();
+    exported::<petstore::ForbiddenError>();
+    exported::<petstore::NotFoundError>();
+    exported::<petstore::ConflictError>();
+    exported::<petstore::UnprocessableEntityError>();
+    exported::<petstore::TooManyRequestsError>();
+    exported::<petstore::InternalServerError>();
+    exported::<petstore::BadGatewayError>();
+    exported::<petstore::ServiceUnavailableError>();
+    exported::<petstore::GatewayTimeoutError>();
+    exported::<petstore::OAuth2ServerError>();
+}
+
+#[test]
+fn test_bhv_misc_286_an_oauth_error_message_names_its_status_and_error_code() {
+    let err = OAuth2ServerError::new(
+        401,
+        Some("invalid_client".to_string()),
+        None,
+        None,
+        "{}".to_string(),
+    );
+    let text = err.to_string();
+    assert!(text.contains("401"), "{}", text);
+    assert!(text.contains("invalid_client"), "{}", text);
+}

@@ -28,6 +28,7 @@ import com.example.petstore.errors.SerializationException;
 import com.example.petstore.errors.ServerException;
 import java.util.Map;
 import java.util.Objects;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class ApiExceptionTest {

@@ -2,6 +2,7 @@
 
 package {{invokerPackage}};
 
+import org.junit.jupiter.api.DisplayName;
 import {{invokerPackage}}.errors.ApiException;
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -4682,5 +4683,34 @@ class DefaultApiClientUnitTest {
     String part = renderMultipartPart("blob", stream);
     assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
     assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
+  }
+
+
+
+  @Test
+  void bhvMisc237AnIso88591ErrorBodyDecodesToUtf8TextInTheError() throws Exception {
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/fail",
+        exchange -> {
+          byte[] body = "café".getBytes(StandardCharsets.ISO_8859_1);
+          exchange.getResponseHeaders().add("Content-Type", "application/json; charset=ISO-8859-1");
+          exchange.sendResponseHeaders(404, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", "http://localhost:" + server.getAddress().getPort() + "/fail", Map.of(), null);
+      assertEquals(404, response.statusCode());
+      assertEquals("café", response.body());
+    } finally {
+      server.stop(0);
+    }
   }
 }

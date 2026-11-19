@@ -1844,6 +1844,49 @@ fn test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries() {
     assert_eq!(with("2"), with("2"));
     assert_ne!(with("2"), with("3"));
 }
+#[test]
+fn test_bhv_misc_252_an_enum_wire_value_with_separators_round_trips_unchanged() {
+    let value: petstore::models::Separator =
+        serde_json::from_str("\"@@\"").expect("the wire value must decode");
+    assert_eq!(
+        "\"@@\"",
+        serde_json::to_string(&value).expect("the value must encode")
+    );
+}
+
+#[test]
+fn test_bhv_misc_256_a_fractional_second_keeps_only_the_digits_present() {
+    use chrono::TimeDelta as Duration;
+    use petstore::proto_duration;
+    assert_eq!(
+        "1.5s",
+        proto_duration::format(&Duration::milliseconds(1500))
+    );
+}
+
+#[test]
+fn test_bhv_misc_288_a_snake_case_key_at_the_top_level_is_captured_as_an_undeclared_extra() {
+    let model: petstore::models::Freeform =
+        serde_json::from_str(r#"{"label":"x","snake_case_key":1}"#).expect("the model must decode");
+    assert_eq!(
+        1,
+        model.additional_properties.len(),
+        "{:?}",
+        model.additional_properties.keys().collect::<Vec<_>>()
+    );
+    assert!(model.additional_properties.contains_key("snake_case_key"));
+}
+
+#[test]
+fn test_bhv_misc_289_a_snake_case_key_inside_a_list_element_is_captured_as_an_undeclared_extra() {
+    let items: Vec<petstore::models::Freeform> =
+        serde_json::from_str(r#"[{"label":"x","snake_case_key":1}]"#)
+            .expect("the list must decode");
+    assert_eq!(1, items[0].additional_properties.len());
+    assert!(items[0]
+        .additional_properties
+        .contains_key("snake_case_key"));
+}
 
 // -- wire decoding and encoding of models and values (chunk 14) --
 
@@ -1966,4 +2009,53 @@ fn test_bhv_serialization_104_an_upper_case_uuid_decodes_and_comes_back_lowercas
 fn test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises() {
     use petstore::models::OrderStatusEnum;
     assert!(serde_json::from_str::<OrderStatusEnum>("\"PLACED\"").is_err());
+}
+
+#[test]
+fn test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form() {
+    use petstore::models::Category;
+    let name = "e\u{301}".to_string();
+    let text = serde_json::to_string(&Category::new().with_name(name.clone())).unwrap();
+    let back: Category = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.name, Some(name));
+}
+
+#[test]
+fn test_bhv_serialization_116_a_property_named_as_a_keyword_keeps_its_wire_key() {
+    use petstore::models::EdgeCases;
+    let model: EdgeCases = serde_json::from_str(r#"{"class":"x"}"#).unwrap();
+    assert_eq!(model.class, Some("x".to_string()));
+    let data = serde_json::to_value(&model).unwrap();
+    assert_eq!(data["class"], "x");
+}
+
+#[test]
+fn test_bhv_serialization_117_a_protobuf_duration_string_decodes_to_a_standalone_duration() {
+    use petstore::proto_duration;
+    assert_eq!(
+        proto_duration::parse("3600s").unwrap(),
+        chrono::TimeDelta::hours(1)
+    );
+}
+
+#[test]
+fn test_bhv_serialization_129_a_nanosecond_precision_duration_has_a_nine_digit_fraction() {
+    use petstore::proto_duration;
+    assert_eq!(
+        proto_duration::format(&chrono::TimeDelta::nanoseconds(1)),
+        "0.000000001s"
+    );
+}
+
+#[test]
+fn test_bhv_serialization_112_a_password_is_masked_in_the_debug_form_and_not_on_the_wire() {
+    use petstore::models::Account;
+    let account = Account::new("u".to_string()).with_password("p-secret-value".to_string());
+    assert!(!format!("{:?}", account).contains("p-secret-value"));
+    let text = serde_json::to_string(&account).unwrap();
+    assert!(
+        text.contains(r#""password":"p-secret-value""#),
+        "got: {}",
+        text
+    );
 }
