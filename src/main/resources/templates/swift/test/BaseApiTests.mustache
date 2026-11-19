@@ -2717,4 +2717,89 @@ private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
         let value = "a1!#$%&'()*+-./:<=>?@[]^_`{|}~"
         #expect(try BaseApi.cookieHeaderValue(["auth": value]) == "auth=" + value)
     }
+
+    /* An operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type. */
+    @Test func testBhvMisc179AFormUrlencodedBodySendsItsContentType() async throws {
+        let transport = ScriptedTransport([.status(200)])
+        let api = hookedBase(nil, transport: transport)
+        let params = BaseApi.InvokeAPIParams(
+            method: "POST", path: "/items", queryParams: [:], headerParams: [:],
+            body: ["name": "a"], accepts: ["application/json"],
+            contentType: "application/x-www-form-urlencoded", returnType: "String",
+            auth: nil, operationId: "createItem", urlTemplate: "/items")
+        _ = try await api.invokeAPI(params)
+        #expect(transport.sent.first?["Content-Type"] == "application/x-www-form-urlencoded")
+    }
+
+    /* The API-key query wrapper sends its key as the api_key query parameter on the wire. */
+    @Test func testBhvMisc189TheApiKeyQueryWrapperSendsItsKeyAsTheQueryParameter() async throws {
+        let transport = ScriptedTransport([.status(200)])
+        let auth = try ApiKeyQueryAuthenticator(host: "https://example.com", apiKey: "abc123")
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = BaseApi(apiClient: transport, config: config, authenticator: auth)
+        let params = BaseApi.InvokeAPIParams(
+            method: "get", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+            accepts: ["application/json"], contentType: "application/json", returnType: "String",
+            auth: nil, operationId: "listItems", urlTemplate: "/items")
+        _ = try await api.invokeAPI(params)
+        #expect(transport.urls.first?.contains("api_key=abc123") == true)
+    }
+
+    /* An operation whose named schemes the client does not hold is served by the client's default authenticator. */
+    @Test func testBhvMisc197AnOperationWithoutItsSchemeIsServedByTheDefaultAuthenticator() async throws {
+        let client = ScriptedApiClient(statuses: [200])
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "default-token")
+        let config = ConfigurationBuilder().baseURL("https://api.example.com").build()
+        let api = PetApi(apiClient: client, config: config, authenticator: auth)
+        _ = try await api.getPetById(petId: 1)
+        #expect(client.seenAuthorization == ["Bearer default-token"])
+    }
+
+    /* A text body sent without a declared content type goes out with the JSON media type and no parameters. */
+    @Test func testBhvMisc202ATextBodyWithNoDeclaredContentTypeIsSentAsJson() async throws {
+        let transport = ScriptedTransport([.status(200)])
+        let api = hookedBase(nil, transport: transport)
+        let params = BaseApi.InvokeAPIParams(
+            method: "POST", path: "/items", queryParams: [:], headerParams: [:],
+            body: "hello", accepts: ["application/json"],
+            contentType: "", returnType: "String",
+            auth: nil, operationId: "createItem", urlTemplate: "/items")
+        _ = try await api.invokeAPI(params)
+        #expect(transport.sent.first?["Content-Type"] == "application/json")
+    }
+
+    /* A void operation ignores a success body that is plain text, and returns no data. */
+    @Test func testBhvMisc209AVoidOperationIgnoresATextSuccessBody() async throws {
+        let transport = ScriptedTransport([.status(200, headers: ["Content-Type": "text/plain"], body: "plain text")])
+        let api = hookedBase(nil, transport: transport)
+        let params = BaseApi.InvokeAPIParams(
+            method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+            accepts: ["application/json"], contentType: "application/json", returnType: "Void",
+            auth: nil, operationId: "deleteItem", urlTemplate: "/items")
+        let result = try await api.invokeAPIForEmptyResult(params)
+        #expect(result.data == nil)
+        #expect(result.statusCode == 200)
+    }
+
+    /* A void operation ignores a success body that is a non-object JSON value, and returns no data. */
+    @Test func testBhvMisc209AVoidOperationIgnoresANonObjectJsonSuccessBody() async throws {
+        let transport = ScriptedTransport([.status(200, body: "42")])
+        let api = hookedBase(nil, transport: transport)
+        let params = BaseApi.InvokeAPIParams(
+            method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+            accepts: ["application/json"], contentType: "application/json", returnType: "Void",
+            auth: nil, operationId: "deleteItem", urlTemplate: "/items")
+        let result = try await api.invokeAPIForEmptyResult(params)
+        #expect(result.data == nil)
+        #expect(result.statusCode == 200)
+    }
+
+    /* A date-time form field is encoded in canonical form, with its colons and plus sign percent-escaped. */
+    @Test func testBhvMisc210AFormDateTimeIsPercentEscapedInCanonicalForm() {
+        let params: [String: Any] = ["at": "2024-01-02T03:04:05+02:00"]
+        let result = try? BaseApi.serializeBody(params, contentType: "application/x-www-form-urlencoded")
+        let str = result.flatMap { String(data: $0, encoding: .utf8) }
+        #expect(str == "at=2024-01-02T03%3A04%3A05%2B02%3A00")
+    }
+
 }

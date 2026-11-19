@@ -1561,6 +1561,17 @@ describe("ValueSerializer misc behaviours", () => {
   });
 });
 
+describe("ValueSerializer absent-value behaviour (bhv serialization 110)", () => {
+  test("bhv serialization 110 an absent or nil value is sent as null in the query location and as an empty value elsewhere", () => {
+    expect(ValueSerializer.serialize(null, "query", "string")).toBeUndefined();
+    expect(
+      ValueSerializer.serialize(undefined, "query", "string"),
+    ).toBeUndefined();
+    expect(ValueSerializer.serialize(null, "path", "string")).toBe("");
+    expect(ValueSerializer.serialize(null, "header", "string")).toBe("");
+  });
+});
+
 describe("ValueSerializer misc behaviours (chunk 11)", () => {
   test("bhv serialization 106 a non-exploded array query parameter joins its values with commas", () => {
     expect(ValueSerializer.serialize(["a", "b"], "query", "array", "csv")).toBe(

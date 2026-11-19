@@ -1482,10 +1482,10 @@ describe 'DefaultApiClientUnit' do
     _(seen).must_equal ['{"a":1}', 'application/json']
   end
 
-  it 'bhv_redirects_040 follows a 301, 302 or 303 redirect from HTTPS to plain HTTP for a POST with a body' do
-    # Those statuses send the next request as a GET with no body, so there is
-    # nothing to leak across the downgrade and the redirect is followed.
-    [301, 302, 303].each do |status|
+  it 'bhv_redirects_040 follows a 303 redirect from HTTPS to plain HTTP for a POST with a body' do
+    # A 303 sends the next request as a GET with no body, so there is nothing
+    # to leak across the downgrade and the redirect is followed.
+    [303].each do |status|
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [status, { 'location' => 'http://localhost/landing' }, '']
@@ -3289,6 +3289,13 @@ describe 'DefaultApiClientUnit' do
 
     _(outcome).must_be_instance_of Petstore::Client::Errors::NetworkError
     _(envs.length).must_equal 1
+
+    outcome, envs, = run_retry_probe do
+      raise Faraday::ConnectionFailed, OpenSSL::SSL::SSLError.new('certificate verify failed')
+    end
+
+    _(outcome).must_be_instance_of Petstore::Client::Errors::NetworkError
+    _(envs.length).must_equal 1
   end
 
   it 'bhv_retries_042 does not retry a timeout' do
@@ -3763,18 +3770,20 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'bhv_misc_124 refuses a 301 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
-    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-      stub.post('/r') do
-        [301, { 'location' => 'http://localhost/landing' }, '']
+  it 'bhv_misc_124 refuses a 301 or 302 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
+    [301, 302].each do |status|
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
       end
-    end
-    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
-    client = Petstore::Client::DefaultApiClient.new(transport)
-    client.stub(:build_connection, stub_connection(stubs)) do
-      _(proc {
-        client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
-      }).must_raise Petstore::Client::Errors::ApiError
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        _(proc {
+          client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+        }).must_raise Petstore::Client::Errors::ApiError
+      end
     end
   end
 
