@@ -813,4 +813,57 @@ class ComposedSchemaTest {
     assertTrue(food instanceof com.example.petstore.models.DryFood);
     assertEquals(2.5, ((com.example.petstore.models.DryFood) food).weightKg);
   }
+
+  @Nested
+  @DisplayName("union variant identity and equality")
+  class UnionVariantIdentityTests {
+
+    @Test
+    @DisplayName(
+        "bhvUnions044 a union's typed factory and accessor identify the variant it was built from")
+    void bhvUnions044TypedFactoryAndAccessorIdentifyTheVariant() {
+      com.example.petstore.models.Medication aspirin =
+          Objects.requireNonNull(
+              serializer.deserialize(
+                  "{\"drugName\":\"aspirin\"}", com.example.petstore.models.Medication.class));
+      com.example.petstore.models.PetTreatment treatment =
+          com.example.petstore.models.PetTreatment.ofMedication(aspirin);
+      assertThat(treatment.isMedication()).isTrue();
+      assertThat(treatment.isSurgery()).isFalse();
+      assertThat(treatment.asMedication()).contains(aspirin);
+    }
+
+    @Test
+    @DisplayName("bhvUnions045 two unions decoded from identical JSON compare equal")
+    void bhvUnions045UnionsDecodedFromIdenticalJsonCompareEqual() {
+      String json = "{\"drugName\":\"aspirin\"}";
+      com.example.petstore.models.PetTreatment first =
+          serializer.deserialize(json, com.example.petstore.models.PetTreatment.class);
+      com.example.petstore.models.PetTreatment second =
+          serializer.deserialize(json, com.example.petstore.models.PetTreatment.class);
+      assertThat(second).isEqualTo(first);
+    }
+
+    @Test
+    @DisplayName("bhvUnions046 every anyOf variant a payload matches reports itself as matched")
+    void bhvUnions046EveryMatchingAnyOfVariantReportsItself() {
+      com.example.petstore.models.PetTreatment treatment =
+          serializer.deserialize("{}", com.example.petstore.models.PetTreatment.class);
+      assertThat(treatment.isMedication()).isTrue();
+      assertThat(treatment.isSurgery()).isTrue();
+      assertThat(treatment.getMatchedInstances()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvUnions047 a discriminator value that is not listed, or is empty, raises a clear error")
+    void bhvUnions047UnlistedOrEmptyDiscriminatorRaisesAClearError() {
+      for (String foodType : List.of("triangle", "")) {
+        String json = "{\"foodType\":\"" + foodType + "\",\"weightKg\":2.5}";
+        assertThatThrownBy(() -> serializer.deserialize(json, PET_FOOD_TYPE))
+            .isExactlyInstanceOf(SerializationException.class)
+            .hasMessageContaining("Could not resolve");
+      }
+    }
+  }
 }
