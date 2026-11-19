@@ -1146,7 +1146,7 @@ mod tests {
 
     /* F1090: a typed map property (required or optional) is written in
      * ascending key order too, whatever the value type. */
-    #[test]
+
     /* F1091: a deepObject parameter lists a model's properties in declaration
      * order and a map's keys sorted, leaving out nulls. */
     #[test]
@@ -1237,7 +1237,6 @@ mod tests {
         }
     }
 
-    #[test]
     #[test]
     fn test_bhv_serializationparam_117_a_set_without_explode_joins_its_elements_with_commas() {
         let set: std::collections::BTreeSet<String> = ["red".to_string(), "blue".to_string()]
@@ -1352,7 +1351,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_bhv_serializationobject_130_deserialize_empty_data() {
         let result: Result<Option<serde_json::Value>, _> = object_serializer::deserialize(b"");
         assert!(result.is_ok(), "expected Ok for empty data");
@@ -1379,7 +1377,6 @@ mod tests {
         assert_eq!(result, "2024-01-15");
     }
 
-    #[test]
     #[test]
     fn test_bhv_serializationparam_001_stringify_null_element_keeps_an_empty_slot() {
         let items: Vec<Option<String>> = vec![Some("a".to_string()), None, Some("c".to_string())];
@@ -2310,7 +2307,7 @@ mod tests {
     /* A discriminator value the spec does not list, or an empty one, must
      * HARD-FAIL as a SerializationError that names the problem, never dispatch
      * to a variant whose fields happen to fit. */
-    #[test]
+
     /* A discriminated oneOf payload that omits the discriminator property must
      * HARD-FAIL, not wrap the raw object in a union container. The payload
      * `{"weightKg": 5.0}` omits `foodType`; PetFood's hand-rolled Deserialize

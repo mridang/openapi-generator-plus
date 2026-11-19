@@ -53,7 +53,7 @@ public class RustClientSpec extends AbstractClientSpec implements RustSpec {
              * CARGO_BUILD_JOBS=2 bounds the build graph's parallelism (matching
              * RustBuildSpec) so the rlib lands before its dependents compile. */
             "CARGO_BUILD_JOBS=2 cargo nextest run --all-features --profile=ci --no-run",
-            "CARGO_BUILD_JOBS=2 cargo nextest run --all-features --profile=ci",
+            "CARGO_BUILD_JOBS=2 cargo nextest run --all-features --profile=ci --no-fail-fast",
             "cp target/nextest/ci/junit.xml .out/reports/junit.xml"
         };
     }
