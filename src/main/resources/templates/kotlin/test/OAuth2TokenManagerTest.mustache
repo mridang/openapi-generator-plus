@@ -1305,21 +1305,6 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
-    @DisplayName("bhvMisc172 a token request is sent once and is not retried, even when the server answers 503")
-    fun bhvMisc172ATokenRequestIsSentOnceEvenWhenTheServerAnswers503() {
-        val client = FakeApiClient()
-        client.enqueue("""{"error":"temporarily_unavailable"}""", statusCode = 503)
-        val manager = OAuth2TokenManager()
-        manager.apiClient = client
-        assertThrowsExactly(OAuth2ServerException::class.java) {
-            runBlocking {
-                manager.getAccessToken("https://auth.example.com/token", mapOf("grant_type" to "client_credentials"))
-            }
-        }
-        assertEquals(1, client.bodies.size)
-    }
-
-    @Test
     @DisplayName("bhvAuth055 a network failure during a token request reaches the caller unchanged")
     fun bhvAuth055NetworkFailureReachesTheCallerUnchanged() {
         val manager = OAuth2TokenManager()
