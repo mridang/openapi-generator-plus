@@ -1507,6 +1507,21 @@ describe Petstore::Client::Api::BaseApi do
     _(result.raw_body).must_equal '{}'
   end
 
+  it 'bhv_misc_220 a full-response call keeps the status code and decodes the union type of the body' do
+    client = Object.new
+    client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+      Petstore::Client::ApiHttpResponse.new(status_code: 201, body: '{"foodType":"dry","weightKg":2.5}',
+                                            headers: { 'content-type' => 'application/json' })
+    end
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call_for_result('POST', '/items', {}, {}, nil,
+                                      ['application/json'], 'application/json', 'PetFood')
+
+    _(result.status_code).must_equal 201
+    _(result.data).must_be_kind_of Petstore::Client::Models::DryFood
+  end
+
   # ── NullBodyContentTypeTests ──
 
   it 'bhv_operations_013 null body POST does not send Content-Type' do
