@@ -3867,3 +3867,83 @@ fn test_bhv_misc_186_a_ready_made_connection_combined_with_a_tls_setting_is_refu
         .expect("the conflict is refused");
     assert!(err.to_string().contains("verify_ssl(false)"), "got: {}", err);
 }
+
+#[tokio::test]
+async fn test_bhv_misc_265_a_non_http_redirect_surfaces_as_an_api_error_with_the_redirect_status() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 302 Found\r\nLocation: file:///etc/passwd\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let client = DefaultApiClient::new(None);
+    let err = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("a non-HTTP redirect must fail the call");
+    assert!(err.downcast_ref::<NetworkError>().is_none(), "a redirect is not a network error: {}", err);
+    let api = err.downcast_ref::<ApiError>().expect("the redirect must surface as an ApiError");
+    assert_eq!(302, api.status_code());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_273_the_request_id_is_a_uuid_v4_when_enabled_and_omitted_when_disabled() {
+    let (base_url, ids) = start_request_id_capture_server(1);
+    let enabled = DefaultApiClient::new(Some(
+        TransportOptionsBuilder::new().inject_request_id(true).build().expect("valid transport options"),
+    ));
+    enabled
+        .send_request("GET", &format!("{}/echo", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    let id = ids.lock().unwrap()[0].clone();
+    let bytes = id.as_bytes();
+    assert_eq!(36, bytes.len(), "{}", id);
+    assert_eq!(b'4', bytes[14], "the version nibble must be 4: {}", id);
+
+    let (base_url, head) = start_head_capture_server();
+    let disabled = DefaultApiClient::new(Some(
+        TransportOptionsBuilder::new().inject_request_id(false).build().expect("valid transport options"),
+    ));
+    disabled
+        .send_request("GET", &format!("{}/echo", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    let head = head.recv().expect("no request captured");
+    assert_eq!(None, head_header(&head, "x-request-id"), "{}", head);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_274_a_non_2xx_response_is_returned_to_the_caller_with_its_status() {
+    let base_url = start_404_server();
+    let client = DefaultApiClient::new(None);
+    let resp = client
+        .send_request("GET", &format!("{}/items", base_url), &HashMap::new(), None)
+        .await
+        .expect("a 404 is a response, not a transport error");
+    assert_eq!(404, resp.status_code());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_275_the_request_is_sent_with_the_intended_method_and_the_response_returned() {
+    let base_url = start_method_echo_server();
+    let client = DefaultApiClient::new(None);
+    let resp = client
+        .send_request("PATCH", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+    assert_eq!(200, resp.status_code());
+    assert!(resp.body().contains(r#""method":"PATCH""#), "{}", resp.body());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_285_an_undecodable_content_encoding_is_refused_with_the_exact_message() {
+    let base_url = start_unknown_content_encoding_server();
+    let client = DefaultApiClient::new(None);
+    let err = client
+        .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+        .await
+        .expect_err("an undecodable Content-Encoding must fail the call");
+    assert!(
+        err.to_string().contains("Unsupported Content-Encoding 'made-up-codec'"),
+        "the exact unsupported-encoding message must be reported: {}",
+        err
+    );
+}

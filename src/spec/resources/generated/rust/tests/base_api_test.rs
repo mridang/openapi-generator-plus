@@ -4156,3 +4156,136 @@ async fn test_bhv_misc_228_an_unparseable_retry_after_falls_back_to_the_normal_b
         .expect("the retry after the 503 succeeds");
     assert_eq!(2, client.calls());
 }
+
+#[tokio::test]
+async fn test_bhv_misc_264_each_listed_error_status_raises_its_typed_error() {
+    let cases: [(
+        u16,
+        fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool,
+    ); 3] = [
+        (400, |e| e.downcast_ref::<BadRequestError>().is_some()),
+        (401, |e| e.downcast_ref::<UnauthorizedError>().is_some()),
+        (500, |e| e.downcast_ref::<InternalServerError>().is_some()),
+    ];
+    for (status, is_typed) in cases {
+        let base_url = format!(
+            "{}/test/status/{}",
+            testcontainers_helper::chasm_http_url(),
+            status
+        );
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+        let err = api
+            .get_pet_by_id(1, None, None)
+            .await
+            .expect_err("expected an error status");
+        assert!(
+            is_typed(err.as_ref()),
+            "status {} did not raise its typed error: {}",
+            status,
+            err
+        );
+    }
+}
+#[tokio::test]
+async fn test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::FindPetsByStatusOptions::new().status("a/b:c".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("status=a%2Fb%3Ac"),
+        "expected slash and colon to be percent-encoded, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_255_separate_query_parameters_encode_a_space_as_percent_20() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::FindPetsByStatusOptions::new().status("a b".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("status=a%20b"),
+        "expected a space to be written as %20, got: {}",
+        url
+    );
+}
+
+/// Answers every request with one fixed status and an empty JSON body.
+struct StatusApiClient {
+    status: u16,
+}
+
+impl petstore::api_client::ApiClient for StatusApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        let status = self.status;
+        Box::pin(async move {
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
+                status,
+                "{}".to_string(),
+                HashMap::new(),
+            ))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_listed_status() {
+    let cases: [(
+        u16,
+        fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool,
+    ); 8] = [
+        (400, |e| e.downcast_ref::<BadRequestError>().is_some()),
+        (403, |e| e.downcast_ref::<ForbiddenError>().is_some()),
+        (404, |e| e.downcast_ref::<NotFoundError>().is_some()),
+        (409, |e| e.downcast_ref::<ConflictError>().is_some()),
+        (422, |e| {
+            e.downcast_ref::<UnprocessableEntityError>().is_some()
+        }),
+        (429, |e| e.downcast_ref::<TooManyRequestsError>().is_some()),
+        (500, |e| e.downcast_ref::<InternalServerError>().is_some()),
+        (502, |e| e.downcast_ref::<BadGatewayError>().is_some()),
+    ];
+    for (status, is_typed) in cases {
+        let config = ConfigurationBuilder::new()
+            .base_url("https://example.test")
+            .build();
+        let api = PetApi::new(Arc::new(StatusApiClient { status }), config, None);
+        let err = api
+            .get_pet_by_id(1, None, None)
+            .await
+            .expect_err("a listed error status must fail the call");
+        assert!(
+            is_typed(err.as_ref()),
+            "status {} did not raise its typed error: {}",
+            status,
+            err
+        );
+    }
+}

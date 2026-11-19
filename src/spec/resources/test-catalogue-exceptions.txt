@@ -752,6 +752,9 @@ kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by try
 kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
 rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
 rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
+
+rust | misc262 | The Rust client has no cancellation API: a pending request is cancelled by dropping its future, and no client operation cancels pending requests or reports a cancellation to the caller.
+rust | misc263 | The Rust client has no per-call timeout: the timeout is set on the transport options when the client is built and no call accepts its own value, so a per-call timeout longer than the client timeout cannot be expressed.
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
 
 
@@ -776,6 +779,9 @@ php | transport083 | PHP SDK has no cancellation handle or signal API (its readm
 php | transport084 | PHP SDK has no cancellation handle or signal API (its readme states it has no cancellation API of its own), so a call cannot be stopped through a handle
 php | transport085 | PHP SDK has no cancellation token or signal API (its readme states it has no cancellation API of its own), so there is no token to supply or leave unfired
 swift | serialization096 | Swift decodes an absent optional field to nil; the schema default is applied only by the generated initializer, so decoding an absent field does not yield the declared default
+java | misc231 | Java builders and setters take the declared property type, so a wrong-typed value cannot be passed to a model built in code and the compiler refuses it; the wrong-type check runs only when decoding
+java | misc242 | Java sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect in any SDK; the model javadoc states it), so no property is left off the wire
+
 swift | transport083 | Swift has no client-level cancellation token: cancellation is the calling Task, per call, and transport084 covers cancelling a call through its handle
 swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
 swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists

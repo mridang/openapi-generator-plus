@@ -851,3 +851,24 @@ describe('ValueSerializer date-time query behaviour (bhv serialization 118)', ()
     expect(ValueSerializer.serializeStyled('at', at, 'query', 'Date', null, 'form', true)).toContain('2026-01-02T03:04:05');
   });
 });
+
+describe('ValueSerializer misc location behaviours', () => {
+  test('bhv misc 232 a string path parameter in the simple style percent-encodes slashes', () => {
+    expect(ValueSerializer.serialize('a/b', 'path', 'string')).toBe('a%2Fb');
+  });
+
+  test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included', () => {
+    const result = ValueSerializer.serialize('{"a":1.5}', 'cookie', 'string') as string;
+    expect(result).toContain('%7B');
+    expect(result).toContain('%3A');
+    expect(result).not.toContain(':');
+  });
+
+  test('bhv misc 236 a date-only value is written as yyyy-mm-dd with no time in query, header and cookie locations', () => {
+    const date = new Date(Date.UTC(2024, 0, 15));
+    expect(ValueSerializer.stringifyDate(date)).toBe('2024-01-15');
+    expect(ValueSerializer.serialize('2024-01-15', 'query', 'string')).toBe('2024-01-15');
+    expect(ValueSerializer.serialize('2024-01-15', 'header', 'string')).toBe('2024-01-15');
+    expect(ValueSerializer.serialize('2024-01-15', 'cookie', 'string')).toBe('2024-01-15');
+  });
+});
