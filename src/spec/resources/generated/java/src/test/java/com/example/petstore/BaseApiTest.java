@@ -3703,6 +3703,171 @@ class BaseApiTest {
     assertEquals(1, auth.invalidations);
   }
 
+  static Stream<Arguments> misc212ErrorStatuses() {
+    return Stream.of(
+        Arguments.of(404, NotFoundException.class),
+        Arguments.of(500, InternalServerErrorException.class));
+  }
+
+  @ParameterizedTest
+  @MethodSource("misc212ErrorStatuses")
+  @DisplayName("bhvMisc212 a 404 or 500 response raises its error class through the API layer")
+  void bhvMisc212ANotFoundOrServerErrorRaisesItsErrorClass(
+      int status, Class<? extends ApiException> expected) {
+    var ex =
+        assertThrowsExactly(
+            expected,
+            () ->
+                api()
+                    .call(
+                        "GET",
+                        "/test/status/" + status,
+                        new HashMap<>(),
+                        new HashMap<>(),
+                        null,
+                        new String[] {"application/json"},
+                        "application/json",
+                        null,
+                        null));
+    assertEquals(status, ex.getStatusCode());
+  }
+
+  @Test
+  @DisplayName("bhvMisc216 a binary response is returned decoded while the raw body keeps the text")
+  void bhvMisc216ABinaryResponseIsDecodedAndTheRawBodyKeepsTheText() throws ApiException {
+    var client =
+        new CapturingApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            return new ApiHttpResponse(
+                200, "aGVsbG8=", Map.of("Content-Type", "application/octet-stream"));
+          }
+        };
+    var testApi = new TestableApi(client, "http://localhost");
+    ApiResult<byte[]> result =
+        testApi.callForResult(
+            "GET",
+            "/x",
+            new HashMap<>(),
+            new HashMap<>(),
+            null,
+            new String[] {"application/octet-stream"},
+            "application/json",
+            byte[].class,
+            null);
+    assertArrayEquals("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8), result.data());
+    assertEquals("aGVsbG8=", result.rawBody());
+  }
+
+  @Test
+  @DisplayName("bhvMisc217 a binary upload sends in-memory bytes and a stream as given")
+  void bhvMisc217ABinaryUploadSendsBytesAndAStreamAsGiven() throws ApiException {
+    byte[] png = new byte[] {(byte) 0x89, 'P', 'N', 'G'};
+    var client = new CapturingApiClient();
+    var testApi = new TestableApi(client, "http://localhost");
+    testApi.call(
+        "PUT",
+        "/x",
+        new HashMap<>(),
+        new HashMap<>(),
+        png,
+        new String[] {"application/json"},
+        "image/png",
+        null,
+        null);
+    assertArrayEquals(png, (byte[]) client.capturedBody);
+    var stream = new java.io.ByteArrayInputStream(png);
+    testApi.call(
+        "PUT",
+        "/x",
+        new HashMap<>(),
+        new HashMap<>(),
+        stream,
+        new String[] {"application/json"},
+        "image/png",
+        null,
+        null);
+    assertSame(stream, client.capturedBody);
+  }
+
+  @Test
+  @DisplayName("bhvMisc220 a full-response call keeps the status code and decodes the body")
+  void bhvMisc220AFullResponseCallKeepsTheStatusAndDecodesTheBody() throws ApiException {
+    var client =
+        new CapturingApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            return new ApiHttpResponse(
+                201,
+                "{\"label\":\"alpha\",\"count\":2}",
+                Map.of("Content-Type", "application/json"));
+          }
+        };
+    var testApi = new TestableApi(client, "http://localhost");
+    ApiResult<JsonNode> result =
+        testApi.callForResult(
+            "POST",
+            "/x",
+            new HashMap<>(),
+            new HashMap<>(),
+            null,
+            new String[] {"application/json"},
+            "application/json",
+            JSON_NODE_TYPE,
+            null);
+    assertEquals(201, result.statusCode());
+    assertEquals("alpha", result.data().get("label").asText());
+  }
+
+  @Test
+  @DisplayName("bhvMisc221 a credential is sent with the security scheme the operation declares")
+  void bhvMisc221ASchemeCredentialWinsOverTheClientLevelAuthenticator() throws ApiException {
+    var client = new CapturingApiClient();
+    Authenticator clientAuth =
+        new TestAuthenticator(Map.of("Authorization", "Bearer client-token"), Map.of(), Map.of());
+    Authenticator schemeAuth =
+        new TestAuthenticator(Map.of("Authorization", "Bearer scheme-token"), Map.of(), Map.of());
+    var testApi = new TestableApi(client, "http://localhost", clientAuth);
+    testApi.call(
+        "GET",
+        "/x",
+        new HashMap<>(),
+        new HashMap<>(),
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        null,
+        schemeAuth);
+    assertEquals("Bearer scheme-token", client.capturedHeaders.get("Authorization"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc222 a 201 with an empty body returns no data")
+  void bhvMisc222AnEmptyCreatedResponseReturnsNoData() throws ApiException {
+    var client =
+        new CapturingApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            return new ApiHttpResponse(201, "", Map.of("Content-Type", "application/json"));
+          }
+        };
+    var testApi = new TestableApi(client, "http://localhost");
+    assertNull(
+        testApi.<JsonNode>call(
+            "POST",
+            "/x",
+            new HashMap<>(),
+            new HashMap<>(),
+            null,
+            new String[] {"application/json"},
+            "application/json",
+            JSON_NODE_TYPE,
+            null));
+  }
+
   @Nested
   @DisplayName("promised form and multipart serialization")
   class PromisedFormSerializationTests {

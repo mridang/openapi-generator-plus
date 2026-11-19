@@ -1234,6 +1234,21 @@ class ValueSerializerTest {
   }
 
   @Test
+  @DisplayName("bhvMisc213 an optional array query parameter is joined in its declared style")
+  void bhvMisc213AnOptionalArrayQueryParameterIsJoinedInItsDeclaredStyle() {
+    assertEquals(
+        "blue|black",
+        ValueSerializer.serializeStyled(
+            "colors",
+            Arrays.asList("blue", "black"),
+            "query",
+            "array",
+            null,
+            "pipeDelimited",
+            false));
+  }
+
+  @Test
   @DisplayName("bhvSerialization109 a path value is percent-encoded exactly once")
   void bhvSerialization109APathValueIsPercentEncodedExactlyOnce() {
     assertEquals("a%25b", ValueSerializer.serialize("a%b", "path", "string", null));
