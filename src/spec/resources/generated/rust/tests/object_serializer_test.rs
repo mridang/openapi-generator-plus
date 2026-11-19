@@ -2004,6 +2004,7 @@ fn test_bhv_serialization_088_bytes_are_written_as_base64_including_each_list_el
     assert_eq!(wire["shards"], serde_json::json!(["aGk="]));
 }
 
+#[test]
 fn test_bhv_misc_235_a_duration_with_fractional_seconds_keeps_its_fraction_when_serialized() {
     use chrono::TimeDelta as Duration;
     use petstore::proto_duration;

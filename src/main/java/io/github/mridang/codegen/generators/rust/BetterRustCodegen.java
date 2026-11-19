@@ -491,6 +491,11 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
                             "testcontainers_helper.rs"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/testcontainers_helper_test.mustache",
+                            "tests",
+                            "testcontainers_helper_test.rs"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/api/pet_api_test.mustache", "tests", "pet_api_test.rs"));
             supportingFiles.add(
                     new SupportingFile(
