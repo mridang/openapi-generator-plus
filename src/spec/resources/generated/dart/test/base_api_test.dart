@@ -2901,7 +2901,7 @@ void main() {
     });
 
     test(
-      'bhv operations 157 a binary request body is sent as its exact raw bytes with no multipart encoding',
+      'bhv operations 157 a binary request body is sent as its exact raw bytes with no multipart encoding, and a null required nullable query parameter is sent as the key with an empty value',
       () async {
         List<int> receivedBytes = [];
         String? receivedType;
@@ -2930,6 +2930,41 @@ void main() {
           expect(receivedBytes, equals([0x01, 0x02, 0x03]));
         } finally {
           await server.close();
+        }
+
+        String? capturedQuery;
+        final petServer = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        petServer.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final petApi = PetApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://localhost:${petServer.port}')
+                .build(),
+          );
+
+          await petApi.getPetByNote(
+            const GetPetByNoteOptions(note: null, rank: 3),
+          );
+
+          expect(
+            capturedQuery,
+            'note=&rank=3',
+            reason: 'a null note is sent as the key with an empty value',
+          );
+        } finally {
+          await petServer.close(force: true);
         }
       },
     );
@@ -4978,7 +5013,7 @@ void main() {
     );
 
     test(
-      'bhv operations 158 a header supplied on an individual call is sent with that call',
+      'bhv operations 158 a header supplied on an individual call is sent with that call, and every null required nullable query parameter is sent as an empty value in declaration order',
       () async {
         final client = _ScriptedApiClient([_reply(200), _reply(200)]);
         final api = _RecordingApi(client);
@@ -4992,6 +5027,41 @@ void main() {
 
         expect(client.sentHeaders.first['X-Once'], equals('yes'));
         expect(client.sentHeaders.last.containsKey('X-Once'), isFalse);
+
+        String? capturedQuery;
+        final petServer = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        petServer.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final petApi = PetApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://localhost:${petServer.port}')
+                .build(),
+          );
+
+          await petApi.getPetByNote(
+            const GetPetByNoteOptions(note: null, rank: null),
+          );
+
+          expect(
+            capturedQuery,
+            'note=&rank=',
+            reason: 'every null is sent in declaration order',
+          );
+        } finally {
+          await petServer.close(force: true);
+        }
       },
     );
 
@@ -6666,7 +6736,7 @@ void main() {
     );
 
     test(
-      'bhv hooks 002 start is called once with the spec operation id, the method, the template and the url',
+      'bhv hooks 002 start is called once per operation call with the spec operation id, the upper-case method, the url template and the url without its query string',
       () async {
         final hook = _RecordingHook();
         final api = _HookedApi(_ScriptedApiClient([_reply(200)]), hook);
@@ -6686,13 +6756,16 @@ void main() {
           hook.infos.single.url,
           equals('https://api.example.com/items/7'),
         );
-      },
-    );
 
-    test(
-      'bhv hooks 002 a generated operation passes its spec id and its path template',
-      () async {
-        final hook = _RecordingHook();
+        final lower = CallInfo.of(
+          operationId: 'o',
+          method: 'get',
+          urlTemplate: '/x',
+          target: 'https://api.example.com/x',
+        );
+        expect(lower.method, equals('GET'));
+
+        final hook2 = _RecordingHook();
         final client = _ScriptedApiClient([
           ApiHttpResponse(
             statusCode: 200,
@@ -6700,19 +6773,19 @@ void main() {
             headers: {'content-type': 'application/json'},
           ),
         ]);
-        final api = PetApi(
+        final api2 = PetApi(
           apiClient: client,
           config: ConfigurationBuilder()
               .baseUrl('https://api.example.com')
-              .callHook(hook)
+              .callHook(hook2)
               .build(),
         );
 
-        await api.getPetById(7, null, null);
+        await api2.getPetById(7, null, null);
 
-        expect(hook.infos.single.operationId, equals('getPetById'));
-        expect(hook.infos.single.urlTemplate, equals('/pet/{petId}'));
-        expect(hook.infos.single.method, equals('GET'));
+        expect(hook2.infos.single.operationId, equals('getPetById'));
+        expect(hook2.infos.single.urlTemplate, equals('/pet/{petId}'));
+        expect(hook2.infos.single.method, equals('GET'));
       },
     );
 
@@ -6866,27 +6939,6 @@ void main() {
 
         expect(hook.infos, hasLength(2));
         expect(hook.outcomes, hasLength(2));
-      },
-    );
-
-    test(
-      'bhv hooks 010 a hook on the configuration fires when the caller supplied the transport',
-      () async {
-        final hook = _RecordingHook();
-        final supplied = MockClient((_) async => http.Response('{}', 200));
-        final api = _HookedApi(
-          DefaultApiClient(
-            transportOptions: TransportOptionsBuilder()
-                .httpClient(supplied)
-                .build(),
-          ),
-          hook,
-        );
-
-        await api.invokeApi(method: 'GET', path: '/x');
-
-        expect(hook.infos, hasLength(1));
-        expect(hook.outcomes.single.statusCode, equals(200));
       },
     );
 

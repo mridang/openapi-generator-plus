@@ -1046,10 +1046,6 @@ class PetApiTest {
         }
 
         @Test
-        @DisplayName("bhvOperations159 a call that returns a value raises a typed API error on an empty success body")
-        fun bhvOperations159EmptySuccessBodyRaisesTypedError() = testEmptyBodyOnBodyReturningOpThrows()
-
-        @Test
         @DisplayName("bhvOperations036 empty 200 body on a body-returning op throws ApiException")
         fun testEmptyBodyOnBodyReturningOpThrows() {
             // convenience-empty-body-handling: a body-returning operation that

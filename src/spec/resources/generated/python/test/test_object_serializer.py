@@ -644,9 +644,17 @@ class TestNativeValueFormats:
             == "2001:db8::1"
         )
 
-    def test_bhv_serializationparam_106_decimal_parameter_is_plain_notation(
+    def test_bhv_serializationparam_106_null_style_is_simple_and_decimal_parameter_is_plain_notation(
         self,
     ) -> None:
+        from petstore_client.value_serializer import ValueSerializer
+
+        assert (
+            ValueSerializer.serialize_styled(
+                "id", "5", "path", "string", None, None, False
+            )
+            == "5"
+        )
         assert (
             ObjectSerializer.stringify(Decimal("12.345678901234567890123"))
             == "12.345678901234567890123"

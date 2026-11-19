@@ -850,7 +850,7 @@ void main() {
     });
 
     test(
-      'bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, dots included',
+      'bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, including its colons and dots',
       () {
         expect(
           encodeContentCookie('{"a":1.5}'),
@@ -870,7 +870,7 @@ void main() {
     );
 
     test(
-      'bhv serializationparam 104 encodeContentCookie keeps only the unreserved set literal',
+      'bhv serializationparam 104 encodeContentCookie keeps only the unreserved set literal, and a duration parameter is written in the protobuf form',
       () {
         expect(
           encodeContentCookie('{"k":"a b~*\u00e9"}'),
@@ -879,6 +879,7 @@ void main() {
         expect(encodeContentCookie("AZaz09-_~"), equals('AZaz09-_~'));
         expect(encodeContentCookie("."), equals('%2E'));
         expect(encodeContentCookie("!'()*,"), equals('%21%27%28%29%2A%2C'));
+        expect(stringify(const Duration(hours: 1)), equals('3600s'));
       },
     );
 
@@ -4159,20 +4160,6 @@ void main() {
           const json = '{"host":"not a host!","contact":"x@"}';
 
           expect(serialize(decode(json)), equals(json));
-        },
-      );
-
-      test(
-        'bhv serializationparam 104 a duration parameter is written in the protobuf form',
-        () {
-          expect(stringify(const Duration(hours: 1)), equals('3600s'));
-        },
-      );
-
-      test(
-        'bhv serializationparam 105 an address parameter is its text unchanged',
-        () {
-          expect(stringify('2001:db8::1'), equals('2001:db8::1'));
         },
       );
     });

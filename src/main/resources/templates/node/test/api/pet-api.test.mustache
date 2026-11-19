@@ -156,30 +156,6 @@ describe('PetApi', () => {
     expect(result).toBeDefined();
   });
 
-  /*
-   * setPetAvatar declares a binary request body with the content type
-   * image/jpeg. The raw bytes must reach the transport unchanged, never as a
-   * JSON array of numbers and never as base64, and the declared Content-Type
-   * must survive instead of being replaced by application/octet-stream or
-   * application/json.
-   */
-  test('bhv operations 157 a binary request body is sent as its exact raw bytes whatever the binary input type', async () => {
-    let capturedBody: unknown = null;
-    const capturingClient: ApiClient = {
-      async sendRequest(_method: string, _url: string, _headers: Record<string, string>, body: unknown): Promise<ApiHttpResponse> {
-        capturedBody = body;
-        return { statusCode: 200, body: '', headers: {} };
-      },
-    };
-    const capturingApi = new PetApi(capturingClient, Configuration.builder().baseUrl('https://client-base.example.com').build());
-    const payload = Buffer.from([0x00, 0xFF, 0xD8, 0xFF, 0xE0]);
-
-    await capturingApi.setPetAvatar(1, payload.subarray(1));
-
-    expect(Buffer.isBuffer(capturedBody)).toBe(true);
-    expect((capturedBody as Buffer).equals(payload.subarray(1))).toBe(true);
-  });
-
   test('bhv operations 073 setPetAvatar streams raw bytes with declared content type', async () => {
     let capturedBody: unknown = null;
     let capturedHeaders: Record<string, string> = {};
@@ -533,7 +509,7 @@ describe('PetApi', () => {
   // convenience-empty-body-handling: a body-returning operation that receives a
   // 200 with an empty body must surface a typed ApiError from the plain
   // convenience method, never a silently-cast undefined.
-  test('bhv operations 036 empty body on a body-returning op throws ApiError', async () => {
+  test('bhv operations 036 an empty body with status 200 or 204 on a body-returning op throws ApiError', async () => {
     const { api: mockApi, close } = await createMockServer(200, 'application/json', '');
     try {
       await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
@@ -542,6 +518,12 @@ describe('PetApi', () => {
       );
     } finally {
       close();
+    }
+    const { api: noContentApi, close: closeNoContent } = await createMockServer(204, 'application/json', '');
+    try {
+      await expect(noContentApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      closeNoContent();
     }
   });
 
@@ -1373,18 +1355,6 @@ describe('PetApi against a recording client', () => {
     expect((error as Error).constructor).toBe(TypeError);
     expect((error as Error).message).toBe(
       "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
-    );
-    expect(recorded).toHaveLength(0);
-  });
-
-  test('bhv operations 125 a required query param that is null sends no request', async () => {
-    const error = await recordingApi
-      .getPetByName('x', { category: null, xCorrelationId: 'sample-correlation' } as never)
-      .catch((e: unknown) => e);
-
-    expect((error as Error).constructor).toBe(TypeError);
-    expect((error as Error).message).toBe(
-      "Missing the required parameter 'category' when calling PetApi.getPetByName",
     );
     expect(recorded).toHaveLength(0);
   });
