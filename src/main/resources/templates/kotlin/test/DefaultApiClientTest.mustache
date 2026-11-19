@@ -749,36 +749,25 @@ class DefaultApiClientTest {
          * easily downgrade HTTPS->HTTP); only the guard logic is under test.
          */
         @Test
-        @DisplayName("bhvRedirects001 N1: 302 HTTPS->HTTP with a body proceeds (body dropped, becomes GET)")
-        fun redirect302HttpsToHttpWithBodyProceeds() {
+        @DisplayName("bhvRedirects001 N1: 302 HTTPS->HTTP with a body is refused (the body is never replayed in plain text and the call fails)")
+        fun redirect302HttpsToHttpWithBodyIsRefused() {
             var hopCount = 0
-            var secondHopMethod: String? = null
-            val engine = MockEngine { req ->
+            val engine = MockEngine { _ ->
                 hopCount++
-                if (hopCount == 1) {
-                    respond(
-                        content = "",
-                        status = HttpStatusCode.Found,
-                        headers = headersOf("Location", "http://insecure.example.com/dest"),
-                    )
-                } else {
-                    secondHopMethod = req.method.value
-                    respond("ok", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
-                }
+                respond(
+                    content = "",
+                    status = HttpStatusCode.Found,
+                    headers = headersOf("Location", "http://insecure.example.com/dest"),
+                )
             }
             val transport = TransportOptions.builder().followRedirects(true).build()
             val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false }, transport)
-            val response = runBlocking {
-                apiClient.sendRequest(
-                    "POST",
-                    "https://secure.example.com/x",
-                    emptyMap(),
-                    "secret-body",
-                )
+            assertThrows({{invokerPackage}}.errors.{{errorPrefix}}Exception::class.java) {
+                runBlocking {
+                    apiClient.sendRequest("POST", "https://secure.example.com/x", emptyMap(), "secret-body")
+                }
             }
-            assertEquals(200, response.statusCode)
-            assertEquals(2, hopCount, "302 must be followed across the HTTPS->HTTP downgrade")
-            assertEquals("GET", secondHopMethod, "302 must switch the follow-up to GET (body dropped)")
+            assertEquals(1, hopCount, "the refused redirect must not be followed")
         }
 
         @Test

@@ -469,7 +469,6 @@ public abstract class BaseApi {
       return sendAndDecode(
           operationId,
           method,
-          path,
           url,
           headers,
           body,
@@ -488,7 +487,6 @@ public abstract class BaseApi {
           sendAndDecode(
               operationId,
               method,
-              path,
               url,
               headers,
               body,
@@ -542,6 +540,20 @@ public abstract class BaseApi {
     return url.substring(0, end);
   }
 
+  /**
+   * The path of the request URL, including any path prefix of the base URL, without its query
+   * string.
+   */
+  private static String requestPathOf(String url) {
+    String bare = stripQueryAndFragment(url);
+    int scheme = bare.indexOf("://");
+    if (scheme < 0) {
+      return bare;
+    }
+    int slash = bare.indexOf('/', scheme + 3);
+    return slash < 0 ? "" : bare.substring(slash);
+  }
+
   /** The lower-case host of the URL, without port and without the brackets of an IPv6 literal. */
   private static String serverAddressOf(String url) {
     try {
@@ -564,7 +576,6 @@ public abstract class BaseApi {
   private <T> ApiResult<T> sendAndDecode(
       String operationId,
       String method,
-      String path,
       String url,
       Map<String, String> headers,
       @Nullable Object body,
@@ -656,7 +667,12 @@ public abstract class BaseApi {
 
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
       throw ApiException.fromResponse(
-          method, path, response.statusCode(), response.headers(), response.body(), errorSchemas);
+          method,
+          requestPathOf(url),
+          response.statusCode(),
+          response.headers(),
+          response.body(),
+          errorSchemas);
     }
 
     T data = null;
@@ -758,7 +774,7 @@ public abstract class BaseApi {
           response.headers(),
           response.body(),
           method,
-          path);
+          requestPathOf(url));
     }
     return new ApiResult<>(
         response.statusCode(),
