@@ -400,6 +400,12 @@ void main() {
         );
       });
 {{/hasAuthSchemeTest}}
+      test('bhv langdart 024 the scheme name in this test identifies the scheme under test', () {
+        expect(
+          {{className}}(host: '{{{basePath}}}', token: 'xyz').toString(),
+          startsWith('{{className}}('),
+        );
+      });
     });
 {{/credentialSchemes}}
   });

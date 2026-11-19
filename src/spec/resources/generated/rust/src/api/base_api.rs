@@ -1101,6 +1101,18 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_misc_169_the_pause_between_retries_starts_at_half_a_second_doubles_and_is_capped() {
+        for attempt in 0u32..6 {
+            let base_ms = (500u64 << attempt).min(8_000) as f64;
+            let delay_ms = retry_delay(attempt, None).as_millis() as f64;
+            assert!(
+                delay_ms >= base_ms * 0.75 && delay_ms <= base_ms * 1.25,
+                "attempt {attempt}: {delay_ms} ms"
+            );
+        }
+    }
+
+    #[test]
     fn test_bhv_retries_027_backoff_doubles_from_half_a_second_to_eight_seconds_with_jitter() {
         use std::time::Duration;
         for (attempt, base_ms) in [

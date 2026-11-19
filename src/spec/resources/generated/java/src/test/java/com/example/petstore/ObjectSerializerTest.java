@@ -4518,4 +4518,100 @@ class ObjectSerializerTest {
             .putAdditionalProperty("b", "3")
             .build());
   }
+
+  @Test
+  @DisplayName("bhvMisc214 an unserializable query content value raises a serialization error")
+  void bhvMisc214AnUnserializableQueryContentValueRaisesASerializationError() {
+    Map<String, Object> cyclic = new java.util.HashMap<>();
+    cyclic.put("self", cyclic);
+    assertThrows(SerializationException.class, () -> serializer.serialize(cyclic));
+  }
+
+  @Test
+  @DisplayName("bhvMisc215 an input object with no fields is filled with its declared defaults")
+  void bhvMisc215AnEmptyObjectIsFilledWithItsDeclaredDefaults() {
+    com.example.petstore.models.Order order =
+        serializer.deserialize(
+            "{}",
+            new com.fasterxml.jackson.core.type.TypeReference<
+                com.example.petstore.models.Order>() {}.getType());
+    assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order.status);
+  }
+
+  @Test
+  @DisplayName("bhvMisc287 a wire key named additional_properties is kept as an undeclared extra")
+  void bhvMisc287AWireKeyNamedAdditionalPropertiesIsKeptAsAnUndeclaredExtra() {
+    com.example.petstore.models.Metadata metadata =
+        serializer.deserialize(
+            "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"additional_properties\":\"bar\",\"region\":\"eu\"}",
+            com.example.petstore.models.Metadata.class);
+
+    assertEquals("bar", metadata.getAdditionalProperties().get("additional_properties"));
+    assertEquals("eu", metadata.getAdditionalProperties().get("region"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc288 a snake_case key at the top level is captured as an undeclared extra")
+  void bhvMisc288ASnakeCaseKeyAtTheTopLevelIsCapturedAsAnUndeclaredExtra() {
+    com.example.petstore.models.Metadata metadata =
+        serializer.deserialize(
+            "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"snake_case_key\":1}",
+            com.example.petstore.models.Metadata.class);
+
+    assertEquals(1, metadata.getAdditionalProperties().get("snake_case_key"));
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc289 a snake_case key inside a list element is captured as an undeclared extra")
+  void bhvMisc289ASnakeCaseKeyInsideAListElementIsCapturedAsAnUndeclaredExtra() {
+    java.util.List<com.example.petstore.models.Metadata> items =
+        serializer.deserialize(
+            "[{\"createdAt\":\"2024-01-01T00:00:00Z\",\"snake_case_key\":1}]",
+            new TypeReference<java.util.List<com.example.petstore.models.Metadata>>() {}.getType());
+
+    assertEquals(1, items.get(0).getAdditionalProperties().get("snake_case_key"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc290 a dictionary-valued undeclared key survives a full round trip")
+  void bhvMisc290ADictionaryValuedUndeclaredKeySurvivesAFullRoundTrip() {
+    com.example.petstore.models.Metadata metadata =
+        serializer.deserialize(
+            "{\"createdAt\":\"2024-01-01T00:00:00Z\",\"additional_properties\":\"bar\"}",
+            com.example.petstore.models.Metadata.class);
+    com.example.petstore.models.Metadata restored =
+        serializer.deserialize(
+            serializer.serialize(metadata), com.example.petstore.models.Metadata.class);
+
+    assertEquals("bar", restored.getAdditionalProperties().get("additional_properties"));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization114 decode keeps a large magnitude with a fraction")
+  void bhvSerialization114DecodeKeepsALargeMagnitudeWithAFraction() {
+    assertEquals(
+        "0.1234567890123456789",
+        ObjectSerializer.stringify(new java.math.BigDecimal("0.1234567890123456789")));
+  }
+
+  @Test
+  @DisplayName(
+      "bhvSerialization115 an integral JSON number decoded into a floating-point field becomes a"
+          + " float")
+  void bhvSerialization115AnIntegralJsonNumberDecodedIntoAFloatingPointFieldBecomesAFloat() {
+    com.example.petstore.models.DryFood dry =
+        serializer.deserialize(
+            "{\"foodType\":\"dry\",\"weightKg\":5}", com.example.petstore.models.DryFood.class);
+
+    assertEquals(5.0, dry.weightKg);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization117 a protobuf duration string decodes to a standalone duration")
+  void bhvSerialization117AProtobufDurationStringDecodesToAStandaloneDuration() {
+    Duration decoded = serializer.deserialize("\"3600s\"", Duration.class);
+
+    assertEquals(Duration.ofHours(1), decoded);
+  }
 }

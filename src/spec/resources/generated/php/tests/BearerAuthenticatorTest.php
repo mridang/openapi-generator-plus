@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -504,4 +505,15 @@ test('bhv misc 067 a token provider error reaches the caller unchanged', functio
     });
 
     expect(fn () => $auth->getAuthHeaders())->toThrow(\RuntimeException::class, 'provider boom');
+});
+
+test('bhv misc 193 a bearer scheme sends the same header as its base authenticator', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', 'xyz');
+    expect($auth->getAuthHeaders())->toBe(['Authorization' => 'Bearer xyz']);
+});
+
+test('bhv misc 195 a whitespace only token from the provider is rejected when the request is made', function (): void {
+    $auth = new BearerAuthenticator('https://api.example.com', null, fn () => '   ');
+    expect(fn () => $auth->getAuthHeaders())
+        ->toThrow(\InvalidArgumentException::class, 'must not be empty');
 });

@@ -311,7 +311,12 @@ module Petstore::Client
 
       if body.is_a?(Hash)
         boundary = SecureRandom.uuid
-        merged['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+        # A multipart type the caller declared (multipart/related, say) keeps its subtype.
+        declared = (merged.find { |name, _value| name.to_s.casecmp?('Content-Type') } || [nil, ''])[1].to_s
+        subtype = declared.split(';').first.to_s.strip
+        subtype = 'multipart/form-data' unless subtype.start_with?('multipart/')
+        merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }
+        merged['Content-Type'] = "#{subtype}; boundary=#{boundary}"
         serialized_body = build_multipart_body(body, boundary)
       elsif body.nil?
         merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }

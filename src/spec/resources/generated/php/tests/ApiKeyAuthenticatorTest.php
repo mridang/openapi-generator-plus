@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -575,4 +576,9 @@ test('bhv misc 057 an api key configured for one location is never sent at anoth
     expect($auth->getAuthHeaders())->toBe(['X-Api-Key' => 'abc123']);
     expect($auth->getQueryParams())->toBe([]);
     expect($auth->getCookieParams())->toBe([]);
+});
+
+test('bhv misc 189 the api key query wrapper sends its key as the api_key query parameter', function (): void {
+    $auth = new ApiKeyAuthenticator('https://api.example.com', 'api_key', 'abc123', ApiKeyLocation::QUERY);
+    expect($auth->getQueryParams())->toBe(['api_key' => 'abc123']);
 });

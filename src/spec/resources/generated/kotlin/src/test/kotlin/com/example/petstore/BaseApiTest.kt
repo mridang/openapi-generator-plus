@@ -280,6 +280,35 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvMisc072 each API group holds the default credential and the scheme credentials the client was built with")
+    fun bhvMisc072EveryGroupHoldsTheDefaultAndTheSchemeCredentials() {
+        val client = CapturingApiClient()
+        val fallback = TestAuthenticator(mapOf("X-Credential" to "default-cred"), emptyMap(), emptyMap())
+        val scheme = TestAuthenticator(mapOf("X-Credential" to "scheme-cred"), emptyMap(), emptyMap())
+        val group = TestableApiWithSchemes(client, "http://localhost", fallback, mapOf("petStoreBearer" to scheme))
+        runBlocking { group.call("/test/echo", group.pick("petStoreBearer")) }
+        assertEquals("scheme-cred", client.capturedHeaders["X-Credential"])
+        runBlocking { group.call("/test/echo", null) }
+        assertEquals("default-cred", client.capturedHeaders["X-Credential"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc159 a 401 is replayed once, even with retries turned off, when the authenticator can supply fresh credentials")
+    fun bhvMisc159A401IsReplayedOnceEvenWithRetriesOff() {
+        val (client, seen) = statusClient(401, 200)
+        val auth = RotatingOAuthAuthenticator()
+        val api =
+            object : com.example.petstore.api.BaseApi(client, Configuration.builder().baseUrl("http://localhost").build()) {
+                suspend fun call() =
+                    invokeApi("GET", "/items", mutableMapOf(), mutableMapOf(), null, arrayOf("application/json"), "application/json", auth)
+            }
+        val response = runBlocking { api.call() }
+        assertEquals(200, response.statusCode)
+        assertEquals(2, seen.size)
+        assertEquals(1, auth.invalidations)
+    }
+
+    @Test
     @DisplayName("bhvRetries005 a retry asks the authenticator for the headers again")
     fun aRetryAsksTheAuthenticatorForFreshHeaders() {
         val client = ScriptedApiClient(listOf(401, 200))
@@ -438,6 +467,92 @@ class BaseApiTest {
             "Content-Type must not be sent when the body is null",
         )
     }
+
+    @Test
+    @DisplayName("bhvMisc176 a required cookie parameter is sent in the Cookie header with its value")
+    fun bhvMisc176RequiredCookieParamIsSentInTheCookieHeaderWithItsValue() =
+        runBlocking<Unit> {
+            val client = CapturingApiClient()
+            val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("session" to "abc123"))
+            TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth)
+            assertEquals("session=abc123", client.capturedHeaders["Cookie"])
+        }
+
+    @Test
+    @DisplayName("bhvMisc177 a default Content-Type header given in any letter case is not sent when the request has no body")
+    fun bhvMisc177DefaultContentTypeInAnyCaseIsNotSentWithoutABody() =
+        runBlocking<Unit> {
+            val client = CapturingApiClient()
+            val config =
+                Configuration
+                    .builder()
+                    .baseUrl("http://localhost")
+                    .defaultHeader("content-type", "application/json")
+                    .build()
+            TestableApiWithConfig(client, config).call("GET", "/test/echo")
+            assertFalse(client.capturedHeaders.keys.any { it.equals("Content-Type", ignoreCase = true) })
+        }
+
+    @Test
+    @DisplayName("bhvMisc178 a declared multipart content type other than form-data reaches the transport unchanged")
+    fun bhvMisc178DeclaredMultipartTypeReachesTheTransportUnchanged() =
+        runBlocking<Unit> {
+            val client = CapturingApiClient()
+            TestableApiWithClient(client, "http://localhost")
+                .call("POST", "/test/echo", body = "part", contentType = "multipart/mixed")
+            val type =
+                client.capturedHeaders.entries
+                    .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }
+                    ?.value
+            assertEquals("multipart/mixed", type)
+        }
+
+    @Test
+    @DisplayName("bhvMisc179 an operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type")
+    fun bhvMisc179FormUrlencodedBodySendsItsContentType() =
+        runBlocking<Unit> {
+            val client = CapturingApiClient()
+            TestableApiWithClient(client, "http://localhost")
+                .call("POST", "/test/echo", body = "a=b", contentType = "application/x-www-form-urlencoded")
+            val type =
+                client.capturedHeaders.entries
+                    .firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }
+                    ?.value
+            assertEquals("application/x-www-form-urlencoded", type)
+        }
+
+    @Test
+    @DisplayName("bhvMisc181 content placed in a header is sent exactly as serialised with no percent-encoding applied")
+    fun bhvMisc181HeaderContentIsSentWithoutPercentEncoding() =
+        runBlocking<Unit> {
+            val client = CapturingApiClient()
+            TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", headerParams = mutableMapOf("X-Raw" to "a b/c%20d"))
+            assertEquals("a b/c%20d", client.capturedHeaders["X-Raw"])
+        }
+
+    @Test
+    @DisplayName(
+        "bhvMisc191 an auth cookie with a character RFC 6265 forbids raises an IllegalArgumentException that is not an OpenAPI error",
+    )
+    fun bhvMisc191ForbiddenCookieCharacterIsNotAnOpenApiError() {
+        val client = CapturingApiClient()
+        val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("bad;name" to "value"))
+        val ex =
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking { TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth) }
+            }
+        assertFalse(ex is ApiException, ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvMisc192 an auth cookie made only of legal cookie octets is sent exactly as given")
+    fun bhvMisc192LegalAuthCookieIsSentExactlyAsGiven() =
+        runBlocking<Unit> {
+            val client = CapturingApiClient()
+            val auth = TestAuthenticator(emptyMap(), emptyMap(), mapOf("session" to "abc-123_XYZ.~"))
+            TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", auth = auth)
+            assertEquals("session=abc-123_XYZ.~", client.capturedHeaders["Cookie"])
+        }
 
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
@@ -668,6 +783,43 @@ class BaseApiTest {
                 runBlocking { PerCallApi(single).call(callMaxRetries = 0) }
             }
             assertEquals(1, seenOnce.size)
+        }
+
+        @Test
+        @DisplayName("bhvMisc166 a call that disables its deadline is not cut short while it waits to retry")
+        fun bhvMisc166ACallThatDisablesItsDeadlineIsNotCutShortWhileItWaitsToRetry() {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine =
+                MockEngine { request ->
+                    seen.add(request)
+                    respond(
+                        "{}",
+                        if (seen.size == 1) HttpStatusCode.ServiceUnavailable else HttpStatusCode.OK,
+                        headersOf("Content-Type", "application/json"),
+                    )
+                }
+            val client =
+                DefaultApiClient(
+                    TransportOptions
+                        .builder()
+                        .httpClient(HttpClient(engine))
+                        .timeout(null)
+                        .maxRetries(1)
+                        .build(),
+                )
+            client.sleeper = { }
+            val ok = runBlocking { PerCallApi(client).call() }
+            assertEquals(200, ok.statusCode)
+            assertEquals(2, seen.size)
+        }
+
+        @Test
+        @DisplayName("bhvMisc171 a per-call maxRetries above the transport limit applies to that call and allows more attempts")
+        fun bhvMisc171APerCallMaxRetriesAboveTheTransportLimitAppliesToThatCall() {
+            val (client, seen) = statusClient(503, 503, 200)
+            val ok = runBlocking { PerCallApi(client).call(callMaxRetries = 2) }
+            assertEquals(200, ok.statusCode)
+            assertEquals(3, seen.size)
         }
 
         @Test
