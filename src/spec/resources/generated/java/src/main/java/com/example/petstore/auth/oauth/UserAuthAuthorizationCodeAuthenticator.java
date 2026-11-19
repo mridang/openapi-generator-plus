@@ -15,8 +15,8 @@ import javax.annotation.Nullable;
 /**
  * Authenticator for the {@code userAuth} security scheme.
  *
- * <p>A credential that is {@code null} or empty is read once, when the authenticator is built, from
- * its environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
+ * <p>A credential that is {@code null} is read once, when the authenticator is built, from its
+ * environment variable. A credential found nowhere raises an {@link IllegalArgumentException}.
  */
 public final class UserAuthAuthorizationCodeAuthenticator
     extends OAuth2AuthorizationCodeAuthenticator {
@@ -24,12 +24,12 @@ public final class UserAuthAuthorizationCodeAuthenticator
    * Creates an authenticator for the {@code userAuth} security scheme.
    *
    * @param host the host credential
-   * @param clientId the clientId credential; when {@code null} or empty it is read from the {@code
+   * @param clientId the clientId credential; when {@code null} it is read from the {@code
    *     SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID} environment variable
-   * @param clientSecret the clientSecret credential; when {@code null} or empty it is read from the
-   *     {@code SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET} environment variable
-   * @param redirectUri the redirectUri credential; when {@code null} or empty it is read from the
-   *     {@code SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI} environment variable
+   * @param clientSecret the clientSecret credential; when {@code null} it is read from the {@code
+   *     SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET} environment variable
+   * @param redirectUri the redirectUri credential; when {@code null} it is read from the {@code
+   *     SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI} environment variable
    */
   public UserAuthAuthorizationCodeAuthenticator(
       String host,
@@ -75,11 +75,11 @@ public final class UserAuthAuthorizationCodeAuthenticator
         "https://auth.example.com/oauth/refresh");
   }
 
-  /* A credential comes from the caller first, then from its environment variable; an empty
-   * value counts as unset, and a credential found nowhere is refused. */
+  /* A credential comes from the caller first, then from its environment variable; an explicit
+   * empty value is kept and refused by the base authenticator; a credential found nowhere is refused. */
   private static String resolveCredential(
       @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-    if (explicit != null && !explicit.isEmpty()) {
+    if (explicit != null) {
       return explicit;
     }
     String fromEnvironment = environment.get(envName);

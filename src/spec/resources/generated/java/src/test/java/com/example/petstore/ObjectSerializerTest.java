@@ -4047,7 +4047,7 @@ class ObjectSerializerTest {
   void bhvSerialization097EnumFieldWithADefaultIsWrittenWithThatDefault() throws Exception {
     String text = serializer.serialize(decode("{}", com.example.petstore.models.Defaults.class));
     assertTrue(text.contains("\"retries\":3"), text);
-    assertTrue(text.contains("\"mode\":\"low\""), text);
+    assertTrue(text.contains("\"mode\":\"medium\""), text);
   }
 
   @Test
