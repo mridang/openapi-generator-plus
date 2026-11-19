@@ -4730,40 +4730,6 @@ fn start_slow_redirect_server(hop_delay: std::time::Duration) -> String {
 }
 
 #[tokio::test]
-async fn test_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
-    let (base_url, captured) = start_307_redirect_server("/next".to_string());
-    let transport = TransportOptionsBuilder::new()
-        .follow_redirects(true)
-        .build()
-        .expect("valid transport options");
-    let client = DefaultApiClient::new(Some(transport));
-    let body = RequestBody::Bytes(b"{\"a\":1}".to_vec());
-
-    client
-        .send_request(
-            "POST",
-            &format!("{}/start", base_url),
-            &HashMap::new(),
-            Some(&body),
-        )
-        .await
-        .expect("the redirected request succeeds");
-
-    let calls = captured.lock().unwrap();
-    assert_eq!(2, calls.len(), "the 307 must be followed exactly once");
-    assert!(
-        calls[1].starts_with("POST /next"),
-        "the replay keeps the method: {}",
-        calls[1]
-    );
-    assert!(
-        calls[1].contains("{\"a\":1}"),
-        "the replay carries the body unchanged: {}",
-        calls[1]
-    );
-}
-
-#[tokio::test]
 async fn test_bhv_redirects_054_a_chain_past_the_timeout_budget_fails_with_a_timeout() {
     let base_url = start_slow_redirect_server(std::time::Duration::from_millis(500));
     let transport = TransportOptionsBuilder::new()

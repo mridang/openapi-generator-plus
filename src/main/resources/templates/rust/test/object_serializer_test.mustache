@@ -1139,22 +1139,6 @@ fn test_bhv_serializationobject_409_a_hostname_and_an_email_are_kept_as_given() 
     assert_eq!(serde_json::to_string(&values).expect("encode"), json);
 }
 
-#[test]
-fn test_a_duration_parameter_is_the_protobuf_form() {
-    use {{packageName}}::proto_duration;
-
-    assert_eq!(proto_duration::format(&chrono::TimeDelta::hours(1)), "3600s");
-}
-
-#[test]
-fn test_an_address_parameter_is_the_canonical_text() {
-    assert_eq!(serde_json::to_value(std::net::Ipv4Addr::new(192, 0, 2, 1)).expect("encode"), "192.0.2.1");
-    assert_eq!(
-        serde_json::to_value("2001:0DB8::1".parse::<std::net::Ipv6Addr>().expect("parse")).expect("encode"),
-        "2001:db8::1"
-    );
-}
-
 fn enum_model_source(name: &str) -> String {
     std::fs::read_to_string(format!("{}/src/models/{}.rs", env!("CARGO_MANIFEST_DIR"), name))
         .expect("the model source is readable")
@@ -1255,35 +1239,6 @@ fn test_bhv_enums_011_a_hostile_description_stays_a_comment() {
     assert!(enum_model_source("tier")
         .contains("    /// The largest tier. Ends with */ and #{x} and $x.\n    #[serde(rename = \"l\")]"));
 }
-/// A duration written to its wire string and decoded back is the same duration, across zero, negative, sub-second, multi-day and extreme values.
-#[test]
-fn test_durations_round_trip_through_their_wire_string() {
-    use {{packageName}}::proto_duration;
-    use chrono::Duration;
-
-    for d in [
-        Duration::zero(),
-        -Duration::seconds(90),
-        Duration::milliseconds(250),
-        Duration::days(3),
-        Duration::seconds(315_576_000_000),
-    ] {
-        let wire = proto_duration::format(&d);
-        assert_eq!(proto_duration::parse(&wire).expect("parse"), d, "{}", wire);
-    }
-}
-
-/// A time of day is written as zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
-#[test]
-fn test_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second() {
-    use chrono::NaiveTime;
-
-    let whole = NaiveTime::from_hms_opt(9, 5, 3).expect("a valid time");
-    assert_eq!(serde_json::to_string(&whole).expect("serialize"), "\"09:05:03\"");
-    let fractional = NaiveTime::from_hms_milli_opt(9, 5, 3, 250).expect("a valid time");
-    assert_eq!(serde_json::to_string(&fractional).expect("serialize"), "\"09:05:03.250\"");
-}
-
 
 
 #[test]

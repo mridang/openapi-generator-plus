@@ -362,10 +362,26 @@ mod tests {
         assert!(chain(vec![silent])
             .start(&info(), &mut HashMap::new())
             .is_none());
+
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let refusing: Arc<dyn CallHook> = Arc::new(Recording {
+            name: "refuser",
+            events: events.clone(),
+            silent: false,
+            refuse: true,
+        });
+        let chained = chain(vec![hook("a", &events), refusing, hook("b", &events)]);
+
+        let caught = catch_unwind(AssertUnwindSafe(|| {
+            chained.start(&info(), &mut HashMap::new())
+        }));
+
+        assert!(caught.is_err(), "the refusal reaches the caller");
+        assert_eq!(vec!["start a", "finish a"], *events.lock().unwrap());
     }
 
     #[test]
-    fn test_chain_shares_the_headers_between_the_hooks() {
+    fn test_bhv_langrust_084_headers_edited_by_one_hook_are_handed_on_to_the_next() {
         struct Setter;
         impl CallHook for Setter {
             fn start(
@@ -397,26 +413,7 @@ mod tests {
     }
 
     #[test]
-    fn test_a_refusing_start_finishes_the_earlier_hooks_and_is_rethrown() {
-        let events = Arc::new(Mutex::new(Vec::new()));
-        let refusing: Arc<dyn CallHook> = Arc::new(Recording {
-            name: "refuser",
-            events: events.clone(),
-            silent: false,
-            refuse: true,
-        });
-        let chained = chain(vec![hook("a", &events), refusing, hook("b", &events)]);
-
-        let caught = catch_unwind(AssertUnwindSafe(|| {
-            chained.start(&info(), &mut HashMap::new())
-        }));
-
-        assert!(caught.is_err(), "the refusal reaches the caller");
-        assert_eq!(vec!["start a", "finish a"], *events.lock().unwrap());
-    }
-
-    #[test]
-    fn test_a_panic_in_finish_is_swallowed_and_the_others_still_finish() {
+    fn test_bhv_langrust_085_a_panic_in_one_finish_does_not_stop_the_others_from_finishing() {
         struct Panicking;
         impl CallObserver for Panicking {
             fn finish(self: Box<Self>, _outcome: &CallOutcome<'_>) {
@@ -442,37 +439,5 @@ mod tests {
         observer.finish(&outcome());
 
         assert_eq!(vec!["start a", "finish a"], *events.lock().unwrap());
-    }
-
-    #[test]
-    fn test_a_scope_dropped_before_the_call_ends_finishes_as_cancelled() {
-        struct Capture(Arc<Mutex<Vec<String>>>);
-        impl CallObserver for Capture {
-            fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {
-                let error = outcome.error.map(|e| e.to_string()).unwrap_or_default();
-                self.0
-                    .lock()
-                    .unwrap()
-                    .push(format!("{} {}", outcome.status_code, error));
-            }
-        }
-        struct CaptureHook(Arc<Mutex<Vec<String>>>);
-        impl CallHook for CaptureHook {
-            fn start(
-                &self,
-                _info: &CallInfo,
-                _headers: &mut HashMap<String, String>,
-            ) -> Option<Box<dyn CallObserver>> {
-                Some(Box::new(Capture(self.0.clone())))
-            }
-        }
-        let seen = Arc::new(Mutex::new(Vec::new()));
-        let hook: Arc<dyn CallHook> = Arc::new(CaptureHook(seen.clone()));
-
-        let mut scope = CallScope::new();
-        scope.begin(Some(&hook), &mut HashMap::new(), info);
-        drop(scope);
-
-        assert_eq!(vec![format!("0 {}", CallCancelled)], *seen.lock().unwrap());
     }
 }

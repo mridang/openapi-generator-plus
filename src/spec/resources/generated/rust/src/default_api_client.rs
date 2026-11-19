@@ -1178,7 +1178,6 @@ fn is_text_content_type(content_type: &str) -> bool {
  * `tests/default_api_client_unit_test.rs`. */
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::{
         build_filename_directive, collect_headers, decode_text_body, is_credential_header,
         is_https_to_http_body_replay, mime_for_filename, non_http_redirect_message, parse_charset,

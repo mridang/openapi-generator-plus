@@ -2343,6 +2343,10 @@ langrust080 | A boxed error kind can be matched
 langrust081 | A declared error schema decodes into its own error below the status error
 langrust082 | The explicit token is the one sent, never one read from the environment
 langrust083 | A token provider is called for every request, not once at construction
+langrust084 | Headers edited by one hook are handed on to the next hook.
+langrust085 | A panic in one observer's finish does not stop the other observers from finishing.
+langrust086 | The call hook reaches every API group of the client.
+langrust087 | Configuration carries its call hook and its debug output omits it.
 langcsharp048 | A discovery endpoint served in clear text is rejected unless it is a loopback address
 langcsharp049 | The field holding the exchanged token can be read safely across threads
 langcsharp050 | The configured authorization endpoint is kept verbatim in the authorization url

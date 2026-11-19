@@ -802,11 +802,17 @@ mod tests {
     /* -- serialize_styled: form -- */
 
     #[test]
-    fn test_bhv_serializationparam_105_serialize_styled_form_scalar() {
+    fn test_bhv_serializationparam_105_serialize_styled_form_scalar_and_an_address_is_canonical_text() {
         let result = super::serialize_styled(
             "color", Some("blue"), None, "query", "string", "", "form", true,
         );
         assert_eq!(unwrap_single(result), "blue");
+
+        assert_eq!(serde_json::to_value(std::net::Ipv4Addr::new(192, 0, 2, 1)).expect("encode"), "192.0.2.1");
+        assert_eq!(
+            serde_json::to_value("2001:0DB8::1".parse::<std::net::Ipv6Addr>().expect("parse")).expect("encode"),
+            "2001:db8::1"
+        );
     }
 
     #[test]

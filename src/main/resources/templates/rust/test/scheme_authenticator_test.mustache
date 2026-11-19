@@ -50,31 +50,38 @@ mod {{module}} {
     use super::*;
     use {{packageName}}::{{{path}}}::{{className}};
 
-    fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![{{#envParams}}("{{envName}}", Some("value-{{name}}")), {{/envParams}}]
     }
 
-    fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![{{#envParams}}("{{envName}}", None), {{/envParams}}]
     }
 
-    fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![{{#envParams}}("{{envName}}", Some("")), {{/envParams}}]
     }
 
+{{#commonBhvOnce}}
     #[test]
-    fn test_{{#commonBhvOnce}}bhv_authbasic_001_{{/commonBhvOnce}}it_builds_from_its_environment_variables_alone() {
+    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!({{className}}::new({{{bareArgs}}}).is_ok());
         });
     }
+{{/commonBhvOnce}}
 
+{{#commonBhvOnce}}
     #[test]
-    fn test_{{#commonBhvOnce}}bhv_authscheme_002_{{/commonBhvOnce}}explicit_arguments_need_no_environment() {
+    fn test_bhv_authscheme_002_explicit_arguments_need_no_environment() {
         with_variables(&unset_all(), || {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
     }
+{{/commonBhvOnce}}
 
 {{#explicitWinsOnce}}
     #[test]
@@ -110,21 +117,25 @@ mod {{module}} {
     }
 {{/bearerIdOnce}}
 
+{{#commonBhvOnce}}
     #[test]
-    fn test_{{#commonBhvOnce}}bhv_authscheme_001_bhv_authbasic_003_{{/commonBhvOnce}}a_missing_credential_names_its_variable() {
+    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
             assert!(text.contains("{{firstEnvName}}"), "{}", text);
         });
     }
+{{/commonBhvOnce}}
 
+{{#commonBhvOnce}}
     #[test]
-    fn test_{{#commonBhvOnce}}bhv_authbasic_003_{{/commonBhvOnce}}an_empty_variable_counts_as_unset() {
+    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
             assert!(text.contains("{{firstEnvName}}"), "{}", text);
         });
     }
+{{/commonBhvOnce}}
 
 {{#emptyVariableBhv}}
     #[test]

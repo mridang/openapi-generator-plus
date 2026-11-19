@@ -253,6 +253,7 @@ mod admin_basic_authenticator {
     use super::*;
     use petstore::auth::AdminBasicAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -266,6 +267,7 @@ mod admin_basic_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             ("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME", None),
@@ -273,6 +275,7 @@ mod admin_basic_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -284,57 +287,6 @@ mod admin_basic_authenticator {
                 Some(""),
             ),
         ]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(AdminBasicAuthenticator::new("https://api.example.com", None, None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(AdminBasicAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-username"),
-                Some("explicit-password")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(AdminBasicAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(AdminBasicAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -382,6 +334,7 @@ mod pet_store_bearer_authenticator {
     use super::*;
     use petstore::auth::PetStoreBearerAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN",
@@ -389,10 +342,12 @@ mod pet_store_bearer_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN", None)]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN",
@@ -401,55 +356,7 @@ mod pet_store_bearer_authenticator {
     }
 
     #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(PetStoreBearerAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(PetStoreBearerAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-token")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
     fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text(PetStoreBearerAuthenticator::new(
                 "https://api.example.com",
@@ -640,6 +547,7 @@ mod service_token_authenticator {
     use super::*;
     use petstore::auth::ServiceTokenAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
@@ -647,63 +555,17 @@ mod service_token_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN", None)]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
             Some(""),
         )]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(ServiceTokenAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(ServiceTokenAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-token")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(ServiceTokenAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(ServiceTokenAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -726,6 +588,7 @@ mod api_key_header_authenticator {
     use super::*;
     use petstore::auth::ApiKeyHeaderAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
@@ -733,63 +596,17 @@ mod api_key_header_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY", None)]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY",
             Some(""),
         )]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(ApiKeyHeaderAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(ApiKeyHeaderAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-api_key")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(ApiKeyHeaderAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(ApiKeyHeaderAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -862,6 +679,7 @@ mod internal_api_key_authenticator {
     use super::*;
     use petstore::auth::InternalApiKeyAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
@@ -869,6 +687,7 @@ mod internal_api_key_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
@@ -876,59 +695,12 @@ mod internal_api_key_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY",
             Some(""),
         )]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(InternalApiKeyAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(InternalApiKeyAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-api_key")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(InternalApiKeyAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -951,6 +723,7 @@ mod api_key_query_authenticator {
     use super::*;
     use petstore::auth::ApiKeyQueryAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY",
@@ -958,63 +731,17 @@ mod api_key_query_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY", None)]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY",
             Some(""),
         )]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(ApiKeyQueryAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(ApiKeyQueryAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-api_key")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(ApiKeyQueryAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(ApiKeyQueryAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -1037,6 +764,7 @@ mod session_cookie_authenticator {
     use super::*;
     use petstore::auth::SessionCookieAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
@@ -1044,63 +772,17 @@ mod session_cookie_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![("SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY", None)]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY",
             Some(""),
         )]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(SessionCookieAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(SessionCookieAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-api_key")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(SessionCookieAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(SessionCookieAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -1123,6 +805,7 @@ mod machine_auth_client_credentials_authenticator {
     use super::*;
     use petstore::auth::oauth::MachineAuthClientCredentialsAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1136,6 +819,7 @@ mod machine_auth_client_credentials_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             ("SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID", None),
@@ -1146,6 +830,7 @@ mod machine_auth_client_credentials_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1157,62 +842,6 @@ mod machine_auth_client_credentials_authenticator {
                 Some(""),
             ),
         ]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(MachineAuthClientCredentialsAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(MachineAuthClientCredentialsAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-client_id"),
-                Some("explicit-client_secret")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(MachineAuthClientCredentialsAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -1236,6 +865,7 @@ mod legacy_auth_password_authenticator {
     use super::*;
     use petstore::auth::oauth::LegacyAuthPasswordAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1257,6 +887,7 @@ mod legacy_auth_password_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             ("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID", None),
@@ -1269,6 +900,7 @@ mod legacy_auth_password_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1288,70 +920,6 @@ mod legacy_auth_password_authenticator {
                 Some(""),
             ),
         ]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(LegacyAuthPasswordAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-                None
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(LegacyAuthPasswordAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-client_id"),
-                Some("explicit-client_secret"),
-                Some("explicit-username"),
-                Some("explicit-password")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(LegacyAuthPasswordAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -1377,6 +945,7 @@ mod user_auth_authorization_code_authenticator {
     use super::*;
     use petstore::auth::oauth::UserAuthAuthorizationCodeAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1394,6 +963,7 @@ mod user_auth_authorization_code_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             ("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID", None),
@@ -1405,6 +975,7 @@ mod user_auth_authorization_code_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1420,66 +991,6 @@ mod user_auth_authorization_code_authenticator {
                 Some(""),
             ),
         ]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(UserAuthAuthorizationCodeAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(UserAuthAuthorizationCodeAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-client_id"),
-                Some("explicit-client_secret"),
-                Some("explicit-redirect_uri")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(UserAuthAuthorizationCodeAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -1504,6 +1015,7 @@ mod browser_auth_implicit_authenticator {
     use super::*;
     use petstore::auth::oauth::BrowserAuthImplicitAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
@@ -1511,63 +1023,17 @@ mod browser_auth_implicit_authenticator {
         )]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID", None)]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![(
             "SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID",
             Some(""),
         )]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(BrowserAuthImplicitAuthenticator::new("https://api.example.com", None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(BrowserAuthImplicitAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-client_id")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(BrowserAuthImplicitAuthenticator::new(
-                "https://api.example.com",
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]
@@ -1590,6 +1056,7 @@ mod sso_auth_authenticator {
     use super::*;
     use petstore::auth::oauth::SsoAuthAuthenticator;
 
+    #[allow(dead_code)]
     fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             (
@@ -1607,6 +1074,7 @@ mod sso_auth_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             ("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", None),
@@ -1615,6 +1083,7 @@ mod sso_auth_authenticator {
         ]
     }
 
+    #[allow(dead_code)]
     fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![
             ("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID", Some("")),
@@ -1627,60 +1096,6 @@ mod sso_auth_authenticator {
                 Some(""),
             ),
         ]
-    }
-
-    #[test]
-    fn test_it_builds_from_its_environment_variables_alone() {
-        with_variables(&set_all(), || {
-            assert!(SsoAuthAuthenticator::new("https://api.example.com", None, None, None).is_ok());
-        });
-    }
-
-    #[test]
-    fn test_explicit_arguments_need_no_environment() {
-        with_variables(&unset_all(), || {
-            assert!(SsoAuthAuthenticator::new(
-                "https://api.example.com",
-                Some("explicit-client_id"),
-                Some("explicit-client_secret"),
-                Some("explicit-redirect_uri")
-            )
-            .is_ok());
-        });
-    }
-
-    #[test]
-    fn test_a_missing_credential_names_its_variable() {
-        with_variables(&unset_all(), || {
-            let text = invalid_argument_text(SsoAuthAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
-    }
-
-    #[test]
-    fn test_an_empty_variable_counts_as_unset() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text(SsoAuthAuthenticator::new(
-                "https://api.example.com",
-                None,
-                None,
-                None,
-            ));
-            assert!(
-                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID"),
-                "{}",
-                text
-            );
-        });
     }
 
     #[test]

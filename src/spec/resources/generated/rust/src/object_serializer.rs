@@ -1486,7 +1486,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal(
+    fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal_and_a_duration_is_protobuf_form(
     ) {
         /* Every ASCII byte: A-Z a-z 0-9 - _ ~ stays literal and every other byte,
          * the dot included, is written as %XX, the encoding a content cookie uses. */
@@ -1506,6 +1506,11 @@ mod tests {
                 );
             }
         }
+
+        assert_eq!(
+            crate::proto_duration::format(&chrono::TimeDelta::hours(1)),
+            "3600s"
+        );
     }
 
     #[test]
