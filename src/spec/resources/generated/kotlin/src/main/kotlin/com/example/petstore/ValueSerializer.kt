@@ -397,6 +397,7 @@ internal object ValueSerializer {
                     .replace("+", "%20")
                     .replace("*", "%2A")
                     .replace("%7E", "~")
+                    .replace(".", "%2E")
             else -> json
         }
     }
