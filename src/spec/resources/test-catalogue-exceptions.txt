@@ -767,7 +767,6 @@ swift | misc272 | Proving an authenticating proxy accepts the credentials needs 
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
 kotlin | misc215 | Kotlin gives every declared default as a constructor default argument, so an input object with no fields is filled by the compiler when it is built and no runtime fill step exists to test
 kotlin | misc216 | Kotlin returns a binary body as its raw bytes without base64 decoding, pinned by bhv serialization wire 060, so the body is never decoded and the raw text is the value returned
-swift | misc285 | The Swift transport decodes only gzip, detected by its magic bytes; any other Content-Encoding is passed through unchanged, and no refusal with an unsupported-encoding message exists
 kotlin | transport083 | Kotlin has no client-level cancellation setting: a call is cancelled only through the coroutine that makes it, so there is no supplied cancellation to honour (see transport084)
 kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open

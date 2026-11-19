@@ -4729,4 +4729,40 @@ class ObjectSerializerTest {
         SerializationException.class,
         () -> serializer.deserialize("\"1234-5678-1234-5678-1234567890\"", java.util.UUID.class));
   }
+
+  @Test
+  @DisplayName("bhvMisc248 a duration with days is formatted as a seconds string")
+  void bhvMisc248ADurationWithDaysIsFormattedAsASecondsString() {
+    assertEquals("86400s", ObjectSerializer.formatDuration(java.time.Duration.ofDays(1)));
+  }
+
+  @Test
+  @DisplayName("bhvMisc249 a free-form object keeps its object and integer entries on a round trip")
+  void bhvMisc249AFreeFormObjectKeepsItsObjectAndIntegerEntriesOnARoundTrip() throws Exception {
+    String wire = "{\"label\":\"x\",\"nested\":{\"a\":1},\"count\":2}";
+    com.example.petstore.models.Metadata model =
+        serializer.deserialize(wire, com.example.petstore.models.Metadata.class);
+    var mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+    assertEquals(mapper.readTree(wire), mapper.readTree(serializer.serialize(model)));
+  }
+
+  @Test
+  @DisplayName("bhvMisc251 a duration string with a day designator is rejected")
+  void bhvMisc251ADurationStringWithADayDesignatorIsRejected() {
+    assertThrows(SerializationException.class, () -> ObjectSerializer.parseDuration("1d"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc252 an enum wire value with separators round-trips unchanged")
+  void bhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged() {
+    var value = serializer.deserialize("\"@@\"", com.example.petstore.models.Separator.class);
+    assertEquals("\"@@\"", serializer.serialize(value));
+  }
+
+  @Test
+  @DisplayName("bhvMisc256 a fractional second keeps only the digits present")
+  void bhvMisc256AFractionalSecondKeepsOnlyTheDigitsPresent() {
+    assertEquals(
+        "1.5s", ObjectSerializer.formatDuration(java.time.Duration.ofSeconds(1, 500_000_000)));
+  }
 }

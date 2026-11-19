@@ -501,7 +501,7 @@ options040 | Timeout field is named exactly timeout
 options041 | UserAgent defaults to non-empty string
 options042 | UserAgent defaults to the published artifact name, version and language
 options043 | VerifySsl defaults to true
-redirects001 | 302 https->http with a body PROCEEDS (body dropped, becomes GET)
+redirects001 | 302 https->http with a body is refused (the body is never replayed in plain text and the call fails)
 redirects002 | A redirect chain inside the budget completes
 redirects003 | Concurrent requests do not share redirect budget (Wave E)
 redirects004 | Follows redirects when enabled
@@ -1383,7 +1383,7 @@ serialization065 | A null inside an array or map of plain or timestamp values is
 serialization066 | A null is kept only where the property is declared nullable, and a present value for a nullable property decodes as given.
 redirects038 | A 307 or 308 redirect that keeps the request method sends the original body unchanged to the new location, with its Content-Type.
 redirects039 | A request with no body is followed across a redirect from HTTPS to plain HTTP that keeps its method, because no body is sent in plaintext.
-redirects040 | A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused, because those statuses send the next request without a body.
+redirects040 | A 303 redirect from HTTPS to plain HTTP is followed rather than refused, because that status sends the next request without a body; a 301 or 302 carrying a body is refused (misc124).
 redirects041 | A redirect that turns a POST into a GET on 301, 302 or 303 sends the follow-up request with no Content-Length or Content-Type header.
 redirects042 | A 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero.
 redirects043 | A relative Location is resolved against the URL of the request that received the redirect, following RFC 3986.
