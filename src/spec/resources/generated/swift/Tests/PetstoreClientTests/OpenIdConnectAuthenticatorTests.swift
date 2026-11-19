@@ -830,4 +830,60 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
         == "SsoAuthAuthenticator(host: https://api.example.com, openIDConnectURL: https://auth.example.com/.well-known/openid-configuration, clientID: cid, clientSecret: ***, redirectURI: https://app.example.com/cb, scopes: [\"openid\"])"
     )
   }
+
+  /* Discovery runs again on every use when max-age is zero, so the cached document never outlives its lifetime. */
+  @Test func testBhvMisc199AnExpiredDiscoveryDocumentIsFetchedAgain() async throws {
+    let client = MockApiClient()
+    for _ in 0..<2 {
+      client.responses.append(
+        .success(
+          ApiHttpResponse(
+            statusCode: 200, body: Self.discoveryJSON, headers: ["Cache-Control": "max-age=0"])))
+    }
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.buildAuthorizationURL()
+    _ = try await auth.buildAuthorizationURL()
+
+    #expect(client.getCount == 2)
+  }
+
+  /* A discovery document whose issuer names another server is rejected. */
+  @Test func testBhvMisc200ADiscoveryDocumentNamingAnotherIssuerIsRejected() async throws {
+    let client = MockApiClient()
+    client.responses.append(
+      .success(makeResponse(body: discoveryWith(issuer: "https://evil.example.com"))))
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: SerializationError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(
+      error?.message
+        == "OIDC discovery issuer 'https://evil.example.com' does not match 'https://auth.example.com'"
+    )
+  }
+
+  /* A failed discovery request reports its request path without the query string. */
+  @Test func testBhvMisc201AFailedDiscoveryReportsItsPathWithoutTheQuery() async throws {
+    let client = MockApiClient()
+    client.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+    let auth = OpenIdConnectAuthenticator(
+      host: "https://api.example.com",
+      openIDConnectURL: "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      redirectURI: "https://app.example.com/callback",
+      scopes: ["openid"]
+    )
+    auth.setApiClient(client)
+
+    let error = await #expect(throws: NotFoundError.self) {
+      _ = try await auth.buildAuthorizationURL()
+    }
+    #expect(error?.requestPath == "/.well-known/openid-configuration")
+  }
+
 }

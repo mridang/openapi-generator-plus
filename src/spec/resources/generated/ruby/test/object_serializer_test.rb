@@ -842,6 +842,15 @@ describe Petstore::Client::ObjectSerializer do
       _(defaults.swatch).must_equal('green')
     end
 
+    it 'bhv_misc_215 an input object with no fields is filled with every declared default value' do
+      defaults = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
+      _(defaults.ratio).must_equal(1.5)
+      _(defaults.scale).must_equal(0.25)
+      _(defaults.weight).must_equal(2)
+      _(defaults.ceiling).must_equal(9_000_000_000)
+      _(defaults.swatch).must_equal('green')
+    end
+
     it 'bhv_serializationobject_111 applies exact numeric and referenced-enum defaults for absent fields' do
       defaults = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
       _(defaults.ratio).must_equal(1.5)

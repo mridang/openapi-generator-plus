@@ -2864,4 +2864,35 @@ private func operationNames(file: String, from start: String, to end: String?, p
 
     #expect(fake.closed == 2)
   }
+
+  /* Closing a client whose credentials hold nothing that needs releasing succeeds. */
+  @Test func testBhvMisc183ClosingAClientWithPlainCredentialsSucceeds() async throws {
+    let client = try Client(
+      authenticator: BearerAuthenticator(host: "https://example.com", token: "t"))
+    client.close()
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer t"])
+  }
+
+  /* A client built without a host or token takes each from the environment when it is not passed explicitly. */
+  @Test func testBhvMisc187AClientTakesTheHostAndTokenFromTheEnvironment() async throws {
+    let client = try environmentClient(
+      host: nil, token: nil,
+      environment: [
+        "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
+        "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
+      ])
+    let auth = try #require(firstApiAuthenticator(of: client))
+    #expect(auth.host() == "https://env.example.com")
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  }
+
+  /* A client built with only a default authenticator takes its host from that authenticator. */
+  @Test func testBhvMisc206AClientBuiltWithOnlyAnAuthenticatorTakesItsHostFromIt() throws {
+    let auth = try BearerAuthenticator(host: "https://only.example.com", token: "t")
+    let client = try Client(authenticator: auth)
+    defer { client.close() }
+    #expect(firstApiAuthenticator(of: client)?.host() == "https://only.example.com")
+  }
+
 }

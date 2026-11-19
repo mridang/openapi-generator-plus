@@ -30,6 +30,10 @@ describe Petstore::Client::ValueSerializer do
       _(Petstore::Client::ValueSerializer.serialize('hello world', :path, 'string')).must_equal('hello%20world')
     end
 
+    it 'bhv_misc_232 a string path parameter in explicit simple style percent-encodes slashes' do
+      _(Petstore::Client::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
+    end
+
     it 'bhv_serializationparam_101 string with slash is URL-encoded' do
       _(Petstore::Client::ValueSerializer.serialize('a/b', :path, 'string')).must_equal('a%2Fb')
     end
