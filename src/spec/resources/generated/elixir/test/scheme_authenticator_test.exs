@@ -140,91 +140,134 @@ defmodule PetstoreClient.SchemeAuthenticatorTest do
     end
   end
 
-  for {module, vars} <- @schemes do
-    describe "#{inspect(module)}" do
-      @module module
-      @vars vars
+  # Runs the body once per scheme with a clean environment; the scheme is named in any failure.
+  defp each_scheme(fun) do
+    for {module, vars} <- @schemes do
+      Enum.each(@schemes, fn {_m, vs} ->
+        Enum.each(vs, fn {_a, env} -> System.delete_env(env) end)
+      end)
 
-      test "bhv authscheme 001 builds from its environment variables alone" do
-        Enum.each(@vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
+      try do
+        fun.(module, vars)
+      rescue
+        error in [ExUnit.AssertionError] ->
+          reraise %{error | message: "#{inspect(module)}: " <> error.message}, __STACKTRACE__
+      end
+    end
+  end
 
-        auth = build(@module, [@host])
+  test "bhv authscheme 001 builds from its environment variables alone" do
+    each_scheme(fn module, vars ->
+      Enum.each(vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
 
-        for {arg, _env} <- @vars do
-          assert Map.fetch!(auth, String.to_atom(arg)) == "from-env-" <> arg
+      auth = build(module, [@host])
+
+      for {arg, _env} <- vars do
+        assert Map.fetch!(auth, String.to_atom(arg)) == "from-env-" <> arg
+      end
+    end)
+  end
+
+  test "bhv authscheme 009 an argument that is passed wins over its environment variable" do
+    each_scheme(fn module, vars ->
+      Enum.each(vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
+      [{first, _env} | rest] = vars
+
+      auth = build(module, [@host, "explicit-" <> first | Enum.map(rest, fn _ -> nil end)])
+
+      assert Map.fetch!(auth, String.to_atom(first)) == "explicit-" <> first
+
+      for {arg, _env} <- rest do
+        assert Map.fetch!(auth, String.to_atom(arg)) == "from-env-" <> arg
+      end
+    end)
+  end
+
+  test "bhv authscheme 010 an empty environment variable is treated as unset and fails naming the variable" do
+    each_scheme(fn module, vars ->
+      [{_arg, env} | _] = vars
+      System.put_env(env, "")
+
+      error = assert_raise ArgumentError, fn -> build(module, [@host]) end
+
+      assert Exception.message(error) =~ env
+    end)
+  end
+
+  test "bhv authscheme 002 explicit arguments need no environment" do
+    each_scheme(fn module, vars ->
+      args = Enum.map(vars, fn {arg, _env} -> "explicit-" <> arg end)
+
+      auth = build(module, [@host | args])
+
+      for {arg, _env} <- vars do
+        assert Map.fetch!(auth, String.to_atom(arg)) == "explicit-" <> arg
+      end
+    end)
+  end
+
+  test "bhv lifecycle 025 the environment is read once, when the authenticator is built" do
+    each_scheme(fn module, vars ->
+      Enum.each(vars, fn {arg, env} -> System.put_env(env, "first-" <> arg) end)
+
+      auth = build(module, [@host])
+      Enum.each(vars, fn {arg, env} -> System.put_env(env, "second-" <> arg) end)
+
+      for {arg, _env} <- vars do
+        assert Map.fetch!(auth, String.to_atom(arg)) == "first-" <> arg
+      end
+    end)
+  end
+
+  test "bhv langelixir 044 a credential found nowhere raises and names its variable" do
+    each_scheme(fn module, vars ->
+      for {arg, env} <- vars do
+        Enum.each(vars, fn {other, other_env} ->
+          System.put_env(other_env, "from-env-" <> other)
+        end)
+
+        System.delete_env(env)
+
+        assert_raise ArgumentError, ~r/'#{arg}'.*#{env}/, fn ->
+          build(module, [@host])
         end
       end
+    end)
+  end
 
-      test "bhv authscheme 009 an argument that is passed wins over its environment variable" do
-        Enum.each(@vars, fn {arg, env} -> System.put_env(env, "from-env-" <> arg) end)
-        [{first, _env} | rest] = @vars
+  test "bhv authbasic 012 an empty environment variable counts as unset" do
+    each_scheme(fn module, vars ->
+      for {arg, env} <- vars do
+        Enum.each(vars, fn {other, other_env} ->
+          System.put_env(other_env, "from-env-" <> other)
+        end)
 
-        auth = build(@module, [@host, "explicit-" <> first | Enum.map(rest, fn _ -> nil end)])
-
-        assert Map.fetch!(auth, String.to_atom(first)) == "explicit-" <> first
-
-        for {arg, _env} <- rest do
-          assert Map.fetch!(auth, String.to_atom(arg)) == "from-env-" <> arg
-        end
-      end
-
-      test "bhv authscheme 010 an empty environment variable is treated as unset and fails naming the variable" do
-        [{_arg, env} | _] = @vars
         System.put_env(env, "")
 
-        error = assert_raise ArgumentError, fn -> build(@module, [@host]) end
-
-        assert Exception.message(error) =~ env
-      end
-
-      test "bhv authscheme 002 explicit arguments need no environment" do
-        args = Enum.map(@vars, fn {arg, _env} -> "explicit-" <> arg end)
-
-        auth = build(@module, [@host | args])
-
-        for {arg, _env} <- @vars do
-          assert Map.fetch!(auth, String.to_atom(arg)) == "explicit-" <> arg
+        assert_raise ArgumentError, ~r/'#{arg}'.*#{env}/, fn ->
+          build(module, [@host])
         end
       end
+    end)
+  end
 
-      test "bhv lifecycle 025 the environment is read once, when the authenticator is built" do
-        Enum.each(@vars, fn {arg, env} -> System.put_env(env, "first-" <> arg) end)
-
-        auth = build(@module, [@host])
-        Enum.each(@vars, fn {arg, env} -> System.put_env(env, "second-" <> arg) end)
-
-        for {arg, _env} <- @vars do
-          assert Map.fetch!(auth, String.to_atom(arg)) == "first-" <> arg
-        end
-      end
-
-      test "a credential found nowhere raises and names its variable" do
-        for {arg, env} <- @vars do
-          Enum.each(@vars, fn {other, other_env} ->
-            System.put_env(other_env, "from-env-" <> other)
-          end)
-
-          System.delete_env(env)
-
-          assert_raise ArgumentError, ~r/'#{arg}'.*#{env}/, fn ->
-            build(@module, [@host])
-          end
-        end
-      end
-
-      test "bhv authbasic 012 an empty environment variable counts as unset" do
-        for {arg, env} <- @vars do
-          Enum.each(@vars, fn {other, other_env} ->
-            System.put_env(other_env, "from-env-" <> other)
-          end)
-
-          System.put_env(env, "")
-
-          assert_raise ArgumentError, ~r/'#{arg}'.*#{env}/, fn ->
-            build(@module, [@host])
-          end
-        end
-      end
+  test "bhv misc 073 the generated module exists for every security scheme the spec declares" do
+    for module <- [
+          PetstoreClient.Auth.PetStoreBasicAuthenticator,
+          PetstoreClient.Auth.AdminBasicAuthenticator,
+          PetstoreClient.Auth.PetStoreBearerAuthenticator,
+          PetstoreClient.Auth.ServiceTokenAuthenticator,
+          PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
+          PetstoreClient.Auth.InternalApiKeyAuthenticator,
+          PetstoreClient.Auth.ApiKeyQueryAuthenticator,
+          PetstoreClient.Auth.SessionCookieAuthenticator,
+          PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator,
+          PetstoreClient.Auth.OAuth.LegacyAuthPasswordAuthenticator,
+          PetstoreClient.Auth.OAuth.UserAuthAuthorizationCodeAuthenticator,
+          PetstoreClient.Auth.OAuth.BrowserAuthImplicitAuthenticator,
+          PetstoreClient.Auth.OAuth.SsoAuthAuthenticator
+        ] do
+      assert Code.ensure_loaded?(module)
     end
   end
 

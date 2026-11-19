@@ -10,6 +10,14 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       assert headers["X-Api-Key"] == "abc123"
     end
 
+    test "bhv misc 057 an API key is sent only at the location it was configured for" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "X-Api-Key", "abc123", :header)
+
+      assert Enum.empty?(ApiKeyAuthenticator.query_params(auth))
+      assert Enum.empty?(ApiKeyAuthenticator.cookie_params(auth))
+      assert ApiKeyAuthenticator.auth_headers(auth)["X-Api-Key"] == "abc123"
+    end
+
     test "bhv authapikey 015 valid query key is emitted as a query param" do
       auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "abc123", :query)
       params = ApiKeyAuthenticator.query_params(auth)
@@ -240,6 +248,24 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
       end
     end
 
+    test "bhv misc 189 the API-key query wrapper sends its key as the api_key query parameter" do
+      auth = ApiKeyAuthenticator.new("https://api.example.com", "api_key", "k123", :query)
+      assert ApiKeyAuthenticator.query_params(auth) == %{"api_key" => "k123"}
+    end
+
+    test "bhv misc 190 the printed output of an API-key authenticator hides the secret" do
+      auth =
+        ApiKeyAuthenticator.new(
+          "https://api.example.com",
+          "X-Api-Key",
+          "hidden-secret-value",
+          :header
+        )
+
+      refute inspect(auth) =~ "hidden-secret-value"
+      assert inspect(auth) =~ ~s(api_key: "***")
+    end
+
     test "bhv authapikey 020 every API-key wrapper redacts the key in its inspect output" do
       for module <- [
             PetstoreClient.Auth.ApiKeyHeaderAuthenticator,
@@ -281,7 +307,7 @@ defmodule PetstoreClient.Auth.ApiKeyAuthenticatorTest do
                    end
     end
 
-    test "scheme authenticators for Basic and Bearer delegate to the base authenticators" do
+    test "bhv langelixir 048 scheme authenticators for Basic and Bearer delegate to the base authenticators" do
       basic =
         PetstoreClient.Auth.AdminBasicAuthenticator.new(
           "https://api.example.com",

@@ -1017,6 +1017,30 @@ func TestBhvMisc046_ComposedSchema_EqualContentComparesEqual(t *testing.T) {
 	}
 }
 
+func TestBhvMisc292_ComposedSchema_PetTreatment_WrapperWritesTheBareVariantPayload(t *testing.T) {
+	t.Parallel()
+	wrapper := models.NewPetTreatment(models.Medication{DrugName: "Amoxicillin"})
+	data, err := json.Marshal(wrapper)
+	if err != nil {
+		t.Fatalf("failed to serialize PetTreatment: %v", err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(data, &wire); err != nil {
+		t.Fatalf("expected a JSON object, got %s: %v", data, err)
+	}
+	if wire["drugName"] != "Amoxicillin" {
+		t.Errorf("expected the bare Medication payload, got %s", data)
+	}
+	var back models.PetTreatment
+	if err := json.Unmarshal(data, &back); err != nil {
+		t.Fatalf("failed to deserialize PetTreatment: %v", err)
+	}
+	medication, ok := back.ActualInstance().(models.Medication)
+	if !ok || medication.DrugName != "Amoxicillin" {
+		t.Errorf("expected the same Medication back, got %T %v", back.ActualInstance(), back.ActualInstance())
+	}
+}
+
 func TestBhvMisc293_ComposedSchema_PetTreatment_ReturnsEveryMatchingVariantAndSkipsTheRest(t *testing.T) {
 	t.Parallel()
 	var both models.PetTreatment

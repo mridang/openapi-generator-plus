@@ -279,11 +279,11 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(err.message).must_equal 'Token response missing or empty access_token field'
   end
 
-  [
-    ['an empty string', { 'access_token' => '' }],
-    ['a non-string value', { 'access_token' => 42 }]
-  ].each do |label, payload|
-    it "an access_token that is #{label} is reported as missing or empty" do
+  it 'bhv_langruby_046 an access_token that is empty or not a string is reported as missing or empty' do
+    [
+      ['an empty string', { 'access_token' => '' }],
+      ['a non-string value', { 'access_token' => 42 }]
+    ].each_case do |_label, payload|
       client = FakeTokenClient.new([{ status: 200, body: payload }])
       manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
@@ -394,6 +394,34 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
       'client_secret' => 'my_client_secret', 'scope' => 'read write'
     })
     _(client.last_body).must_equal 'grant_type=client_credentials&client_id=my_client_id&client_secret=my_client_secret&scope=read+write'
+  end
+
+  it 'bhv_authoauthtwotokenmgr_045 a padded decimal string expires_in is accepted as a lifetime so the token is cached' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'pad-1', 'expires_in' => " 3600.5\n" } },
+                                   { status: 200, body: { 'access_token' => 'pad-2', 'expires_in' => " 3600.5\n" } }
+                                 ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'client_credentials' }
+
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'pad-1'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'pad-1'
+    _(client.call_count).must_equal 1
+  end
+
+  it 'bhv_authoauthtwotokenmgr_046 a string expires_in outside the plain decimal grammar leaves the token stale' do
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'stale-1', 'expires_in' => '3600s' } },
+                                   { status: 200, body: { 'access_token' => 'stale-2', 'expires_in' => '3600s' } }
+                                 ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'client_credentials' }
+
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'stale-1'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'stale-2'
+    _(client.call_count).must_equal 2
   end
 
   it 'bhv_authoauthtwotokenmgr_007 applies one margin capped at half the lifetime' do
@@ -507,8 +535,8 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 1
   end
 
-  ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
-    it "bhv_auth_056 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
+  it 'bhv_auth_056 expires_in is honoured only as a decimal number, with padding allowed; any other value marks the token stale' do
+    ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
       client = FakeTokenClient.new([
         { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
         { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
@@ -521,10 +549,21 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
       _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'second'
       _(client.call_count).must_equal 2
     end
+
+    client = FakeTokenClient.new([
+      { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(client.call_count).must_equal 1
   end
 
-  [1e20, 10**30, '9' * 400].each do |raw|
-    it "bhv_authoauthtwotokenmgr_005 expires_in #{raw.to_s[0, 12]} is clamped to one year instead of overflowing" do
+  it 'bhv_authoauthtwotokenmgr_005 an expires_in too large to represent is clamped to one year instead of overflowing' do
+    [1e20, 10**30, '9' * 400].each_case do |raw|
       client = FakeTokenClient.new([
         { status: 200, body: { 'access_token' => 'huge', 'expires_in' => raw } }
       ])
@@ -537,19 +576,6 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
       _(client.call_count).must_equal 1
       _(manager.instance_variable_get(:@token_expiry)).must_be :<=, Time.now.to_f + 31_536_000
     end
-  end
-
-  it 'bhv_auth_056 expires_in as a padded decimal string with a fraction is accepted' do
-    client = FakeTokenClient.new([
-      { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
-    ])
-    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
-    manager.api_client = client
-
-    params = { 'grant_type' => 'client_credentials' }
-    manager.get_access_token('https://auth.example.com/token', params)
-    manager.get_access_token('https://auth.example.com/token', params)
-    _(client.call_count).must_equal 1
   end
 
   it 'bhv_authoauthtwotokenmgr_008 expires_in as float is floored' do
@@ -638,8 +664,8 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
   # here, plus 301/303/308) rather than replaying the credential-bearing
   # POST to the redirect target. A 3xx is a non-2xx answer, so it raises
   # OAuth2ServerError carrying the status.
-  [301, 302, 303, 307, 308].each do |status|
-    it "bhv_authoauthtwotokenmgr_033 refuses #{status} redirect on token endpoint" do
+  it 'bhv_authoauthtwotokenmgr_033 refuses a 3xx redirect on the token endpoint' do
+    [301, 302, 303, 307, 308].each_case do |status|
       client = FakeTokenClient.new([{ status: status, body: '' }])
       manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
@@ -838,7 +864,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(error.uri).must_be_nil
   end
 
-  it 'a non-string error value is not taken as an error code' do
+  it 'bhv_langruby_047 a non-string error value is not taken as an error code' do
     client = FakeTokenClient.new([{ status: 400, body: { 'error' => 7 } }])
     manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
     manager.api_client = client

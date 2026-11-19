@@ -72,6 +72,8 @@ class ValueSerializer:
         """
         if isinstance(value, (set, frozenset, tuple)):
             value = list(value)
+        if isinstance(value, AllowReservedValue) and isinstance(value.value, str):
+            return cls.encode_query_allowing_reserved(value.value)
         value = cls._narrow_to_date(value, schema_type)
 
         if value is None:
@@ -80,6 +82,10 @@ class ValueSerializer:
             return ''
 
         if isinstance(value, list):
+            if location == 'path':
+                # Each item is encoded on its own, so a comma inside an item
+                # stays literal data while the list separator stays a comma.
+                return ','.join(quote(ObjectSerializer.stringify(v), safe='') for v in value)
             if location == 'query':
                 if collection_format == 'multi':
                     return [ObjectSerializer.stringify(v) for v in value]
@@ -140,8 +146,11 @@ class ValueSerializer:
         Raises:
             ValueError: If a header value carries a CR or LF.
         """
-        if location in ('path', 'cookie'):
+        if location == 'path':
             return quote(json_text, safe='')
+        if location == 'cookie':
+            # Only A-Za-z0-9 - _ ~ stay literal: quote() keeps the dot, so encode it too.
+            return quote(json_text, safe='').replace('.', '%2E')
         if location == 'header' and ('\r' in json_text or '\n' in json_text):
             raise ValueError(f"Header parameter '{name}' must not contain CR or LF")
         return json_text
@@ -412,7 +421,9 @@ class ValueSerializer:
             if isinstance(value, BaseModel)
             else value
         )
-        for key, val in fields.items():
+        for key, val in sorted(fields.items(), key=lambda kv: str(kv[0])):
+            if val is None:
+                continue
             ValueSerializer._refuse_object_leaf(param_name, key, val)
             result[f'{param_name}[{key}]'] = ObjectSerializer.stringify(val)
         return result

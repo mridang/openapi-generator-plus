@@ -453,3 +453,26 @@ fn test_bhv_auth_035_a_control_nul_or_non_ascii_character_is_rejected() {
     assert!(refusal_reason("abc\x01def", ApiKeyLocation::Header).contains("printable ASCII"));
     assert!(refusal_reason("kéy", ApiKeyLocation::Header).contains("printable ASCII"));
 }
+
+#[tokio::test]
+async fn test_bhv_misc_057_an_api_key_configured_for_one_location_is_never_sent_at_another() {
+    let host = "https://api.example.com";
+
+    let header =
+        ApiKeyAuthenticator::new(host, "X-API-Key", "abc123", ApiKeyLocation::Header).unwrap();
+    assert_eq!(None, header.query_params().get("X-API-Key"));
+    assert_eq!(None, header.cookie_params().get("X-API-Key"));
+
+    let cookie =
+        ApiKeyAuthenticator::new(host, "SESSION_ID", "abc123", ApiKeyLocation::Cookie).unwrap();
+    assert_eq!(None, cookie.auth_headers().await.get("SESSION_ID"));
+    assert_eq!(None, cookie.query_params().get("SESSION_ID"));
+}
+
+#[test]
+fn test_bhv_misc_174_a_header_key_refused_for_a_line_break_is_not_repeated_in_the_error() {
+    match ApiKeyHeaderAuthenticator::new("https://api.example.com", Some("s3cr3t\nline")) {
+        Err(err) => assert!(!err.to_string().contains("s3cr3t"), "{}", err),
+        Ok(_) => panic!("a key with a line break must be refused"),
+    }
+}

@@ -184,6 +184,22 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public async Task BhvMisc038WithNoCaCertConfiguredServerCertificatesAreCheckedAgainstTheSystemTrustStore()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var ex = await Assert.ThrowsAsync<NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
     public async Task BhvTransport017MakesHttpsRequestWithCustomCaCert()
     {
         // Test runs inside the dotnet container where /work is the project mount;
@@ -313,7 +329,7 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CustomCaCertAcceptsAServerThatSendsAnIntermediate()
+    public async Task BhvMisc033CustomCaCertAcceptsAServerThatSendsAnIntermediate()
     {
         /* The pinned file holds only the root. The server sends its leaf and
            the intermediate that links the leaf to that root, the usual shape of
@@ -544,6 +560,20 @@ public class DefaultApiClientTest
     }
 
     [Fact]
+    public void BhvMisc031AProxyCredentialIsSentExactlyWhenTheProxyUrlHasUserInfo()
+    {
+        var withUserInfo = new DefaultApiClient(
+            TransportOptions.Builder().Proxy("http://user:pass@127.0.0.1:3128").Build()
+        );
+        var withoutUserInfo = new DefaultApiClient(
+            TransportOptions.Builder().Proxy("http://127.0.0.1:3128").Build()
+        );
+
+        Assert.Equal("Basic dXNlcjpwYXNz", withUserInfo.ProxyAuthorizationHeader);
+        Assert.Null(withoutUserInfo.ProxyAuthorizationHeader);
+    }
+
+    [Fact]
     public async Task BhvTransport016MakesHttpsRequestThroughProxyWithVerifySslFalse()
     {
         var transport = TransportOptions
@@ -654,7 +684,29 @@ public class DefaultApiClientTest
     }
 
     [Fact]
-    public async Task CancellingTheClientTokenAbortsTheSlowEndpoint()
+    public async Task BhvMisc029ACallerCancellationSurfacesAsTheCallersOwnCancellation()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+
+        var ex = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+        Assert.False(
+            typeof(OpenAPIException).IsInstanceOfType(ex),
+            "cancellation must not be rewrapped as an SDK error"
+        );
+    }
+
+    [Fact]
+    public async Task BhvLangcsharp065CancellingTheClientTokenAbortsTheSlowEndpoint()
     {
         using var clientSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
         var client = new DefaultApiClient(
@@ -804,6 +856,22 @@ public class DefaultApiClientTest
     {
         var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
         var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://127.0.0.1:1/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.NotNull(ex.InnerException);
+    }
+
+    [Fact]
+    public async Task BhvMisc027ATransportFailureWithNoResponseIsANetworkErrorKeepingItsCause()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+        var ex = await Assert.ThrowsAnyAsync<NetworkException>(() =>
             client.SendRequestAsync(
                 "GET",
                 new Uri("http://127.0.0.1:1/test/echo"),
@@ -981,16 +1049,13 @@ public class DefaultApiClientTest
         Assert.Equal("", json.RootElement.GetProperty("body").GetString());
     }
 
-    // Canonical scenario N1: an HTTPS->HTTP downgrade redirect carrying a body.
-    // A 302 forces the follow-up to GET and drops the body (per RFC the request
-    // becomes GET), so the hop PROCEEDS — nothing sensitive is replayed in
-    // cleartext. A 307/308 would preserve method+body, so replaying it over the
-    // downgraded cleartext leg is refused with a typed ApiException. These two
-    // mock-handler cases are fixture-independent; node guards every status
-    // (throws where others proceed), the canonical guards 307/308 only.
+    // An HTTPS->HTTP downgrade redirect carrying a body. Only a 303 drops the
+    // body (it becomes GET), so it alone may cross to the cleartext leg. A 302
+    // with a body is refused with a typed ApiException, as 301, 307 and 308 are.
+    // These mock-handler cases are fixture-independent.
 
     [Fact]
-    public async Task BhvRedirects001Downgrade302WithBodyProceedsAsGet()
+    public async Task BhvRedirects001Downgrade302WithBodyIsRefused()
     {
         var handler = new DowngradeRedirectHandler(
             firstStatus: HttpStatusCode.Redirect, // 302
@@ -998,18 +1063,18 @@ public class DefaultApiClientTest
         );
         var client = new DefaultApiClient(new HttpClient(handler));
 
-        var response = await client.SendRequestAsync(
-            "POST",
-            new Uri("https://secure.example.com/start"),
-            new Dictionary<string, string>(),
-            "secret-payload"
+        // A 302 can replay the body onto the HTTP target, so the hop is refused
+        // and the plaintext target is never requested.
+        await Assert.ThrowsAsync<ApiException>(() =>
+            client.SendRequestAsync(
+                "POST",
+                new Uri("https://secure.example.com/start"),
+                new Dictionary<string, string>(),
+                "secret-payload"
+            )
         );
 
-        // The 302 downgrade proceeds: the body is dropped and the follow-up is
-        // a GET, so the downgrade body-replay guard does not fire.
-        Assert.Equal(200, response.StatusCode);
-        Assert.Equal(2, handler.Requests.Count);
-        Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
+        Assert.Single(handler.Requests);
     }
 
     [Theory]
@@ -1469,6 +1534,164 @@ public class DefaultApiClientTest
             };
             redirect.Headers.Location = new Uri(request.RequestUri, $"/chain/{remaining - 1}");
             return Task.FromResult(redirect);
+        }
+    }
+
+    [Fact]
+    public async Task BhvMisc056AnEmptyProxyRemovesTheEarlierProxy()
+    {
+        var transport = TransportOptions.Builder().Proxy("http://127.0.0.1:1").Proxy("").Build();
+
+        var client = new DefaultApiClient(transport);
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/echo"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task BhvTransport084ACancelledCallStopsTheRequestAtOnce()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().Timeout(30000).Build());
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(300));
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null,
+                false,
+                cts.Token
+            )
+        );
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BhvTransport086ARequestPastItsTimeoutFailsWithTheNetworkTimeoutError()
+    {
+        var client = new DefaultApiClient(
+            TransportOptions.Builder().Timeout(300).MaxRetries(0).Build()
+        );
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.NetworkTimeoutException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri(_fixture.BaseUrl + "/test/slow"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+
+        Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task BhvTransport087AConnectionThatCannotBeEstablishedRaisesTheNetworkError()
+    {
+        var client = new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build());
+
+        await Assert.ThrowsAnyAsync<PetstoreClient.Errors.NetworkException>(() =>
+            client.SendRequestAsync(
+                "GET",
+                new Uri("http://127.0.0.1:1/test/echo"),
+                new Dictionary<string, string>(),
+                null
+            )
+        );
+    }
+
+    [Fact]
+    public async Task BhvTransport088AValidlyGzipEncodedBodyIsDecodedBeforeItIsReturned()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/compressed/gzip"),
+            new Dictionary<string, string> { { "Accept-Encoding", "gzip" } },
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("userId", response.Body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport090ARepeatedResponseHeadersKeepEveryValue()
+    {
+        var client = new DefaultApiClient();
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri(_fixture.BaseUrl + "/test/response-headers"),
+            new Dictionary<string, string>(),
+            null
+        );
+
+        Assert.Equal(200, response.StatusCode);
+        Assert.Contains("next", response.Headers["link"], StringComparison.Ordinal);
+        Assert.Contains("prev", response.Headers["link"], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvTransport093AServerSignedByAnotherCaIsRejectedWithANetworkError()
+    {
+        using var otherKey = RSA.Create(2048);
+        var certificateRequest = new CertificateRequest(
+            "CN=unrelated test CA",
+            otherKey,
+            HashAlgorithmName.SHA256,
+            RSASignaturePadding.Pkcs1
+        );
+        certificateRequest.CertificateExtensions.Add(
+            new X509BasicConstraintsExtension(true, false, 0, true)
+        );
+        using var otherCa = certificateRequest.CreateSelfSigned(
+            DateTimeOffset.UtcNow.AddDays(-1),
+            DateTimeOffset.UtcNow.AddDays(1)
+        );
+        var caPath = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"unrelated-ca-{Guid.NewGuid():N}.pem"
+        );
+        await System.IO.File.WriteAllTextAsync(
+            caPath,
+            "-----BEGIN CERTIFICATE-----\n"
+                + Convert.ToBase64String(otherCa.RawData, Base64FormattingOptions.InsertLineBreaks)
+                + "\n-----END CERTIFICATE-----\n",
+            TestContext.Current.CancellationToken
+        );
+
+        try
+        {
+            var transport = TransportOptions
+                .Builder()
+                .VerifySsl(true)
+                .CaCertPath(caPath)
+                .MaxRetries(0)
+                .Build();
+            var client = new DefaultApiClient(transport);
+            var ex = await Assert.ThrowsAsync<PetstoreClient.Errors.NetworkException>(() =>
+                client.SendRequestAsync(
+                    "GET",
+                    new Uri(_fixture.HttpsBaseUrl + "/test/echo"),
+                    new Dictionary<string, string>(),
+                    null
+                )
+            );
+
+            Assert.Equal(0, ex.StatusCode);
+        }
+        finally
+        {
+            System.IO.File.Delete(caPath);
         }
     }
 }

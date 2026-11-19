@@ -86,7 +86,7 @@ fn test_bhv_serializationobject_073_proto_duration_round_trip() {
 }
 
 #[test]
-fn test_bhv_serializationobject_080_proto_duration_rejects_malformed() {
+fn test_bhv_serializationobject_080_proto_duration_rejects_malformed_and_accepts_the_full_range() {
     use {{packageName}}::proto_duration;
 
     assert!(proto_duration::parse("PT1H").is_err());
@@ -96,6 +96,9 @@ fn test_bhv_serializationobject_080_proto_duration_rejects_malformed() {
     assert!(proto_duration::parse("1.2345678901s").is_err());
     let err = proto_duration::parse("PT1H").expect_err("an ISO-8601 duration must be rejected");
     let _: &{{packageName}}::SerializationError = &err;
+    assert!(proto_duration::parse("315576000000s").is_ok());
+    assert!(proto_duration::parse("-315576000000s").is_ok());
+    assert!(proto_duration::parse("315576000001s").is_err());
 }
 
 #[test]
@@ -1136,22 +1139,6 @@ fn test_bhv_serializationobject_409_a_hostname_and_an_email_are_kept_as_given() 
     assert_eq!(serde_json::to_string(&values).expect("encode"), json);
 }
 
-#[test]
-fn test_bhv_serializationparam_104_a_duration_parameter_is_the_protobuf_form() {
-    use {{packageName}}::proto_duration;
-
-    assert_eq!(proto_duration::format(&chrono::TimeDelta::hours(1)), "3600s");
-}
-
-#[test]
-fn test_bhv_serializationparam_105_an_address_parameter_is_the_canonical_text() {
-    assert_eq!(serde_json::to_value(std::net::Ipv4Addr::new(192, 0, 2, 1)).expect("encode"), "192.0.2.1");
-    assert_eq!(
-        serde_json::to_value("2001:0DB8::1".parse::<std::net::Ipv6Addr>().expect("parse")).expect("encode"),
-        "2001:db8::1"
-    );
-}
-
 fn enum_model_source(name: &str) -> String {
     std::fs::read_to_string(format!("{}/src/models/{}.rs", env!("CARGO_MANIFEST_DIR"), name))
         .expect("the model source is readable")
@@ -1252,42 +1239,655 @@ fn test_bhv_enums_011_a_hostile_description_stays_a_comment() {
     assert!(enum_model_source("tier")
         .contains("    /// The largest tier. Ends with */ and #{x} and $x.\n    #[serde(rename = \"l\")]"));
 }
-/// serialization077: a duration written to its wire string and decoded back is the same duration, across zero, negative, sub-second, multi-day and extreme values.
-#[test]
-fn test_bhv_serializationobject_077_durations_round_trip_through_their_wire_string() {
-    use {{packageName}}::proto_duration;
-    use chrono::Duration;
 
-    for d in [
+
+#[test]
+fn test_bhv_misc_087_a_decimal_field_in_a_loose_body_is_a_bare_json_number() {
+    use {{packageName}}::models::Pet;
+
+    let mut pet = Pet::new("doggie".to_string(), std::collections::HashSet::new());
+    pet.weight_kg = Some(1.5);
+    let json = serde_json::to_string(&pet).expect("serialize");
+    assert!(json.contains(r#""weightKg":1.5"#), "got: {}", json);
+    assert!(!json.contains(r#""weightKg":"1.5""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_misc_089_a_date_time_is_canonical_inside_a_list() {
+    use {{packageName}}::date_time::DateTime;
+
+    let at = DateTime::new(
+        chrono::DateTime::parse_from_rfc3339("2024-01-01T12:30:45Z").expect("valid"),
+    );
+    assert_eq!(
+        serde_json::to_string(&vec![at]).expect("serialize"),
+        "[\"2024-01-01T12:30:45.000+00:00\"]"
+    );
+}
+
+#[test]
+fn test_bhv_misc_090_a_record_duration_writes_its_fraction_in_the_wire_form() {
+    use {{packageName}}::models::EdgeCases;
+    use chrono::TimeDelta as Duration;
+
+    let edge = EdgeCases {
+        retry_after: Some(Duration::milliseconds(1500)),
+        ..Default::default()
+    };
+    let json = serde_json::to_string(&edge).expect("serialize");
+    assert!(json.contains(r#""retryAfter":"1.500s""#), "got: {}", json);
+}
+
+#[test]
+fn test_bhv_misc_092_properties_are_matched_only_by_their_wire_name() {
+    use {{packageName}}::models::EdgeCases;
+
+    let edge: EdgeCases = serde_json::from_str(r#"{"retry_after":"5s"}"#).expect("decode");
+    assert!(edge.retry_after.is_none());
+}
+
+#[test]
+fn test_bhv_misc_093_additional_properties_with_numeric_names_are_object_members() {
+    use {{packageName}}::json_value::JsonValue;
+    use {{packageName}}::models::Freeform;
+
+    let mut freeform = Freeform::default();
+    freeform
+        .additional_properties
+        .insert("404".to_string(), JsonValue::new(serde_json::json!(true)));
+    let json = serde_json::to_string(&freeform).expect("serialize");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"404": true}));
+}
+
+#[test]
+fn test_bhv_misc_094_a_free_form_json_object_is_written_with_its_members_unchanged() {
+    use {{packageName}}::json_value::JsonValue;
+
+    let value = JsonValue::new(serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"}));
+    let json = serde_json::to_string(&value).expect("serialize");
+    let parsed: serde_json::Value = serde_json::from_str(&json).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"ownerId": 198772, "at": "2024-01-15T10:30:00Z"}));
+}
+
+use {{packageName}}::json_value::JsonValue;
+use {{packageName}}::models::{BinaryVault, Category, Counters, Defaults, Metadata, Rank, StrictTag};
+
+#[test]
+fn test_bhv_misc_102_a_binary_field_keeps_the_bytes_it_was_given_through_copying() {
+    let vault = BinaryVault { seal: Some(vec![0x00, 0xff, 0x10, 0x42]), ..Default::default() };
+    assert_eq!(vault.clone().seal, Some(vec![0x00, 0xff, 0x10, 0x42]));
+}
+
+#[test]
+fn test_bhv_misc_103_rejecting_undeclared_keys_on_one_strict_model_leaves_other_models_accepting_them() {
+    assert!(serde_json::from_str::<StrictTag>(r#"{"rogue":"x"}"#).is_err());
+    assert!(serde_json::from_str::<Metadata>(r#"{"rogue":"x"}"#).is_ok());
+}
+
+#[test]
+fn test_bhv_misc_105_copying_a_model_never_validates_the_values_it_is_given() {
+    let counters = Counters { label: None, additional_properties: std::collections::HashMap::from([("x".to_string(), i32::MIN)]) };
+    assert_eq!(counters.clone().additional_properties.get("x"), Some(&i32::MIN));
+}
+
+#[test]
+fn test_bhv_misc_106_a_null_array_element_keeps_its_position() {
+    assert_eq!(serde_json::to_string(&vec![Some(1), None, Some(2)]).expect("serializes"), "[1,null,2]");
+}
+
+#[test]
+fn test_bhv_misc_108_a_model_built_with_an_integer_enum_member_keeps_its_wire_value() {
+    assert_eq!(serde_json::to_string(&Rank::LOW).expect("serializes"), "1");
+}
+
+#[test]
+fn test_bhv_misc_110_a_list_of_dates_with_a_non_date_element_is_refused() {
+    assert!(serde_json::from_str::<Vec<chrono::NaiveDate>>(r#"["2024-01-01","not-a-date"]"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_113_the_string_form_shows_the_contents_of_list_map_and_bytes() {
+    let vault = BinaryVault { seal: Some(vec![1, 2, 3]), shards: Some(vec![vec![4, 5]]), ..Default::default() };
+    let text = format!("{:?}", vault);
+    assert!(text.contains("[1, 2, 3]"), "bytes shown: {}", text);
+    assert!(text.contains("[[4, 5]]"), "nested bytes shown: {}", text);
+}
+
+#[test]
+fn test_bhv_misc_111_a_set_is_written_in_sorted_order() {
+    use {{packageName}}::models::*;
+    let urls: std::collections::HashSet<String> = ["\u{1F600}", "\u{FFFD}", "z"].iter().map(|s| s.to_string()).collect();
+    let pet = Pet::new("rex".to_string(), urls);
+    let wire = serde_json::to_string(&pet).expect("serializes");
+    let (z, fffd, emoji) = (wire.find("\"z\"").unwrap(), wire.find('\u{FFFD}').unwrap(), wire.find('\u{1F600}').unwrap());
+    assert!(z < fffd && fffd < emoji, "code point order: {}", wire);
+}
+
+#[test]
+fn test_bhv_misc_215_an_input_object_with_no_fields_is_filled_with_every_declared_default() {
+    let restored: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(restored.retries, Some(3));
+    assert_eq!(restored.label.as_deref(), Some("untitled"));
+    assert_eq!(restored.scale, Some(0.25));
+}
+
+#[test]
+fn test_bhv_misc_115_a_bare_string_is_a_quoted_json_string() {
+    assert_eq!(serde_json::to_string("hello").expect("serializes"), r#""hello""#);
+}
+
+#[test]
+fn test_bhv_misc_116_an_int32_value_accepts_its_range_and_refuses_overflow_and_fractions() {
+    assert!(serde_json::from_str::<Counters>(r#"{"a":2147483647}"#).is_ok());
+    assert!(serde_json::from_str::<Counters>(r#"{"a":2147483648}"#).is_err());
+    assert!(serde_json::from_str::<Counters>(r#"{"a":1.5}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_117_an_absent_value_writes_the_json_null_literal() {
+    assert_eq!(serde_json::to_string(&None::<String>).expect("serializes"), "null");
+}
+
+#[test]
+fn test_bhv_misc_118_the_exact_case_value_is_the_one_decoded() {
+    let category: Category = serde_json::from_str(r#"{"NAME":"Other","name":"Exact"}"#).expect("decodes");
+    assert_eq!(category.name.as_deref(), Some("Exact"));
+}
+
+#[test]
+fn test_bhv_misc_121_an_object_with_no_declared_schema_is_written_as_a_json_object() {
+    let value = JsonValue::new(serde_json::json!({"a": 1, "b": "x"}));
+    let parsed: serde_json::Value = serde_json::from_str(&serde_json::to_string(&value).expect("serializes")).expect("valid JSON");
+    assert_eq!(parsed, serde_json::json!({"a": 1, "b": "x"}));
+}
+
+#[test]
+fn test_bhv_misc_122_a_string_default_is_applied_as_the_exact_literal() {
+    let filled: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(filled.greeting.as_deref(), Some("it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"));
+}
+
+#[test]
+fn test_bhv_misc_104_an_email_format_string_is_a_plain_string_not_validated() {
+    #[derive(serde::Deserialize)]
+    struct Contact {
+        email: String,
+    }
+    let contact: Contact = serde_json::from_str(r#"{"email":"not-an-email"}"#).expect("decodes");
+    assert_eq!(contact.email, "not-an-email");
+}
+
+#[test]
+fn test_bhv_misc_109_a_nested_object_is_validated_with_the_outer_rules_at_decode() {
+    use {{packageName}}::models::EdgeCases;
+    assert!(serde_json::from_str::<EdgeCases>(r#"{"lastError":{"code":"three"}}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_112_a_repeated_element_of_a_unique_array_keeps_one_copy() {
+    #[derive(serde::Deserialize)]
+    struct UniqueTags {
+        values: std::collections::HashSet<String>,
+    }
+    let decoded: UniqueTags = serde_json::from_str(r#"{"values":["a","a","b"]}"#).expect("decodes");
+    assert_eq!(decoded.values.len(), 2);
+    assert!(decoded.values.contains("a") && decoded.values.contains("b"));
+}
+
+#[test]
+fn test_bhv_misc_137_a_generated_enum_lists_its_values_and_reports_membership() {
+    use {{packageName}}::models::Separator;
+    let values: Vec<String> = Separator::all_values().iter().map(|v| v.to_string()).collect();
+    assert_eq!(values, vec![" ", "@@", "a-b", "a_b"]);
+    assert!(serde_json::from_str::<Separator>(r#""not-declared""#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_138_converting_an_enum_member_to_text_yields_its_wire_value() {
+    use {{packageName}}::models::Separator;
+    assert_eq!(Separator::AB.to_string(), "a-b");
+    assert_eq!(Separator::SPACE1.to_string(), " ");
+}
+
+#[test]
+fn test_bhv_misc_139_a_collection_given_to_a_model_is_copied_so_later_source_changes_do_not_reach_it() {
+    use {{packageName}}::models::BinaryVault;
+    let mut source: Vec<Vec<u8>> = vec![vec![4, 5]];
+    let vault = BinaryVault::new().with_shards(source.clone());
+    source.push(vec![6]);
+    assert_eq!(vault.shards, Some(vec![vec![4u8, 5u8]]));
+}
+
+#[test]
+fn test_bhv_misc_140_building_a_model_without_a_required_property_fails_naming_it() {
+    use {{packageName}}::models::Employee;
+    let err = serde_json::from_str::<Employee>("{}").expect_err("a missing required property must be refused");
+    assert!(err.to_string().contains("name"), "{err}");
+}
+
+#[test]
+fn test_bhv_misc_141_a_model_built_without_a_defaulted_property_holds_the_default() {
+    use {{packageName}}::models::{Defaults, DefaultsModeEnum};
+    let model: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(model.retries, Some(3));
+    assert_eq!(model.mode, Some(DefaultsModeEnum::Medium));
+}
+
+#[test]
+fn test_bhv_misc_142_additional_properties_are_returned_unchanged_by_key() {
+    use {{packageName}}::models::Metadata;
+    let meta: Metadata = serde_json::from_str(r#"{"note":"x","owner":"ann"}"#).expect("decodes");
+    assert_eq!(meta.additional_properties.get("note").map(String::as_str), Some("x"));
+    let mut keys: Vec<&str> = meta.additional_properties.keys().map(String::as_str).collect();
+    keys.sort();
+    assert_eq!(keys, vec!["note", "owner"]);
+}
+
+#[test]
+fn test_bhv_misc_143_a_model_built_with_additional_properties_copies_them_and_compares_equal() {
+    use {{packageName}}::models::Metadata;
+    let entries = std::collections::HashMap::from([("customField".to_string(), "a".to_string())]);
+    let original = Metadata::new().with_additional_properties(entries);
+    let copy = original.clone();
+    assert_eq!(copy.additional_properties.get("customField").map(String::as_str), Some("a"));
+    assert_eq!(copy, original);
+}
+
+#[test]
+fn test_bhv_misc_144_validating_a_model_refuses_a_string_for_a_numeric_field() {
+    use {{packageName}}::models::Defaults;
+    assert!(serde_json::from_str::<Defaults>(r#"{"retries":"3"}"#).is_err());
+}
+
+#[test]
+fn test_bhv_misc_146_a_copy_with_no_changes_compares_equal_to_the_original() {
+    use {{packageName}}::models::Department;
+    let original = Department::new("Ops".to_string());
+    assert_eq!(original.clone(), original);
+}
+
+#[test]
+fn test_bhv_misc_148_a_copy_serializes_to_the_wire_form_with_its_changes_applied() {
+    use {{packageName}}::models::{Department, Employee};
+    let original = Department::new("Ops".to_string()).with_lead(Box::new(Employee::new("Ann".to_string())));
+    let copy = original.clone().with_name("Eng".to_string());
+    let expected = Department::new("Eng".to_string()).with_lead(Box::new(Employee::new("Ann".to_string())));
+    assert_eq!(serde_json::to_value(&copy).expect("serializes"), serde_json::to_value(&expected).expect("serializes"));
+}
+
+#[test]
+fn test_bhv_misc_150_models_whose_fields_are_equal_compare_equal_and_differing_ones_unequal() {
+    use {{packageName}}::models::Employee;
+    assert_eq!(Employee::new("Ann".to_string()), Employee::new("Ann".to_string()));
+    assert_ne!(Employee::new("Ann".to_string()), Employee::new("Bo".to_string()));
+}
+
+#[test]
+fn test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries() {
+    use {{packageName}}::models::Metadata;
+    let with = |second: &str| {
+        Metadata::new().with_additional_properties(std::collections::HashMap::from([
+            ("a".to_string(), "1".to_string()),
+            ("b".to_string(), second.to_string()),
+        ]))
+    };
+    assert_eq!(with("2"), with("2"));
+    assert_ne!(with("2"), with("3"));
+}
+#[test]
+fn test_bhv_misc_252_an_enum_wire_value_with_separators_round_trips_unchanged() {
+    let value: {{packageName}}::models::Separator =
+        serde_json::from_str("\"@@\"").expect("the wire value must decode");
+    assert_eq!("\"@@\"", serde_json::to_string(&value).expect("the value must encode"));
+}
+
+#[test]
+fn test_bhv_misc_288_a_snake_case_key_at_the_top_level_is_captured_as_an_undeclared_extra() {
+    let model: {{packageName}}::models::Freeform =
+        serde_json::from_str(r#"{"label":"x","snake_case_key":1}"#).expect("the model must decode");
+    assert_eq!(1, model.additional_properties.len(), "{:?}", model.additional_properties.keys().collect::<Vec<_>>());
+    assert!(model.additional_properties.contains_key("snake_case_key"));
+}
+
+#[test]
+fn test_bhv_misc_289_a_snake_case_key_inside_a_list_element_is_captured_as_an_undeclared_extra() {
+    let items: Vec<{{packageName}}::models::Freeform> =
+        serde_json::from_str(r#"[{"label":"x","snake_case_key":1}]"#).expect("the list must decode");
+    assert_eq!(1, items[0].additional_properties.len());
+    assert!(items[0].additional_properties.contains_key("snake_case_key"));
+}
+
+#[test]
+fn test_bhv_serialization_067_extra_properties_are_written_beside_the_declared_fields() {
+    use {{packageName}}::models::*;
+    let metadata: Metadata =
+        serde_json::from_str(r#"{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}"#).expect("decodes");
+
+    let wire = serde_json::to_value(&metadata).expect("serializes");
+
+    assert_eq!(wire["region"], serde_json::json!("eu"));
+    assert!(wire.get("createdAt").is_some(), "the declared field is written too: {wire}");
+}
+
+#[test]
+fn test_bhv_serialization_069_a_value_outside_a_schema_bound_is_kept_at_construction() {
+    use std::collections::HashSet;
+    use {{packageName}}::models::*;
+    let nickname = "a-nickname-far-too-long".to_string();
+
+    let pet = Pet::new("Fido".to_string(), HashSet::new()).with_nickname(nickname.clone());
+
+    assert_eq!(pet.nickname, Some(nickname));
+}
+
+#[test]
+fn test_bhv_serialization_070_a_json_null_for_an_optional_field_decodes_to_none() {
+    use {{packageName}}::models::*;
+    let category: Category = serde_json::from_str(r#"{"id":null,"name":"dogs"}"#).expect("decodes");
+    assert_eq!(category.id, None);
+}
+
+#[test]
+fn test_bhv_serialization_072_several_undeclared_keys_of_any_shape_are_skipped() {
+    use {{packageName}}::models::*;
+    let json_str = r#"{"id":1,"name":"dogs","a":1,"b":"x","c":{"d":[1,2]},"e":null}"#;
+
+    let category: Category = serde_json::from_str(json_str).expect("decodes");
+
+    assert_eq!(category.id, Some(1));
+    assert_eq!(category.name.as_deref(), Some("dogs"));
+}
+
+#[test]
+fn test_bhv_serialization_073_a_null_required_field_fails_decoding() {
+    use {{packageName}}::models::*;
+    let result = serde_json::from_str::<Department>(r#"{"name":null}"#);
+    assert!(result.is_err(), "a null for a required field must fail decoding");
+}
+
+#[test]
+fn test_bhv_serialization_075_an_enum_value_decodes_from_its_wire_string_to_its_member() {
+    use {{packageName}}::models::*;
+    let status: OrderStatusEnum = serde_json::from_str("\"placed\"").expect("decodes");
+    assert_eq!(status, OrderStatusEnum::Placed);
+}
+
+#[test]
+fn test_bhv_serialization_077_a_duration_round_trips_for_zero_negative_sub_second_multi_day_and_extreme() {
+    use chrono::TimeDelta as Duration;
+    use {{packageName}}::proto_duration;
+    let values = [
         Duration::zero(),
-        -Duration::seconds(90),
-        Duration::milliseconds(250),
-        Duration::days(3),
-        Duration::seconds(315_576_000_000),
-    ] {
-        let wire = proto_duration::format(&d);
-        assert_eq!(proto_duration::parse(&wire).expect("parse"), d, "{}", wire);
+        Duration::seconds(-90) + Duration::microseconds(-250000),
+        Duration::microseconds(1500),
+        Duration::days(3) + Duration::seconds(5),
+        Duration::seconds(315576000000),
+    ];
+    for value in values {
+        let text = proto_duration::format(&value);
+        assert_eq!(proto_duration::parse(&text).unwrap(), value, "round trip of {text}");
     }
 }
 
-/// serialization078: a time of day is written as zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
 #[test]
-fn test_bhv_serializationobject_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second() {
-    use chrono::NaiveTime;
-
-    let whole = NaiveTime::from_hms_opt(9, 5, 3).expect("a valid time");
-    assert_eq!(serde_json::to_string(&whole).expect("serialize"), "\"09:05:03\"");
-    let fractional = NaiveTime::from_hms_milli_opt(9, 5, 3, 250).expect("a valid time");
-    assert_eq!(serde_json::to_string(&fractional).expect("serialize"), "\"09:05:03.250\"");
-}
-
-/// serialization080: protobuf durations are accepted across the full range, and a value one second past the upper bound is rejected.
-#[test]
-fn test_bhv_serializationobject_080_protobuf_durations_accept_the_full_range_and_reject_one_past() {
+fn test_bhv_serialization_080_a_protobuf_duration_spans_the_full_range_and_rejects_one_past() {
+    use chrono::TimeDelta as Duration;
     use {{packageName}}::proto_duration;
-
-    assert!(proto_duration::parse("315576000000s").is_ok());
-    assert!(proto_duration::parse("-315576000000s").is_ok());
+    assert_eq!(
+        proto_duration::parse("315576000000s").unwrap(),
+        Duration::seconds(315576000000)
+    );
     assert!(proto_duration::parse("315576000001s").is_err());
 }
 
+#[test]
+fn test_bhv_serialization_081_a_value_of_the_wrong_json_type_is_rejected_not_coerced() {
+    use {{packageName}}::models::*;
+    assert!(serde_json::from_str::<Category>(r#"{"id":1,"name":123}"#).is_err());
+    assert!(serde_json::from_str::<Category>(r#"{"id":"1","name":"dogs"}"#).is_err());
+}
+
+#[test]
+fn test_bhv_serialization_084_protobuf_fractions_parse_to_their_exact_value_with_padding() {
+    use chrono::TimeDelta as Duration;
+    use {{packageName}}::proto_duration;
+    assert_eq!(proto_duration::parse("1.5s").unwrap(), Duration::milliseconds(1500));
+    assert_eq!(proto_duration::parse("0.1s").unwrap(), Duration::milliseconds(100));
+    assert_eq!(
+        proto_duration::parse("1.000001s").unwrap(),
+        Duration::seconds(1) + Duration::microseconds(1)
+    );
+}
+
+#[test]
+fn test_bhv_serialization_085_a_date_time_field_decodes_from_its_iso_string() {
+    use {{packageName}}::models::*;
+    let metadata: Metadata =
+        serde_json::from_str(r#"{"createdAt":"2024-01-01T00:00:00Z"}"#).expect("decodes");
+    assert!(metadata.created_at.is_some(), "the date-time field must decode");
+}
+
+#[test]
+fn test_bhv_serialization_086_a_duration_is_written_as_protobuf_seconds_with_days_folded_in() {
+    use chrono::TimeDelta as Duration;
+    use {{packageName}}::proto_duration;
+    assert_eq!(proto_duration::format(&(Duration::days(1) + Duration::seconds(5))), "86405s");
+    assert_eq!(proto_duration::format(&Duration::seconds(2)), "2s");
+}
+
+#[test]
+fn test_bhv_serialization_087_a_tiny_duration_is_fixed_point_never_scientific() {
+    use chrono::TimeDelta as Duration;
+    use {{packageName}}::proto_duration;
+    let out = proto_duration::format(&Duration::microseconds(1));
+    assert_eq!(out, "0.000001s");
+    assert!(!out.to_lowercase().contains('e'), "scientific notation in {out}");
+}
+
+#[test]
+fn test_bhv_serialization_088_bytes_are_written_as_base64_including_each_list_element() {
+    use {{packageName}}::models::*;
+    let vault: BinaryVault =
+        serde_json::from_str(r#"{"seal":"aGk=","shards":["aGk="]}"#).expect("decodes");
+
+    let wire = serde_json::to_value(&vault).expect("serializes");
+
+    assert_eq!(wire["seal"], serde_json::json!("aGk="));
+    assert_eq!(wire["shards"], serde_json::json!(["aGk="]));
+}
+
+#[test]
+fn test_bhv_misc_235_a_duration_with_fractional_seconds_keeps_its_fraction_when_serialized() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert_eq!("1.500s", proto_duration::format(&Duration::milliseconds(1500)));
+}
+
+#[test]
+fn test_bhv_misc_246_a_negative_whole_second_duration_string_parses_to_a_negative_duration() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert_eq!(Duration::seconds(-3), proto_duration::parse("-3s").expect("valid duration"));
+}
+
+#[test]
+fn test_bhv_misc_248_a_duration_with_days_is_formatted_as_a_duration_string() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert_eq!("86400s", proto_duration::format(&Duration::days(1)));
+}
+
+#[test]
+fn test_bhv_misc_251_a_duration_string_with_a_day_designator_is_rejected() {
+    use {{packageName}}::proto_duration;
+    assert!(proto_duration::parse("1d").is_err());
+}
+
+// -- wire decoding and encoding of models and values (chunk 14) --
+
+#[test]
+fn test_bhv_serialization_089_a_base64_wire_string_decodes_into_bytes() {
+    use {{packageName}}::models::BinaryVault;
+    let vault: BinaryVault = serde_json::from_str(r#"{"seal":"aGk="}"#).expect("valid base64");
+    assert_eq!(vault.seal, Some(b"hi".to_vec()));
+}
+
+#[test]
+fn test_bhv_serialization_090_malformed_base64_is_rejected_not_repaired() {
+    use {{packageName}}::models::BinaryVault;
+    assert!(serde_json::from_str::<BinaryVault>(r#"{"seal":"aGk"}"#).is_err());
+    assert!(serde_json::from_str::<BinaryVault>(r#"{"shards":["aGk"]}"#).is_err());
+}
+
+#[test]
+fn test_bhv_serialization_091_bytes_with_the_high_bit_set_survive_a_round_trip() {
+    use {{packageName}}::models::BinaryVault;
+    let data = vec![0xff_u8, 0x80, 0x00];
+    let text = serde_json::to_string(&BinaryVault::new().with_seal(data.clone())).unwrap();
+    let back: BinaryVault = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.seal, Some(data));
+}
+
+#[test]
+fn test_bhv_serialization_092_a_time_of_day_round_trips_through_its_string_form() {
+    let original = chrono::NaiveTime::from_hms_opt(23, 59, 59).unwrap();
+    let text = serde_json::to_string(&original).unwrap();
+    assert_eq!(text, "\"23:59:59\"");
+    let back: chrono::NaiveTime = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, original);
+}
+
+#[test]
+fn test_bhv_serialization_094_strings_in_model_fields_are_written_verbatim() {
+    use {{packageName}}::models::Category;
+    let text = serde_json::to_string(&Category::new().with_name("<a>&/b".to_string())).unwrap();
+    assert!(text.contains(r#""name":"<a>&/b""#), "got: {}", text);
+    assert!(!text.contains("\\u003c") && !text.contains("\\u0026"), "got: {}", text);
+}
+
+#[test]
+fn test_bhv_serialization_095_an_explicit_null_on_the_wire_replaces_the_default() {
+    use {{packageName}}::models::Defaults;
+    let decoded: Defaults = serde_json::from_str(r#"{"label":null}"#).unwrap();
+    assert!(decoded.label.is_none());
+}
+
+#[test]
+fn test_bhv_serialization_096_an_absent_field_decodes_to_its_declared_default() {
+    use {{packageName}}::models::Defaults;
+    let decoded: Defaults = serde_json::from_str("{}").unwrap();
+    assert_eq!(decoded.retries, Some(3));
+}
+
+#[test]
+fn test_bhv_serialization_098_an_unset_optional_field_is_omitted_at_depth() {
+    use {{packageName}}::models::{Category, Pet};
+    let pet = Pet::new("Fido".to_string(), std::collections::HashSet::new())
+        .with_category(Category::new().with_name("Dogs".to_string()));
+    let data = serde_json::to_value(&pet).unwrap();
+    assert!(data["category"].get("id").is_none(), "got: {}", data);
+    assert_eq!(data["category"]["name"], "Dogs");
+}
+
+#[test]
+fn test_bhv_serialization_099_a_strict_model_rejects_an_undeclared_key_and_a_plain_model_drops_it() {
+    use {{packageName}}::models::{Category, StrictTag};
+    let json = r#"{"id":1,"name":"x","unexpected":true}"#;
+    assert!(serde_json::from_str::<StrictTag>(json).is_err());
+    assert_eq!(serde_json::from_str::<Category>(json).unwrap().id, Some(1));
+}
+
+#[test]
+fn test_bhv_serialization_100_every_declared_field_of_a_valid_payload_decodes() {
+    use {{packageName}}::models::Pet;
+    let pet: Pet = serde_json::from_str(
+        r#"{"id":1,"name":"Fido","photoUrls":["x"],"category":{"id":2,"name":"Dogs"}}"#,
+    )
+    .unwrap();
+    assert_eq!(pet.id, Some(1));
+    assert_eq!(pet.name, "Fido");
+    assert_eq!(pet.category.unwrap().name, Some("Dogs".to_string()));
+}
+
+#[test]
+fn test_bhv_serialization_101_an_integer_enum_decodes_from_a_json_number_to_its_member() {
+    use {{packageName}}::models::Priority;
+    let decoded: Priority = serde_json::from_str("2").unwrap();
+    assert_eq!(decoded, Priority::Number2);
+    assert_eq!(serde_json::to_string(&Priority::Number2).unwrap(), "2");
+}
+
+#[test]
+fn test_bhv_serialization_103_a_malformed_document_error_describes_it() {
+    use {{packageName}}::models::Category;
+    let err = serde_json::from_str::<Category>(r#"{"a":"#).unwrap_err();
+    assert!(!err.to_string().is_empty());
+}
+
+#[test]
+fn test_bhv_serialization_104_an_upper_case_uuid_decodes_and_comes_back_lowercase() {
+    use {{packageName}}::models::Order;
+    let order: Order = serde_json::from_str(r#"{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}"#).unwrap();
+    assert_eq!(
+        order.tracking_id.unwrap().to_string(),
+        "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+    );
+}
+
+#[test]
+fn test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises() {
+    use {{packageName}}::models::OrderStatusEnum;
+    assert!(serde_json::from_str::<OrderStatusEnum>("\"PLACED\"").is_err());
+}
+
+#[test]
+fn test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form() {
+    use {{packageName}}::models::Category;
+    let name = "e\u{301}".to_string();
+    let text = serde_json::to_string(&Category::new().with_name(name.clone())).unwrap();
+    let back: Category = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.name, Some(name));
+}
+
+#[test]
+fn test_bhv_serialization_116_a_property_named_as_a_keyword_keeps_its_wire_key() {
+    use {{packageName}}::models::EdgeCases;
+    let model: EdgeCases = serde_json::from_str(r#"{"class":"x"}"#).unwrap();
+    assert_eq!(model.class, Some("x".to_string()));
+    let data = serde_json::to_value(&model).unwrap();
+    assert_eq!(data["class"], "x");
+}
+
+#[test]
+fn test_bhv_serialization_117_a_protobuf_duration_string_decodes_to_a_standalone_duration() {
+    use {{packageName}}::proto_duration;
+    assert_eq!(proto_duration::parse("3600s").unwrap(), chrono::TimeDelta::hours(1));
+}
+
+#[test]
+fn test_bhv_serialization_129_a_nanosecond_precision_duration_has_a_nine_digit_fraction() {
+    use {{packageName}}::proto_duration;
+    assert_eq!(proto_duration::format(&chrono::TimeDelta::nanoseconds(1)), "0.000000001s");
+}
+
+#[test]
+fn test_bhv_serialization_112_a_password_is_masked_in_the_debug_form_and_not_on_the_wire() {
+    use {{packageName}}::models::Account;
+    let account = Account::new("u".to_string()).with_password("p-secret-value".to_string());
+    assert!(!format!("{:?}", account).contains("p-secret-value"));
+    let text = serde_json::to_string(&account).unwrap();
+    assert!(text.contains(r#""password":"p-secret-value""#), "got: {}", text);
+}
+
+#[test]
+fn test_bhv_misc_243_an_absent_optional_array_field_decodes_to_none_not_an_empty_list() {
+    use {{packageName}}::models::NativeValues;
+    let values: NativeValues = serde_json::from_str("{}").expect("an empty object decodes");
+    assert!(values.addresses.is_none());
+}
+
+#[test]
+fn test_bhv_misc_247_a_uuid_string_with_the_wrong_segment_lengths_is_rejected() {
+    assert!(serde_json::from_str::<uuid::Uuid>(r#""1234-5678-1234-5678-1234567890""#).is_err());
+}

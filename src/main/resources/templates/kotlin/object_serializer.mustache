@@ -374,6 +374,10 @@ internal class ObjectSerializer(
         if (unwrapped == null) return "null"
         // A decimal is written as its exact digits, never through a Double.
         if (unwrapped is BigDecimal) return unwrapped.toPlainString()
+        // A time, date-time, UUID or URI is written as its canonical string, as a declared property is.
+        if (unwrapped is TemporalAccessor || unwrapped is Uuid || unwrapped is java.net.URI) {
+            return json.encodeToString(JsonElement.serializer(), JsonPrimitive(stringify(unwrapped)))
+        }
         if (unwrapped is Map<*, *> || unwrapped is Collection<*> || unwrapped is ByteArray) {
             // Maps/lists round-trip through JsonElement. A bare byte array goes out as
             // its base64 string, as a format: byte property does. A free-form value the
@@ -382,7 +386,7 @@ internal class ObjectSerializer(
             // omit absent optional fields but keep explicit nulls inside
             // free-form payloads).
             return try {
-                json.encodeToString(JsonElement.serializer(), toJsonElement(unwrapped))
+                json.encodeToString(JsonElement.serializer(), toWireElement(unwrapped))
             } catch (e: kotlinx.serialization.SerializationException) {
                 throw SerializationException("Failed to serialize object to JSON: ${e.message}", e)
             }
@@ -422,6 +426,40 @@ internal class ObjectSerializer(
         // precedence on a key collision.
         val merged = mergeAdditionalProperties(encoded, unwrapped)
         return json.encodeToString(JsonElement.serializer(), stripJsonNulls(merged, modelDescriptor))
+    }
+
+    /**
+     * The wire form of a free-form map, list or set. A model inside it is written through its own
+     * serializer, so its declared and additional properties come out as they would alone. A set
+     * is written in a defined order: code point order for strings, numeric order for numbers.
+     */
+    private fun toWireElement(value: Any?): JsonElement = when {
+        // A JsonObject is a Map, so it is matched first: its members keep their insertion order.
+        value is JsonElement -> value
+        value is Set<*> -> JsonArray(sortedSetItems(value).map { toWireElement(it) })
+        value is Map<*, *> ->
+            JsonObject(value.entries.sortedBy { it.key.toString() }.associate { (k, v) -> k.toString() to toWireElement(v) })
+        value is Collection<*> -> JsonArray(value.map { toWireElement(it) })
+        value is TemporalAccessor || value is Uuid || value is java.net.URI -> JsonPrimitive(stringify(value))
+        value is BigDecimal -> JsonUnquotedLiteral(value.toPlainString())
+        value == null || value is JsonElement || value is Number || value is Boolean || value is String ||
+            value is ByteArray || value is Duration || value is Enum<*> -> toJsonElementStatic(value)
+        else -> json.parseToJsonElement(serialize(value))
+    }
+
+    private fun sortedSetItems(values: Set<*>): List<Any?> = when {
+        values.all { it is String } -> values.sortedWith { a, b -> compareCodePoints(a as String, b as String) }
+        values.all { it is Number } -> values.sortedBy { BigDecimal(it.toString()) }
+        else -> values.toList()
+    }
+
+    private fun compareCodePoints(a: String, b: String): Int {
+        val left = a.codePoints().toArray()
+        val right = b.codePoints().toArray()
+        for (i in 0 until minOf(left.size, right.size)) {
+            if (left[i] != right[i]) return left[i].compareTo(right[i])
+        }
+        return left.size.compareTo(right.size)
     }
 
     /**
@@ -526,8 +564,6 @@ internal class ObjectSerializer(
             null
         }
     }
-
-    private fun toJsonElement(value: Any?): JsonElement = toJsonElementStatic(value)
 
     /**
      * The ordered, wire-keyed string fields of an object-valued parameter: a
@@ -1346,6 +1382,8 @@ internal class ObjectSerializer(
             // A JsonElement already is the wire value: keep it as is, so a JsonObject
             // (a Map) keeps its numbers and nested values instead of being stringified.
             is JsonElement -> value
+            // A decimal is a bare number with its exact digits, so its scale is kept (12.50 stays 12.50).
+            is BigDecimal -> Json.Default.parseToJsonElement(value.toPlainString())
             is Number -> JsonPrimitive(value)
             is Boolean -> JsonPrimitive(value)
             is String -> JsonPrimitive(value)

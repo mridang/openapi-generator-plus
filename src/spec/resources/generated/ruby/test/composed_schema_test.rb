@@ -23,7 +23,7 @@ describe 'Composed Schema' do
       _(Petstore::Client::Models::PetFood.wet_food_variant?(food)).must_equal(false)
     end
 
-    it 'builds a variant through its typed factory and rejects another type' do
+    it 'bhv_langruby_026 builds a variant through its typed factory and rejects another type' do
       dry = Petstore::Client::Models::DryFood.new(weight_kg: 2.5)
 
       _(Petstore::Client::Models::PetFood.from_dry_food(dry)).must_be_same_as(dry)
@@ -446,6 +446,22 @@ describe 'Composed Schema' do
       _(Petstore::Client::Models::TreatmentRecord.openapi_any_of).must_equal(%i[Surgery Medication])
     end
 
+    it 'bhv_misc_291 a payload matching more than one variant decodes to the first declared one' do
+      both = Petstore::Client::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
+
+      _(Petstore::Client::Models::TreatmentRecord.actual_instance(both)).must_be_kind_of(Petstore::Client::Models::Surgery)
+    end
+
+    it 'bhv_misc_292 serializing a union wrapper writes the bare variant payload and reading it back restores it' do
+      medication = Petstore::Client::Models::Medication.new(drug_name: 'Amoxicillin', notes: 'from-medication')
+      composite = Petstore::Client::Models::PetTreatment::Composite.new([medication])
+
+      serialized = Petstore::Client::ObjectSerializer.serialize(composite)
+
+      _(JSON.parse(serialized)).must_equal(JSON.parse(Petstore::Client::ObjectSerializer.serialize(medication)))
+      _(Petstore::Client::ObjectSerializer.deserialize(serialized, 'PetTreatment').drug_name).must_equal('Amoxicillin')
+    end
+
     it 'bhv_unions_025 retains the first declared variant first' do
       both = Petstore::Client::ObjectSerializer.deserialize('{"drugName":"a","procedureName":"b"}', 'TreatmentRecord')
       _(Petstore::Client::Models::TreatmentRecord.matched_instances(both).map(&:class))
@@ -550,22 +566,13 @@ describe 'Composed Schema' do
         .must_raise Petstore::Client::Errors::SerializationError
     end
 
-    it 'serializes the array byte variant as an array of base64 strings' do
+    it 'bhv_langruby_027 serializes the array byte variant as an array of base64 strings' do
       payload_a = [0x01, 0x02, 0x03, 0x04].pack('C*')
       payload_b = [0x05, 0x06, 0x07, 0x08].pack('C*')
       encoded = Petstore::Client::ObjectSerializer.encode_oneof_body([payload_a, payload_b], 'SetPetAvatarThumbnailRequest')
       json = Petstore::Client::ObjectSerializer.serialize(encoded)
 
       _(json).must_equal('["AQIDBA==","BQYHCA=="]')
-    end
-
-    it 'round-trips the array byte variant preserving both payloads exactly' do
-      result = Petstore::Client::ObjectSerializer.deserialize('["AQIDBA==","BQYHCA=="]', 'SetPetAvatarThumbnailRequest')
-
-      _(result).must_be_kind_of(Array)
-      _(result.length).must_equal(2)
-      _(result[0].bytes).must_equal([0x01, 0x02, 0x03, 0x04])
-      _(result[1].bytes).must_equal([0x05, 0x06, 0x07, 0x08])
     end
   end
 

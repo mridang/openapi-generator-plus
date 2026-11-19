@@ -9,6 +9,73 @@ describe {{moduleName}}::DefaultApiClient do
   parallelize_me!
 
   describe 'TLS verification disabled' do
+    it 'bhv_misc_266 caller default headers replace the SDK user agent and request id on the wire regardless of header name case' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .user_agent('SdkDefault/9.9')
+        .inject_request_id(true)
+        .default_header('user-agent', 'MyApp')
+        .default_header('x-request-id', 'abc')
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      json = JSON.parse(response.body)
+      _(json['headers']['user-agent']).must_equal('MyApp')
+      _(json['headers']['x-request-id']).must_equal('abc')
+      _(response.body).wont_include('SdkDefault')
+    end
+
+    it 'bhv_misc_271 with no proxy configured the client connects directly even when a proxy environment variable is set' do
+      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      dead = %w[HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY all_proxy]
+      bypass = %w[NO_PROXY no_proxy]
+      saved = {} #: Hash[String, String?]
+      (dead + bypass).each { |name| saved[name] = ENV.fetch(name, nil) }
+      dead.each { |name| ENV[name] = 'http://127.0.0.1:1' }
+      bypass.each { |name| ENV.delete(name) }
+
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.build)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+    ensure
+      saved&.each { |name, value| ENV[name] = value }
+    end
+
+    it 'bhv_misc_272 an authenticating proxy accepts the credentials carried in the proxy URL end to end' do
+      chasm_url = ENV.fetch('CHASM_INTERNAL_HTTP_URL')
+      transport = {{moduleName}}::TransportOptions.builder
+        .proxy("http://user:pass@#{ENV.fetch('PROXY_AUTH_HOST_PORT')}")
+        .build
+
+      client = {{moduleName}}::DefaultApiClient.new(transport)
+      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
+
+      _(response.status_code).must_equal(200)
+      _(JSON.parse(response.body)['method']).must_equal('GET')
+    end
+
+    it 'bhv_misc_269 a self-signed endpoint is reached with verification disabled and rejected with it on' do
+      chasm_url = ENV.fetch('CHASM_HTTPS_URL')
+      off = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.verify_ssl(false).build)
+      _(off.send_request(:GET, "#{chasm_url}/test/echo", {}, nil).status_code).must_equal(200)
+
+      on = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.build)
+      _(proc { on.send_request(:GET, "#{chasm_url}/test/echo", {}, nil) }).must_raise {{moduleName}}::Errors::NetworkError
+    end
+
+    it 'bhv_misc_270 a missing CA certificate file is rejected even with verification disabled' do
+      transport = {{moduleName}}::TransportOptions.builder.verify_ssl(false).ca_cert_path('/nonexistent/missing-ca.pem').build
+      err = assert_raises(StandardError) do
+        {{moduleName}}::DefaultApiClient.new(transport).send_request(:GET, 'http://localhost/echo', {}, nil)
+      end
+      _(err.message).must_include 'missing-ca.pem'
+    end
+
     it 'bhv_transport_018 makes HTTPS request with verify_ssl=false' do
       chasm_url = ENV.fetch('CHASM_HTTPS_URL')
 
@@ -380,6 +447,31 @@ describe {{moduleName}}::DefaultApiClient do
       client = {{moduleName}}::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/redirect/chain/1", {}, nil)
       _(response.status_code).must_equal(200)
+    end
+  end
+
+  describe 'HTTP method and body' do
+    it 'bhv_misc_041 a request with an HTTP method outside the standard set is sent with its body intact' do
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      seen = []
+      thread = Thread.new do
+        conn = server.accept
+        head = +''
+        head << conn.readline until head.end_with?("\r\n\r\n")
+        length = head[/content-length: *(\d+)/i, 1].to_i
+        seen = [head.lines.first.split.first, conn.read(length)]
+        conn.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+        conn.close
+      end
+
+      client = {{moduleName}}::DefaultApiClient.new(nil)
+      response = client.send_request(:PURGE, "http://127.0.0.1:#{server.addr[1]}/test", { 'Content-Type' => 'text/plain' }, 'payload')
+      thread.join(5)
+
+      _(response.status_code).must_equal(200)
+      _(seen).must_equal(%w[PURGE payload])
+    ensure
+      server&.close
     end
   end
 
@@ -899,7 +991,7 @@ describe {{moduleName}}::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    it 'bhv_redirects_001 a 302 HTTPS to HTTP redirect with a body proceeds (body dropped, becomes GET)' do
+    it 'bhv_redirects_001 a 302 https->http with a body is refused (the body is never replayed in plain text and the call fails)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [302, { 'location' => 'http://localhost/landing' }, '']
@@ -911,8 +1003,9 @@ describe {{moduleName}}::DefaultApiClient do
       transport = {{moduleName}}::TransportOptions.builder.follow_redirects(true).build
       client = {{moduleName}}::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
-        resp = client.send_request(:POST, 'https://localhost/r', {}, 'secret=payload')
-        _(resp.status_code).must_equal(200)
+        assert_raises({{moduleName}}::Errors::ApiError) do
+          client.send_request(:POST, 'https://localhost/r', {}, 'secret=payload')
+        end
       end
     end
 
@@ -980,15 +1073,15 @@ describe {{moduleName}}::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    {
-      301 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
-      302 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
-      303 => { 'POST' => 'GET', 'PUT' => 'GET', 'PATCH' => 'GET', 'DELETE' => 'GET', 'HEAD' => 'HEAD' },
-      307 => { 'POST' => 'POST', 'PUT' => 'PUT', 'DELETE' => 'DELETE' },
-      308 => { 'POST' => 'POST', 'PATCH' => 'PATCH' }
-    }.each do |status, expectations|
-      expectations.each do |verb, expected|
-        it "bhv_redirects_050 a #{status} redirect sends #{verb} on as #{expected}" do
+    it 'bhv_redirects_050 a redirect status sends the method on as the status prescribes' do
+      {
+        301 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
+        302 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
+        303 => { 'POST' => 'GET', 'PUT' => 'GET', 'PATCH' => 'GET', 'DELETE' => 'GET', 'HEAD' => 'HEAD' },
+        307 => { 'POST' => 'POST', 'PUT' => 'PUT', 'DELETE' => 'DELETE' },
+        308 => { 'POST' => 'POST', 'PATCH' => 'PATCH' }
+      }.each_case do |status, expectations|
+        expectations.each_case do |verb, expected|
           seen = [] # : Array[Array[String]]
           transport = {{moduleName}}::TransportOptions.builder
                                                       .connection(redirect_connection(status, seen))
@@ -1073,8 +1166,14 @@ describe {{moduleName}}::DefaultApiClient do
         stub.get('http://localhost/same') { [302, { 'location' => 'http://localhost/final' }, ''] }
         stub.get('https://localhost/down') { [302, { 'location' => 'http://localhost/final' }, ''] }
         stub.get('http://localhost/up') { [302, { 'location' => 'https://localhost/final' }, ''] }
-        stub.get('http://localhost/final') { |env| kept << env.request_headers.key?('Authorization'); [200, {}, 'ok'] }
-        stub.get('https://localhost/final') { |env| kept << env.request_headers.key?('Authorization'); [200, {}, 'ok'] }
+        stub.get('http://localhost/final') do |env|
+          kept << env.request_headers.key?('Authorization')
+          [200, {}, 'ok']
+        end
+        stub.get('https://localhost/final') do |env|
+          kept << env.request_headers.key?('Authorization')
+          [200, {}, 'ok']
+        end
       end
       conn = Faraday.new { |f| f.adapter :test, stubs }
       client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.connection(conn).follow_redirects(true).build)

@@ -1348,6 +1348,10 @@ class {{classname}} {
   factory {{classname}}.fromJson(Map<String, dynamic> json) {
 {{#discriminator}}
     final disc = json['{{propertyBaseName}}'];
+    if (disc == null) {
+      throw SerializationException(
+          "Missing discriminator property '{{propertyBaseName}}' in payload for {{classname}}");
+    }
     switch (disc) {
 {{#mappedModels}}
       case '{{{mappingName}}}':

@@ -1022,7 +1022,7 @@ public class BetterKotlinCodegen extends AbstractBetterCodegen {
                     "\"" + env.get("username") + "\"", "\"" + env.get("password") + "\"");
         }
         if ("BearerAuthenticator".equals(spec.baseClass())) {
-            return List.of("host", "token", "tokenProvider", "\"" + env.get("token") + "\"");
+            return List.of("host", "token?.takeIf { it.isNotEmpty() }", "tokenProvider", "\"" + env.get("token") + "\"");
         }
         if ("ApiKeyAuthenticator".equals(spec.baseClass())) {
             return List.of("host", "\"" + escapeKotlinString(java.util.Objects.toString(spec.keyParamName(), "")) + "\"", "apiKey",

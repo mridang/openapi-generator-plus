@@ -7,6 +7,17 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ValueSerializer.serialize(nil, :path, "string") == ""
     end
 
+    test "bhv serialization 108 a parameter with no declared style uses the default style for its location" do
+      assert {{moduleName}}.ValueSerializer.serialize_styled("id", ["a", "b"], :path, "array", nil, nil, false) ==
+               {{moduleName}}.ValueSerializer.serialize_styled("id", ["a", "b"], :path, "array", nil, "simple", false)
+    end
+
+    test "bhv serialization 110 an absent value is sent as nil in the query location and as an empty value elsewhere" do
+      assert {{moduleName}}.ValueSerializer.serialize(nil, :query, "string") == nil
+      assert {{moduleName}}.ValueSerializer.serialize(nil, :header, "string") == ""
+      assert {{moduleName}}.ValueSerializer.serialize(nil, :path, "string") == ""
+    end
+
     test "bhv serializationparam 100 string returns URL-encoded value" do
       assert {{moduleName}}.ValueSerializer.serialize("hello", :path, "string") == "hello"
     end
@@ -55,6 +66,11 @@ defmodule {{moduleName}}.ValueSerializerTest do
 
     test "bhv serializationparam 006 array joins with comma by default" do
       assert {{moduleName}}.ValueSerializer.serialize(["a", "b", "c"], :query, "array") == "a,b,c"
+    end
+
+    test "bhv misc 250 array items containing a comma keep the literal comma across path and query styles" do
+      assert {{moduleName}}.ValueSerializer.serialize(["a,b", "c"], :path, "array") == "a,b,c"
+      assert {{moduleName}}.ValueSerializer.serialize(["a,b", "c"], :query, "array") == "a,b,c"
     end
 
     test "bhv serializationparam 009 array joins with space for ssv" do
@@ -304,11 +320,14 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert result == "hello%20world"
     end
 
-    test "bhv serializationparam 105 SerializeStyled form scalar is the bare value, exploded or not" do
+    test "bhv serializationparam 105 a form scalar is the bare value, exploded or not, and an address is its canonical text" do
       for explode <- [true, false] do
         result = {{moduleName}}.ValueSerializer.serialize_styled("color", "blue", :query, "string", nil, "form", explode)
         assert result == "blue"
       end
+
+      assert {{moduleName}}.ObjectSerializer.stringify({192, 0, 2, 1}) == "192.0.2.1"
+      assert {{moduleName}}.ObjectSerializer.stringify({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}) == "2001:db8::1"
     end
 
     test "bhv serializationparam 106 path with null style behaves like simple" do
@@ -319,7 +338,7 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert null_style == "hello%20world"
     end
 
-    test "null style falls back to location-based serialization" do
+    test "bhv langelixir 013 null style falls back to location-based serialization" do
       result = {{moduleName}}.ValueSerializer.serialize_styled("id", "5", :path, "string", nil, nil, false)
       assert result == "5"
     end
@@ -424,6 +443,23 @@ defmodule {{moduleName}}.ValueSerializerTest do
   end
 
   describe "format:date parameter given a date-time" do
+    test "bhv misc 232 a string path parameter in the simple style percent-encodes slashes" do
+      assert {{moduleName}}.ValueSerializer.serialize("a/b", :path, "string") == "a%2Fb"
+    end
+
+    test "bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons and dots included" do
+      result = {{moduleName}}.ValueSerializer.encode_content_cookie(~s({"a":1.5}))
+
+      assert result == "%7B%22a%22%3A1%2E5%7D"
+    end
+
+    test "bhv misc 236 a date-only value is written as yyyy-mm-dd with no time in query, header and cookie locations" do
+      date = ~D[2024-01-15]
+      assert {{moduleName}}.ValueSerializer.serialize(date, :query, "string") == "2024-01-15"
+      assert {{moduleName}}.ValueSerializer.serialize(date, :header, "string") == "2024-01-15"
+      assert {{moduleName}}.ValueSerializer.serialize(date, :cookie, "string") == "2024-01-15"
+    end
+
     test "bhv serialization 044 a date-time given for a date parameter is written as its calendar date only" do
       assert {{moduleName}}.ValueSerializer.serialize(~U[2024-01-02 23:30:00Z], :query, "Date.t()") == "2024-01-02"
       assert {{moduleName}}.ValueSerializer.serialize(~N[2024-01-02 10:30:00], :query, "Date.t()") == "2024-01-02"
@@ -743,10 +779,18 @@ defmodule {{moduleName}}.ValueSerializerTest do
   end
 
   describe "content cookie bytes" do
-    test "bhv serializationparam 104 JSON is percent-encoded keeping only the unreserved set literal" do
-      json = {{moduleName}}.ObjectSerializer.serialize(%{"k" => "a b~*\u00E9"})
+    test "bhv serializationparam 104 JSON is percent-encoded keeping only the unreserved set literal, and a duration is written in the protobuf form" do
+      json = {{moduleName}}.ObjectSerializer.serialize(%{"k" => "a b~*é"})
 
-      assert URI.encode(json, &URI.char_unreserved?/1) == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
+      assert {{moduleName}}.ValueSerializer.encode_content_cookie(json) == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
+      assert {{moduleName}}.ObjectSerializer.stringify(Duration.new!(second: 3600, microsecond: {0, 6})) == "3600s"
+    end
+
+    test "bhv serializationparam 118 a content cookie value is encoded to the shared percent encoded bytes" do
+      encoded = {{moduleName}}.ValueSerializer.encode_content_cookie(~s({"k":"a b~*\u00E9"}))
+
+      assert encoded == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
+      assert encoded =~ ~r/\A[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*\z/
     end
   end
   describe "query and path encoding rules" do
@@ -774,5 +818,28 @@ defmodule {{moduleName}}.ValueSerializerTest do
       assert {{moduleName}}.ValueSerializer.encode_path_segment("a b/c") == "a%20b%2Fc"
     end
   end
+
+  describe "misc wire behaviours" do
+    test "bhv misc 082 an enum value is sent as its wire value in a path, a query and a header" do
+      for location <- [:path, :query, :header] do
+        assert {{moduleName}}.ValueSerializer.serialize(:pending, location, "string") == "pending"
+      end
+    end
+
+    test "bhv misc 084 a set optional scalar is sent in every location" do
+      for location <- [:path, :query, :header] do
+        assert {{moduleName}}.ValueSerializer.serialize(5, location, "integer") == "5"
+      end
+    end
+  end
+
+
+  describe "misc parity deep object" do
+    test "bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out" do
+      assert {{moduleName}}.ValueSerializer.serialize_deep_object("filter", %{"b" => "2", "c" => nil, "a" => "1"}) ==
+               %{"filter[a]" => "1", "filter[b]" => "2"}
+    end
+  end
+
 end
 {{/generateTests}}

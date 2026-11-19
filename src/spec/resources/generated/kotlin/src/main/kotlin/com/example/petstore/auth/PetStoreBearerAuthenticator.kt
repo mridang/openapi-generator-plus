@@ -17,5 +17,5 @@ class PetStoreBearerAuthenticator : BearerAuthenticator {
         host: String,
         token: String? = null,
         tokenProvider: (suspend () -> String)? = null,
-    ) : super(host, token, tokenProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")
+    ) : super(host, token?.takeIf { it.isNotEmpty() }, tokenProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN")
 }

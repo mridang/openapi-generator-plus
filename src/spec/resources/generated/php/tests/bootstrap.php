@@ -10,6 +10,37 @@ use Testcontainers\Container\StartedGenericContainer;
 use Testcontainers\Wait\WaitForLog;
 
 /**
+ * Calls a method with arguments the static analyser cannot check, so a test can pass a deliberately
+ * wrong value and prove the runtime refusal. The method name is a runtime value, so it is not checked.
+ */
+function callUnchecked(object $target, string $method, mixed ...$args): mixed
+{
+    return $target->{$method}(...$args);
+}
+
+/**
+ * Builds an instance with arguments the static analyser cannot check (see callUnchecked). The spread
+ * call is made from this strict file, so a wrong scalar type is refused rather than coerced.
+ *
+ * @param class-string $class
+ * @param array<int|string, mixed> $args positional or named constructor arguments
+ */
+function newUnchecked(string $class, array $args): object
+{
+    return new $class(...$args);
+}
+
+/**
+ * Calls a method with an argument array the static analyser cannot check (see callUnchecked).
+ *
+ * @param array<int|string, mixed> $args
+ */
+function callWithArray(object $target, string $method, array $args): mixed
+{
+    return $target->{$method}(...$args);
+}
+
+/**
  * Builds a container that publishes every port it exposes.
  *
  * testcontainers-php sets host PortBindings but never Config.ExposedPorts, so the

@@ -42,7 +42,7 @@ test('bhv servers 010 variables resolve to their default values', function (): v
     expect($server->getUrl())->toBe('https://api.example.com/api/v3');
 });
 
-test('overrides substitute matching variables', function (): void {
+test('bhv misc 157 overrides substitute matching variables', function (): void {
     $server = new ServerConfiguration(
         urlTemplate: 'https://{env}.example.com/api/{version}',
         variables: [
@@ -223,4 +223,126 @@ test('bhv servers 028 a generated server and its variables cannot be changed aft
         $variables['tenant'] = new ServerVariable(defaultValue: 'x');
         (new \ReflectionProperty(ServerConfiguration::class, 'variables'))->setValue($server, $variables);
     })->toThrow(\Error::class);
+});
+
+test('bhv misc 297 server URL template variables are replaced with the supplied values when the URL is built, including several', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{region}.api.example.com:{port}/v{version}',
+        variables: [
+            'region' => new ServerVariable(defaultValue: 'eu', enumValues: ['eu', 'us']),
+            'port' => new ServerVariable(defaultValue: '8443'),
+            'version' => new ServerVariable(defaultValue: '1'),
+        ],
+    );
+
+    expect($server->getUrl(['region' => 'us', 'port' => '9443', 'version' => '2']))
+        ->toBe('https://us.api.example.com:9443/v2');
+});
+
+test('bhv servers 029 a placeholder introduced by a substituted value is not expanded again', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/{version}',
+        variables: [
+            'env' => new ServerVariable(defaultValue: '{version}'),
+            'version' => new ServerVariable(defaultValue: 'v2'),
+        ],
+    );
+
+    expect($server->getUrl())->toBe('https://{version}.example.com/v2');
+});
+
+test('bhv servers 030 override not in enum is rejected', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging']),
+        ],
+    );
+
+    // A server variable outside its enum is a caller mistake, not an SDK error.
+    expect(fn () => $server->getUrl(['env' => 'invalid']))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\InvalidArgumentException::class);
+            expect($e)->not->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
+        });
+});
+
+test('bhv misc 257 a variable declared with an empty enum accepts any value and the url is built from it', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: [])],
+    );
+
+    expect($server->getUrl(['env' => 'anything']))->toBe('https://anything.example.com');
+});
+
+test('bhv misc 258 when no override is supplied for a variable its default value is used in the url', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging'])],
+    );
+
+    expect($server->getUrl())->toBe('https://api.example.com');
+});
+
+test('bhv misc 259 a placeholder in the template with no declared variable stays in the url as written', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://api.example.com/{unknown}/{env}',
+        variables: ['env' => new ServerVariable(defaultValue: 'api')],
+    );
+
+    expect($server->getUrl(['env' => 'v1']))->toBe('https://api.example.com/{unknown}/v1');
+});
+
+test('bhv misc 260 passing null for an enum variable is rejected instead of being substituted', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging'])],
+    );
+
+    expect(fn () => callUnchecked($server, 'getUrl', ['env' => null]))->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv misc 261 a value containing backslash sequences is inserted into the url exactly as given', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api')],
+    );
+
+    expect($server->getUrl(['env' => 'a\\nb']))->toBe('https://a\\nb.example.com');
+});
+
+test('bhv misc 154 editing the variables map returned by the accessor does not change the configuration', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api')],
+    );
+
+    $variables = $server->variables;
+    $variables['env'] = new ServerVariable(defaultValue: 'other');
+    $variables['extra'] = new ServerVariable(defaultValue: 'x');
+
+    expect(array_keys($server->variables))->toBe(['env']);
+    expect($server->getUrl())->toBe('https://api.example.com');
+});
+
+test('bhv misc 155 resolving a url with an enum variable left unset is refused, naming the variable and its allowed values', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: '', enumValues: ['api', 'staging'])],
+    );
+
+    expect(fn (): string => $server->getUrl())
+        ->toThrow(\InvalidArgumentException::class, "for server variable 'env'. Allowed values: [api, staging]");
+});
+
+test('bhv misc 156 the list of all generated servers keeps the order in which they are declared', function (): void {
+    expect(array_map(fn (ServerConfiguration $server): string => $server->urlTemplate, Servers::all()))
+        ->toBe(['/api/v3', 'https://{environment}.example.com/api/{version}', 'https://{tenant}.example.com/api']);
+});
+
+test('bhv misc 158 a server built with a fixed url reports exactly that url', function (): void {
+    $server = new ServerConfiguration(urlTemplate: 'https://api.example.com/v1/fixed');
+
+    expect($server->getUrl())->toBe('https://api.example.com/v1/fixed');
 });

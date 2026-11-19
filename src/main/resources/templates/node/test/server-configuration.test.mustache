@@ -199,3 +199,93 @@ describe('ServerConfiguration', () => {
     expect(config.variables).toEqual(variables);
   });
 });
+
+describe('ServerConfiguration misc behaviours', () => {
+  it('bhv misc 154 editing the variables map returned by the accessor does not change the configuration', () => {
+    const config = new ServerConfiguration('https://{region}.example.com', null, {
+      region: new ServerVariable('eu', null, []),
+    });
+    expect(Reflect.set(config.variables, 'region', new ServerVariable('us', null, []))).toBe(false);
+    expect(config.getUrl()).toBe('https://eu.example.com');
+  });
+
+  it('bhv misc 155 an unset enum variable with a disallowed default is refused, naming the variable and its allowed values', () => {
+    const config = new ServerConfiguration('https://{env}.api.example.com', null, {
+      env: new ServerVariable('dev', null, ['prod', 'staging']),
+    });
+    expect(() => config.getUrl()).toThrow(
+      "Invalid value 'dev' for server variable 'env'. Allowed values: prod, staging",
+    );
+  });
+
+  it('bhv misc 158 a server built with a fixed URL reports exactly that URL', () => {
+    const config = new ServerConfiguration('https://api.example.com/fixed', null, {});
+    expect(config.urlTemplate).toBe('https://api.example.com/fixed');
+    expect(config.getUrl()).toBe('https://api.example.com/fixed');
+  });
+});
+
+describe('ServerConfiguration substitution behaviours', () => {
+  it('bhv servers 029 a placeholder introduced by a substituted value stays literal in the resulting URL and is never expanded again', () => {
+    const config = new ServerConfiguration('https://{env}.api.example.com/{version}', null, {
+      env: new ServerVariable('{version}', null, []),
+      version: new ServerVariable('v2', null, []),
+    });
+    expect(config.getUrl()).toBe('https://{version}.api.example.com/v2');
+  });
+
+  it('bhv servers 030 a value that is not one of a server variable declared enum values is rejected with an error', () => {
+    const config = new ServerConfiguration('https://api.example.com/{env}', null, {
+      env: new ServerVariable('prod', null, ['api', 'staging']),
+    });
+    expect(() => config.getUrl({ env: 'bogus' })).toThrow(TypeError);
+    expect(() => config.getUrl({ env: 'bogus' })).toThrow("Invalid value 'bogus' for server variable 'env'");
+  });
+});
+
+describe('ServerConfiguration misc substitution behaviours', () => {
+  it('bhv misc 257 a variable declared with an empty enum accepts any value, and the URL is built from it', () => {
+    const config = new ServerConfiguration('https://{env}.example.com', null, {
+      env: new ServerVariable('prod', null, []),
+    });
+    expect(config.getUrl({ env: 'anything' })).toBe('https://anything.example.com');
+  });
+
+  it('bhv misc 258 a variable with no override uses its default value in the URL', () => {
+    const config = new ServerConfiguration('https://{env}.example.com', null, {
+      env: new ServerVariable('prod', null, ['prod', 'dev']),
+    });
+    expect(config.getUrl()).toBe('https://prod.example.com');
+  });
+
+  it('bhv misc 259 a placeholder with no declared variable stays in the URL exactly as written', () => {
+    const config = new ServerConfiguration('https://{host}/{undeclared}', null, {
+      host: new ServerVariable('a', null, []),
+    });
+    expect(config.getUrl()).toBe('https://a/{undeclared}');
+  });
+
+  it('bhv misc 260 passing null for an enum variable is rejected with an error instead of being substituted', () => {
+    const config = new ServerConfiguration('https://{env}.example.com', null, {
+      env: new ServerVariable('prod', null, ['prod', 'dev']),
+    });
+    expect(() => config.getUrl({ env: null as unknown as string })).toThrow(TypeError);
+  });
+
+  it('bhv misc 261 a value containing backslash sequences is inserted into the URL exactly as given', () => {
+    const config = new ServerConfiguration('https://{host}.example.com', null, {
+      host: new ServerVariable('x', null, []),
+    });
+    expect(config.getUrl({ host: 'a\\b\\n' })).toBe('https://a\\b\\n.example.com');
+  });
+});
+
+describe('ServerConfiguration misc default substitution', () => {
+  it('bhv misc 278 a server URL with templated variables resolves to the default values when no overrides are given', () => {
+    const config = new ServerConfiguration('https://{env}.example.com/{version}', null, {
+      env: new ServerVariable('api', null, []),
+      version: new ServerVariable('v3', null, []),
+    });
+    expect(config.getUrl()).toBe('https://api.example.com/v3');
+  });
+});

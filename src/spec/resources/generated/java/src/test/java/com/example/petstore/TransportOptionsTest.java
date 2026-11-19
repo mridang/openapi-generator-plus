@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -24,6 +25,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class TransportOptionsTest {
 
   @Test
@@ -429,11 +431,21 @@ class TransportOptionsTest {
         "http://[::1:3128|Invalid proxy URL: http://[::1:3128"
       })
   @DisplayName("an unusable proxy URL is rejected with the exact message")
-  void unusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
-    IllegalArgumentException ex =
-        assertThrowsExactly(
-            IllegalArgumentException.class, () -> TransportOptions.builder().proxy(proxy).build());
-    assertEquals(message, ex.getMessage());
+  void bhvOptions010UnusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
+    {
+      IllegalArgumentException ex =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () -> TransportOptions.builder().proxy(proxy).build());
+      assertEquals(message, ex.getMessage());
+    }
+    {
+      IllegalArgumentException ex =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () -> TransportOptions.builder().proxy("http://[::1:3128").build());
+      assertEquals("Invalid proxy URL: http://[::1:3128", ex.getMessage());
+    }
   }
 
   @Test
@@ -448,16 +460,6 @@ class TransportOptionsTest {
                     .build());
     assertFalse(String.valueOf(ex.getMessage()).contains("s3cret"));
     assertTrue(String.valueOf(ex.getMessage()).contains("***@proxy.example.com:1080"));
-  }
-
-  @Test
-  @DisplayName("bhvOptions010 a proxy URL with an unterminated IPv6 literal is rejected")
-  void bhvOptions010UnterminatedIpv6ProxyUrlIsRejected() {
-    IllegalArgumentException ex =
-        assertThrowsExactly(
-            IllegalArgumentException.class,
-            () -> TransportOptions.builder().proxy("http://[::1:3128").build());
-    assertEquals("Invalid proxy URL: http://[::1:3128", ex.getMessage());
   }
 
   @Test
@@ -679,26 +681,83 @@ class TransportOptionsTest {
   }
 
   @Test
-  void bhvLifecycle041SuppliedHttpClientRejectsAnSdkProxySetting() {
-    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
-    try {
-      org.junit.jupiter.api.Assertions.assertThrows(
-          IllegalArgumentException.class,
-          () -> TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
-    } finally {
-      supplied.close();
+  void bhvLifecycle041SuppliedHttpClientRejectsAnSdkProxyOrTlsSetting() {
+    {
+      java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+      try {
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+      } finally {
+        supplied.close();
+      }
+    }
+    {
+      java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+      try {
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+      } finally {
+        supplied.close();
+      }
     }
   }
 
   @Test
-  void bhvLifecycle041SuppliedHttpClientRejectsAnSdkTlsSetting() {
-    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
-    try {
-      org.junit.jupiter.api.Assertions.assertThrows(
-          IllegalArgumentException.class,
-          () -> TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
-    } finally {
-      supplied.close();
-    }
+  void bhvMisc026AConfigurationMistakeIsAnIllegalArgumentNotAnApiError() {
+    IllegalArgumentException ex =
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1).build());
+    org.junit.jupiter.api.Assertions.assertFalse(
+        ((Object) ex) instanceof com.example.petstore.errors.ApiException);
+  }
+
+  @Test
+  void bhvMisc056SettingTheProxyToNullRemovesAProxySetEarlier() {
+    assertNull(
+        TransportOptions.builder().proxy("http://proxy:3128").proxy(null).build().getProxy());
+  }
+
+  @Test
+  void bhvMisc134AZeroTimeoutIsAnArgumentErrorAndNotAnSdkError() {
+    IllegalArgumentException thrown =
+        assertThrowsExactly(
+            IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
+    assertFalse(((Object) thrown) instanceof OpenAPIException);
+  }
+
+  @Test
+  void bhvMisc186AReadyMadeConnectionWithACaBundleIsRejectedWhenBuilt() {
+    assertThrowsExactly(
+        IllegalArgumentException.class,
+        () ->
+            TransportOptions.builder()
+                .httpClient(java.net.http.HttpClient.newHttpClient())
+                .caCertPath("/tmp/ca.pem")
+                .build());
+  }
+
+  @Test
+  @DisplayName("bhvMisc298 a malformed proxy URL is rejected with an invalid proxy error")
+  void bhvMisc298AMalformedProxyUrlIsRejectedWithAnInvalidProxyError() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().proxy("ftp://proxy.example.com").build());
+    assertTrue(ex.getMessage().startsWith("Invalid proxy URL"), ex.getMessage());
+  }
+
+  @Test
+  @DisplayName("bhvOptions068 a SOCKS proxy is refused at construction with the documented message")
+  void bhvOptions068ASocksProxyIsRefusedAtConstructionWithTheDocumentedMessage() {
+    IllegalArgumentException ex =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().proxy("socks5://proxy.example.com:1080").build());
+    assertEquals(
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
+        ex.getMessage());
   }
 }

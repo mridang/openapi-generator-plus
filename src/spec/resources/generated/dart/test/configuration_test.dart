@@ -32,13 +32,27 @@ void main() {
       expect(builder, isA<ConfigurationBuilder>());
     });
 
-    test('builder is the static entry point for the builder', () {
-      final config = Configuration.builder()
-          .baseUrl('https://static.example.com')
-          .build();
+    test(
+      'bhv langdart 034 builder is the static entry point for the builder',
+      () {
+        final config = Configuration.builder()
+            .baseUrl('https://static.example.com')
+            .build();
 
-      expect(config.baseUrl, equals('https://static.example.com'));
-    });
+        expect(config.baseUrl, equals('https://static.example.com'));
+      },
+    );
+
+    test(
+      'bhv config 026 the builder returns the base URL that was set on it',
+      () {
+        final config = ConfigurationBuilder()
+            .baseUrl('https://builder.example.com')
+            .build();
+
+        expect(config.baseUrl, equals('https://builder.example.com'));
+      },
+    );
 
     test('bhv config 011 builder sets baseUrl', () {
       final config = ConfigurationBuilder()
@@ -136,6 +150,20 @@ void main() {
 
       expect(config.baseUrl, equals('https://override.example.com'));
     });
+
+    test(
+      'bhv misc 136 the debug text shows the base URL and the non-sensitive default headers',
+      () {
+        final text = Configuration.builder()
+            .baseUrl('https://api.example.com')
+            .defaultHeader('Accept', 'text/plain')
+            .build()
+            .toString();
+
+        expect(text, contains('https://api.example.com'));
+        expect(text, contains('text/plain'));
+      },
+    );
 
     test(
       'bhv config 022 mutating the returned default headers does not change the configuration',
@@ -315,19 +343,22 @@ void main() {
       expect(identical(first, second), isFalse);
     });
 
-    test('the call hook is unset by default', () {
+    test('bhv langdart 035 the call hook is unset by default', () {
       expect(ConfigurationBuilder().build().callHook, isNull);
     });
 
-    test('builder sets the call hook and returns the builder', () {
-      final hook = _NoopHook();
-      final builder = ConfigurationBuilder();
+    test(
+      'bhv langdart 036 builder sets the call hook and returns the builder',
+      () {
+        final hook = _NoopHook();
+        final builder = ConfigurationBuilder();
 
-      expect(identical(builder.callHook(hook), builder), isTrue);
-      expect(identical(builder.build().callHook, hook), isTrue);
-    });
+        expect(identical(builder.callHook(hook), builder), isTrue);
+        expect(identical(builder.build().callHook, hook), isTrue);
+      },
+    );
 
-    test('builder removes the call hook when given null', () {
+    test('bhv langdart 037 builder removes the call hook when given null', () {
       final config = ConfigurationBuilder()
           .callHook(_NoopHook())
           .callHook(null)
@@ -336,11 +367,46 @@ void main() {
       expect(config.callHook, isNull);
     });
 
-    test('toString does not print the call hook', () {
+    test('bhv langdart 038 toString does not print the call hook', () {
       final config = ConfigurationBuilder().callHook(_NoopHook()).build();
 
       expect(config.toString(), isNot(contains('_NoopHook')));
     });
+    test(
+      'bhv misc 276 The default configuration and the default builder both use the base URL declared in the spec',
+      () {
+        expect(Configuration.defaultConfiguration().baseUrl, equals('/api/v3'));
+        expect(Configuration.builder().build().baseUrl, equals('/api/v3'));
+      },
+    );
+
+    test(
+      'bhv misc 277 Each call to the default configuration returns a distinct configuration object',
+      () {
+        expect(
+          identical(
+            Configuration.defaultConfiguration(),
+            Configuration.defaultConfiguration(),
+          ),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      'bhv misc 279 Changing the headers returned from a configuration does not change the headers it holds',
+      () {
+        final config = Configuration.builder()
+            .defaultHeader('X-Keep', 'yes')
+            .build();
+
+        final headers = config.defaultHeaders;
+        headers['X-New'] = 'no';
+
+        expect(config.defaultHeaders.containsKey('X-New'), isFalse);
+        expect(config.defaultHeaders, containsPair('X-Keep', 'yes'));
+      },
+    );
   });
 }
 

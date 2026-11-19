@@ -23,7 +23,7 @@ void main() {
           reason: 'description must not be empty');
     });
 
-    test('writes the description as a quoted YAML scalar', () {
+    test('bhv langdart 045 writes the description as a quoted YAML scalar', () {
       final contents =
           File('${Directory.current.path}/pubspec.yaml').readAsStringSync();
       final match =
@@ -35,7 +35,7 @@ void main() {
 
   group('package links', () {
 {{#repositoryUrl}}
-    test('declares the repository in the pubspec and the README', () {
+    test('bhv langdart 046 declares the repository in the pubspec and the README', () {
       final root = Directory.current.path;
       expect(File('$root/pubspec.yaml').readAsStringSync(),
           contains('repository: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}'));
@@ -44,7 +44,7 @@ void main() {
     });
 {{/repositoryUrl}}
 {{#homepageUrl}}
-    test('declares the homepage in the pubspec and the README', () {
+    test('bhv langdart 047 declares the homepage in the pubspec and the README', () {
       final root = Directory.current.path;
       expect(File('$root/pubspec.yaml').readAsStringSync(),
           contains('homepage: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}'));
@@ -53,7 +53,7 @@ void main() {
     });
 {{/homepageUrl}}
 {{#issueTrackerUrl}}
-    test('declares the issue tracker in the pubspec and the README', () {
+    test('bhv langdart 048 declares the issue tracker in the pubspec and the README', () {
       final root = Directory.current.path;
       expect(File('$root/pubspec.yaml').readAsStringSync(),
           contains('issue_tracker: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}'));
@@ -62,7 +62,7 @@ void main() {
     });
 {{/issueTrackerUrl}}
 {{#documentationUrl}}
-    test('declares the documentation link in the pubspec and the README', () {
+    test('bhv langdart 049 declares the documentation link in the pubspec and the README', () {
       final root = Directory.current.path;
       expect(File('$root/pubspec.yaml').readAsStringSync(),
           contains('documentation: {{#lambda.doubleQuoted}}{{{.}}}{{/lambda.doubleQuoted}}'));
@@ -71,12 +71,12 @@ void main() {
     });
 {{/documentationUrl}}
 {{#authors}}
-    test('names the authors in the README', () {
+    test('bhv langdart 050 names the authors in the README', () {
       expect(File('${Directory.current.path}/README.md').readAsStringSync(),
           contains('Authors: {{{.}}}'));
     });
 {{/authors}}
-    test('the README documents the per-call, credential and model features', () {
+    test('bhv langdart 051 the README documents the per-call, credential and model features', () {
       final readme =
           File('${Directory.current.path}/README.md').readAsStringSync();
       for (final heading in [
@@ -100,7 +100,7 @@ void main() {
   });
 
   group('dev dependencies', () {
-    test('every package the generator declares for the tests is in the pubspec', () {
+    test('bhv langdart 052 every package the generator declares for the tests is in the pubspec', () {
       /* .openapi-generator/DEV-DEPENDENCIES is generator-owned and pubspec.yaml
        * is not, so a client that keep-lists its own manifest can drift from it
        * until the suite dies on an unresolved import. This names the gap. */
@@ -203,7 +203,7 @@ void main() {
   });
 
   group('package barrel', () {
-    test('documents the library without backslash-escaped quotes', () {
+    test('bhv langdart 053 documents the library without backslash-escaped quotes', () {
       final barrel =
           File('${Directory.current.path}/lib/{{packageName}}.dart').readAsLinesSync();
       final doc = barrel.where((line) => line.startsWith('///')).toList();
@@ -214,7 +214,7 @@ void main() {
       }
     });
 
-    test('hides the internal no-auth sentinel from the public API', () {
+    test('bhv langdart 054 hides the internal no-auth sentinel from the public API', () {
       final barrel =
           File('${Directory.current.path}/lib/{{packageName}}.dart').readAsStringSync();
       expect(
@@ -245,7 +245,7 @@ void main() {
       expect(json, isNotEmpty);
     });
 
-    test('deserialize from JSON', () {
+    test('bhv langdart 055 deserialize from JSON', () {
       final jsonData = '{"createdAt":"2024-01-15T10:30:00+00:00"}';
 
       final parsed = jsonDecode(jsonData) as Map<String, dynamic>;
@@ -409,7 +409,7 @@ void main() {
   });
 
   group('Metadata value equality', () {
-    test('instances differing only in additionalProperties are not equal', () {
+    test('bhv langdart 056 instances differing only in additionalProperties are not equal', () {
       const first = Metadata(additionalProperties: {'region': 'eu'});
       const second = Metadata(additionalProperties: {'region': 'us'});
 

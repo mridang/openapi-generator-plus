@@ -26,8 +26,11 @@ class ServerConfiguration(
     val description: String? = null,
     variables: Map<String, ServerVariable> = emptyMap(),
 ) {
-    /** The server variables and their definitions (an unmodifiable copy). */
-    val variables: Map<String, ServerVariable> = variables.toMap()
+    private val storedVariables: Map<String, ServerVariable> = variables.toMap()
+
+    /** The server variables and their definitions, as a fresh copy on every read: editing it changes nothing here. */
+    val variables: Map<String, ServerVariable>
+        get() = LinkedHashMap(storedVariables)
 
     /**
      * Resolve the URL template, substituting the given variable overrides.
@@ -42,7 +45,7 @@ class ServerConfiguration(
      */
     fun getUrl(overrides: Map<String, String> = emptyMap()): String {
         val resolved = HashMap<String, String>()
-        for ((varName, variable) in variables) {
+        for ((varName, variable) in storedVariables) {
             val value = overrides.getOrDefault(varName, variable.defaultValue)
             val enumValues = variable.enumValues
             if (enumValues.isNotEmpty() && value !in enumValues) {

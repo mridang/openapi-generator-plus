@@ -261,7 +261,9 @@ class TestCause:
             NetworkTimeoutException,
         ],
     )
-    def test_every_constructor_chains_the_given_cause(self, error_type: Any) -> None:
+    def test_bhv_lang_python_003_every_constructor_chains_the_given_cause(
+        self, error_type: Any
+    ) -> None:
         cause = ValueError("root cause")
 
         err = error_type(message="boom", cause=cause)
@@ -280,7 +282,29 @@ class TestErrorTreeExports:
                 "petstore_client.errors"
             )
 
-    def test_package_root_exports_the_whole_error_tree(self) -> None:
+    def test_bhv_errors_094_every_raised_error_is_the_root_type(self) -> None:
+        from petstore_client.errors.serialization_exception import (
+            SerializationException,
+        )
+
+        raised = [
+            SerializationException(message="bad"),
+            NetworkTimeoutException(message="timed out"),
+            ApiException.from_response(404, {}, "{}"),
+        ]
+        for err in raised:
+            assert isinstance(err, OpenAPIException)
+
+    def test_bhv_misc_022_a_server_error_is_the_root_type_and_the_server_class(
+        self,
+    ) -> None:
+        from petstore_client.errors.server_exception import ServerException
+
+        err = ApiException.from_response(503, {}, "{}")
+        assert isinstance(err, ServerException)
+        assert isinstance(err, OpenAPIException)
+
+    def test_bhv_misc_283_package_root_exports_the_whole_error_tree(self) -> None:
         for name in ERROR_TREE:
             assert name in petstore_client.__all__
             assert getattr(petstore_client, name) is getattr(
@@ -468,7 +492,7 @@ class TestFromResponse:
 
 
 class TestApiErrorImmutability:
-    def test_fields_are_read_only(self) -> None:
+    def test_bhv_lang_python_004_fields_are_read_only(self) -> None:
         err = ApiException(
             status_code=404,
             message="not found",
@@ -594,6 +618,31 @@ class TestApiErrorRendering:
 
         assert "more bytes" in str(err)
         assert len(str(err)) < 1500
+
+    def test_bhv_misc_280_a_truncated_body_states_how_many_bytes_were_left_out(
+        self,
+    ) -> None:
+        err = ApiException(
+            status_code=502, message="bad gateway", response_body="a" * 3000
+        )
+
+        assert "1976 more bytes" in str(err)
+
+    def test_bhv_misc_281_headers_from_the_response_are_copied_onto_the_error(
+        self,
+    ) -> None:
+        err = ApiException.from_response(503, {"retry-after": "5"}, "{}")
+
+        assert err.response_headers is not None
+        assert err.response_headers["retry-after"] == "5"
+
+    def test_bhv_misc_286_an_oauth_error_message_names_its_status_and_error_code(
+        self,
+    ) -> None:
+        err = OAuth2ServerException(401, "invalid_client", None, None, "{}")
+
+        assert "401" in str(err)
+        assert "invalid_client" in str(err)
 
     def test_bhv_errors_065_cuts_a_long_body_at_1_kib_and_counts_the_bytes_left_out(
         self,
@@ -866,7 +915,7 @@ class TestRequestContext:
         assert err.request_path is None
         assert str(err) == "API returned status code 404\nHTTP status code: 404"
 
-    def test_the_request_is_unknown_by_default(self) -> None:
+    def test_bhv_lang_python_005_the_request_is_unknown_by_default(self) -> None:
         err = ApiException(status_code=500, message="boom")
 
         assert err.request_method is None
@@ -1053,7 +1102,9 @@ class TestErrorBehaviours:
         assert error.request_method == "GET"
         assert error.request_path == "/pets"
 
-    def test_an_incomplete_request_attachment_is_ignored(self) -> None:
+    def test_bhv_lang_python_006_an_incomplete_request_attachment_is_ignored(
+        self,
+    ) -> None:
         error = ApiException(status_code=500)._with_request("", "/pets")
 
         assert error.request_method is None

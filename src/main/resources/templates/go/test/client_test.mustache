@@ -120,7 +120,7 @@ func TestBhvLifecycle001_Client_ApiGroupsAreAccessible(t *testing.T) {
 // short group name (client.Pet, client.Store) to match the other SDKs, not the
 // type-suffixed name (client.PetApi). Pin the canonical accessors explicitly so
 // a regression in the field naming is caught regardless of the generic loop above.
-func TestClient_SubApiAccessorsUseShortGroupNames(t *testing.T) {
+func TestBhvLanggo023_Client_SubApiAccessorsUseShortGroupNames(t *testing.T) {
 	t.Parallel()
 	authenticator := mustBearer(t, "{{{basePath}}}", "test-token")
 
@@ -231,7 +231,7 @@ func TestBhvLifecycle028_Client_ExplicitHostAndTokenWinOverTheEnvironment(t *tes
 	}
 }
 
-func TestClient_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
+func TestBhvLanggo024_Client_WithTokenFailsWhenACredentialCannotBeResolved(t *testing.T) {
 	t.Setenv("{{envVarPrefix}}_BASE_URL", "")
 	t.Setenv("{{envVarPrefix}}_TOKEN", "")
 
@@ -1048,4 +1048,29 @@ func TestBhvMisc073_Client_EveryDeclaredSchemeHasAWrapperClass(t *testing.T) {
 	var _ *auth.InternalApiKeyAuthenticator
 	var _ *auth.ApiKeyQueryAuthenticator
 	var _ *auth.SessionCookieAuthenticator
+}
+
+func TestBhvMisc152_Client_ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing(t *testing.T) {
+	t.Parallel()
+	var hits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client, err := {{packageName}}.New{{clientClassName}}WithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = client.Pet.GetPetById(ctx, int64(1), nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("expected a cancellation error, got %v", err)
+	}
+	if got := hits.Load(); got != 0 {
+		t.Errorf("expected no request sent, got %d", got)
+	}
 }

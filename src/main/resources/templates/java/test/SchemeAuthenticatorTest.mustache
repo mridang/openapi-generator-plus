@@ -53,11 +53,21 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void itBuildsFromItsEnvironmentVariablesAlone() {
-            AdminBasicAuthenticator auth = new AdminBasicAuthenticator(
-                    "https://api.example.com", null, null,
-                    Map.of(USERNAME_VARIABLE, "alice", SECRET_VARIABLE, "from-env"));
-            assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+        void bhvAuthbasic001ItBuildsFromItsEnvironmentVariablesAlone() {
+            {
+                AdminBasicAuthenticator auth = new AdminBasicAuthenticator(
+                        "https://api.example.com", null, null,
+                        Map.of(USERNAME_VARIABLE, "alice", SECRET_VARIABLE, "from-env"));
+                assertEquals("Basic YWxpY2U6ZnJvbS1lbnY=", auth.getAuthHeaders().get("Authorization"));
+            }
+            {
+                PetStoreBasicAuthenticator auth = new PetStoreBasicAuthenticator(
+                        "https://api.example.com", null, null,
+                        Map.of(
+                                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME", "alice",
+                                "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD", "s3cret"));
+                assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
+            }
         }
 
         @Test
@@ -96,31 +106,6 @@ class SchemeAuthenticatorTest {
             assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(USERNAME_VARIABLE), ex.getMessage());
         }
 
-        @Test
-        void missingCredentialNamesItsVariable() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    new AdminBasicAuthenticator("https://api.example.com", null, "from-env", Map.of()));
-            assertEquals(
-                    "The 'username' credential of the 'adminBasic' security scheme is required: "
-                            + "pass it or set the " + USERNAME_VARIABLE + " environment variable",
-                    ex.getMessage());
-        }
-
-        @Test
-        void explicitArgumentsNeedNoEnvironment() {
-            AdminBasicAuthenticator auth =
-                    new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret", Map.of());
-            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
-        }
-        @Test
-        void bhvAuthBasic001ReadsBothCredentialsFromTheEnvironmentWhenNonePassed() {
-            PetStoreBasicAuthenticator auth = new PetStoreBasicAuthenticator(
-                    "https://api.example.com", null, null,
-                    Map.of(
-                            "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME", "alice",
-                            "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD", "s3cret"));
-            assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
-        }
 
         @Test
         void bhvAuthBasic003MissingCredentialFailsAtConstruction() {
@@ -180,9 +165,35 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void validatesTheTokenAtConstruction() {
+        void bhvLangjava014ValidatesTheTokenAtConstruction() {
             assertThrows(IllegalArgumentException.class, () ->
                     new ServiceTokenAuthenticator("https://api.example.com", ""));
+        }
+
+        @Test
+        void bhvMisc196SchemeWrapperWithNoTokenFailsWithAnError() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of()));
+        }
+
+        @Test
+        void bhvMisc205MissingCredentialErrorNamesTheVariable() {
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of()));
+            assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE), ex.getMessage());
+        }
+
+        @Test
+        void bhvMisc207TokenNotPassedIsReadFromItsEnvironmentVariable() {
+            PetStoreBearerAuthenticator auth =
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "env-token"));
+            assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+        }
+
+        @Test
+        void bhvMisc208EmptyEnvironmentVariableCountsAsUnset() {
+            assertThrows(IllegalArgumentException.class, () ->
+                    new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
         }
 
         @Test
@@ -231,9 +242,8 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void bhvAuth042ExplicitEmptyTokenIsRejectedAndNotReplacedByTheEnvironment() {
-            assertThrows(IllegalArgumentException.class, () ->
-                    new PetStoreBearerAuthenticator(HOST, "", Map.of(TOKEN_VARIABLE, "from-environment")));
+        void bhvAuth042ExplicitEmptyTokenIsRejectedByTheBaseAuthenticator() {
+            assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, ""));
         }
 
         @Test
@@ -252,13 +262,6 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void anEmptyArgumentCountsAsNotPassed() {
-            PetStoreBearerAuthenticator auth =
-                    new PetStoreBearerAuthenticator(HOST, "", Map.of(TOKEN_VARIABLE, "env-token"));
-            assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
-        }
-
-        @Test
         void bhvAuthScheme010AnEmptyVariableCountsAsUnset() {
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                     new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
@@ -270,44 +273,6 @@ class SchemeAuthenticatorTest {
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                     new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
             assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE), ex.getMessage());
-        }
-
-        @Test
-        void missingCredentialNamesItsVariable() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    new PetStoreBearerAuthenticator(HOST, null, Map.of()));
-            assertEquals(
-                    "The 'token' credential of the 'petStoreBearer' security scheme is required: "
-                            + "pass it or set the " + TOKEN_VARIABLE + " environment variable",
-                    ex.getMessage());
-        }
-
-        @Test
-        void bhvAuthScheme001ReadsOnlyItsOwnVariable() {
-            Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "service-token");
-            assertThrows(IllegalArgumentException.class, () ->
-                    new PetStoreBearerAuthenticator(HOST, null, environment));
-            ServiceTokenAuthenticator service = new ServiceTokenAuthenticator(HOST, null, environment);
-            assertEquals("Bearer service-token", service.getAuthHeaders().get("Authorization"));
-        }
-
-        @Test
-        void stillValidatesAnEnvironmentToken() {
-            assertThrows(IllegalArgumentException.class, () ->
-                    new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "bad\ntoken")));
-        }
-
-        @Test
-        void bhvAuthScheme002ExplicitArgumentsNeedNoEnvironment() {
-            PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator(HOST, "xyz", Map.of());
-            assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
-        }
-        @Test
-        void bhvAuthScheme003ServiceTokenTreatsAnEmptyVariableAsUnsetAndNamesIt() {
-            String variable = "{{envVarPrefix}}_SERVICE_TOKEN_TOKEN";
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    new ServiceTokenAuthenticator(HOST, null, Map.of(variable, "")));
-            assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(variable), ex.getMessage());
         }
 
         @Test
@@ -361,7 +326,7 @@ class SchemeAuthenticatorTest {
         private static final String API_KEY_VARIABLE = "{{envVarPrefix}}_API_KEY_HEADER_API_KEY";
 
         @Test
-        void wrappersEmitTheirKeyAtTheSpecNameAndLocation() {
+        void bhvLangjava017WrappersEmitTheirKeyAtTheSpecNameAndLocation() {
             String host = "https://api.example.com";
             ApiKeyHeaderAuthenticator header = new ApiKeyHeaderAuthenticator(host, "k1");
             InternalApiKeyAuthenticator internal = new InternalApiKeyAuthenticator(host, "k2");
@@ -422,7 +387,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void itBuildsFromItsEnvironmentVariablesAlone() {
+        void bhvLangjava062ItBuildsFromItsEnvironmentVariablesAlone() {
             ApiKeyHeaderAuthenticator auth = new ApiKeyHeaderAuthenticator(
                     "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "env-key"));
             assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
@@ -436,31 +401,6 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void anEmptyArgumentCountsAsNotPassed() {
-            ApiKeyHeaderAuthenticator auth = new ApiKeyHeaderAuthenticator(
-                    "https://api.example.com", "", Map.of(API_KEY_VARIABLE, "env-key"));
-            assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
-        }
-
-        @Test
-        void anEmptyVariableCountsAsUnset() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    new ApiKeyHeaderAuthenticator(
-                            "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "")));
-            assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(API_KEY_VARIABLE), ex.getMessage());
-        }
-
-        @Test
-        void missingCredentialNamesItsVariable() {
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
-                    new ApiKeyHeaderAuthenticator("https://api.example.com", null, Map.of()));
-            assertEquals(
-                    "The 'apiKey' credential of the 'apiKeyHeader' security scheme is required: "
-                            + "pass it or set the " + API_KEY_VARIABLE + " environment variable",
-                    ex.getMessage());
-        }
-
-        @Test
         void bhvAuthScheme012AnEmptyInternalApiKeyVariableIsUnsetAndNamesIt() {
             Map<String, String> environment = Map.of("{{envVarPrefix}}_INTERNAL_API_KEY_API_KEY", "");
             IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
@@ -470,7 +410,7 @@ class SchemeAuthenticatorTest {
         }
 
         @Test
-        void wrappersOfOneKindEachReadTheirOwnVariable() {
+        void bhvLangjava018WrappersOfOneKindEachReadTheirOwnVariable() {
             Map<String, String> environment = Map.of(API_KEY_VARIABLE, "header-key");
             assertThrows(IllegalArgumentException.class, () ->
                     new InternalApiKeyAuthenticator("https://api.example.com", null, environment));
@@ -478,18 +418,6 @@ class SchemeAuthenticatorTest {
                     new SessionCookieAuthenticator("https://api.example.com", null, environment));
         }
 
-        @Test
-        void stillValidatesAnEnvironmentKey() {
-            assertThrows(IllegalArgumentException.class, () -> new ApiKeyHeaderAuthenticator(
-                    "https://api.example.com", null, Map.of(API_KEY_VARIABLE, "abc\r\ndef")));
-        }
-
-        @Test
-        void explicitArgumentsNeedNoEnvironment() {
-            ApiKeyHeaderAuthenticator auth =
-                    new ApiKeyHeaderAuthenticator("https://api.example.com", "explicit", Map.of());
-            assertEquals("explicit", auth.getAuthHeaders().get("X-API-Key"));
-        }
         @Test
         void bhvAuthApiKey021ReadsTheKeyFromTheEnvironmentWhenNoneIsPassedAndAPassedKeyWins() {
             ApiKeyHeaderAuthenticator fromEnvironment = new ApiKeyHeaderAuthenticator(
@@ -551,4 +479,140 @@ class SchemeAuthenticatorTest {
 
     }
 {{/hasApiKeyAuth}}
+
+    @Test
+    void bhvMisc193BasicAndBearerWrappersMatchTheirBaseAuthenticators() {
+        assertEquals(
+                new BasicAuthenticator("https://api.example.com", "alice", "s3cret").getAuthHeaders(),
+                new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret").getAuthHeaders());
+        assertEquals(
+                new BearerAuthenticator("https://api.example.com", "tok").getAuthHeaders(),
+                new PetStoreBearerAuthenticator("https://api.example.com", "tok").getAuthHeaders());
+        assertThrows(IllegalArgumentException.class, () ->
+                new BasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+        assertThrows(IllegalArgumentException.class, () ->
+                new AdminBasicAuthenticator("https://api.example.com", "ali:ce", "s3cret"));
+    }
+
+    @Test
+    void bhvAuthscheme002ExplicitArgumentsNeedNoEnvironment() {
+        {{#hasBasicAuth}}
+        {
+                AdminBasicAuthenticator auth =
+                        new AdminBasicAuthenticator("https://api.example.com", "alice", "s3cret", Map.of());
+                assertEquals("Basic YWxpY2U6czNjcmV0", auth.getAuthHeaders().get("Authorization"));
+        }
+        {{/hasBasicAuth}}
+        {{#hasBearerAuth}}
+        {
+                PetStoreBearerAuthenticator auth = new PetStoreBearerAuthenticator("https://api.example.com", "xyz", Map.of());
+                assertEquals("Bearer xyz", auth.getAuthHeaders().get("Authorization"));
+        }
+        {{/hasBearerAuth}}
+        {{#hasApiKeyAuth}}
+        {
+                ApiKeyHeaderAuthenticator auth =
+                        new ApiKeyHeaderAuthenticator("https://api.example.com", "explicit", Map.of());
+                assertEquals("explicit", auth.getAuthHeaders().get("X-API-Key"));
+        }
+        {{/hasApiKeyAuth}}
+    }
+
+    @Test
+    void bhvAuthscheme003MissingCredentialNamesItsVariable() {
+        {{#hasBasicAuth}}
+        {
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                        new AdminBasicAuthenticator("https://api.example.com", null, "from-env", Map.of()));
+                assertEquals(
+                        "The 'username' credential of the 'adminBasic' security scheme is required: "
+                                + "pass it or set the " + "{{envVarPrefix}}_ADMIN_BASIC_USERNAME" + " environment variable",
+                        ex.getMessage());
+        }
+        {{/hasBasicAuth}}
+        {{#hasBearerAuth}}
+        {
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                        new PetStoreBearerAuthenticator("https://api.example.com", null, Map.of()));
+                assertEquals(
+                        "The 'token' credential of the 'petStoreBearer' security scheme is required: "
+                                + "pass it or set the " + "{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" + " environment variable",
+                        ex.getMessage());
+        }
+        {{/hasBearerAuth}}
+        {{#hasBearerAuth}}
+        {
+                String variable = "{{envVarPrefix}}_SERVICE_TOKEN_TOKEN";
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                        new ServiceTokenAuthenticator("https://api.example.com", null, Map.of(variable, "")));
+                assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains(variable), ex.getMessage());
+        }
+        {{/hasBearerAuth}}
+        {{#hasApiKeyAuth}}
+        {
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                        new ApiKeyHeaderAuthenticator(
+                                "https://api.example.com", null, Map.of("{{envVarPrefix}}_API_KEY_HEADER_API_KEY", "")));
+                assertTrue(java.util.Objects.requireNonNull(ex.getMessage()).contains("{{envVarPrefix}}_API_KEY_HEADER_API_KEY"), ex.getMessage());
+        }
+        {{/hasApiKeyAuth}}
+        {{#hasApiKeyAuth}}
+        {
+                IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
+                        new ApiKeyHeaderAuthenticator("https://api.example.com", null, Map.of()));
+                assertEquals(
+                        "The 'apiKey' credential of the 'apiKeyHeader' security scheme is required: "
+                                + "pass it or set the " + "{{envVarPrefix}}_API_KEY_HEADER_API_KEY" + " environment variable",
+                        ex.getMessage());
+        }
+        {{/hasApiKeyAuth}}
+    }
+
+    @Test
+    void bhvAuthScheme001ReadsOnlyItsOwnVariable() {
+        {{#hasBearerAuth}}
+        {
+                Map<String, String> environment = Map.of("{{envVarPrefix}}_SERVICE_TOKEN_TOKEN", "service-token");
+                assertThrows(IllegalArgumentException.class, () ->
+                        new PetStoreBearerAuthenticator("https://api.example.com", null, environment));
+                ServiceTokenAuthenticator service = new ServiceTokenAuthenticator("https://api.example.com", null, environment);
+                assertEquals("Bearer service-token", service.getAuthHeaders().get("Authorization"));
+        }
+        {{/hasBearerAuth}}
+    }
+
+    @Test
+    void bhvLangjava015AnEmptyArgumentCountsAsNotPassed() {
+        {{#hasBearerAuth}}
+        {
+                PetStoreBearerAuthenticator auth =
+                        new PetStoreBearerAuthenticator("https://api.example.com", "", Map.of("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN", "env-token"));
+                assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+        }
+        {{/hasBearerAuth}}
+        {{#hasApiKeyAuth}}
+        {
+                ApiKeyHeaderAuthenticator auth = new ApiKeyHeaderAuthenticator(
+                        "https://api.example.com", "", Map.of("{{envVarPrefix}}_API_KEY_HEADER_API_KEY", "env-key"));
+                assertEquals("env-key", auth.getAuthHeaders().get("X-API-Key"));
+        }
+        {{/hasApiKeyAuth}}
+    }
+
+    @Test
+    void bhvLangjava016StillValidatesAnEnvironmentToken() {
+        {{#hasBearerAuth}}
+        {
+                assertThrows(IllegalArgumentException.class, () ->
+                        new PetStoreBearerAuthenticator("https://api.example.com", null, Map.of("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN", "bad\ntoken")));
+        }
+        {{/hasBearerAuth}}
+        {{#hasApiKeyAuth}}
+        {
+                assertThrows(IllegalArgumentException.class, () -> new ApiKeyHeaderAuthenticator(
+                        "https://api.example.com", null, Map.of("{{envVarPrefix}}_API_KEY_HEADER_API_KEY", "abc\r\ndef")));
+        }
+        {{/hasApiKeyAuth}}
+    }
+
 }

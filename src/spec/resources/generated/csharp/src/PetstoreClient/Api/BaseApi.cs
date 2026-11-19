@@ -609,6 +609,12 @@ public abstract class BaseApi
                                 ? (T)(object)new System.IO.MemoryStream(bytes)
                                 : (T)(object)bytes;
                     }
+                    else if (decodeByStatus is null && typeof(T) == typeof(string))
+                    {
+                        /* A string return is the body text itself, whatever its content type:
+                           it is never JSON-parsed, so a body that is not valid JSON comes back unchanged. */
+                        data = (T)(object)response.Body;
+                    }
                     else if (
                         responseContentType != null
                         && !HeaderSelector.IsJsonMime(responseContentType)
@@ -867,7 +873,7 @@ public abstract class BaseApi
             case "path":
                 return ValueSerializer.EncodePathSegment(json);
             case "cookie":
-                return Uri.EscapeDataString(json);
+                return Uri.EscapeDataString(json).Replace(".", "%2E", StringComparison.Ordinal);
             default:
                 if (
                     json.Contains('\r', StringComparison.Ordinal)

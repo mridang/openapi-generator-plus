@@ -419,7 +419,7 @@ public class ComposedSchemaTest
     }
 
     [Fact]
-    public void OneOfNonDiscriminatorNoMatchThrows()
+    public void BhvLangcsharp071OneOfNonDiscriminatorNoMatchThrows()
     {
         // oneof-nondiscriminator-no-match-silent: the variants are a base64
         // string and an array of base64 strings. A JSON object matches
@@ -626,4 +626,81 @@ public class ComposedSchemaTest
         var serialized = _serializer.Serialize(car);
         Assert.Contains("\"vehicleType\":\"car\"", serialized, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("{\"foodType\":\"dry\"}")]
+    [InlineData("{\"foodType\":\"dry\",\"weightKg\":\"heavy\"}")]
+    public void BhvMisc045APayloadFailingAVariantSchemaIsNotAcceptedAsThatVariant(string json)
+    {
+        Assert.Throws<SerializationException>(() => _serializer.Deserialize<PetFood>(json));
+    }
+
+    [Fact]
+    public void BhvMisc046UnionsWithEqualContentAreEqualAndHashEqually()
+    {
+        var left = SetPetAvatarThumbnailRequest.FromByte(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+        var right = SetPetAvatarThumbnailRequest.FromByte(new byte[] { 0x01, 0x02, 0x03, 0x04 });
+        var other = SetPetAvatarThumbnailRequest.FromByte(new byte[] { 0x05, 0x06, 0x07, 0x08 });
+        Assert.Equal(left, right);
+        Assert.Equal(left.GetHashCode(), right.GetHashCode());
+        Assert.NotEqual(left, other);
+    }
+
+    [Fact]
+    public void BhvMisc049AChoiceBetweenOneBinaryAndAListWritesTheListAsBase64Items()
+    {
+        var request = SetPetAvatarThumbnailRequest.FromListByte(
+            new System.Collections.Generic.List<byte[]> { new byte[] { 0x01, 0x02 }, new byte[] { 0x03, 0x04 } });
+
+        var json = _serializer.Serialize(request);
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+
+        Assert.Equal(System.Text.Json.JsonValueKind.Array, document.RootElement.ValueKind);
+        Assert.Equal("AQI=", document.RootElement[0].GetString());
+        Assert.Equal("AwQ=", document.RootElement[1].GetString());
+    }
+    [Fact]
+    public void BhvUnions044EachVariantHasATypedFactoryAndAccessorThatIdentifyIt()
+    {
+        var medication = new Medication { DrugName = "Amoxicillin", Dosage = "500mg" };
+        var wrapped = new PetTreatment(medication);
+
+        Assert.True(wrapped.IsMedication());
+        Assert.False(wrapped.IsSurgery());
+        Assert.Same(medication, wrapped.AsMedication());
+    }
+
+    [Fact]
+    public void BhvUnions045TwoUnionsBuiltFromTheSameDataCompareEqual()
+    {
+        var decoded = _serializer.Deserialize<PetTreatment>("{\"drugName\":\"Amoxicillin\",\"dosage\":\"500mg\"}");
+        var built = new PetTreatment(new Medication { DrugName = "Amoxicillin", Dosage = "500mg" });
+
+        Assert.Equal(built, decoded);
+    }
+
+    [Fact]
+    public void BhvUnions046EveryMatchingVariantOfAnAnyOfReportsItself()
+    {
+        var treatment = new PetTreatment(new List<object>
+        {
+            new Medication { DrugName = "Amoxicillin", Dosage = "500mg" },
+            new Surgery { ProcedureName = "Spay" },
+        });
+
+        Assert.True(treatment.IsMedication());
+        Assert.True(treatment.IsSurgery());
+        Assert.Equal(2, treatment.MatchedInstances.Count);
+    }
+
+    [Fact]
+    public void BhvUnions047ADiscriminatorValueOutsideTheMappingRaisesAClearError()
+    {
+        foreach (var payload in new[] { "{\"shapeType\":\"triangle\"}", "{\"shapeType\":\"\"}" })
+        {
+            var ex = Assert.ThrowsAny<SerializationException>(() => _serializer.Deserialize<Shape>(payload));
+            Assert.Contains("discriminator", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
 }

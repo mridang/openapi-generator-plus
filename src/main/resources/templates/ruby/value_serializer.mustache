@@ -93,15 +93,14 @@ module {{moduleName}}
     end
 
     # Percent-encodes the JSON of a +content:+ cookie parameter, keeping only
-    # the RFC 3986 unreserved set (A-Z a-z 0-9 - . _ ~) literal. Every other
-    # byte, including * ! ' ( ) and each byte of a non-ASCII character as
-    # UTF-8, becomes %XX, so the result is identical in every SDK and is a
-    # valid RFC 6265 cookie-value.
+    # A-Z a-z 0-9 - _ ~ literal. Every other byte, including the dot, the colon,
+    # * ! ' ( ) and each byte of a non-ASCII character as UTF-8, becomes %XX, so
+    # a JSON model is fully encoded and is a valid RFC 6265 cookie-value.
     #
     # @param value [String] the serialized JSON
     # @return [String] the encoded cookie value
     def self.encode_content_cookie(value)
-      value.to_s.b.gsub(/[^A-Za-z0-9\-._~]/n) { |byte| format('%%%02X', byte.ord) }.force_encoding(Encoding::UTF_8)
+      value.to_s.b.gsub(/[^A-Za-z0-9\-_~]/n) { |byte| format('%%%02X', byte.ord) }.force_encoding(Encoding::UTF_8)
     end
 
     # Wraps a query value so the query-string builder preserves RFC 3986
@@ -347,7 +346,9 @@ module {{moduleName}}
 
       # @type var acc: Hash[String, String]
       acc = {}
-      fields.each_with_object(acc) do |(key, val), result|
+      fields.sort_by { |key, _val| key.to_s }.each_with_object(acc) do |(key, val), result|
+        next if val.nil?
+
         result["#{param_name}[#{key}]"] = ObjectSerializer.stringify(val)
       end
     end

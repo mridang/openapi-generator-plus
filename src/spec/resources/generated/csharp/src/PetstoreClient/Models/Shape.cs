@@ -30,7 +30,10 @@ public abstract record Shape : global::System.Text.Json.Serialization.IJsonOnDes
                 ref reader
             );
             string raw = doc.RootElement.GetRawText();
-            if (doc.RootElement.TryGetProperty("shapeType", out System.Text.Json.JsonElement disc))
+            if (
+                doc.RootElement.TryGetProperty("shapeType", out System.Text.Json.JsonElement disc)
+                && disc.ValueKind != System.Text.Json.JsonValueKind.Null
+            )
             {
                 if (
                     disc.ValueKind != System.Text.Json.JsonValueKind.String

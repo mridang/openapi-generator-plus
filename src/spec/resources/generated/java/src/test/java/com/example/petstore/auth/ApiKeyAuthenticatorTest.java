@@ -49,6 +49,19 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
+  void bhvMisc057AnApiKeyConfiguredForOneLocationIsNeverSentAtAnother() {
+    ApiKeyAuthenticator header =
+        new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);
+    ApiKeyAuthenticator cookie =
+        new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.COOKIE);
+
+    assertEquals(Map.of(), header.getQueryParams());
+    assertEquals(Map.of(), header.getCookieParams());
+    assertEquals(Map.of(), cookie.getAuthHeaders());
+    assertEquals(Map.of(), cookie.getQueryParams());
+  }
+
+  @Test
   void bhvAuthApiKey022KeyIsEmittedOnlyAtItsOwnLocation() {
     ApiKeyAuthenticator header =
         new ApiKeyAuthenticator("https://api.example.com", "k", "v", ApiKeyLocation.HEADER);
@@ -130,7 +143,7 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void newlineOnlyKeyReportsEmptyNotControlCharacters() {
+  void bhvLangjava065NewlineOnlyKeyReportsEmptyNotControlCharacters() {
     for (ApiKeyLocation location : ApiKeyLocation.values()) {
       for (String blank : new String[] {"\n", "\r\n", "\t", "\013", "\f"}) {
         IllegalArgumentException ex =
@@ -318,5 +331,20 @@ class ApiKeyAuthenticatorTest {
               new ApiKeyAuthenticator(
                   "https://api.example.com", "X-API-KEY", blank, ApiKeyLocation.HEADER));
     }
+  }
+
+  @Test
+  void bhvMisc189TheApiKeyQueryWrapperSendsTheKeyAsTheApiKeyQueryParameter() {
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator("http://localhost", "api_key", "secret-key", ApiKeyLocation.QUERY);
+    assertEquals("secret-key", auth.getQueryParams().get("api_key"));
+  }
+
+  @Test
+  void bhvMisc192ACookieMadeOnlyOfLegalOctetsIsSentExactlyAsGiven() {
+    String value = "abc!#$%&'()*+-./:<=>?@[]^_`{|}~";
+    ApiKeyAuthenticator auth =
+        new ApiKeyAuthenticator("http://localhost", "session", value, ApiKeyLocation.COOKIE);
+    assertEquals(value, auth.getCookieParams().get("session"));
   }
 }

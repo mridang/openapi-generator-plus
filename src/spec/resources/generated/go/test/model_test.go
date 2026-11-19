@@ -26,7 +26,7 @@ import (
  * that the description stays in the same doc comment. hasDeprecatedParagraph is
  * shared with pet_api_test.go. */
 
-func TestModel_DeprecatedSchemaCarriesADeprecatedParagraph(t *testing.T) {
+func TestBhvLanggo055_Model_DeprecatedSchemaCarriesADeprecatedParagraph(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/models/tag.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
@@ -80,7 +80,7 @@ func TestBhvSerializationobject227_Model_ExternalDocsDescriptionKeepsTheSpecPros
 	t.Fatalf("no type declared in %s", path)
 }
 
-func TestModel_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t *testing.T) {
+func TestBhvLanggo056_Model_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t *testing.T) {
 	t.Parallel()
 	path := "../pkg/models/pet.go"
 	file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ParseComments)
@@ -110,7 +110,7 @@ func TestModel_DeprecatedFieldKeepsItsDescriptionAndStartsADeprecatedParagraph(t
 
 /* The allowed values of an enum are public: a caller can list them and ask a
  * value whether it is one of them. */
-func TestModel_EnumsExposeTheirAllowedValues(t *testing.T) {
+func TestBhvLanggo057_Model_EnumsExposeTheirAllowedValues(t *testing.T) {
 	t.Parallel()
 	inline := models.AllDefaultsModeEnumValues()
 	if len(inline) != 3 || inline[0] != models.DefaultsModeEnumLow || inline[2] != models.DefaultsModeEnumHigh {
@@ -157,7 +157,7 @@ func TestBhvSerializationobject050_Model_ASiblingDefaultNextToARefFillsAnAbsentK
 	}
 }
 
-func TestModel_AValueSentNextToASiblingDefaultWinsOnDecode(t *testing.T) {
+func TestBhvLanggo058_Model_AValueSentNextToASiblingDefaultWinsOnDecode(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
 	if err := json.Unmarshal([]byte(`{"priority":1,"availability":"Sold"}`), &item); err != nil {
@@ -328,6 +328,25 @@ func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *test
 	}
 }
 
+// A model's string form shows the contents of its list, map and byte fields rather than their addresses.
+func TestBhvMisc113_Model_AStringFormShowsTheContentsOfListMapAndByteFields(t *testing.T) {
+	t.Parallel()
+	seal := []byte{0x01, 0x02, 0x03}
+	shards := [][]byte{{0x04, 0x05}}
+	labels := map[string][]byte{"first": {0x07, 0x08}}
+	vault := models.BinaryVault{Seal: &seal, Shards: &shards, Labels: &labels}
+	text := vault.String()
+	if !strings.Contains(text, `"seal":"AQID"`) {
+		t.Errorf("expected the byte field contents in the string form, got %s", text)
+	}
+	if !strings.Contains(text, `"shards":["BAU="]`) {
+		t.Errorf("expected the list contents in the string form, got %s", text)
+	}
+	if !strings.Contains(text, `"labels":{"first":"Bwg="}`) {
+		t.Errorf("expected the map contents in the string form, got %s", text)
+	}
+}
+
 // Extra properties are written as top-level keys beside the declared fields.
 func TestBhvSerialization067_Model_AdditionalPropertiesAreWrittenAsTopLevelKeys(t *testing.T) {
 	t.Parallel()
@@ -473,35 +492,6 @@ func TestBhvSerialization081_Model_AWrongJsonTypeIsRefusedNotCoerced(t *testing.
 	}
 }
 
-// Two instances that differ only in their undeclared extra properties are not equal.
-func TestBhvModels025_Model_ExtraPropertiesTakePartInEquality(t *testing.T) {
-	t.Parallel()
-	a := models.Metadata{AdditionalProperties: map[string]string{"a": "1"}}
-	b := models.Metadata{AdditionalProperties: map[string]string{"a": "2"}}
-	if a.Equal(&b) {
-		t.Error("expected instances differing only in extra properties to be unequal")
-	}
-}
-
-// Undeclared keys in incoming JSON survive deserialization and are written back at the top level on serialization.
-func TestBhvModels026_Model_UndeclaredKeysRoundTripAtTheTopLevel(t *testing.T) {
-	t.Parallel()
-	var meta models.Metadata
-	if err := json.Unmarshal([]byte(`{"owner":"team-a"}`), &meta); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if meta.AdditionalProperties["owner"] != "team-a" {
-		t.Fatalf("expected the undeclared key kept, got %v", meta.AdditionalProperties)
-	}
-	data, err := json.Marshal(meta)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"owner":"team-a"`) {
-		t.Errorf("expected the key written back at the top level, got %s", data)
-	}
-}
-
 // Two models built from the same values are equal, and a change in any nested value makes them unequal.
 // Models of two different types cannot be passed to each other's Equal, so the compiler rejects that call.
 func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
@@ -560,5 +550,157 @@ func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {
 	}
 	if none.Equal(&first) {
 		t.Error("expected nil not to equal a model")
+	}
+}
+
+func TestBhvMisc093_Model_NumericAdditionalPropertyNamesAreTopLevelKeys(t *testing.T) {
+	t.Parallel()
+	meta := models.Metadata{AdditionalProperties: map[string]string{"404": "missing", "7": "seven"}}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got["404"] != "missing" || got["7"] != "seven" {
+		t.Errorf("expected the numeric names as top-level members, got %s", data)
+	}
+}
+
+func TestBhvMisc137_Model_AnEnumReportsWhetherAValueIsOneOfItsDeclaredValues(t *testing.T) {
+	t.Parallel()
+	for _, member := range models.AllAvailabilityValues() {
+		if !member.IsValid() {
+			t.Errorf("expected declared member %q to be valid", member)
+		}
+	}
+	if models.Availability("extreme").IsValid() {
+		t.Error("expected a value outside the declared members to be invalid")
+	}
+}
+
+func TestBhvMisc138_Model_AnEnumMemberConvertsToItsWireValueText(t *testing.T) {
+	t.Parallel()
+	if got := models.AvailabilityOclock.String(); got != "o'clock" {
+		t.Errorf("expected the text form to be the wire value o'clock, got %q", got)
+	}
+}
+
+func TestBhvMisc139_Model_ACollectionPassedInIsCopiedSoLaterChangesDoNotReachTheModel(t *testing.T) {
+	t.Parallel()
+	source := map[string]string{"owner": "team-a"}
+	item := models.Metadata{}.WithAdditionalProperties(source)
+	source["owner"] = "team-b"
+	source["extra"] = "added"
+	if item.AdditionalProperties["owner"] != "team-a" || len(item.AdditionalProperties) != 1 {
+		t.Errorf("expected the model to keep a copy of the source, got %v", item.AdditionalProperties)
+	}
+}
+
+func TestBhvMisc140_Model_ABuildWithoutARequiredPropertyFailsNamingIt(t *testing.T) {
+	t.Parallel()
+	var account models.Account
+	err := json.Unmarshal([]byte(`{"id":1}`), &account)
+	if err == nil || !strings.Contains(err.Error(), "username") {
+		t.Errorf("expected an error naming username, got %v", err)
+	}
+}
+
+func TestBhvMisc141_Model_AModelBuiltWithoutAValueHoldsTheSchemaDefault(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1)
+	if item.Availability == nil || *item.Availability != models.AvailabilityOnHold {
+		t.Errorf("expected the default on-hold to be held, got %v", item.Availability)
+	}
+}
+
+func TestBhvMisc142_Model_AdditionalPropertiesReadBackUnchangedAndHoldExactlyTheStoredEntries(t *testing.T) {
+	t.Parallel()
+	item := models.Metadata{}.WithAdditionalProperties(map[string]string{"owner": "team-a", "tier": "gold"})
+	if item.AdditionalProperties["owner"] != "team-a" || item.AdditionalProperties["tier"] != "gold" || len(item.AdditionalProperties) != 2 {
+		t.Errorf("expected exactly the stored entries back, got %v", item.AdditionalProperties)
+	}
+}
+
+func TestBhvMisc143_Model_AdditionalPropertiesMapSurvivesCopyAndEquality(t *testing.T) {
+	t.Parallel()
+	item := models.Metadata{}.WithAdditionalProperties(map[string]string{"owner": "team-a", "tier": "gold"})
+	copied := item.WithAdditionalProperties(item.AdditionalProperties)
+	if len(copied.AdditionalProperties) != 2 || copied.AdditionalProperties["owner"] != "team-a" || copied.AdditionalProperties["tier"] != "gold" {
+		t.Errorf("expected the copy to keep the entries, got %v", copied.AdditionalProperties)
+	}
+	if !item.Equal(&copied) {
+		t.Error("expected the copy to compare equal to the original")
+	}
+}
+
+func TestBhvMisc144_Model_ValidationRefusesAStringForANumericField(t *testing.T) {
+	t.Parallel()
+	var item models.StockItem
+	if err := json.Unmarshal([]byte(`{"priority":"1"}`), &item); err == nil {
+		t.Error("expected a string given for a numeric field to be refused")
+	}
+}
+
+func TestBhvMisc146_Model_CopyWithNoChangesIsANewEqualInstance(t *testing.T) {
+	t.Parallel()
+	original := models.NewStockItem(models.PriorityNumber1)
+	copied := *original
+	if &copied == original || !original.Equal(&copied) {
+		t.Error("expected a new instance equal to the original")
+	}
+}
+
+func TestBhvMisc147_Model_CopyOfANestedObjectHoldsTheSameObject(t *testing.T) {
+	t.Parallel()
+	parent := models.TreeNode{}.WithValue("root").WithChild(models.TreeNode{}.WithValue("leaf"))
+	copied := parent.WithValue("copied")
+	if copied.Child != parent.Child {
+		t.Error("expected the copy to hold the same nested object as the original")
+	}
+}
+
+func TestBhvMisc148_Model_CopyWithChangesSerializesLikeTheChangesBuiltFresh(t *testing.T) {
+	t.Parallel()
+	item := models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilitySold)
+	copied := item.WithAvailability(models.AvailabilityOnHold)
+	got, err := json.Marshal(&copied)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	want, err := json.Marshal(models.NewStockItem(models.PriorityNumber1).WithAvailability(models.AvailabilityOnHold))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(got) != string(want) {
+		t.Errorf("expected %s, got %s", want, got)
+	}
+}
+
+func TestBhvMisc150_Model_EqualFieldValuesCompareEqualAndDifferentOnesUnequal(t *testing.T) {
+	t.Parallel()
+	first := models.NewStockItem(models.PriorityNumber1)
+	same := models.NewStockItem(models.PriorityNumber1)
+	other := models.NewStockItem(models.PriorityNumber2)
+	if !first.Equal(same) {
+		t.Error("expected models with equal values to compare equal")
+	}
+	if first.Equal(other) {
+		t.Error("expected models with different values to compare unequal")
+	}
+}
+
+func TestBhvMisc151_Model_AMapFieldComparesEveryEntry(t *testing.T) {
+	t.Parallel()
+	first := models.Metadata{}.WithAdditionalProperties(map[string]string{"a": "1", "b": "2"})
+	same := models.Metadata{}.WithAdditionalProperties(map[string]string{"a": "1", "b": "2"})
+	differs := models.Metadata{}.WithAdditionalProperties(map[string]string{"a": "1", "b": "3"})
+	if !first.Equal(&same) {
+		t.Error("expected maps with the same entries to compare equal")
+	}
+	if first.Equal(&differs) {
+		t.Error("expected maps with a differing entry to compare unequal")
 	}
 }

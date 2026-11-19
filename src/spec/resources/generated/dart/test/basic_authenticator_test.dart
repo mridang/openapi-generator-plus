@@ -47,6 +47,24 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 207 A credential that is not passed to the constructor or with_token call is read from the matching environment variable.',
+      () {
+        final environment = {
+          BasicAuthenticator.defaultUsernameVariable: 'alice',
+          BasicAuthenticator.defaultPasswordVariable: 'pw1',
+        };
+        final auth = BasicAuthenticator(
+          host: 'https://api.example.com',
+          environment: environment,
+        );
+
+        environment[BasicAuthenticator.defaultUsernameVariable] = 'bob';
+
+        expect(auth.authHeaders()['Authorization'], equals(basic('alice:pw1')));
+      },
+    );
+
     test('bhv authbasic 012 an empty variable counts as unset', () {
       expect(
         () => BasicAuthenticator(
@@ -59,6 +77,41 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test(
+      'bhv misc 208 An environment variable set to an empty value is treated the same as an unset one when the implicit authenticator looks up its credential.',
+      () {
+        expect(
+          () => BasicAuthenticator(
+            host: 'https://api.example.com',
+            environment: {
+              BasicAuthenticator.defaultUsernameVariable: '',
+              BasicAuthenticator.defaultPasswordVariable: 'pw1',
+            },
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test(
+      'bhv misc 205 when a credential is found nowhere, the missing-credential error names the variable that should supply it',
+      () {
+        expect(
+          () => BearerAuthenticator(
+            host: 'https://api.example.com',
+            environment: const {},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(BearerAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authbasic 003 missing or empty credentials fail at construction',
@@ -157,47 +210,53 @@ void main() {
       );
     });
 
-    test('a rejected password never appears in the ArgumentError', () {
-      Object? thrown;
-      try {
-        BasicAuthenticator(
-          host: 'https://api.example.com',
-          username: 'alice',
-          password: 's3c\x00ret',
+    test(
+      'bhv misc 017 a rejected password never appears in the ArgumentError',
+      () {
+        Object? thrown;
+        try {
+          BasicAuthenticator(
+            host: 'https://api.example.com',
+            username: 'alice',
+            password: 's3c\x00ret',
+          );
+        } on ArgumentError catch (e) {
+          thrown = e;
+        }
+        final error = thrown as ArgumentError;
+        expect(
+          error.message,
+          equals(
+            'Basic auth password must not contain CR, LF, or NUL characters',
+          ),
         );
-      } on ArgumentError catch (e) {
-        thrown = e;
-      }
-      final error = thrown as ArgumentError;
-      expect(
-        error.message,
-        equals(
-          'Basic auth password must not contain CR, LF, or NUL characters',
-        ),
-      );
-      expect(error.invalidValue, isNull);
-      expect(error.toString(), isNot(contains('s3c')));
-    });
+        expect(error.invalidValue, isNull);
+        expect(error.toString(), isNot(contains('s3c')));
+      },
+    );
 
-    test('a rejected username never appears in the ArgumentError', () {
-      Object? thrown;
-      try {
-        BasicAuthenticator(
-          host: 'https://api.example.com',
-          username: 'ali:ce',
-          password: 's3cret',
+    test(
+      'bhv langdart 021 a rejected username never appears in the ArgumentError',
+      () {
+        Object? thrown;
+        try {
+          BasicAuthenticator(
+            host: 'https://api.example.com',
+            username: 'ali:ce',
+            password: 's3cret',
+          );
+        } on ArgumentError catch (e) {
+          thrown = e;
+        }
+        final error = thrown as ArgumentError;
+        expect(
+          error.message,
+          equals("Basic auth username must not contain ':' (RFC 7617 §2)"),
         );
-      } on ArgumentError catch (e) {
-        thrown = e;
-      }
-      final error = thrown as ArgumentError;
-      expect(
-        error.message,
-        equals("Basic auth username must not contain ':' (RFC 7617 §2)"),
-      );
-      expect(error.invalidValue, isNull);
-      expect(error.toString(), isNot(contains('ali:ce')));
-    });
+        expect(error.invalidValue, isNull);
+        expect(error.toString(), isNot(contains('ali:ce')));
+      },
+    );
 
     test('bhv authbasic 005 password is not leaked in default toString', () {
       // authenticator-secret-in-default-string-repr: the default toString()
@@ -271,30 +330,46 @@ void main() {
       ),
     };
 
-    builders.forEach((name, build) {
-      test(
-        'bhv authbasic 002 $name sends the credentials as a Basic header',
-        () {
+    test(
+      'bhv authbasic 002 every wrapper sends the credentials as a Basic header',
+      () {
+        builders.forEach((name, build) {
           expect(
             build('alice', 's3cret').authHeaders()['Authorization'],
             equals(basic('alice:s3cret')),
+            reason: name,
           );
-        },
-      );
+        });
+      },
+    );
 
-      test('bhv auth 036 $name still rejects a colon in the username', () {
-        expect(() => build('ali:ce', 's3cret'), throwsArgumentError);
-      });
+    test(
+      'bhv auth 036 every wrapper still rejects a colon in the username',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            () => build('ali:ce', 's3cret'),
+            throwsArgumentError,
+            reason: name,
+          );
+        });
+      },
+    );
 
-      test('$name prints its own name with the password masked', () {
-        expect(
-          build('alice', 's3cret').toString(),
-          equals(
-            '$name(host: https://api.example.com, username: alice, password: ***)',
-          ),
-        );
-      });
-    });
+    test(
+      'bhv misc 190 every wrapper prints its own name with the password masked',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            build('alice', 's3cret').toString(),
+            equals(
+              '$name(host: https://api.example.com, username: alice, password: ***)',
+            ),
+            reason: name,
+          );
+        });
+      },
+    );
 
     test(
       'bhv authscheme 004 the AdminBasic scheme authenticator treats an empty environment variable as unset and names it',
@@ -318,7 +393,46 @@ void main() {
     );
 
     test(
+      'bhv misc 196 A scheme wrapper with no token from its argument or environment fails with an error.',
+      () {
+        expect(
+          () => AdminBasicAuthenticator(
+            host: 'https://api.example.com',
+            environment: const {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv authbasic 019 generated basic scheme wrappers emit the same Basic header as the base authenticator',
+      () {
+        final secret = ['s3', 'cret'].join();
+        final base = BasicAuthenticator(
+          host: 'https://api.example.com',
+          username: 'alice',
+          password: secret,
+        );
+        builders.forEach((name, build) {
+          expect(
+            build('alice', secret).authHeaders(),
+            equals(base.authHeaders()),
+          );
+        });
+      },
+    );
+
+    test(
+      'bhv misc 193 The Basic and Bearer scheme authenticators send the same header as their base authenticators and reject invalid input the same way.',
       () {
         final secret = ['s3', 'cret'].join();
         final base = BasicAuthenticator(

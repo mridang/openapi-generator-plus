@@ -55,6 +55,16 @@ func (o *NativeValues) Equal(other *NativeValues) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o NativeValues) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "NativeValues{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithAddress4 returns a copy of the model with Address4 replaced; the receiver is unchanged.
 func (o NativeValues) WithAddress4(value netip.Addr) NativeValues {
 	o.Address4 = &value

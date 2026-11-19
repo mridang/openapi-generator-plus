@@ -145,18 +145,6 @@ describe("TransportOptions", () => {
     expect(() => TransportOptions.builder().timeout(0)).toThrow(TypeError);
   });
 
-  test("bhv options 008 a proxy URL error never carries the user-info", () => {
-    const proxy = "ftp://user:hunter2@proxy.example.com:21";
-    expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
-    let message = "";
-    try {
-      TransportOptions.builder().proxy(proxy);
-    } catch (e) {
-      message = (e as Error).message;
-    }
-    expect(message).not.toContain("hunter2");
-  });
-
   test("bhv misc 298 a client built with a malformed proxy URL fails with an invalid proxy URL error", () => {
     expect(() =>
       TransportOptions.builder().proxy("not-a-valid-url").build(),
@@ -214,9 +202,8 @@ describe("TransportOptions", () => {
     );
   });
 
-  test("bhv options 031 proxy URL that is empty, has no host or has a bad scheme is rejected with TypeError and the exact message", () => {
+  test("bhv options 031 proxy URL that has no host or has a bad scheme is rejected with TypeError and the exact message", () => {
     const rows: Array<[string, string, string]> = [
-      ["an empty string", "", "Invalid proxy URL (unparseable): "],
       [
         "a scheme without a host",
         "http://",
@@ -248,26 +235,31 @@ describe("TransportOptions", () => {
     ).toThrow("Invalid proxy URL (unparseable): http://");
   });
 
-  test.each([
-    [
-      "a socks scheme",
-      "socks5://u:p@h:1",
-      "Invalid proxy URL (must use http or https scheme): socks5://***@h:1",
-    ],
-    [
-      "an unparseable value",
-      "http://u:p@",
-      "Invalid proxy URL (unparseable): http://***@",
-    ],
-  ])(
-    "bhv options 008 the proxy error for %s never prints the userinfo",
-    (_label, proxy, message) => {
+  test("bhv options 008 the proxy error for every listed proxy never prints the userinfo", () => {
+    for (const [, proxy, message] of [
+      [
+        "a socks scheme",
+        "socks5://u:p@h:1",
+        "Invalid proxy URL (must use http or https scheme): socks5://***@h:1",
+      ],
+      [
+        "an ftp scheme",
+        "ftp://user:hunter2@proxy.example.com:21",
+        "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21",
+      ],
+      [
+        "an unparseable value",
+        "http://u:p@",
+        "Invalid proxy URL (unparseable): http://***@",
+      ],
+    ] as const) {
+      expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
       expect(() => new TransportOptions({ ...directOptions, proxy })).toThrow(
         message,
       );
-    },
-  );
+    }
+  });
 
   test("bhv options 009 a proxy URL with an IPv6 literal host is accepted and kept verbatim", () => {
     expect(
@@ -518,7 +510,7 @@ describe("TransportOptions", () => {
       expect(opts.fetchOptions).toBeNull();
     });
 
-    test("the builder stores the supplied fetch and fetchOptions", () => {
+    test("bhv langnode 101 the builder stores the supplied fetch and fetchOptions", () => {
       const opts = TransportOptions.builder()
         .fetch(customFetch)
         .fetchOptions({ keepalive: true })
@@ -577,5 +569,50 @@ describe("TransportOptions", () => {
         .build();
       expect(opts.toString()).not.toContain("secret-mode");
     });
+  });
+});
+
+describe("TransportOptions misc behaviours", () => {
+  test("bhv misc 026 a configuration mistake raises a TypeError that is not an SDK error", () => {
+    const configure = (): unknown => TransportOptions.builder().timeout(-1);
+    expect(configure).toThrow(TypeError);
+    expect(configure).not.toThrow(OpenAPIError);
+  });
+});
+
+describe("TransportOptions builder refusals and proxy", () => {
+  it("bhv misc 051 an unknown option is refused by the builder rather than ignored", () => {
+    const builder = TransportOptions.builder() as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(() => (builder.noSuchOption as () => unknown)()).toThrow(TypeError);
+  });
+
+  it("bhv misc 056 setting the proxy to an empty string removes a proxy set earlier", () => {
+    const options = TransportOptions.builder()
+      .proxy("http://proxy.example.com:8080")
+      .proxy("")
+      .build();
+    expect(options.proxy).toBeFalsy();
+  });
+});
+
+describe("TransportOptions inspected form misc behaviours", () => {
+  it("bhv misc 180 the inspect form shows the values of non-sensitive default headers and hides sensitive ones", () => {
+    const options = TransportOptions.builder()
+      .defaultHeader("X-Visible", "shown-value")
+      .defaultHeader("Authorization", "Bearer hidden-secret")
+      .build();
+    expect(String(options)).toContain("shown-value");
+    expect(String(options)).not.toContain("hidden-secret");
+  });
+});
+
+describe("TransportOptions misc proxy schemes", () => {
+  test("bhv options 068 a SOCKS proxy scheme fails at construction with the documented error message", () => {
+    expect(() =>
+      TransportOptions.builder().proxy("socks5://proxy.example.com:1080"),
+    ).toThrow("Invalid proxy URL (must use http or https scheme)");
   });
 });

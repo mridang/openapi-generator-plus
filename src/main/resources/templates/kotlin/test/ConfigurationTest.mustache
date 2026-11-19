@@ -2,12 +2,23 @@
 
 package {{invokerPackage}}
 
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
 
 class ConfigurationTest {
+
+    @Test
+    @DisplayName("bhvConfig026 the builder keeps the base URL that was set on it")
+    fun bhvConfig026BuilderKeepsTheBaseUrl() {
+        val config = Configuration.builder()
+            .baseUrl("https://api.example.com/v2")
+            .build()
+
+        assertEquals("https://api.example.com/v2", config.baseUrl)
+    }
 
     @Nested
     @DisplayName("defaults")
@@ -106,18 +117,6 @@ class ConfigurationTest {
             assertEquals("https://custom.example.com", config.baseUrl)
         }
 
-        @Test
-        @DisplayName("builder sets base URL and multiple headers in one configuration")
-        fun builderSetsBaseUrlAndMultipleHeaders() {
-            val config = Configuration.builder()
-                .baseUrl("https://api.example.com")
-                .defaultHeader("Authorization", "Bearer token")
-                .defaultHeaders(mapOf("X-Custom" to "value"))
-                .build()
-            assertEquals("https://api.example.com", config.baseUrl)
-            assertEquals("Bearer token", config.defaultHeaders["Authorization"])
-            assertEquals("value", config.defaultHeaders["X-Custom"])
-        }
     }
 
     @Nested
@@ -357,8 +356,8 @@ class ConfigurationTest {
     inner class CallHookWiring {
 
         @Test
-        @DisplayName("a hook set on the builder is on the configuration, and the string form never shows it")
-        fun theHookIsOnTheConfiguration() {
+        @DisplayName("bhvLangkotlin021 a hook set on the builder is on the configuration, and the string form never shows it")
+        fun bhvLangkotlin021TheHookIsOnTheConfiguration() {
             val hook = CallHook { _, _ -> null }
             val config = Configuration.builder().callHook(hook).build()
             assertSame(hook, config.callHook)
@@ -367,4 +366,47 @@ class ConfigurationTest {
             assertNull(Configuration.defaultConfiguration().callHook)
         }
     }
+    @Test
+    @DisplayName("bhvMisc136 the debug text shows the base URL and the non-sensitive default headers")
+    fun bhvMisc136DebugTextShowsBaseUrlAndPlainHeaders() {
+        val text = Configuration.builder()
+            .baseUrl("http://localhost/api")
+            .defaultHeader("X-Trace", "on")
+            .defaultHeader("Authorization", "secret")
+            .build()
+            .toString()
+        assertTrue(text.contains("http://localhost/api") && text.contains("X-Trace=on"), text)
+        assertFalse(text.contains("secret"), text)
+    }
+
+
+    @Test
+    fun bhvMisc276DefaultConfigurationUsesTheSpecBaseUrl() = runBlocking<Unit> {
+        assertEquals("{{{basePath}}}", Configuration.defaultConfiguration().baseUrl)
+        assertEquals("{{{basePath}}}", Configuration.builder().build().baseUrl)
+    }
+
+    @Test
+    fun bhvMisc277EachDefaultConfigurationIsADistinctObject() = runBlocking<Unit> {
+        assertNotSame(Configuration.defaultConfiguration(), Configuration.defaultConfiguration())
+    }
+
+    @Test
+    fun bhvMisc279ChangingReturnedHeadersLeavesTheConfigurationUnchanged() = runBlocking<Unit> {
+        val config = Configuration.builder().defaultHeader("X-Team", "alpha").build()
+        assertThrowsExactly(UnsupportedOperationException::class.java) {
+            (config.defaultHeaders as MutableMap<String, String>)["X-Team"] = "beta"
+        }
+        assertEquals("alpha", config.defaultHeaders["X-Team"])
+    }
+    @Test
+    @DisplayName("bhvMisc180 the inspect form shows the values of default headers whose names are not sensitive")
+    fun bhvMisc180ToStringShowsNonSensitiveDefaultHeaderValues() {
+        val config = Configuration.builder().baseUrl("http://localhost")
+            .defaultHeader("X-Visible", "shown-value")
+            .defaultHeader("Authorization", "Bearer hidden-secret")
+            .build()
+        assertTrue(config.toString().contains("shown-value"), config.toString())
+    }
+
 }

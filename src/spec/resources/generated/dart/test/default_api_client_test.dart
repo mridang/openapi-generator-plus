@@ -388,6 +388,23 @@ void main() {
       expect(resp.statusCode, equals(200));
     });
 
+    test(
+      'bhv misc 226 With redirect following enabled, a 302 response is followed to its target and the final 200 response is returned to the caller',
+      () async {
+        final transport = TransportOptionsBuilder()
+            .followRedirects(true)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/redirect/302',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      },
+    );
+
     test('bhv redirects 007 returns redirect response when disabled', () async {
       final transport = TransportOptionsBuilder()
           .followRedirects(false)
@@ -404,13 +421,13 @@ void main() {
 
     /* A missing or unparseable Location is not a usable redirect: the 3xx
      * comes back untouched, body included, never a parse or network error. */
-    for (final row in [
-      ('no-location', 'no-location'),
-      ('malformed-location', 'malformed'),
-    ]) {
-      test(
-        'bhv redirects 010 a 302 with a ${row.$1} Location is returned as the 3xx',
-        () async {
+    test(
+      'bhv redirects 010 a 302 with a missing or unparseable Location is returned as the 3xx',
+      () async {
+        for (final row in [
+          ('no-location', 'no-location'),
+          ('malformed-location', 'malformed'),
+        ]) {
           final transport = TransportOptionsBuilder()
               .followRedirects(true)
               .build();
@@ -421,11 +438,15 @@ void main() {
             {},
             null,
           );
-          expect(resp.statusCode, equals(302));
-          expect(jsonDecode(resp.body), equals({'redirect': row.$2}));
-        },
-      );
-    }
+          expect(resp.statusCode, equals(302), reason: row.$1);
+          expect(
+            jsonDecode(resp.body),
+            equals({'redirect': row.$2}),
+            reason: row.$1,
+          );
+        }
+      },
+    );
 
     /* TransportOptions.proxy is the only proxy source: a client built with
      * default options ignores an ambient proxy pointing at a dead address.
@@ -488,6 +509,116 @@ Future<void> main(List<String> args) async {
     );
 
     test(
+      'bhv misc 268 A server presenting a certificate from a trusted CA is still rejected when the hostname does not match',
+      () async {
+        final uri = Uri.parse(chasmHttpsUrl);
+        final address = (await InternetAddress.lookup(uri.host)).first.address;
+        final transport = TransportOptionsBuilder()
+            .verifySsl(true)
+            .caCertPath(caCertPath)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            '${uri.scheme}://$address:${uri.port}/test/echo',
+            {},
+            null,
+          ),
+          throwsA(isA<NetworkException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 269 A self-signed endpoint is reached only when certificate verification is disabled',
+      () async {
+        final off = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().verifySsl(false).build(),
+        );
+        final resp = await off.sendRequest(
+          'GET',
+          '$chasmHttpsUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+
+        final on = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().build(),
+        );
+        await expectLater(
+          on.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null),
+          throwsA(isA<NetworkException>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 271 With no proxy configured the client connects directly',
+      () async {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().build(),
+        );
+
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+
+        expect(resp.statusCode, equals(200));
+      },
+    );
+
+    test(
+      'bhv misc 275 The request is sent with the intended HTTP method and the response is returned to the caller',
+      () async {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().build(),
+        );
+
+        final resp = await client.sendRequest(
+          'PATCH',
+          '$chasmHttpUrl/test/echo',
+          {},
+          null,
+        );
+
+        expect(resp.statusCode, equals(200));
+        final parsed = jsonDecode(resp.body) as Map<String, dynamic>;
+        expect(parsed['method'], equals('PATCH'));
+      },
+    );
+
+    test(
+      'bhv redirects 054 A redirect chain that runs past the timeout budget fails with a timeout error',
+      () async {
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder().timeout(1200).build(),
+        );
+
+        await expectLater(
+          client.sendRequest(
+            'GET',
+            '$chasmHttpUrl/test/redirect/chain/1',
+            {},
+            null,
+          ),
+          throwsA(
+            isA<NetworkTimeoutException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              0,
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'bhv redirects 005 redirect 303 switches to GET and drops body',
       () async {
         final transport = TransportOptionsBuilder()
@@ -510,17 +641,11 @@ Future<void> main(List<String> args) async {
 
     // -- Gap N1: HTTPS->HTTP redirect with a body --
     //
-    // Canonical: a 302 HTTPS->HTTP redirect carrying a body MUST proceed
-    // (per RFC the request coerces to GET and the body is dropped, so no
-    // plaintext leak occurs); a 307/308 HTTPS->HTTP redirect with a body
-    // MUST throw (the body would otherwise be replayed over the
-    // unencrypted hop). Node guards every status and throws on the 302
-    // too — Dart guards only 307/308, so the 302 case is GREEN here and
-    // the 307 case is GREEN (already guarded). Local TLS source + plain
-    // HTTP target give precise control over scheme/status/body that the
-    // chasm same-scheme redirect endpoints cannot express.
+    // Settled: a 301/302 HTTPS->HTTP redirect whose request carries a body is
+    // refused, so the body is never replayed in plain text. A 303 is followed
+    // with the body dropped (covered by the redirect 005 tests).
     test(
-      'bhv redirects 001 a 302 https->http with a body proceeds (body dropped, becomes GET)',
+      'bhv redirects 001 a 302 https->http with a body is refused',
       () async {
         final certDir = 'test/fixtures/certs';
         final tlsContext = SecurityContext()
@@ -528,13 +653,10 @@ Future<void> main(List<String> args) async {
           ..usePrivateKey('$certDir/server-key.pem');
 
         var targetHits = 0;
-        var targetMethod = '';
-        var targetBody = '';
         final target = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         target.listen((request) async {
           targetHits++;
-          targetMethod = request.method;
-          targetBody = await utf8.decoder.bind(request).join();
+          await utf8.decoder.bind(request).join();
           request.response
             ..statusCode = 200
             ..write('ok')
@@ -558,30 +680,19 @@ Future<void> main(List<String> args) async {
         try {
           final transport = TransportOptionsBuilder().verifySsl(false).build();
           final client = DefaultApiClient(transportOptions: transport);
-          final resp = await client.sendRequest(
-            'POST',
-            'https://127.0.0.1:${source.port}/secret',
-            {'Content-Type': 'application/x-www-form-urlencoded'},
-            Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+          await expectLater(
+            client.sendRequest(
+              'POST',
+              'https://127.0.0.1:${source.port}/secret',
+              {'Content-Type': 'application/x-www-form-urlencoded'},
+              Uint8List.fromList(utf8.encode('client_secret=hunter2')),
+            ),
+            throwsA(isA<ApiException>()),
           );
-          // The 302 downgrade proceeds: the plain-HTTP target IS contacted,
-          // the method becomes GET, and the body is dropped (no plaintext
-          // secret on the unencrypted hop).
-          expect(resp.statusCode, equals(200));
           expect(
             targetHits,
-            equals(1),
-            reason: '302 downgrade must proceed, not throw',
-          );
-          expect(
-            targetMethod,
-            equals('GET'),
-            reason: '302 to a non-GET request coerces to GET',
-          );
-          expect(
-            targetBody,
-            isEmpty,
-            reason: 'body must be dropped across the 302 downgrade',
+            equals(0),
+            reason: 'the plain-HTTP target must never be contacted',
           );
         } finally {
           await source.close();
@@ -891,7 +1002,7 @@ Future<void> main(List<String> args) async {
     // succeed — proving the refusal is scoped to the offending request and
     // not stored on a shared error slot.
     test(
-      'a too-many-redirects refusal stays on its own request (Wave E)',
+      'bhv langdart 039 a too-many-redirects refusal stays on its own request (Wave E)',
       () async {
         final transport = TransportOptionsBuilder()
             .followRedirects(true)
@@ -988,25 +1099,29 @@ Future<void> main(List<String> args) async {
       expect(resp.body, contains('compressed fixture body'));
     });
 
-    for (final coding in ['br', 'zstd']) {
-      test('refuses a $coding response it cannot decode', () async {
-        final client = DefaultApiClient();
-        await expectLater(
-          client.sendRequest('GET', '$chasmHttpUrl/test/compressed/$coding', {
-            'Accept-Encoding': coding,
-          }, null),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.statusCode, 'statusCode', 200)
-                .having(
-                  (e) => e.message,
-                  'message',
-                  equals("Unsupported Content-Encoding '$coding'"),
-                ),
-          ),
-        );
-      });
-    }
+    test(
+      'bhv langdart 040 refuses a br or zstd response it cannot decode',
+      () async {
+        for (final coding in ['br', 'zstd']) {
+          final client = DefaultApiClient();
+          await expectLater(
+            client.sendRequest('GET', '$chasmHttpUrl/test/compressed/$coding', {
+              'Accept-Encoding': coding,
+            }, null),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.statusCode, 'statusCode', 200)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    equals("Unsupported Content-Encoding '$coding'"),
+                  ),
+            ),
+            reason: coding,
+          );
+        }
+      },
+    );
 
     test(
       'bhv transport 010 includes transport default headers from a map',

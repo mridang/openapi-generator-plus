@@ -250,11 +250,15 @@ defmodule PetstoreClient.ObjectSerializer do
   def deserialize(nil, _target_type), do: nil
   def deserialize("", _target_type), do: nil
 
-  # A "String" return type means "hand me the raw response body verbatim" -
-  # never JSON-parse it (a JSON envelope body would otherwise decode to a map
-  # and fail String coercion). A binary is always a valid String, so this is
-  # not a deserialize failure.
-  def deserialize(body, "String") when is_binary(body), do: body
+  # A "String" return type takes the body text verbatim: a JSON envelope (an
+  # object or array) is never parsed, so it cannot decode to a map and fail
+  # String coercion. A body that is a JSON string literal decodes to its text.
+  def deserialize(body, type) when type in ["String", "String.t()"] and is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, value} when is_binary(value) -> value
+      _ -> body
+    end
+  end
 
   def deserialize(json_string, target_type) when is_binary(json_string) do
     case parse_json(json_string) do
@@ -331,7 +335,14 @@ defmodule PetstoreClient.ObjectSerializer do
   # An IP address is an `:inet` tuple; it is written in its canonical text.
   def stringify(ip) when is_tuple(ip) and tuple_size(ip) in [4, 8], do: format_ip(ip)
 
-  def stringify(value), do: to_string(value)
+  def stringify(value) do
+    to_string(value)
+  rescue
+    Protocol.UndefinedError ->
+      reraise PetstoreClient.Errors.SerializationError,
+              [message: "Cannot write a value of type #{inspect(value)} as text"],
+              __STACKTRACE__
+  end
 
   @doc """
   Base64-encode a `format: byte` parameter value.
@@ -704,6 +715,21 @@ defmodule PetstoreClient.ObjectSerializer do
 
   defp sanitize_field_value(value, _type), do: sanitize_for_serialization(value)
 
+  @spec with_wire_offset(DateTime.t(), integer()) :: DateTime.t()
+  defp with_wire_offset(%DateTime{} = utc, 0), do: utc
+
+  defp with_wire_offset(%DateTime{} = utc, offset) do
+    local = DateTime.add(utc, offset, :second)
+    %{local | utc_offset: offset, std_offset: 0}
+  end
+
+  # Matches both the bare name and the typespec form ("DateTime.t()") that
+  # `openapi_types/0` emits via the codegen's typeMapping, mirroring the
+  # Time/Duration clauses below. A value that does not parse is a
+  # SerializationError, like every other wire-shape failure; it is never
+  # passed through as the raw string.
+  # A JSON array is a list, and to_string/1 reads a list of text as a string,
+  # so a date-time field refuses a list before that conversion.
   @doc """
   Convert data to the specified type.
   """
@@ -844,23 +870,20 @@ defmodule PetstoreClient.ObjectSerializer do
         message: "Expected URI String, got #{inspect(data)}"
       )
 
-  # Matches both the bare name and the typespec form ("DateTime.t()") that
-  # `openapi_types/0` emits via the codegen's typeMapping, mirroring the
-  # Time/Duration clauses below. A value that does not parse is a
-  # SerializationError, like every other wire-shape failure; it is never
-  # passed through as the raw string.
-  # A JSON array is a list, and to_string/1 reads a list of text as a string,
-  # so a date-time field refuses a list before that conversion.
   def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] and is_list(data),
     do: raise_unparseable(data, "date-time")
 
   def convert_to_type(data, type) when type in ["DateTime", "DateTime.t()"] do
     case DateTime.from_iso8601(to_string(data)) do
-      {:ok, dt, _offset} -> dt
+      {:ok, dt, offset} -> with_wire_offset(dt, offset)
       _ -> raise_unparseable(data, "date-time")
     end
   end
 
+  # DateTime.from_iso8601/1 returns the instant in UTC and drops the offset it
+  # was sent with. Keep the wall-clock time and the offset on the struct so the
+  # value is written back with the offset it arrived with; the instant is the
+  # same, and DateTime.to_unix/1 and comparisons still use the offset.
   def convert_to_type(data, type) when type in ["Date", "Date.t()"] do
     case Date.from_iso8601(to_string(data)) do
       {:ok, d} -> d
@@ -1279,12 +1302,16 @@ defmodule PetstoreClient.ObjectSerializer do
   # serializer applies). This lets a caller read any matched variant's field
   # directly off the composite (e.g. `composite.fields[:drug_name]`).
   defp flatten_variant_fields(instances) do
-    Enum.reduce(instances, %{}, fn instance, acc ->
-      instance
-      |> Map.from_struct()
-      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-      |> Map.new()
-      |> then(&Map.merge(acc, &1))
+    Enum.reduce(instances, %{}, fn
+      %_{} = instance, acc ->
+        instance
+        |> Map.from_struct()
+        |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+        |> Map.new()
+        |> then(&Map.merge(acc, &1))
+
+      _scalar, acc ->
+        acc
     end)
   end
 

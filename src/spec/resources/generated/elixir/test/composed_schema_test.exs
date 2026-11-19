@@ -42,7 +42,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
       end
     end
 
-    test "raises SerializationError for an array body instead of an Access error" do
+    test "bhv langelixir 003 raises SerializationError for an array body instead of an Access error" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
           PetstoreClient.ObjectSerializer.deserialize("[1,2]", "PetFood")
@@ -115,6 +115,63 @@ defmodule PetstoreClient.ComposedSchemaTest do
 
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(wrapped))["foodType"] ==
                "dry"
+    end
+
+    test "bhv unions 047 an empty discriminator value raises a SerializationError with a message rather than falling through" do
+      err =
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(
+            ~s({"foodType":"","weightKg":2.5}),
+            "PetFood"
+          )
+        end
+
+      assert err.message != ""
+    end
+
+    test "bhv unions 044 each variant has a typed factory and a typed predicate that identify the variant it was built from" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wet = %PetstoreClient.Models.WetFood{volume_ml: 400, food_type: "wet"}
+
+      assert PetstoreClient.Models.PetFood.dry_food?(
+               PetstoreClient.Models.PetFood.from_dry_food(dry)
+             )
+
+      refute PetstoreClient.Models.PetFood.wet_food?(
+               PetstoreClient.Models.PetFood.from_dry_food(dry)
+             )
+
+      assert PetstoreClient.Models.PetFood.wet_food?(
+               PetstoreClient.Models.PetFood.from_wet_food(wet)
+             )
+
+      refute PetstoreClient.Models.PetFood.dry_food?(
+               PetstoreClient.Models.PetFood.from_wet_food(wet)
+             )
+    end
+
+    test "bhv unions 045 union values built from the same data compare equal whether decoded or built by a factory" do
+      json = ~s({"foodType":"dry","weightKg":2.5})
+
+      built =
+        PetstoreClient.Models.PetFood.from_dry_food(%PetstoreClient.Models.DryFood{
+          weight_kg: 2.5,
+          food_type: "dry"
+        })
+
+      assert PetstoreClient.ObjectSerializer.deserialize(json, "PetFood") ==
+               PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+
+      assert built == PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+    end
+
+    test "bhv misc 292 serializing a union value emits the bare variant payload with no wrapper envelope" do
+      dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
+      wrapped = PetstoreClient.Models.PetFood.from_dry_food(dry)
+      json = PetstoreClient.ObjectSerializer.serialize(wrapped)
+
+      assert Jason.decode!(json) == %{"foodType" => "dry", "weightKg" => 2.5}
+      assert PetstoreClient.ObjectSerializer.deserialize(json, "PetFood") == wrapped
     end
 
     test "bhv unions 033 an unknown, missing or empty discriminator fails with the SDK's serialization error" do
@@ -367,6 +424,57 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(json, "PetTreatment")
       end
+    end
+
+    test "bhv misc 045 a payload that does not satisfy a variant's schema is not accepted as that variant" do
+      for json <- [
+            ~s({"foodType":3,"weightKg":2.5}),
+            ~s({"FoodType":"dry","weightKg":2.5}),
+            ~s({"foodType":"fish","weightKg":2.5}),
+            ~s({"foodType":"dry"})
+          ] do
+        assert_raise PetstoreClient.Errors.SerializationError, fn ->
+          PetstoreClient.ObjectSerializer.deserialize(json, "PetFood")
+        end
+      end
+    end
+
+    test "bhv misc 046 unions holding equal content compare equal and hash equally" do
+      medication = %PetstoreClient.Models.Medication{drug_name: "Amoxicillin", dosage: "500mg"}
+      first = PetstoreClient.Models.PetTreatment.from_medication(medication)
+
+      second =
+        PetstoreClient.Models.PetTreatment.from_medication(%PetstoreClient.Models.Medication{
+          drug_name: "Amoxicillin",
+          dosage: "500mg"
+        })
+
+      other =
+        PetstoreClient.Models.PetTreatment.from_medication(%PetstoreClient.Models.Medication{
+          drug_name: "Ibuprofen",
+          dosage: "200mg"
+        })
+
+      assert first == second
+      assert :erlang.phash2(first) == :erlang.phash2(second)
+      assert first != other
+    end
+
+    test "bhv misc 047 serializing a union holding a value that is not one of its variants names the union" do
+      assert_raise PetstoreClient.Errors.SerializationError,
+                   ~r/SetPetAvatarThumbnailRequest/,
+                   fn ->
+                     PetstoreClient.Models.SetPetAvatarThumbnailRequest.build(42)
+                   end
+    end
+
+    test "bhv misc 049 an array variant of byte values serializes each element to a base64 string" do
+      payloads = [<<0x01, 0x02, 0x03, 0x04>>, <<0x05, 0x06, 0x07, 0x08>>]
+
+      assert PetstoreClient.Models.SetPetAvatarThumbnailRequest.serialize(payloads) == [
+               "AQIDBA==",
+               "BQYHCA=="
+             ]
     end
 
     test "bhv misc 293 an anyOf value keeps the matching variant and skips the one that does not match" do

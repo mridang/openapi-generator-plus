@@ -279,14 +279,34 @@ impl ApiClient for DefaultApiClient {
                     let boundary = format!("----RustFormBoundary{}", Uuid::new_v4().simple());
                     let serialized = serialize_multipart_body(fields, &boundary)
                         .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)?;
-                    /* Force the multipart Content-Type (with the boundary we
-                     * generated) onto the outgoing request; if the caller set
-                     * a Content-Type it would not contain our boundary, so the
-                     * server could not parse the body. */
+                    /* Keep a declared multipart subtype (multipart/mixed, ...) and
+                     * fall back to form-data when the declared value is not a
+                     * plain multipart token. The boundary we generated is always
+                     * appended, so the server can parse the body. */
+                    let subtype = merged
+                        .iter()
+                        .find(|(k, _)| k.eq_ignore_ascii_case("Content-Type"))
+                        .map(|(_, v)| {
+                            v.split(';')
+                                .next()
+                                .unwrap_or("")
+                                .trim()
+                                .to_ascii_lowercase()
+                        })
+                        .filter(|t| {
+                            t.strip_prefix("multipart/").is_some_and(|sub| {
+                                !sub.is_empty()
+                                    && sub.chars().all(|c| {
+                                        c.is_ascii_alphanumeric() || "!#$&^_.+-".contains(c)
+                                    })
+                            })
+                        })
+                        .unwrap_or_else(|| "multipart/form-data".to_string());
+                    remove_header(&mut merged, "Content-Type");
                     insert_header(
                         &mut merged,
                         "Content-Type".to_string(),
-                        format!("multipart/form-data; boundary={}", boundary),
+                        format!("{}; boundary={}", subtype, boundary),
                     );
                     Some(serialized)
                 }
@@ -360,7 +380,10 @@ impl ApiClient for DefaultApiClient {
                 }
             }
 
-            let mut response = request_builder.send().await.map_err(transport_error)?;
+            let mut response = request_builder
+                .send()
+                .await
+                .map_err(|e| transport_error_before(e, deadline))?;
 
             /* Manual redirect loop with cross-origin header strip.
              * Options.no_redirect (the OAuth2 token POST) means "do
@@ -412,9 +435,9 @@ impl ApiClient for DefaultApiClient {
                     };
 
                     /* Refuse to replay a request body across an
-                     * HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
-                     * we only guard those: a TLS-protected payload (POST/PUT
-                     * body) must not be silently re-sent in cleartext. */
+                     * HTTPS->HTTP downgrade. Every hop except 303 may carry the
+                     * body on, so a TLS-protected payload must not be re-sent in
+                     * cleartext, even by a 301 or 302 that would drop it. */
                     if is_https_to_http_body_replay(
                         status_code,
                         &current_method,
@@ -474,16 +497,21 @@ impl ApiClient for DefaultApiClient {
                                 && (lk != "content-length" || (keeps_method && v.trim() == "0"))
                         });
                     }
+                    if cross_origin {
+                        /* A credential stripped on a cross-origin hop stays stripped:
+                         * a later hop back to the original origin must not restore it. */
+                        redirect_headers.retain(|k, _| !is_credential_header(k));
+                    }
                     for (k, v) in &redirect_headers {
-                        if cross_origin && is_credential_header(k) {
-                            continue;
-                        }
                         redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
                     }
                     if let Some(b) = &next_body {
                         redirect_builder = redirect_builder.body(b.clone());
                     }
-                    response = redirect_builder.send().await.map_err(transport_error)?;
+                    response = redirect_builder
+                        .send()
+                        .await
+                        .map_err(|e| transport_error_before(e, deadline))?;
                     current_url = Some(next_url);
                     current_method = next_method;
                     current_body = next_body;
@@ -535,7 +563,10 @@ impl ApiClient for DefaultApiClient {
              * deadline that `timeout` arms produces NetworkTimeoutError here
              * too and everything else produces NetworkError. Both carry
              * status 0. */
-            let raw_bytes = response.bytes().await.map_err(transport_error)?;
+            let raw_bytes = response
+                .bytes()
+                .await
+                .map_err(|e| transport_error_before(e, deadline))?;
             /* A body that arrived but cannot be decompressed is not a network
              * failure: the server answered, so it is an ApiError carrying the
              * real status code. */
@@ -630,11 +661,27 @@ fn remaining_budget(deadline: std::time::Instant) -> Duration {
 /// reset) [`NetworkError`]. Both carry status 0 and keep the reqwest error as
 /// their source.
 fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync> {
+    transport_error_before(e, None)
+}
+
+/// [`transport_error`] for a failure on a call with an end-to-end `deadline`.
+/// A failure that arrives once the deadline has passed is a timeout whatever
+/// reqwest reports for it, because a hop of a redirect chain can be cut off
+/// by the shared budget without reqwest flagging it as a timeout.
+fn transport_error_before(
+    e: reqwest::Error,
+    deadline: Option<std::time::Instant>,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    let timed_out = e.is_timeout() || deadline.is_some_and(|d| std::time::Instant::now() >= d);
     /* The URL is dropped from the error: a query-parameter API key sits in it
      * and the message and the source chain end up in logs and error trackers. */
     let e = e.without_url();
-    let message = e.to_string();
-    if e.is_timeout() {
+    let message = if timed_out {
+        "request timed out".to_string()
+    } else {
+        e.to_string()
+    };
+    if timed_out {
         let api_error = ApiError::transport(TransportFailure::Timeout, message, Arc::new(e));
         match NetworkError::try_from(api_error) {
             Ok(network) => Box::new(NetworkTimeoutError::from(network)),
@@ -800,18 +847,17 @@ pub(crate) fn redirect_next_method(status_code: u16, method: &str) -> String {
     }
 }
 
-/// Returns `true` when following the redirect would replay the
-/// in-flight request body across an HTTPS->HTTP downgrade. A body is replayed
-/// only when the hop keeps the method and is not a 303, so the predicate is
-/// false for a hop that becomes GET even when the schemes differ.
+/// Returns `true` when following the redirect would send the in-flight request
+/// body across an HTTPS->HTTP downgrade. A 303 never carries the body on, so it is
+/// the only status that is not refused; every other redirect status is.
 pub(crate) fn is_https_to_http_body_replay(
     status_code: u16,
-    method: &str,
+    _method: &str,
     current_url: Option<&reqwest::Url>,
     next_url: &reqwest::Url,
     has_body: bool,
 ) -> bool {
-    if status_code == 303 || redirect_next_method(status_code, method) != method {
+    if status_code == 303 {
         return false;
     }
     if !has_body {
@@ -1185,7 +1231,7 @@ mod tests {
     /* F1093: the redirect strip also covers any header the redaction rule calls
      * a credential, not only the spec's own names. */
     #[test]
-    fn test_is_credential_header_covers_the_redaction_rule() {
+    fn test_bhv_langrust_007_is_credential_header_covers_the_redaction_rule() {
         for name in [
             "Authorization",
             "COOKIE",
@@ -1210,7 +1256,7 @@ mod tests {
     /* D13: a refusal carries the headers of the response that arrived, so the
      * helper keeps every name lower-case and joins repeated lines in order. */
     #[test]
-    fn test_collect_headers_lowercases_names_and_joins_repeated_lines() {
+    fn test_bhv_transport_090_collect_headers_lowercases_names_and_joins_repeated_lines() {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.append("Location", "http://b.example/y".parse().unwrap());
         headers.append("Set-Cookie", "a=1".parse().unwrap());
@@ -1241,19 +1287,74 @@ mod tests {
         }
     }
 
-    /* A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused:
-     * a POST becomes a GET with no body, so no body is ever replayed in cleartext. */
+    /* A 301 or 302 from HTTPS to plain HTTP is refused for a request with a body, even a POST that would become GET. */
     #[test]
-    fn test_bhv_redirects_040_a_301_302_or_303_downgrade_to_http_is_followed_not_refused() {
+    fn test_bhv_misc_124_a_301_or_302_from_https_to_http_with_a_body_is_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        for status in [301, 302] {
+            assert!(is_https_to_http_body_replay(
+                status,
+                "POST",
+                Some(&https),
+                &http,
+                true
+            ));
+            assert!(is_https_to_http_body_replay(
+                status,
+                "PUT",
+                Some(&https),
+                &http,
+                true
+            ));
+        }
+        assert!(!is_https_to_http_body_replay(
+            303,
+            "POST",
+            Some(&https),
+            &http,
+            true
+        ));
+    }
+
+    /* A 307 that stays on one scheme, or upgrades HTTP to HTTPS, never sends the body in cleartext. */
+    #[test]
+    fn test_bhv_misc_125_a_307_that_stays_on_one_scheme_or_upgrades_is_not_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(!is_https_to_http_body_replay(
+            307,
+            "POST",
+            Some(&https),
+            &https,
+            true
+        ));
+        assert!(!is_https_to_http_body_replay(
+            307,
+            "POST",
+            Some(&http),
+            &https,
+            true
+        ));
+    }
+
+    /* A 301 or 302 redirect from HTTPS to plain HTTP that carries a body is refused, while a 303 is followed. */
+    #[test]
+    fn test_bhv_redirects_040_a_301_or_302_downgrade_to_http_with_a_body_is_refused_and_a_303_is_followed(
+    ) {
         let https = reqwest::Url::parse("https://example.com/x").unwrap();
         let http = reqwest::Url::parse("http://example.com/x").unwrap();
 
-        for status in [301, 302, 303] {
+        for status in [301, 302] {
             assert!(
-                !is_https_to_http_body_replay(status, "POST", Some(&https), &http, true),
-                "{status} from https to http must be followed, not refused"
+                is_https_to_http_body_replay(status, "POST", Some(&https), &http, true),
+                "{status} from https to http with a body must be refused"
             );
         }
+        assert!(
+            !is_https_to_http_body_replay(303, "POST", Some(&https), &http, true),
+            "303 from https to http must be followed"
+        );
     }
 
     /* ── HTTPS->HTTP body-replay predicate ──
@@ -1307,15 +1408,15 @@ mod tests {
             &https2,
             true
         ));
-        /* 302 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(
+        /* 302 + body + https->http: must refuse, even though a POST would drop the body. */
+        assert!(is_https_to_http_body_replay(
             302,
             "POST",
             Some(&https),
             &http,
             true
         ));
-        /* 303 (drops body anyway): must NOT refuse. */
+        /* 303 (never carries the body): must NOT refuse. */
         assert!(!is_https_to_http_body_replay(
             303,
             "POST",
@@ -1323,8 +1424,8 @@ mod tests {
             &http,
             true
         ));
-        /* 301 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(
+        /* 301 + body + https->http: must refuse, even though a POST would drop the body. */
+        assert!(is_https_to_http_body_replay(
             301,
             "POST",
             Some(&https),
@@ -1435,7 +1536,19 @@ mod tests {
         assert!(!text.contains("SECRET"), "got: {}", text);
     }
 
-    /* RFC 9110 section 15.4: the method a redirect hop uses. */
+    #[test]
+    fn test_bhv_misc_173_a_streamed_body_is_refused_across_an_https_to_http_redirect() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(
+            307,
+            "POST",
+            Some(&https),
+            &http,
+            true
+        ));
+    }
+
     #[test]
     fn test_bhv_redirects_050_redirect_next_method_follows_rfc_9110() {
         for status in [307u16, 308] {
@@ -1516,7 +1629,7 @@ mod tests {
     /* ── Per-part MIME sniffing ── */
 
     #[test]
-    fn test_mime_for_filename_image_extensions() {
+    fn test_bhv_langrust_008_mime_for_filename_image_extensions() {
         assert_eq!(mime_for_filename("photo.png"), "image/png");
         assert_eq!(mime_for_filename("photo.JPG"), "image/jpeg");
         assert_eq!(mime_for_filename("photo.jpeg"), "image/jpeg");
@@ -1524,7 +1637,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mime_for_filename_document_extensions() {
+    fn test_bhv_langrust_009_mime_for_filename_document_extensions() {
         assert_eq!(mime_for_filename("doc.pdf"), "application/pdf");
         assert_eq!(mime_for_filename("payload.json"), "application/json");
         assert_eq!(mime_for_filename("notes.txt"), "text/plain");
@@ -1934,7 +2047,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
+    fn test_bhv_serialization_126_multipart_non_ascii_field_name_preserved_as_utf8_file_part() {
         /* CJK field name on a bytes (file) part — must also survive as UTF-8. */
         let field_name = "日本.png"; // emits image/png too (behavior 4 cross-check)
         let fields = [(field_name.to_string(), MultipartValue::Bytes(vec![0, 1, 2]))];
@@ -2106,7 +2219,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_charset_extracts_quoted_value() {
+    fn test_bhv_langrust_010_parse_charset_extracts_quoted_value() {
         assert_eq!(
             parse_charset("text/plain; charset=\"UTF-8\""),
             Some("UTF-8".to_string())
@@ -2187,6 +2300,182 @@ mod tests {
             names.contains(&"x-internal-key"),
             "expected spec apiKey header 'x-internal-key' in {:?}",
             names
+        );
+    }
+    #[test]
+    fn test_bhv_misc_095_invalid_bytes_in_a_charset_body_decode_to_replacement_characters() {
+        assert_eq!(
+            decode_text_body(&[b'a', 0xFF, b'b'], "text/plain; charset=utf-8"),
+            "a\u{FFFD}b"
+        );
+    }
+
+    #[test]
+    fn test_bhv_misc_096_a_text_part_carries_only_its_content_disposition() {
+        let body = serialize_multipart_body(
+            &[("note".to_string(), MultipartValue::Text("hi".to_string()))],
+            "B",
+        )
+        .expect("serialize");
+        let text = String::from_utf8(body).expect("utf8");
+        assert!(
+            text.contains("Content-Disposition: form-data; name=\"note\"\r\n\r\nhi\r\n"),
+            "got: {}",
+            text
+        );
+        assert!(!text.contains("Content-Type"), "got: {}", text);
+        assert!(!text.contains("Content-Transfer-Encoding"), "got: {}", text);
+    }
+
+    #[test]
+    fn test_bhv_misc_097_each_element_of_an_array_field_is_its_own_part_in_order() {
+        let items = MultipartValue::List(vec![
+            MultipartValue::Text("a".to_string()),
+            MultipartValue::Text("b".to_string()),
+        ]);
+        let body = serialize_multipart_body(&[("tag".to_string(), items)], "B").expect("serialize");
+        let text = String::from_utf8(body).expect("utf8");
+        assert_eq!(text.matches("name=\"tag\"").count(), 2, "got: {}", text);
+        let first = text.find("\r\n\r\na\r\n").expect("first part");
+        let second = text.find("\r\n\r\nb\r\n").expect("second part");
+        assert!(first < second, "got: {}", text);
+    }
+
+    #[test]
+    fn test_bhv_misc_099_a_multipart_filename_is_one_canonical_content_directive() {
+        assert_eq!(
+            build_filename_directive("report.txt"),
+            "filename=\"report.txt\""
+        );
+        assert_eq!(
+            build_filename_directive("r\u{e9}sum\u{e9}.pdf"),
+            "filename=\"r_sum_.pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"
+        );
+    }
+
+    #[test]
+    fn test_bhv_redirects_053_authorization_is_kept_on_same_origin_and_dropped_on_a_scheme_change()
+    {
+        let https = reqwest::Url::parse("https://example.com/a").unwrap();
+        let https_next = reqwest::Url::parse("https://example.com/b").unwrap();
+        let http_next = reqwest::Url::parse("http://example.com/b").unwrap();
+        assert!(
+            super::same_origin(&https, &https_next),
+            "same origin keeps the credentials"
+        );
+        assert!(
+            !super::same_origin(&https, &http_next),
+            "https to http drops the credentials"
+        );
+        assert!(
+            !super::same_origin(&http_next, &https),
+            "http to https drops the credentials"
+        );
+    }
+
+    #[test]
+    fn test_bhv_retries_051_a_307_downgrade_with_a_body_is_refused_with_the_documented_message() {
+        let https = reqwest::Url::parse("https://example.com/secure").unwrap();
+        let http = reqwest::Url::parse("http://example.com/insecure").unwrap();
+        assert!(super::is_https_to_http_body_replay(
+            307,
+            "POST",
+            Some(&https),
+            &http,
+            true
+        ));
+        assert_eq!(
+            super::replay_refusal_message(Some(&https), "", &http),
+            "Refusing to replay request body across HTTPS->HTTP redirect: https://example.com/secure -> http://example.com/insecure"
+        );
+    }
+
+    /* -- charset, multipart and filename wire rules (chunk 15) -- */
+
+    #[test]
+    fn test_bhv_serialization_119_the_declared_charset_is_used_and_an_unknown_one_falls_back_to_utf8(
+    ) {
+        assert_eq!(
+            decode_text_body(&[0x63, 0x61, 0x66, 0xE9], "text/plain; charset=ISO-8859-1"),
+            "café"
+        );
+        assert_eq!(
+            decode_text_body("café".as_bytes(), "text/plain; charset=no-such-charset"),
+            "café"
+        );
+        assert_eq!(
+            decode_text_body(&[0x00, 0x41], "text/plain; charset=UTF-16"),
+            "A"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_120_a_multipart_file_part_takes_its_type_from_the_extension() {
+        let fields = [
+            (
+                "report.pdf".to_string(),
+                MultipartValue::Bytes(vec![1, 2, 3]),
+            ),
+            (
+                "data.unknownext".to_string(),
+                MultipartValue::Bytes(vec![1, 2, 3]),
+            ),
+        ];
+        let body = serialize_multipart_body(&fields, "B").unwrap();
+        let text = String::from_utf8_lossy(&body);
+        assert!(
+            text.contains("Content-Type: application/pdf\r\n"),
+            "{}",
+            text
+        );
+        assert!(
+            text.contains("Content-Type: application/octet-stream\r\n"),
+            "{}",
+            text
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_123_a_multipart_name_with_a_line_break_or_nul_is_refused() {
+        for bad in &["a\r\nb", "a\nb", "a\rb", "a\0b"] {
+            let fields = [(bad.to_string(), MultipartValue::Text("x".to_string()))];
+            assert!(
+                serialize_multipart_body(&fields, "B").is_err(),
+                "expected refusal for {:?}",
+                bad
+            );
+        }
+    }
+
+    #[test]
+    fn test_bhv_serialization_124_a_non_ascii_multipart_filename_has_a_fallback_and_an_rfc_5987_form(
+    ) {
+        let directive = build_filename_directive("café.pdf");
+        assert!(directive.starts_with("filename=\""), "got: {}", directive);
+        assert!(
+            directive.contains("filename*=UTF-8''caf%C3%A9.pdf"),
+            "got: {}",
+            directive
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_127_primitive_multipart_parts_are_plain_text_and_only_models_are_json(
+    ) {
+        let fields = [
+            ("count".to_string(), MultipartValue::Text("3".to_string())),
+            (
+                "meta".to_string(),
+                MultipartValue::Json("{\"a\":1}".to_string()),
+            ),
+        ];
+        let body = serialize_multipart_body(&fields, "B").unwrap();
+        let text = String::from_utf8_lossy(&body);
+        assert!(text.contains("name=\"count\"\r\n\r\n3\r\n"), "{}", text);
+        assert!(
+            text.contains("Content-Type: application/json\r\n"),
+            "{}",
+            text
         );
     }
 }

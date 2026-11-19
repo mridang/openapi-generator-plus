@@ -32,6 +32,7 @@ public abstract record Vehicle : global::System.Text.Json.Serialization.IJsonOnD
             string raw = doc.RootElement.GetRawText();
             if (
                 doc.RootElement.TryGetProperty("vehicleType", out System.Text.Json.JsonElement disc)
+                && disc.ValueKind != System.Text.Json.JsonValueKind.Null
             )
             {
                 if (

@@ -67,6 +67,9 @@ function assertFetchCompatible(options: {
   if (options.fetch == null) {
     return;
   }
+  if (typeof options.fetch !== "function") {
+    throw new TypeError("The HTTP connection must be a fetch function.");
+  }
   const conflicts: string[] = [];
   if (options.proxy != null) {
     conflicts.push("proxy");
@@ -414,8 +417,10 @@ export class TransportOptionsBuilder {
    * @throws TypeError if the URL cannot be parsed or is not an http(s) URL with a host
    */
   proxy(proxy: string | null): this {
-    assertValidProxy(proxy);
-    this._proxy = proxy;
+    /* An empty string clears a proxy set earlier, like null. */
+    const value = proxy === "" ? null : proxy;
+    assertValidProxy(value);
+    this._proxy = value;
     return this;
   }
 

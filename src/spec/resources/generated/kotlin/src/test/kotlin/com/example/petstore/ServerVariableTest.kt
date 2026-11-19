@@ -53,8 +53,8 @@ class ServerVariableTest {
     }
 
     @Test
-    @DisplayName("the default value substitutes when no override is supplied")
-    fun defaultValueDrivesSubstitution() {
+    @DisplayName("bhvLangkotlin047 the default value substitutes when no override is supplied")
+    fun bhvLangkotlin047DefaultValueDrivesSubstitution() {
         val server =
             ServerConfiguration(
                 "https://example.com/{version}",

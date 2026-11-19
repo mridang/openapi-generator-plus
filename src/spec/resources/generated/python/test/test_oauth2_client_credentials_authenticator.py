@@ -208,7 +208,7 @@ class TestOAuth2ClientCredentialsAuthenticator:
 
 
 class TestOAuth2ClientCredentialsRequiredConfiguration:
-    def test_omitting_the_token_url_raises(self) -> None:
+    def test_bhv_lang_python_103_omitting_the_token_url_raises(self) -> None:
         with pytest.raises(TypeError) as exc_info:
             cast(Any, OAuth2ClientCredentialsAuthenticator)(
                 "https://api.example.com", "my_client_id", "my_client_secret"
@@ -217,9 +217,29 @@ class TestOAuth2ClientCredentialsRequiredConfiguration:
             "missing 1 required positional argument: 'token_url'"
         )
 
+    def test_bhv_misc_198_a_new_grant_without_expires_in_clears_the_expiry_of_the_previous_token(
+        self,
+    ) -> None:
+        auth, mock_client = _create_authenticator_with_mock()
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({"access_token": "expiring-cc-token", "expires_in": 0}),
+            headers={"content-type": "application/json"},
+        )
+        assert auth.get_auth_headers() == {"Authorization": "Bearer expiring-cc-token"}
+
+        mock_client.send_request.return_value = ApiHttpResponse(
+            status_code=200,
+            body=json.dumps({"access_token": "open-cc-token"}),
+            headers={"content-type": "application/json"},
+        )
+        assert auth.get_auth_headers() == {"Authorization": "Bearer open-cc-token"}
+        assert auth.get_auth_headers() == {"Authorization": "Bearer open-cc-token"}
+        assert mock_client.send_request.call_count == 2
+
 
 class TestOAuth2ClientCredentialsImmutability:
-    def test_credentials_cannot_be_reassigned(self) -> None:
+    def test_bhv_lang_python_104_credentials_cannot_be_reassigned(self) -> None:
         auth = _create_authenticator()
 
         with pytest.raises(dataclasses.FrozenInstanceError):
@@ -229,7 +249,7 @@ class TestOAuth2ClientCredentialsImmutability:
         with pytest.raises(dataclasses.FrozenInstanceError):
             cast(Any, auth).token_url = "https://evil.example.com/token"
 
-    def test_equal_credentials_are_not_equal_by_value(self) -> None:
+    def test_bhv_lang_python_105_equal_credentials_are_not_equal_by_value(self) -> None:
         first = _create_authenticator()
         second = _create_authenticator()
 
@@ -336,6 +356,27 @@ class TestMachineAuthWrapper:
             "&scope=pets%3Aread+pets%3Awrite"
         )
         assert auth.get_host() == "https://api.example.com"
+
+    def test_bhv_misc_063_the_token_request_goes_to_the_declared_token_url(
+        self,
+    ) -> None:
+        from petstore_client.auth.oauth.machine_auth_client_credentials_authenticator import (
+            MachineAuthClientCredentialsAuthenticator,
+        )
+
+        auth = MachineAuthClientCredentialsAuthenticator(
+            "https://api.example.com", "cid", "sec"
+        )
+        mock_client = MagicMock()
+        mock_client.send_request.return_value = _reply_token()
+        auth.set_api_client(mock_client)
+
+        auth.get_auth_headers()
+
+        assert (
+            mock_client.send_request.call_args[0][1]
+            == "https://auth.example.com/oauth/token"
+        )
 
 
 class TestClientCredentialsRedactedRepr:

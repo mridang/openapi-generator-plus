@@ -1034,9 +1034,31 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       case 200:
         return try ObjectSerializer.deserialize(response.body, as: Reservation.self)
           .map { ReserveStockResponse($0) }
-      default:
+      case 201:
         return try ObjectSerializer.deserialize(response.body, as: ReservationReceipt.self)
           .map { ReserveStockResponse($0) }
+      default:
+        /* An undeclared success status takes the first success schema that
+         * decodes the body, in declaration order. */
+        var lastError: Error?
+        do {
+          if let value = try ObjectSerializer.deserialize(response.body, as: Reservation.self) {
+            return ReserveStockResponse(value)
+          }
+        } catch {
+          lastError = error
+        }
+        do {
+          if let value = try ObjectSerializer.deserialize(
+            response.body, as: ReservationReceipt.self)
+          {
+            return ReserveStockResponse(value)
+          }
+        } catch {
+          lastError = error
+        }
+        if let lastError { throw lastError }
+        return nil
       }
     }
   }

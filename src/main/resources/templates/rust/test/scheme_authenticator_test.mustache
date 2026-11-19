@@ -50,31 +50,38 @@ mod {{module}} {
     use super::*;
     use {{packageName}}::{{{path}}}::{{className}};
 
-    fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn set_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![{{#envParams}}("{{envName}}", Some("value-{{name}}")), {{/envParams}}]
     }
 
-    fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn unset_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![{{#envParams}}("{{envName}}", None), {{/envParams}}]
     }
 
-    fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
+{{^commonBhvOnce}}    #[allow(dead_code)]
+{{/commonBhvOnce}}    fn empty_all() -> Vec<(&'static str, Option<&'static str>)> {
         vec![{{#envParams}}("{{envName}}", Some("")), {{/envParams}}]
     }
 
+{{#commonBhvOnce}}
     #[test]
     fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!({{className}}::new({{{bareArgs}}}).is_ok());
         });
     }
+{{/commonBhvOnce}}
 
+{{#commonBhvOnce}}
     #[test]
     fn test_bhv_authscheme_002_explicit_arguments_need_no_environment() {
         with_variables(&unset_all(), || {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
     }
+{{/commonBhvOnce}}
 
 {{#explicitWinsOnce}}
     #[test]
@@ -109,16 +116,8 @@ mod {{module}} {
         });
     }
 {{/bearerIdOnce}}
-{{^bearerIdOnce}}
-    #[test]
-    fn test_an_empty_environment_variable_is_unset_and_the_error_names_it() {
-        with_variables(&empty_all(), || {
-            let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
-            assert!(text.contains("{{firstEnvName}}"), "{}", text);
-        });
-    }
-{{/bearerIdOnce}}
 
+{{#commonBhvOnce}}
     #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
@@ -126,7 +125,9 @@ mod {{module}} {
             assert!(text.contains("{{firstEnvName}}"), "{}", text);
         });
     }
+{{/commonBhvOnce}}
 
+{{#commonBhvOnce}}
     #[test]
     fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
@@ -134,6 +135,7 @@ mod {{module}} {
             assert!(text.contains("{{firstEnvName}}"), "{}", text);
         });
     }
+{{/commonBhvOnce}}
 
 {{#emptyVariableBhv}}
     #[test]
@@ -146,6 +148,7 @@ mod {{module}} {
 {{/emptyVariableBhv}}
 
 {{^explicitWinsOnce}}
+{{#explicitNotOverriddenOnce}}
     #[test]
     fn test_{{#explicitNotOverriddenOnce}}bhv_auth_041_{{/explicitNotOverriddenOnce}}an_explicit_argument_is_not_overridden_by_the_environment() {
         /* The variables hold values no authenticator accepts, so the call can
@@ -155,6 +158,7 @@ mod {{module}} {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
     }
+{{/explicitNotOverriddenOnce}}
 {{/explicitWinsOnce}}
 {{#isBasic}}
 
@@ -315,8 +319,9 @@ mod {{module}} {
 {{/bearerIdOnce}}
 {{#isBearer}}
 
+{{#bearerIdOnce}}
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_the_explicit_token_is_the_one_sent() {
+    async fn test_bhv_langrust_082_the_explicit_token_is_the_one_sent() {
         let auth = with_variables(&set_all(), || {
             {{className}}::new({{{explicitArgs}}}).unwrap()
         });
@@ -326,6 +331,7 @@ mod {{module}} {
             Some("Bearer explicit-{{firstParam}}")
         );
     }
+{{/bearerIdOnce}}
 
 {{#bearerIdOnce}}
     #[test]
@@ -336,18 +342,10 @@ mod {{module}} {
         });
     }
 {{/bearerIdOnce}}
-{{^bearerIdOnce}}
-    #[test]
-    fn test_an_explicit_empty_token_is_rejected_not_replaced_by_the_environment() {
-        with_variables(&set_all(), || {
-            let text = invalid_argument_text({{className}}::new("https://api.example.com", Some("")));
-            assert!(!text.contains("{{firstEnvName}}"), "{}", text);
-        });
-    }
-{{/bearerIdOnce}}
 
+{{#bearerIdOnce}}
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_a_token_provider_is_called_for_every_request() {
+    async fn test_bhv_langrust_083_a_token_provider_is_called_for_every_request() {
         let auth = {{className}}::with_token_provider(
             "https://api.example.com",
             std::sync::Arc::new(|| "from-provider".to_string()),
@@ -358,6 +356,7 @@ mod {{module}} {
             Some("Bearer from-provider")
         );
     }
+{{/bearerIdOnce}}
 {{/isBearer}}
 }
 {{/perSchemeAuthEntries}}

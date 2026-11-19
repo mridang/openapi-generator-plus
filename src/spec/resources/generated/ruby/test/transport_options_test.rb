@@ -6,6 +6,20 @@ require 'petstore_client'
 describe Petstore::Client::TransportOptions do
   parallelize_me!
 
+  it 'bhv_misc_180 the inspect form shows the values of non-sensitive default headers and hides sensitive ones' do
+    options = Petstore::Client::TransportOptions.builder
+                                           .default_header('X-Visible', 'shown-value')
+                                           .default_header('Authorization', 'Bearer hidden-secret')
+                                           .build
+
+    _(options.inspect).must_include 'shown-value'
+    _(options.inspect).wont_include 'hidden-secret'
+  end
+
+  it 'bhv_misc_051 an unknown option is refused by the builder rather than ignored' do
+    _ { Petstore::Client::TransportOptions.builder.no_such_option(1) }.must_raise NoMethodError
+  end
+
   it 'bhv_options_043 verify_ssl defaults to true' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.verify_ssl).must_equal true
@@ -53,6 +67,14 @@ describe Petstore::Client::TransportOptions do
     _(opts.default_headers).must_be_empty
   end
 
+  it 'bhv_options_068 a SOCKS proxy is refused at construction with the documented message' do
+    err = assert_raises(ArgumentError) do
+      Petstore::Client::TransportOptions.builder.proxy('socks5://proxy.example.com:1080')
+    end
+
+    _(err.message).must_equal 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080'
+  end
+
   it 'bhv_options_022 inject_request_id defaults to false' do
     opts = Petstore::Client::TransportOptions.builder.build
     _(opts.inject_request_id).must_equal false
@@ -66,9 +88,9 @@ describe Petstore::Client::TransportOptions do
     _(Petstore::Client::TransportOptions.builder.max_retries(0).build.max_retries).must_equal 0
   end
 
-  [-1, 1.5, '2', nil].each do |bad|
-    it "bhv_options_027 rejects max_retries #{bad.inspect} through the builder" do
-      err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_retries(bad) } # steep:ignore ArgumentTypeMismatch
+  it 'bhv_options_027 rejects an invalid max_retries through the builder' do
+    [-1, 1.5, '2', nil].each_case do |bad|
+      err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_retries(bad) }
       _(err.message).must_include 'Invalid max_retries'
     end
   end
@@ -177,7 +199,7 @@ describe Petstore::Client::TransportOptions do
     error = assert_raises(ArgumentError) do
       Petstore::Client::TransportOptions.builder.proxy('http://[::1:3128').build
     end
-    _(error.message).must_match(/\AInvalid proxy URL \(.*\): http:\/\/\[::1:3128\z/m)
+    _(error.message).must_match(%r{\AInvalid proxy URL \(.*\): http://\[::1:3128\z}m)
   end
 
   it 'bhv_options_046 constructing directly with a non-http proxy scheme raises ArgumentError' do
@@ -314,14 +336,14 @@ describe Petstore::Client::TransportOptions do
     _(opts.proxy).must_equal 'http://proxy.example.com:8080'
   end
 
-  {
-    'socks5://proxy.example.com:1080' => 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080',
-    'ftp://proxy.example.com:21' => 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21',
-    'proxy.example.com:8080' => 'Invalid proxy URL (must use http or https scheme): proxy.example.com:8080',
-    '' => 'Invalid proxy URL (must use http or https scheme): ',
-    'http://' => 'Invalid proxy URL (missing host): http://'
-  }.each do |proxy, message|
-    it "bhv_options_031 rejects the proxy #{proxy.inspect} with its canonical message" do
+  it 'bhv_options_031 rejects an invalid proxy with its canonical message' do
+    {
+      'socks5://proxy.example.com:1080' => 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080',
+      'ftp://proxy.example.com:21' => 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21',
+      'proxy.example.com:8080' => 'Invalid proxy URL (must use http or https scheme): proxy.example.com:8080',
+      '' => 'Invalid proxy URL (must use http or https scheme): ',
+      'http://' => 'Invalid proxy URL (missing host): http://'
+    }.each_case do |proxy, message|
       error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.proxy(proxy) }
       _(error.message).must_equal message
     end
@@ -367,7 +389,7 @@ describe Petstore::Client::TransportOptions do
   end
 
   describe 'custom connection' do
-    it 'keeps the supplied connection' do
+    it 'bhv_langruby_087 keeps the supplied connection' do
       conn = Faraday.new('http://localhost')
       _(Petstore::Client::TransportOptions.builder.connection(conn).build.connection).must_be_same_as conn
     end
@@ -380,7 +402,7 @@ describe Petstore::Client::TransportOptions do
       _(Petstore::Client::TransportOptions.builder.build.connection).must_be_nil
     end
 
-    it 'defaults to no connection' do
+    it 'bhv_langruby_088 defaults to no connection' do
       _(Petstore::Client::TransportOptions.builder.build.connection).must_be_nil
     end
 
@@ -419,7 +441,7 @@ describe Petstore::Client::TransportOptions do
       _(error.message).must_include 'verify_ssl'
     end
 
-    it 'rejects a connection combined with a CA bundle' do
+    it 'bhv_misc_186 rejects a connection combined with a CA bundle' do
       error = assert_raises(ArgumentError) do
         Petstore::Client::TransportOptions.builder.connection(Faraday.new('http://localhost')).ca_cert_path('/tmp/ca.pem').build
       end
@@ -450,7 +472,7 @@ describe Petstore::Client::TransportOptions do
       _(error.message).must_include 'follow redirects'
     end
 
-    it 'rejects an object that is not a connection' do
+    it 'bhv_langruby_089 rejects an object that is not a connection' do
       error = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.connection(Object.new).build }
       _(error.message).must_include 'Faraday::Connection'
     end
@@ -504,5 +526,11 @@ describe Petstore::Client::TransportOptions, 'builder entry point and printable 
   it 'bhv_options_067 a valid proxy URL is kept and with no proxy the proxy is unset' do
     _(Petstore::Client::TransportOptions.builder.proxy('http://proxy.example.com:8080').build.proxy).must_equal 'http://proxy.example.com:8080'
     _(Petstore::Client::TransportOptions.builder.build.proxy).must_be_nil
+  end
+
+  it 'bhv_misc_134 a zero timeout is refused with an argument error when the configuration is built' do
+    _(proc {
+      Petstore::Client::TransportOptions.builder.timeout(0).build
+    }).must_raise ArgumentError
   end
 end

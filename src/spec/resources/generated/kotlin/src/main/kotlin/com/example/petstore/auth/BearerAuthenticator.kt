@@ -40,6 +40,9 @@ open class BearerAuthenticator internal constructor(
         tokenProvider: (suspend () -> String)? = null,
     ) : this(host, token, tokenProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
 
+    // An explicitly passed token is kept as given, so an empty one is refused by validateToken
+    // below rather than replaced by the environment. Scheme wrappers pass an empty argument as
+    // null (not passed), which is what reads the environment.
     private val token: String? =
         token ?: CredentialEnvironment.read(environmentVariable) ?: if (tokenProvider != null) {
             null

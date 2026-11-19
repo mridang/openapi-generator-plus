@@ -26,6 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class DefaultApiClientTest {
 
   private static final String CA_CERT_PATH = "/app/src/test/resources/certs/ca.pem";
@@ -54,6 +55,18 @@ class DefaultApiClientTest {
   @Nested
   @DisplayName("default TLS verification")
   class DefaultTlsVerification {
+
+    @Test
+    @DisplayName(
+        "bhvMisc038 with no CA certificate, server certificates use the platform trust store")
+    void bhvMisc038WithNoCaCertificateServerCertificatesUseThePlatformTrustStore() {
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
+
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
+    }
 
     @Test
     @DisplayName("bhvTransport023 the default transport rejects a certificate from an untrusted CA")
@@ -602,7 +615,8 @@ class DefaultApiClientTest {
       "/test/redirect/no-location, no-location"
     })
     @DisplayName("an unusable or missing Location returns the 3xx untouched")
-    void unusableLocationReturnsTheRedirectResponse(String path, String marker) throws Exception {
+    void bhvLangjava063UnusableLocationReturnsTheRedirectResponse(String path, String marker)
+        throws Exception {
       String chasmUrl = ChasmContainer.getBaseUrl();
 
       TransportOptions transport = TransportOptions.builder().followRedirects(true).build();
@@ -1080,16 +1094,16 @@ class DefaultApiClientTest {
      * so the exact status matrix is locked.
      */
     @Test
-    @DisplayName("bhvRedirects001 302_https_to_http_with_body_proceeds_but_307_308_throw")
-    void bhvRedirects001Redirect302ProceedsWhile307And308Throw() {
+    @DisplayName("bhvRedirects001 302_307_308_https_to_http_with_body_throw")
+    void bhvRedirects001Redirect302307And308ThrowWithBody() {
       java.net.URI origin = java.net.URI.create("https://api.example.com/secret");
       java.net.URI target = java.net.URI.create("http://api.example.com/landed");
 
-      // 302 HTTPS->HTTP with a body: must proceed (guard does NOT fire,
-      // body is dropped when the request coerces to GET).
-      assertFalse(
+      // 302 HTTPS->HTTP with a body: must be refused like 307 and 308 (the body
+      // would otherwise be replayed in cleartext).
+      assertTrue(
           DefaultApiClient.shouldRefuseHttpsToHttpBodyReplay(origin, target, 302, true),
-          "302 HTTPS->HTTP with body must proceed (body dropped, request becomes GET)");
+          "302 HTTPS->HTTP with body must be refused (body would replay in cleartext)");
 
       // 307/308 HTTPS->HTTP with a body: must throw (guard fires — the
       // body would otherwise be replayed over cleartext).
@@ -1127,5 +1141,501 @@ class DefaultApiClientTest {
       assertEquals(
           0, json.get("contentLength").asInt(), "POST with null body must emit Content-Length: 0");
     }
+  }
+
+  @Nested
+  @DisplayName("misc behaviours")
+  class MiscBehaviours {
+
+    @Test
+    @DisplayName(
+        "bhvMisc266 caller default headers replace the user agent and request id in any case")
+    void bhvMisc266CallerHeaderReplacesTheRequestIdDefaultWhateverItsCase() throws Exception {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().injectRequestId(true).build());
+      Map<String, String> headers = new HashMap<>();
+      headers.put("USER-AGENT", "caller-agent");
+      headers.put("X-REQUEST-ID", "caller-id");
+
+      ApiHttpResponse response =
+          client.sendRequest("GET", ChasmContainer.getBaseUrl() + "/test/echo", headers, null);
+
+      JsonNode echoed = new ObjectMapper().readTree(response.body()).get("headers");
+      assertEquals("caller-agent", echoed.get("user-agent").asText());
+      assertEquals("caller-id", echoed.get("x-request-id").asText());
+    }
+
+    @Test
+    @DisplayName("bhvMisc268 a trusted CA certificate is rejected when the hostname does not match")
+    void bhvMisc268ATrustedCaCertificateIsRejectedWhenTheHostnameDoesNotMatch() throws Exception {
+      int httpsPort = java.net.URI.create(ChasmContainer.getHttpsBaseUrl()).getPort();
+      TransportOptions transport =
+          TransportOptions.builder().verifySsl(true).caCertPath(CA_CERT_PATH).build();
+
+      DefaultApiClient client = new DefaultApiClient(transport);
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () ->
+              client.sendRequest(
+                  "GET", "https://127.0.0.1:" + httpsPort + "/test/echo", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName("bhvMisc269 a self-signed endpoint is reached only with verification disabled")
+    void bhvMisc269ASelfSignedEndpointIsReachedOnlyWithVerificationDisabled() throws Exception {
+      String chasmUrl = ChasmContainer.getHttpsBaseUrl();
+
+      DefaultApiClient off =
+          new DefaultApiClient(TransportOptions.builder().verifySsl(false).build());
+      assertEquals(
+          200, off.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null).statusCode());
+
+      DefaultApiClient on = new DefaultApiClient(TransportOptions.builder().build());
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () -> on.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc270 a missing CA certificate file is rejected even with verification disabled")
+    void bhvMisc270AMissingCaFileIsRejectedEvenWithVerificationDisabled() {
+      TransportOptions transport =
+          TransportOptions.builder().verifySsl(false).caCertPath("/nonexistent/ca.pem").build();
+
+      IllegalArgumentException ex =
+          assertThrows(IllegalArgumentException.class, () -> new DefaultApiClient(transport));
+      assertTrue(ex.getMessage().contains("/nonexistent/ca.pem"), ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("bhvMisc271 a client without a proxy connects directly")
+    void bhvMisc271AClientWithoutAProxyConnectsDirectly() throws Exception {
+      assertEquals(null, TransportOptions.builder().build().getProxy());
+
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getBaseUrl() + "/test/echo", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    @DisplayName("bhvMisc272 an authenticating proxy accepts credentials from the proxy URL")
+    void bhvMisc272AnAuthenticatingProxyAcceptsCredentialsFromTheProxyUrl() throws Exception {
+      String authProxy = SquidContainer.getAuthProxyUrl();
+      if (!authProxy.contains("@")) {
+        authProxy = authProxy.replaceFirst("^(https?://)", "$1user:pass@");
+      }
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().proxy(authProxy).build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getInternalHttpUrl() + "/test/echo", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+      assertTrue(response.body().contains("\"method\""));
+    }
+
+    @Test
+    @DisplayName("bhvMisc273 the request id is a UUID v4 when enabled and omitted when disabled")
+    void bhvMisc273TheRequestIdIsAUuidV4WhenEnabledAndOmittedWhenDisabled() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      ObjectMapper mapper = new ObjectMapper();
+
+      DefaultApiClient enabled =
+          new DefaultApiClient(TransportOptions.builder().injectRequestId(true).build());
+      JsonNode withId =
+          mapper.readTree(
+              enabled.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null).body());
+      assertEquals(
+          4,
+          java.util.UUID.fromString(withId.get("headers").get("x-request-id").asText()).version());
+
+      DefaultApiClient disabled =
+          new DefaultApiClient(TransportOptions.builder().injectRequestId(false).build());
+      JsonNode withoutId =
+          mapper.readTree(
+              disabled.sendRequest("GET", chasmUrl + "/test/echo", new HashMap<>(), null).body());
+      assertFalse(withoutId.get("headers").has("x-request-id"));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc274 a non-2xx response is returned to the caller with its status code intact")
+    void bhvMisc274ANon2xxResponseIsReturnedWithItsStatusCodeIntact() throws Exception {
+      DefaultApiClient client = new DefaultApiClient();
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", ChasmContainer.getBaseUrl() + "/test/status/404", new HashMap<>(), null);
+      assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvMisc275 the request is sent with the intended method and the response is returned")
+    void bhvMisc275TheRequestIsSentWithTheIntendedMethodAndTheResponseIsReturned()
+        throws Exception {
+      DefaultApiClient client = new DefaultApiClient();
+      ApiHttpResponse response =
+          client.sendRequest(
+              "PATCH", ChasmContainer.getBaseUrl() + "/test/echo", new HashMap<>(), null);
+      assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    @DisplayName("bhvMisc282 a dropped connection keeps the transport error as the cause")
+    void bhvMisc282ADroppedConnectionKeepsTheTransportErrorAsTheCause() {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+
+      com.example.petstore.errors.NetworkException ex =
+          assertThrows(
+              com.example.petstore.errors.NetworkException.class,
+              () -> client.sendRequest("GET", "http://127.0.0.1:1/x", new HashMap<>(), null));
+      assertNotNull(ex.getCause());
+    }
+  }
+
+  @Test
+  @DisplayName("bhvMisc285 an undecodable content encoding is refused with the exact message")
+  void bhvMisc285AnUndecodableContentEncodingIsRefusedWithTheExactMessage() throws Exception {
+    String message = "Unsupported Content-Encoding 'x-unknown'";
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(
+            new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          exchange.getResponseHeaders().add("Content-Encoding", "x-unknown");
+          exchange.sendResponseHeaders(200, 2);
+          exchange.getResponseBody().write("hi".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+          exchange.close();
+        });
+    server.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/x";
+      Throwable cause =
+          assertThrows(
+              RuntimeException.class, () -> client.sendRequest("GET", url, new HashMap<>(), null));
+      while (cause != null && !message.equals(cause.getMessage())) {
+        cause = cause.getCause();
+      }
+      assertNotNull(cause, "no exception in the chain carries: " + message);
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc296 by default a failed request is retried twice so three requests reach the wire")
+  void bhvMisc296ByDefaultAFailedRequestIsRetriedTwiceSoThreeRequestsReachTheWire()
+      throws Exception {
+    java.util.concurrent.atomic.AtomicInteger hits =
+        new java.util.concurrent.atomic.AtomicInteger();
+    com.sun.net.httpserver.HttpServer server =
+        com.sun.net.httpserver.HttpServer.create(
+            new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          hits.incrementAndGet();
+          exchange.sendResponseHeaders(500, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      DefaultApiClient client = new DefaultApiClient(TransportOptions.builder().build());
+      String url = "http://127.0.0.1:" + server.getAddress().getPort() + "/x";
+      try {
+        client.sendRequest("GET", url, new HashMap<>(), null);
+      } catch (RuntimeException expected) {
+        // a persistent 5xx may surface as a typed error once retries are spent
+      }
+      assertEquals(3, hits.get());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  @DisplayName("bhvMisc299 a caller header overrides the transport default of the same role")
+  void bhvMisc299ACallerHeaderOverridesTheTransportDefaultOfTheSameRole() throws Exception {
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().defaultHeader("User-Agent", "transport-agent").build());
+    Map<String, String> headers = new HashMap<>();
+    headers.put("User-Agent", "caller-agent");
+
+    ApiHttpResponse response =
+        client.sendRequest("GET", ChasmContainer.getBaseUrl() + "/test/echo", headers, null);
+
+    JsonNode echoed = new ObjectMapper().readTree(response.body()).get("headers");
+    assertEquals("caller-agent", echoed.get("user-agent").asText());
+  }
+
+  @Nested
+  @DisplayName("promised transport behaviour")
+  class PromisedTransportTests {
+
+    private String bodyWithContentType(String contentType, byte[] bytes) throws Exception {
+      com.sun.net.httpserver.HttpServer server =
+          com.sun.net.httpserver.HttpServer.create(
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+      server.createContext(
+          "/",
+          exchange -> {
+            exchange.getResponseHeaders().add("Content-Type", contentType);
+            exchange.sendResponseHeaders(200, bytes.length);
+            try (java.io.OutputStream out = exchange.getResponseBody()) {
+              out.write(bytes);
+            }
+          });
+      server.start();
+      try {
+        return new DefaultApiClient()
+            .sendRequest(
+                "GET",
+                "http://127.0.0.1:" + server.getAddress().getPort() + "/resource",
+                new HashMap<>(),
+                null)
+            .body();
+      } finally {
+        server.stop(0);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "bhvTransport084 cancelling a call through its thread handle stops the request at once")
+    void bhvTransport084CancellingThroughTheHandleStopsTheRequest() throws Exception {
+      String chasmUrl = ChasmContainer.getBaseUrl();
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(20000).build());
+      Thread caller =
+          new Thread(
+              () -> {
+                try {
+                  client.sendRequest("GET", chasmUrl + "/test/slow", new HashMap<>(), null);
+                } catch (Throwable ignored) {
+                  // the cancellation outcome is asserted through the thread state below
+                }
+              });
+      caller.start();
+      Thread.sleep(500);
+      caller.interrupt();
+      caller.join(5000);
+      assertFalse(caller.isAlive(), "the cancelled request must stop promptly");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvTransport085 a timeout still raises the network timeout error when no cancellation"
+            + " fires")
+    void bhvTransport085TimeoutStillRaisesWhenNoCancellationFires() {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(500).build());
+      assertThrows(
+          com.example.petstore.errors.NetworkTimeoutException.class,
+          () ->
+              client.sendRequest(
+                  "GET", ChasmContainer.getBaseUrl() + "/test/slow", new HashMap<>(), null));
+      assertFalse(Thread.currentThread().isInterrupted(), "no cancellation was requested");
+    }
+
+    @Test
+    @DisplayName(
+        "bhvTransport086 a request past its timeout fails with the network timeout error within the"
+            + " budget")
+    void bhvTransport086RequestPastItsTimeoutFailsWithinTheBudget() {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(500).build());
+      long started = System.nanoTime();
+      assertThrows(
+          com.example.petstore.errors.NetworkTimeoutException.class,
+          () ->
+              client.sendRequest(
+                  "GET", ChasmContainer.getBaseUrl() + "/test/slow", new HashMap<>(), null));
+      assertTrue(
+          (System.nanoTime() - started) / 1_000_000L < 5000L,
+          "the timeout must fire within its budget");
+    }
+
+    @Test
+    @DisplayName("bhvTransport087 a connection that cannot be established raises the network error")
+    void bhvTransport087ConnectionFailureRaisesTheNetworkError() {
+      DefaultApiClient client = new DefaultApiClient();
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () -> client.sendRequest("GET", "http://127.0.0.1:1/unreachable", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName("bhvTransport088 a validly gzip-encoded body is decoded before it is returned")
+    void bhvTransport088ValidlyGzipEncodedBodyIsDecodedBeforeItIsReturned() throws ApiException {
+      HashMap<String, String> headers = new HashMap<>();
+      headers.put("Accept-Encoding", "gzip");
+      ApiHttpResponse response =
+          new DefaultApiClient()
+              .sendRequest(
+                  "GET", ChasmContainer.getBaseUrl() + "/test/compressed/gzip", headers, null);
+      assertTrue(response.body().contains("userId"), response.body());
+    }
+
+    @Test
+    @DisplayName(
+        "bhvTransport089 a content encoding that does not match the body raises the API error")
+    void bhvTransport089MismatchedContentEncodingRaisesTheApiError() throws Exception {
+      com.sun.net.httpserver.HttpServer server =
+          com.sun.net.httpserver.HttpServer.create(
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+      server.createContext(
+          "/",
+          exchange -> {
+            exchange.getResponseHeaders().add("Content-Encoding", "gzip");
+            exchange.sendResponseHeaders(200, 2);
+            try (java.io.OutputStream out = exchange.getResponseBody()) {
+              out.write("hi".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+          });
+      server.start();
+      try {
+        DefaultApiClient client = new DefaultApiClient();
+        assertThrows(
+            com.example.petstore.errors.ApiException.class,
+            () ->
+                client.sendRequest(
+                    "GET",
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/resource",
+                    new HashMap<>(),
+                    null));
+      } finally {
+        server.stop(0);
+      }
+    }
+
+    @Test
+    @DisplayName("bhvTransport090 response headers repeated on the wire keep every value")
+    void bhvTransport090RepeatedResponseHeadersKeepEveryValue() throws Exception {
+      com.sun.net.httpserver.HttpServer server =
+          com.sun.net.httpserver.HttpServer.create(
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+      server.createContext(
+          "/",
+          exchange -> {
+            exchange.getResponseHeaders().add("X-Repeated", "one");
+            exchange.getResponseHeaders().add("X-Repeated", "two");
+            exchange.sendResponseHeaders(200, 2);
+            try (java.io.OutputStream out = exchange.getResponseBody()) {
+              out.write("ok".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+          });
+      server.start();
+      try {
+        ApiHttpResponse response =
+            new DefaultApiClient()
+                .sendRequest(
+                    "GET",
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/resource",
+                    new HashMap<>(),
+                    null);
+        String values = String.join("|", response.headers().values());
+        assertTrue(values.contains("one") && values.contains("two"), values);
+      } finally {
+        server.stop(0);
+      }
+    }
+
+    @Test
+    @DisplayName("bhvTransport092 a caller-supplied HTTP client receives the SDK's request")
+    void bhvTransport092TheSuppliedHttpClientReceivesTheRequest() throws Exception {
+      java.util.concurrent.atomic.AtomicInteger hits =
+          new java.util.concurrent.atomic.AtomicInteger();
+      com.sun.net.httpserver.HttpServer proxy =
+          com.sun.net.httpserver.HttpServer.create(
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
+      proxy.createContext(
+          "/",
+          exchange -> {
+            hits.incrementAndGet();
+            exchange.sendResponseHeaders(200, 2);
+            try (java.io.OutputStream out = exchange.getResponseBody()) {
+              out.write("{}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+          });
+      proxy.start();
+      try {
+        java.net.http.HttpClient supplied =
+            java.net.http.HttpClient.newBuilder()
+                .proxy(java.net.ProxySelector.of(proxy.getAddress()))
+                .build();
+        DefaultApiClient client =
+            new DefaultApiClient(TransportOptions.builder().httpClient(supplied).build());
+        client.sendRequest("GET", "http://example.invalid/ping", new HashMap<>(), null);
+        assertEquals(1, hits.get(), "the supplied client must carry the request");
+      } finally {
+        proxy.stop(0);
+      }
+    }
+
+    @Test
+    @DisplayName(
+        "bhvTransport093 a server signed by a CA other than the configured one is rejected with a"
+            + " network error")
+    void bhvTransport093ServerSignedByAnotherCaIsRejected() throws Exception {
+      javax.net.ssl.TrustManagerFactory factory =
+          javax.net.ssl.TrustManagerFactory.getInstance(
+              javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+      factory.init((java.security.KeyStore) null);
+      java.security.cert.X509Certificate root =
+          ((javax.net.ssl.X509TrustManager) factory.getTrustManagers()[0]).getAcceptedIssuers()[0];
+      String pem =
+          "-----BEGIN CERTIFICATE-----\n"
+              + java.util.Base64.getMimeEncoder(
+                      64, "\n".getBytes(java.nio.charset.StandardCharsets.US_ASCII))
+                  .encodeToString(root.getEncoded())
+              + "\n-----END CERTIFICATE-----\n";
+      java.nio.file.Path configured = java.nio.file.Files.createTempFile("configured-ca", ".pem");
+      configured.toFile().deleteOnExit();
+      java.nio.file.Files.writeString(configured, pem);
+      DefaultApiClient client =
+          new DefaultApiClient(
+              TransportOptions.builder().caCertPath(configured.toString()).build());
+      assertThrows(
+          com.example.petstore.errors.NetworkException.class,
+          () ->
+              client.sendRequest(
+                  "GET", ChasmContainer.getHttpsBaseUrl() + "/test/echo", new HashMap<>(), null));
+    }
+
+    @Test
+    @DisplayName(
+        "bhvSerialization119 a body is decoded by its declared charset and falls back to UTF-8")
+    void bhvSerialization119BodyDecodesByDeclaredCharsetAndFallsBackToUtf8() throws Exception {
+      assertEquals(
+          "café",
+          bodyWithContentType(
+              "text/plain; charset=ISO-8859-1",
+              "café".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1)));
+      assertEquals(
+          "café",
+          bodyWithContentType(
+              "text/plain; charset=no-such-charset",
+              "café".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    }
+  }
+
+  @Test
+  @DisplayName("bhvMisc240 a multipart file part is echoed back with its content")
+  void bhvMisc240AMultipartFilePartIsEchoedBackWithItsContent() throws ApiException {
+    Map<String, Object> formFields = new HashMap<>();
+    formFields.put("file", "file content".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    ApiHttpResponse response =
+        new DefaultApiClient()
+            .sendRequest(
+                "POST", ChasmContainer.getBaseUrl() + "/test/echo", new HashMap<>(), formFields);
+    assertTrue(response.body().contains("file content"), response.body());
   }
 }

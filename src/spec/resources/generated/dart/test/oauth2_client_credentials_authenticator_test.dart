@@ -59,7 +59,7 @@ OAuth2ClientCredentialsAuthenticator _createAuthenticator() {
 void main() {
   group('OAuth2ClientCredentialsAuthenticator', () {
     test(
-      'the synchronous authHeaders raises instead of returning no credentials',
+      'bhv langdart 059 the synchronous authHeaders raises instead of returning no credentials',
       () {
         expect(
           () => _createAuthenticator().authHeaders(),
@@ -148,6 +148,24 @@ void main() {
         final headers = await auth.authHeadersAsync();
 
         expect(headers['Authorization'], equals('Bearer tok-abc'));
+      },
+    );
+
+    test(
+      'bhv misc 063 a per-scheme wrapper posts its token request to the declared token URL',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = MachineAuthClientCredentialsAuthenticator(
+          host: 'https://api.example.com',
+          clientId: 'cid',
+          clientSecret: 'sec',
+        );
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+
+        expect(client.urls, equals(['https://auth.example.com/oauth/token']));
       },
     );
 
@@ -281,6 +299,20 @@ void main() {
 
   group('OAuth2ClientCredentialsAuthenticator wire format', () {
     test(
+      'bhv misc 172 a request to a token endpoint is sent once and not retried, even when the server answers 503',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{}', statusCode: 503);
+        client.enqueue('{"access_token":"tok1","expires_in":3600}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await expectLater(auth.authHeadersAsync(), throwsA(anything));
+        expect(client.urls, hasLength(1));
+      },
+    );
+
+    test(
       'bhv auth 056 an expires_in that is not a decimal number marks the token stale so the next call fetches again',
       () async {
         final client = _FakeApiClient();
@@ -292,6 +324,24 @@ void main() {
         await auth.authHeadersAsync();
         await auth.authHeadersAsync();
 
+        expect(client.bodies, hasLength(2));
+      },
+    );
+
+    test(
+      'bhv misc 198 a new grant without expires_in clears the expiry of the previous token',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('{"access_token":"tok1","expires_in":0}');
+        client.enqueue('{"access_token":"tok2"}');
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
+
+        await auth.authHeadersAsync();
+        final second = await auth.authHeadersAsync();
+        await auth.authHeadersAsync();
+
+        expect(second['Authorization'], equals('Bearer tok2'));
         expect(client.bodies, hasLength(2));
       },
     );
@@ -363,22 +413,25 @@ void main() {
       },
     );
 
-    test('a server error without a JSON body keeps the raw body', () async {
-      final client = _FakeApiClient();
-      client.enqueue('oops', statusCode: 500);
-      final auth = _createAuthenticator();
-      auth.setApiClient(client);
+    test(
+      'bhv langdart 060 a server error without a JSON body keeps the raw body',
+      () async {
+        final client = _FakeApiClient();
+        client.enqueue('oops', statusCode: 500);
+        final auth = _createAuthenticator();
+        auth.setApiClient(client);
 
-      await expectLater(
-        auth.authHeadersAsync(),
-        throwsA(
-          isA<OAuth2ServerException>()
-              .having((e) => e.statusCode, 'statusCode', 500)
-              .having((e) => e.code, 'code', isNull)
-              .having((e) => e.rawBody, 'rawBody', 'oops'),
-        ),
-      );
-    });
+        await expectLater(
+          auth.authHeadersAsync(),
+          throwsA(
+            isA<OAuth2ServerException>()
+                .having((e) => e.statusCode, 'statusCode', 500)
+                .having((e) => e.code, 'code', isNull)
+                .having((e) => e.rawBody, 'rawBody', 'oops'),
+          ),
+        );
+      },
+    );
 
     test(
       'bhv authoauthtwoclientcred 014 the redacted repr shows the non-secret fields',

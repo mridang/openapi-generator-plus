@@ -22,7 +22,7 @@ class TestResolveCredential:
 
         assert resolve_credential("passed", VARIABLE, "token") == "passed"
 
-    def test_the_environment_fills_a_value_that_was_not_passed(
+    def test_bhv_lang_python_059_the_environment_fills_a_value_that_was_not_passed(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(VARIABLE, "from-environment")
@@ -37,7 +37,7 @@ class TestResolveCredential:
         with pytest.raises(ValueError, match=VARIABLE):
             resolve_credential(None, VARIABLE, "token")
 
-    def test_a_credential_found_nowhere_names_the_variable(
+    def test_bhv_misc_205_a_credential_found_nowhere_names_the_variable(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv(VARIABLE, raising=False)
@@ -66,3 +66,10 @@ class TestResolveCredential:
         monkeypatch.setenv(VARIABLE, "from-environment")
 
         assert resolve_credential("", VARIABLE, "token") == ""
+
+    def test_bhv_misc_207_reads_the_variable_of_the_field(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(VARIABLE, "from-env")
+
+        assert resolve_credential(None, VARIABLE, "token") == "from-env"

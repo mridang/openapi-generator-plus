@@ -324,4 +324,12 @@ class ParityIdComparisonTest {
 
     assertThat(problems).contains("go: cannot read a.xml", "go: the reports hold zero tests");
   }
+
+  @Test
+  void shouldTreatALanguageOnlyIdAsBelongingToThatLanguageAlone() {
+    assertThat(ParityIdComparison.belongsToAnotherLanguage("langjava001", "go")).isTrue();
+    assertThat(ParityIdComparison.belongsToAnotherLanguage("langjava001", "java")).isFalse();
+    assertThat(ParityIdComparison.belongsToAnotherLanguage("langgo012", "go")).isFalse();
+    assertThat(ParityIdComparison.belongsToAnotherLanguage("auth031", "go")).isFalse();
+  }
 }

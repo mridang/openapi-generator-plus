@@ -259,7 +259,9 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             final Set<String> taken = new HashSet<>(Set.of("authenticator", "transportOptions", "apiClient"));
             for (final Map.Entry<String, SecurityScheme> entry :
                     openAPI.getComponents().getSecuritySchemes().entrySet()) {
-                if (buildSchemeAuthSpec(entry.getKey(), entry.getValue()) == null) {
+                final SchemeAuthSpec schemeSpec =
+                        buildSchemeAuthSpec(entry.getKey(), entry.getValue());
+                if (schemeSpec == null) {
                     continue;
                 }
                 String param = NamingConvention.CAMEL_CASE.apply(entry.getKey());
@@ -270,6 +272,15 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                 credential.put("param", param);
                 credential.put("scheme", entry.getKey());
                 credential.put("schemeLiteral", toPhpStringLiteral(entry.getKey()));
+                final String classFqcn =
+                        (schemeSpec.isOAuth()
+                                        ? invokerPackage + "\\Auth\\OAuth"
+                                        : invokerPackage + "\\Auth")
+                                + "\\"
+                                + schemeSpec.schemeClass()
+                                + schemeSpec.oauthSuffix()
+                                + "Authenticator";
+                credential.put("escapedClassFqcn", classFqcn.replace("\\", "\\\\"));
                 credentials.add(credential);
             }
         }
@@ -799,6 +810,11 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
                             "tests/SerializerProbe.mustache",
                             "tests",
                             "SerializerProbe.php"));
+            supportingFiles.add(
+                    new SupportingFile(
+                            "tests/WireValueProbeEnum.mustache",
+                            "tests",
+                            "WireValueProbeEnum.php"));
             supportingFiles.add(
                     new SupportingFile(
                             "tests/HeaderSelectorTest.mustache",

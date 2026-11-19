@@ -63,11 +63,11 @@ describe 'scheme authenticators' do
            .select { |const| const.is_a?(Class) && const < {{moduleName}}::Auth::Authenticator }
   end
 
-  it 'finds the generated authenticators' do
+  it 'bhv_langruby_075 finds the generated authenticators' do
     _(authenticator_classes).wont_be_empty
   end
 
-  it 'take positional arguments like their base authenticators' do
+  it 'bhv_langruby_076 take positional arguments like their base authenticators' do
     offenders = authenticator_classes.select do |klass|
       klass.instance_method(:initialize).parameters.any? { |kind, _name| kind == :keyreq }
     end
@@ -144,6 +144,19 @@ describe 'scheme authenticators' do
     end
   end
 
+  it 'bhv_misc_193 every Basic and Bearer wrapper sends the same header as its base and refuses a colon in the username' do
+    expected = {{moduleName}}::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
+    wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'alice', 's3cret').auth_headers).must_equal(expected, klass.name)
+      _(-> { klass.new('https://api.example.com', 'ali:ce', 's3cret') }).must_raise ArgumentError
+    end
+
+    expected = {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', 'tok', env: {}).auth_headers
+    wrappers_of({{moduleName}}::Auth::BearerAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'tok', env: {}).auth_headers).must_equal(expected, klass.name)
+    end
+  end
+
   it 'bhv_authbasic_019 every Basic wrapper emits the same Basic header as the base authenticator' do
     expected = {{moduleName}}::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
     wrappers_of({{moduleName}}::Auth::BasicAuthenticator).each do |klass|
@@ -178,7 +191,7 @@ describe 'scheme authenticators' do
     environment_schemes.flat_map { |_name, _base, credentials| credentials.values }
   end
 
-  it 'finds a wrapper for every scheme the spec declares' do
+  it 'bhv_misc_073 finds a wrapper for every scheme the spec declares' do
     environment_schemes.each { |name, _base, _credentials| _(scheme_class(name)).wont_be_nil }
   end
 
@@ -186,7 +199,7 @@ describe 'scheme authenticators' do
     _(every_variable.uniq).must_equal every_variable
   end
 
-  it 'builds each wrapper from its own variables alone' do
+  it 'bhv_langruby_077 builds each wrapper from its own variables alone' do
     environment_schemes.each do |name, _base, credentials|
       env = credentials.values.to_h { |variable| [variable, "value-#{variable}"] }
       _(scheme_class(name).new('https://api.example.com', env: env)).wont_be_nil
@@ -276,6 +289,10 @@ describe 'scheme authenticators' do
     assert_empty_variable_is_unset_and_named
   end
 
+  it 'bhv_misc_208 an empty environment variable for an implicit credential fails as if it were unset' do
+    assert_empty_variable_is_unset_and_named
+  end
+
   it 'bhv_authscheme_010 an empty bearer variable is treated as unset and fails naming it' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
@@ -323,9 +340,24 @@ describe 'scheme authenticators' do
       env[variable] = 'second'
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer first' }, name)
     end
+
+    basic_env = { 'ACCOUNT_USER' => 'carol', 'ACCOUNT_PASS' => 'first' }
+    basic = {{moduleName}}::Auth::BasicAuthenticator.new(
+      'https://api.example.com', env: basic_env, username_env: 'ACCOUNT_USER', password_env: 'ACCOUNT_PASS'
+    )
+    basic_env['ACCOUNT_PASS'] = 'second'
+    _(basic.auth_headers['Authorization']).must_equal 'Basic Y2Fyb2w6Zmlyc3Q='
+
+    api_key_env = { 'OTHER_KEY' => 'first' }
+    api_key = {{moduleName}}::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', nil, {{moduleName}}::Auth::ApiKeyLocation::HEADER,
+      env: api_key_env, api_key_env: 'OTHER_KEY'
+    )
+    api_key_env['OTHER_KEY'] = 'second'
+    _(api_key.auth_headers).must_equal('X-Api-Key' => 'first')
   end
 
-  it 'takes the token provider of a Bearer wrapper after the variable' do
+  it 'bhv_langruby_078 takes the token provider of a Bearer wrapper after the variable' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
 

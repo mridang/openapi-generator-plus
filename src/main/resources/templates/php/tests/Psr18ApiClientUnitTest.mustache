@@ -39,7 +39,7 @@ function newPsr18Client(StubPsr18Client $stub, ?TransportOptions $transport = nu
     return new Psr18ApiClient($stub, $factory, $factory, $transport);
 }
 
-test('psr18 sends get request and returns response', function (): void {
+test('bhv langphp 014 psr18 sends get request and returns response', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{"method":"GET"}'));
     $client = newPsr18Client($stub);
 
@@ -50,7 +50,7 @@ test('psr18 sends get request and returns response', function (): void {
     expect($stub->requests[0]->getMethod())->toBe('GET');
 });
 
-test('psr18 sends post with json body', function (): void {
+test('bhv langphp 015 psr18 sends post with json body', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, 'ok'));
     $client = newPsr18Client($stub);
 
@@ -66,7 +66,7 @@ test('psr18 sends post with json body', function (): void {
     expect($stub->requests[0]->getHeaderLine('Content-Type'))->toBe('application/json');
 });
 
-test('psr18 returns response headers lowercased', function (): void {
+test('bhv langphp 016 psr18 returns response headers lowercased', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, 'ok', ['X-Test-Header' => 'test-value']));
     $client = newPsr18Client($stub);
 
@@ -76,7 +76,7 @@ test('psr18 returns response headers lowercased', function (): void {
     expect($response->headers['x-test-header'])->toBe('test-value');
 });
 
-test('psr18 returns non 2xx status code', function (): void {
+test('bhv misc 274 psr18 returns non 2xx status code', function (): void {
     $stub = new StubPsr18Client(psr18Response(404, 'not found'));
     $client = newPsr18Client($stub);
 
@@ -86,7 +86,7 @@ test('psr18 returns non 2xx status code', function (): void {
     expect($response->body)->toBe('not found');
 });
 
-test('psr18 joins multi value response headers', function (): void {
+test('bhv transport 090 psr18 joins multi value response headers', function (): void {
     $factory = new Psr17Factory();
     $response = $factory->createResponse(200)
         ->withBody($factory->createStream('ok'))
@@ -111,7 +111,7 @@ test('bhv transport 052 psr18 injects custom user agent', function (): void {
     expect($stub->requests[0]->getHeaderLine('User-Agent'))->toBe('MyApp/1.0');
 });
 
-test('psr18 injects request id matching uuid v4', function (): void {
+test('bhv misc 273 psr18 injects request id matching uuid v4', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
@@ -122,7 +122,7 @@ test('psr18 injects request id matching uuid v4', function (): void {
         ->toMatch('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/');
 });
 
-test('psr18 does not inject request id when disabled', function (): void {
+test('bhv langphp 017 psr18 does not inject request id when disabled', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $transport = (new TransportOptionsBuilder())->injectRequestId(false)->build();
     $client = newPsr18Client($stub, $transport);
@@ -132,7 +132,7 @@ test('psr18 does not inject request id when disabled', function (): void {
     expect($stub->requests[0]->hasHeader('X-Request-ID'))->toBeFalse();
 });
 
-test('psr18 does not override caller request id', function (): void {
+test('bhv misc 266 psr18 does not override caller request id', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $transport = (new TransportOptionsBuilder())->injectRequestId(true)->build();
     $client = newPsr18Client($stub, $transport);
@@ -171,6 +171,19 @@ test('bhv serializationwire 034 psr18 decodes iso 8859 1 body to utf 8 when char
     $response = $client->sendRequest('GET', 'http://example.com/iso', [], null);
 
     expect($response->body)->toBe("\xC3\xA9"); // UTF-8 'é'
+});
+
+test('bhv misc 224 transport default headers are not sent to another origin after a redirect', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://other.example.com/final']),
+        psr18Response(200, 'ok')
+    );
+    $transport = (new TransportOptionsBuilder())->defaultHeader('X-Api-Key', 'secret')->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($stub->requests[1]->hasHeader('X-Api-Key'))->toBeFalse();
 });
 
 test('bhv redirects 013 psr18 cross origin redirect strips authorization and cookie', function (): void {
@@ -217,7 +230,7 @@ test('bhv redirects 017 psr18 follows redirect when not suppressed', function ()
     expect($response->statusCode)->toBe(200);
 });
 
-test('psr18 resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
+test('bhv langphp 018 psr18 resolves a relative Location per RFC 3986', function (string $location, string $expected): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => $location]),
         psr18Response(200, 'ok')
@@ -250,20 +263,6 @@ test('bhv retries 016 psr18 https to http downgrade refuses body replay on 307',
         });
 });
 
-test('psr18 N1 302 https to http downgrade with body proceeds as get', function (): void {
-    $stub = new StubPsr18Client(
-        psr18Response(302, '', ['Location' => 'http://insecure.example.com/final']),
-        psr18Response(200, 'ok')
-    );
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = newPsr18Client($stub, $transport);
-
-    $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'sensitive=payload');
-
-    expect($response->statusCode)->toBe(200);
-    expect($stub->requests[1]->getMethod())->toBe('GET');
-});
-
 test('bhv redirects 029 psr18 redirect method and body follow RFC 9110', function (
     int $status,
     string $method,
@@ -294,7 +293,7 @@ test('bhv redirects 029 psr18 redirect method and body follow RFC 9110', functio
     '308 put keeps method and body' => [308, 'PUT', 'PUT', 'payload'],
 ]);
 
-test('psr18 303 keeps head as head', function (): void {
+test('bhv misc 126 psr18 303 keeps head as head', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(303, '', ['Location' => 'https://api.example.com/next']),
         psr18Response(200, 'ok')
@@ -307,7 +306,7 @@ test('psr18 303 keeps head as head', function (): void {
     expect($stub->requests[1]->getMethod())->toBe('HEAD');
 });
 
-test('psr18 301 put https to http downgrade refuses body replay', function (): void {
+test('bhv langphp 020 psr18 301 put https to http downgrade refuses body replay', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(301, '', ['Location' => 'http://insecure.example.com/sink'])
     );
@@ -390,7 +389,7 @@ test('bhv lifecycle 043 psr18 send after close throws logic exception', function
         });
 });
 
-test('psr18 transport failure raises NetworkException', function (): void {
+test('bhv langphp 021 psr18 transport failure raises NetworkException', function (): void {
     // The stub throws a PSR-18 ClientExceptionInterface once it runs out of
     // canned responses: no HTTP response arrived.
     $client = newPsr18Client(new StubPsr18Client());
@@ -423,7 +422,7 @@ test('bhv transport 031 psr18 timeout wrapped by the client raises NetworkTimeou
         ->toThrow(\{{invokerPackage}}\Errors\NetworkTimeoutException::class);
 });
 
-test('psr18 decompresses a valid gzip-encoded response body', function (): void {
+test('bhv transport 088 psr18 decompresses a valid gzip-encoded response body', function (): void {
     $payload = '{"ok":true}';
     $gzipped = gzencode($payload);
     expect($gzipped)->not->toBeFalse();
@@ -440,7 +439,7 @@ test('psr18 decompresses a valid gzip-encoded response body', function (): void 
     expect($response->body)->toBe($payload);
 });
 
-test('psr18 AL content-encoding gzip lie with plaintext body surfaces ApiException', function (): void {
+test('bhv transport 089 psr18 AL content-encoding gzip lie with plaintext body surfaces ApiException', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(200, 'plain, not gzip', [
             'Content-Type' => 'application/json',
@@ -482,7 +481,7 @@ test('bhv serializationwire 039 psr18 multipart png file gets image png content 
     }
 });
 
-test('psr18 multipart file that can no longer be read throws instead of sending an empty part', function (): void {
+test('bhv misc 101 psr18 multipart file that can no longer be read throws instead of sending an empty part', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
     $path = tempnam(sys_get_temp_dir(), 'part');
@@ -496,7 +495,7 @@ test('psr18 multipart file that can no longer be read throws instead of sending 
     expect($stub->requests)->toBe([]);
 });
 
-test('psr18 multipart psr7 stream part is sent as a file part with its bytes', function (): void {
+test('bhv langphp 022 psr18 multipart psr7 stream part is sent as a file part with its bytes', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
 
@@ -512,7 +511,7 @@ test('psr18 multipart psr7 stream part is sent as a file part with its bytes', f
     expect($sent)->toContain('filename="file"');
 });
 
-test('psr18 multipart raw bytes part reuses field name as filename with octet stream', function (): void {
+test('bhv langphp 023 psr18 multipart raw bytes part reuses field name as filename with octet stream', function (): void {
     /* A raw-bytes part with no explicit filename must reuse the field NAME as
      * the filename and emit a Content-Type guessed from that filename's
      * extension, falling back to application/octet-stream when there is none.
@@ -553,7 +552,7 @@ test('bhv lifecycle 020 psr18 multipart leaves a caller supplied stream open', f
     }
 });
 
-test('psr18 multipart non ascii field name preserved as utf 8', function (): void {
+test('bhv serialization 126 psr18 multipart non ascii field name preserved as utf 8', function (): void {
     $fieldName = 'caféMénù';
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
@@ -573,7 +572,7 @@ test('bhv serializationwire 042 psr18 multipart escapes a quote and a backslash 
     expect((string) $stub->requests[0]->getBody())->toContain('Content-Disposition: form-data; name="a\"b\\\\c"');
 });
 
-test('psr18 multipart scalar parts use the canonical text form', function (): void {
+test('bhv serialization 127 psr18 multipart scalar parts use the canonical text form', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
 
@@ -635,7 +634,7 @@ test('bhv serializationwire 045 psr18 multipart model part uses configured seria
     expect($sent)->toContain('"recordedAt":"2020-01-02T03:04:05.123+00:00"');
 });
 
-test('psr18 multipart primitive parts are plain text and only models are json', function (): void {
+test('bhv langphp 024 psr18 multipart primitive parts are plain text and only models are json', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
 
@@ -663,7 +662,7 @@ test('psr18 multipart primitive parts are plain text and only models are json', 
     expect(substr_count($sent, 'Content-Type:'))->toBe(1);
 });
 
-test('psr18 keeps an allowReserved query value byte for byte', function (): void {
+test('bhv langphp 025 psr18 keeps an allowReserved query value byte for byte', function (): void {
     $stub = new StubPsr18Client(psr18Response(200, '{}'));
     $client = newPsr18Client($stub);
     $query = 'revision=' . \{{invokerPackage}}\ValueSerializer::encodeQueryAllowingReserved("v1.0/beta:rc1[x]'y");
@@ -811,4 +810,18 @@ test('bhv redirects 053 psr18 authorization is kept on a same origin redirect an
     newPsr18Client($downgrade, TransportOptions::builder()->followRedirects(true)->build())
         ->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => 'Bearer secret'], null);
     expect($downgrade->requests[1]->hasHeader('Authorization'))->toBeFalse();
+});
+
+test('bhv misc 131 a supplied session follows redirects under the sdk redirect rules', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://api.example.com/landing']),
+        psr18Response(200, 'landed')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($stub->requests)->toHaveCount(2);
 });

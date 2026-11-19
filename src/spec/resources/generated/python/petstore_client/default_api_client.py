@@ -743,9 +743,12 @@ class DefaultApiClient:
         # A no_redirect request is a credential-bearing auth call (the OAuth2
         # token POST): the caller's default headers meant for the API, such as
         # an Authorization or API-key header, must never reach the token endpoint.
-        merged_headers: Dict[str, str] = (
-            {} if no_redirect else dict(self._transport_options.default_headers)
-        )
+        # A caller-supplied pool manager's own default headers are sent too:
+        # urllib3 replaces them when a request passes headers of its own.
+        merged_headers: Dict[str, str] = {}
+        if not no_redirect:
+            merged_headers.update(dict(self._pool_manager.headers or {}))
+            merged_headers.update(self._transport_options.default_headers)
         _merge_headers(merged_headers, headers)
 
         # Header names are case-insensitive (RFC 9110 section 5.1): any case
@@ -882,6 +885,22 @@ class DefaultApiClient:
             # carrying that response's status -- never a NetworkException and
             # never a raw gzip.BadGzipFile / zlib.error / OSError.
             content_encoding = (response.headers.get("content-encoding") or "").lower()
+            # Refused before any decode, so an empty body with an unknown
+            # encoding is not passed through as if it were identity.
+            if content_encoding not in (
+                "",
+                "identity",
+                "gzip",
+                "x-gzip",
+                "deflate",
+                "br",
+                "zstd",
+            ):
+                raise ApiException(
+                    status_code=response.status,
+                    message=f"Unsupported Content-Encoding '{content_encoding}'",
+                    response_headers=_lower_headers(response.headers),
+                )
             try:
                 decompressed = self._decompress_body(raw_data, content_encoding)
             except ApiException:
@@ -1035,14 +1054,13 @@ class DefaultApiClient:
             # but body content can itself be sensitive (form fields,
             # JSON payloads), so refuse outright when a body would be
             # carried across the downgrade. 303 still coerces to GET
-            # and drops the body below, so the guard only triggers on
-            # 307 / 308 (body preserved) and on 301 / 302 of a body-
-            # bearing non-idempotent method that the matrix expects
-            # to replay.
+            # and drops the body below, so the guard triggers on 301 / 302
+            # (a body-bearing POST that would otherwise be demoted and the
+            # body replayed) and on 307 / 308 (body preserved).
             if (
                 current_body is not None
                 and self._is_https_to_http_downgrade(current_url, next_url)
-                and response.status in (307, 308)
+                and response.status in (301, 302, 307, 308)
             ):
                 self._release_response(response)
                 raise ApiException(

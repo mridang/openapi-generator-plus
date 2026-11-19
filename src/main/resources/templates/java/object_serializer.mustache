@@ -535,6 +535,9 @@ public final class ObjectSerializer {
                    field) requires google.protobuf.Duration's decimal-seconds string
                    form ("3600s"), not JavaTimeModule's numeric/ISO-8601 form. */
                 .addModule(durationModule())
+                /* A set of unique strings or numbers has no iteration order, so it is
+                   written sorted: code point order for strings, numeric order for numbers. */
+                .addModule(uniqueItemsModule())
                 /* Reject a non-finite float/double on ENCODE. Jackson's default
                    QUOTE_NON_NUMERIC_NUMBERS emits NaN/Infinity as the quoted
                    strings "NaN"/"Infinity" — invalid per RFC 8259 §6 and a wire
@@ -796,6 +799,39 @@ public final class ObjectSerializer {
                             OffsetDateTime.class, parser);
                 }
                 return InstantDeserializer.OFFSET_DATE_TIME.deserialize(parser, context);
+            }
+        });
+        return module;
+    }
+
+    /**
+     * Build a Jackson module that writes a {@link java.util.Set} of strings in code point
+     * order, or of integral and decimal numbers in numeric order. Any other set keeps its
+     * iteration order.
+     *
+     * @return the unique-items module
+     */
+    private static SimpleModule uniqueItemsModule() {
+        SimpleModule module = new SimpleModule();
+        module.addSerializer(java.util.Set.class, new JsonSerializer<Object>() {
+            @Override
+            public void serialize(Object value, JsonGenerator gen, SerializerProvider provider)
+                    throws IOException {
+                List<Object> items = new java.util.ArrayList<>((java.util.Set<?>) value);
+                if (items.stream().allMatch(item -> item instanceof String)) {
+                    items.sort((a, b) -> java.util.Arrays.compare(
+                            ((String) a).codePoints().toArray(), ((String) b).codePoints().toArray()));
+                } else if (items.stream().allMatch(item -> item instanceof Integer || item instanceof Long
+                        || item instanceof Short || item instanceof Byte
+                        || item instanceof java.math.BigInteger || item instanceof java.math.BigDecimal)) {
+                    items.sort((a, b) -> new java.math.BigDecimal(a.toString())
+                            .compareTo(new java.math.BigDecimal(b.toString())));
+                }
+                gen.writeStartArray();
+                for (Object item : items) {
+                    provider.defaultSerializeValue(item, gen);
+                }
+                gen.writeEndArray();
             }
         });
         return module;

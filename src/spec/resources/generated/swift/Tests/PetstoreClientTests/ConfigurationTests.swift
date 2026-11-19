@@ -271,20 +271,64 @@ import Testing
     }
   }
 
-  @Test func testBhvHooks001ADefaultConfigurationHasNoHook() {
+  @Test func testBhvLangswift076ADefaultConfigurationHasNoHook() {
     #expect(Configuration.default().callHook == nil)
   }
 
-  @Test func testBuilderSetsTheCallHookAndNilClearsIt() {
+  @Test func testBhvLangswift017BuilderSetsTheCallHookAndNilClearsIt() {
     let builder = ConfigurationBuilder().callHook(NoopHook())
     #expect(builder.build().callHook != nil)
     #expect(builder.callHook(nil).build().callHook == nil)
   }
 
   /* A hook is code, not data: the string forms of a configuration never show it. */
-  @Test func testTheStringFormsOfAConfigurationDoNotShowTheHook() {
+  @Test func testBhvLangswift018TheStringFormsOfAConfigurationDoNotShowTheHook() {
     let config = ConfigurationBuilder().callHook(NoopHook()).build()
     #expect(!String(describing: config).contains("NoopHook"))
     #expect(!String(reflecting: config).contains("NoopHook"))
+  }
+
+  /* The builder entry point returns the base URL that was set on the builder. */
+  @Test func testBhvConfig026TheBuilderReturnsTheBaseURLThatWasSet() {
+    let config = ConfigurationBuilder().baseURL("https://builder.example.com").build()
+    #expect(config.baseURL == "https://builder.example.com")
+  }
+
+  /* The debug text shows the base URL and the non-sensitive default headers. */
+  @Test func testBhvMisc136TheDebugTextShowsTheBaseUrlAndNonSensitiveHeaders() {
+    let config = ConfigurationBuilder()
+      .baseURL("https://api.example.com")
+      .defaultHeader(name: "Accept", value: "text/plain")
+      .build()
+    #expect(config.debugDescription.contains("https://api.example.com"))
+    #expect(config.debugDescription.contains("Accept"))
+    #expect(config.debugDescription.contains("text/plain"))
+  }
+
+  /* The inspect form shows the values of default headers whose names are not sensitive. */
+  @Test func testBhvMisc180TheInspectFormShowsNonSensitiveDefaultHeaderValues() {
+    let config = ConfigurationBuilder()
+      .baseURL("https://api.example.com")
+      .defaultHeader(name: "X-Client", value: "visible-value")
+      .build()
+    #expect(config.description.contains("visible-value"))
+  }
+
+  @Test func testBhvMisc276TheDefaultConfigurationAndTheDefaultBuilderUseTheSpecBaseURL() {
+    #expect(Configuration.default().baseURL == "/api/v3")
+    #expect(ConfigurationBuilder().build().baseURL == "/api/v3")
+  }
+
+  /* Each call to the default configuration returns a distinct configuration object. */
+  @Test func testBhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject() {
+    #expect(Configuration.default() !== Configuration.default())
+  }
+
+  /* Changing a copy of the headers returned from a configuration does not change the configuration. */
+  @Test func testBhvMisc279ChangingACopyOfTheDefaultHeadersDoesNotChangeTheConfiguration() {
+    let config = ConfigurationBuilder().build()
+    var copy = config.defaultHeaders
+    copy["X-Changed"] = "1"
+    #expect(config.defaultHeaders["X-Changed"] == nil)
   }
 }

@@ -118,7 +118,7 @@ void main() {
       );
     });
 
-    test('no token anywhere fails when the authenticator is built', () {
+    test('bhv langdart 022 no token anywhere fails when the authenticator is built', () {
       expect(
         () => BearerAuthenticator(host: '{{{basePath}}}', environment: const {}),
         throwsA(isA<ArgumentError>()),
@@ -255,7 +255,7 @@ void main() {
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
     });
 
-    test('uppercase bearer prefix is stripped', () {
+    test('bhv misc 194 uppercase bearer prefix is stripped', () {
       final auth = BearerAuthenticator(host: '{{{basePath}}}', token: 'BEARER xyz');
 
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
@@ -308,22 +308,28 @@ void main() {
           PetStoreBearerAuthenticator(host: '{{{basePath}}}', token: token),
     };
 
-    builders.forEach((name, build) {
-      test('bhv authbearer 006 $name sends the token as a Bearer header', () {
+    test('bhv authbearer 006 every wrapper sends the token as a Bearer header', () {
+      builders.forEach((name, build) {
         expect(
           build('xyz').authHeaders(),
           equals({'Authorization': 'Bearer xyz'}),
+          reason: name,
         );
       });
+    });
 
-      test('bhv authbearer 005 $name rejects an empty token at construction', () {
-        expect(() => build(''), throwsArgumentError);
+    test('bhv authbearer 005 every wrapper rejects an empty token at construction', () {
+      builders.forEach((name, build) {
+        expect(() => build(''), throwsArgumentError, reason: name);
       });
+    });
 
-      test('bhv authbearer 001 $name prints its own name with the token masked', () {
+    test('bhv authbearer 001 every wrapper prints its own name with the token masked', () {
+      builders.forEach((name, build) {
         expect(
           build('xyz').toString(),
           equals('$name(host: {{{basePath}}}, token: ***)'),
+          reason: name,
         );
       });
     });
@@ -349,58 +355,78 @@ void main() {
 
 {{#hasCredentialEnvVars}}
   group('per-scheme authenticators', () {
+    test('bhv authbearer 010 reads its own variables from the environment', () {
 {{#credentialSchemes}}
-    group('{{className}}', () {
-      test('bhv authbearer 010 reads its own variables from the environment', () {
-        expect(
-          () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
-          returnsNormally,
-        );
-      });
-
-      test('bhv authscheme 001 {{className}} reads only its own variable from the environment', () {
-        expect(
-          () => {{className}}(
-            host: '{{{basePath}}}',
-            environment: const {'UNRELATED_CREDENTIAL': 'x'},
-          ),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{firstVariable}}'))),
-        );
-      });
-
-      test('fails to build naming the variable when none is set', () {
-        expect(
-          () => {{className}}(host: '{{{basePath}}}', environment: const {}),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{firstVariable}}'))),
-        );
-      });
-
-      test('bhv authscheme 003 {{className}} fails at construction naming the variable when its environment variable is empty', () {
-        expect(
-          () => {{className}}(
-            host: '{{{basePath}}}',
-            environment: {'{{firstVariable}}': ''},
-          ),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{firstVariable}}'))),
-        );
-      });
-
-{{#hasAuthSchemeTest}}
-      test('{{{authSchemeTestName}}}', () {
-        expect(
-          () => {{className}}(
-            host: '{{{basePath}}}',
-            environment: {{{emptyEnvironment}}},
-          ),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{emptyVariable}}'))),
-        );
-      });
-{{/hasAuthSchemeTest}}
+      expect(
+        () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
+        returnsNormally,
+        reason: '{{className}}',
+      );
+{{/credentialSchemes}}
     });
+
+    test('bhv authscheme 001 each credential scheme reads only its own variable from the environment', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: const {'UNRELATED_CREDENTIAL': 'x'},
+        ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv langdart 023 fails to build naming the variable when none is set', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(host: '{{{basePath}}}', environment: const {}),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv authscheme 003 each credential scheme fails at construction naming the variable when its environment variable is empty', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: {'{{firstVariable}}': ''},
+        ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv langdart 024 the scheme name in each generated bearer authenticator test identifies the scheme under test', () {
+{{#credentialSchemes}}
+      expect(
+        {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}).toString(),
+        startsWith('{{className}}('),
+        reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+{{#credentialSchemes}}
+{{#hasAuthSchemeTest}}
+    test('{{{authSchemeTestName}}}', () {
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: {{{emptyEnvironment}}},
+        ),
+        throwsA(isA<ArgumentError>().having(
+            (e) => e.message, 'message', contains('{{emptyVariable}}'))),
+      );
+    });
+{{/hasAuthSchemeTest}}
 {{/credentialSchemes}}
   });
 {{/hasCredentialEnvVars}}
@@ -415,7 +441,7 @@ void main() {
       expect(auth.authHeaders()['Authorization'], equals('Bearer fixed'));
     });
 
-    test('an unset environment variable and no other source fails at construction', () {
+    test('bhv langdart 025 an unset environment variable and no other source fails at construction', () {
       expect(
         () => BearerAuthenticator(
           host: '{{{basePath}}}',
@@ -500,6 +526,26 @@ void main() {
       for (final header in headers) {
         expect(['Bearer tok0', 'Bearer tok1'], contains(header['Authorization']));
       }
+    });
+
+    test('bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request', () async {
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () async => 'live',
+      );
+
+      final headers = await auth.authHeadersAsync();
+      expect(headers['Authorization'], equals('Bearer live'));
+    });
+
+    test('bhv misc 067 a token provider that raises fails the request with that same error', () async {
+      final cause = StateError('provider boom');
+      final auth = BearerAuthenticator(
+        host: '{{{basePath}}}',
+        tokenProvider: () => throw cause,
+      );
+
+      await expectLater(auth.authHeadersAsync(), throwsA(same(cause)));
     });
 
     test('bhv config 025 an empty token environment value counts as unset, so construction fails naming the missing variable', () {

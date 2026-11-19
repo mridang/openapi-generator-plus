@@ -215,7 +215,7 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
-    public void ATokenProviderAlsoServesTheSynchronousHeaders()
+    public void BhvLangcsharp072ATokenProviderAlsoServesTheSynchronousHeaders()
     {
         var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("sync"));
 
@@ -249,6 +249,26 @@ public class BearerAuthenticatorTest
     }
 
     [Fact]
+    public async Task BhvMisc194ATokenFromAProviderIsSentUnderTheSameBearerPrefixRule()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("xyz"));
+
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer xyz", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc195AWhitespaceOnlyTokenFromAProviderIsRejectedWhenTheRequestIsMade()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("   "));
+
+        await Assert.ThrowsAnyAsync<ArgumentException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+    }
+
+    [Fact]
     public void BhvAuthbearer010ANullTokenProviderIsRejected()
     {
         Assert.Throws<ArgumentNullException>(() =>
@@ -256,6 +276,66 @@ public class BearerAuthenticatorTest
                 "https://api.example.com",
                 (Func<CancellationToken, Task<string>>)null!
             )
+        );
+    }
+
+    [Fact]
+    public void BhvMisc017ARejectedCredentialIsNeverEchoedInTheConstructionError()
+    {
+        var ex = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "tok\u0001secret")
+        );
+
+        Assert.DoesNotContain("secret", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task BhvMisc066ATokenProviderValueIsSentAsTheBearerCredential()
+    {
+        var auth = new BearerAuthenticator("https://api.example.com", _ => Task.FromResult("live"));
+
+        var headers = await auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal("Bearer live", headers["Authorization"]);
+    }
+
+    [Fact]
+    public async Task BhvMisc067AProviderErrorReachesTheCallerUnchanged()
+    {
+        var failure = new InvalidOperationException("provider boom");
+        var auth = new BearerAuthenticator(
+            "https://api.example.com",
+            _ => Task.FromException<string>(failure)
+        );
+
+        var thrown = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            auth.GetAuthHeadersAsync(TestContext.Current.CancellationToken)
+        );
+
+        Assert.Same(failure, thrown);
+    }
+
+    [Fact]
+    public void BhvMisc193BasicAndBearerSendTheirHeaderAndRefuseBadInputTheSameWay()
+    {
+        Assert.Equal(
+            "Bearer xyz",
+            new BearerAuthenticator("https://api.example.com", "xyz").GetAuthHeaders()[
+                "Authorization"
+            ]
+        );
+        Assert.StartsWith(
+            "Basic ",
+            new BasicAuthenticator("https://api.example.com", "alice", "s3cret").GetAuthHeaders()[
+                "Authorization"
+            ],
+            StringComparison.Ordinal
+        );
+        _ = Assert.Throws<ArgumentException>(() =>
+            new BearerAuthenticator("https://api.example.com", "a\r\nb")
+        );
+        _ = Assert.Throws<ArgumentException>(() =>
+            new BasicAuthenticator("https://api.example.com", "a\r\nb", "s3cret")
         );
     }
 }

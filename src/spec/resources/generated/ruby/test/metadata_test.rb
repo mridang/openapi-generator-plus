@@ -6,6 +6,16 @@ require 'json'
 describe 'Metadata' do
   parallelize_me!
 
+  it 'bhv_misc_092 a property is read by its wire name' do
+    metadata = Petstore::Client::ObjectSerializer.deserialize('{"createdAt":"2024-01-15T10:00:00Z"}', 'Metadata')
+    _(metadata.created_at).must_equal(Time.utc(2024, 1, 15, 10, 0, 0))
+  end
+
+  it 'bhv_misc_093 a model whose only fields are numeric additional properties serializes as an object' do
+    metadata = Petstore::Client::Models::Metadata.new(additional_properties: { '0' => 'x', '1' => 'y' })
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(metadata))).must_equal('0' => 'x', '1' => 'y')
+  end
+
   it 'bhv_models_008 serializes empty metadata' do
     metadata = Petstore::Client::Models::Metadata.new
     json = Petstore::Client::ObjectSerializer.serialize(metadata)
@@ -41,7 +51,7 @@ describe 'Metadata' do
     _(data['createdAt']).wont_be_nil
   end
 
-  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level' do
+  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level, and an additional property whose value type is a model decodes to that model' do
     json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
 
@@ -53,6 +63,13 @@ describe 'Metadata' do
     _(data['customField']).must_equal('hello')
     _(data['count']).must_equal('3')
     _(data['createdAt']).wont_be_nil
+
+    roster = Petstore::Client::ObjectSerializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+
+    _(roster.additional_properties['a']).must_be_kind_of(Petstore::Client::Models::Category)
+    _(roster.additional_properties['a'].id).must_equal(1)
+    _(roster.additional_properties['a'].name).must_equal('x')
+    _ { Petstore::Client::ObjectSerializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise Petstore::Client::Errors::SerializationError
   end
 
   it 'bhv_models_001 captures and round-trips additionalProperties' do
@@ -95,20 +112,20 @@ describe 'Metadata', 'typed additional properties' do
     _(Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES_TYPE).must_equal('String')
   end
 
-  it 'bhv_models_025 an additional property of the wrong JSON type fails the decode' do
+  it 'bhv_models_025 an additional property of the wrong JSON type fails the decode, and instances that differ only in extra properties are not equal' do
     ['{"a":2.5}', '{"a":"2"}'].each do |body|
       _ { serializer.deserialize(body, 'Counters') }.must_raise(failure)
     end
     _ { serializer.deserialize('{"a":3}', 'Metadata') }.must_raise(failure)
-  end
 
-  it 'bhv_models_026 an additional property whose value type is a model decodes to that model' do
-    roster = serializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+    first = serializer.deserialize('{"customField":"a"}', 'Metadata')
+    same = serializer.deserialize('{"customField":"a"}', 'Metadata')
+    other = serializer.deserialize('{"customField":"b"}', 'Metadata')
 
-    _(roster.additional_properties['a']).must_be_kind_of(Petstore::Client::Models::Category)
-    _(roster.additional_properties['a'].id).must_equal(1)
-    _(roster.additional_properties['a'].name).must_equal('x')
-    _ { serializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise(failure)
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_027 a null additional property is rejected unless the value schema is nullable' do
@@ -165,12 +182,6 @@ describe 'Metadata', 'with' do
     _(original.additional_properties).must_equal('customField' => 'a')
     _(changed).wont_be_same_as(original)
   end
-
-  it 'rejects an attribute the model does not have' do
-    error = _ { Petstore::Client::Models::Metadata.new.with(missing: 1) }.must_raise(ArgumentError)
-
-    _(error.message).must_equal('Unknown attribute for Metadata: missing')
-  end
 end
 
 describe 'Metadata', 'round-trip and constants' do
@@ -184,17 +195,6 @@ describe 'Metadata', 'round-trip and constants' do
     data = JSON.parse(json)
 
     _(data['createdAt']).wont_be_nil
-  end
-
-  it 'bhv_models_025 two instances that differ only in undeclared extra properties are not equal' do
-    first = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
-    same = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
-    other = Petstore::Client::ObjectSerializer.deserialize('{"customField":"b"}', 'Metadata')
-
-    _(first).must_equal(same)
-    _(first.hash).must_equal(same.hash)
-    _(first).wont_equal(other)
-    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_005 equality includes the additional properties' do
@@ -271,7 +271,7 @@ describe 'gem manifest' do
   # are default gems that Ruby is unbundling from the standard library
   # (base64 is no longer a default gem on Ruby 3.4+). They must be
   # declared explicitly so the gem keeps working once they are removed.
-  it 'declares the default gems used by the runtime' do
+  it 'bhv_langruby_043 declares the default gems used by the runtime' do
     gemspec_path = File.join(File.expand_path('..', File.dirname(__FILE__)), 'petstore_client.gemspec')
     _(File.exist?(gemspec_path)).must_equal(true)
 
@@ -362,5 +362,90 @@ describe 'Metadata', 'copy, equality and enum contract' do
     short = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.5}', 'Pet')
     padded = Petstore::Client::ObjectSerializer.deserialize('{"name":"Rex","photoUrls":[],"weightKg":1.50}', 'Pet')
     _(short).must_equal(padded)
+  end
+end
+
+describe 'Metadata', 'copies and equality' do
+  parallelize_me!
+
+  it 'bhv_misc_139 a collection passed into a model is copied so later changes to the source do not reach it' do
+    source = { 'owner' => 'team-a' }
+    item = Petstore::Client::Models::Metadata.new(additional_properties: source)
+    source['owner'] = 'team-b'
+    source['extra'] = 'added'
+
+    _(item.additional_properties).must_equal('owner' => 'team-a')
+    _ { item.additional_properties['owner'] = 'x' }.must_raise FrozenError
+
+    variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { config.variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(variables).wont_be_same_as(config.variables)
+  end
+
+  it 'bhv_misc_143 a copy keeps the additional properties and compares equal to the original' do
+    original = Petstore::Client::Models::Metadata.new(additional_properties: { 'customField' => 'a' })
+    copy = original.with
+
+    _(copy.additional_properties).must_equal('customField' => 'a')
+    _(copy).must_equal(original)
+  end
+
+  it 'bhv_misc_146 a copy with no changes is a new instance that compares equal to the original' do
+    original = Petstore::Client::Models::Metadata.new(created_at: Time.utc(2024, 1, 1, 0, 0, 0))
+    copy = original.with
+
+    _(copy).wont_be_same_as(original)
+    _(copy).must_equal(original)
+  end
+
+  it 'bhv_misc_147 a copy holds the same nested object as the original rather than a duplicate' do
+    original = Petstore::Client::Models::Department.new(
+      name: 'Ops',
+      lead: Petstore::Client::Models::Employee.new(name: 'Ann')
+    )
+    copy = original.with(name: 'Eng')
+
+    _(copy.lead).must_be_same_as(original.lead)
+  end
+
+  it 'bhv_misc_148 a copy serializes to the wire form of the original with its changes applied' do
+    original = Petstore::Client::Models::Department.new(
+      name: 'Ops',
+      lead: Petstore::Client::Models::Employee.new(name: 'Ann')
+    )
+    copy = original.with(name: 'Eng')
+
+    _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(copy))).must_equal(
+      'name' => 'Eng', 'lead' => { 'name' => 'Ann' }
+    )
+  end
+
+  it 'bhv_misc_149 a copy with an attribute the model does not declare is refused naming the attribute' do
+    original = Petstore::Client::Models::Metadata.new
+
+    error = _ { original.with(undeclaredField: 'x') }.must_raise ArgumentError
+    _(error.message).must_include 'undeclaredField'
+  end
+
+  it 'bhv_misc_150 models whose fields hold equal values compare equal, and differing values compare unequal' do
+    created = Time.utc(2024, 1, 1, 0, 0, 0)
+
+    _(Petstore::Client::Models::Metadata.new(created_at: created)).must_equal(
+      Petstore::Client::Models::Metadata.new(created_at: created)
+    )
+    _(Petstore::Client::Models::Metadata.new(created_at: created)).wont_equal(
+      Petstore::Client::Models::Metadata.new(created_at: Time.utc(2025, 1, 1, 0, 0, 0))
+    )
+  end
+
+  it 'bhv_misc_151 a model holding a map compares equal when the entries match and unequal when any entry differs' do
+    _(Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })).must_equal(
+      Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })
+    )
+    _(Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '2' })).wont_equal(
+      Petstore::Client::Models::Metadata.new(additional_properties: { 'a' => '1', 'b' => '3' })
+    )
   end
 end

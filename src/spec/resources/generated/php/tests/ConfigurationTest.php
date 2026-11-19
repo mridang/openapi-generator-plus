@@ -296,7 +296,7 @@ test('bhv config 003 builder is fluent', function (): void {
     expect($builder->server($server))->toBe($builder);
 });
 
-test('every SDK class autoloads cold from its own file', function (): void {
+test('bhv langphp 041 every SDK class autoloads cold from its own file', function (): void {
     /* PSR-4 loads a class only from a file named after it. A class declared
      * in another class's file (an inline enum next to its model, a server
      * variant next to its API group) works only once that other file happens
@@ -329,7 +329,7 @@ test('every SDK class autoloads cold from its own file', function (): void {
     expect($checked)->toBeGreaterThan(0);
 });
 
-test('the README names the composer package and the real proxy setter', function (): void {
+test('bhv langphp 042 the README names the composer package and the real proxy setter', function (): void {
     $root = dirname(__DIR__);
     /** @var array{name: string} $composer */
     $composer = json_decode((string) file_get_contents($root . '/composer.json'), true);
@@ -341,14 +341,14 @@ test('the README names the composer package and the real proxy setter', function
     expect($readme)->not->toContain('dead code');
 });
 
-test('SKILLS types file upload parameters as the SplFileObject the options require', function (): void {
+test('bhv langphp 043 SKILLS types file upload parameters as the SplFileObject the options require', function (): void {
     $skills = (string) file_get_contents(__DIR__ . '/../SKILLS.md');
 
     expect($skills)->toContain('A multipart file field is a `\SplFileObject`');
     expect($skills)->not->toContain('SplFileInfo');
 });
 
-test('phpunit.xml runs the hand written spec directory as well as tests', function (): void {
+test('bhv langphp 044 phpunit.xml runs the hand written spec directory as well as tests', function (): void {
     $root = dirname(__DIR__);
     if (!is_file($root . '/phpunit.xml') || !is_dir($root . '/spec')) {
         test()->markTestSkipped('No phpunit.xml or no spec directory in this project');
@@ -394,7 +394,7 @@ test('bhv config 004 builder merges single and bulk default headers', function (
     expect($config->defaultHeaders)->toBe(['X-First' => 'one', 'X-Second' => 'two', 'X-Third' => 'three']);
 });
 
-test('a call hook set on the builder is returned by the configuration', function (): void {
+test('bhv langphp 045 a call hook set on the builder is returned by the configuration', function (): void {
     $hook = new RecordingCallHook();
 
     $config = Configuration::builder()->callHook($hook)->build();
@@ -403,14 +403,74 @@ test('a call hook set on the builder is returned by the configuration', function
     expect($config->callHook)->toBeInstanceOf(CallHook::class);
 });
 
-test('a configuration has no call hook unless one is set', function (): void {
+test('bhv langphp 046 a configuration has no call hook unless one is set', function (): void {
     expect(Configuration::builder()->build()->getCallHook())->toBeNull();
     expect((new Configuration())->getCallHook())->toBeNull();
     expect(Configuration::builder()->callHook(new RecordingCallHook())->callHook(null)->build()->getCallHook())->toBeNull();
 });
 
-test('the debug output of a configuration does not show the call hook', function (): void {
+test('bhv langphp 047 the debug output of a configuration does not show the call hook', function (): void {
     $config = Configuration::builder()->callHook(new RecordingCallHook())->build();
 
     expect(print_r($config, true))->not->toContain('RecordingCallHook');
+});
+
+test('bhv config 026 a configuration built through the builder entry point returns the base url set on it', function (): void {
+    $config = Configuration::builder()->baseUrl('https://api.example.test')->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.test');
+});
+
+test('bhv misc 276 the default configuration and the default builder both use the spec base url', function (): void {
+    expect((new Configuration())->baseUrl)->toBe('/api/v3');
+    expect(Configuration::builder()->build()->baseUrl)->toBe('/api/v3');
+});
+
+test('bhv misc 277 each call to the default configuration returns a distinct configuration object', function (): void {
+    expect(new Configuration())->not->toBe(new Configuration());
+});
+
+test('bhv misc 278 a server url with templated variables resolves to its default values when no overrides are given', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('bhv misc 279 changing the headers returned from a configuration does not change the headers it holds', function (): void {
+    $config = Configuration::builder()->defaultHeader('X-Custom', 'value')->build();
+
+    $headers = $config->defaultHeaders;
+    $headers['X-Custom'] = 'changed';
+
+    expect($config->defaultHeaders)->toBe(['X-Custom' => 'value']);
+});
+
+test('bhv misc 136 the debug output shows the base url and the non sensitive default headers', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://api.example.com/v2')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($config, true);
+
+    expect($dump)->toContain('https://api.example.com/v2');
+    expect($dump)->toContain('X-Trace');
+    expect($dump)->toContain('visible');
 });

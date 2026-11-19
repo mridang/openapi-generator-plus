@@ -54,7 +54,9 @@ class BaseApi {
        config = config ?? Configuration.defaultConfiguration(),
        _headerSelector = HeaderSelector(),
        _authenticator = authenticator,
-       _schemes = schemeAuthenticators ?? const {} {
+       _schemes = Map<String, Authenticator>.of(
+         schemeAuthenticators ?? const {},
+       ) {
     /* A scheme credential that sends HTTP requests of its own (token exchange,
        discovery) is given this API's transport as soon as the client is built,
        so it never reaches a request without one. */
@@ -199,18 +201,10 @@ class BaseApi {
         'Invalid maxRetries: must be zero or a positive number (got $maxRetries)',
       );
     }
-    /* The path the errors name: no scheme, host, query or fragment. */
-    final requestPath = _requestPathOf(path);
-    var targetUrl = path;
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      /* Strip trailing slash from baseUrl when path starts with `/` so
-       * baseUrl='https://x/' + path='/y' produces 'https://x/y', not
-       * 'https://x//y' which most servers route to 404. */
-      final base = path.startsWith('/')
-          ? config.baseUrl.replaceAll(RegExp(r'/+$'), '')
-          : config.baseUrl;
-      targetUrl = base + path;
-    }
+    final targetUrl = _urlFor(config.baseUrl, path);
+    /* The path the errors name: the base path prefix and the operation path,
+     * with no scheme, host, query or fragment. */
+    final requestPath = _requestPathOf(targetUrl);
 
     /* Three-state auth resolution (the no-auth sentinel is a distinct
      * third state, so `null` is no longer overloaded):
@@ -434,10 +428,22 @@ class BaseApi {
         }
 
         /* No response arrived: a network error. A timeout is not retried, since
-         * the budget that expired would be spent again on the same request. */
+         * the budget that expired would be spent again on the same request. A
+         * non-idempotent method is not sent a second time, because the first send
+         * may already have changed the server. */
         if (replayable &&
+            const {
+              'GET',
+              'HEAD',
+              'OPTIONS',
+              'TRACE',
+              'PUT',
+              'DELETE',
+              'QUERY',
+            }.contains(method.toUpperCase()) &&
             retries < maxRetriesLeft &&
-            failure is! NetworkTimeoutException) {
+            failure is! NetworkTimeoutException &&
+            !_isTlsFailure(failure!)) {
           final delay = _retryDelay(retries, const {});
           if (_withinBudget(delay, budgetMs, clock)) {
             retries++;
@@ -452,11 +458,24 @@ class BaseApi {
     }
   }
 
-  /// The path the errors name: no scheme, host, query or fragment.
-  static String _requestPathOf(String path) =>
-      path.startsWith('http://') || path.startsWith('https://')
-      ? ApiException.stripQuery(Uri.parse(path).path)
-      : ApiException.stripQuery(path);
+  /// The URL a call is sent to: [path] as is when absolute, otherwise joined
+  /// onto [baseUrl]. A trailing slash on [baseUrl] is stripped when [path]
+  /// starts with `/`, so `https://x/` + `/y` gives `https://x/y`, not
+  /// `https://x//y`, which most servers route to 404.
+  static String _urlFor(String baseUrl, String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    final base = path.startsWith('/')
+        ? baseUrl.replaceAll(RegExp(r'/+$'), '')
+        : baseUrl;
+    return base + path;
+  }
+
+  /// The path the errors name: the base path prefix and the operation path,
+  /// with no scheme, host, query or fragment.
+  static String _requestPathOf(String url) =>
+      url.startsWith('http://') || url.startsWith('https://')
+      ? ApiException.stripQuery(Uri.parse(url).path)
+      : ApiException.stripQuery(url);
 
   /// Waits for [delay] before a retry. Overridable so a test does not have to
   /// wait for real time.
@@ -481,6 +500,18 @@ class BaseApi {
       status == 409 ||
       status == 429 ||
       (status >= 500 && status <= 599 && status != 501);
+
+  /// Whether a network [failure] is a TLS or certificate failure. The shared
+  /// loop cannot name the dart:io types (the web build has none), so it matches
+  /// the type name or the platform text the transport carries in the message
+  /// or the cause. A TLS failure is never retried: the same peer would fail the
+  /// same handshake again.
+  static bool _isTlsFailure(ApiException failure) {
+    final text = '${failure.message} ${failure.cause}';
+    return text.contains('TlsException') ||
+        text.contains('HandshakeException') ||
+        text.contains('CERTIFICATE_VERIFY_FAILED');
+  }
 
   /// Time left of the end-to-end timeout of [budgetMs] milliseconds, never
   /// negative.
@@ -747,7 +778,7 @@ class BaseApi {
         responseHeaders: response.headers,
         responseBody: response.body,
         requestMethod: method,
-        requestPath: _requestPathOf(path),
+        requestPath: _requestPathOf(_urlFor(config.baseUrl, path)),
       );
     }
 

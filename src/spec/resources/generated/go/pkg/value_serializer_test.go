@@ -12,6 +12,8 @@ package petstore
 import (
 	"errors"
 	"fmt"
+	"net/netip"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +25,7 @@ import (
 // An optional integer, number or boolean parameter is a pointer in the Options
 // struct; the query, header and cookie paths must send its value, not the
 // pointer address.
-func TestValueSerializer_SerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
+func TestBhvLanggo103_ValueSerializer_SerializeStyled_OptionalScalarPointersSendTheirValue(t *testing.T) {
 	t.Parallel()
 	limit := int64(5)
 	ratio := 1.5
@@ -618,7 +620,7 @@ func TestBhvSerializationparam087_ValueSerializer_SerializeStyled_SimpleScalarPa
 // %2F so it cannot inject extra path segments. This is asserted both for the
 // simple style and for the no-style (empty) path, since api/api.mustache routes
 // every path param through SerializeStyled.
-func TestValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
+func TestBhvLanggo104_ValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "a/b", "path", "string", "", "simple", false)
 	if result != "a%2Fb" {
@@ -626,7 +628,7 @@ func TestValueSerializer_SerializeStyled_SimpleScalarPathEncodesSlash(t *testing
 	}
 }
 
-func TestValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
+func TestBhvLanggo105_ValueSerializer_SerializeStyled_NoStylePathEncodesSlash(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("id", "a/b", "path", "string", "", "", false)
 	if result != "a%2Fb" {
@@ -644,11 +646,17 @@ func TestBhvSerializationparam106_ValueSerializer_SerializeStyled_PathWithNullSt
 
 // ── SerializeStyled: form ──
 
-func TestBhvSerializationparam105_ValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
+func TestBhvSerializationparam105_ValueSerializer_SerializeStyled_FormScalarAndIpAddressCanonicalText(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "blue", "query", "string", "", "form", true)
 	if result != "blue" {
 		t.Errorf("expected 'blue', got %v", result)
+	}
+	if got := serializeStyled("ip", netip.MustParseAddr("192.0.2.1"), "query", "string", "", "form", true); got != "192.0.2.1" {
+		t.Errorf("expected 192.0.2.1, got %v", got)
+	}
+	if got := serializeStyled("ip", netip.MustParseAddr("2001:0DB8::1"), "query", "string", "", "form", true); got != "2001:db8::1" {
+		t.Errorf("expected 2001:db8::1, got %v", got)
 	}
 }
 
@@ -778,7 +786,7 @@ func TestBhvSerializationparam076_ValueSerializer_SerializeStyled_PipeDelimitedS
 // reflection path is exercised without importing the models package.
 type myColorEnum string
 
-func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
+func TestBhvLanggo106_ValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	// *[]string is the shape of an OPTIONAL array query param.
@@ -791,7 +799,7 @@ func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToSlice(t *testing.
 	}
 }
 
-func TestValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
+func TestBhvLanggo107_ValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing.T) {
 	t.Parallel()
 	sizes := []string{"S", "M"}
 	result := serializeStyled("sizes", &sizes, "query", "array", "ssv", "spaceDelimited", false)
@@ -800,7 +808,7 @@ func TestValueSerializer_SerializeStyled_SpaceDelimitedPointerToSlice(t *testing
 	}
 }
 
-func TestValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
+func TestBhvLanggo108_ValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	result := serializeStyled("colors", &colors, "query", "array", "", "form", true)
@@ -813,7 +821,7 @@ func TestValueSerializer_SerializeStyled_FormExplodePointerToSliceReturnsList(t 
 	}
 }
 
-func TestValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
+func TestBhvLanggo109_ValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	colors := []myColorEnum{"blue", "black"}
 	// A slice of a named element type must reflect per-element, not %v the slice.
@@ -823,7 +831,7 @@ func TestValueSerializer_SerializeStyled_FormTypedEnumSlice(t *testing.T) {
 	}
 }
 
-func TestValueSerializer_SerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
+func TestBhvLanggo110_ValueSerializer_SerializeStyled_PipeDelimitedPointerToTypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	colors := []myColorEnum{"blue", "black"}
 	// *[]EnumType — optional array of a named enum: both deref and per-element
@@ -844,7 +852,7 @@ func TestBhvSerializationparam082_ValueSerializer_SerializeStyled_SimpleHeaderPo
 	}
 }
 
-func TestValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
+func TestBhvLanggo111_ValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
 	t.Parallel()
 	colors := []string{"red", "green"}
 	// Styled path-array branch must also dereference the pointer and encode
@@ -859,7 +867,7 @@ func TestValueSerializer_SerializeStyled_PathPointerToSliceArray(t *testing.T) {
 // pointer-to-slice and a typed slice as arrays, and report nil pointers as
 // non-arrays so the caller omits the param rather than emitting a bogus value.
 
-func TestValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
+func TestBhvLanggo112_ValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
 	t.Parallel()
 	colors := []string{"blue", "black"}
 	items, ok := toStringSlice(&colors)
@@ -871,7 +879,7 @@ func TestValueSerializer_ToStringSlice_PointerToSlice(t *testing.T) {
 	}
 }
 
-func TestValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
+func TestBhvLanggo113_ValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
 	t.Parallel()
 	var colors *[]string
 	if _, ok := toStringSlice(colors); ok {
@@ -879,7 +887,7 @@ func TestValueSerializer_ToStringSlice_NilPointerIsNotArray(t *testing.T) {
 	}
 }
 
-func TestValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
+func TestBhvLanggo114_ValueSerializer_ToStringSlice_TypedEnumSlice(t *testing.T) {
 	t.Parallel()
 	items, ok := toStringSlice([]myColorEnum{"blue", "black"})
 	if !ok {
@@ -1334,7 +1342,7 @@ func TestBhvSerialization015_ValueSerializer_SerializeStyled_ObjectValuedParamet
 	}
 }
 
-func TestValueSerializer_SerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
+func TestBhvLanggo115_ValueSerializer_SerializeStyled_ObjectWithNoSetPropertiesIsOmittedFromTheQuery(t *testing.T) {
 	t.Parallel()
 	if got := serializeStyled("criteria", &styledCriteria{}, "query", "styledCriteria", "", "form", true); got != nil {
 		t.Errorf("expected the parameter to be omitted, got %v", got)
@@ -1538,5 +1546,92 @@ func TestBhvMisc086_ValueSerializer_AnElementHoldingJsonTextIsNotDecodedAgain(t 
 	got := fmt.Sprint(serializeStyled("tags", []string{`{"a":1}`}, "query", "array", "", "form", false))
 	if !strings.Contains(got, `{"a":1}`) {
 		t.Errorf("expected the element kept as its own text, got %s", got)
+	}
+}
+
+func TestBhvMisc084_ValueSerializer_ASetOptionalScalarIsSentInEveryLocation(t *testing.T) {
+	t.Parallel()
+	n := 7
+	value := &n
+	if got := toPathValue(value); got != "7" {
+		t.Errorf("expected path value 7, got %q", got)
+	}
+	if got := toHeaderValue(value); got != "7" {
+		t.Errorf("expected header value 7, got %q", got)
+	}
+	if got := toCookieValue(value); got != "7" {
+		t.Errorf("expected cookie value 7, got %q", got)
+	}
+	if got := fmt.Sprint(toQueryValue(value, "")); got != "7" {
+		t.Errorf("expected query value 7, got %q", got)
+	}
+}
+
+// A scalar form query parameter is emitted with its own name and its string value.
+func TestBhvMisc107_ValueSerializer_SerializeStyled_FormScalarKeepsItsStringValue(t *testing.T) {
+	t.Parallel()
+	if got := serializeStyled("filter", "x", "query", "string", "", "form", true); got != "x" {
+		t.Errorf("expected form scalar x, got %v", got)
+	}
+}
+
+// An object parameter leaves out its absent values and keeps the present ones under the wire name.
+func TestBhvMisc120_ValueSerializer_SerializeDeepObject_AbsentValuesAreLeftOut(t *testing.T) {
+	t.Parallel()
+	result, err := serializeDeepObject("filter", map[string]any{"type": "alpha", "status": nil})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := result["filter[status]"]; ok {
+		t.Errorf("expected an absent value to be left out, got %v", result)
+	}
+	if result["filter[type]"] != "alpha" {
+		t.Errorf("expected filter[type]='alpha', got %q", result["filter[type]"])
+	}
+}
+
+// A whole number query value is written as a plain number.
+func TestBhvMisc238_ValueSerializer_NumberQueryValueIsAPlainNumber(t *testing.T) {
+	t.Parallel()
+	if got := fmt.Sprint(toQueryValue(12, "")); got != "12" {
+		t.Errorf("expected query value 12, got %q", got)
+	}
+}
+
+// An array item containing a comma keeps the literal comma in every path style.
+func TestBhvMisc250_ValueSerializer_ArrayItemCommaIsKeptAcrossPathStyles(t *testing.T) {
+	t.Parallel()
+	for _, style := range []string{"simple", "label", "matrix"} {
+		got := fmt.Sprint(serializeStyled("ids", []string{"a,b", "c"}, "path", "array", "", style, false))
+		if !strings.Contains(got, "a,b") {
+			t.Errorf("style %s: expected the literal comma in %q", style, got)
+		}
+	}
+}
+
+// An allowReserved query value still percent-encodes hash and bracket characters.
+func TestBhvMisc253_ValueSerializer_AllowReservedStillEncodesHashAndBrackets(t *testing.T) {
+	t.Parallel()
+	got := encodeQueryValue("a/b#[c]", true)
+	for _, want := range []string{"a/b", "%23", "%5B", "%5D"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("expected %q in %q", want, got)
+		}
+	}
+}
+
+// An unmarked query value percent-encodes reserved characters such as slash and colon.
+func TestBhvMisc254_ValueSerializer_UnmarkedQueryEncodesSlashAndColon(t *testing.T) {
+	t.Parallel()
+	if got := url.QueryEscape("a/b:c"); got != "a%2Fb%3Ac" {
+		t.Errorf("expected a%%2Fb%%3Ac, got %q", got)
+	}
+}
+
+// Separate query parameters encode a space as %20.
+func TestBhvMisc255_ValueSerializer_QuerySpaceIsEncodedAsPercent20(t *testing.T) {
+	t.Parallel()
+	if got := encodeQueryAllowingReserved("a b"); got != "a%20b" {
+		t.Errorf("expected a%%20b, got %q", got)
 	}
 }

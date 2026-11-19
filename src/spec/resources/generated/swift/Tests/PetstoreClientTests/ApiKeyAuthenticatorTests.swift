@@ -412,6 +412,16 @@ import Testing
     #expect(auth.cookieParams().isEmpty)
   }
 
+  /* An API key configured for the header location is never sent as a query or cookie value. */
+  @Test func testBhvMisc057AnApiKeyIsOnlySentAtItsConfiguredLocation() async throws {
+    let auth = try ApiKeyAuthenticator(
+      host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: "header-key",
+      location: .header)
+    #expect(auth.queryParams().isEmpty)
+    #expect(auth.cookieParams().isEmpty)
+    #expect(await auth.authHeaders() == ["X-API-Key": "header-key"])
+  }
+
   /* A session cookie is sent as SESSION_ID with its value unchanged, and nowhere else. */
   @Test func testBhvAuth032SessionCookieIsSentAsSessionIdExactly() async throws {
     let auth = try ApiKeyAuthenticator(
@@ -442,5 +452,18 @@ import Testing
         host: "https://api.example.com", keyParamName: "X-API-Key", apiKey: apiKey,
         location: location)
     }
+  }
+
+  /* A credential is sent using the security scheme the operation declares, such as an API key header rather than bearer. */
+  @Test func testBhvMisc221ACredentialIsSentInTheDeclaredApiKeyHeaderNotBearer() async throws {
+    let auth = try ApiKeyAuthenticator(
+      host: "https://api.example.com",
+      keyParamName: "X-API-Key",
+      apiKey: "key-1",
+      location: .header
+    )
+    let headers = await auth.authHeaders()
+    #expect(headers["X-API-Key"] == "key-1")
+    #expect(headers["Authorization"] == nil)
   }
 }

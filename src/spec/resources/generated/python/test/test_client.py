@@ -217,11 +217,26 @@ class TestClientCredentials:
 
         assert _authorization(client) == "Bearer live"
 
-    def test_a_token_and_a_token_provider_together_are_rejected(self) -> None:
+    def test_bhv_lang_python_045_a_token_and_a_token_provider_together_are_rejected(
+        self,
+    ) -> None:
         with pytest.raises(ValueError, match="not both"):
             Client.with_token(
                 "https://arg.example.com", "arg-token", token_provider=lambda: "live"
             )
+
+    def test_bhv_misc_187_a_client_built_without_host_or_token_takes_both_from_the_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "https://env.example.com"
+        )
+        monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
+
+        client = Client.with_token()
+
+        assert _host(client) == "https://env.example.com"
+        assert _authorization(client) == "Bearer env-token"
 
 
 class TestClientSchemeCredentials:
@@ -233,12 +248,23 @@ class TestClientSchemeCredentials:
         with pytest.raises(ValueError, match="At least one credential is required"):
             Client()
 
-    def test_the_default_authenticator_alone_is_enough(self) -> None:
+    def test_bhv_lang_python_046_the_default_authenticator_alone_is_enough(
+        self,
+    ) -> None:
         client = Client(
             authenticator=BearerAuthenticator("https://default.example.com", "tok")
         )
 
         assert _host(client) == "https://default.example.com"
+
+    def test_bhv_misc_206_a_client_built_with_only_a_default_authenticator_takes_its_host(
+        self,
+    ) -> None:
+        client = Client(
+            authenticator=BearerAuthenticator("https://only-default.example.com", "tok")
+        )
+
+        assert _host(client) == "https://only-default.example.com"
 
     def test_bhv_lifecycle_015_the_client_takes_one_keyword_argument_per_security_scheme(
         self,
@@ -266,7 +292,7 @@ class TestClientSchemeCredentials:
             "sso_auth",
         ]
 
-    def test_the_scheme_credentials_are_keyword_only(self) -> None:
+    def test_bhv_lang_python_047_the_scheme_credentials_are_keyword_only(self) -> None:
         parameters = inspect.signature(Client.__init__).parameters
 
         for name in [
@@ -287,7 +313,9 @@ class TestClientSchemeCredentials:
             assert parameters[name].kind is inspect.Parameter.KEYWORD_ONLY
             assert parameters[name].default is None
 
-    def test_each_scheme_names_the_scheme_it_is_the_credential_of(self) -> None:
+    def test_bhv_lang_python_048_each_scheme_names_the_scheme_it_is_the_credential_of(
+        self,
+    ) -> None:
         held = BearerAuthenticator("https://pet_store_basic.example.com", "tok")
 
         client = Client(pet_store_basic=held)
@@ -379,7 +407,33 @@ class TestClientSchemeCredentials:
         assert client.store._authenticator is default
         assert list(client.store._scheme_authenticators.values()) == [held]
 
-    def test_the_call_hook_reaches_every_api_group(self) -> None:
+    def test_bhv_misc_071_a_credential_that_needs_http_receives_the_clients_transport(
+        self,
+    ) -> None:
+        class TransportAware(BearerAuthenticator, HttpAwareAuthenticator):
+            received: Any = None
+
+            def set_api_client(self, api_client: Any) -> None:
+                self.received = api_client
+
+        aware = TransportAware("https://api.example.com", "tok")
+
+        client = Client(aware)
+
+        assert aware.received is client._api_client
+
+    def test_bhv_misc_075_a_credential_keyed_to_an_undeclared_scheme_is_refused_at_build(
+        self,
+    ) -> None:
+        with pytest.raises(TypeError):
+            undeclared: Any = {
+                "undeclaredScheme": BearerAuthenticator(
+                    "https://api.example.com", "tok"
+                )
+            }
+            Client(**undeclared)
+
+    def test_bhv_lang_python_049_the_call_hook_reaches_every_api_group(self) -> None:
         class _Hook:
             def start(
                 self, info: CallInfo, headers: dict[str, str]
@@ -440,6 +494,8 @@ class _Reply:
 class _SlowPool:
     """A pool manager double whose request waits until the test lets it finish."""
 
+    headers = HTTPHeaderDict()
+
     def __init__(self) -> None:
         self.started = threading.Event()
         self.finish = threading.Event()
@@ -479,32 +535,36 @@ class TestClientClose:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-
-        assert pool.clears == 0
-        pool.finish.set()
+        try:
+            assert await asyncio.to_thread(pool.started.wait, 5)
+            client.close()
+            assert pool.clears == 0
+        finally:
+            pool.finish.set()
         assert (await request).status_code == 200
         assert pool.clears == 1
 
-    async def test_the_transport_is_released_when_the_last_of_several_requests_ends(
+    async def test_bhv_lang_python_050_the_transport_is_released_when_the_last_of_several_requests_ends(
         self,
     ) -> None:
         pool = _SlowPool()
         client = _owning(pool)
         first = asyncio.ensure_future(_send(client))
         second = asyncio.ensure_future(_send(client))
-        while pool.requests < 2:
-            await asyncio.sleep(0.01)
-
-        client.close()
-        pool.finish.set()
+        try:
+            for _ in range(500):
+                if pool.requests >= 2:
+                    break
+                await asyncio.sleep(0.01)
+            assert pool.requests == 2
+            client.close()
+        finally:
+            pool.finish.set()
         await asyncio.gather(first, second)
 
         assert pool.clears == 1
 
-    def test_closing_with_nothing_in_flight_releases_the_transport_at_once(
+    def test_bhv_lang_python_051_closing_with_nothing_in_flight_releases_the_transport_at_once(
         self,
     ) -> None:
         pool = _SlowPool()
@@ -517,11 +577,12 @@ class TestClientClose:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-        client.close()
-        pool.finish.set()
+        try:
+            assert await asyncio.to_thread(pool.started.wait, 5)
+            client.close()
+            client.close()
+        finally:
+            pool.finish.set()
         await request
         client.close()
 
@@ -549,11 +610,12 @@ class TestClientClose:
         pool = _SlowPool()
         client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
         request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-        client.close()
-        pool.finish.set()
+        try:
+            assert await asyncio.to_thread(pool.started.wait, 5)
+            client.close()
+            client.close()
+        finally:
+            pool.finish.set()
         await request
 
         assert pool.clears == 0
@@ -565,6 +627,20 @@ class TestClientClose:
             assert pool.clears == 0
 
         assert pool.clears == 1
+
+    async def test_bhv_misc_184_close_returns_without_waiting_for_a_running_request(
+        self,
+    ) -> None:
+        pool = _SlowPool()
+        client = _owning(pool)
+        request = asyncio.ensure_future(_send(client))
+        await asyncio.to_thread(pool.started.wait, 5)
+
+        client.close()
+
+        assert not request.done()
+        pool.finish.set()
+        assert (await request).status_code == 200
 
 
 class _OwnedPool(urllib3.PoolManager):
@@ -829,3 +905,27 @@ class TestMocking:
         via_protocol.close()
 
         assert fake.closed == 2
+
+
+class TestClientCloseState:
+    def test_bhv_misc_183_closing_a_client_with_nothing_to_release_succeeds(
+        self,
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+
+        client.close()
+
+    def test_bhv_misc_188_a_client_reports_closed_only_after_close(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        before = client._closed
+
+        client.close()
+
+        assert before is False
+        assert client._closed is True
+
+    def test_bhv_misc_203_closing_an_already_closed_client_does_nothing(self) -> None:
+        client = DefaultApiClient(TransportOptions.builder().build())
+        client.close()
+
+        client.close()

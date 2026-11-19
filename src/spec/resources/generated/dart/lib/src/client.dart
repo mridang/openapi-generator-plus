@@ -266,7 +266,7 @@ class Client implements ClientInterface {
     return Client(
       authenticator: BearerAuthenticator(
         host: host,
-        token: accessToken,
+        token: accessToken == null || accessToken.isEmpty ? null : accessToken,
         tokenProvider: tokenProvider,
       ),
       transportOptions: transportOptions,

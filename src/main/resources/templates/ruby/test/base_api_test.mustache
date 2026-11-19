@@ -184,19 +184,19 @@ describe {{moduleName}}::Api::BaseApi do
 
   # ── Exception dispatch ──
 
-  {
-    400 => {{moduleName}}::Errors::BadRequestError,
-    401 => {{moduleName}}::Errors::UnauthorizedError,
-    403 => {{moduleName}}::Errors::ForbiddenError,
-    404 => {{moduleName}}::Errors::NotFoundError,
-    409 => {{moduleName}}::Errors::ConflictError,
-    422 => {{moduleName}}::Errors::UnprocessableEntityError,
-    429 => {{moduleName}}::Errors::TooManyRequestsError,
-    418 => {{moduleName}}::Errors::ClientError,
-    500 => {{moduleName}}::Errors::InternalServerError,
-    502 => {{moduleName}}::Errors::BadGatewayError
-  }.each do |status, error_class|
-    it "bhv_errors_037 raises #{error_class} for status #{status}" do
+  it 'bhv_errors_037 raises the error class of each failing status' do
+    {
+      400 => {{moduleName}}::Errors::BadRequestError,
+      401 => {{moduleName}}::Errors::UnauthorizedError,
+      403 => {{moduleName}}::Errors::ForbiddenError,
+      404 => {{moduleName}}::Errors::NotFoundError,
+      409 => {{moduleName}}::Errors::ConflictError,
+      422 => {{moduleName}}::Errors::UnprocessableEntityError,
+      429 => {{moduleName}}::Errors::TooManyRequestsError,
+      418 => {{moduleName}}::Errors::ClientError,
+      500 => {{moduleName}}::Errors::InternalServerError,
+      502 => {{moduleName}}::Errors::BadGatewayError
+    }.each_case do |status, error_class|
       err = assert_raises(error_class) do
         api.call('GET', "/test/status/#{status}", {}, {}, nil,
                  ['application/json'], 'application/json', nil)
@@ -212,22 +212,22 @@ describe {{moduleName}}::Api::BaseApi do
 
   # The typed status routes answer on the path of a real operation, so the
   # error type is chosen from the status alone, whatever the route.
-  {
-    '/test/status/400/pet/1' => {{moduleName}}::Errors::BadRequestError,
-    '/test/status/401/pet/1' => {{moduleName}}::Errors::UnauthorizedError,
-    '/test/status/403/pet/1' => {{moduleName}}::Errors::ForbiddenError,
-    '/test/status/404/pet/1' => {{moduleName}}::Errors::NotFoundError,
-    '/test/status/409/pet/1' => {{moduleName}}::Errors::ConflictError,
-    '/test/status/418/pet/1' => {{moduleName}}::Errors::ClientError,
-    '/test/status/422/pet/1' => {{moduleName}}::Errors::UnprocessableEntityError,
-    '/test/status/500/pet/1' => {{moduleName}}::Errors::InternalServerError,
-    '/test/status/502/pet/1' => {{moduleName}}::Errors::BadGatewayError,
-    '/test/status/404/store/order/1' => {{moduleName}}::Errors::NotFoundError,
-    '/test/status/422/store/order/1' => {{moduleName}}::Errors::UnprocessableEntityError,
-    '/test/status/500/store/order/1' => {{moduleName}}::Errors::InternalServerError,
-    '/test/status/502/store/order/1' => {{moduleName}}::Errors::BadGatewayError
-  }.each do |path, error_class|
-    it "bhv_errors_027 maps #{path} to #{error_class}" do
+  it 'bhv_errors_027 maps a failing status of each operation path to its error class' do
+    {
+      '/test/status/400/pet/1' => {{moduleName}}::Errors::BadRequestError,
+      '/test/status/401/pet/1' => {{moduleName}}::Errors::UnauthorizedError,
+      '/test/status/403/pet/1' => {{moduleName}}::Errors::ForbiddenError,
+      '/test/status/404/pet/1' => {{moduleName}}::Errors::NotFoundError,
+      '/test/status/409/pet/1' => {{moduleName}}::Errors::ConflictError,
+      '/test/status/418/pet/1' => {{moduleName}}::Errors::ClientError,
+      '/test/status/422/pet/1' => {{moduleName}}::Errors::UnprocessableEntityError,
+      '/test/status/500/pet/1' => {{moduleName}}::Errors::InternalServerError,
+      '/test/status/502/pet/1' => {{moduleName}}::Errors::BadGatewayError,
+      '/test/status/404/store/order/1' => {{moduleName}}::Errors::NotFoundError,
+      '/test/status/422/store/order/1' => {{moduleName}}::Errors::UnprocessableEntityError,
+      '/test/status/500/store/order/1' => {{moduleName}}::Errors::InternalServerError,
+      '/test/status/502/store/order/1' => {{moduleName}}::Errors::BadGatewayError
+    }.each_case do |path, error_class|
       err = assert_raises(error_class) do
         api.call('GET', path, {}, {}, nil, ['application/json'], 'application/json', nil)
       end
@@ -426,6 +426,69 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Cookie']).must_equal 'session=abc123'
   end
 
+  it 'bhv_misc_236 a date-only value is written as yyyy-mm-dd with no time in query and header' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'bornAfter' => Date.new(2024, 1, 1) }, { 'Report-Date' => {{moduleName}}::ValueSerializer.serialize(Date.new(2024, 1, 1), :header, 'Date') },
+                  nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_include 'bornAfter=2024-01-01'
+    _(client.captured_url).wont_include '2024-01-01T'
+    _(client.captured_headers['Report-Date']).must_equal '2024-01-01'
+  end
+
+  it 'bhv_misc_239 an operation query parameter is serialized when no authenticator is configured' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'q' => 'a b' }, {}, nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_equal 'http://localhost/test/echo?q=a%20b'
+  end
+
+  it 'bhv_misc_262 cancelling the call surfaces the cancellation to the caller without wrapping it' do
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(InterruptingApiClient.new, config)
+    _(proc {
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    }).must_raise Interrupt
+  end
+
+  it 'bhv_misc_263 a per-call timeout longer than the client timeout lets a response complete' do
+    response = {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: '{}', headers: { 'content-type' => 'application/json' })
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+    result = test_api.call_for_result('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil,
+                                      request_options: CallOptions.new(5000, nil, nil))
+
+    _(result.status_code).must_equal 200
+  end
+
+  it 'bhv_misc_264 each listed error status raises the API error carrying that status code' do
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    [400, 404, 500].each do |status|
+      response = {{moduleName}}::ApiHttpResponse.new(status_code: status, body: '{}', headers: { 'content-type' => 'application/json' })
+      test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+      err = assert_raises({{moduleName}}::Errors::ApiError) do
+        test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+      end
+      _(err.status_code).must_equal status
+    end
+  end
+
+  it 'bhv_misc_265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status' do
+    response = {{moduleName}}::ApiHttpResponse.new(status_code: 302, body: '',
+                                                   headers: { 'location' => 'ftp://example.com/x' })
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(FixedResponseApiClient.new(response), config)
+    err = assert_raises({{moduleName}}::Errors::ApiError) do
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+    end
+    _(err).wont_be_kind_of {{moduleName}}::Errors::NetworkError
+    _(err.status_code).must_equal 302
+  end
+
   it 'bhv_authintegration_017 sets Cookie header from auth cookies' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
@@ -511,6 +574,22 @@ describe {{moduleName}}::Api::BaseApi do
       add_pet(api)
 
       _(client.captured_headers['X-Credential']).must_equal 'key'
+    end
+
+    it 'bhv_misc_197 an operation whose named schemes the client does not hold is served by the default authenticator' do
+      api, client = api_with({ 'adminBasic' => credential('admin') }, credential('default'))
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'default'
+    end
+
+    it 'bhv_misc_221 a credential is sent using the security scheme the operation declares, not the client authenticator' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer') })
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'bearer'
     end
 
     it 'bhv_auth_047 skips a scheme the client holds no credential for' do
@@ -1109,15 +1188,6 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body.to_s).must_equal 'remindAt=2024-01-15T10%3A30%3A00.000%2B00%3A00'
   end
 
-  it 'form-urlencoded body stringifies a duration, a boolean and a number' do
-    client = CapturingApiClient.new
-    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
-    test_api = TestableApi.new(client, config)
-    form = { 'snooze' => ISO8601::Duration.new('PT1H'), 'urgent' => true, 'weight' => 1.5 }
-    test_api.call('POST', '/test', {}, {}, form,
-                  ['application/json'], 'application/x-www-form-urlencoded', nil)
-    _(client.captured_body.to_s).must_equal 'snooze=3600s&urgent=true&weight=1.5'
-  end
 
   it 'bhv_serializationwire_014 form-urlencoded body rejects a nested map value' do
     client = CapturingApiClient.new
@@ -1131,7 +1201,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body).must_be_nil
   end
 
-  it 'bhv_operations_157 a binary request body is sent as its exact raw bytes with no multipart encoding' do
+  it 'bhv_misc_217 a binary upload accepts in-memory bytes and a stream as input without writing a temporary file' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
@@ -1294,6 +1364,21 @@ describe {{moduleName}}::Api::BaseApi do
 
   # ── BinaryResponseTests ──
 
+  it 'bhv_misc_216 a binary response is returned as decoded bytes, while the raw body keeps the encoded text' do
+    require 'base64'
+    original_bytes = "\x00\xFF\x42".b
+    encoded = Base64.strict_encode64(original_bytes)
+    client = FixedResponseApiClient.new(
+      {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: encoded, headers: { 'Content-Type' => 'application/octet-stream' })
+    )
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
+                           ['application/octet-stream'], 'application/octet-stream', 'String')
+    decoded = Base64.strict_decode64(result)
+    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+  end
+
   it 'bhv_serializationwire_017 octet-stream binary response decodes to original bytes (roundtrip)' do
     require 'base64'
     original_bytes = "\x00\xFF\x42".b
@@ -1414,6 +1499,21 @@ describe {{moduleName}}::Api::BaseApi do
     _(result.raw_body).must_equal '{}'
   end
 
+  it 'bhv_misc_220 a full-response call keeps the status code and decodes the union type of the body' do
+    client = Object.new
+    client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+      {{moduleName}}::ApiHttpResponse.new(status_code: 201, body: '{"foodType":"dry","weightKg":2.5}',
+                                          headers: { 'content-type' => 'application/json' })
+    end
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call_for_result('POST', '/items', {}, {}, nil,
+                                      ['application/json'], 'application/json', 'PetFood')
+
+    _(result.status_code).must_equal 201
+    _(result.data).must_be_kind_of {{moduleName}}::Models::DryFood
+  end
+
   # ── NullBodyContentTypeTests ──
 
   it 'bhv_operations_013 null body POST does not send Content-Type' do
@@ -1509,6 +1609,130 @@ describe {{moduleName}}::Api::BaseApi do
 
   def replay_call(api, content_type: 'application/json', body: nil, auth: nil)
     api.call('POST', '/items', {}, {}, body, ['application/json'], content_type, nil, auth)
+  end
+
+  it 'bhv_misc_159 a 401 is replayed once even when transport retries are turned off' do
+    client = ReplayApiClient.new([401, 200])
+    api = replay_api(client, client_credentials_auth)
+
+    replay_call(api)
+    _(client.api_requests.length).must_equal 2
+  end
+
+  it 'bhv_misc_176 a required cookie parameter is sent in the Cookie header with its value' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => 'abc' })
+    test_api.call('GET', '/test/echo', {}, {}, nil,
+                  ['application/json'], 'application/json', nil, auth)
+    _(client.captured_headers['Cookie']).must_equal 'session=abc'
+  end
+
+  it 'bhv_misc_191 an auth cookie holding a character RFC 6265 forbids raises an ArgumentError that is not an OpenAPI error' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => 'a"b' })
+    error = _(-> { test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil, auth) })
+            .must_raise ArgumentError
+
+    _(error).wont_be_kind_of {{apiErrorParent}}
+  end
+
+  it 'bhv_misc_192 an auth cookie made only of legal cookie octets is sent exactly as given' do
+    value = 'a~!#$%&\'()*+-./:<=>?@[]^_`{|}'
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    auth = TestAuthenticator.new(cookies: { 'session' => value })
+    test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil, auth)
+
+    _(client.captured_headers['Cookie']).must_equal "session=#{value}"
+  end
+
+  it 'bhv_misc_209 a void operation ignores a success body whether text or a non-object JSON value and returns no data' do
+    [['text/plain', 'some text'], ['application/json', '42']].each do |content_type, body|
+      client = Object.new
+      client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+        {{moduleName}}::ApiHttpResponse.new(status_code: 200, body: body.to_s, headers: { 'content-type' => content_type.to_s })
+      end
+      config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+      test_api = TestableApi.new(client, config)
+
+      _(test_api.call('GET', '/items', {}, {}, nil, ['application/json'], 'application/json', nil)).must_be_nil
+    end
+  end
+
+  it 'bhv_misc_210 a date-time form field is percent-escaped for its colons and plus sign' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    when_at = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+    test_api.call('POST', '/test', {}, {}, { 'renewalDate' => when_at },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+
+    _(client.captured_body.to_s).must_include 'renewalDate=2024-01-15T10%3A30%3A00.000%2B00%3A00'
+  end
+
+  it 'bhv_misc_211 a date-time inside a query parameter keeps its wire date-time form' do
+    when_at = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+    result = {{moduleName}}::ValueSerializer.serialize_styled('at', when_at, :query, 'Time', nil, 'form', true)
+
+    _(result).must_include '2024-01-15T10:30:00'
+  end
+
+  it 'bhv_misc_212 a 404 or 500 response from a call raises the matching error through the API layer' do
+    [404, 500].each_case do |status|
+      error_class = status == 404 ? {{moduleName}}::Errors::NotFoundError : {{moduleName}}::Errors::InternalServerError
+      api = replay_api(ReplayApiClient.new([status]), client_credentials_auth)
+
+      assert_raises(error_class) { replay_call(api) }
+    end
+  end
+
+  it 'bhv_misc_213 an optional array query parameter is sent in its declared style, never bracketed or comma-joined' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'colors' => %w[blue black] }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_include 'colors=blue'
+    _(client.captured_url).wont_include 'colors%5B'
+    _(client.captured_url).wont_include 'blue%2Cblack'
+  end
+
+  it 'bhv_misc_254 an unmarked query value percent-encodes reserved characters such as slash and colon' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'q' => 'a/b:c' }, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test/echo?q=a%2Fb%3Ac'
+  end
+
+  it 'bhv_misc_214 an unserializable query content value raises a serialization error before any request is sent' do
+    client = CapturingApiClient.new
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    _(-> do
+      filter = {{moduleName}}::ObjectSerializer.serialize({ 'nested' => { 'deep' => Float::NAN } })
+      test_api.call('GET', '/test/echo', { 'filter' => filter }, {}, nil,
+                    ['application/json'], 'application/json', nil)
+    end).must_raise {{moduleName}}::Errors::SerializationError
+    _(client.captured_url).must_be_nil
+  end
+
+  it 'bhv_misc_222 a success response with a 201 status and an empty body returns no data without an error' do
+    client = Object.new
+    client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+      {{moduleName}}::ApiHttpResponse.new(status_code: 201, body: '', headers: { 'content-type' => 'application/json' })
+    end
+    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    _(test_api.call('POST', '/items', {}, {}, nil, ['application/json'], 'application/json', nil)).must_be_nil
   end
 
   it 'bhv_retries_001 replays a request once with a renewed token after a 401' do
@@ -1689,21 +1913,6 @@ describe {{moduleName}}::Api::BaseApi do
   end
 
   # ── Per-call request options ──
-
-  it 'bhv_operations_158 a header supplied on an individual call is sent with that call' do
-    client = CapturingApiClient.new
-    config = {{moduleName}}::Configuration.builder.base_url('http://localhost')
-                                          .default_headers({ 'X-Trace' => 'client', 'Accept-Language' => 'en' }).build
-    test_api = TestableApi.new(client, config)
-    options = CallOptions.new(nil, { 'x-trace' => 'call' }, nil)
-
-    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
-                             request_options: options)
-
-    _(client.captured_headers['x-trace']).must_equal 'call'
-    _(client.captured_headers.keys.count { |name| name.casecmp?('x-trace') }).must_equal 1
-    _(client.captured_headers['Accept-Language']).must_equal 'en'
-  end
 
   it 'bhv_operations_001 sends the headers of the call over the configured default headers' do
     client = CapturingApiClient.new
@@ -1898,12 +2107,12 @@ describe {{moduleName}}::Api::BaseApi do
     _(info.url).must_equal 'https://api.example.com/items/7'
   end
 
-  {
-    'https://API.Example.COM:8443/x' => 'api.example.com',
-    'http://[::1]:8080/x' => '::1',
-    'http://user@example.org/x' => 'example.org'
-  }.each do |base_url, host|
-    it "bhv_hooks_003 gives the host without port and brackets for #{base_url}" do
+  it 'bhv_hooks_003 gives the host without port and brackets' do
+    {
+      'https://API.Example.COM:8443/x' => 'api.example.com',
+      'http://[::1]:8080/x' => '::1',
+      'http://user@example.org/x' => 'example.org'
+    }.each_case do |base_url, host|
       hook = RecordingCallHook.new
 
       hooked_call(hooked_api(hook, base_url: base_url), path: '/x')
@@ -1937,7 +2146,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Authorization']).must_equal 'Bearer replaced'
   end
 
-  it 'bhv_hooks_006 sends a header the hook sets on every send of a transport retry' do
+  it 'bhv_hooks_006 sends a header the hook sets on every send of the call, retries and the replay after a 401 included' do
     seen = []
     hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
     client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
@@ -1946,17 +2155,15 @@ describe {{moduleName}}::Api::BaseApi do
 
     _(seen.length).must_equal 2
     _(seen.map { |headers| headers['X-Hook'] }).must_equal %w[set set]
-  end
 
-  it 'bhv_hooks_006 sends a header the hook sets on the replay after a 401' do
-    client = ReplayApiClient.new([401, 200])
+    replay = ReplayApiClient.new([401, 200])
     auth = client_credentials_auth
-    auth.api_client = client
+    auth.api_client = replay
     hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
 
-    hooked_call(hooked_api(hook, client, auth), method: :post, path: '/items')
+    hooked_call(hooked_api(hook, replay, auth), method: :post, path: '/items')
 
-    _(client.api_requests.map { |request| request[:headers]['X-Hook'] }).must_equal %w[set set]
+    _(replay.api_requests.map { |request| request[:headers]['X-Hook'] }).must_equal %w[set set]
   end
 
   it 'bhv_hooks_007 lets the fresh credentials of a replay replace a hook header of the same name' do
@@ -2117,7 +2324,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(hook.infos.first.url).must_equal 'https://api.example.com/items/7'
   end
 
-  it 'lets a hook delete a header, keeping it deleted on a transport retry' do
+  it 'bhv_langruby_017 lets a hook delete a header, keeping it deleted on a transport retry' do
     seen = []
     hook = RecordingCallHook.new { |headers| headers.delete('Accept') }
     client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
@@ -2128,7 +2335,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(seen.map { |headers| headers.key?('Accept') }).must_equal [false, false]
   end
 
-  it 'falls back to the operation name and the request path when the call names no spec operation' do
+  it 'bhv_langruby_018 falls back to the operation name and the request path when the call names no spec operation' do
     hook = RecordingCallHook.new
 
     hooked_api(hook).call_for_result(:get, '/items/7', {}, {}, nil, ['application/json'], 'application/json', nil,

@@ -7,6 +7,7 @@
 
 import type { ClassConstructor } from "class-transformer";
 import { ObjectSerializer } from "../object-serializer.js";
+import { SerializationError } from "./serialization-error.js";
 import { OpenAPIError } from "./open-api-error.js";
 
 /**
@@ -314,6 +315,11 @@ export class ApiError<T = unknown> extends OpenAPIError {
       this.responseBody != null && this.responseBody !== ""
         ? ObjectSerializer.parseJson(this.responseBody)
         : null;
+    if (json !== null && (typeof json !== "object" || Array.isArray(json))) {
+      throw new SerializationError(
+        `Expected an object error body for ${clazz.name} but received: ${Array.isArray(json) ? "array" : typeof json}`,
+      );
+    }
     return ObjectSerializer.deserialize(json, clazz);
   }
 

@@ -278,7 +278,9 @@ import Testing
 
   // MARK: - Binary response answered with JSON
 
-  @Test func testContentDispositionFilenameStarKeepsOnlyUnreservedCharacters() throws {
+  @Test func testBhvSerialization124ContentDispositionFilenameStarKeepsOnlyUnreservedCharacters()
+    throws
+  {
     let value = try BaseApi.buildContentDisposition(
       name: "file", filename: "r\u{E9}sum\u{E9}*(1).pdf")
     #expect(value.contains("filename=\"r_sum_*(1).pdf\""))
@@ -287,7 +289,8 @@ import Testing
 
   /* A character outside the BMP is one underscore in the ASCII fallback and
    * its four UTF-8 bytes in filename*. */
-  @Test func testContentDispositionNonBmpFilenameIsOneUnderscoreAndFourBytes() throws {
+  @Test func testBhvLangswift006ContentDispositionNonBmpFilenameIsOneUnderscoreAndFourBytes() throws
+  {
     let value = try BaseApi.buildContentDisposition(name: "file", filename: "a\u{1F600}b.txt")
     #expect(value.contains("filename=\"a_b.txt\""))
     #expect(value.contains("filename*=UTF-8''a%F0%9F%98%80b.txt"))
@@ -300,7 +303,7 @@ import Testing
     ("a.html", "text/html"), ("a.mp4", "video/mp4"), ("a.mp3", "audio/mpeg"),
     ("a.xyz123", "application/octet-stream"), ("nodot", "application/octet-stream"),
   ])
-  func testMimeTypeForFilenameCoversTheTable(filename: String, mime: String) {
+  func testBhvSerialization120MimeTypeForFilenameCoversTheTable(filename: String, mime: String) {
     #expect(BaseApi.mimeTypeForFilename(filename) == mime)
   }
 
@@ -312,13 +315,14 @@ import Testing
   }
 
   @Test(arguments: [["bad name": "x"], ["name": "a;b"]])
-  func testCookieHeaderValueRefusesForbiddenCharacters(cookies: [String: String]) {
+  func testBhvMisc191CookieHeaderValueRefusesForbiddenCharacters(cookies: [String: String]) {
     #expect(throws: ConfigurationError.self) {
       _ = try BaseApi.cookieHeaderValue(cookies)
     }
   }
 
-  @Test func testBinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws {
+  @Test func testBhvSerialization128BinaryOperationAnsweredWithJsonReturnsTheRawBytes() async throws
+  {
     let mockClient = MockApiClient()
     mockClient.responseBody = "{\"id\":7,\"name\":\"photo\"}"
 
@@ -364,22 +368,6 @@ import Testing
     }
   }
 
-  @Test func testErrorDispatch400() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 400
-    mockClient.responseBody = "{\"error\":\"bad request\"}"
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 400")
-    } catch let error as BadRequestError {
-      #expect(error.statusCode == 400)
-    }
-  }
-
   @Test func testBhvErrors071ErrorDispatch401() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 401
@@ -392,112 +380,6 @@ import Testing
       _ = try await api.getPetById(petId: 1)
       Issue.record("Expected error for status 401")
     } catch is UnauthorizedError {
-      // Expected
-    }
-  }
-
-  @Test func testErrorDispatch403() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 403
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 403")
-    } catch is ForbiddenError {
-      // Expected
-    }
-  }
-
-  @Test func testErrorDispatch404() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 404
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 404")
-    } catch is NotFoundError {
-      // Expected
-    }
-  }
-
-  @Test func testErrorDispatch409() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 409
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 409")
-    } catch is ConflictError {
-      // Expected
-    }
-  }
-
-  @Test func testErrorDispatch422() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 422
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 422")
-    } catch is UnprocessableEntityError {
-      // Expected
-    }
-  }
-
-  @Test func testErrorDispatch429() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 429
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 429")
-    } catch let error as TooManyRequestsError {
-      #expect(error is ClientError)
-      #expect(error.statusCode == 429)
-    }
-  }
-
-  @Test func testErrorDispatch500() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 500
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 500")
-    } catch is InternalServerError {
-      // Expected
-    }
-  }
-
-  @Test func testErrorDispatch502() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 502
-
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config)
-
-    do {
-      _ = try await api.getPetById(petId: 1)
-      Issue.record("Expected error for status 502")
-    } catch is ServerError {
       // Expected
     }
   }
@@ -615,7 +497,7 @@ import Testing
     }
   }
 
-  @Test func testIsTextContentType() {
+  @Test func testBhvLangswift007IsTextContentType() {
     #expect(BaseApi.isTextContentType("text/plain; charset=utf-8"))
     #expect(BaseApi.isTextContentType("application/xml"))
     #expect(BaseApi.isTextContentType("application/atom+xml"))
@@ -721,13 +603,13 @@ import Testing
     #expect(mockClient.lastHeaders["Accept"] == "application/xml")
   }
 
-  @Test func testMergeHeadersReplacesEverySpellingOfAName() {
+  @Test func testBhvLangswift008MergeHeadersReplacesEverySpellingOfAName() {
     let merged = BaseApi.mergeHeaders(
       ["Accept": "a", "ACCEPT": "b", "X-Other": "o"], overriding: ["accept": "c"])
     #expect(merged == ["accept": "c", "X-Other": "o"])
   }
 
-  @Test func testMergeHeadersPicksTheSameWinnerWithinOneLayer() {
+  @Test func testBhvLangswift009MergeHeadersPicksTheSameWinnerWithinOneLayer() {
     let layer = ["authorization": "lower", "Authorization": "upper"]
     for _ in 0..<20 {
       let merged = BaseApi.mergeHeaders([:], overriding: layer)
@@ -1612,7 +1494,7 @@ import Testing
 
   // '#', '[' and ']' are percent-encoded by the encoder itself, so the bytes
   // it produces are the bytes the HTTP client sends.
-  @Test func testAllowReservedPercentEncodesHashAndBrackets() {
+  @Test func testBhvLangswift010AllowReservedPercentEncodesHashAndBrackets() {
     let encoded = BaseApi.buildQueryString(
       ["revision": ValueSerializer.AllowReservedValue(value: "a'b[c]#d")])
     #expect(encoded == "revision=a'b%5Bc%5D%23d", "got: \(encoded)")
@@ -2340,7 +2222,7 @@ import Testing
   // SerializationError, surfaced through the throwing call) rather than
   // swallowing it and returning the raw string. invokeAPIForResult routes the
   // body through ObjectSerializer.deserialize, which throws on malformed JSON.
-  @Test func testMalformed2xxBodyFailsLoud() async throws {
+  @Test func testBhvSerialization103Malformed2xxBodyFailsLoud() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
     // Truncated object: valid status, JSON content-type, broken body.
@@ -2364,7 +2246,7 @@ import Testing
 
   /* Every primitive is a plain text part in its canonical stringify form
    * with no part Content-Type; only a model is an application/json part. */
-  @Test func testMultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
+  @Test func testBhvSerialization127MultipartPrimitivesAreTextPartsAndModelsAreJsonParts() throws {
     let parser = ISO8601DateFormatter()
     let instant = parser.date(from: "2024-01-15T10:30:00Z")!
     let formParts: [String: Any] = [
@@ -2393,7 +2275,7 @@ import Testing
   // MARK: - Request context on errors
 
   /* A failure answered by the server names the request made through the API. */
-  @Test func testStatusErrorNamesTheRequestMadeThroughTheApi() async throws {
+  @Test func testBhvErrors091StatusErrorNamesTheRequestMadeThroughTheApi() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 404
     let config = ConfigurationBuilder().baseURL("https://example.com/v2/").build()
@@ -2462,7 +2344,7 @@ import Testing
   }
 
   /* A failure that arrived without a response names the request too. */
-  @Test func testTransportFailureNamesTheRequest() async throws {
+  @Test func testBhvErrors092TransportFailureNamesTheRequest() async throws {
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: FailingApiClient(), config: config)
 
@@ -2496,7 +2378,7 @@ import Testing
     #expect(mockClient.lastHeaders["Content-Type"] == "application/json")
   }
 
-  @Test func testPerCallTimeoutMustBePositive() async throws {
+  @Test func testBhvLangswift011PerCallTimeoutMustBePositive() async throws {
     let mockClient = MockApiClient()
     let config = ConfigurationBuilder().baseURL("https://example.com").build()
     let api = PetApi(apiClient: mockClient, config: config)
@@ -2531,6 +2413,22 @@ import Testing
     _ = try? await api.getPetById(petId: 3, options: GetPetByIdOptions(headers: ["X-Extra": "1"]))
 
     #expect(mockClient.lastHeaders["X-Extra"] == "1")
+  }
+
+  /* A per-call timeout or retry count that is not valid is refused with an argument error, and nothing is sent. */
+  @Test func testBhvMisc055APerCallTimeoutOrRetryCountThatIsNotValidIsRefused() async throws {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+
+    await #expect(throws: ConfigurationError.invalidTimeout(0)) {
+      _ = try await api.getInventory(options: GetInventoryOptions(timeout: 0))
+    }
+    await #expect(throws: ConfigurationError.invalidArgument("maxRetries must not be negative: -1"))
+    {
+      _ = try await api.getInventory(options: GetInventoryOptions(maxRetries: -1))
+    }
+    #expect(mockClient.lastURL.isEmpty)
   }
 
   @Test func testBhvOptions056AnOperationWithoutParametersValidatesItsPerCallSettings() async throws
@@ -2585,7 +2483,7 @@ import Testing
     }
   }
 
-  @Test func testSeveralSuccessResponsesWithAnEmptyBodyHaveNoData() async throws {
+  @Test func testBhvLangswift012SeveralSuccessResponsesWithAnEmptyBodyHaveNoData() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 201
     mockClient.responseBody = ""
@@ -2720,6 +2618,167 @@ import Testing
     #expect(client.requests == 1)
   }
 
+  /* A cookie value the caller has already percent-encoded is written as given, with no second encoding. */
+  @Test func testBhvMisc123APercentEncodedCookieValueIsSentAsGiven() throws {
+    #expect(try BaseApi.cookieHeaderValue(["api_key": "a%20b"]) == "api_key=a%20b")
+  }
+
+  /* A 401 response is replayed once even with retries turned off, when the authenticator can supply fresh credentials. */
+  @Test func testBhvMisc159A401IsReplayedOnceWithRetriesOff() async throws {
+    let client = ScriptedApiClient(statuses: [401, 200])
+    let auth = RotatingAuth()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+
+    _ = try await api.getPetById(petId: 1)
+
+    #expect(auth.invalidations == 1)
+    #expect(client.seenAuthorization.count == 2)
+  }
+
+  /* A required cookie parameter is sent in the Cookie header with its value. */
+  @Test func testBhvMisc176ARequiredCookieParameterIsSentWithItsValue() throws {
+    #expect(try BaseApi.cookieHeaderValue(["session": "abc"]) == "session=abc")
+  }
+
+  /* An auth cookie made only of legal cookie octets is sent exactly as given. */
+  @Test func testBhvMisc192AnAuthCookieOfLegalOctetsIsSentExactlyAsGiven() throws {
+    let value = "a1!#$%&'()*+-./:<=>?@[]^_`{|}~"
+    #expect(try BaseApi.cookieHeaderValue(["auth": value]) == "auth=" + value)
+  }
+
+  /* An operation whose body is form-urlencoded sends the application/x-www-form-urlencoded Content-Type. */
+  @Test func testBhvMisc179AFormUrlencodedBodySendsItsContentType() async throws {
+    let transport = ScriptedTransport([.status(200)])
+    let api = hookedBase(nil, transport: transport)
+    let params = BaseApi.InvokeAPIParams(
+      method: "POST", path: "/items", queryParams: [:], headerParams: [:],
+      body: ["name": "a"], accepts: ["application/json"],
+      contentType: "application/x-www-form-urlencoded", returnType: "String",
+      auth: nil, operationId: "createItem", urlTemplate: "/items")
+    _ = try await api.invokeAPI(params)
+    #expect(transport.sent.first?["Content-Type"] == "application/x-www-form-urlencoded")
+  }
+
+  /* The API-key query wrapper sends its key as the api_key query parameter on the wire. */
+  @Test func testBhvMisc189TheApiKeyQueryWrapperSendsItsKeyAsTheQueryParameter() async throws {
+    let transport = ScriptedTransport([.status(200)])
+    let auth = try ApiKeyQueryAuthenticator(host: "https://example.com", apiKey: "abc123")
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = BaseApi(apiClient: transport, config: config, authenticator: auth)
+    let params = BaseApi.InvokeAPIParams(
+      method: "get", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+      accepts: ["application/json"], contentType: "application/json", returnType: "String",
+      auth: nil, operationId: "listItems", urlTemplate: "/items")
+    _ = try await api.invokeAPI(params)
+    #expect(transport.urls.first?.contains("api_key=abc123") == true)
+  }
+
+  /* An operation whose named schemes the client does not hold is served by the client's default authenticator. */
+  @Test func testBhvMisc197AnOperationWithoutItsSchemeIsServedByTheDefaultAuthenticator()
+    async throws
+  {
+    let client = ScriptedApiClient(statuses: [200])
+    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "default-token")
+    let config = ConfigurationBuilder().baseURL("https://api.example.com").build()
+    let api = PetApi(apiClient: client, config: config, authenticator: auth)
+    _ = try await api.getPetById(petId: 1)
+    #expect(client.seenAuthorization == ["Bearer default-token"])
+  }
+
+  /* A text body sent without a declared content type goes out with the JSON media type and no parameters. */
+  @Test func testBhvMisc202ATextBodyWithNoDeclaredContentTypeIsSentAsJson() async throws {
+    let transport = ScriptedTransport([.status(200)])
+    let api = hookedBase(nil, transport: transport)
+    let params = BaseApi.InvokeAPIParams(
+      method: "POST", path: "/items", queryParams: [:], headerParams: [:],
+      body: "hello", accepts: ["application/json"],
+      contentType: "", returnType: "String",
+      auth: nil, operationId: "createItem", urlTemplate: "/items")
+    _ = try await api.invokeAPI(params)
+    #expect(transport.sent.first?["Content-Type"] == "application/json")
+  }
+
+  /* A void operation ignores a success body that is plain text, and returns no data. */
+  @Test func testBhvMisc209AVoidOperationIgnoresATextOrNonObjectJsonSuccessBody() async throws {
+    do {
+      let transport = ScriptedTransport([
+        .status(200, headers: ["Content-Type": "text/plain"], body: "plain text")
+      ])
+      let api = hookedBase(nil, transport: transport)
+      let params = BaseApi.InvokeAPIParams(
+        method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+        accepts: ["application/json"], contentType: "application/json", returnType: "Void",
+        auth: nil, operationId: "deleteItem", urlTemplate: "/items")
+      let result = try await api.invokeAPIForEmptyResult(params)
+      #expect(result.data == nil)
+      #expect(result.statusCode == 200)
+    }
+    /* A void operation ignores a success body that is a non-object JSON value, and returns no data. */
+    do {
+      let transport = ScriptedTransport([.status(200, body: "42")])
+      let api = hookedBase(nil, transport: transport)
+      let params = BaseApi.InvokeAPIParams(
+        method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+        accepts: ["application/json"], contentType: "application/json", returnType: "Void",
+        auth: nil, operationId: "deleteItem", urlTemplate: "/items")
+      let result = try await api.invokeAPIForEmptyResult(params)
+      #expect(result.data == nil)
+      #expect(result.statusCode == 200)
+    }
+  }
+
+  /* A date-time form field is encoded in canonical form, with its colons and plus sign percent-escaped. */
+  @Test func testBhvMisc210AFormDateTimeIsPercentEscapedInCanonicalForm() {
+    let params: [String: Any] = ["at": "2024-01-02T03:04:05+02:00"]
+    let result = try? BaseApi.serializeBody(
+      params, contentType: "application/x-www-form-urlencoded")
+    let str = result.flatMap { String(data: $0, encoding: .utf8) }
+    #expect(str == "at=2024-01-02T03%3A04%3A05%2B02%3A00")
+  }
+
+  /* A form-urlencoded body repeats the key for each element of an array property. */
+  @Test func testBhvSerialization122AFormBodyRepeatsTheKeyForEachArrayElement() throws {
+    let data = try BaseApi.serializeBody(
+      ["tags": ["a", "b"]] as [String: Any], contentType: "application/x-www-form-urlencoded")
+    let text = String(data: data ?? Data(), encoding: .utf8) ?? ""
+
+    #expect(text.contains("tags=a&tags=b"))
+  }
+
+  /* Multipart field names containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header. */
+  @Test(arguments: ["a\r\nb", "a\nb", "a\u{0}b"])
+  func testBhvSerialization123AMultipartNameWithAControlCharacterOrQuoteIsRejected(name: String) {
+    #expect(throws: Error.self) {
+      _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
+    }
+  }
+
+  /* Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B. */
+  @Test func testBhvSerialization125FormKeysAndValuesPercentEncodeReservedCharacters() throws {
+    let data = try BaseApi.serializeBody(
+      ["a+b": "c+d&e"] as [String: Any], contentType: "application/x-www-form-urlencoded")
+    let text = String(data: data ?? Data(), encoding: .utf8) ?? ""
+
+    #expect(text.contains("a%2Bb=c%2Bd%26e"))
+  }
+
+  /* A non-ASCII multipart field name is preserved as UTF-8 in the part header. */
+  @Test func testBhvSerialization126ANonAsciiMultipartFieldNameIsPreservedAsUtf8() throws {
+    let data = try BaseApi.buildMultipartBody(["名前": "x"], boundary: "b")
+    let text = String(decoding: data, as: UTF8.self)
+
+    #expect(text.contains("name=\"名前\""))
+  }
+
+  /* A model sent as a multipart part is serialized with its wire property names. */
+  @Test func testBhvSerialization121AMultipartModelPartUsesItsWirePropertyNames() throws {
+    let data = try BaseApi.buildMultipartBody(["meta": Freeform(label: "x")], boundary: "b")
+    let text = String(decoding: data, as: UTF8.self)
+
+    #expect(text.contains("\"label\":\"x\""))
+    #expect(!text.contains("additionalProperties"))
+  }
 }
 
 // MARK: - Trace context from the caller

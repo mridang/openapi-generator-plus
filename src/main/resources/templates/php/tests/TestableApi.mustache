@@ -24,9 +24,10 @@ class TestableApi extends BaseApi
         array $accepts,
         ?string $contentType,
         ?string $returnType = null,
-        ?Authenticator $auth = null
+        ?Authenticator $auth = null,
+        ?int $maxRetries = null
     ): mixed {
-        return $this->invokeApi(
+        return $this->invokeApiForResult(
             $method,
             $path,
             $queryParams,
@@ -35,8 +36,9 @@ class TestableApi extends BaseApi
             $accepts,
             $contentType,
             $returnType,
-            $auth
-        );
+            $auth,
+            maxRetries: $maxRetries
+        )->data;
     }
 
     /**

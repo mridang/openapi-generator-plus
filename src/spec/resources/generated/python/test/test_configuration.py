@@ -29,6 +29,29 @@ class TestConfigurationDefaults:
 
         assert isinstance(builder, ConfigurationBuilder)
 
+    def test_bhv_misc_276_the_default_configuration_and_builder_use_the_spec_base_url(
+        self,
+    ) -> None:
+        assert Configuration.builder().build().base_url == "/api/v3"
+
+    def test_bhv_misc_277_each_call_to_the_default_configuration_returns_a_distinct_object(
+        self,
+    ) -> None:
+        assert Configuration() is not Configuration()
+
+    def test_bhv_misc_279_changing_headers_returned_from_a_configuration_leaves_its_own_headers_unchanged(
+        self,
+    ) -> None:
+        config = Configuration(
+            base_url="https://example.com", default_headers={"X-Keep": "yes"}
+        )
+
+        headers = config.default_headers
+        with pytest.raises(TypeError):
+            headers["X-New"] = "no"  # type: ignore[index]
+
+        assert "X-New" not in config.default_headers
+
 
 class TestConfigurationBuilder:
     def test_bhv_config_011_builder_sets_base_url(self) -> None:
@@ -306,7 +329,9 @@ class TestConfigurationRepr:
         assert "hunter2" not in str(config)
         assert f"{name!r}: '***'" in repr(config)
 
-    def test_repr_keeps_the_base_url_and_other_header_values(self) -> None:
+    def test_bhv_lang_python_055_repr_keeps_the_base_url_and_other_header_values(
+        self,
+    ) -> None:
         config = (
             Configuration.builder()
             .base_url("https://api.example.com")
@@ -317,6 +342,20 @@ class TestConfigurationRepr:
         assert "base_url='https://api.example.com'" in repr(config)
         assert "'Accept': 'text/plain'" in repr(config)
 
+    def test_bhv_misc_136_the_debug_text_shows_the_base_url_and_non_sensitive_headers(
+        self,
+    ) -> None:
+        config = (
+            Configuration.builder()
+            .base_url("https://api.example.com")
+            .default_header("Accept", "text/plain")
+            .build()
+        )
+
+        text = repr(config)
+        assert "https://api.example.com" in text
+        assert "'Accept': 'text/plain'" in text
+
 
 class _Hook:
     def start(self, info: CallInfo, headers: dict[str, str]) -> Optional[CallObserver]:
@@ -324,11 +363,11 @@ class _Hook:
 
 
 class TestConfigurationCallHook:
-    def test_there_is_no_call_hook_by_default(self) -> None:
+    def test_bhv_lang_python_056_there_is_no_call_hook_by_default(self) -> None:
         assert Configuration().call_hook is None
         assert Configuration.builder().build().call_hook is None
 
-    def test_the_builder_sets_the_call_hook_and_the_configuration_reads_it_back(
+    def test_bhv_lang_python_057_the_builder_sets_the_call_hook_and_the_configuration_reads_it_back(
         self,
     ) -> None:
         hook = _Hook()
@@ -337,7 +376,9 @@ class TestConfigurationCallHook:
 
         assert config.call_hook is hook
 
-    def test_the_string_form_does_not_print_the_call_hook(self) -> None:
+    def test_bhv_lang_python_058_the_string_form_does_not_print_the_call_hook(
+        self,
+    ) -> None:
         config = Configuration.builder().call_hook(_Hook()).build()
 
         assert "_Hook" not in repr(config)

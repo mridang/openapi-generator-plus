@@ -274,7 +274,7 @@ public class OAuth2TokenManager {
      * surfacing the first 3xx straight to us. A transport failure
      * propagates unchanged as NetworkException / NetworkTimeoutException. */
     ApiHttpResponse response =
-        apiClient.sendRequest("POST", tokenUrl, headers, body.toString(), true);
+        apiClient.sendTokenRequest("POST", tokenUrl, headers, body.toString());
     if (response.statusCode() < 200 || response.statusCode() >= 300) {
       /* Any non-2xx answer, a refused 3xx included, is an
        * OAuth2ServerException. RFC 6749 §5.2: OAuth2 error responses

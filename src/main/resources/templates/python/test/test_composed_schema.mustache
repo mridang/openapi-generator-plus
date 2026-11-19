@@ -67,6 +67,22 @@ class TestOneOfPetFood:
             ObjectSerializer().deserialize(json_str, 'PetFood')
         assert "'raw'" in str(exc_info.value)
 
+    def test_bhv_misc_045_a_payload_that_fails_a_variant_schema_is_not_accepted_as_that_variant(self) -> None:
+        for json_str in [
+            '{"foodType":3,"weightKg":2.5}',
+            '{"FoodType":"dry","weightKg":2.5}',
+            '{"foodType":"fish","weightKg":2.5}',
+            '{"foodType":"dry"}',
+        ]:
+            with pytest.raises((SerializationException, ValidationError)):
+                ObjectSerializer().deserialize(json_str, 'PetFood')
+
+    def test_bhv_misc_047_serializing_a_union_holding_a_non_variant_fails_naming_the_union(self) -> None:
+        wrapped = PetFood.model_construct(actual_instance='not a variant')
+        with pytest.raises(SerializationException) as exc_info:
+            ObjectSerializer().serialize(wrapped)
+        assert 'PetFood' in str(exc_info.value)
+
     def test_bhv_unions_020_serializes_dry_food(self) -> None:
         json_str = '{"foodType":"dry","weightKg":2.5}'
         result = ObjectSerializer().deserialize(json_str, 'PetFood')
@@ -126,6 +142,16 @@ class TestOneOfPetFood:
     def test_bhv_unions_033_an_unknown_missing_or_empty_discriminator_is_a_serialization_error(self, json_str: str) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize(json_str, 'PetFood')
+
+    def test_bhv_misc_294_a_subtype_payload_without_its_discriminator_decodes_as_the_mapped_variant(self) -> None:
+        result = ObjectSerializer().deserialize('{"weightKg":2.5}', 'DryFood')
+
+        assert isinstance(result, DryFood)
+        assert result.food_type == 'dry'
+
+    def test_bhv_unions_047_an_empty_or_unlisted_discriminator_value_raises_a_clear_error(self) -> None:
+        with pytest.raises(SerializationException, match='foodType'):
+            ObjectSerializer().deserialize('{"foodType":""}', 'PetFood')
 
 
 class TestAllOfVehicle:
@@ -314,6 +340,24 @@ class TestAnyOfPetTreatment:
         assert 'procedureName' in surg_json
         assert 'drugName' not in surg_json
 
+    def test_bhv_misc_291_a_payload_matching_several_variants_decodes_to_the_first_declared(self) -> None:
+        json_str = '{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}'
+        result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
+
+        assert isinstance(result.actual_instance, Medication)
+
+    def test_bhv_misc_293_an_anyof_value_skips_candidates_that_do_not_match(self) -> None:
+        json_str = '{"procedureName":"Spay","durationMinutes":45}'
+        result = ObjectSerializer().deserialize(json_str, 'PetTreatment')
+
+        assert isinstance(result.actual_instance, Surgery)
+
+    def test_bhv_unions_046_each_matching_anyof_variant_keeps_its_value_and_non_matching_ones_do_not(self) -> None:
+        result = ObjectSerializer().deserialize('{"drugName":"Amoxicillin","dosage":"500mg"}', 'PetTreatment')
+
+        assert isinstance(result.actual_instance, Medication)
+        assert not isinstance(result.actual_instance, Surgery)
+
 
 class TestAnyOfTreatmentRecord:
     """anyOf variants are tried in DECLARATION order: TreatmentRecord declares
@@ -326,7 +370,7 @@ class TestAnyOfTreatmentRecord:
         assert [type(m) for m in record.matched_instances] == [Surgery, Medication]
         assert isinstance(record.actual_instance, Surgery)
 
-    def test_the_variant_tuple_follows_the_declaration(self) -> None:
+    def test_bhv_lang_python_052_the_variant_tuple_follows_the_declaration(self) -> None:
         from {{packageName}}.models.treatment_record import TreatmentRecord
 
         assert TreatmentRecord.any_of_schemas == ('Surgery', 'Medication')
@@ -380,7 +424,7 @@ class TestOneOfNonDiscriminatorValidator:
         req = SetPetAvatarThumbnailRequest(actual_instance=b'avatar-bytes')
         assert req.actual_instance == b'avatar-bytes'
 
-    def test_second_variant_match_returns_value(self) -> None:
+    def test_bhv_lang_python_053_second_variant_match_returns_value(self) -> None:
         req = SetPetAvatarThumbnailRequest(actual_instance=[b'a', b'b'])
         assert req.actual_instance == [b'a', b'b']
 
@@ -400,7 +444,7 @@ class TestOneOfNonDiscriminatorValidator:
         assert SetPetAvatarThumbnailRequest(actual_instance=value).actual_instance is value
         assert SetPetAvatarThumbnailRequest(value).actual_instance is value
 
-    def test_the_positional_form_takes_exactly_one_argument(self) -> None:
+    def test_bhv_lang_python_054_the_positional_form_takes_exactly_one_argument(self) -> None:
         with pytest.raises(ValueError, match='only 1 is allowed'):
             SetPetAvatarThumbnailRequest(b'a', b'b')
 
@@ -416,7 +460,7 @@ class TestAllOfPetWithOwner:
         assert result.owner_name == 'John'
         assert result.owner_email == 'john@example.com'
 
-    def test_email_format_is_a_plain_string_not_validated(self) -> None:
+    def test_bhv_misc_104_email_format_is_a_plain_string_not_validated(self) -> None:
         json_str = '{"name":"doggie","photoUrls":["http://example.com/photo.jpg"],"ownerName":"John Doe","ownerEmail":"not-an-email"}'
         result = ObjectSerializer().deserialize(json_str, 'PetWithOwner')
         assert result is not None
@@ -471,3 +515,15 @@ class TestUnionWrapperBehaviours:
         food = DryFood(foodType='custom', weightKg=2.5)
 
         assert json.loads(ObjectSerializer().serialize(food))['foodType'] == 'custom'
+
+    def test_bhv_misc_292_a_union_wrapper_serializes_its_bare_payload_and_reads_it_back(self) -> None:
+        req = SetPetAvatarThumbnailRequest(actual_instance=b'hi')
+
+        wire = ObjectSerializer().serialize(req)
+
+        assert wire == '"aGk="'
+        assert ObjectSerializer().deserialize(wire, 'SetPetAvatarThumbnailRequest').actual_instance == b'hi'
+
+    def test_bhv_misc_295_a_non_list_value_is_rejected_for_the_array_variant_of_a_oneof(self) -> None:
+        with pytest.raises(SerializationException):
+            ObjectSerializer().deserialize('{"a":1}', 'SetPetAvatarThumbnailRequest')

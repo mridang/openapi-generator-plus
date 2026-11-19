@@ -862,6 +862,29 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
         return $vars;
     }
 {{/hasPasswordVars}}
+
+    /**
+     * The string form names the class and lists each property with its contents (lists, maps and
+     * byte fields included), so interpolating a model shows what it holds. A password property is
+     * shown as *** and never printed, matching __debugInfo().
+     */
+    public function __toString(): string
+    {
+        $parts = [];
+        foreach (get_object_vars($this) as $name => $value) {
+{{#hasPasswordVars}}
+            $masked = in_array($name, [{{#vars}}{{#isPassword}}'{{name}}', {{/isPassword}}{{/vars}}], true);
+            $parts[] = $name . '=' . ($masked && $value !== null
+                ? '***'
+                : \{{invokerPackage}}\ObjectSerializer::describeValue($value));
+{{/hasPasswordVars}}
+{{^hasPasswordVars}}
+            $parts[] = $name . '=' . \{{invokerPackage}}\ObjectSerializer::describeValue($value);
+{{/hasPasswordVars}}
+        }
+
+        return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';
+    }
 {{>model_equals}}
 }
 {{/anyOf}}

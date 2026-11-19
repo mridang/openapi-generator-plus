@@ -17,11 +17,18 @@ import { OAuth2TokenManager } from "../src/auth/oauth/oauth2-token-manager.js";
 import { OAuth2TokenError } from "../src/errors/oauth2-token-error.js";
 import * as dns from "node:dns/promises";
 import * as zlib from "node:zlib";
+import { Readable } from "node:stream";
 import * as fs from "node:fs";
 import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
+
+async function ipHttpsUrl(): Promise<string> {
+  const chasmUrl = new URL(process.env["CHASM_HTTPS_URL"]!);
+  const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
+  return `https://${address}:${chasmUrl.port}`;
+}
 
 describe("DefaultApiClient", () => {
   test("bhv transport 018 makes HTTPS request with verifySsl=false", async () => {
@@ -51,12 +58,6 @@ describe("DefaultApiClient", () => {
      * independent of chain trust, so we can assert that turning off
      * verification skips the hostname check too.
      */
-
-    async function ipHttpsUrl(): Promise<string> {
-      const chasmUrl = new URL(process.env["CHASM_HTTPS_URL"]!);
-      const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
-      return `https://${address}:${chasmUrl.port}`;
-    }
 
     test("bhv transport 025 verifySsl=true rejects hostname mismatch (the cert does not name the address)", async () => {
       const caCertPath = process.env["CA_CERT_PATH"]!;
@@ -95,6 +96,30 @@ describe("DefaultApiClient", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-replace-"));
     const bundle = path.join(dir, "only-root.pem");
     fs.writeFileSync(bundle, tls.rootCertificates[0]!);
+
+    const transport = TransportOptions.builder()
+      .verifySsl(true)
+      .caCertPath(bundle)
+      .maxRetries(0)
+      .build();
+
+    const client = new DefaultApiClient(transport);
+    try {
+      await expect(
+        client.sendRequest("GET", `${chasmUrl}/test/echo`, {}, null),
+      ).rejects.toBeInstanceOf(NetworkError);
+    } finally {
+      await client.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("bhv transport 093 a server whose certificate is signed by another CA than the configured one is rejected with a network error", async () => {
+    const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
+    /* node:crypto cannot sign an X.509 certificate, so the other CA is a public root shipped with Node. It is not the CA that signed the chasm certificate, so the handshake must fail. */
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-other-"));
+    const bundle = path.join(dir, "other-ca.pem");
+    fs.writeFileSync(bundle, tls.rootCertificates[1]!);
 
     const transport = TransportOptions.builder()
       .verifySsl(true)
@@ -278,6 +303,23 @@ describe("DefaultApiClient", () => {
     expect((error as NetworkTimeoutError).cause).toBeDefined();
   });
 
+  test("bhv misc 268 a server presenting a certificate from a trusted CA is still rejected when the hostname does not match", async () => {
+    const url = await ipHttpsUrl();
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .verifySsl(true)
+        .caCertPath(process.env["CA_CERT_PATH"]!)
+        .build(),
+    );
+    try {
+      await expect(
+        client.sendRequest("GET", `${url}/test/echo`, {}, null),
+      ).rejects.toThrow();
+    } finally {
+      await client.close();
+    }
+  });
+
   describe("redirect chain timeout is one budget", () => {
     // Three hops of 500 ms each: one end-to-end budget of 1200 ms fails where
     // a per-hop timer would pass; 5000 ms is the positive control.
@@ -344,7 +386,7 @@ describe("DefaultApiClient", () => {
    * path exactly when verifySsl=false is set, and rejected otherwise.
    */
   describe("auth path honours transport TLS options (#4)", () => {
-    test("token exchange reaches a self-signed endpoint with verifySsl=false", async () => {
+    test("bhv misc 269 token exchange reaches a self-signed endpoint with verifySsl=false", async () => {
       const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
 
       const transport = TransportOptions.builder().verifySsl(false).build();
@@ -365,7 +407,7 @@ describe("DefaultApiClient", () => {
       ).rejects.toBeInstanceOf(OAuth2TokenError);
     }, 30000);
 
-    test("token exchange rejects a self-signed endpoint when verifySsl is left on", async () => {
+    test("bhv langnode 081 token exchange rejects a self-signed endpoint when verifySsl is left on", async () => {
       const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
 
       // Default transport: verifySsl is ON. The self-signed chasm cert is
@@ -801,18 +843,21 @@ describe("DefaultApiClient", () => {
   });
 
   const zstdAvailable = typeof zlib.zstdDecompress === "function";
-  (zstdAvailable ? test : test.skip)("decompresses zstd response", async () => {
-    const client = new DefaultApiClient();
-    const response = await client.sendRequest(
-      "GET",
-      compressedUrl("zstd"),
-      { "Accept-Encoding": "zstd" },
-      null,
-    );
+  (zstdAvailable ? test : test.skip)(
+    "bhv transport 006 decompresses zstd response",
+    async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        "GET",
+        compressedUrl("zstd"),
+        { "Accept-Encoding": "zstd" },
+        null,
+      );
 
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(fixtureBody);
-  });
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body)).toEqual(fixtureBody);
+    },
+  );
 
   /*
    * Regression: POST/PUT/PATCH with body == null must emit an
@@ -885,28 +930,21 @@ describe("DefaultApiClient", () => {
    *
    * fetch is mocked so the test is deterministic and needs no live HTTPS.
    */
-  describe("HTTPS->HTTP downgrade guard is 307/308-only (canonical N1)", () => {
+  describe("HTTPS->HTTP downgrade guard refuses every status except 303 (canonical N1)", () => {
     const originalFetch = global.fetch;
     afterEach(() => {
       global.fetch = originalFetch;
     });
 
-    test("bhv redirects 001 an https->http 302 with a body PROCEEDS (body dropped, becomes GET)", async () => {
+    test("bhv redirects 001 an https->http 302 with a body is refused and the plain target is never requested", async () => {
       let call = 0;
       global.fetch = (async (): Promise<Response> => {
         call++;
-        if (call === 1) {
-          // 302 carrying a body, downgrading https -> http. Per RFC the
-          // follow-up is coerced to a bodyless GET, so the downgrade is safe
-          // and the client must follow it rather than refuse.
-          return new Response(null, {
-            status: 302,
-            headers: { Location: "http://other.example/landing" },
-          });
-        }
-        return new Response('{"ok":true}', {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
+        // 302 carrying a body, downgrading https -> http. The body would be
+        // replayed in cleartext, so the hop is refused and nothing else is fetched.
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "http://other.example/landing" },
         });
       }) as typeof fetch;
 
@@ -914,16 +952,15 @@ describe("DefaultApiClient", () => {
         .followRedirects(true)
         .build();
       const client = new DefaultApiClient(transport);
-      // A GET that carries a body: 301/302 preserve the original method+body
-      // for GET, so this is exactly the path the over-broad guard refused.
-      const response = await client.sendRequest(
-        "GET",
-        "https://secure.example/start",
-        { "Content-Type": "application/json" },
-        '{"x":1}',
-      );
-      expect(response.statusCode).toBe(200);
-      expect(call).toBe(2);
+      await expect(
+        client.sendRequest(
+          "GET",
+          "https://secure.example/start",
+          { "Content-Type": "application/json" },
+          '{"x":1}',
+        ),
+      ).rejects.toThrow("Refusing to replay request body");
+      expect(call).toBe(1);
     });
 
     test("bhv retries 010 a https->http 307 with a body THROWS (body preserved across downgrade)", async () => {
@@ -1000,5 +1037,312 @@ describe("DefaultApiClient", () => {
       .catch((e: unknown) => e);
     expect((error as Error).constructor).toBe(Error);
     expect((error as Error).message).toContain("closed");
+  });
+});
+
+describe("DefaultApiClient redirect misc behaviours", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  function scriptFetch(
+    steps: Array<{ status: number; location?: string }>,
+  ): Array<{ url: string; init: RequestInit }> {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      calls.push({ url: String(url), init: init ?? {} });
+      const step = steps[Math.min(calls.length - 1, steps.length - 1)];
+      const headers: Record<string, string> = step.location
+        ? { Location: step.location }
+        : {};
+      if (step.status === 200) {
+        headers["Content-Type"] = "application/json";
+      }
+      return new Response(step.status === 200 ? '{"ok":true}' : null, {
+        status: step.status,
+        headers,
+      });
+    }) as unknown as typeof fetch;
+    return calls;
+  }
+
+  it("bhv misc 124 a request body is not replayed across a 301 redirect from HTTPS to plain HTTP, and the call fails", async () => {
+    const calls = scriptFetch([
+      { status: 301, location: "http://api.example/plain" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await expect(
+      client.sendRequest(
+        "PUT",
+        "https://api.example/start",
+        { "Content-Type": "application/json" },
+        { name: "x" },
+      ),
+    ).rejects.toThrow("Refusing to replay request body");
+    expect(calls).toHaveLength(1);
+  });
+
+  it("bhv misc 126 a HEAD request redirected by 303 is followed as HEAD rather than converted to GET", async () => {
+    const calls = scriptFetch([
+      { status: 303, location: "https://example.com/elsewhere" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest("HEAD", "https://example.com/start", {}, null);
+    expect(calls).toHaveLength(2);
+    expect(String(calls[1].init.method).toUpperCase()).toBe("HEAD");
+  });
+
+  it("bhv misc 127 a Location that holds only a query keeps the redirected path and replaces its query", async () => {
+    const calls = scriptFetch([
+      { status: 302, location: "?page=2" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      "https://h.example.com/v1/items/1?page=1",
+      {},
+      null,
+    );
+    expect(calls[1].url).toBe("https://h.example.com/v1/items/1?page=2");
+  });
+
+  it("bhv misc 128 a cross-origin redirect keeps the proxy credential on every request through the shared transport", async () => {
+    /* undici tunnels every http:// origin through CONNECT, so the proxy answers each
+     * tunnel and serves the origin request inside it. */
+    const seen: Array<{ target: string; auth: string | undefined }> = [];
+    const origin = http.createServer((req, res) => {
+      if (req.headers.host === "origin-a.example") {
+        res.writeHead(302, { Location: "http://origin-b.example/hop" });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"ok":true}');
+    });
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(400);
+      res.end();
+    });
+    proxy.on("connect", (req, socket) => {
+      seen.push({
+        target: String(req.url),
+        auth: req.headers["proxy-authorization"],
+      });
+      socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+      origin.emit("connection", socket);
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    try {
+      const port = (proxy.address() as { port: number }).port;
+      const client = new DefaultApiClient(
+        TransportOptions.builder()
+          .proxy(`http://user:pass@127.0.0.1:${port}`)
+          .followRedirects(true)
+          .build(),
+      );
+      const response = await client.sendRequest(
+        "GET",
+        "http://origin-a.example/start",
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(seen.map((s) => s.target)).toEqual([
+        "origin-a.example:80",
+        "origin-b.example:80",
+      ]);
+      expect(seen.every((s) => s.auth !== undefined)).toBe(true);
+    } finally {
+      proxy.close();
+    }
+  });
+
+  it("bhv misc 129 a proxy credential the SDK adds is not sent again when a redirect moves an HTTPS request to another origin", async () => {
+    const calls = scriptFetch([
+      { status: 302, location: "https://other.example/landing" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      "https://api.example/start",
+      { "Proxy-Authorization": "Basic dXNlcjpwYXNz" },
+      null,
+    );
+    expect(new Headers(calls[0].init.headers).has("proxy-authorization")).toBe(
+      true,
+    );
+    expect(new Headers(calls[1].init.headers).has("proxy-authorization")).toBe(
+      false,
+    );
+  });
+
+  it("bhv misc 130 a credential removed by a cross-origin hop is not restored when a later redirect returns to the original origin", async () => {
+    const calls = scriptFetch([
+      { status: 302, location: "https://other.example/hop" },
+      { status: 302, location: "https://api.example/back" },
+      { status: 200 },
+    ]);
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    await client.sendRequest(
+      "GET",
+      "https://api.example/start",
+      { Authorization: "Bearer secret" },
+      null,
+    );
+    const auth = (i: number) =>
+      new Headers(calls[i].init.headers).get("authorization");
+    expect(auth(0)).toBe("Bearer secret");
+    expect(auth(1)).toBeNull();
+    expect(auth(2)).toBeNull();
+  });
+
+  it("bhv misc 133 a 300 or 305 response is returned as it is, even when it carries a Location header", async () => {
+    for (const status of [300, 305]) {
+      const calls = scriptFetch([
+        { status, location: "https://example.com/elsewhere" },
+      ]);
+      const client = new DefaultApiClient(
+        TransportOptions.builder().followRedirects(true).build(),
+      );
+      const response = await client.sendRequest(
+        "GET",
+        "https://example.com/start",
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(status);
+      expect(calls).toHaveLength(1);
+    }
+  });
+});
+
+describe("DefaultApiClient retry misc behaviours", () => {
+  const url = "https://api.example.com/items";
+
+  /** A transport that answers each attempt with the next step: a status code, or an error it throws. */
+  function scripted(steps: Array<number | Error>): {
+    fetch: typeof fetch;
+    methods: string[];
+  } {
+    const methods: string[] = [];
+    const fn = (async (_input: unknown, init?: RequestInit) => {
+      methods.push(String(init?.method ?? "GET"));
+      const step = steps[Math.min(methods.length - 1, steps.length - 1)]!;
+      if (step instanceof Error) throw step;
+      return new Response(step === 200 ? "{}" : "", {
+        status: step,
+        headers: { "content-type": "application/json" },
+      });
+    }) as unknown as typeof fetch;
+    return { fetch: fn, methods };
+  }
+
+  /** The TypeError fetch rejects with when the connection drops before any response. */
+  function connectionDropped(): TypeError {
+    return new TypeError("fetch failed", {
+      cause: Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }),
+    });
+  }
+
+  function clientFor(fetchFn: typeof fetch): DefaultApiClient {
+    return new DefaultApiClient(
+      TransportOptions.builder().fetch(fetchFn).build(),
+    );
+  }
+
+  test("bhvMisc160 an error that is not a network failure is never retried", async () => {
+    const transport = scripted([new Error("boom"), 200]);
+    const error = await clientFor(transport.fetch)
+      .sendRequest("GET", url, {}, null)
+      .catch((e: unknown) => e);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test("bhvMisc161 a request whose connection drops is sent the expected number of times, QUERY being idempotent", async () => {
+    for (const [method, attempts] of [
+      ["POST", 1],
+      ["PATCH", 1],
+      ["QUERY", 2],
+    ] as const) {
+      const transport = scripted([connectionDropped(), 200]);
+      const outcome: unknown = await clientFor(transport.fetch)
+        .sendRequest(method, url, {}, method === "QUERY" ? "{}" : null)
+        .catch((error: unknown) => error);
+      if (method === "QUERY") {
+        expect((outcome as { statusCode: number }).statusCode).toBe(200);
+      } else {
+        expect(outcome).toBeInstanceOf(NetworkError);
+      }
+      expect(transport.methods).toHaveLength(attempts);
+    }
+  });
+
+  test("bhvMisc163 a one-shot stream body is not replayed on a retryable status, a text body is replayed", async () => {
+    const streamTransport = scripted([503, 200]);
+    const stream = Readable.from(["payload"]);
+    await clientFor(streamTransport.fetch)
+      .sendRequest(
+        "POST",
+        url,
+        {},
+        stream as unknown as Record<string, unknown>,
+      )
+      .catch(() => undefined);
+    expect(streamTransport.methods).toHaveLength(1);
+
+    const textTransport = scripted([503, 200]);
+    const response = await clientFor(textTransport.fetch).sendRequest(
+      "POST",
+      url,
+      {},
+      "payload",
+    );
+    expect(response.statusCode).toBe(200);
+    expect(textTransport.methods).toHaveLength(2);
+  });
+
+  test("bhvMisc170 a TLS certificate failure is a network error on the first attempt and is not retried", async () => {
+    const tlsFailure = new TypeError("fetch failed", {
+      cause: Object.assign(
+        new Error("unable to verify the first certificate"),
+        { code: "UNABLE_TO_VERIFY_LEAF_SIGNATURE" },
+      ),
+    });
+    const transport = scripted([tlsFailure, 200]);
+    await expect(
+      clientFor(transport.fetch).sendRequest("GET", url, {}, null),
+    ).rejects.toBeInstanceOf(NetworkError);
+    expect(transport.methods).toHaveLength(1);
+  });
+
+  test("bhvMisc186 a non-fetch value and a ready-made fetch combined with a CA bundle are refused when the options are built", () => {
+    const transport = scripted([200]);
+    expect(() =>
+      TransportOptions.builder()
+        .fetch("not a function" as unknown as typeof fetch)
+        .build(),
+    ).toThrow(TypeError);
+    expect(() =>
+      TransportOptions.builder()
+        .fetch(transport.fetch)
+        .caCertPath("/path/to/ca.pem")
+        .build(),
+    ).toThrow(TypeError);
   });
 });

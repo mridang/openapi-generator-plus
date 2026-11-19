@@ -181,12 +181,15 @@ void main() {
       },
     );
 
-    test('no token anywhere fails when the authenticator is built', () {
-      expect(
-        () => BearerAuthenticator(host: '/api/v3', environment: const {}),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'bhv langdart 022 no token anywhere fails when the authenticator is built',
+      () {
+        expect(
+          () => BearerAuthenticator(host: '/api/v3', environment: const {}),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('bhv authbearer 026 a token and a provider together are refused', () {
       expect(
@@ -366,7 +369,7 @@ void main() {
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
     });
 
-    test('uppercase bearer prefix is stripped', () {
+    test('bhv misc 194 uppercase bearer prefix is stripped', () {
       final auth = BearerAuthenticator(host: '/api/v3', token: 'BEARER xyz');
 
       expect(auth.authHeaders(), equals({'Authorization': 'Bearer xyz'}));
@@ -431,31 +434,40 @@ void main() {
           PetStoreBearerAuthenticator(host: '/api/v3', token: token),
     };
 
-    builders.forEach((name, build) {
-      test('bhv authbearer 006 $name sends the token as a Bearer header', () {
-        expect(
-          build('xyz').authHeaders(),
-          equals({'Authorization': 'Bearer xyz'}),
-        );
-      });
+    test(
+      'bhv authbearer 006 every wrapper sends the token as a Bearer header',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            build('xyz').authHeaders(),
+            equals({'Authorization': 'Bearer xyz'}),
+            reason: name,
+          );
+        });
+      },
+    );
 
-      test(
-        'bhv authbearer 005 $name rejects an empty token at construction',
-        () {
-          expect(() => build(''), throwsArgumentError);
-        },
-      );
+    test(
+      'bhv authbearer 005 every wrapper rejects an empty token at construction',
+      () {
+        builders.forEach((name, build) {
+          expect(() => build(''), throwsArgumentError, reason: name);
+        });
+      },
+    );
 
-      test(
-        'bhv authbearer 001 $name prints its own name with the token masked',
-        () {
+    test(
+      'bhv authbearer 001 every wrapper prints its own name with the token masked',
+      () {
+        builders.forEach((name, build) {
           expect(
             build('xyz').toString(),
             equals('$name(host: /api/v3, token: ***)'),
+            reason: name,
           );
-        },
-      );
-    });
+        });
+      },
+    );
 
     test(
       'bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable',
@@ -493,43 +505,344 @@ void main() {
   });
 
   group('per-scheme authenticators', () {
-    group('AdminBasicAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => AdminBasicAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
+    test('bhv authbearer 010 reads its own variables from the environment', () {
+      expect(
+        () => AdminBasicAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'AdminBasicAuthenticator',
       );
+      expect(
+        () => ApiKeyHeaderAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'ApiKeyHeaderAuthenticator',
+      );
+      expect(
+        () => ApiKeyQueryAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'ApiKeyQueryAuthenticator',
+      );
+      expect(
+        () => BrowserAuthImplicitAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'BrowserAuthImplicitAuthenticator',
+      );
+      expect(
+        () => InternalApiKeyAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'InternalApiKeyAuthenticator',
+      );
+      expect(
+        () => LegacyAuthPasswordAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'LegacyAuthPasswordAuthenticator',
+      );
+      expect(
+        () => MachineAuthClientCredentialsAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'MachineAuthClientCredentialsAuthenticator',
+      );
+      expect(
+        () => PetStoreBasicAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'PetStoreBasicAuthenticator',
+      );
+      expect(
+        () => PetStoreBearerAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'PetStoreBearerAuthenticator',
+      );
+      expect(
+        () => ServiceTokenAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'ServiceTokenAuthenticator',
+      );
+      expect(
+        () => SessionCookieAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'SessionCookieAuthenticator',
+      );
+      expect(
+        () => SsoAuthAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'SsoAuthAuthenticator',
+      );
+      expect(
+        () => UserAuthAuthorizationCodeAuthenticator(
+          host: '/api/v3',
+          environment: {
+            'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET': 'value',
+            'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI': 'value',
+          },
+        ),
+        returnsNormally,
+        reason: 'UserAuthAuthorizationCodeAuthenticator',
+      );
+    });
 
-      test(
-        'bhv authscheme 001 AdminBasicAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => AdminBasicAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
+    test(
+      'bhv authscheme 001 each credential scheme reads only its own variable from the environment',
+      () {
+        expect(
+          () => AdminBasicAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
             ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
+          ),
+          reason: 'AdminBasicAuthenticator',
+        );
+        expect(
+          () => ApiKeyHeaderAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'),
+            ),
+          ),
+          reason: 'ApiKeyHeaderAuthenticator',
+        );
+        expect(
+          () => ApiKeyQueryAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
+            ),
+          ),
+          reason: 'ApiKeyQueryAuthenticator',
+        );
+        expect(
+          () => BrowserAuthImplicitAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'BrowserAuthImplicitAuthenticator',
+        );
+        expect(
+          () => InternalApiKeyAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
               ),
             ),
-          );
-        },
-      );
+          ),
+          reason: 'InternalApiKeyAuthenticator',
+        );
+        expect(
+          () => LegacyAuthPasswordAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'LegacyAuthPasswordAuthenticator',
+        );
+        expect(
+          () => MachineAuthClientCredentialsAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'MachineAuthClientCredentialsAuthenticator',
+        );
+        expect(
+          () => PetStoreBasicAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
+              ),
+            ),
+          ),
+          reason: 'PetStoreBasicAuthenticator',
+        );
+        expect(
+          () => PetStoreBearerAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN'),
+            ),
+          ),
+          reason: 'PetStoreBearerAuthenticator',
+        );
+        expect(
+          () => ServiceTokenAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
+            ),
+          ),
+          reason: 'ServiceTokenAuthenticator',
+        );
+        expect(
+          () => SessionCookieAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'),
+            ),
+          ),
+          reason: 'SessionCookieAuthenticator',
+        );
+        expect(
+          () => SsoAuthAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'SsoAuthAuthenticator',
+        );
+        expect(
+          () => UserAuthAuthorizationCodeAuthenticator(
+            host: '/api/v3',
+            environment: const {'UNRELATED_CREDENTIAL': 'x'},
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'UserAuthAuthorizationCodeAuthenticator',
+        );
+      },
+    );
 
-      test('fails to build naming the variable when none is set', () {
+    test(
+      'bhv langdart 023 fails to build naming the variable when none is set',
+      () {
         expect(
           () => AdminBasicAuthenticator(host: '/api/v3', environment: const {}),
           throwsA(
@@ -539,68 +852,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
             ),
           ),
+          reason: 'AdminBasicAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 AdminBasicAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => AdminBasicAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('ApiKeyHeaderAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => ApiKeyHeaderAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 ApiKeyHeaderAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => ApiKeyHeaderAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () =>
               ApiKeyHeaderAuthenticator(host: '/api/v3', environment: const {}),
@@ -611,68 +864,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'),
             ),
           ),
+          reason: 'ApiKeyHeaderAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 ApiKeyHeaderAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => ApiKeyHeaderAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('ApiKeyQueryAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => ApiKeyQueryAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 ApiKeyQueryAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => ApiKeyQueryAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () =>
               ApiKeyQueryAuthenticator(host: '/api/v3', environment: const {}),
@@ -683,68 +876,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
             ),
           ),
+          reason: 'ApiKeyQueryAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 ApiKeyQueryAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => ApiKeyQueryAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('BrowserAuthImplicitAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => BrowserAuthImplicitAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 BrowserAuthImplicitAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => BrowserAuthImplicitAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => BrowserAuthImplicitAuthenticator(
             host: '/api/v3',
@@ -757,94 +890,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID'),
             ),
           ),
+          reason: 'BrowserAuthImplicitAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 BrowserAuthImplicitAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => BrowserAuthImplicitAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable',
-        () {
-          expect(
-            () => BrowserAuthImplicitAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('InternalApiKeyAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => InternalApiKeyAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY':
-                    'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 InternalApiKeyAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => InternalApiKeyAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => InternalApiKeyAuthenticator(
             host: '/api/v3',
@@ -859,72 +906,8 @@ void main() {
               ),
             ),
           ),
+          reason: 'InternalApiKeyAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 InternalApiKeyAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => InternalApiKeyAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('LegacyAuthPasswordAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => LegacyAuthPasswordAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET':
-                    'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 LegacyAuthPasswordAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => LegacyAuthPasswordAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => LegacyAuthPasswordAuthenticator(
             host: '/api/v3',
@@ -937,95 +920,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
             ),
           ),
+          reason: 'LegacyAuthPasswordAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 LegacyAuthPasswordAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => LegacyAuthPasswordAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 014 an empty environment variable for the password scheme credential is treated as unset and fails naming the variable',
-        () {
-          expect(
-            () => LegacyAuthPasswordAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET':
-                    'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME': '',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD': 'value',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME'),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('MachineAuthClientCredentialsAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => MachineAuthClientCredentialsAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET':
-                    'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 MachineAuthClientCredentialsAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => MachineAuthClientCredentialsAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => MachineAuthClientCredentialsAuthenticator(
             host: '/api/v3',
@@ -1038,97 +934,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID'),
             ),
           ),
+          reason: 'MachineAuthClientCredentialsAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 MachineAuthClientCredentialsAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => MachineAuthClientCredentialsAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable',
-        () {
-          expect(
-            () => MachineAuthClientCredentialsAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('PetStoreBasicAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => PetStoreBasicAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME':
-                    'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD':
-                    'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 PetStoreBasicAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => PetStoreBasicAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => PetStoreBasicAuthenticator(
             host: '/api/v3',
@@ -1143,70 +950,8 @@ void main() {
               ),
             ),
           ),
+          reason: 'PetStoreBasicAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 PetStoreBasicAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => PetStoreBasicAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('PetStoreBearerAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => PetStoreBearerAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 PetStoreBearerAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => PetStoreBearerAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => PetStoreBearerAuthenticator(
             host: '/api/v3',
@@ -1219,68 +964,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN'),
             ),
           ),
+          reason: 'PetStoreBearerAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 PetStoreBearerAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => PetStoreBearerAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('ServiceTokenAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => ServiceTokenAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 ServiceTokenAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => ServiceTokenAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () =>
               ServiceTokenAuthenticator(host: '/api/v3', environment: const {}),
@@ -1291,68 +976,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
             ),
           ),
+          reason: 'ServiceTokenAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 ServiceTokenAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => ServiceTokenAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('SessionCookieAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => SessionCookieAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 SessionCookieAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => SessionCookieAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => SessionCookieAuthenticator(
             host: '/api/v3',
@@ -1365,70 +990,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'),
             ),
           ),
+          reason: 'SessionCookieAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 SessionCookieAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => SessionCookieAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains(
-                  'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY',
-                ),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('SsoAuthAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => SsoAuthAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 SsoAuthAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => SsoAuthAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => SsoAuthAuthenticator(host: '/api/v3', environment: const {}),
           throwsA(
@@ -1438,92 +1001,8 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
             ),
           ),
+          reason: 'SsoAuthAuthenticator',
         );
-      });
-
-      test(
-        'bhv authscheme 003 SsoAuthAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => SsoAuthAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': '',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 008 the SsoAuthAuthenticator treats an empty environment variable as unset and names it',
-        () {
-          expect(
-            () => SsoAuthAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': '',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI': 'value',
-              },
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
-              ),
-            ),
-          );
-        },
-      );
-    });
-    group('UserAuthAuthorizationCodeAuthenticator', () {
-      test(
-        'bhv authbearer 010 reads its own variables from the environment',
-        () {
-          expect(
-            () => UserAuthAuthorizationCodeAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': 'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET':
-                    'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI': 'value',
-              },
-            ),
-            returnsNormally,
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 001 UserAuthAuthorizationCodeAuthenticator reads only its own variable from the environment',
-        () {
-          expect(
-            () => UserAuthAuthorizationCodeAuthenticator(
-              host: '/api/v3',
-              environment: const {'UNRELATED_CREDENTIAL': 'x'},
-            ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
-              ),
-            ),
-          );
-        },
-      );
-
-      test('fails to build naming the variable when none is set', () {
         expect(
           () => UserAuthAuthorizationCodeAuthenticator(
             host: '/api/v3',
@@ -1536,54 +1015,488 @@ void main() {
               contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
             ),
           ),
+          reason: 'UserAuthAuthorizationCodeAuthenticator',
         );
-      });
+      },
+    );
 
-      test(
-        'bhv authscheme 003 UserAuthAuthorizationCodeAuthenticator fails at construction naming the variable when its environment variable is empty',
-        () {
-          expect(
-            () => UserAuthAuthorizationCodeAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': '',
-              },
+    test(
+      'bhv authscheme 003 each credential scheme fails at construction naming the variable when its environment variable is empty',
+      () {
+        expect(
+          () => AdminBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME'),
             ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+          ),
+          reason: 'AdminBasicAuthenticator',
+        );
+        expect(
+          () => ApiKeyHeaderAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY'),
+            ),
+          ),
+          reason: 'ApiKeyHeaderAuthenticator',
+        );
+        expect(
+          () => ApiKeyQueryAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY'),
+            ),
+          ),
+          reason: 'ApiKeyQueryAuthenticator',
+        );
+        expect(
+          () => BrowserAuthImplicitAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'BrowserAuthImplicitAuthenticator',
+        );
+        expect(
+          () => InternalApiKeyAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY',
               ),
             ),
-          );
-        },
-      );
-
-      test(
-        'bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable',
-        () {
-          expect(
-            () => UserAuthAuthorizationCodeAuthenticator(
-              host: '/api/v3',
-              environment: {
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': '',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET':
-                    'value',
-                'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI': 'value',
-              },
+          ),
+          reason: 'InternalApiKeyAuthenticator',
+        );
+        expect(
+          () => LegacyAuthPasswordAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID'),
             ),
-            throwsA(
-              isA<ArgumentError>().having(
-                (e) => e.message,
-                'message',
-                contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+          ),
+          reason: 'LegacyAuthPasswordAuthenticator',
+        );
+        expect(
+          () => MachineAuthClientCredentialsAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'MachineAuthClientCredentialsAuthenticator',
+        );
+        expect(
+          () => PetStoreBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME',
               ),
             ),
-          );
-        },
-      );
-    });
+          ),
+          reason: 'PetStoreBasicAuthenticator',
+        );
+        expect(
+          () => PetStoreBearerAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN'),
+            ),
+          ),
+          reason: 'PetStoreBearerAuthenticator',
+        );
+        expect(
+          () => ServiceTokenAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN'),
+            ),
+          ),
+          reason: 'ServiceTokenAuthenticator',
+        );
+        expect(
+          () => SessionCookieAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY'),
+            ),
+          ),
+          reason: 'SessionCookieAuthenticator',
+        );
+        expect(
+          () => SsoAuthAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'SsoAuthAuthenticator',
+        );
+        expect(
+          () => UserAuthAuthorizationCodeAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+            ),
+          ),
+          reason: 'UserAuthAuthorizationCodeAuthenticator',
+        );
+      },
+    );
+
+    test(
+      'bhv langdart 024 the scheme name in each generated bearer authenticator test identifies the scheme under test',
+      () {
+        expect(
+          AdminBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_USERNAME': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_ADMIN_BASIC_PASSWORD': 'value',
+            },
+          ).toString(),
+          startsWith('AdminBasicAuthenticator('),
+          reason: 'AdminBasicAuthenticator',
+        );
+        expect(
+          ApiKeyHeaderAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_HEADER_API_KEY': 'value',
+            },
+          ).toString(),
+          startsWith('ApiKeyHeaderAuthenticator('),
+          reason: 'ApiKeyHeaderAuthenticator',
+        );
+        expect(
+          ApiKeyQueryAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY_QUERY_API_KEY': 'value',
+            },
+          ).toString(),
+          startsWith('ApiKeyQueryAuthenticator('),
+          reason: 'ApiKeyQueryAuthenticator',
+        );
+        expect(
+          BrowserAuthImplicitAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': 'value',
+            },
+          ).toString(),
+          startsWith('BrowserAuthImplicitAuthenticator('),
+          reason: 'BrowserAuthImplicitAuthenticator',
+        );
+        expect(
+          InternalApiKeyAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_INTERNAL_API_KEY_API_KEY': 'value',
+            },
+          ).toString(),
+          startsWith('InternalApiKeyAuthenticator('),
+          reason: 'InternalApiKeyAuthenticator',
+        );
+        expect(
+          LegacyAuthPasswordAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET':
+                  'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD': 'value',
+            },
+          ).toString(),
+          startsWith('LegacyAuthPasswordAuthenticator('),
+          reason: 'LegacyAuthPasswordAuthenticator',
+        );
+        expect(
+          MachineAuthClientCredentialsAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET':
+                  'value',
+            },
+          ).toString(),
+          startsWith('MachineAuthClientCredentialsAuthenticator('),
+          reason: 'MachineAuthClientCredentialsAuthenticator',
+        );
+        expect(
+          PetStoreBasicAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_USERNAME': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD': 'value',
+            },
+          ).toString(),
+          startsWith('PetStoreBasicAuthenticator('),
+          reason: 'PetStoreBasicAuthenticator',
+        );
+        expect(
+          PetStoreBearerAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN': 'value',
+            },
+          ).toString(),
+          startsWith('PetStoreBearerAuthenticator('),
+          reason: 'PetStoreBearerAuthenticator',
+        );
+        expect(
+          ServiceTokenAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN': 'value',
+            },
+          ).toString(),
+          startsWith('ServiceTokenAuthenticator('),
+          reason: 'ServiceTokenAuthenticator',
+        );
+        expect(
+          SessionCookieAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SESSION_COOKIE_API_KEY': 'value',
+            },
+          ).toString(),
+          startsWith('SessionCookieAuthenticator('),
+          reason: 'SessionCookieAuthenticator',
+        );
+        expect(
+          SsoAuthAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI': 'value',
+            },
+          ).toString(),
+          startsWith('SsoAuthAuthenticator('),
+          reason: 'SsoAuthAuthenticator',
+        );
+        expect(
+          UserAuthAuthorizationCodeAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI': 'value',
+            },
+          ).toString(),
+          startsWith('UserAuthAuthorizationCodeAuthenticator('),
+          reason: 'UserAuthAuthorizationCodeAuthenticator',
+        );
+      },
+    );
+
+    test(
+      'bhv authscheme 016 an empty environment variable for the implicit scheme credential is treated as unset and fails naming the variable',
+      () {
+        expect(
+          () => BrowserAuthImplicitAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_BROWSER_AUTH_CLIENT_ID'),
+            ),
+          ),
+        );
+      },
+    );
+    test(
+      'bhv authscheme 014 an empty environment variable for the password scheme credential is treated as unset and fails naming the variable',
+      () {
+        expect(
+          () => LegacyAuthPasswordAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET':
+                  'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME': '',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD': 'value',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME'),
+            ),
+          ),
+        );
+      },
+    );
+    test(
+      'bhv authscheme 013 an empty environment variable for the client credentials scheme credential is treated as unset and fails naming the variable',
+      () {
+        expect(
+          () => MachineAuthClientCredentialsAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET': '',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains(
+                'SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET',
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    test(
+      'bhv authscheme 008 the SsoAuthAuthenticator treats an empty environment variable as unset and names it',
+      () {
+        expect(
+          () => SsoAuthAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID': '',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_SECRET': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_REDIRECT_URI': 'value',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_SSO_AUTH_CLIENT_ID'),
+            ),
+          ),
+        );
+      },
+    );
+    test(
+      'bhv authscheme 015 an empty environment variable for the authorization code scheme credential is treated as unset and fails naming the variable',
+      () {
+        expect(
+          () => UserAuthAuthorizationCodeAuthenticator(
+            host: '/api/v3',
+            environment: {
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID': '',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET': 'value',
+              'SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI': 'value',
+            },
+          ),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_ID'),
+            ),
+          ),
+        );
+      },
+    );
   });
 
   test(
@@ -1600,7 +1513,7 @@ void main() {
   );
 
   test(
-    'an unset environment variable and no other source fails at construction',
+    'bhv langdart 025 an unset environment variable and no other source fails at construction',
     () {
       expect(
         () => BearerAuthenticator(host: '/api/v3', environment: const {}),
@@ -1721,6 +1634,32 @@ void main() {
           'Bearer tok1',
         ], contains(header['Authorization']));
       }
+    },
+  );
+
+  test(
+    'bhv misc 066 a token provider value is sent as the bearer credential on the authenticated request',
+    () async {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        tokenProvider: () async => 'live',
+      );
+
+      final headers = await auth.authHeadersAsync();
+      expect(headers['Authorization'], equals('Bearer live'));
+    },
+  );
+
+  test(
+    'bhv misc 067 a token provider that raises fails the request with that same error',
+    () async {
+      final cause = StateError('provider boom');
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        tokenProvider: () => throw cause,
+      );
+
+      await expectLater(auth.authHeadersAsync(), throwsA(same(cause)));
     },
   );
 

@@ -43,7 +43,7 @@ import Testing
         "/// See https://example.com/docs/account Account <docs> & \"notes\" it's here"))
   }
 
-  @Test func testDeserializeFromJSON() throws {
+  @Test func testBhvSerialization085DeserializeFromJSON() throws {
     // Use ObjectSerializer.deserialize which has the correct ISO-8601 date strategy
     let jsonData = Data("{\"createdAt\":\"2024-01-15T10:30:00+00:00\"}".utf8)
 
@@ -227,7 +227,7 @@ import Testing
     #expect(original.copy(quantity: .some(nil)).id == 1)
   }
 
-  @Test func testCopyOfARequiredPropertyKeepsTheOthers() {
+  @Test func testBhvSerialization079CopyOfARequiredPropertyKeepsTheOthers() {
     let original = Reservation(reservationId: 31, quantity: 4)
     let changed = original.copy(quantity: 5)
 
@@ -248,7 +248,7 @@ import Testing
     #expect(moved.additionalProperties.keys.sorted() == ["extra"])
   }
 
-  @Test func testCopyOfARecursiveModelKeepsTheChild() {
+  @Test func testBhvLangswift041CopyOfARecursiveModelKeepsTheChild() {
     let original = TreeNode(value: "root", child: TreeNode(value: "leaf"))
 
     #expect(original.copy(value: "renamed").child?.value == "leaf")
@@ -290,11 +290,11 @@ import Testing
     "## Streaming",
     "## Configuration and transport options",
   ])
-  func testReadmeHasTheSection(heading: String) throws {
+  func testBhvLangswift042ReadmeHasTheSection(heading: String) throws {
     #expect(try readme().contains("\n\(heading)\n"))
   }
 
-  @Test func testReadmeNamesTheRequestContextOnErrors() throws {
+  @Test func testBhvLangswift043ReadmeNamesTheRequestContextOnErrors() throws {
     let text = try readme()
     #expect(text.contains("`requestMethod` and `requestPath`"))
     #expect(text.contains("API returned status code 404 for GET /items/7"))
@@ -325,11 +325,11 @@ import Testing
     "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET",
     "SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI",
   ])
-  func testReadmeNamesEverySchemeEnvironmentVariable(variable: String) throws {
+  func testBhvLangswift044ReadmeNamesEverySchemeEnvironmentVariable(variable: String) throws {
     #expect(try readme().contains("`\(variable)`"))
   }
 
-  @Test func testReadmeSaysEveryOperationTakesAnOptionsStruct() throws {
+  @Test func testBhvLangswift045ReadmeSaysEveryOperationTakesAnOptionsStruct() throws {
     let text = try readme()
     #expect(text.contains("Every operation takes an options struct"))
     #expect(!text.contains("has no options struct yet"))
@@ -359,7 +359,7 @@ import Testing
     #expect(text.contains("`0` disables"))
   }
 
-  @Test func testReadmeListsTheLicenseInThePackageSection() throws {
+  @Test func testBhvLangswift046ReadmeListsTheLicenseInThePackageSection() throws {
     #expect(try readme().contains("- License: MIT"))
   }
 
@@ -424,5 +424,84 @@ import Testing
     #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("placed"))
     #expect(OrderStatusEnum.allCases.map { $0.rawValue }.contains("approved"))
     #expect(OrderStatusEnum(rawValue: "not-a-status") == nil)
+  }
+
+  /* Numeric additional property names are written as members of the JSON object. */
+  @Test func testBhvMisc093NumericAdditionalPropertyNamesAreWrittenAsObjectMembers() throws {
+    let metadata = try #require(
+      try ObjectSerializer.deserialize(
+        Data("{\"404\":\"missing\",\"7\":\"seven\"}".utf8), as: Metadata.self))
+    let text = try ObjectSerializer.serialize(metadata)
+    #expect(text.contains("\"404\":\"missing\""))
+    #expect(text.contains("\"7\":\"seven\""))
+  }
+
+  /* A collection passed into a model is copied, so a later change to the source does not reach the model. */
+  @Test func testBhvMisc139ACollectionPassedIntoAModelIsCopied() {
+    var source: [String: String] = ["a": "1"]
+    let model = Metadata(additionalProperties: source)
+    source["b"] = "2"
+    #expect(model.additionalProperties.count == 1)
+  }
+
+  /* A model built without a value for a property that has a schema default holds that default. */
+  @Test func testBhvMisc141AModelBuiltWithoutADefaultedPropertyHoldsTheSchemaDefault() {
+    #expect(DryFood(weightKg: 2).foodType == "dry")
+  }
+
+  /* A value stored in the additional properties map is returned unchanged when read back by key. */
+  @Test func testBhvMisc142AStoredAdditionalPropertyIsReturnedUnchangedByKey() {
+    let model = Metadata(additionalProperties: ["k": "v"])
+    #expect(model.additionalProperties["k"] == "v")
+  }
+
+  /* A model built with an additional-properties map has a copy that keeps those entries and compares equal. */
+  @Test func testBhvMisc143AModelWithAdditionalPropertiesHasAnEqualCopy() {
+    let model = Metadata(additionalProperties: ["k": "v"])
+    let copy = Metadata(additionalProperties: model.additionalProperties)
+    #expect(copy == model)
+    #expect(copy.additionalProperties.count == 1)
+  }
+
+  /* Validating a model refuses a string given for a numeric field. */
+  @Test func testBhvMisc144ValidatingAModelRefusesAStringForANumericField() {
+    #expect(throws: DecodingError.self) {
+      _ = try JSONDecoder().decode(StrictTag.self, from: Data("{\"id\":\"7\"}".utf8))
+    }
+  }
+
+  /* Reading the undeclared keys returns a copy, so changing it leaves the model unchanged. */
+  @Test func testBhvMisc145ReadingTheUndeclaredKeysReturnsACopy() {
+    let model = Metadata(additionalProperties: ["k": "v"])
+    var keys = model.additionalProperties
+    keys["extra"] = "1"
+    #expect(model.additionalProperties["extra"] == nil)
+  }
+
+  /* Copying a model with no changes yields a new instance that compares equal to the original. */
+  @Test func testBhvMisc146ACopyWithNoChangesIsEqualToTheOriginal() {
+    let tag = StrictTag(id: 1, name: "a")
+    #expect(tag.copy() == tag)
+  }
+
+  /* A copy of a model serializes to the same wire form as the original with its changes applied. */
+  @Test func testBhvMisc148ACopySerializesWithItsChangesApplied() throws {
+    let copy = StrictTag(id: 1, name: "a").copy(name: .some("b"))
+    let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(copy)) as? [String: Any]
+    #expect(json?["id"] as? Int == 1)
+    #expect(json?["name"] as? String == "b")
+  }
+
+  /* Two models whose fields hold equal values compare equal, and two whose fields differ compare unequal. */
+  @Test func testBhvMisc150ModelsWithEqualFieldsCompareEqualAndDifferingOnesDoNot() {
+    #expect(StrictTag(id: 1, name: "a") == StrictTag(id: 1, name: "a"))
+    #expect(StrictTag(id: 1, name: "a") != StrictTag(id: 1, name: "b"))
+  }
+
+  /* A model holding a map compares equal to another with the same entries, and unequal when an entry differs. */
+  @Test func testBhvMisc151AModelHoldingAMapComparesByItsEntries() {
+    let model = Metadata(additionalProperties: ["k": "v"])
+    #expect(model == Metadata(additionalProperties: ["k": "v"]))
+    #expect(model != Metadata(additionalProperties: ["k": "w"]))
   }
 }

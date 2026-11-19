@@ -371,7 +371,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{#required}}
         /** @var string $cookieValue */
 {{#vendorExtensions.param.queryContent}}
-        $cookieValue = rawurlencode(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+        $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryContent}}
         $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
@@ -392,7 +392,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
 {{#vendorExtensions.param.queryContent}}
-            $cookieValue = rawurlencode(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+            $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryContent}}
             $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
@@ -746,7 +746,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{#required}}
         /** @var string $cookieValue */
 {{#vendorExtensions.param.queryContent}}
-        $cookieValue = rawurlencode(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+        $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryContent}}
         $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});
@@ -767,7 +767,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
         if ({{^vendorExtensions.op.optionsParamRequired}}$options !== null && {{/vendorExtensions.op.optionsParamRequired}}$options->{{paramName}} !== null) {
             /** @var string $cookieValue */
 {{#vendorExtensions.param.queryContent}}
-            $cookieValue = rawurlencode(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
+            $cookieValue = ValueSerializer::encodeContentCookie(\{{invokerPackage}}\ObjectSerializer::serialize($options->{{paramName}}));
 {{/vendorExtensions.param.queryContent}}
 {{^vendorExtensions.param.queryContent}}
             $cookieValue = ValueSerializer::serializeStyled('{{baseName}}', {{#isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/isByteArray}}{{#items.isByteArray}}\{{invokerPackage}}\ObjectSerializer::encodeBase64Param({{/items.isByteArray}}$options->{{paramName}}{{#isByteArray}}){{/isByteArray}}{{#items.isByteArray}}){{/items.isByteArray}}, 'cookie', '{{dataType}}'{{#isDate}} . '|date'{{/isDate}}{{#items}}{{#isDate}} . '|date'{{/isDate}}{{/items}}, null, '{{style}}', {{vendorExtensions.isExplodeStr}});

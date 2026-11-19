@@ -18,6 +18,18 @@ defmodule PetstoreClient.ApiResultTest do
       assert result.headers == %{"content-type" => "application/json"}
     end
 
+    test "bhv results 007 a result returns the payload data, raw body and headers exactly as supplied" do
+      result = %ApiResult{
+        status_code: 200,
+        data: %{"id" => 1},
+        raw_body: ~s({"id":1}),
+        headers: %{"x-id" => "1"}
+      }
+
+      assert {result.data, result.raw_body, result.headers} ==
+               {%{"id" => 1}, ~s({"id":1}), %{"x-id" => "1"}}
+    end
+
     test "bhv results 004 exposes the deserialized data" do
       result = %ApiResult{status_code: 200, data: %{"id" => 1}}
 
@@ -45,7 +57,7 @@ defmodule PetstoreClient.ApiResultTest do
       assert result.raw_body == ""
     end
 
-    test "headers defaults to an empty map" do
+    test "bhv langelixir 057 headers defaults to an empty map" do
       result = %ApiResult{status_code: 200}
 
       assert result.headers == %{}

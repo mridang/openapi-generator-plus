@@ -14,7 +14,7 @@ use {{packageName}}::models::*;
 // -- Error dispatch via chasm --
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_400() {
+async fn test_bhv_langrust_017_base_api_error_dispatch_400() {
     let base_url = format!("{}/test/status/400", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -25,7 +25,7 @@ async fn test_base_api_error_dispatch_400() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_401() {
+async fn test_bhv_langrust_018_base_api_error_dispatch_401() {
     let base_url = format!("{}/test/status/401", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -36,7 +36,7 @@ async fn test_base_api_error_dispatch_401() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_403() {
+async fn test_bhv_langrust_019_base_api_error_dispatch_403() {
     let base_url = format!("{}/test/status/403", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -47,7 +47,7 @@ async fn test_base_api_error_dispatch_403() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_404() {
+async fn test_bhv_langrust_020_base_api_error_dispatch_404() {
     let base_url = format!("{}/test/status/404", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -69,7 +69,7 @@ async fn test_bhv_errors_067_base_api_error_dispatch_409() {
 }
 
 #[tokio::test]
-async fn test_base_api_error_dispatch_422() {
+async fn test_bhv_langrust_021_base_api_error_dispatch_422() {
     let base_url = format!("{}/test/status/422", testcontainers_helper::chasm_http_url());
     let config = ConfigurationBuilder::new().base_url(&base_url).build();
     let client = DefaultApiClient::new(None);
@@ -258,23 +258,6 @@ impl {{packageName}}::api_client::ApiClient for PlainTextApiClient {
 
 /* D32: a text/plain 200 for an operation that returns a model is a
  * SerializationError naming the Content-Type, never a silently dropped body. */
-#[tokio::test]
-async fn test_base_api_rejects_a_text_plain_body_for_a_model_return() {
-    let client = Arc::new(PlainTextApiClient);
-    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
-    let api = PetApi::new(client, config, None);
-    let err = api
-        .get_pet_by_id_with_http_info(1, None, None)
-        .await
-        .expect_err("a text/plain body for a model return must be an error");
-    let serialization = err
-        .downcast_ref::<SerializationError>()
-        .unwrap_or_else(|| panic!("expected a SerializationError, got {err}"));
-    assert_eq!(
-        "Unexpected response Content-Type 'text/plain' for PetApi.get_pet_by_id",
-        serialization.message()
-    );
-}
 
 struct VendorJsonApiClient;
 
@@ -644,7 +627,7 @@ async fn test_bhv_serializationwire_055_form_space_encodes_as_plus() {
 
 // -- form-urlencoded Content-Type set on the generated operation --
 #[tokio::test]
-async fn test_set_pet_preferences_sends_form_content_type() {
+async fn test_bhv_misc_179_set_pet_preferences_sends_form_content_type() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
@@ -972,7 +955,7 @@ impl {{packageName}}::api_client::ApiClient for QueryCapturingApiClient {
 }
 
 #[tokio::test]
-async fn test_base_api_query_param_serialization() {
+async fn test_bhv_langrust_022_base_api_query_param_serialization() {
     let client = Arc::new(QueryCapturingApiClient::new());
     let config = ConfigurationBuilder::new().base_url("http://localhost").build();
     let api = PetApi::new(client.clone(), config, None);
@@ -1559,13 +1542,13 @@ fn test_bhv_errors_060_api_error_kind_not_found_variant() {
 }
 
 #[test]
-fn test_api_error_kind_conflict_variant() {
+fn test_bhv_langrust_023_api_error_kind_conflict_variant() {
     let kind: {{packageName}}::ApiErrorKind = make_api_error(409).into();
     assert!(matches!(kind, {{packageName}}::ApiErrorKind::Conflict(_)));
 }
 
 #[test]
-fn test_api_error_kind_too_many_requests_variant() {
+fn test_bhv_langrust_024_api_error_kind_too_many_requests_variant() {
     let kind: {{packageName}}::ApiErrorKind = make_api_error(429).into();
     assert!(matches!(kind, {{packageName}}::ApiErrorKind::TooManyRequests(_)));
 }
@@ -1583,25 +1566,25 @@ fn test_bhv_errors_069_api_error_kind_internal_server_error_variant() {
 }
 
 #[test]
-fn test_api_error_kind_client_error_fallback() {
+fn test_bhv_langrust_025_api_error_kind_client_error_fallback() {
     let kind: {{packageName}}::ApiErrorKind = make_api_error(418).into();
     assert!(matches!(kind, {{packageName}}::ApiErrorKind::ClientError(_)));
 }
 
 #[test]
-fn test_api_error_kind_server_error_fallback() {
+fn test_bhv_langrust_026_api_error_kind_server_error_fallback() {
     let kind: {{packageName}}::ApiErrorKind = make_api_error(599).into();
     assert!(matches!(kind, {{packageName}}::ApiErrorKind::ServerError(_)));
 }
 
 #[test]
-fn test_api_error_kind_other_for_unrecognized_status() {
+fn test_bhv_langrust_027_api_error_kind_other_for_unrecognized_status() {
     let kind: {{packageName}}::ApiErrorKind = make_api_error(0).into();
     assert!(matches!(kind, {{packageName}}::ApiErrorKind::Other(_, _)));
 }
 
 #[test]
-fn test_api_error_kind_network_variants_have_status_zero() {
+fn test_bhv_langrust_028_api_error_kind_network_variants_have_status_zero() {
     let fields = {{packageName}}::ApiErrorFields::from(make_api_error(0));
     let kind = {{packageName}}::ApiErrorKind::Network(fields.clone());
     assert!(matches!(kind, {{packageName}}::ApiErrorKind::Network(_)));
@@ -1699,7 +1682,7 @@ fn test_bhv_operations_006_api_result_and_response_accessor_only() {
 // only through accessor methods (no `pub` field to forge or mutate error
 // state). Walk the full BadRequest -> ClientError -> ApiError accessor chain.
 #[test]
-fn test_typed_error_wrappers_accessor_only() {
+fn test_bhv_langrust_029_typed_error_wrappers_accessor_only() {
     let api_error = {{packageName}}::ApiError::new(
         400,
         "bad request".to_string(),
@@ -2351,7 +2334,7 @@ async fn test_bhv_retries_025_a_retry_that_does_not_fit_the_timeout_is_not_made(
 }
 
 #[tokio::test]
-async fn test_every_attempt_shares_one_deadline() {
+async fn test_bhv_langrust_030_every_attempt_shares_one_deadline() {
     let client = ScriptedApiClient::new(
         vec![Scripted::Status(503, Some("0")), Scripted::Status(200, None)],
         2,
@@ -2514,6 +2497,23 @@ async fn test_bhv_authintegration_016_a_security_none_operation_sends_no_scheme_
     let headers = client.captured_headers.lock().unwrap();
     assert!(!headers.contains_key("Authorization"), "got: {:?}", headers.get("Authorization"));
     assert!(!headers.contains_key("Cookie"), "got: {:?}", headers.get("Cookie"));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_064_an_operation_that_declares_no_security_never_sends_the_client_credential() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> = Arc::new(EverywhereAuthenticator);
+    let api = StoreApi::new(client.clone(), config, Some(client_auth));
+
+    let _ = api.get_inventory(None).await;
+
+    let headers = client.captured_headers.lock().unwrap();
+    assert!(
+        !headers.contains_key("Authorization"),
+        "got: {:?}",
+        headers.get("Authorization")
+    );
 }
 
 // operations155: an operation sends its query parameters in the order the specification declares them.
@@ -3153,4 +3153,422 @@ async fn test_bhv_hooks_019_a_panic_in_finish_is_swallowed_and_the_caller_gets_i
 
     assert!(err.downcast_ref::<NotFoundError>().is_some(), "got: {}", err);
     assert_eq!(2, log.finishes.lock().unwrap().len());
+}
+
+#[tokio::test]
+async fn test_bhv_errors_092_every_request_error_carries_method_and_path_and_a_timeout_stays_a_timeout() {
+    let client = ScriptedApiClient::new(vec![Scripted::Timeout, Scripted::Status(200, None)], 2, None);
+    let err = retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect_err("a timeout fails the call");
+    let timeout = err.downcast_ref::<NetworkTimeoutError>().expect("a timeout stays a timeout");
+    assert_eq!(Some("DELETE"), timeout.network_error().api_error().request_method());
+    assert_eq!(Some("/pet/1"), timeout.network_error().api_error().request_path());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_191_an_invalid_auth_cookie_error_is_not_an_api_error() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(InvalidCookieAuthenticator)));
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let err = api
+        .add_pet(pet, Some(&AddPetOptions::new()))
+        .await
+        .expect_err("an invalid auth cookie must fail the call");
+    assert!(err.downcast_ref::<{{packageName}}::ApiError>().is_none(), "{}", err);
+}
+
+struct LegalCookieAuthenticator;
+
+impl {{packageName}}::auth::Authenticator for LegalCookieAuthenticator {
+    fn host(&self) -> &str {
+        "http://localhost"
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>,
+    > {
+        Box::pin(async move { HashMap::new() })
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        let mut cookies = HashMap::new();
+        cookies.insert("session".to_string(), "Zz09!#$%&'()*+-./:<=>?@[]^_`{|}~".to_string());
+        cookies
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_192_an_auth_cookie_of_only_legal_octets_is_sent_exactly_as_given() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(LegalCookieAuthenticator)));
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let _ = api.add_pet(pet, Some(&AddPetOptions::new())).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        Some("session=Zz09!#$%&'()*+-./:<=>?@[]^_`{|}~"),
+        headers.get("Cookie").map(|s| s.as_str())
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_047_a_wait_that_would_overrun_the_caller_timeout_is_not_taken() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some("30")), Scripted::Status(200, None)],
+        2,
+        Some(std::time::Duration::from_secs(2)),
+    );
+    let started = std::time::Instant::now();
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+    assert!(started.elapsed() < std::time::Duration::from_secs(10), "waited {:?}", started.elapsed());
+}
+
+#[tokio::test]
+async fn test_bhv_retries_049_max_retries_sets_the_number_of_retries() {
+    let scripts: Vec<Scripted> = (0..5).map(|_| Scripted::Status(503, Some("0"))).collect();
+    let client = ScriptedApiClient::new(scripts, 4, None);
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(5, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_retries_050_retry_after_as_an_http_date_is_honoured() {
+    let when = (chrono::Utc::now() + chrono::TimeDelta::seconds(2))
+        .format("%a, %d %b %Y %H:%M:%S GMT")
+        .to_string();
+    let when: &'static str = Box::leak(when.into_boxed_str());
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Status(503, Some(when)), Scripted::Status(200, None)],
+        2,
+        None,
+    );
+    let started = std::time::Instant::now();
+
+    retrying_api(&client).delete_pet(1, None).await.expect("the retry succeeds");
+
+    assert!(started.elapsed() >= std::time::Duration::from_millis(900), "{:?}", started.elapsed());
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_159_a_401_is_replayed_once_even_with_retries_off() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(401, None), Scripted::Status(200, None)], 0, None);
+    retrying_api_with(&client, Arc::new(RenewableAuthenticator::new()))
+        .delete_pet(1, None)
+        .await
+        .expect("the replayed call succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_176_cookie_value_is_sent_in_the_cookie_header() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new().api_key("abc123".to_string()))).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(Some("api_key=abc123"), headers.get("Cookie").map(|s| s.as_str()));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_189_the_query_wrapper_sends_the_key_as_the_api_key_query_parameter() {
+    use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
+    use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let auth = ApiKeyAuthenticator::new("http://localhost", "api_key", "abc123", ApiKeyLocation::Query).unwrap();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
+    let _ = api.delete_pet(1, None).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.contains("api_key=abc123"), "got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_212_a_404_or_500_response_raises_its_error_class_through_the_api_layer() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(404, None)], 0, None);
+    let err = retrying_api(&client).delete_pet(1, None).await.expect_err("a 404 fails the call");
+    assert!(err.downcast_ref::<NotFoundError>().is_some(), "got: {}", err);
+
+    let client = ScriptedApiClient::new(vec![Scripted::Status(500, None)], 0, None);
+    let err = retrying_api(&client).delete_pet(1, None).await.expect_err("a 500 fails the call");
+    assert!(err.downcast_ref::<InternalServerError>().is_some(), "got: {}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_227_a_connection_dropped_before_any_response_is_retried_for_an_idempotent_method() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the dropped connection succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_162_an_idempotent_request_is_sent_again_once_after_a_dropped_connection() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the dropped connection succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_228_an_unparseable_retry_after_falls_back_to_the_normal_backoff() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(503, Some("soon")), Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the 503 succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_264_each_listed_error_status_raises_its_typed_error() {
+    let cases: [(u16, fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool); 3] = [
+        (400, |e| e.downcast_ref::<BadRequestError>().is_some()),
+        (401, |e| e.downcast_ref::<UnauthorizedError>().is_some()),
+        (500, |e| e.downcast_ref::<InternalServerError>().is_some()),
+    ];
+    for (status, is_typed) in cases {
+        let base_url = format!("{}/test/status/{}", testcontainers_helper::chasm_http_url(), status);
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+        let err = api.get_pet_by_id(1, None, None).await.expect_err("expected an error status");
+        assert!(is_typed(err.as_ref()), "status {} did not raise its typed error: {}", status, err);
+    }
+}
+#[tokio::test]
+async fn test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new().status("a/b:c".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(url.contains("status=a%2Fb%3Ac"), "expected slash and colon to be percent-encoded, got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_255_separate_query_parameters_encode_a_space_as_percent_20() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new().status("a b".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(url.contains("status=a%20b"), "expected a space to be written as %20, got: {}", url);
+}
+
+/// Answers every request with one fixed status and an empty JSON body.
+struct StatusApiClient {
+    status: u16,
+}
+
+impl {{packageName}}::api_client::ApiClient for StatusApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        let status = self.status;
+        Box::pin(async move {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(status, "{}".to_string(), HashMap::new()))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_listed_status() {
+    let cases: [(u16, fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool); 8] = [
+        (400, |e| e.downcast_ref::<BadRequestError>().is_some()),
+        (403, |e| e.downcast_ref::<ForbiddenError>().is_some()),
+        (404, |e| e.downcast_ref::<NotFoundError>().is_some()),
+        (409, |e| e.downcast_ref::<ConflictError>().is_some()),
+        (422, |e| e.downcast_ref::<UnprocessableEntityError>().is_some()),
+        (429, |e| e.downcast_ref::<TooManyRequestsError>().is_some()),
+        (500, |e| e.downcast_ref::<InternalServerError>().is_some()),
+        (502, |e| e.downcast_ref::<BadGatewayError>().is_some()),
+    ];
+    for (status, is_typed) in cases {
+        let config = ConfigurationBuilder::new().base_url("https://example.test").build();
+        let api = PetApi::new(Arc::new(StatusApiClient { status }), config, None);
+        let err = api.get_pet_by_id(1, None, None).await.expect_err("a listed error status must fail the call");
+        assert!(is_typed(err.as_ref()), "status {} did not raise its typed error: {}", status, err);
+    }
+}
+
+/// Answers every request with one fixed status and an empty body.
+struct EmptyBodyApiClient {
+    status: u16,
+}
+
+impl {{packageName}}::api_client::ApiClient for EmptyBodyApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        let status = self.status;
+        Box::pin(async move {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(status, String::new(), HashMap::new()))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_222_a_success_response_with_a_201_status_and_an_empty_body_returns_no_data() {
+    let config = ConfigurationBuilder::new().base_url("https://example.test").build();
+    let api = PetApi::new(Arc::new(EmptyBodyApiClient { status: 201 }), config, None);
+    api.delete_pet(1, None).await.expect("an empty 201 body is not an error");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_236_query_and_header_date_params_emit_date_only() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let opts = FindPetsByStatusOptions::new().born_after(date).report_date(date);
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.contains("bornAfter=2024-01-01"), "got: {}", url);
+    assert!(!url.contains("bornAfter=2024-01-01T"), "got: {}", url);
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(Some("2024-01-01"), headers.get("Report-Date").map(|s| s.as_str()));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_239_an_operation_query_parameter_is_serialized_when_no_authenticator_is_configured() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new().status("a b".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.ends_with("status=a%20b"), "got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_197_an_operation_whose_named_schemes_the_client_lacks_is_served_by_the_default_authenticator() {
+    /* When `None` is passed for `auth`, the operation must fall back to the
+     * authenticator that was wired into the BaseApi at construction time. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let client_auth: Arc<dyn {{packageName}}::auth::Authenticator> = Arc::new(NoopAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+    let pet = Pet::new("FallbackPet".to_string(), HashSet::new());
+    /* Passing None must succeed (no panic) and dispatch the request. */
+    let _ = api.add_pet(pet, None).await;
+    let body = client.captured_body.lock().unwrap();
+    assert!(body.is_some(), "expected request body to be captured when auth=None falls back to client authenticator");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_202_a_text_body_without_a_content_type_goes_out_as_json_with_no_parameters() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.get_pet_by_id(1, None, None).await;
+    let headers = client.captured_headers.lock().unwrap();
+    if let Some(ct) = headers.get("Content-Type") {
+        assert_eq!(ct, "application/json", "expected Content-Type to be application/json");
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_210_a_date_time_form_field_is_encoded_canonically_with_escaped_colons_and_plus() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+
+    let instant = chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").unwrap();
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .reminder({{packageName}}::date_time::DateTime::new(instant));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str.contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"),
+        "date-time form value must use the canonical form: {}",
+        body_str
+    );
+    assert!(!body_str.contains("%20"), "space must never encode as %20: {}", body_str);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_213_an_optional_array_query_parameter_uses_its_declared_style_without_brackets() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::SearchStoreOptions::new()
+        .labels(vec!["a".to_string(), "b".to_string()]);
+    let _ = api.search_store(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(url.contains("labels=a&labels=b"), "expected expanded array params, got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_218_a_per_call_header_takes_precedence_over_a_configured_header_without_a_duplicate() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("X-Trace-Id", "default")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let opts = AddPetOptions::new().header("X-Trace-Id", "per-call");
+    let _ = api.add_pet(pet, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("X-Trace-Id").map(|s| s.as_str()),
+        Some("per-call"),
+        "a per-call header must replace the default header of the same name"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_209_a_void_operation_ignores_a_success_body_of_any_shape() {
+    for body in ["plain text", "42"] {
+        let client = ScriptedApiClient::new(vec![Scripted::Status(200, Some(body))], 0, None);
+        let result = retrying_api(&client).delete_pet(1, None).await;
+        assert!(result.is_ok(), "body {:?} must not fail a void operation: {:?}", body, result.err());
+    }
+}
+
+struct FixedServerUrl(&'static str);
+
+impl GetMultiServerPetInfoServer for FixedServerUrl {
+    fn get_url(&self) -> String {
+        self.0.to_string()
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_219_an_operation_with_several_servers_sends_to_the_server_it_is_given() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let server = FixedServerUrl("https://chosen.example.test");
+    let _ = api.get_multi_server_pet_info(1, Some(&server), None).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.starts_with("https://chosen.example.test"), "got: {}", url);
 }

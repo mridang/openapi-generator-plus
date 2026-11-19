@@ -88,7 +88,7 @@ fn test_bhv_config_007_configuration_builder_returns_instance() {
 
 /// `Configuration::builder()` is the static entry point every SDK exposes.
 #[test]
-fn test_configuration_builder_entry_point() {
+fn test_bhv_config_026_configuration_builder_entry_point() {
     let config = Configuration::builder()
         .base_url("https://entry.example.com")
         .build();
@@ -386,7 +386,7 @@ fn test_bhv_config_010_configuration_builder_sets_all_fields() {
 /// A hook set on the builder is read back, and the debug form names no hook
 /// internals.
 #[test]
-fn test_bhv_hooks_020_configuration_carries_the_call_hook_and_does_not_print_it() {
+fn test_bhv_langrust_087_configuration_carries_the_call_hook_and_does_not_print_it() {
     use std::sync::Arc;
 
     struct SecretHook;
@@ -411,4 +411,43 @@ fn test_bhv_hooks_020_configuration_carries_the_call_hook_and_does_not_print_it(
     let shown = format!("{:?}", config);
     assert!(shown.contains("<hook>"), "{shown}");
     assert!(!shown.contains("SecretHook"), "{shown}");
+}
+
+#[test]
+fn test_bhv_misc_136_the_configuration_debug_text_shows_the_base_url_and_plain_default_headers() {
+    use petstore::Configuration;
+    let config = Configuration::builder()
+        .base_url("https://api.example.com")
+        .default_header("Accept", "text/plain")
+        .build();
+    let shown = format!("{:?}", config);
+    assert!(shown.contains("https://api.example.com"), "{shown}");
+    assert!(shown.contains("text/plain"), "{shown}");
+}
+#[test]
+fn test_bhv_misc_277_each_call_to_the_default_configuration_returns_a_distinct_object() {
+    let first = Configuration::default();
+    let second = Configuration::default();
+    assert!(
+        !std::ptr::eq(&first, &second),
+        "each default must be its own value"
+    );
+}
+
+#[test]
+fn test_bhv_misc_279_changing_headers_returned_from_a_configuration_leaves_its_own_headers_unchanged(
+) {
+    let config = Configuration::builder()
+        .default_header("X-Keep", "yes")
+        .build();
+    let mut copy = config.default_headers();
+    copy.insert("X-New".to_string(), "no".to_string());
+    assert!(
+        !config.default_headers().contains_key("X-New"),
+        "the configuration must not see the change"
+    );
+    assert_eq!(
+        Some(&"yes".to_string()),
+        config.default_headers().get("X-Keep")
+    );
 }

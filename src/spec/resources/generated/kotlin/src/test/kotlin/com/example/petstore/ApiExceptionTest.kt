@@ -22,12 +22,159 @@ import com.example.petstore.errors.ServerException
 import com.example.petstore.errors.TooManyRequestsException
 import com.example.petstore.errors.UnauthorizedException
 import com.example.petstore.errors.UnprocessableEntityException
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 
 class ApiExceptionTest {
+    @Test
+    @DisplayName("bhvMisc015 a typed view of an error body that is valid JSON but not an object is a serialization error")
+    fun bhvMisc015TypedViewOfNonObjectErrorBodyIsASerializationError() {
+        val ex = ApiException.fromResponse(400, emptyMap(), "[1,2]")
+
+        assertThrows(SerializationException::class.java) { ex.getTypedErrorBody<com.example.petstore.models.Category>() }
+    }
+
+    @Test
+    @DisplayName("bhvMisc016 the rendered error body is capped and the text states how many bytes were omitted")
+    fun bhvMisc016RenderedErrorBodyIsCappedAndStatesTheBytesOmitted() {
+        val ex = ApiException(502, "bad gateway", emptyMap(), "a".repeat(3000))
+
+        assertTrue(ex.toString().contains("more bytes"))
+        assertTrue(ex.toString().length < 1500)
+    }
+
+    @Test
+    @DisplayName("bhvMisc018 a token endpoint error with a non-JSON body exposes the status, no code and the raw text")
+    fun bhvMisc018NonJsonTokenErrorExposesStatusNoCodeAndRawText() {
+        val ex =
+            com.example.petstore.errors
+                .OAuth2ServerException(500, null, null, null, "upstream exploded")
+
+        assertEquals(500, ex.statusCode)
+        assertNull(ex.code)
+        assertEquals("upstream exploded", ex.rawBody)
+    }
+
+    @Test
+    @DisplayName("bhvMisc020 the request line is shown only when both the request method and the request path are known")
+    fun bhvMisc020RequestLineNeedsBothTheMethodAndThePath() {
+        val ex = ApiException.fromResponse(500, emptyMap(), "x", null, "/items")
+
+        assertFalse(ex.toString().contains("Request:"))
+    }
+
+    @Test
+    @DisplayName("bhvMisc022 a server error is an instance of the SDK root error type and wraps the API error as its cause")
+    fun bhvMisc022ServerErrorIsTheRootTypeAndWrapsItsApiError() {
+        val api = ApiException.fromResponse(503, null, null)
+        val server = ServerException(503, "down", cause = api)
+
+        assertTrue(server is OpenAPIException)
+        assertSame(api, server.cause)
+    }
+
+    @Test
+    @DisplayName("bhvMisc023 an unmapped 5xx is the generic server error and another unmapped status the base error")
+    fun bhvMisc023UnmappedServerStatusIsGenericServerErrorAndOtherUnmappedIsBase() {
+        assertEquals(ServerException::class.java, ApiException.fromResponse(520, null, null).javaClass)
+        assertEquals(ApiException::class.java, ApiException.fromResponse(399, null, null).javaClass)
+    }
+
+    @Test
+    @DisplayName("bhvErrors085 the rendered body escapes control characters so a line break cannot forge a line")
+    fun bhvErrors085RenderedBodyEscapesControlCharacters() {
+        val ex = ApiException(statusCode = 500, message = "boom", responseHeaders = null, responseBody = "a\r\nb")
+
+        assertFalse(ex.toString().contains("a\r\nb"))
+        assertEquals("boom\nHTTP status code: 500\nResponse body: a\\x0D\\x0Ab", ex.toString())
+    }
+
+    @Test
+    @DisplayName("bhvErrors087 the rendered form masks the authentication challenge headers")
+    fun bhvErrors087RenderedFormMasksAuthenticationChallengeHeaders() {
+        val ex =
+            ApiException(
+                statusCode = 401,
+                message = "denied",
+                responseHeaders =
+                    mapOf(
+                        "WWW-Authenticate" to "Basic realm=hidden-realm",
+                        "Proxy-Authenticate" to "Basic realm=hidden-proxy",
+                    ),
+                responseBody = null,
+            )
+
+        assertFalse(ex.toString().contains("hidden-realm"))
+        assertFalse(ex.toString().contains("hidden-proxy"))
+    }
+
+    @Test
+    @DisplayName("bhvErrors089 an error with a null or empty message renders the default message text")
+    fun bhvErrors089NullOrEmptyMessageRendersTheDefaultText() {
+        val ex = ApiException(statusCode = 500, message = "", responseHeaders = null, responseBody = null)
+
+        assertTrue(ex.toString().startsWith("Error message: the server returns an error"))
+    }
+
+    @Test
+    @DisplayName("bhvErrors090 a network error keeps its response headers and body as null")
+    fun bhvErrors090NetworkErrorKeepsNullResponseHeadersAndBody() {
+        val ex = NetworkException("connection refused", java.io.IOException("refused"))
+
+        assertNull(ex.responseHeaders)
+        assertNull(ex.responseBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors093 an error built from a response keeps the raw body and the decoded error body")
+    fun bhvErrors093ErrorBuiltFromResponseExposesDecodedAndRawBody() {
+        val raw = "{\"code\":\"E1\"}"
+        val ex = ApiException.fromResponse(400, null, raw)
+
+        assertEquals(raw, ex.responseBody)
+        assertNotNull(ex.errorBody)
+    }
+
+    @Test
+    @DisplayName("bhvErrors094 every error type the SDK raises is the branded root")
+    fun bhvErrors094EveryRaisedErrorIsTheBrandedRoot() {
+        assertTrue(SerializationException("decode failed") is OpenAPIException)
+        assertTrue(NetworkException("connection refused", java.io.IOException("refused")) is OpenAPIException)
+        assertTrue(ApiException.fromResponse(404, null, null) is OpenAPIException)
+    }
+
+    @Test
+    @DisplayName("bhvErrors095 a typed error is matched by its status-class family")
+    fun bhvErrors095TypedErrorIsMatchedByItsStatusClass() {
+        val notFound = ApiException.fromResponse(404, null, null)
+        assertTrue(notFound is ClientException)
+        assertFalse(notFound is ServerException)
+
+        val internal = ApiException.fromResponse(500, null, null)
+        assertTrue(internal is ServerException)
+    }
+
+    @Test
+    @DisplayName("bhvErrors096 a status outside a class range is not classified into that class")
+    fun bhvErrors096StatusOutsideItsClassFallsBackToTheBase() {
+        listOf(399, 600).forEach { status ->
+            val ex = ApiException.fromResponse(status, null, null)
+
+            assertFalse(ex is ClientException)
+            assertFalse(ex is ServerException)
+            assertEquals(ApiException::class.java, ex.javaClass)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvErrors097 an unrecognised 4xx status raises the generic client error")
+    fun bhvErrors097UnrecognisedClientStatusIsTheGenericClientError() {
+        assertTrue(ApiException.fromResponse(499, null, null) is ClientException)
+    }
+
     @Test
     fun bhvErrors004ExposesStatusCodeMessageBodyHeadersErrorBody() {
         val ex =
@@ -131,7 +278,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun networkExceptionsCarryTheRequestToo() {
+    fun bhvErrors092NetworkExceptionsCarryTheRequestToo() {
         val cause = java.io.IOException("connection refused")
         val network =
             com.example.petstore.errors
@@ -189,7 +336,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun statusErrorConstructorsDefaultTheResponseContextToNull() {
+    fun bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
         val bad = BadRequestException()
         assertEquals(400, bad.statusCode)
         assertEquals("", bad.message)
@@ -414,7 +561,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderingOmitsTheStatusHeadersAndBodyThatAreAbsentOrEmpty() {
+    fun bhvErrors088RenderingOmitsTheStatusHeadersAndBodyThatAreAbsentOrEmpty() {
         assertEquals(
             "boom\nHTTP status code: 500",
             ApiException(500, "boom", emptyMap(), "").toString(),
@@ -459,7 +606,7 @@ class ApiExceptionTest {
     }
 
     @Test
-    fun renderedBodyIsCappedAtOneKibibyteAndKeepsTheFullBodyOnTheException() {
+    fun bhvErrors086RenderedBodyIsCappedAtOneKibibyteAndKeepsTheFullBodyOnTheException() {
         val body = "x".repeat(1030)
 
         val ex = ApiException(500, "boom", emptyMap(), body)
@@ -695,16 +842,6 @@ class ApiExceptionTest {
     }
 
     @Test
-    @DisplayName("bhvErrors055 status error constructors default the response context to null")
-    fun bhvErrors055StatusErrorConstructorsDefaultTheResponseContextToNull() {
-        val ex = BadRequestException()
-        assertEquals(400, ex.statusCode)
-        assertNull(ex.responseHeaders)
-        assertNull(ex.responseBody)
-        assertNull(ex.errorBody)
-    }
-
-    @Test
     @DisplayName("bhvErrors056 a status at or above 600 yields the base error and not a server error")
     fun bhvErrors056AStatusAtOrAbove600IsTheBaseErrorAndNotAServerError() {
         val ex = ApiException.fromResponse(600, emptyMap(), null)
@@ -718,7 +855,7 @@ class ApiExceptionTest {
         @DisplayName("bhvErrors072 an error body that starts with a byte order mark decodes the same as the body without it")
         fun bomPrefixedErrorBodyDecodesTheSame() {
             val objects = ObjectSerializer()
-            val withBom = objects.deserialize<com.example.petstore.models.Pet>("{\"name\":\"dog\",\"photoUrls\":[]}")
+            val withBom = objects.deserialize<com.example.petstore.models.Pet>("﻿{\"name\":\"dog\",\"photoUrls\":[]}")
             val without = objects.deserialize<com.example.petstore.models.Pet>("{\"name\":\"dog\",\"photoUrls\":[]}")
             assertEquals(without, withBom)
         }
@@ -836,4 +973,37 @@ class ApiExceptionTest {
         assertEquals(400, ex.statusCode)
         assertNotNull(ex.cause)
     }
+
+    @Test
+    fun bhvMisc280TruncatedBodyStatesHowManyBytesWereLeftOut() =
+        runBlocking<Unit> {
+            val ex = ApiException.fromResponse(500, null, "a".repeat(5000))
+            assertTrue(Regex("""\(\d+ more bytes\)""").containsMatchIn(ex.toString()), ex.toString())
+        }
+
+    @Test
+    fun bhvMisc281ResponseHeadersAreCopiedOntoTheError() =
+        runBlocking<Unit> {
+            val ex = ApiException.fromResponse(500, mapOf("X-Trace" to "abc"), "{}")
+            assertEquals("abc", ex.responseHeaders!!["X-Trace"])
+        }
+
+    @Test
+    fun bhvMisc284TypedStatusRaisesItsTypedError() =
+        runBlocking<Unit> {
+            val expected =
+                listOf(
+                    400 to com.example.petstore.errors.BadRequestException::class.java,
+                    403 to com.example.petstore.errors.ForbiddenException::class.java,
+                    404 to com.example.petstore.errors.NotFoundException::class.java,
+                    409 to com.example.petstore.errors.ConflictException::class.java,
+                    422 to com.example.petstore.errors.UnprocessableEntityException::class.java,
+                    429 to com.example.petstore.errors.TooManyRequestsException::class.java,
+                    500 to com.example.petstore.errors.InternalServerErrorException::class.java,
+                    502 to com.example.petstore.errors.BadGatewayException::class.java,
+                )
+            expected.forEach { (status, type) ->
+                assertInstanceOf(type, ApiException.fromResponse(status, null, null))
+            }
+        }
 }

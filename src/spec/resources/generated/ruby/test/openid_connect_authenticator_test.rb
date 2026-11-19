@@ -143,12 +143,12 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # D05: OpenID Connect Core 3.1.2.1 requires the openid scope, so the
   # authenticator always requests it, first and exactly once.
-  {
-    [] => 'scope=openid',
-    %w[profile] => 'scope=openid%20profile',
-    %w[profile openid email] => 'scope=openid%20profile%20email'
-  }.each do |scopes, expected|
-    it "bhv_authoidc_022 always requests the openid scope for #{scopes.inspect}" do
+  it 'bhv_authoidc_022 always requests the openid scope, first and exactly once' do
+    {
+      [] => 'scope=openid',
+      %w[profile] => 'scope=openid%20profile',
+      %w[profile openid email] => 'scope=openid%20profile%20email'
+    }.each_case do |scopes, expected|
       client = FakeOidcClient.new([discovery_response])
       auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',
@@ -409,8 +409,8 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # Discovery is an HTTP call like any other: a non-2xx answer raises the
   # same status-specific error an API call would.
-  { 404 => Petstore::Client::Errors::NotFoundError, 500 => Petstore::Client::Errors::InternalServerError }.each do |status, error_class|
-    it "raises #{error_class} when discovery answers #{status}" do
+  it 'bhv_langruby_067 raises the status-specific error when discovery answers a non-2xx status' do
+    { 404 => Petstore::Client::Errors::NotFoundError, 500 => Petstore::Client::Errors::InternalServerError }.each_case do |status, error_class|
       client = FakeOidcClient.new([{ status: status, body: '{}' }])
       auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',
@@ -517,6 +517,39 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     auth.build_authorization_url
     _(discovery_requests(client).length).must_equal 1
     _(auth.instance_variable_get(:@discovery_expiry)).must_be :<=, Time.now + 31_536_000
+  end
+
+  it 'bhv_misc_199 discovery runs again when the cached document expires or its max-age is zero' do
+    no_cache = discovery_response.merge(headers: { 'cache-control' => 'max-age=0' })
+    client = FakeOidcClient.new([no_cache, no_cache])
+    auth = oidc_authenticator(client)
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+    _(discovery_requests(client).length).must_equal 2
+  end
+
+  it 'bhv_misc_200 a discovery document whose issuer names another server is rejected' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'issuer' => 'https://evil.example.com',
+                                                        'authorization_endpoint' => 'https://auth.example.com/authorize',
+                                                        'token_endpoint' => 'https://auth.example.com/token' } }])
+    auth = oidc_authenticator(client)
+
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err.message).must_equal 'OIDC discovery document issuer does not match the discovery URL'
+  end
+
+  it 'bhv_misc_201 a failed discovery request reports its path without the query string' do
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration?tenant=a',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = FakeOidcClient.new([{ status: 404, body: '{}' }])
+
+    err = assert_raises(Petstore::Client::Errors::NotFoundError) { auth.build_authorization_url }
+    _(err.request_path).must_equal '/.well-known/openid-configuration'
   end
 
   it 'bhv_authoidc_030 rediscovers on every call when max-age is zero' do

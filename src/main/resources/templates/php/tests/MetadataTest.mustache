@@ -7,6 +7,10 @@ use {{modelPackage}}\Category;
 use {{modelPackage}}\DryFood;
 use {{modelPackage}}\Metadata;
 use {{modelPackage}}\Priority;
+use {{modelPackage}}\Account;
+use {{modelPackage}}\Defaults;
+use {{modelPackage}}\DefaultsModeEnum;
+use {{modelPackage}}\Swatch;
 
 test('bhv models 008 serializes empty metadata', function (): void {
     $metadata = new Metadata();
@@ -23,13 +27,23 @@ test('bhv models 013 additional properties start as an empty map, never null', f
     expect($metadata->additionalProperties)->toHaveCount(0);
 });
 
-test('undeclared wire keys land in the map and are written back flat', function (): void {
+test('bhv models 026 undeclared wire keys land in the map and are written back flat, and an additional property decodes to its model', function (): void {
     $json = '{"customField":"hello"}';
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
 
     expect($metadata->additionalProperties->toArray())->toBe(['customField' => 'hello']);
     expect(ObjectSerializer::serialize($metadata))->toBe($json);
+
+    /** @var \{{modelPackage}}\Roster $roster */
+    $roster = ObjectSerializer::deserialize('{"label":"l","a":{"id":1,"name":"x"}}', \{{modelPackage}}\Roster::class);
+    $category = $roster->additionalProperties->get('a');
+
+    expect($category)->toBeInstanceOf(\{{modelPackage}}\Category::class);
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('x');
+    expect(fn () => ObjectSerializer::deserialize('{"a":{"id":"x"}}', \{{modelPackage}}\Roster::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('bhv models 001 a metadata without undeclared keys keeps an empty map after deserializing', function (): void {
@@ -88,18 +102,6 @@ test('bhv models 025 an additional property of the wrong JSON type fails the dec
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
-test('bhv models 026 an additional property whose value type is a model decodes to that model', function (): void {
-    /** @var \{{modelPackage}}\Roster $roster */
-    $roster = ObjectSerializer::deserialize('{"label":"l","a":{"id":1,"name":"x"}}', \{{modelPackage}}\Roster::class);
-    $category = $roster->additionalProperties->get('a');
-
-    expect($category)->toBeInstanceOf(\{{modelPackage}}\Category::class);
-    expect($category->id)->toBe(1);
-    expect($category->name)->toBe('x');
-    expect(fn () => ObjectSerializer::deserialize('{"a":{"id":"x"}}', \{{modelPackage}}\Roster::class))
-        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
-});
-
 test('bhv models 027 a null additional property is rejected unless the value schema is nullable', function (): void {
     expect(fn () => ObjectSerializer::deserialize('{"a":null}', \{{modelPackage}}\Counters::class))
         ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
@@ -134,7 +136,7 @@ test('bhv models 029 a free-form additionalProperties keeps every JSON value as 
     expect($freeform->additionalProperties->toArray())->toBe(['a' => 1, 'b' => 'x', 'c' => [true], 'd' => null]);
 });
 
-test('composer manifest has a valid name', function (): void {
+test('bhv langphp 062 composer manifest has a valid name', function (): void {
     /* D3-docs: composer.json must declare a "name" so `composer validate`
      * passes, Packagist accepts the package, and `composer require` works.
      * The name must be a lowercase vendor/project pair. */
@@ -301,4 +303,91 @@ test('bhv models 024 a newly built model leaves its optional properties unset', 
     expect($metadata->createdAt)->toBeNull();
     expect($category->id)->toBeNull();
     expect($category->name)->toBeNull();
+});
+
+test('bhv misc 137 an enum lists its declared values and reports whether a value is one of them', function (): void {
+    expect(array_map(fn (Priority $priority): int => $priority->value, Priority::cases()))->toBe([1, 2, 3]);
+    expect(Priority::tryFrom(2))->toBe(Priority::NUMBER_2);
+    expect(Priority::tryFrom(4))->toBeNull();
+});
+
+test('bhv misc 138 converting an enum member to text yields its wire value', function (): void {
+    expect(DefaultsModeEnum::HIGH->value)->toBe('high');
+    expect(DefaultsModeEnum::LOW->value)->toBe('low');
+});
+
+test('bhv misc 140 building a model without one of its required properties fails naming that property', function (): void {
+    expect(fn (): mixed => (new \ReflectionClass(Account::class))->newInstanceArgs(['id' => 1]))
+        ->toThrow(\ArgumentCountError::class, 'Argument #1 ($username) not passed');
+});
+
+test('bhv misc 141 a model built without a value for a property with a schema default holds that default', function (): void {
+    $defaults = new Defaults();
+
+    expect($defaults->retries)->toBe(3);
+    expect($defaults->label)->toBe('untitled');
+    expect($defaults->mode)->toBe(DefaultsModeEnum::MEDIUM);
+});
+
+test('bhv misc 142 values in the additional properties map are returned unchanged and the map holds exactly them', function (): void {
+    $metadata = (new Metadata())->withAdditionalProperties(new \Ds\Map(['a' => 'one', 'b' => 'two']));
+
+    expect($metadata->additionalProperties->get('a'))->toBe('one');
+    expect($metadata->additionalProperties->toArray())->toBe(['a' => 'one', 'b' => 'two']);
+});
+
+test('bhv misc 143 a model built with an additional properties map keeps those entries in a copy that compares equal', function (): void {
+    $metadata = new Metadata(additionalProperties: new \Ds\Map(['k' => 'v']));
+
+    $copy = $metadata->withCreatedAt(null);
+
+    expect($copy->additionalProperties->toArray())->toBe(['k' => 'v']);
+    expect($copy->equals($metadata))->toBeTrue();
+});
+
+test('bhv misc 144 validating a model refuses a string given for a numeric field', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":"1","name":"Dogs"}', Category::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv misc 146 copying a model with no changes yields a new instance that compares equal to the original', function (): void {
+    $category = new Category(id: 1, name: 'Dogs');
+
+    $copy = $category->withName('Dogs');
+
+    expect($copy)->not->toBe($category);
+    expect($copy->equals($category))->toBeTrue();
+});
+
+test('bhv misc 147 a copy of a model holds the same nested value as the original rather than a duplicate', function (): void {
+    $defaults = new Defaults(swatch: Swatch::RED);
+
+    $copy = $defaults->withRetries(4);
+
+    expect($copy->swatch)->toBe($defaults->swatch);
+    expect($copy->retries)->toBe(4);
+});
+
+test('bhv misc 148 a copy serializes to the same wire form as the original with its changes applied', function (): void {
+    $copy = (new Category(id: 1, name: 'Dogs'))->withName('Cats');
+
+    expect(json_decode(ObjectSerializer::serialize($copy), true))->toBe(['id' => 1, 'name' => 'Cats']);
+});
+
+test('bhv misc 149 copying a model with an attribute it does not declare is refused and the error names the attribute', function (): void {
+    /* The arguments go through call_user_func_array so the unknown name is not a literal argument that a formatter could drop. */
+    expect(fn (): mixed => callWithArray(new Category(id: 1, name: 'Dogs'), 'withName', ['name' => 'Cats', 'unknownAttribute' => 1]))
+        ->toThrow(\Error::class, 'unknownAttribute');
+});
+
+test('bhv misc 150 two models whose fields hold equal values compare equal and differing values compare unequal', function (): void {
+    expect((new Category(id: 1, name: 'Dogs'))->equals(new Category(id: 1, name: 'Dogs')))->toBeTrue();
+    expect((new Category(id: 1, name: 'Dogs'))->equals(new Category(id: 1, name: 'Cats')))->toBeFalse();
+});
+
+test('bhv misc 151 a model holding a map compares equal to one with the same entries and unequal when any entry differs', function (): void {
+    $metadata = (new Metadata())->withAdditionalProperties(new \Ds\Map(['k' => 'v']));
+
+    expect($metadata->equals((new Metadata())->withAdditionalProperties(new \Ds\Map(['k' => 'v']))))->toBeTrue();
+    expect($metadata->equals((new Metadata())->withAdditionalProperties(new \Ds\Map(['k' => 'w']))))->toBeFalse();
 });

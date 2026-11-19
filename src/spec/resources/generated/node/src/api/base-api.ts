@@ -620,7 +620,11 @@ export abstract class BaseApi {
         ?.trim() ?? "";
     const isJson =
       respContentType === "" || this.headerSelector.isJsonMime(respContentType);
-    if (returnKind === "binary" && isJson) {
+    if (returnKind === "string") {
+      /* A declared string return is the body text whatever its content type:
+       * a JSON document is not parsed into a value (it stays as written). */
+      return body as unknown as T;
+    } else if (returnKind === "binary" && isJson) {
       /* A binary return takes the body bytes even when the server answered
        * with a JSON document (content negotiation): the transport keeps JSON
        * text verbatim, so its UTF-8 bytes are the body, never a parsed value. */
@@ -660,6 +664,11 @@ export abstract class BaseApi {
        * MAX_JSON_DEPTH pre-flight guard rejects malicious
        * 100k-deep payloads before V8 stack-overflows. */
       const json = ObjectSerializer.parseJson(cleaned);
+      /* A bare JSON null is no data: the HTTP-info variant keeps the raw body
+       * and returns no value, and the convenience method raises the ApiError. */
+      if (json === null) {
+        return null as unknown as T;
+      }
       return returnType(json, statusCode);
     }
   }

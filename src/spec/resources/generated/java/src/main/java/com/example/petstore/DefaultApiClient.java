@@ -440,6 +440,16 @@ public final class DefaultApiClient implements ApiClient {
     return send(method, url, headers, body, false, false, timeoutMillis, maxRetries);
   }
 
+  /**
+   * Sends a token-endpoint request: it never follows a redirect, sends no default headers, and is
+   * never retried, so the credentials in the body are sent once.
+   */
+  @Override
+  public ApiHttpResponse sendTokenRequest(
+      String method, String url, Map<String, String> headers, @Nullable Object body) {
+    return send(method, url, headers, body, true, true, null, 0);
+  }
+
   private ApiHttpResponse send(
       String method,
       String url,
@@ -524,7 +534,7 @@ public final class DefaultApiClient implements ApiClient {
       /* A raw InputStream is a single-use, non-replayable source: once
        * the first send drains it, any re-subscription yields an empty
        * stream. The redirect loop (307/308 preserves the body) and
-       * sendWithRetry both re-subscribe the SAME publisher, so a
+       * the retry loop both re-subscribe the SAME publisher, so a
        * supplier capturing one InputStream instance —
        * `ofInputStream(() -> stream)` — would silently transmit an
        * empty/partial body on the replay. Buffer the stream eagerly
@@ -577,7 +587,12 @@ public final class DefaultApiClient implements ApiClient {
       if (body == null && "content-type".equalsIgnoreCase(header.getKey())) {
         continue;
       }
-      builder.header(header.getKey(), header.getValue());
+      try {
+        builder.header(header.getKey(), header.getValue());
+      } catch (IllegalArgumentException refused) {
+        /* The JDK message quotes the refused value, so only the header name is named. */
+        throw new IllegalArgumentException("Invalid value for header '" + header.getKey() + "'");
+      }
     }
 
     try {
@@ -634,7 +649,10 @@ public final class DefaultApiClient implements ApiClient {
            * body — that means 307/308 redirects of a body-bearing
            * request. 303 coerces to GET, so that case is safe. */
           if (shouldRefuseHttpsToHttpBodyReplay(
-              originalUri, redirectUri, response.statusCode(), currentBody != NO_BODY)) {
+              originalUri,
+              redirectUri,
+              response.statusCode(),
+              currentBody != NO_BODY && currentBody.contentLength() != 0)) {
             throw new ApiException(
                 response.statusCode(),
                 "Refusing to replay request body across HTTPS->HTTP redirect: "
@@ -682,8 +700,12 @@ public final class DefaultApiClient implements ApiClient {
             redirectHeaders.keySet().removeIf(DefaultApiClient::isEntityHeader);
           }
 
-          HttpRequest.Builder redirectBuilder =
-              HttpRequest.newBuilder(redirectUri).method(nextMethod, nextBody);
+          HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri);
+          if (nextBody == NO_BODY && "GET".equals(nextMethod)) {
+            redirectBuilder.GET();
+          } else {
+            redirectBuilder.method(nextMethod, nextBody);
+          }
           if (timeoutMillis != null) {
             long remainingNanos = deadlineNanos - System.nanoTime();
             if (remainingNanos <= 0) {
@@ -812,7 +834,9 @@ public final class DefaultApiClient implements ApiClient {
    * HttpRequest} built from the original, so it carries the same headers, authentication included.
    * The wait and the retry draw from the one end-to-end deadline: when the remaining budget cannot
    * cover the wait, the last outcome is returned (or thrown) unchanged, so retrying never extends
-   * the timeout. A timeout, a TLS handshake failure and an interrupt are never retried.
+   * the timeout. A dropped connection is retried only for an idempotent method (RFC 9110 section
+   * 9.2.2), since the server may already have acted on a POST or PATCH. A timeout, a TLS or
+   * certificate failure and an interrupt are never retried.
    */
   private HttpResponse<byte[]> sendWithBackoff(
       HttpRequest request, long deadlineNanos, boolean replayable, int configuredRetries)
@@ -824,11 +848,11 @@ public final class DefaultApiClient implements ApiClient {
       final int attempt = retries;
       HttpResponse<byte[]> response;
       try {
-        response = sendWithRetry(current, deadlineNanos);
-      } catch (HttpTimeoutException | javax.net.ssl.SSLHandshakeException notRetried) {
+        response = sendBounded(current);
+      } catch (HttpTimeoutException | javax.net.ssl.SSLException notRetried) {
         throw notRetried;
       } catch (IOException e) {
-        if (attempt >= maxRetries) {
+        if (isTlsFailure(e) || attempt >= maxRetries || !isIdempotentMethod(current.method())) {
           throw e;
         }
         HttpRequest next =
@@ -971,38 +995,24 @@ public final class DefaultApiClient implements ApiClient {
   }
 
   /**
-   * Send a request, retrying ONCE when the JDK HttpClient fails because it reused a keep-alive
-   * connection the server had already closed. That surfaces as {@code java.io.IOException: HTTP/1.1
-   * header parser received no bytes}, which means the connection ended before any response bytes
-   * arrived. It does not prove the request was never processed, so only an idempotent method (RFC
-   * 9110 section 9.2.2) is replayed; a POST or PATCH could otherwise be applied twice. Any other
-   * IOException propagates unchanged.
+   * Whether a failure is a TLS or certificate failure anywhere in its cause chain. Such a failure
+   * is never retried, because the same handshake would fail again. A plain {@link IOException}
+   * whose message names SSL or a handshake is treated the same way, since some JDK paths report a
+   * TLS drop without wrapping an {@code SSLException}.
    */
-  private HttpResponse<byte[]> sendWithRetry(HttpRequest request, long deadlineNanos)
-      throws IOException, InterruptedException {
-    try {
-      return sendBounded(request);
-    } catch (IOException e) {
-      String message = e.getMessage();
-      if (message != null
-          && message.contains("header parser received no bytes")
-          && isIdempotentMethod(request.method())) {
-        if (request.timeout().isEmpty()) {
-          return sendBounded(request);
-        }
-        /* The retry draws from the same end-to-end budget as the first
-         * attempt, never a fresh full timeout. */
-        long remainingNanos = deadlineNanos - System.nanoTime();
-        if (remainingNanos <= 0) {
-          throw new HttpTimeoutException("request timed out");
-        }
-        return sendBounded(
-            HttpRequest.newBuilder(request, (name, value) -> true)
-                .timeout(Duration.ofNanos(remainingNanos))
-                .build());
+  static boolean isTlsFailure(Throwable failure) {
+    for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+      if (cause instanceof javax.net.ssl.SSLException) {
+        return true;
       }
-      throw e;
+      if (cause instanceof IOException && cause.getMessage() != null) {
+        String message = cause.getMessage().toLowerCase(java.util.Locale.ROOT);
+        if (message.contains("ssl") || message.contains("handshake")) {
+          return true;
+        }
+      }
     }
+    return false;
   }
 
   /**
@@ -1061,13 +1071,6 @@ public final class DefaultApiClient implements ApiClient {
 
   private static boolean hasHeader(Map<String, String> headers, String name) {
     return headers.keySet().stream().anyMatch(key -> key.equalsIgnoreCase(name));
-  }
-
-  static boolean isIdempotentMethod(String method) {
-    return switch (method.toUpperCase(Locale.ROOT)) {
-      case "GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE", "QUERY" -> true;
-      default -> false;
-    };
   }
 
   private static boolean isRedirect(int statusCode) {
@@ -1180,11 +1183,22 @@ public final class DefaultApiClient implements ApiClient {
     if (!hasBody) {
       return false;
     }
-    if (statusCode != 307 && statusCode != 308) {
+    if (statusCode == 303) {
       return false;
     }
     return "https".equalsIgnoreCase(originalUri.getScheme())
         && "http".equalsIgnoreCase(redirectUri.getScheme());
+  }
+
+  /**
+   * Whether a dropped connection may be retried for this method: GET, HEAD, OPTIONS, TRACE, PUT,
+   * DELETE and QUERY are safe to send again, while POST and PATCH are not.
+   */
+  static boolean isIdempotentMethod(String method) {
+    return switch (method.toUpperCase(java.util.Locale.ROOT)) {
+      case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY" -> true;
+      default -> false;
+    };
   }
 
   private static final Pattern CHARSET_PATTERN =

@@ -596,14 +596,14 @@ async fn test_bhv_serializationobject_014_store_api_create_account_keeps_the_rea
 /// The API group can be built without wiring a client, configuration or
 /// authenticator, like the no-argument constructors in the other SDKs.
 #[test]
-fn test_store_api_default_constructs_without_arguments() {
+fn test_bhv_langrust_049_store_api_default_constructs_without_arguments() {
     let _api = StoreApi::default();
 }
 
 /// Operations that declare no alternative request content-type carry no comment
 /// about a request-content-type selector that is not generated.
 #[test]
-fn test_operations_without_a_content_type_selector_do_not_mention_one() {
+fn test_bhv_langrust_050_operations_without_a_content_type_selector_do_not_mention_one() {
     let source = include_str!("../src/api/store_api.rs");
     assert!(!source.contains("optional-request-content-type-selector"));
     assert!(!source.contains("as request content-types"));
@@ -613,7 +613,7 @@ fn test_operations_without_a_content_type_selector_do_not_mention_one() {
 /// Parameter prose keeps its backticks as code spans instead of the HTML
 /// entity a double-brace tag would emit for each one.
 #[test]
-fn test_parameter_description_keeps_backticks() {
+fn test_bhv_langrust_051_parameter_description_keeps_backticks() {
     let source = include_str!("../src/api/store_api.rs");
     assert!(source.contains(
         "    /// * `q`: JSON-encoded query parameter (OAS `content`, not `schema`)\n"
@@ -912,4 +912,106 @@ async fn test_bhv_unions_036_the_status_selects_the_variant_and_a_body_that_does
         .await
         .expect_err("a 201 body that matches only the 200 schema must be refused");
     assert!(err.downcast_ref::<SerializationError>().is_some(), "got: {}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_009_an_operation_called_without_options_sends_no_per_call_headers() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+
+    let _ = api.place_order(Some(Order::new()), None).await;
+
+    assert_eq!(
+        client.headers.lock().unwrap().get("X-Trace-Id"),
+        None,
+        "no per-call header may be sent without an options object"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_011_an_options_object_for_an_operation_without_parameters_is_accepted() {
+    let client = Arc::new(RecordingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = GetInventoryOptions::new()
+        .header("X-Trace-Id", "per-call")
+        .timeout(std::time::Duration::from_secs(5))
+        .max_retries(0);
+
+    let _ = api.get_inventory(Some(&opts)).await;
+
+    assert_eq!(
+        client.headers.lock().unwrap().get("X-Trace-Id").map(|s| s.as_str()),
+        Some("per-call"),
+        "the options header must reach an operation with no parameters"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_013_an_operation_without_parameters_is_called_with_no_argument_and_returns_its_result() {
+    let api = new_store_api_for_mock(200, "application/json", "{}");
+    let result = api.get_inventory(None).await;
+    assert!(result.is_ok(), "GetInventory failed: {:?}", result.err());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_048_a_success_status_no_row_names_decodes_as_the_union() {
+    let body = r#"{"reservationId":1,"quantity":2,"receiptCode":"rcpt-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
+    let result = new_store_api_for_mock(202, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 202 with no declared row must decode as the union");
+    assert!(
+        matches!(result, ReserveStockResponse::ReservationReceipt(_) | ReserveStockResponse::Reservation(_)),
+        "{result:?}"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_079_each_success_status_decodes_as_the_type_declared_for_it() {
+    let created = new_store_api_for_mock(
+        201,
+        "application/json",
+        r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect("a 201 must decode");
+    let existing = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"reservationId":31,"quantity":4}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect("a 200 must decode");
+
+    assert!(matches!(created, ReserveStockResponse::ReservationReceipt(_)), "{created:?}");
+    assert!(matches!(existing, ReserveStockResponse::Reservation(_)), "{existing:?}");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_080_a_body_is_refused_against_the_schema_of_another_status() {
+    let err = new_store_api_for_mock(
+        200,
+        "application/json",
+        r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#,
+    )
+    .reserve_stock(None)
+    .await
+    .expect_err("a 200 body that matches only the 201 schema must be refused");
+
+    assert!(err.downcast_ref::<SerializationError>().is_some(), "{}", err);
+}
+
+/* A 201 answer to reserveStock decodes as the new receipt, whatever the body says. */
+#[tokio::test]
+async fn test_bhv_misc_114_a_success_response_is_decoded_for_the_status_actually_received() {
+    let body = r#"{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}"#;
+    let created = new_store_api_for_mock(201, "application/json", body)
+        .reserve_stock(None)
+        .await
+        .expect("a 201 must decode");
+    assert!(matches!(created, ReserveStockResponse::ReservationReceipt(_)), "{created:?}");
 }

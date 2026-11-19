@@ -8,6 +8,7 @@ use PetstoreClient\Client;
 use PetstoreClient\Auth\ApiKeyAuthenticator;
 use PetstoreClient\Auth\ApiKeyLocation;
 use PetstoreClient\Auth\BearerAuthenticator;
+use PetstoreClient\Auth\HttpAwareAuthenticator;
 use PetstoreClient\Psr18ApiClient;
 use PetstoreClient\TransportOptions;
 use PetstoreClient\Test\RecordingCallHook;
@@ -87,7 +88,7 @@ test('bhv lifecycle 001 api groups are accessible', function (): void {
     expect($client->store)->toBeInstanceOf(\PetstoreClient\Api\StoreApi::class);
 });
 
-test('injected api client is wired into every api group', function (): void {
+test('bhv langphp 055 injected api client is wired into every api group', function (): void {
     // A custom ApiClient passed to the facade must be the exact instance every
     // API group sends through — this is the seam that lets a Psr18ApiClient (or
     // any bespoke transport) replace the bundled DefaultApiClient.
@@ -242,7 +243,7 @@ test('bhv lifecycle 009 closing a client never closes a transport the caller sup
     expect($counts->closes)->toBe(0);
 });
 
-test('a client that is not closed still sends', function (): void {
+test('bhv langphp 056 a client that is not closed still sends', function (): void {
     [$transport, $counts] = newRecordingTransport();
     $client = new Client($this->authenticator, null, $transport);
 
@@ -648,7 +649,7 @@ test('bhv mocking 008 a client built from fakes never connects and closes withou
     expect($fake->closed)->toBe(2);
 });
 
-test('a call hook given to the client is handed to every api group', function (): void {
+test('bhv langphp 057 a call hook given to the client is handed to every api group', function (): void {
     $hook = new RecordingCallHook();
     $client = new Client($this->authenticator, null, null, callHook: $hook);
 
@@ -693,3 +694,172 @@ test('bhv lifecycle 041 a supplied http client with sdk proxy or tls settings is
     'ca bundle' => [TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build()],
     'tls verification off' => [TransportOptions::builder()->verifySsl(false)->build()],
 ]);
+
+test('bhv misc 042 disabled verification on a supplied client is refused and the error names verifySsl', function (): void {
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->verifySsl(false)->build();
+
+    expect(fn () => Client::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'verifySsl');
+});
+
+test('bhv misc 186 a value that is not an http connection is refused as the connection, and a ready made connection with a ca bundle is refused when the options are built', function (): void {
+    expect(fn () => newUnchecked(Client::class, [$this->authenticator, null, new \stdClass()]))
+        ->toThrow(\TypeError::class);
+
+    $factory = new Psr17Factory();
+    $stub = new StubPsr18Client();
+    $options = TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build();
+
+    expect(fn () => Client::withHttpClient($this->authenticator, $stub, $factory, $factory, $options))
+        ->toThrow(\InvalidArgumentException::class, 'conflict');
+});
+
+test('bhv misc 188 a client reports closed only after close has been called', function (): void {
+    $client = new Client($this->authenticator);
+    expect($client->isClosed())->toBeFalse();
+    $client->close();
+    expect($client->isClosed())->toBeTrue();
+});
+
+test('bhv misc 203 closing a client that is already closed does nothing and raises no error', function (): void {
+    $client = new Client($this->authenticator);
+    $client->close();
+    $client->close();
+    expect($client->isClosed())->toBeTrue();
+});
+
+test('bhv misc 204 a bearer authenticator without a token fails immediately with a missing credential error', function (): void {
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $previous = getenv($name);
+    putenv($name);
+    try {
+        expect(fn () => new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 205 a credential found nowhere makes the missing credential error name the variable', function (): void {
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $previous = getenv($name);
+    putenv($name);
+    try {
+        expect(fn () => new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, $name);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 206 a client built with only a default authenticator takes its host from that authenticator', function (): void {
+    $client = new Client(new BearerAuthenticator('https://only-default.example.com', 'tok'));
+    $property = (new \ReflectionClass(\PetstoreClient\Api\BaseApi::class))->getProperty('config');
+    expect($property->getValue($client->pet))->toHaveProperty('baseUrl', 'https://only-default.example.com');
+});
+
+test('bhv misc 207 a credential not passed to the constructor is read from the matching environment variable', function (): void {
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        $authenticator = new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com');
+        expect($authenticator->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 208 an empty environment variable is treated the same as an unset one for the implicit credential', function (): void {
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
+    $previous = getenv($name);
+    putenv($name . '=');
+    try {
+        expect(fn () => new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
+    $credential = new class ('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
+        public ?ApiClient $received = null;
+
+        public function setApiClient(ApiClient $apiClient): void
+        {
+            $this->received = $apiClient;
+        }
+    };
+    $client = new Client($credential);
+    $property = (new \ReflectionClass(\PetstoreClient\Api\BaseApi::class))->getProperty('apiClient');
+
+    expect($property->getValue($client->pet))->toBe($credential->received);
+});
+
+test('bhv misc 072 every api group holds the default credential and the scheme credentials', function (): void {
+    $default = new BearerAuthenticator('https://default.example.com', 'tok');
+    $scheme = new BearerAuthenticator('https://scheme.example.com', 'tok');
+    $client = new Client($default, petStoreBasic: $scheme);
+    $base = new \ReflectionClass(\PetstoreClient\Api\BaseApi::class);
+    $authenticator = $base->getProperty('authenticator');
+    $schemes = $base->getProperty('schemeAuthenticators');
+
+    expect($authenticator->getValue($client->pet))->toBe($default);
+    expect(array_values((array) $schemes->getValue($client->pet)))->toBe([$scheme]);
+});
+
+test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
+    expect(class_exists(\PetstoreClient\Auth\PetStoreBasicAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\AdminBasicAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\PetStoreBearerAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ServiceTokenAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ApiKeyHeaderAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\InternalApiKeyAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\ApiKeyQueryAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\SessionCookieAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\MachineAuthClientCredentialsAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\LegacyAuthPasswordAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\UserAuthAuthorizationCodeAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\BrowserAuthImplicitAuthenticator::class))->toBeTrue();
+    expect(class_exists(\PetstoreClient\Auth\OAuth\SsoAuthAuthenticator::class))->toBeTrue();
+});
+
+test('bhv misc 075 a credential keyed to an undeclared scheme is refused when the client is built', function (): void {
+    $credential = new BearerAuthenticator('/api/v3', 'tok');
+
+    expect(fn () => (new \ReflectionClass(Client::class))->newInstanceArgs(['undeclaredScheme' => $credential]))
+        ->toThrow(\Error::class, 'undeclaredScheme');
+});
+
+test('bhv transport 092 a supplied psr18 client receives the request from every api group', function (): void {
+    $factory = new Psr17Factory();
+    $responses = [];
+    for ($i = 0; $i < 50; $i++) {
+        $responses[] = $factory->createResponse(200)->withBody($factory->createStream('{}'));
+    }
+    $stub = new StubPsr18Client(...$responses);
+
+    $client = Client::withHttpClient($this->authenticator, $stub, $factory, $factory);
+
+    $clients = [];
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->pet);
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->problems);
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->store);
+
+    foreach ($clients as $apiClient) {
+        expect($apiClient)->toBeInstanceOf(Psr18ApiClient::class);
+        if ($apiClient instanceof Psr18ApiClient) {
+            $apiClient->sendRequest('GET', 'http://example.com/ping', [], null);
+        }
+    }
+    expect($stub->requests)->toHaveCount(count($clients));
+});

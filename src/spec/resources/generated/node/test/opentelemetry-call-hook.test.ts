@@ -200,9 +200,8 @@ describe("OpenTelemetryCallHook", () => {
     expect(span!.status.code).toBe(SpanStatusCode.UNSET);
   });
 
-  test.each([[404], [503]])(
-    "bhv telemetry 003 a %i sets error.type to the status code as text and marks the span as an error",
-    (status) => {
+  test("bhv telemetry 003 an error status sets error.type to the status code as text and marks the span as an error", () => {
+    for (const [status] of [[404], [503]]) {
       const { hook, exporter } = telemetry();
 
       run(hook, {
@@ -215,23 +214,25 @@ describe("OpenTelemetryCallHook", () => {
       expect(span!.attributes["error.type"]).toBe(String(status));
       expect(span!.attributes["http.response.status_code"]).toBe(status);
       expect(span!.status.code).toBe(SpanStatusCode.ERROR);
-    },
-  );
+    }
+  });
 
-  test.each([
-    ["timeout", new NetworkTimeoutError("timed out")],
-    ["network_error", new NetworkError("refused")],
-    ["serialization_error", new SerializationError("bad body")],
-    ["cancelled", new DOMException("aborted", "AbortError")],
-    ["_OTHER", new Error("something else")],
-  ])("bhv telemetry 004 error.type is %s", (token, error) => {
-    const { hook, exporter } = telemetry();
+  test("bhv telemetry 004 error.type is _OTHER for every unusable token", () => {
+    for (const [token, error] of [
+      ["timeout", new NetworkTimeoutError("timed out")],
+      ["network_error", new NetworkError("refused")],
+      ["serialization_error", new SerializationError("bad body")],
+      ["cancelled", new DOMException("aborted", "AbortError")],
+      ["_OTHER", new Error("something else")],
+    ] as const) {
+      const { hook, exporter } = telemetry();
 
-    run(hook, { statusCode: 0, headers: null, error });
+      run(hook, { statusCode: 0, headers: null, error });
 
-    const [span] = exporter.getFinishedSpans();
-    expect(span!.attributes["error.type"]).toBe(token);
-    expect(span!.status.code).toBe(SpanStatusCode.ERROR);
+      const [span] = exporter.getFinishedSpans();
+      expect(span!.attributes["error.type"]).toBe(token);
+      expect(span!.status.code).toBe(SpanStatusCode.ERROR);
+    }
   });
 
   test("bhv telemetry 005 a call with no response sets no http.response.status_code", () => {

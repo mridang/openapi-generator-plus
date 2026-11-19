@@ -202,6 +202,41 @@ describe Petstore::Client::Errors::ApiError do
     _(err).must_be_kind_of(::Petstore::Client::Errors::OpenAPIError)
   end
 
+  it 'bhv_misc_280 a body cut short in the message states how many bytes were left out' do
+    err = Petstore::Client::Errors::ApiError.new(
+      status_code: 500, message: 'boom', response_headers: nil, response_body: 'c' * 1100
+    )
+
+    _(err.message).must_include '(76 more bytes)'
+  end
+
+  it 'bhv_misc_281 the headers of a received response are copied onto the error raised for it' do
+    err = Petstore::Client::Errors::ApiError.from_response(404, { 'x-request-id' => 'req-7' }, 'no such thing')
+
+    _(err.response_headers).must_equal('x-request-id' => 'req-7')
+  end
+
+  it 'bhv_misc_283 the root module reaches every error class of the error tree through Errors' do
+    %i[ApiError NetworkError NetworkTimeoutError SerializationError BadRequestError NotFoundError InternalServerError].each do |name|
+      _(Petstore::Client::Errors.const_get(name)).must_be_kind_of Class
+    end
+  end
+
+  it 'bhv_misc_284 a status with a typed error class raises that class' do
+    {
+      400 => Petstore::Client::Errors::BadRequestError,
+      403 => Petstore::Client::Errors::ForbiddenError,
+      404 => Petstore::Client::Errors::NotFoundError,
+      409 => Petstore::Client::Errors::ConflictError,
+      422 => Petstore::Client::Errors::UnprocessableEntityError,
+      429 => Petstore::Client::Errors::TooManyRequestsError,
+      500 => Petstore::Client::Errors::InternalServerError,
+      502 => Petstore::Client::Errors::BadGatewayError
+    }.each do |status, klass|
+      _(Petstore::Client::Errors::ApiError.from_response(status, {}, '')).must_be_instance_of klass
+    end
+  end
+
   it 'bhv_misc_024 a transport failure keeps the underlying transport error reachable as its cause' do
     err = Petstore::Client::Errors::NetworkTimeoutError.new(message: 'timed out')
 
@@ -339,31 +374,31 @@ describe Petstore::Client::Errors::ApiError do
     end
   end
 
-  {
-    400 => Petstore::Client::Errors::BadRequestError,
-    401 => Petstore::Client::Errors::UnauthorizedError,
-    403 => Petstore::Client::Errors::ForbiddenError,
-    404 => Petstore::Client::Errors::NotFoundError,
-    409 => Petstore::Client::Errors::ConflictError,
-    422 => Petstore::Client::Errors::UnprocessableEntityError,
-    429 => Petstore::Client::Errors::TooManyRequestsError,
-    402 => Petstore::Client::Errors::PaymentRequiredError,
-    405 => Petstore::Client::Errors::MethodNotAllowedError,
-    408 => Petstore::Client::Errors::RequestTimeoutError,
-    410 => Petstore::Client::Errors::GoneError,
-    413 => Petstore::Client::Errors::PayloadTooLargeError,
-    415 => Petstore::Client::Errors::UnsupportedMediaTypeError,
-    423 => Petstore::Client::Errors::LockedError,
-    501 => Petstore::Client::Errors::NotImplementedError,
-    502 => Petstore::Client::Errors::BadGatewayError,
-    503 => Petstore::Client::Errors::ServiceUnavailableError,
-    504 => Petstore::Client::Errors::GatewayTimeoutError,
-    418 => Petstore::Client::Errors::ClientError,
-    500 => Petstore::Client::Errors::InternalServerError,
-    599 => Petstore::Client::Errors::ServerError,
-    302 => Petstore::Client::Errors::ApiError
-  }.each do |status, expected|
-    it "bhv_errors_006 from_response maps #{status} to #{expected.name.split('::').last}" do
+  it 'bhv_errors_006 from_response maps each status to its error class' do
+    {
+      400 => Petstore::Client::Errors::BadRequestError,
+      401 => Petstore::Client::Errors::UnauthorizedError,
+      403 => Petstore::Client::Errors::ForbiddenError,
+      404 => Petstore::Client::Errors::NotFoundError,
+      409 => Petstore::Client::Errors::ConflictError,
+      422 => Petstore::Client::Errors::UnprocessableEntityError,
+      429 => Petstore::Client::Errors::TooManyRequestsError,
+      402 => Petstore::Client::Errors::PaymentRequiredError,
+      405 => Petstore::Client::Errors::MethodNotAllowedError,
+      408 => Petstore::Client::Errors::RequestTimeoutError,
+      410 => Petstore::Client::Errors::GoneError,
+      413 => Petstore::Client::Errors::PayloadTooLargeError,
+      415 => Petstore::Client::Errors::UnsupportedMediaTypeError,
+      423 => Petstore::Client::Errors::LockedError,
+      501 => Petstore::Client::Errors::NotImplementedError,
+      502 => Petstore::Client::Errors::BadGatewayError,
+      503 => Petstore::Client::Errors::ServiceUnavailableError,
+      504 => Petstore::Client::Errors::GatewayTimeoutError,
+      418 => Petstore::Client::Errors::ClientError,
+      500 => Petstore::Client::Errors::InternalServerError,
+      599 => Petstore::Client::Errors::ServerError,
+      302 => Petstore::Client::Errors::ApiError
+    }.each_case do |status, expected|
       err = Petstore::Client::Errors::ApiError.from_response(status, { 'x-request-id' => 'abc' }, '{"code":7}')
 
       _(err).must_be_instance_of(expected)
@@ -487,7 +522,7 @@ describe Petstore::Client::Errors::ApiError do
     _(err.message).must_equal('Token request failed with status 400: invalid_grant')
   end
 
-  it 'OAuth2ServerError names the status, the error code and the description' do
+  it 'bhv_misc_286 OAuth2ServerError names the status, the error code and the description' do
     err = Petstore::Client::Errors::OAuth2ServerError.new(400, 'invalid_grant', 'refresh token expired', nil, '{}')
 
     _(err.message).must_equal('Token request failed with status 400: invalid_grant -- refresh token expired')

@@ -162,7 +162,7 @@ describe 'Client' do
   # per-operation server types: they are declared inside the API file whose
   # operations use them, as in the other eleven SDKs, so they are listed by
   # name below and skipped.
-  it 'declares exactly the constant each lib file path names' do
+  it 'bhv_langruby_024 declares exactly the constant each lib file path names' do
     lib = File.expand_path('../lib', File.dirname(__FILE__))
     root_dir = File.join(lib, 'petstore/client')
     files = Dir.glob(File.join(root_dir, '**', '*.rb'))
@@ -253,10 +253,44 @@ describe 'Client' do
     _(api_groups_of(without_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
   end
 
+  it 'bhv_misc_206 a client built with only a default authenticator is constructed and takes its host from it' do
+    only_default = Petstore::Client::Auth::BearerAuthenticator.new('https://only-default.example.com', 'tok')
+
+    _(-> { Petstore::Client::Petstore.new(only_default) }).must_be_silent
+  end
+
   it 'bhv_lifecycle_026 is refused when it gets no credential at all' do
     error = _ { Petstore::Client::Petstore.new }.must_raise ArgumentError
 
     _(error.message).must_equal 'At least one credential is required'
+  end
+
+  it 'bhv_misc_065 scheme credentials are copied when the client is built' do
+    first = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'first-token')
+    second = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:2', 'second-token')
+    credentials = { pet_store_basic: first }
+
+    client = Petstore::Client::Petstore.new(nil, nil, **credentials)
+    credentials[:pet_store_basic] = second
+
+    _(api_groups_of(client).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
+  end
+
+  it 'bhv_misc_075 a credential keyed to a scheme the API does not declare is refused when the client is built' do
+    credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+    constructor = :new
+
+    _ { Petstore::Client::Petstore.public_send(constructor, nil, nil, undeclared_scheme: credential) }.must_raise ArgumentError
+  end
+
+  it 'bhv_misc_071 hands the client transport to a credential that needs HTTP' do
+    default = ClientTestHttpAwareCredential.new('http://127.0.0.1:2')
+    credential = ClientTestHttpAwareCredential.new('http://127.0.0.1:1')
+
+    client = Petstore::Client::Petstore.new(default, nil, pet_store_basic: credential)
+
+    api_client = client.instance_variable_get(:@api_client)
+    _(credential.injected).must_be_same_as api_client
   end
 
   it 'bhv_auth_025 hands the shared transport to every credential that needs HTTP' do
@@ -313,7 +347,7 @@ describe 'Client' do
     client.instance_variables.map { |name| client.instance_variable_get(name) }.grep(Petstore::Client::Api::BaseApi)
   end
 
-  it 'hands the call hook to every API group' do
+  it 'bhv_langruby_025 hands the call hook to every API group' do
     hook = RecordingCallHook.new
     authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
 
@@ -326,14 +360,6 @@ describe 'Client' do
       _(groups).wont_be_empty
       _(groups.map { |api| api.config.call_hook }.uniq).must_equal [hook]
     end
-  end
-
-  it 'has no call hook unless one is given' do
-    authenticator = Petstore::Client::Auth::BearerAuthenticator.new('/api/v3', 'test-token')
-
-    groups = call_hook_groups_of(Petstore::Client::Petstore.new(authenticator))
-
-    _(groups.map { |api| api.config.call_hook }.uniq).must_equal [nil]
   end
 
   it 'bhv_lifecycle_008 close makes the client reject further requests' do

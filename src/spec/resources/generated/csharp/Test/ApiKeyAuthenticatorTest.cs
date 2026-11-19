@@ -53,7 +53,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void HeaderRejectsCrlfAndNonAscii()
+    public void BhvLangcsharp068HeaderRejectsCrlfAndNonAscii()
     {
         // RFC 7230 §3.2.6 — header field-value is HTAB / SP / VCHAR.
         // ApiKeyAuthenticator's Header location must reject anything
@@ -124,18 +124,9 @@ public class ApiKeyAuthenticatorTest
     [Theory]
     [InlineData(" \t\n\r\v")]
     [InlineData("\t")]
+    [InlineData("\f")]
     public void BhvAuthapikey011AsciiWhitespaceOnlyQueryKeyThrowsAsEmpty(string key)
     {
-        var ex = Assert.Throws<ArgumentException>(() =>
-            new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.Query)
-        );
-        Assert.Contains("must not be empty", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void BhvAuthapikey011FormFeedOnlyQueryKeyThrowsAsEmpty()
-    {
-        var key = new string((char)0x0C, 1);
         var ex = Assert.Throws<ArgumentException>(() =>
             new ApiKeyAuthenticator("https://api.example.com", "api_key", key, ApiKeyLocation.Query)
         );
@@ -290,7 +281,7 @@ public class ApiKeyAuthenticatorTest
     }
 
     [Fact]
-    public void QueryKeyIsNotEmittedAsAHeaderOrCookie()
+    public void BhvLangcsharp069QueryKeyIsNotEmittedAsAHeaderOrCookie()
     {
         var auth = new ApiKeyAuthenticator(
             "https://api.example.com",
@@ -372,5 +363,33 @@ public class ApiKeyAuthenticatorTest
             new Dictionary<string, string> { ["session"] = "k\u00e9y" },
             auth.GetCookieParams()
         );
+    }
+
+    [Fact]
+    public void BhvMisc057AnApiKeyForAHeaderIsNeverSentAsAQueryParamOrCookie()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "X-API-Key",
+            "abc123",
+            ApiKeyLocation.Header
+        );
+
+        Assert.Empty(auth.GetQueryParams());
+        Assert.Empty(auth.GetCookieParams());
+        Assert.Equal("abc123", auth.GetAuthHeaders()["X-API-Key"]);
+    }
+
+    [Fact]
+    public void BhvMisc190PrintedOutputOfTheAuthenticatorHidesTheSecret()
+    {
+        var auth = new ApiKeyAuthenticator(
+            "https://api.example.com",
+            "X-Key",
+            "k3y-s3cret",
+            ApiKeyLocation.Header
+        );
+
+        Assert.DoesNotContain("k3y-s3cret", auth.ToString(), StringComparison.Ordinal);
     }
 }

@@ -7,9 +7,21 @@ namespace {
 use {{invokerPackage}}\ObjectSerializer;
 
 use {{invokerPackage}}\Test\SerializerProbe;
+use {{invokerPackage}}\Test\WireValueProbeEnum;
 use {{invokerPackage}}\ValueSerializer;
 
 // -- path location --
+
+test('bhv misc 211 a date time inside a json query parameter keeps its wire date time form', function (): void {
+    $json = '{"recordedAt":"2024-01-02T03:04:05+00:00"}';
+    $encoded = ValueSerializer::serialize($json, 'query', 'string');
+    assert(is_string($encoded));
+    expect(rawurldecode($encoded))->toBe($json);
+});
+
+test('bhv misc 213 an optional array query parameter is joined in its declared style with no bracket rendering', function (): void {
+    expect(ValueSerializer::serializeStyled('colors', ['blue', 'black'], 'query', 'array', null, 'pipeDelimited', false))->toBe('blue|black');
+});
 
 test('bhv serializationparam 004 an already percent-encoded path value is encoded again', function (): void {
     expect(ValueSerializer::serialize('a%20b', 'path', 'string'))->toBe('a%2520b');
@@ -30,6 +42,17 @@ test('bhv serializationparam 118 a content cookie value is encoded to the shared
      * (api.mustache: rawurlencode of ObjectSerializer::serialize). */
     $json = ObjectSerializer::serialize(['k' => "a b~*\u{00E9}"]);
     expect(rawurlencode($json))->toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
+});
+
+test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, dots included', function (): void {
+    expect(ValueSerializer::encodeContentCookie('{"a":1.5}'))->toBe('%7B%22a%22%3A1%2E5%7D');
+});
+
+test('bhv serializationparam 104 a content cookie keeps only the unreserved set literal, and a duration parameter is written in the protobuf form', function (): void {
+    expect(ValueSerializer::encodeContentCookie('AZaz09-_~'))->toBe('AZaz09-_~');
+    expect(ValueSerializer::encodeContentCookie('.'))->toBe('%2E');
+    expect(ValueSerializer::encodeContentCookie("!'()*,"))->toBe('%21%27%28%29%2A%2C');
+    expect(ObjectSerializer::stringify(new \DateInterval('PT1H')))->toBe('3600s');
 });
 
 test('bhv serializationparam 062 path null returns empty string', function (): void {
@@ -80,7 +103,7 @@ test('bhv serializationparam 072 path styled simple keeps dots inside a value', 
     expect(ValueSerializer::serializeStyled('id', 'a..b', 'path', 'string', null, 'simple', false))->toBe('a..b');
 });
 
-test('path date time without date marker keeps full iso', function (): void {
+test('bhv serialization 118 path date time without date marker keeps full iso', function (): void {
     $dt = new \DateTime('2024-01-15T10:30:45+00:00');
     $result = ValueSerializer::serialize($dt, 'path', '\\DateTime');
     expect($result)->toBeString();
@@ -146,17 +169,13 @@ test('bhv serializationparam 090 query single element array returns single value
     expect(ValueSerializer::serialize(['a'], 'query', 'array'))->toBe('a');
 });
 
-test('bhv serializationparam 011 query array csv keeps slot for null element', function (): void {
-    // Per W1/N1: a null element in a csv array becomes an empty slot, not skipped.
+test('bhv serializationparam 011 query array csv keeps slot for null element, and multi keeps empty string for null element', function (): void {
     expect(ValueSerializer::serialize([1, null, 3], 'query', 'array'))->toBe('1,,3');
+    expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'))->toBe(['1', '', '3']);
 });
 
 test('bhv serializationparam 001 query array csv explicit keeps slot for null element', function (): void {
     expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'csv'))->toBe('1,,3');
-});
-
-test('query array multi keeps empty string for null element', function (): void {
-    expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'))->toBe(['1', '', '3']);
 });
 
 test('bhv serializationparam 014 query array of integers stringifies elements', function (): void {
@@ -359,8 +378,9 @@ test('bhv serializationparam 106 path with null style behaves like simple', func
     expect(ValueSerializer::serializeStyled('id', '5', 'path', 'string', null, null, false))->toBe('5');
 });
 
-test('bhv serializationparam 105 a form scalar serializes styled as its own value', function (): void {
+test('bhv serializationparam 105 a form scalar serializes styled as its own value, and an address parameter is its text unchanged', function (): void {
     expect(ValueSerializer::serializeStyled('color', 'blue', 'query', 'string', null, 'form', true))->toBe('blue');
+    expect(ObjectSerializer::stringify('2001:db8::1'))->toBe('2001:db8::1');
 });
 
 test('bhv serializationparam 035 empty style falls back', function (): void {
@@ -373,6 +393,12 @@ test('bhv serializationparam 017 deep object basic map returns bracketed keys', 
     $result = ValueSerializer::serializeDeepObject('filter', ['color' => 'blue', 'size' => 'large']);
     expect($result['filter[color]'])->toBe('blue');
     expect($result['filter[size]'])->toBe('large');
+});
+
+test('bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, sorted by name, with absent values left out', function (): void {
+    $result = ValueSerializer::serializeDeepObject('filter', ['b' => '2', 'c' => null, 'a' => '1']);
+
+    expect(array_keys($result))->toBe(['filter[a]', 'filter[b]']);
 });
 
 test('bhv serializationparam 061 deep object null returns empty array', function (): void {
@@ -534,18 +560,18 @@ test('bhv serializationparam 110 a date value is written as yyyy mm dd', functio
     expect(ValueSerializer::serializeStyled('d', $dt, 'query', '\\DateTime|date', null, null, false))->toBe('2024-01-01');
 });
 
-test('header date only emits yyyy mm dd', function (): void {
+test('bhv misc 236 header date only emits yyyy mm dd', function (): void {
     $dt = new \DateTime('2024-01-01T10:30:45+00:00');
     expect(ValueSerializer::serializeStyled('Report-Date', $dt, 'header', '\\DateTime|date', null, 'simple', false))->toBe('2024-01-01');
     expect(ValueSerializer::serializeStyled('Report-Date', $dt, 'header', '\\DateTime|date', null, null, false))->toBe('2024-01-01');
 });
 
-test('cookie date only emits yyyy mm dd', function (): void {
+test('bhv langphp 036 cookie date only emits yyyy mm dd', function (): void {
     $dt = new \DateTime('2024-01-01T10:30:45+00:00');
     expect(ValueSerializer::serializeStyled('c', $dt, 'cookie', '\\DateTime|date', null, 'form', true))->toBe('2024-01-01');
 });
 
-test('query array of dates emits yyyy mm dd per item', function (): void {
+test('bhv langphp 037 query array of dates emits yyyy mm dd per item', function (): void {
     $dates = [new \DateTime('2024-01-15T10:30:45+00:00'), new \DateTime('2024-02-01T23:59:59+00:00')];
     expect(ValueSerializer::serialize($dates, 'query', 'array|date', 'csv'))->toBe('2024-01-15,2024-02-01');
     expect(ValueSerializer::serialize($dates, 'query', 'array|date', 'multi'))->toBe(['2024-01-15', '2024-02-01']);
@@ -563,7 +589,7 @@ test('bhv serializationparam 048 query array of date times keeps the time per it
     expect(ValueSerializer::serialize($dates, 'query', 'array', 'csv'))->toBe('2024-01-15T10:30:45.000+00:00');
 });
 
-test('query date time without date marker keeps time', function (): void {
+test('bhv langphp 038 query date time without date marker keeps time', function (): void {
     $dt = new \DateTime('2024-01-01T10:30:45+00:00');
     expect(ValueSerializer::serialize($dt, 'query', '\\DateTime'))->toContain('10:30:45');
 });
@@ -628,11 +654,11 @@ test('bhv serializationparam 083 query set serializes like an array', function (
     expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'csv'))->toBe('red,blue');
 });
 
-test('query set with multi collection format expands to repeated values', function (): void {
+test('bhv langphp 039 query set with multi collection format expands to repeated values', function (): void {
     expect(ValueSerializer::serialize(new \Ds\Set(['red', 'blue']), 'query', 'array', 'multi'))->toBe(['red', 'blue']);
 });
 
-test('styled form exploded set expands to repeated values', function (): void {
+test('bhv langphp 040 styled form exploded set expands to repeated values', function (): void {
     expect(ValueSerializer::serializeStyled('color', new \Ds\Set(['blue', 'black']), 'query', 'array', null, 'form', true))->toBe(['blue', 'black']);
 });
 
@@ -683,5 +709,37 @@ test('bhv serialization 018 a nested object inside an object-valued parameter is
 
 test('bhv serialization 019 a null entry in a parameter map is left out of the output', function (): void {
     expect(ValueSerializer::serializeDeepObject('filter', ['a' => null, 'b' => 'x']))->toBe(['filter[b]' => 'x']);
+});
+
+test('bhv misc 082 an enum value is sent as its wire value in a path, query or header parameter', function (): void {
+    expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'path', 'string'))->toBe('open-wire');
+    expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'query', 'string'))->toBe('open-wire');
+    expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'header', 'string'))->toBe('open-wire');
+});
+
+test('bhv misc 084 a set optional scalar is sent as its value in every location', function (): void {
+    foreach (['path', 'query', 'header', 'cookie'] as $location) {
+        expect(ValueSerializer::serialize(7, $location, 'integer'))->toBe('7');
+    }
+});
+
+test('bhv misc 107 a scalar form query parameter keeps its own name and value', function (): void {
+    expect(ValueSerializer::putQueryParam([], 'filter', 'x'))->toBe(['filter' => 'x']);
+});
+test('bhv misc 232 a string path parameter in simple style percent encodes slashes', function (): void {
+    expect(ValueSerializer::serialize('a/b', 'path', 'string'))->toBe('a%2Fb');
+});
+
+test('bhv misc 238 a number query parameter is serialized as a plain number', function (): void {
+    expect(ValueSerializer::serialize(2.5, 'query', 'number'))->toBe('2.5');
+});
+
+test('bhv misc 250 array items containing a comma keep the literal comma across path styles', function (): void {
+    expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'simple', false))->toBe('a%2Cb,c');
+    expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'label', false))->toBe('.a%2Cb,c');
+});
+
+test('bhv misc 253 an allowReserved query value still percent encodes hash and bracket characters', function (): void {
+    expect(ValueSerializer::encodeQueryAllowingReserved('a#b[c]'))->toBe('a%23b%5Bc%5D');
 });
 }

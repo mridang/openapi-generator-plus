@@ -553,7 +553,10 @@ class BaseApi
                         . "' as " . $returnType . '; expected a JSON body'
                 );
             }
-            if ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
+            /* A void operation has no return type and ignores a non-JSON success body. */
+            if ($isNonJson && $returnType === null) {
+                $data = null;
+            } elseif ($isNonJson && $this->isTextMediaType((string) $respContentType)) {
                 /* A text response (text/plain, XML, ...) crosses the
                  * transport as its decoded string, never base64: hand it
                  * back unchanged. Base64-decoding it would corrupt any text

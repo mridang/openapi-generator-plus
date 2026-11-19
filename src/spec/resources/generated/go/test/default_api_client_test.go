@@ -14,6 +14,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -974,19 +976,9 @@ func TestBhvRetries011_DefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t 
 		return err
 	}
 
-	// 302 HTTPS→HTTP with a body: the follow-up becomes a bodyless GET, so the
-	// redirect MUST proceed (no body to leak) and reach the plaintext target.
-	t.Run("302_proceeds", func(t *testing.T) {
-		origin := newTLSOrigin(302)
-		defer origin.Close()
-		if err := send(origin); err != nil {
-			t.Fatalf("expected 302 HTTPS→HTTP downgrade to proceed, got error: %v", err)
-		}
-	})
-
-	// 307/308 HTTPS→HTTP with a body: method+body are preserved, so replaying
-	// across the downgrade would leak the body in plaintext and MUST throw.
-	for _, status := range []int{307, 308} {
+	// 301/302/307/308 HTTPS→HTTP with a body: replaying the body across the downgrade
+	// would leak it in plaintext, so these MUST throw (303 alone is followed bodyless).
+	for _, status := range []int{301, 302, 307, 308} {
 		status := status
 		t.Run(strconv.Itoa(status)+"_throws", func(t *testing.T) {
 			origin := newTLSOrigin(status)
@@ -1016,16 +1008,13 @@ func TestBhvRetries011_DefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t 
 	}
 }
 
-// A 302 from HTTPS to HTTP proceeds, and the follow-up is a bodyless GET, so
-// the form body never crosses in plaintext.
-func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpDropsTheBodyAndBecomesGet(t *testing.T) {
+// A 302 from HTTPS to plain HTTP that would replay a request body is refused,
+// and nothing reaches the plaintext target.
+func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpWithBodyIsRefused(t *testing.T) {
 	t.Parallel()
-	var method string
-	var bodyLen int
+	var plainHits atomic.Int32
 	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		method = r.Method
-		data, _ := io.ReadAll(r.Body)
-		bodyLen = len(data)
+		plainHits.Add(1)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer plainTarget.Close()
@@ -1044,58 +1033,51 @@ func TestBhvRedirects001_DefaultApiClient_Redirect302HttpsToHttpDropsTheBodyAndB
 		t.Fatal(buildErr)
 	}
 	client := NewDefaultApiClient(transport)
+	_, err := client.SendRequest(
+		"POST", origin.URL+"/start",
+		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
+		[]byte("client_secret=hunter2"),
+	)
+	if err == nil {
+		t.Fatal("expected the 302 HTTPS to HTTP body replay to be refused, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// A 303 redirect from HTTPS to plain HTTP is followed, because it sends the next
+// request without a body. 301 and 302 with a body are refused instead.
+func TestBhvRedirects040_DefaultApiClient_Redirect303HttpsToHttpIsFollowed(t *testing.T) {
+	t.Parallel()
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/downgraded")
+		w.WriteHeader(http.StatusSeeOther)
+	}))
+	defer origin.Close()
+
+	transport, buildErr := NewTransportOptionsBuilder().
+		VerifySsl(false).
+		FollowRedirects(true).
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	client := NewDefaultApiClient(transport)
 	resp, err := client.SendRequest(
 		"POST", origin.URL+"/start",
 		map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
 		[]byte("client_secret=hunter2"),
 	)
 	if err != nil {
-		t.Fatalf("expected the 302 HTTPS to HTTP redirect to proceed, got %v", err)
+		t.Fatalf("expected the 303 HTTPS to HTTP redirect to be followed, got %v", err)
 	}
 	if resp.StatusCode != 200 {
 		t.Errorf("expected status 200 from the plaintext target, got %d", resp.StatusCode)
-	}
-	if method != "GET" {
-		t.Errorf("expected the follow-up to be a GET, got %q", method)
-	}
-	if bodyLen != 0 {
-		t.Errorf("expected no body on the follow-up, got %d bytes", bodyLen)
-	}
-}
-
-// A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed, because those
-// statuses send the next request without a body.
-func TestBhvRedirects040_DefaultApiClient_Redirect301302303HttpsToHttpIsFollowed(t *testing.T) {
-	t.Parallel()
-	for _, status := range []int{http.StatusMovedPermanently, http.StatusFound, http.StatusSeeOther} {
-		plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusOK)
-		}))
-		origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Location", plainTarget.URL+"/downgraded")
-			w.WriteHeader(status)
-		}))
-
-		transport, buildErr := NewTransportOptionsBuilder().
-			VerifySsl(false).
-			FollowRedirects(true).
-			Build()
-		if buildErr != nil {
-			t.Fatal(buildErr)
-		}
-		client := NewDefaultApiClient(transport)
-		resp, err := client.SendRequest(
-			"POST", origin.URL+"/start",
-			map[string]string{"Content-Type": "application/x-www-form-urlencoded"},
-			[]byte("client_secret=hunter2"),
-		)
-		if err != nil {
-			t.Errorf("status %d: expected the HTTPS to HTTP redirect to be followed, got %v", status, err)
-		} else if resp.StatusCode != 200 {
-			t.Errorf("status %d: expected status 200 from the plaintext target, got %d", status, resp.StatusCode)
-		}
-		origin.Close()
-		plainTarget.Close()
 	}
 }
 
@@ -3213,5 +3195,207 @@ func TestBhvMisc299_DefaultApiClient_PerCallHeaderOverridesTheTransportDefaultOf
 	}
 	if got := <-seen; got != "per-call-agent" {
 		t.Errorf("expected the caller's User-Agent on the wire, got %q", got)
+	}
+}
+
+// A 301 from HTTPS to plain HTTP that would replay a request body fails, and nothing reaches the plain target.
+func TestBhvMisc124_DefaultApiClient_A301HttpsToHttpWithBodyFailsWithoutReplay(t *testing.T) {
+	t.Parallel()
+	var plainHits atomic.Int32
+	plainTarget := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		plainHits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer plainTarget.Close()
+	origin := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Location", plainTarget.URL+"/moved")
+		w.WriteHeader(301)
+	}))
+	defer origin.Close()
+	transport, err := NewTransportOptionsBuilder().VerifySsl(false).FollowRedirects(true).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+
+	_, err = client.SendRequest("POST", origin.URL+"/start", map[string]string{"Content-Type": "text/plain"}, []byte("payload"))
+	if err == nil {
+		t.Fatal("expected the 301 HTTPS-to-HTTP body replay to fail, got nil")
+	}
+	if plainHits.Load() != 0 {
+		t.Errorf("expected no request to reach the plaintext target, got %d", plainHits.Load())
+	}
+}
+
+// An ISO-8859-1 error response body decodes to UTF-8 text in the error.
+func TestBhvMisc237_DefaultApiClient_Iso88591ErrorBodyDecodesToUtf8(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=ISO-8859-1")
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte{'c', 'a', 'f', 0xE9})
+	}))
+	defer server.Close()
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil)
+	text := ""
+	if err != nil {
+		text = err.Error()
+	} else {
+		text = resp.Body
+	}
+	if !strings.Contains(text, "café") {
+		t.Errorf("expected the ISO-8859-1 body decoded to UTF-8, got %q", text)
+	}
+}
+
+// A cancelled call context surfaces the cancellation to the caller.
+func TestBhvMisc262_DefaultApiClient_CancelledContextSurfacesCancellation(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(2 * time.Second):
+			w.WriteHeader(200)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := NewDefaultApiClient(nil).SendRequestWithOptions("GET", server.URL+"/slow", map[string]string{}, nil, &RequestOptions{Context: ctx})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected errors.Is(err, context.Canceled), got %T: %v", err, err)
+	}
+}
+
+// A per-call timeout longer than the client's timeout lets a slow response complete.
+func TestBhvMisc263_DefaultApiClient_LongerPerCallTimeoutLetsSlowResponseComplete(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-time.After(300 * time.Millisecond):
+			w.WriteHeader(200)
+		case <-r.Context().Done():
+		}
+	}))
+	defer server.Close()
+	shortMs := 50
+	transport, buildErr := NewTransportOptionsBuilder().Timeout(&shortMs).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	budget := 2 * time.Second
+	resp, err := NewDefaultApiClient(transport).SendRequestWithOptions("GET", server.URL+"/slow", map[string]string{}, nil, &RequestOptions{Timeout: &budget})
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("expected the slow response to complete, got %v", err)
+	}
+}
+
+// Caller default headers replace the SDK's user agent and request id on the wire, whatever their case.
+func TestBhvMisc266_DefaultApiClient_CallerDefaultHeadersReplaceSdkHeaders(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	transport, buildErr := NewTransportOptionsBuilder().
+		InjectRequestID(true).
+		DefaultHeader("USER-AGENT", "MyApp").
+		DefaultHeader("X-REQUEST-ID", "abc").
+		Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	received := <-seen
+	if got := received.Values("User-Agent"); len(got) != 1 || got[0] != "MyApp" {
+		t.Errorf("expected one User-Agent MyApp, got %v", got)
+	}
+	if got := received.Values("X-Request-Id"); len(got) != 1 || got[0] != "abc" {
+		t.Errorf("expected one X-Request-Id abc, got %v", got)
+	}
+}
+
+// A caller-supplied HTTP client's own default headers are sent on the wire with each request.
+type misc267HeaderTransport struct {
+	base http.RoundTripper
+}
+
+func (m misc267HeaderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header.Set("X-Client-Default", "caller")
+	return m.base.RoundTrip(clone)
+}
+
+func TestBhvMisc267_DefaultApiClient_CallerClientDefaultHeadersAreSent(t *testing.T) {
+	t.Parallel()
+	seen := make(chan http.Header, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen <- r.Header.Clone()
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	own := &http.Client{Transport: misc267HeaderTransport{base: http.DefaultTransport}}
+	transport, buildErr := NewTransportOptionsBuilder().HttpClient(own).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", server.URL+"/items", map[string]string{}, nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := (<-seen).Get("X-Client-Default"); got != "caller" {
+		t.Errorf("expected X-Client-Default caller, got %q", got)
+	}
+}
+
+// A server certificate from a trusted CA is still rejected when the hostname does not match.
+func TestBhvMisc268_DefaultApiClient_TrustedCertForAnotherHostnameIsRejected(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	caPath := filepath.Join(t.TempDir(), "ca.pem")
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	if err := os.WriteFile(caPath, pemBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(true).CACertPath(caPath).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	mismatched := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	if _, err := NewDefaultApiClient(transport).SendRequest("GET", mismatched+"/items", map[string]string{}, nil); err == nil {
+		t.Fatal("expected the hostname mismatch to be rejected, got nil")
+	}
+}
+
+// A multipart form upload sends its file part with the file content echoed back in the request.
+func TestBhvMisc240_DefaultApiClient_MultipartFileUploadEchoesFileContent(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		_, _ = w.Write(body)
+	}))
+	defer server.Close()
+	transport, buildErr := NewTransportOptionsBuilder().Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	payload := "--test-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.txt\"\r\nContent-Type: text/plain\r\n\r\nhello-file\r\n--test-boundary--\r\n"
+	headers := map[string]string{"Content-Type": "multipart/form-data; boundary=test-boundary"}
+	resp, err := NewDefaultApiClient(transport).SendRequest("POST", server.URL+"/upload", headers, []byte(payload))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(resp.Body, "hello-file") {
+		t.Errorf("expected the file content echoed back, got %q", resp.Body)
 	}
 }

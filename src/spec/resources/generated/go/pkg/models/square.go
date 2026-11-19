@@ -39,6 +39,16 @@ func (o *Square) Equal(other *Square) bool {
 	return string(a) == string(b)
 }
 
+// String returns the model as JSON, so a list, map or byte field shows its contents
+// rather than the address fmt prints for a pointer.
+func (o Square) String() string {
+	data, err := json.Marshal(o)
+	if err != nil {
+		return "Square{<unprintable>}"
+	}
+	return string(data)
+}
+
 // WithShapeType returns a copy of the model with ShapeType replaced; the receiver is unchanged.
 func (o Square) WithShapeType(value string) Square {
 	o.ShapeType = value

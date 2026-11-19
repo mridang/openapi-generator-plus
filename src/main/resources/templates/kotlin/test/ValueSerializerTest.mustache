@@ -2,14 +2,27 @@
 
 package {{invokerPackage}}
 
-import {{invokerPackage}}.errors.SerializationException
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import {{invokerPackage}}.errors.SerializationException
+
+private enum class TierFixture(val value: String) {
+    GOLD("gold-tier");
+
+    override fun toString(): String = value
+}
+
+private enum class LevelFixture(val value: Int) {
+    HIGH(3);
+
+    override fun toString(): String = value.toString()
+}
 
 class ValueSerializerTest {
 
@@ -143,8 +156,8 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("equals preserved (sub-delimiter)")
-        fun equalsPreserved() {
+        @DisplayName("bhvLangkotlin048 equals preserved (sub-delimiter)")
+        fun bhvLangkotlin048EqualsPreserved() {
             assertEquals("x=y", ValueSerializer.serialize("x=y", "path", "string", null))
         }
 
@@ -233,12 +246,6 @@ class ValueSerializerTest {
             val slash = ValueSerializer.serializeStyled("id", "a/b", "path", "string", null, "simple", false)
             assertEquals("a%2Fb", slash)
             assertFalse((slash as String).contains("%252F"))
-        }
-
-        @Test
-        @DisplayName("bhvSerializationparam106 a path value with a null style behaves like simple")
-        fun pathWithNullStyleBehavesLikeSimple() {
-            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
         }
     }
 
@@ -395,8 +402,8 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("simple string without encoding")
-        fun simpleStringNoEncoding() {
+        @DisplayName("bhvLangkotlin049 simple string without encoding")
+        fun bhvLangkotlin049SimpleStringNoEncoding() {
             assertEquals("hello", ValueSerializer.serialize("hello", "path", "string", null))
         }
 
@@ -641,12 +648,6 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationparam105 SerializeStyled form scalar returns the value as it is")
-        fun serializeStyledFormScalar() {
-            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", "", "form", true))
-        }
-
-        @Test
         @DisplayName("bhvSerializationparam042 single-element array with explode true returns list")
         fun singleElementArrayExplodeTrueReturnsList() {
             assertEquals(listOf("blue"), ValueSerializer.serializeStyled("color", listOf("blue"), "query", "array", null, "form", true))
@@ -811,8 +812,8 @@ class ValueSerializerTest {
         private val model = {{modelPackage}}.EdgeCases(cutoff = java.time.LocalTime.of(10, 30, 0, 123_456_789))
 
         @Test
-        @DisplayName("header carries the SDK JSON verbatim")
-        fun headerCarriesTheJsonVerbatim() {
+        @DisplayName("bhvLangkotlin050 header carries the SDK JSON verbatim")
+        fun bhvLangkotlin050HeaderCarriesTheJsonVerbatim() {
             assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "header"))
         }
 
@@ -826,15 +827,6 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("cookie is fully percent-encoded")
-        fun cookieIsPercentEncoded() {
-            assertEquals(
-                "%7B%22cutoff%22%3A%2210%3A30%3A00.123%22%7D",
-                ValueSerializer.serializeContent("p", model, "cookie"),
-            )
-        }
-
-        @Test
         @DisplayName("bhvSerializationobject224 a content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal")
         fun contentCookieIsTheSerializerJsonPercentEncoded() {
             assertEquals(
@@ -844,27 +836,14 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationparam104 cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
-        fun cookieKeepsOnlyTheUnreservedSetLiteral() {
-            assertEquals(
-                "%22a%20b~%2A%C3%A9%22",
-                ValueSerializer.serializeContent("p", "a b~*\u00e9", "cookie"),
-            )
-            assertEquals(
-                "%22%21%27%28%29%2C%2B%25-._~%22",
-                ValueSerializer.serializeContent("p", "!'(),+%-._~", "cookie"),
-            )
-        }
-
-        @Test
-        @DisplayName("query returns the raw JSON for the query builder to encode")
-        fun queryReturnsTheRawJson() {
+        @DisplayName("bhvLangkotlin051 query returns the raw JSON for the query builder to encode")
+        fun bhvLangkotlin051QueryReturnsTheRawJson() {
             assertEquals("{\"cutoff\":\"10:30:00.123\"}", ValueSerializer.serializeContent("p", model, "query"))
         }
 
         @Test
-        @DisplayName("absent value is null in a query and empty elsewhere")
-        fun absentValue() {
+        @DisplayName("bhvSerialization110 absent value is null in a query and empty elsewhere")
+        fun bhvSerialization110AbsentValue() {
             assertNull(ValueSerializer.serializeContent("p", null, "query"))
             assertEquals("", ValueSerializer.serializeContent("p", null, "header"))
         }
@@ -1123,4 +1102,171 @@ class ValueSerializerTest {
             assertEquals("true", objects.toFormValue(true))
         }
     }
+    @Nested
+    @DisplayName("enum and scalar parameter locations")
+    inner class ParameterLocationTests {
+
+        @Test
+        @DisplayName("bhvMisc082 an enum value in a path, query or header parameter is sent as its wire value")
+        fun bhvMisc082EnumParameterIsSentAsWireValue() {
+            for (location in listOf("path", "query", "header")) {
+                assertEquals(
+                    "gold-tier",
+                    ValueSerializer.serializeStyled("tier", TierFixture.GOLD, location, "string", null, "simple", false).toString(),
+                    location,
+                )
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc084 a set optional scalar parameter sends its value in every location")
+        fun bhvMisc084ScalarParameterIsSentInEveryLocation() {
+            for (location in listOf("path", "query", "header", "cookie")) {
+                assertEquals(
+                    "7",
+                    ValueSerializer.serializeStyled("count", 7, location, "integer", null, "simple", false).toString(),
+                    location,
+                )
+            }
+        }
+    }
+    @Nested
+    @DisplayName("query and enum parameters")
+    inner class QueryAndEnumParameterTests {
+
+        @Test
+        @DisplayName("bhvMisc107 a scalar form query parameter is emitted under its own name with its string value")
+        fun bhvMisc107ScalarFormQueryUsesItsOwnName() {
+            val queryParams = mutableMapOf<String, Any?>()
+            ValueSerializer.putQuery(
+                queryParams,
+                "name",
+                ValueSerializer.serializeStyled("name", "x", "query", "string", null, "form", true),
+                false,
+            )
+            assertEquals("x", queryParams["name"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc108 an integer enum member keeps its wire value")
+        fun bhvMisc108IntegerEnumKeepsWireValue() {
+            assertEquals(
+                "3",
+                ValueSerializer.serializeStyled("level", LevelFixture.HIGH, "query", "integer", null, "form", true).toString(),
+            )
+        }
+    }
+    @Nested
+    @DisplayName("deep objects, cookies and enum text")
+    inner class DeepObjectCookieAndEnumTextTests {
+
+        @Test
+        @DisplayName("bhvMisc120 an object parameter becomes name and value pairs sorted by name, with absent values left out")
+        fun bhvMisc120DeepObjectPairsAreSortedAndOmitAbsent() {
+            val pairs = ValueSerializer.serializeDeepObject("filter", mapOf("b" to "2", "a" to "1", "c" to null))
+            assertEquals(listOf("filter[a]", "filter[b]"), pairs.keys.toList())
+        }
+
+        @Test
+        @DisplayName("bhvMisc123 a cookie value the caller already percent-encoded reaches the wire unchanged")
+        fun bhvMisc123EncodedCookieIsNotEncodedAgain() {
+            assertEquals(
+                "a%20b",
+                ValueSerializer.serializeStyled("sid", "a%20b", "cookie", "string", null, "form", true).toString(),
+            )
+        }
+
+        @Test
+        @DisplayName("bhvMisc138 converting an enum member to text yields its wire value")
+        fun bhvMisc138EnumTextIsTheWireValue() {
+            assertEquals("gold-tier", TierFixture.GOLD.toString())
+        }
+    }
+
+
+    @Test
+    fun bhvSerialization106NonExplodedArrayQueryJoinsValuesWithCommas() = runBlocking<Unit> {
+        assertEquals("a,b,c", ValueSerializer.serializeStyled("ids", listOf("a", "b", "c"), "query", "array", null, "form", false))
+    }
+
+    @Test
+    fun bhvSerialization107ExplodedArrayQueryRepeatsTheKeyForEachElement() = runBlocking<Unit> {
+        val styled = ValueSerializer.serializeStyled("ids", listOf("a", "b"), "query", "array", null, "form", true)
+        assertEquals(listOf("a", "b"), styled)
+    }
+
+    @Test
+    fun bhvSerialization108ADefaultStyleMatchesTheSimpleStyleForPathParameters() = runBlocking<Unit> {
+        assertEquals(
+            ValueSerializer.serializeStyled("name", "x", "path", "string", null, "simple", false),
+            ValueSerializer.serializeStyled("name", "x", "path", "string", null, null, false),
+        )
+    }
+
+    @Test
+    fun bhvSerialization109AStringPathParameterIsPercentEncodedExactlyOnce() = runBlocking<Unit> {
+        assertEquals("100%25", ValueSerializer.encodePathSegment("100%"))
+    }
+
+    @Test
+    fun bhvSerialization111OnlyUnreservedCharactersStayLiteralAndTheRestAreUtf8Encoded() = runBlocking<Unit> {
+        assertEquals("a~b", ValueSerializer.encodePathSegment("a~b"))
+        assertEquals("%C3%A9%2F", ValueSerializer.encodePathSegment("é/"))
+    }
+
+    @Test
+    fun bhvSerialization113AStringValuePassesThroughWithoutNormalisation() = runBlocking<Unit> {
+        assertEquals("é", ValueSerializer.serialize("é", "query", "string", null))
+    }
+
+    @Test
+    fun bhvSerialization118ADateTimeQueryParameterKeepsItsTimeAndOffset() = runBlocking<Unit> {
+        val value = ValueSerializer.serialize(java.time.OffsetDateTime.parse("2024-01-02T03:04:05+02:00"), "query", "string", null)
+        assertTrue(value.toString().contains("T03:04:05.000+02:00"), value.toString())
+    }
+
+    @Test
+    @DisplayName("bhvMisc232 a string path parameter in explicit simple style percent-encodes slashes")
+    fun bhvMisc232StringPathParameterInSimpleStyleEncodesSlashes() {
+        assertEquals("a%2Fb", ValueSerializer.serializeStyled("name", "a/b", "path", "string", null, "simple", false))
+    }
+
+    @Test
+    @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded, colons and dots included")
+    fun bhvMisc233CookieJsonModelIsFullyPercentEncoded() {
+        assertEquals(
+            "%7B%22a%22%3A1%2E5%7D",
+            ValueSerializer.serializeContent("c", mapOf("a" to 1.5), "cookie"),
+        )
+    }
+
+
+    @Test
+    @DisplayName("bhvMisc238 a number query parameter is serialized as a plain number")
+    fun bhvMisc238NumberQueryValueIsAPlainNumber() {
+        assertEquals("2.5", ValueSerializer.serialize(2.5, "query", "number", null))
+    }
+
+    @Test
+    @DisplayName("bhvMisc241 a time-of-day query value is sent as HH:mm:ss")
+    fun bhvMisc241TimeOfDayQueryValueIsHhMmSs() {
+        assertEquals("10:20:30", ValueSerializer.serialize(java.time.LocalTime.of(10, 20, 30), "query", "string", null))
+    }
+
+    @Test
+    @DisplayName("bhvMisc250 an array item containing a comma keeps the literal comma across path styles")
+    fun bhvMisc250ArrayItemCommaStaysLiteralOnAPath() {
+        assertEquals(
+            "a,b,c",
+            ValueSerializer.serializeStyled("list", listOf("a,b", "c"), "path", "array", null, "simple", false),
+        )
+    }
+
+    @Test
+    @DisplayName("bhvMisc253 an allowReserved value still percent-encodes hash and bracket characters")
+    fun bhvMisc253AllowReservedStillEncodesHashAndBrackets() {
+        assertEquals("a/b%23c%5Bd%5D", ValueSerializer.encodeQueryAllowingReserved("a/b#c[d]"))
+    }
+
+
 }

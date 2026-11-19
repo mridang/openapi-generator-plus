@@ -399,6 +399,22 @@ test('bhv authoauthtwotokenmgr 001 malformed 2xx token response throws OAuth2Tok
         });
 });
 
+test('bhv misc 172 a token request that answers 503 is sent once and raises the server error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        503,
+        (string) json_encode(['error' => 'temporarily_unavailable']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(OAuth2ServerException::class);
+    expect(count($client->capturedRequests))->toBe(1);
+});
+
 test('bhv authoauthtwotokenmgr 037 token transport failure propagates NetworkException', function (): void {
     // A transport failure on the token POST reaches the caller unchanged.
     $failure = new \PetstoreClient\Errors\NetworkException('connection refused', new \RuntimeException('refused'));
@@ -934,7 +950,7 @@ test('bhv errors 082 a token error keeps its valid code when its description or 
     }
 });
 
-test('a non string error value is not taken as an error code', function (): void {
+test('bhv langphp 065 a non string error value is not taken as an error code', function (): void {
     $client = new MockTokenApiClient();
     $client->enqueueResponse(new ApiHttpResponse(400, (string) json_encode(['error' => 7]), ['Content-Type' => 'application/json']));
 
@@ -1058,3 +1074,63 @@ test('bhv auth 057 a rejected refresh falls back to the original grant', functio
     expect($token)->toBe('fresh-token');
     expect($client->capturedRequests[2]['body'])->toContain('grant_type=password');
 });
+
+test('bhv misc 059 a token whose lifetime is not finite is not cached', function (string $body): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, $body, ['Content-Type' => 'application/json']));
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('inf2', 3600));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    $first = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $second = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+
+    expect($first)->toBe('inf1');
+    expect($second)->toBe('inf2');
+    expect($client->capturedRequests)->toHaveCount(2);
+})->with([
+    'overflowing lifetime' => ['{"access_token":"inf1","expires_in":1e999}'],
+    'negative overflowing lifetime' => ['{"access_token":"inf1","expires_in":-1e999}'],
+]);
+
+test('bhv misc 069 a non string access token is refused with an error that names the field', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(200, (string) json_encode(['access_token' => 12345, 'expires_in' => 3600]), ['Content-Type' => 'application/json']));
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(OAuth2TokenException::class, 'access_token');
+});
+
+test('bhv misc 286 an OAuth server error message names both its HTTP status and its OAuth error code', function (int $status, string $body, string $expected): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse($status, $body, ['Content-Type' => 'application/json']));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2ServerException');
+    } catch (OAuth2ServerException $error) {
+        expect($error->getMessage())->toBe($expected);
+    }
+})->with([
+    'code and description' => [
+        400,
+        '{"error":"invalid_grant","error_description":"refresh token expired"}',
+        'Token request failed with status 400: invalid_grant -- refresh token expired',
+    ],
+    'code only' => [
+        401,
+        '{"error":"invalid_client"}',
+        'Token request failed with status 401: invalid_client',
+    ],
+    'raw body when no error code' => [
+        502,
+        '<html>bad gateway</html>',
+        'Token request failed with status 502: <html>bad gateway</html>',
+    ],
+]);

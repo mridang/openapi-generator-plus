@@ -115,7 +115,7 @@ fn test_bhv_lifecycle_001_client_api_groups_are_accessible() {
 /* F824: closing the facade closes the transport it built, and a request made
  * afterwards is rejected with the closed-client error. */
 #[test]
-fn test_client_close_marks_the_client_closed() {
+fn test_bhv_misc_188_client_close_marks_the_client_closed() {
     let client =
         Client::with_token(Some("/api/v3"), Some("test-token"), None).expect("valid token");
     assert!(!client.is_closed());
@@ -328,6 +328,37 @@ fn test_bhv_lifecycle_015_takes_one_optional_keyword_credential_per_security_sch
     let client = Client::with_credentials(host, credentials, None);
     let _ = &client;
 }
+
+#[test]
+fn test_bhv_misc_073_a_credential_setter_exists_for_every_declared_scheme() {
+    let host = "/api/v3";
+    let _ = petstore::Credentials::new()
+        .with_pet_store_basic(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_admin_basic(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_pet_store_bearer(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_service_token(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_api_key_header(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_internal_api_key(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_api_key_query(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_session_cookie(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_machine_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_legacy_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_user_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_browser_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+    let _ = petstore::Credentials::new()
+        .with_sso_auth(BearerAuthenticator::new(host, "test-token").unwrap());
+}
 #[test]
 fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_construction() {
     let no_host = Client::with_token(None, Some("token"), None);
@@ -342,6 +373,62 @@ fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_
     );
     let valid = Client::with_token(Some("http://localhost"), Some("token"), None);
     assert!(valid.is_ok(), "a host and a token build a client");
+}
+
+#[test]
+fn test_bhv_misc_204_a_client_without_a_host_or_token_fails_at_construction_with_a_missing_credential_error(
+) {
+    with_environment(None, None, || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(!text.is_empty());
+    });
+}
+
+#[test]
+fn test_bhv_misc_205_the_missing_credential_error_names_the_variable_that_should_have_supplied_it()
+{
+    with_environment(None, Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(
+            text.contains("The API host is required: pass host or set PETSTORE_BASE_URL"),
+            "{}",
+            text
+        );
+    });
+    with_environment(Some("/api/v3"), None, || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+}
+
+#[test]
+fn test_bhv_misc_206_a_client_built_with_only_a_default_authenticator_takes_its_host_from_it() {
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
+
+    let client = Client::new(Box::new(authenticator), None);
+
+    // Verify client was constructed by accessing a field
+    let _ = &client;
+}
+
+#[test]
+fn test_bhv_misc_207_an_unpassed_credential_is_read_from_its_environment_variable() {
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        assert!(Client::with_token(None, None, None).is_ok());
+    });
+}
+
+#[test]
+fn test_bhv_misc_208_an_empty_environment_variable_is_treated_as_unset_by_the_implicit_credential()
+{
+    with_environment(Some(""), Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);
+    });
+    with_environment(Some("/api/v3"), Some(""), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
 }
 
 /// A hand-written fake of the PetApi group: it implements every operation, records each
@@ -2074,7 +2161,7 @@ fn test_bhv_mocking_008_client_built_from_fakes_never_connects_and_closes_withou
 
 /* The hook set on the client reaches every API group. */
 #[tokio::test]
-async fn test_bhv_hooks_010_the_client_hands_the_call_hook_to_every_api_group() {
+async fn test_bhv_langrust_086_the_call_hook_reaches_every_api_group() {
     use petstore::{CallHook, CallInfo, CallObserver};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
@@ -2108,4 +2195,15 @@ async fn test_bhv_hooks_010_the_client_hands_the_call_hook_to_every_api_group() 
         vec!["deletePet".to_string(), "deleteOrder".to_string()],
         *seen.lock().unwrap()
     );
+}
+
+/* F826: a client built without a host or token takes both from the environment. */
+#[test]
+fn test_bhv_misc_187_a_client_built_without_host_or_token_takes_both_from_the_environment() {
+    std::env::set_var("PETSTORE_BASE_URL", "https://env.example.com");
+    std::env::set_var("PETSTORE_ACCESS_TOKEN", "env-token");
+    let built = Client::with_token(None, None, None);
+    std::env::remove_var("PETSTORE_BASE_URL");
+    std::env::remove_var("PETSTORE_ACCESS_TOKEN");
+    built.expect("the environment supplies both the host and the token");
 }

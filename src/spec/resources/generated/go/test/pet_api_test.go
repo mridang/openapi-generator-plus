@@ -1120,68 +1120,127 @@ func TestBhvOperations064_PetApi_GetPetByNameKeepsANameThatOnlyContainsDots(t *t
 	}
 }
 
-// An allowReserved query value keeps its reserved characters but always percent-encodes #.
-func TestBhvOperations157_PetApi_GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue(t *testing.T) {
+func TestBhvOperations157_PetApi_NullRequiredNullableQueryIsAnEmptyValueAndBinaryBodyIsRawBytes(t *testing.T) {
 	t.Parallel()
-	var query string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		query = r.URL.RawQuery
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
-	}))
-	defer server.Close()
-	api := newPetApiForMock(t, server)
+	t.Run("nullRequiredNullableQueryIsAnEmptyValue", func(t *testing.T) {
+		var query string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			query = r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+		}))
+		defer server.Close()
+		api := newPetApiForMock(t, server)
 
-	rank := int32(3)
-	if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Rank: &rank}); err != nil {
-		t.Fatalf("GetPetByNote failed: %v", err)
-	}
-	if query != "note=&rank=3" {
-		t.Errorf("expected the query %q, got %q", "note=&rank=3", query)
-	}
+		rank := int32(3)
+		if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Rank: &rank}); err != nil {
+			t.Fatalf("GetPetByNote failed: %v", err)
+		}
+		if query != "note=&rank=3" {
+			t.Errorf("expected the query %q, got %q", "note=&rank=3", query)
+		}
+	})
+	t.Run("binaryBodyIsSentAsRawBytes", func(t *testing.T) {
+		var gotBody []byte
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			gotBody, _ = io.ReadAll(r.Body)
+			w.WriteHeader(200)
+		}))
+		defer server.Close()
+
+		api := newPetApiForMock(t, server)
+		if err := api.SetPetAvatar(context.Background(), int64(1), strings.NewReader("raw-reader-bytes")); err != nil {
+			t.Fatalf("SetPetAvatar with a strings.Reader failed: %v", err)
+		}
+		if string(gotBody) != "raw-reader-bytes" {
+			t.Errorf("expected the reader bytes on the wire, got %q", gotBody)
+		}
+	})
 }
 
-func TestBhvOperations158_PetApi_GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder(t *testing.T) {
+func TestBhvOperations158_PetApi_EveryNullRequiredNullableQueryIsSentInOrderAndPerCallHeaderIsSent(t *testing.T) {
 	t.Parallel()
-	var query string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		query = r.URL.RawQuery
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
-	}))
-	defer server.Close()
-	api := newPetApiForMock(t, server)
+	t.Run("everyNullRequiredNullableQueryIsSentInOrder", func(t *testing.T) {
+		var query string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			query = r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+		}))
+		defer server.Close()
+		api := newPetApiForMock(t, server)
 
-	if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{}); err != nil {
-		t.Fatalf("GetPetByNote failed: %v", err)
-	}
-	if query != "note=&rank=" {
-		t.Errorf("expected the query %q, got %q", "note=&rank=", query)
-	}
+		if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{}); err != nil {
+			t.Fatalf("GetPetByNote failed: %v", err)
+		}
+		if query != "note=&rank=" {
+			t.Errorf("expected the query %q, got %q", "note=&rank=", query)
+		}
+	})
+	t.Run("perCallHeaderIsSentWithThatCall", func(t *testing.T) {
+		var got string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			got = r.Header.Get("X-Per-Call")
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
+		}))
+		defer server.Close()
+		client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = client.Close() }()
+
+		if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil, petstore.WithHeaders(map[string]string{"X-Per-Call": "yes"})); err != nil {
+			t.Fatalf("GetPetById failed: %v", err)
+		}
+		if got != "yes" {
+			t.Errorf("expected the per-call header, got %q", got)
+		}
+	})
 }
 
-func TestBhvOperations159_PetApi_GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue(t *testing.T) {
+func TestBhvOperations159_PetApi_NonNullRequiredNullableQueryIsSentAndEmptyBodyIsATypedError(t *testing.T) {
 	t.Parallel()
-	var query string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		query = r.URL.RawQuery
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(200)
-		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
-	}))
-	defer server.Close()
-	api := newPetApiForMock(t, server)
+	t.Run("nonNullRequiredNullableQueryIsSentWithItsValue", func(t *testing.T) {
+		var query string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			query = r.URL.RawQuery
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+		}))
+		defer server.Close()
+		api := newPetApiForMock(t, server)
 
-	note := "a b"
-	rank := int32(3)
-	if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Note: &note, Rank: &rank}); err != nil {
-		t.Fatalf("GetPetByNote failed: %v", err)
-	}
-	if query != "note=a%20b&rank=3" {
-		t.Errorf("expected the query %q, got %q", "note=a%20b&rank=3", query)
-	}
+		note := "a b"
+		rank := int32(3)
+		if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Note: &note, Rank: &rank}); err != nil {
+			t.Fatalf("GetPetByNote failed: %v", err)
+		}
+		if query != "note=a%20b&rank=3" {
+			t.Errorf("expected the query %q, got %q", "note=a%20b&rank=3", query)
+		}
+	})
+	t.Run("emptyBodyOnAValueReturnIsATypedApiError", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(200)
+		}))
+		defer server.Close()
+		client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = client.Close() }()
+
+		_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
+		var apiErr *pkgerrors.ApiError
+		if !errors.As(err, &apiErr) {
+			t.Fatalf("expected a typed *ApiError for an empty success body, got %T: %v", err, err)
+		}
+	})
 }
 
 func TestBhvOperations066_PetApi_GetPetTagPercentEncodesAHashInAnAllowReservedValue(t *testing.T) {
@@ -1312,7 +1371,7 @@ func TestBhvSerialization060_PetApi_MultipartObjectPartHasJSONContentType(t *tes
 // with IsPrimary=true and TakenAt=2020-01-02T03:04:05.123+00:00, send it as the
 // "metadata" part, capture the outgoing part body, and assert the wire keys and
 // date-time string.
-func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
+func TestBhvLanggo001_PetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 	t.Parallel()
 	var metadataPartBody string
 	var sawMetadataPart bool
@@ -1406,7 +1465,7 @@ func TestPetApi_MultipartModelPartUsesWireKeys(t *testing.T) {
 // advertise a Content-Type derived from its filename extension (image/png for a
 // .png), with application/octet-stream as the fallback — matching the other 11
 // SDKs. AddPetPhotos uploads files as the "files" multipart part.
-func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
+func TestBhvLanggo002_PetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 	t.Parallel()
 	var filePartContentType string
 	var sawFilePart bool
@@ -1463,24 +1522,6 @@ func TestPetApi_MultipartFilePartContentTypeFromExtension(t *testing.T) {
 	}
 	if filePartContentType != "image/png" {
 		t.Errorf("expected file part Content-Type image/png, got %q", filePartContentType)
-	}
-}
-
-func TestBhvOperations157_PetApi_BinaryBodyAcceptsAnIoReader(t *testing.T) {
-	t.Parallel()
-	var gotBody []byte
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotBody, _ = io.ReadAll(r.Body)
-		w.WriteHeader(200)
-	}))
-	defer server.Close()
-
-	api := newPetApiForMock(t, server)
-	if err := api.SetPetAvatar(context.Background(), int64(1), strings.NewReader("raw-reader-bytes")); err != nil {
-		t.Fatalf("SetPetAvatar with a strings.Reader failed: %v", err)
-	}
-	if string(gotBody) != "raw-reader-bytes" {
-		t.Errorf("expected the reader bytes on the wire, got %q", gotBody)
 	}
 }
 
@@ -1587,7 +1628,7 @@ func TestBhvOperations056_PetApi_GetPetSummaryRefusesAnEmptyRequiredCookieBefore
 	}
 }
 
-func TestPetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
+func TestBhvLanggo003_PetApi_UploadFieldAcceptsAnIoReader(t *testing.T) {
 	t.Parallel()
 	var gotFile string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1830,7 +1871,7 @@ func TestBhvOperations079_PetApi_AddPetUsesOnlyTheCredentialOfTheSchemeItRequire
 
 // F857: an API group built on its own takes the per-scheme credentials as its
 // last constructor argument, like the client hands them to its groups.
-func TestPetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
+func TestBhvLanggo004_PetApi_NewPetApiTakesTheCredentialsOfEachScheme(t *testing.T) {
 	t.Parallel()
 	var gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2156,7 +2197,7 @@ func hasDeprecatedParagraph(doc string) bool {
 	return false
 }
 
-func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
+func TestBhvLanggo005_PetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"AddPet", "GetPetById", "FindPetsByStatus"} {
 		doc := declDoc(t, "../pkg/pet_api.go", name)
@@ -2170,7 +2211,7 @@ func TestPetApi_OperationDocCommentsAttachToTheMethod(t *testing.T) {
 // an apostrophe, an ampersand or an angle bracket. A positional parameter is
 // documented on the operation; a header, query, form or cookie parameter lives
 // on its Options struct and is documented there only.
-func TestPetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
+func TestBhvLanggo006_PetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
 	t.Parallel()
 	doc := declDoc(t, "../pkg/pet_api.go", "GetPetSummary")
 	if want := "param asOf: Summary date, sent as a matrix-style path segment"; !strings.Contains(doc, want) {
@@ -2193,7 +2234,7 @@ func TestPetApi_ParameterDocsKeepTheSpecProseVerbatim(t *testing.T) {
 
 // An operation comment ends with the HTTP method and path, in a paragraph of
 // its own, after the parameter lines.
-func TestPetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
+func TestBhvLanggo007_PetApi_OperationDocEndsWithTheMethodAndPath(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]string{
 		"GetPetById": "\n\nGET /pet/{petId}",
@@ -2661,50 +2702,6 @@ func TestBhvAuth047_PetApi_AddPetUsesTheFirstHeldSchemeAndSendsNoneWhenItHoldsNo
 	_ = client.Close()
 	if gotKey != "" || gotAuth != "" {
 		t.Errorf("expected no scheme credential, got key %q and authorization %q", gotKey, gotAuth)
-	}
-}
-
-// A header supplied on an individual call is sent with that call.
-func TestBhvOperations158_PetApi_APerCallHeaderIsSentWithThatCall(t *testing.T) {
-	t.Parallel()
-	var got string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got = r.Header.Get("X-Per-Call")
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"id":1,"name":"Test","photoUrls":[]}`))
-	}))
-	defer server.Close()
-	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = client.Close() }()
-
-	if _, err := client.Pet.GetPetById(context.Background(), int64(1), nil, petstore.WithHeaders(map[string]string{"X-Per-Call": "yes"})); err != nil {
-		t.Fatalf("GetPetById failed: %v", err)
-	}
-	if got != "yes" {
-		t.Errorf("expected the per-call header, got %q", got)
-	}
-}
-
-// A call that returns a value raises a typed API error when a success response arrives with an empty body.
-func TestBhvOperations159_PetApi_AnEmptyBodyOnAValueReturnIsATypedApiError(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(200)
-	}))
-	defer server.Close()
-	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = client.Close() }()
-
-	_, err = client.Pet.GetPetById(context.Background(), int64(1), nil)
-	var apiErr *pkgerrors.ApiError
-	if !errors.As(err, &apiErr) {
-		t.Fatalf("expected a typed *ApiError for an empty success body, got %T: %v", err, err)
 	}
 }
 
@@ -3262,5 +3259,45 @@ func TestBhvMisc080_Store_ABodyIsDecodedWithItsOwnStatusSchema(t *testing.T) {
 
 	if _, err := client.Store.ReserveStock(context.Background()); err == nil {
 		t.Error("expected the 200 body refused for not fitting the 200 schema")
+	}
+}
+
+// A cookie value the caller has already percent-encoded reaches the wire unchanged.
+func TestBhvMisc123_PetApi_PreEncodedCookieValueIsSentUnchanged(t *testing.T) {
+	t.Parallel()
+	var cookie string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie = r.Header.Get("Cookie")
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+
+	api := newPetApiForMock(t, server)
+	value := "a%20b"
+	if err := api.DeletePet(context.Background(), int64(1), &options.DeletePetOptions{ApiKey: &value}); err != nil {
+		t.Fatalf("DeletePet failed: %v", err)
+	}
+	if cookie != "api_key=a%20b" {
+		t.Errorf("expected the cookie to be sent unchanged, got %q", cookie)
+	}
+}
+
+func TestBhvMisc176_PetApi_ARequiredCookieParamIsSentInTheCookieHeaderWithItsValue(t *testing.T) {
+	t.Parallel()
+	var cookie string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cookie = r.Header.Get("Cookie")
+		w.Header().Set("Content-Type", "text/plain")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("summary"))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+
+	if _, err := api.GetPetSummary(context.Background(), int64(7), "2024-01-15", &options.GetPetSummaryOptions{Session: "abc123"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cookie != "session=abc123" {
+		t.Errorf("expected the session cookie sent with its value, got %q", cookie)
 	}
 }

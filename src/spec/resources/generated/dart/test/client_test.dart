@@ -95,6 +95,49 @@ void main() {
       },
     );
 
+    test(
+      'bhv misc 068 an empty token counts as not passed, so the value is read from the environment',
+      () {
+        const host = '/api/v3';
+        if (Platform.environment[BearerAuthenticator
+                .defaultEnvironmentVariable] !=
+            null) {
+          expect(
+            () => Client.withToken(host: host, accessToken: ''),
+            returnsNormally,
+          );
+          return;
+        }
+
+        expect(
+          () => Client.withToken(host: host, accessToken: ''),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => '${e.message}',
+              'message',
+              contains(BearerAuthenticator.defaultEnvironmentVariable),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 204 Constructing a client without a required host or token fails immediately with a missing-credential error.',
+      () {
+        if (Platform.environment[BearerAuthenticator
+                .defaultEnvironmentVariable] !=
+            null) {
+          return;
+        }
+
+        expect(
+          () => Client.withToken(host: '/api/v3'),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
+
     test('bhv lifecycle 012 construct with authenticator only', () {
       final authenticator = BearerAuthenticator(
         host: '/api/v3',
@@ -185,7 +228,54 @@ void main() {
     );
 
     test(
+      'bhv misc 183 closing a client whose credentials hold nothing that needs releasing succeeds',
+      () {
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:1',
+            token: 'test-token',
+          ),
+        );
+
+        expect(client.close, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv misc 187 a credential not passed explicitly is taken from the environment',
+      () {
+        final fromEnvironment = Platform
+            .environment[BearerAuthenticator.defaultEnvironmentVariable];
+        if (fromEnvironment == null) {
+          expect(
+            () => Client.withToken(host: '/api/v3'),
+            throwsA(isA<ArgumentError>()),
+          );
+          return;
+        }
+
+        expect(Client.withToken(host: '/api/v3'), isNotNull);
+      },
+    );
+
+    test(
       'bhv lifecycle 013 close on a client that built its own transport is idempotent',
+      () {
+        final client = Client(
+          authenticator: BearerAuthenticator(
+            host: 'http://localhost:1',
+            token: 'test-token',
+          ),
+        );
+
+        client.close();
+
+        expect(client.close, returnsNormally);
+      },
+    );
+
+    test(
+      'bhv misc 203 Calling close on a client that is already closed does nothing and raises no error.',
       () {
         final client = Client(
           authenticator: BearerAuthenticator(
@@ -352,6 +442,35 @@ void main() {
     );
 
     test(
+      'bhv misc 206 A client built with only a default authenticator is constructed successfully and takes its host from that authenticator.',
+      () {
+        final scheme = BearerAuthenticator(
+          host: 'https://scheme.example.com',
+          token: 'tok',
+        );
+        final fallback = BearerAuthenticator(
+          host: 'https://default.example.com',
+          token: 'tok',
+        );
+
+        final withDefault = Client(
+          authenticator: fallback,
+          petStoreBasic: scheme,
+        );
+        final schemeOnly = Client(petStoreBasic: scheme);
+
+        expect(
+          withDefault.pet.config.baseUrl,
+          equals('https://default.example.com'),
+        );
+        expect(
+          schemeOnly.pet.config.baseUrl,
+          equals('https://scheme.example.com'),
+        );
+      },
+    );
+
+    test(
       'bhv lifecycle 015 takes one optional keyword credential per security scheme, named after it',
       () {
         expect(() => Client(), throwsArgumentError);
@@ -368,6 +487,39 @@ void main() {
         expect(() => Client(userAuth: null), throwsArgumentError);
         expect(() => Client(browserAuth: null), throwsArgumentError);
         expect(() => Client(ssoAuth: null), throwsArgumentError);
+      },
+    );
+
+    test(
+      'bhv misc 071 a client-level credential that needs HTTP receives the client transport',
+      () {
+        final credential = _TransportRecordingBearer(
+          host: 'https://api.example.com',
+          token: 'tok',
+        );
+
+        Client(authenticator: credential);
+
+        expect(credential.injected, isNotNull);
+      },
+    );
+
+    test(
+      'bhv misc 073 the client provides a generated wrapper class for every security scheme the spec declares',
+      () {
+        expect(AdminBasicAuthenticator, isNotNull);
+        expect(ApiKeyHeaderAuthenticator, isNotNull);
+        expect(ApiKeyQueryAuthenticator, isNotNull);
+        expect(BrowserAuthImplicitAuthenticator, isNotNull);
+        expect(InternalApiKeyAuthenticator, isNotNull);
+        expect(LegacyAuthPasswordAuthenticator, isNotNull);
+        expect(MachineAuthClientCredentialsAuthenticator, isNotNull);
+        expect(PetStoreBasicAuthenticator, isNotNull);
+        expect(PetStoreBearerAuthenticator, isNotNull);
+        expect(ServiceTokenAuthenticator, isNotNull);
+        expect(SessionCookieAuthenticator, isNotNull);
+        expect(SsoAuthAuthenticator, isNotNull);
+        expect(UserAuthAuthorizationCodeAuthenticator, isNotNull);
       },
     );
 
@@ -448,6 +600,35 @@ void main() {
           throwsA(isA<StateError>()),
         );
         expect(requests, isEmpty);
+      },
+    );
+
+    test(
+      'bhv misc 184 close does not cancel a request that is still running, and it completes successfully',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) async {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Fido","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final client = Client.withToken(
+            host: 'http://localhost:${server.port}',
+            accessToken: 'tok',
+          );
+          final pending = client.pet.getPetTag(1, 'favorite', null);
+          client.close();
+
+          final pet = await pending;
+          expect(pet.name, equals('Fido'));
+        } finally {
+          await server.close();
+        }
       },
     );
 
@@ -839,22 +1020,37 @@ void main() {
       },
     );
 
-    test('the client hands the call hook to every API group', () async {
-      final hook = _CountingHook();
-      final client = Client.withToken(
-        host: 'https://api.example.com',
-        accessToken: 'test-token',
-        transportOptions: TransportOptionsBuilder()
-            .httpClient(MockClient((_) async => http.Response('{}', 404)))
-            .build(),
-        callHook: hook,
-      );
+    test(
+      'bhv langdart 028 the client hands the call hook to every API group',
+      () async {
+        final hook = _CountingHook();
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'test-token',
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(MockClient((_) async => http.Response('{}', 404)))
+              .build(),
+          callHook: hook,
+        );
 
-      expect(client.pet.config.callHook, same(hook));
-      expect(client.problems.config.callHook, same(hook));
-      expect(client.store.config.callHook, same(hook));
-    });
+        expect(client.pet.config.callHook, same(hook));
+        expect(client.problems.config.callHook, same(hook));
+        expect(client.store.config.callHook, same(hook));
+      },
+    );
   });
+}
+
+class _TransportRecordingBearer extends BearerAuthenticator
+    implements HttpAwareAuthenticator {
+  _TransportRecordingBearer({required super.host, required super.token});
+
+  ApiClient? injected;
+
+  @override
+  void setApiClient(ApiClient client) {
+    injected = client;
+  }
 }
 
 class _CountingHook implements CallHook {

@@ -2,9 +2,15 @@
 
 import { AllowReservedValue, ExplodedObject, ValueSerializer } from '../src/value-serializer{{importFileExtension}}';
 import { SerializationError } from '../src/errors/serialization-error{{importFileExtension}}';
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
 
 describe('ValueSerializer', () => {
   describe('path location', () => {
+    test('bhvMisc082 an enum value given in a path parameter is sent as its wire value', () => {
+      expect(ValueSerializer.serialize('sold', 'path', 'string')).toBe('sold');
+    });
+
     test('bhv serialization 005 a path value keeps unreserved and sub-delimiters and encodes the rest', () => {
       expect(ValueSerializer.serialize("a-._~!$&'()*+,;=:@", 'path', 'string')).toBe("a-._~!$&'()*+,;=:@");
       expect(ValueSerializer.serialize('a/b?c#d[e]f g%', 'path', 'string')).toBe('a%2Fb%3Fc%23d%5Be%5Df%20g%25');
@@ -38,7 +44,8 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serialize(42, 'path', 'integer')).toBe('42');
     });
 
-    test.each([
+    test('bhv serialization 109 every listed path segment is percent-encoded', () => {
+      for (const [raw, encoded] of [
       [';', ';'],
       ['=', '='],
       [',', ','],
@@ -59,9 +66,10 @@ describe('ValueSerializer', () => {
       ['#', '%23'],
       ['[', '%5B'],
       [' ', '%20']
-    ])('path segment %p is encoded as %p', (raw, encoded) => {
-      expect(ValueSerializer.encodePathSegment(raw)).toBe(encoded);
-      expect(ValueSerializer.serialize(`a${raw}b`, 'path', 'string')).toBe(`a${encoded}b`);
+    ] as const) {
+        expect(ValueSerializer.encodePathSegment(raw)).toBe(encoded);
+        expect(ValueSerializer.serialize(`a${raw}b`, 'path', 'string')).toBe(`a${encoded}b`);
+      }
     });
 
     test('bhv serializationparam 021 boolean true returns "true"', () => {
@@ -74,7 +82,11 @@ describe('ValueSerializer', () => {
   });
 
   describe('query location', () => {
-    test('null returns undefined', () => {
+    test('bhvMisc083 a query supplied as raw text keeps its repeated keys, values and percent-encodings as written', () => {
+      expect(ValueSerializer.encodeQueryAllowingReserved('a=1&a=2&b=%20x')).toBe('a=1&a=2&b=%20x');
+    });
+
+    test('bhv langnode 168 null returns undefined', () => {
       expect(ValueSerializer.serialize(null, 'query', 'string')).toBeUndefined();
     });
 
@@ -126,13 +138,15 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serialize(['a', 'b', 'c'], 'query', 'array', 'multi')).toEqual(['a', 'b', 'c']);
     });
 
-    test.each([
+    test('bhv misc 106 a null element keeps its empty slot for every listed format', () => {
+      for (const [format, expected] of [
       ['csv', '1,,3'],
       ['ssv', '1  3'],
       ['tsv', '1\t\t3'],
       ['pipes', '1||3']
-    ])('a null element keeps its empty slot for %s', (format, expected) => {
-      expect(ValueSerializer.serialize([1, null, 3], 'query', 'array', format)).toBe(expected);
+    ] as const) {
+        expect(ValueSerializer.serialize([1, null, 3], 'query', 'array', format)).toBe(expected);
+      }
     });
 
     test('bhv serializationparam 011 a null element keeps its empty slot for multi', () => {
@@ -195,10 +209,12 @@ describe('ValueSerializer', () => {
   });
 
   describe('serializeStyled - path dot segments', () => {
-    test.each(['.', '..'])('rejects a simple-style path value of %p', (value) => {
-      expect(() => ValueSerializer.serializeStyled('name', value, 'path', 'string', null, 'simple', false)).toThrow(
-        new TypeError(`Path parameter 'name' must not be '.' or '..'`),
-      );
+    test('bhv langnode 171 rejects a simple-style path value of a single or double dot', () => {
+      for (const value of ['.', '..']) {
+        expect(() => ValueSerializer.serializeStyled('name', value, 'path', 'string', null, 'simple', false)).toThrow(
+          new TypeError(`Path parameter 'name' must not be '.' or '..'`),
+        );
+      }
     });
 
     test('bhv serializationparam 072 keeps a value that only contains dots', () => {
@@ -279,8 +295,9 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true)).toEqual(['blue', 'black']);
     });
 
-    test('bhv serializationparam 105 SerializeStyled form scalar', () => {
+    test('bhv serializationparam 105 SerializeStyled form scalar, and an address parameter is written as its text', () => {
       expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'form', true)).toBe('blue');
+      expect(ObjectSerializer.stringify('192.0.2.1')).toBe('192.0.2.1');
     });
 
     test('bhv serializationparam 041 scalar with explode true returns string not list', () => {
@@ -299,17 +316,19 @@ describe('ValueSerializer', () => {
   });
 
   describe('serializeStyled - Set values', () => {
-    test.each([
+    test('bhv serialization 107 form style with either explode value expands a Set like an array', () => {
+      for (const [explode, expected] of [
       [true, ['red', 'blue']],
       [false, 'red,blue'],
-    ])('form style with explode=%p expands a Set like an array', (explode, expected) => {
-      const value = new Set(['red', 'blue']);
-      expect(ValueSerializer.serializeStyled('labels', value, 'query', 'Set<string>', null, 'form', explode)).toEqual(
-        expected,
-      );
-      expect(
-        ValueSerializer.serializeStyled('labels', ['red', 'blue'], 'query', 'Array<string>', null, 'form', explode),
-      ).toEqual(expected);
+    ] as const) {
+        const value = new Set(['red', 'blue']);
+        expect(ValueSerializer.serializeStyled('labels', value, 'query', 'Set<string>', null, 'form', explode)).toEqual(
+          expected,
+        );
+        expect(
+          ValueSerializer.serializeStyled('labels', ['red', 'blue'], 'query', 'Array<string>', null, 'form', explode),
+        ).toEqual(expected);
+      }
     });
 
     test('bhv serializationparam 117 a Set in form style without explode joins its elements with commas like an array', () => {
@@ -326,21 +345,23 @@ describe('ValueSerializer', () => {
   });
 
   describe('serializeStyled - uuid values', () => {
-    test.each(['path', 'query', 'header'])('writes an uppercase uuid in lowercase in the %s', (location) => {
-      expect(
-        ValueSerializer.serializeStyled(
-          'id',
-          'E621E1F8-C36C-495A-93FC-0C247A3E6E5F',
-          location,
-          'UUID',
-          null,
-          location === 'query' ? 'form' : 'simple',
-          false,
-        ),
-      ).toBe('e621e1f8-c36c-495a-93fc-0c247a3e6e5f');
+    test('bhv langnode 172 writes an uppercase uuid in lowercase in the path, query and header', () => {
+      for (const location of ['path', 'query', 'header']) {
+        expect(
+          ValueSerializer.serializeStyled(
+            'id',
+            'E621E1F8-C36C-495A-93FC-0C247A3E6E5F',
+            location,
+            'UUID',
+            null,
+            location === 'query' ? 'form' : 'simple',
+            false,
+          ),
+        ).toBe('e621e1f8-c36c-495a-93fc-0c247a3e6e5f');
+      }
     });
 
-    test('rejects a malformed uuid', () => {
+    test('bhv langnode 169 rejects a malformed uuid', () => {
       expect(() => ValueSerializer.serializeStyled('id', 'not-a-uuid', 'path', 'UUID', null, 'simple', false)).toThrow(
         new TypeError(`Parameter 'id' is not a canonical UUID: "not-a-uuid"`),
       );
@@ -378,8 +399,9 @@ describe('ValueSerializer', () => {
   });
 
   describe('serializeStyled - null style falls back to location default', () => {
-    test('bhv serializationparam 106 path with null style behaves like simple', () => {
+    test('bhv serializationparam 106 path with null style behaves like simple, and a decimal parameter is written in plain notation', () => {
       expect(ValueSerializer.serializeStyled('id', '5', 'path', 'string', null, null, false)).toBe('5');
+      expect(ObjectSerializer.stringify('12.345678901234567890123')).toBe('12.345678901234567890123');
     });
 
     test('bhv serializationparam 109 an unknown style falls back to plain value serialization', () => {
@@ -488,7 +510,8 @@ describe('ValueSerializer', () => {
       ]);
     });
 
-    test.each([
+    test('bhv langnode 173 every object style and explode combination is written as expected', () => {
+      for (const [style, explode, expected] of [
       ['simple', false, 'color,red,min_count,3'],
       ['simple', true, 'color=red,min_count=3'],
       ['matrix', false, ';criteria=color,red,min_count,3'],
@@ -497,10 +520,11 @@ describe('ValueSerializer', () => {
       ['label', true, '.color=red.min_count=3'],
       ['pipeDelimited', false, 'color|red|min_count|3'],
       ['spaceDelimited', false, 'color red min_count 3']
-    ])('style %s with explode %p', (style, explode, expected) => {
-      expect(ValueSerializer.serializeStyled('criteria', criteria, 'header', 'Criteria', null, style, explode)).toBe(
-        expected
-      );
+    ] as const) {
+        expect(ValueSerializer.serializeStyled('criteria', criteria, 'header', 'Criteria', null, style, explode)).toBe(
+          expected
+        );
+      }
     });
 
     test('bhv serializationparam 048 a Date is still a single value, not an object', () => {
@@ -659,12 +683,13 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.stringifyDate(new Date(Date.UTC(2024, 0, 16, 0, 0, 0, 0)))).toBe('2024-01-16');
     });
 
-    test('a string is sent unchanged', () => {
+    test('bhv serialization 113 a string is sent unchanged', () => {
       expect(ValueSerializer.stringifyDate('2024-01-15')).toBe('2024-01-15');
       expect(ValueSerializer.stringifyDate('2024-02-29')).toBe('2024-02-29');
     });
 
-    test.each([
+    test('bhv langnode 174 refuses every listed value that is not a YYYY-MM-DD date', () => {
+      for (const value of [
       '2024-01-15T14:30:45Z',
       '2024-1-15',
       '20240115',
@@ -676,8 +701,9 @@ describe('ValueSerializer', () => {
       '2024-01-15 ',
       '',
       'tomorrow'
-    ])('refuses %p, which is not a YYYY-MM-DD date', (value) => {
-      expect(() => ValueSerializer.stringifyDate(value)).toThrow(TypeError);
+    ]) {
+        expect(() => ValueSerializer.stringifyDate(value)).toThrow(TypeError);
+      }
     });
 
     test('bhv serializationparam 029 refuses an invalid Date', () => {
@@ -691,7 +717,7 @@ describe('ValueSerializer', () => {
       ]);
     });
 
-    test('stringifyDates refuses an element that is not a date', () => {
+    test('bhv langnode 170 stringifyDates refuses an element that is not a date', () => {
       expect(() => ValueSerializer.stringifyDates(['2024-01-15', '2024-01-15T00:00:00Z'])).toThrow(TypeError);
     });
 
@@ -747,7 +773,7 @@ describe('ValueSerializer', () => {
       expect(/^[!\x23-\x2B\x2D-\x3A\x3C-\x5B\x5D-\x7E]*$/.test(encoded)).toBe(true);
     });
 
-    test('keeps only the RFC 3986 unreserved characters literal', () => {
+    test('bhv serialization 111 keeps only the RFC 3986 unreserved characters literal', () => {
       expect(ValueSerializer.encodeQueryComponent("a~b*c!d'e(f)g-h_i.j")).toBe('a~b%2Ac%21d%27e%28f%29g-h_i.j');
     });
 
@@ -756,9 +782,11 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.encodeQueryComponent(json)).toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
     });
 
-    test('bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal', () => {
-      expect(ValueSerializer.encodeQueryComponent('AZaz09-._~')).toBe('AZaz09-._~');
-      expect(ValueSerializer.encodeQueryComponent("!'()*,")).toBe('%21%27%28%29%2A%2C');
+    test('bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal, and a duration parameter is written in the protobuf form', () => {
+      expect(ValueSerializer.encodeCookieComponent('AZaz09-_~')).toBe('AZaz09-_~');
+      expect(ValueSerializer.encodeCookieComponent('.')).toBe('%2E');
+      expect(ValueSerializer.encodeCookieComponent("!'()*,")).toBe('%21%27%28%29%2A%2C');
+      expect(ObjectSerializer.stringify(Temporal.Duration.from('PT1H'))).toBe('3600s');
     });
 
     test('bhv serializationparam 003 percent-encodes a space and a reserved character', () => {
@@ -792,5 +820,96 @@ describe('ValueSerializer', () => {
       expect((wrapped as AllowReservedValue).value).toBe('v1/beta');
       expect(ValueSerializer.maybeAllowReserved(undefined, true)).toBeUndefined();
     });
+  });
+
+  describe('misc scalar and array writing', () => {
+    test('bhv misc 084 a set optional scalar writes its value in every location', () => {
+      for (const location of ['path', 'header', 'cookie', 'query'] as const) {
+        expect(ValueSerializer.serialize(7, location, 'integer')).toBe('7');
+      }
+    });
+
+    test('bhv misc 086 an element holding json text is taken as its own value', () => {
+      expect(String(ValueSerializer.serialize(['{"a":1}'], 'query', 'array'))).toContain('{"a":1}');
+    });
+  });
+});
+
+describe('ValueSerializer misc behaviours', () => {
+  it('bhv misc 107 a scalar form query parameter keeps its string value', () => {
+    expect(ValueSerializer.serializeStyled('filter', 'x', 'query', 'string', null, 'form', true)).toBe('x');
+  });
+
+  it('bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, with absent values left out', () => {
+    expect(ValueSerializer.toWireMap('filter', { a: '1', c: undefined, b: '2' })).toEqual([
+      ['a', '1'],
+      ['b', '2'],
+    ]);
+  });
+});
+
+describe('ValueSerializer absent-value behaviour', () => {
+  test('bhv serialization 110 an absent or nil value is sent as null in the query location and as an empty value elsewhere', () => {
+    expect(ValueSerializer.serialize(null, 'query', 'string')).toBeUndefined();
+    expect(ValueSerializer.serialize(undefined, 'query', 'string')).toBeUndefined();
+    expect(ValueSerializer.serialize(null, 'path', 'string')).toBe('');
+    expect(ValueSerializer.serialize(null, 'header', 'string')).toBe('');
+  });
+});
+
+describe('ValueSerializer misc behaviours (chunk 11)', () => {
+  test('bhv serialization 106 a non-exploded array query parameter joins its values with commas', () => {
+    expect(ValueSerializer.serialize(['a', 'b'], 'query', 'array', 'csv')).toBe('a,b');
+  });
+
+  test('bhv serialization 108 a path parameter with no declared style uses the simple style', () => {
+    expect(ValueSerializer.serialize('v', 'path', 'string')).toBe('v');
+  });
+});
+
+describe('ValueSerializer date-time query behaviour', () => {
+  test('bhv serialization 118 a date-time query or path parameter keeps its full ISO-8601 time and offset rather than being cut to the date', () => {
+    const at = new Date(Date.UTC(2026, 0, 2, 3, 4, 5));
+    expect(ValueSerializer.serializeStyled('at', at, 'query', 'Date', null, 'form', true)).toContain('2026-01-02T03:04:05');
+  });
+});
+
+describe('ValueSerializer misc location behaviours', () => {
+  test('bhv misc 232 a string path parameter in the simple style percent-encodes slashes', () => {
+    expect(ValueSerializer.serialize('a/b', 'path', 'string')).toBe('a%2Fb');
+  });
+
+  test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons and dots included', () => {
+    expect(ValueSerializer.encodeCookieComponent('{"a":1.5}')).toBe('%7B%22a%22%3A1%2E5%7D');
+  });
+
+  test('bhv misc 236 a date-only value is written as yyyy-mm-dd with no time in query, header and cookie locations', () => {
+    const date = new Date(Date.UTC(2024, 0, 15));
+    expect(ValueSerializer.stringifyDate(date)).toBe('2024-01-15');
+    expect(ValueSerializer.serialize('2024-01-15', 'query', 'string')).toBe('2024-01-15');
+    expect(ValueSerializer.serialize('2024-01-15', 'header', 'string')).toBe('2024-01-15');
+    expect(ValueSerializer.serialize('2024-01-15', 'cookie', 'string')).toBe('2024-01-15');
+  });
+});
+
+describe('ValueSerializer misc wire encoding behaviours', () => {
+  test('bhv misc 238 a number query parameter is serialized as a plain number', () => {
+    expect(ValueSerializer.serialize(42, 'query', 'integer')).toBe('42');
+  });
+
+  test('bhv misc 250 array items containing a comma keep the literal comma in the path style', () => {
+    expect(ValueSerializer.serializeStyled('ids', ['a,b', 'c'], 'path', 'array', null, 'simple', false)).toBe('a,b,c');
+  });
+
+  test('bhv misc 253 an allowReserved query value still percent-encodes hash and bracket characters', () => {
+    expect(ValueSerializer.encodeQueryAllowingReserved('a#b[c]')).toBe('a%23b%5Bc%5D');
+  });
+
+  test('bhv misc 254 an unmarked query value percent-encodes reserved characters such as slash and colon', () => {
+    expect(ValueSerializer.encodeQueryComponent('a/b:c')).toBe('a%2Fb%3Ac');
+  });
+
+  test('bhv misc 255 separate query parameters encode a space as %20', () => {
+    expect(ValueSerializer.encodeQueryComponent('a b')).toBe('a%20b');
   });
 });

@@ -235,6 +235,17 @@ module Petstore::Client
     end
     private_class_method :free_form_value
 
+    # The keys of a free-form value as JSON strings, at every depth, so an
+    # undeclared object survives a round trip with its wire names.
+    def self.json_keys(value)
+      case value
+      when Array then value.map { |item| json_keys(item) }
+      when Hash then value.transform_keys(&:to_s).transform_values { |item| json_keys(item) }
+      else value
+      end
+    end
+    private_class_method :json_keys
+
     # Apply a oneOf union's own pre-serialization transform to a request
     # body before it hits the normal serialize path.
     #
@@ -602,7 +613,11 @@ module Petstore::Client
 
         Time.iso8601(text)
       when 'Date'
-        Date.parse(data.to_s)
+        begin
+          Date.parse(data.to_s)
+        rescue ArgumentError => e
+          raise Errors::SerializationError.new("Expected a calendar date, got #{data.inspect}", e)
+        end
       when 'Tod::TimeOfDay'
         # 4.8: format: time — parse HH:MM[:SS[.fff]] from the wire. A fraction
         # is kept to the millisecond (see #parse_time_of_day).
@@ -748,7 +763,7 @@ module Petstore::Client
           next if declared_keys.include?(json_key)
 
           if extra_type.nil?
-            extras[json_key] = value
+            extras[json_key] = json_keys(value)
             next
           end
 

@@ -122,7 +122,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
                    end
     end
 
-    test "scheme authenticator keeps the declared scopes" do
+    test "bhv langelixir 017 scheme authenticator keeps the declared scopes" do
       auth =
         PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
           "https://api.example.com",
@@ -255,6 +255,34 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
 
       last_body = FakeApiClient.last_body(fake_client)
       assert String.contains?(last_body, "scope=read+write")
+    end
+
+    test "bhv misc 198 a new grant without expires_in clears the expiry of the previous token" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 0})
+          },
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok2"})
+          }
+        ])
+
+      auth = create_authenticator()
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+      headers = PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      assert headers["Authorization"] == "Bearer tok2"
     end
 
     test "bhv authoauthtwoclientcred 008 returns authorization bearer header" do
@@ -523,6 +551,33 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticatorTest do
       assert shown =~ ~s(host: "https://api.example.com")
       assert shown =~ ~s(client_id: "my-client-id")
       assert shown =~ ~s(token_url: "https://auth.example.com/token")
+    end
+
+    test "bhv misc 063 the machine auth wrapper posts its token request to the token URL the scheme declares" do
+      fake_client =
+        FakeApiClient.new([
+          %PetstoreClient.ApiHttpResponse{
+            status_code: 200,
+            body: Jason.encode!(%{"access_token" => "tok1", "expires_in" => 3600})
+          }
+        ])
+
+      auth =
+        PetstoreClient.Auth.OAuth.MachineAuthClientCredentialsAuthenticator.new(
+          "https://api.example.com",
+          "my-client-id",
+          "my-client-secret"
+        )
+
+      auth =
+        PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.set_api_client(
+          auth,
+          fake_client
+        )
+
+      PetstoreClient.Auth.OAuth.OAuth2ClientCredentialsAuthenticator.auth_headers(auth)
+
+      assert FakeApiClient.last_url(fake_client) == "https://auth.example.com/oauth/token"
     end
 
     test "bhv auth 001 a synchronous header call whose token step has no client raises and returns no headers" do

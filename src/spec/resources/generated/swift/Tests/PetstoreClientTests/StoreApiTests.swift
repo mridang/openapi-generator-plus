@@ -120,6 +120,28 @@ import Testing
     #expect(info.statusCode == 200)
   }
 
+  /* A success status that no declared response row names decodes as the operation's union return type. */
+  @Test func testBhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnion() async throws {
+    let mockApi = storeApiForMock(statusCode: 202, body: "{\"reservationId\":7,\"quantity\":2}")
+    let result = try await mockApi.reserveStock()
+    #expect(result.asReservation?.reservationId == 7)
+  }
+
+  /* Per-call headers are a copy: a later change to the caller's own map does not reach the request. */
+  @Test func testBhvMisc054PerCallHeadersAreACopy() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"available\":1}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+    var headers = ["X-Per-Call": "original"]
+    let options = GetInventoryOptions(headers: headers)
+    headers["X-Per-Call"] = "changed"
+    _ = try await api.getInventory(options: options)
+    #expect(mockClient.lastHeaders["X-Per-Call"] == "original")
+  }
+
   /* A 200 from reserveStock is the existing reservation, not a new receipt. */
   @Test func testBhvOperations129ReserveStockDecodesA200AsTheExistingReservation() async throws {
     let mockApi = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
@@ -128,6 +150,23 @@ import Testing
     #expect(!result.isReservationReceipt)
     #expect(result.asReservation?.reservationId == 31)
     #expect(result.asReservationReceipt == nil)
+  }
+
+  /* A 201 from reserveStock is decoded as the receipt the status declares. */
+  @Test func testBhvMisc079EachSuccessStatusDecodesItsOwnDeclaredType() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 201, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
+    let result = try await mockApi.reserveStock()
+    #expect(result.asReservationReceipt?.receiptCode == "C1")
+  }
+
+  /* A 200 body that fits only the 201 receipt is refused: it is decoded with its own status's schema. */
+  @Test func testBhvMisc080ABodyIsDecodedWithItsOwnStatusSchema() async throws {
+    let mockApi = storeApiForMock(
+      statusCode: 200, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
+    await #expect(throws: (any Error).self) {
+      _ = try await mockApi.reserveStock()
+    }
   }
 
   /* A malformed 2xx JSON body is not returned raw: the decoding error propagates. */
@@ -160,7 +199,7 @@ import Testing
 
   /* A format: password property never reaches a log; the wire form is
      unchanged. */
-  @Test func testPasswordPropertyIsMaskedInTheStringForms() throws {
+  @Test func testBhvSerialization112PasswordPropertyIsMaskedInTheStringForms() throws {
     let marker = ["hid", "den"].joined()
     let account = Account(username: "u", password: marker)
     #expect(!String(describing: account).contains(marker))
@@ -380,6 +419,26 @@ import Testing
       try await mockApi.deleteOrder(orderId: 99999)
     }
     #expect(error?.statusCode == 404)
+  }
+
+  /* An operation with no parameters can be called with no argument and returns its decoded result. */
+  @Test func testBhvMisc013ANoParameterOperationReturnsItsResult() async throws {
+    let api = storeApiForMock(statusCode: 200, body: "{\"available\":3}")
+    let inventory = try await api.getInventory()
+    #expect(inventory["available"] == 3)
+  }
+
+  /* An options object for an operation with no parameters carries the per-call header to the request. */
+  @Test func testBhvMisc011ANoParameterOperationAcceptsCallSettings() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"available\":1}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+    _ = try await api.getInventory(
+      options: GetInventoryOptions(timeout: 1000, headers: ["X-Per-Call": "yes"], maxRetries: 0))
+    #expect(mockClient.lastHeaders["X-Per-Call"] == "yes")
   }
 }
 

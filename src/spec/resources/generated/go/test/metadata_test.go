@@ -62,7 +62,7 @@ func TestBhvModels010_Metadata_DeclaredPropertyWinsOverCollidingExtra(t *testing
 	}
 }
 
-func TestMetadata_DeserializeFromJSON(t *testing.T) {
+func TestBhvLanggo052_Metadata_DeserializeFromJSON(t *testing.T) {
 	t.Parallel()
 	jsonData := []byte(`{"createdAt":"2024-01-15T10:30:00+00:00"}`)
 
@@ -88,6 +88,51 @@ func TestBhvModels012_Metadata_JsonFormDumpsTheAdditionalProperties(t *testing.T
 }
 
 // Keys the schema does not declare are captured into AdditionalProperties.
+func TestBhvMisc288_Metadata_TopLevelSnakeCaseKeyIsCapturedAsAnExtra(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"region_code":"emea"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if got := metadata.AdditionalProperties["region_code"]; got != "emea" {
+		t.Errorf("expected region_code in AdditionalProperties, got %v", got)
+	}
+}
+
+func TestBhvMisc289_Metadata_SnakeCaseKeyInsideAListElementIsCapturedAsAnExtra(t *testing.T) {
+	t.Parallel()
+	var items []models.Metadata
+	if err := json.Unmarshal([]byte(`[{"region_code":"emea"}]`), &items); err != nil {
+		t.Fatalf("failed to deserialize []Metadata: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one element, got %d", len(items))
+	}
+	if got := items[0].AdditionalProperties["region_code"]; got != "emea" {
+		t.Errorf("expected region_code in AdditionalProperties, got %v", got)
+	}
+}
+
+func TestBhvMisc290_Freeform_DictionaryValuedExtraSurvivesARoundTrip(t *testing.T) {
+	t.Parallel()
+	var first models.Freeform
+	if err := json.Unmarshal([]byte(`{"labels":{"a":"b"}}`), &first); err != nil {
+		t.Fatalf("failed to deserialize Freeform: %v", err)
+	}
+	data, err := json.Marshal(first)
+	if err != nil {
+		t.Fatalf("failed to serialize Freeform: %v", err)
+	}
+	var second models.Freeform
+	if err := json.Unmarshal(data, &second); err != nil {
+		t.Fatalf("failed to deserialize round-tripped Freeform: %v", err)
+	}
+	labels, ok := second.AdditionalProperties["labels"].(map[string]any)
+	if !ok || labels["a"] != "b" {
+		t.Errorf("expected labels {a: b} to survive the round trip, got %v", second.AdditionalProperties["labels"])
+	}
+}
+
 func TestBhvModels001_Metadata_CapturesUndeclaredKeysIntoAdditionalProperties(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
@@ -157,35 +202,60 @@ func TestBhvModels009_Metadata_AdditionalPropertiesAreAMapOfTheValueType(t *test
 	}
 }
 
-// A value of the wrong JSON type fails the decode.
-func TestBhvModels025_Counters_AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode(t *testing.T) {
+func TestBhvModels025_AdditionalPropertiesFailTheWrongTypeAndTakePartInEquality(t *testing.T) {
 	t.Parallel()
-	for _, body := range []string{`{"a":2.5}`, `{"a":"2"}`, `{"a":3000000000}`} {
-		var counters models.Counters
-		if err := json.Unmarshal([]byte(body), &counters); err == nil {
-			t.Errorf("expected %s to fail the decode", body)
+	t.Run("wrongJsonTypeFailsTheDecode", func(t *testing.T) {
+		for _, body := range []string{`{"a":2.5}`, `{"a":"2"}`, `{"a":3000000000}`} {
+			var counters models.Counters
+			if err := json.Unmarshal([]byte(body), &counters); err == nil {
+				t.Errorf("expected %s to fail the decode", body)
+			}
 		}
-	}
-	var metadata models.Metadata
-	if err := json.Unmarshal([]byte(`{"a":3}`), &metadata); err == nil {
-		t.Error("expected a number for a string-valued extra to fail the decode")
-	}
+		var metadata models.Metadata
+		if err := json.Unmarshal([]byte(`{"a":3}`), &metadata); err == nil {
+			t.Error("expected a number for a string-valued extra to fail the decode")
+		}
+	})
+	t.Run("extraPropertiesTakePartInEquality", func(t *testing.T) {
+		a := models.Metadata{AdditionalProperties: map[string]string{"a": "1"}}
+		b := models.Metadata{AdditionalProperties: map[string]string{"a": "2"}}
+		if a.Equal(&b) {
+			t.Error("expected instances differing only in extra properties to be unequal")
+		}
+	})
 }
 
-// A value whose type is a model decodes to that model.
-func TestBhvModels026_Roster_ModelValuedAdditionalPropertyDecodesToTheModel(t *testing.T) {
+func TestBhvModels026_AdditionalPropertiesDecodeToTheirModelAndRoundTrip(t *testing.T) {
 	t.Parallel()
-	var roster models.Roster
-	if err := json.Unmarshal([]byte(`{"label":"l","a":{"id":1,"name":"x"}}`), &roster); err != nil {
-		t.Fatalf("failed to deserialize Roster: %v", err)
-	}
-	var category models.Category = roster.AdditionalProperties["a"]
-	if category.Id == nil || *category.Id != 1 || category.Name == nil || *category.Name != "x" {
-		t.Errorf("unexpected category %+v", category)
-	}
-	if err := json.Unmarshal([]byte(`{"a":{"id":"x"}}`), &roster); err == nil {
-		t.Error("expected a wrong inner type to fail the decode")
-	}
+	t.Run("modelValuedAdditionalPropertyDecodesToTheModel", func(t *testing.T) {
+		var roster models.Roster
+		if err := json.Unmarshal([]byte(`{"label":"l","a":{"id":1,"name":"x"}}`), &roster); err != nil {
+			t.Fatalf("failed to deserialize Roster: %v", err)
+		}
+		var category models.Category = roster.AdditionalProperties["a"]
+		if category.Id == nil || *category.Id != 1 || category.Name == nil || *category.Name != "x" {
+			t.Errorf("unexpected category %+v", category)
+		}
+		if err := json.Unmarshal([]byte(`{"a":{"id":"x"}}`), &roster); err == nil {
+			t.Error("expected a wrong inner type to fail the decode")
+		}
+	})
+	t.Run("undeclaredKeysRoundTripAtTheTopLevel", func(t *testing.T) {
+		var meta models.Metadata
+		if err := json.Unmarshal([]byte(`{"owner":"team-a"}`), &meta); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if meta.AdditionalProperties["owner"] != "team-a" {
+			t.Fatalf("expected the undeclared key kept, got %v", meta.AdditionalProperties)
+		}
+		data, err := json.Marshal(meta)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(string(data), `"owner":"team-a"`) {
+			t.Errorf("expected the key written back at the top level, got %s", data)
+		}
+	})
 }
 
 // A null extra is rejected unless the value schema is nullable.
@@ -246,7 +316,7 @@ func TestBhvModels029_Freeform_FreeFormAdditionalPropertiesKeepAnyValue(t *testi
 	}
 }
 
-func TestMetadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
+func TestBhvLanggo053_Metadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
 	if err := json.Unmarshal([]byte(`{"CreatedAt":"2024-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {
@@ -267,7 +337,7 @@ func TestMetadata_MiscasedKeyIsAnAdditionalPropertyNotTheDeclaredField(t *testin
 	}
 }
 
-func TestMetadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
+func TestBhvLanggo054_Metadata_ExactKeyWinsOverMiscasedDuplicate(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
 	if err := json.Unmarshal([]byte(`{"createdAt":"2024-01-01T00:00:00.000+00:00","CREATEDAT":"2030-01-01T00:00:00.000+00:00"}`), &metadata); err != nil {

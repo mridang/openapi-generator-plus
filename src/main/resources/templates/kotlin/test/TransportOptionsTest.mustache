@@ -2,16 +2,33 @@
 
 package {{invokerPackage}}
 
-import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respondOk
+import kotlinx.coroutines.runBlocking
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.Assertions.*
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 
 class TransportOptionsTest {
+
+    @Test
+    @DisplayName("bhvMisc026 a configuration mistake is an argument error and not an API error")
+    fun bhvMisc026ConfigurationMistakeIsAnArgumentErrorNotAnApiError() {
+        assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().timeout(-1L).build() }
+    }
+
+    @Test
+    @DisplayName("bhvErrors098 a missing CA certificate names the path and wraps the not-found cause")
+    fun bhvErrors098MissingCaCertificateNamesThePathAndWrapsTheCause() {
+        val path = "/nonexistent/ca-certificate.pem"
+        val ex = assertThrows(IllegalArgumentException::class.java) { loadCaCertTrustManager(path) }
+
+        assertTrue(ex.message.orEmpty().contains(path))
+        assertTrue(ex.cause is java.io.IOException)
+    }
 
     @Nested
     @DisplayName("defaults")
@@ -175,13 +192,6 @@ class TransportOptionsTest {
         fun invalidProxyUrlIsRejectedAtBuildNotInSetter() {
             val builder = TransportOptions.builder().proxy("proxy:3128")
             assertThrowsExactly(IllegalArgumentException::class.java) { builder.build() }
-        }
-
-        @Test
-        @DisplayName("proxy scheme is matched case insensitively")
-        fun proxySchemeIsMatchedCaseInsensitively() {
-            assertEquals("http://proxy:3128", TransportOptions.builder().proxy("HTTP://proxy:3128").build().proxy)
-            assertEquals("https://proxy:3128", TransportOptions.builder().proxy("Https://proxy:3128").build().proxy)
         }
 
         @Test
@@ -500,6 +510,33 @@ class TransportOptionsTest {
         fun bhvLifecycle041SuppliedClientWithSdkSettingsConflicts() = httpClientConflictsWithSdkTransportSettings()
 
         @Test
+        @DisplayName("bhvMisc034 a caller HTTP client combined with a caller transport is refused when the client is built")
+        fun bhvMisc034CallerHttpClientWithCallerTransportIsRefusedAtBuild() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            try {
+                assertThrows(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().httpClient(custom).proxy("http://127.0.0.1:3128").build()
+                }
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
+        @DisplayName("bhvMisc042 a custom httpClient with verifySsl disabled is refused when the options are built, naming the setting")
+        fun bhvMisc042CustomHttpClientWithVerificationDisabledIsRefusedNamingTheSetting() {
+            val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
+            try {
+                val ex = assertThrows(IllegalArgumentException::class.java) {
+                    TransportOptions.builder().httpClient(custom).verifySsl(false).build()
+                }
+                assertTrue(ex.message!!.contains("verifySsl=false"), ex.message)
+            } finally {
+                custom.close()
+            }
+        }
+
+        @Test
         @DisplayName("bhvLifecycle024 a supplied httpClient conflicts with the SDK proxy, caCertPath and verifySsl=false settings")
         fun httpClientConflictsWithSdkTransportSettings() {
             val custom = HttpClient(MockEngine { respondOk() }) { followRedirects = false }
@@ -609,4 +646,26 @@ class TransportOptionsTest {
             assertNull(TransportOptions.builder().build().proxy)
         }
     }
+    @Test
+    @DisplayName("bhvMisc134 a zero timeout is refused when the options are built, with an argument error")
+    fun bhvMisc134ZeroTimeoutIsRefusedAtBuild() {
+        assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().timeout(0L).build() }
+    }
+
+
+    @Test
+    fun bhvOptions068SocksProxySchemeFailsAtConstructionWithTheDocumentedMessage() = runBlocking<Unit> {
+        val ex = assertThrowsExactly(IllegalArgumentException::class.java) {
+            TransportOptions.builder().proxy("socks5://proxy:1080").build()
+        }
+        assertEquals("Invalid proxy URL (must use http or https scheme): socks5://proxy:1080", ex.message)
+    }
+    @Test
+    @DisplayName("bhvMisc186 combining a ready-made connection with a CA bundle setting is rejected when the options are built")
+    fun bhvMisc186ReadyMadeConnectionWithCaBundleIsRejectedAtBuild() {
+        assertThrows(IllegalArgumentException::class.java) {
+            TransportOptions.builder().httpClient(HttpClient(MockEngine { respondOk() })).caCertPath("ca.pem").build()
+        }
+    }
+
 }

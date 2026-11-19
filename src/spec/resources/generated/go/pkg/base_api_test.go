@@ -63,7 +63,7 @@ func TestBhvErrors027_BaseApi_RequestPathOf_CutsTheQueryAndTakesThePathOfAnAbsol
 	}
 }
 
-func TestBaseApi_AttachRequestContext_IsKeptOnceAndIgnoresOtherErrors(t *testing.T) {
+func TestBhvLanggo019_BaseApi_AttachRequestContext_IsKeptOnceAndIgnoresOtherErrors(t *testing.T) {
 	t.Parallel()
 	failure := pkgerrors.FromResponse(404, nil, "")
 	attachRequestContext(failure, "GET", "/first?x=1")
@@ -294,5 +294,16 @@ func TestBhvSerialization124_BaseApi_ANonAsciiFilenameKeepsAnRfc5987Form(t *test
 	}
 	if !strings.Contains(body.String(), "filename*=UTF-8''na%C3%AFve.txt") {
 		t.Errorf("expected the RFC 5987 filename form, got %s", body.String())
+	}
+}
+
+func TestBhvMisc169_BaseApiUnit_TheRetryWaitStartsAtHalfASecondDoublesAndNeverExceedsEightSeconds(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	for retries := 0; retries < 8; retries++ {
+		base := min(retryInitialDelay<<retries, retryMaxDelay)
+		if delay := retryDelay(retries, nil, now); delay > base || delay < base*3/4 {
+			t.Errorf("retry %d: expected a wait between %v and %v, got %v", retries, base*3/4, base, delay)
+		}
 	}
 }

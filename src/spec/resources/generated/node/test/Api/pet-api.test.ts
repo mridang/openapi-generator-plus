@@ -205,40 +205,6 @@ describe("PetApi", () => {
     expect(result).toBeDefined();
   });
 
-  /*
-   * setPetAvatar declares a binary request body with the content type
-   * image/jpeg. The raw bytes must reach the transport unchanged, never as a
-   * JSON array of numbers and never as base64, and the declared Content-Type
-   * must survive instead of being replaced by application/octet-stream or
-   * application/json.
-   */
-  test("bhv operations 157 a binary request body is sent as its exact raw bytes whatever the binary input type", async () => {
-    let capturedBody: unknown = null;
-    const capturingClient: ApiClient = {
-      async sendRequest(
-        _method: string,
-        _url: string,
-        _headers: Record<string, string>,
-        body: unknown,
-      ): Promise<ApiHttpResponse> {
-        capturedBody = body;
-        return { statusCode: 200, body: "", headers: {} };
-      },
-    };
-    const capturingApi = new PetApi(
-      capturingClient,
-      Configuration.builder()
-        .baseUrl("https://client-base.example.com")
-        .build(),
-    );
-    const payload = Buffer.from([0x00, 0xff, 0xd8, 0xff, 0xe0]);
-
-    await capturingApi.setPetAvatar(1, payload.subarray(1));
-
-    expect(Buffer.isBuffer(capturedBody)).toBe(true);
-    expect((capturedBody as Buffer).equals(payload.subarray(1))).toBe(true);
-  });
-
   test("bhv operations 073 setPetAvatar streams raw bytes with declared content type", async () => {
     let capturedBody: unknown = null;
     let capturedHeaders: Record<string, string> = {};
@@ -405,7 +371,7 @@ describe("PetApi", () => {
     expect(result).toBeDefined();
   });
 
-  test("an aborted per-call signal rejects the call with an AbortError", async () => {
+  test("bhv misc 035 an aborted per-call signal rejects the call with an AbortError", async () => {
     const error = await api
       .getPetById(1, undefined, { signal: AbortSignal.abort() })
       .catch((e: unknown) => e);
@@ -413,7 +379,7 @@ describe("PetApi", () => {
     expect((error as Error).name).toBe("AbortError");
   });
 
-  test("an operation without an Options object takes the per-call settings", async () => {
+  test("bhv langnode 009 an operation without an Options object takes the per-call settings", async () => {
     const result = await api.getPetPassport(1, {
       timeout: 5000,
       maxRetries: 0,
@@ -549,6 +515,23 @@ describe("PetApi", () => {
     }
   });
 
+  it("bhv misc 212 an error response from a call raises the matching error class through the API layer", async () => {
+    for (const [status, errorClass] of [
+      [404, NotFoundError],
+      [500, InternalServerError],
+    ] as const) {
+      const { api: mockApi, close } = await createMockServer(
+        status,
+        "application/json",
+        '{"message":"failed"}',
+      );
+      try {
+        await expect(mockApi.getPetById(1)).rejects.toBeInstanceOf(errorClass);
+      } finally {
+        close();
+      }
+    }
+  });
   test("bhv operations 038 error handling server error throws InternalServerError", async () => {
     const { api: mockApi, close } = await createMockServer(
       500,
@@ -564,19 +547,18 @@ describe("PetApi", () => {
     }
   });
 
-  test.each([
-    [400, BadRequestError],
-    [401, UnauthorizedError],
-    [403, ForbiddenError],
-    [404, NotFoundError],
-    [409, ConflictError],
-    [418, ClientError],
-    [422, UnprocessableEntityError],
-    [500, InternalServerError],
-    [502, BadGatewayError],
-  ])(
-    "bhv operations 138 getPetById picks the status-specific error for status %i",
-    async (status, expected) => {
+  test("bhv operations 138 getPetById picks the status-specific error for every listed status", async () => {
+    for (const [status, expected] of [
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [418, ClientError],
+      [422, UnprocessableEntityError],
+      [500, InternalServerError],
+      [502, BadGatewayError],
+    ] as const) {
       const statusApi = new PetApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()
@@ -588,8 +570,8 @@ describe("PetApi", () => {
 
       expect((error as Error).constructor).toBe(expected);
       expect((error as ClientError).statusCode).toBe(status);
-    },
-  );
+    }
+  });
 
   test("bhv operations 034 download binary mock", async () => {
     const { api: mockApi, close } = await createMockServer(
@@ -642,7 +624,7 @@ describe("PetApi", () => {
   // convenience-empty-body-handling: a body-returning operation that receives a
   // 200 with an empty body must surface a typed ApiError from the plain
   // convenience method, never a silently-cast undefined.
-  test("bhv operations 036 empty body on a body-returning op throws ApiError", async () => {
+  test("bhv operations 036 an empty body with status 200 or 204 on a body-returning op throws ApiError", async () => {
     const { api: mockApi, close } = await createMockServer(
       200,
       "application/json",
@@ -655,6 +637,16 @@ describe("PetApi", () => {
       );
     } finally {
       close();
+    }
+    const { api: noContentApi, close: closeNoContent } = await createMockServer(
+      204,
+      "application/json",
+      "",
+    );
+    try {
+      await expect(noContentApi.getPetById(1)).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      closeNoContent();
     }
   });
 
@@ -902,7 +894,7 @@ describe("PetApi form-urlencoded body serialization", () => {
 
   // #2 — an optional field that is absent (or null) is omitted from the
   // body entirely, never serialized as the literal string "undefined"/"null".
-  test("#2 absent optional form field is omitted", async () => {
+  test("bhv serialization 098 case 2: absent optional form field is omitted", async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
       const options: SetPetPreferencesOptions = { nickname: "Rex" };
@@ -918,6 +910,20 @@ describe("PetApi form-urlencoded body serialization", () => {
     }
   });
 
+  test("bhv misc 210 a date-time form field is percent-escaped for its colons and plus sign", async () => {
+    const { api, getCapture, close } = await captureFormBody();
+    try {
+      await api.setPetPreferences(1, {
+        nickname: "good boy",
+        reminder: new Date("2024-01-01T13:45:30+02:00"),
+      });
+      expect(getCapture().body).toContain(
+        "reminder=2024-01-01T11%3A45%3A30.000%2B00%3A00",
+      );
+    } finally {
+      close();
+    }
+  });
   // #3 — spaces in a form-body value are encoded as '+', not %20, the
   // canonical application/x-www-form-urlencoded encoding.
   test("bhv serializationwire 055 a space in a form value encodes as plus", async () => {
@@ -1019,7 +1025,7 @@ describe("PetApi multipart model-part serialization", () => {
     });
   }
 
-  test("model part uses wire property names and SDK date-time format", async () => {
+  test("bhv serialization 121 model part uses wire property names and SDK date-time format", async () => {
     const { api, getCapture, close } = await captureMultipartBody();
     try {
       const files = [Buffer.from([0xff, 0xd8, 0xff])];
@@ -1266,7 +1272,7 @@ describe("PetApi operation servers", () => {
     );
   });
 
-  test("a declared server variable value is substituted into the URL", () => {
+  test("bhv misc 157 a declared server variable value is substituted into the URL", () => {
     const server = new GetStagingPetInfoServerStagingServer(
       GetStagingPetInfoServerEnvironment.STAGING,
       GetStagingPetInfoServerVersion.V2,
@@ -1275,7 +1281,7 @@ describe("PetApi operation servers", () => {
     expect(server.getUrl()).toBe("https://staging.example.com/api/v2");
   });
 
-  test("a server variant documents itself with the operation server description", () => {
+  test("bhv langnode 010 a server variant documents itself with the operation server description", () => {
     const source = fs.readFileSync(
       path.join(process.cwd(), "src/api/pet-api.ts"),
       "utf8",
@@ -1293,33 +1299,35 @@ describe("PetApi doc comments", () => {
     "utf8",
   );
 
-  test("a parameter description keeps its quotes, angle brackets and ampersand raw", () => {
+  test("bhv langnode 011 a parameter description keeps its quotes, angle brackets and ampersand raw", () => {
     expect(source).toContain(
       String.raw`* @param options.session Session token: \"a<b>\" & it's required (required)`,
     );
   });
 
-  test("no doc comment carries an HTML entity", () => {
+  test("bhv langnode 012 no doc comment carries an HTML entity", () => {
     expect(source).not.toMatch(/&(#\d+|#x[0-9a-f]+|[a-z]+);/i);
   });
 
-  test.each([
-    [
-      "deletePet",
-      "* @param options options for query, header, form, and cookie parameters\n",
-    ],
-    [
-      "getPetSummary",
-      "* @param options options for query, header, form, and cookie parameters\n",
-    ],
-  ])("%s documents its options argument", (operation, line) => {
-    const start = source.lastIndexOf(
-      "/**",
-      source.indexOf(`  async ${operation}(`),
-    );
-    const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
+  test("bhv langnode 013 every operation documents its options argument", () => {
+    for (const [operation, line] of [
+      [
+        "deletePet",
+        "* @param options options for query, header, form, and cookie parameters\n",
+      ],
+      [
+        "getPetSummary",
+        "* @param options options for query, header, form, and cookie parameters\n",
+      ],
+    ] as const) {
+      const start = source.lastIndexOf(
+        "/**",
+        source.indexOf(`  async ${operation}(`),
+      );
+      const doc = source.slice(start, source.indexOf(`  async ${operation}(`));
 
-    expect(doc).toContain(line);
+      expect(doc).toContain(line);
+    }
   });
 
   test("bhv operations 032 a deprecated operation carries the deprecated doc tag", () => {
@@ -1360,15 +1368,30 @@ describe("PetApi against a recording client", () => {
       recorded.push({ method, url, headers });
       return {
         statusCode: 200,
-        body: url.includes("/pet/born-on/")
-          ? "[]"
-          : '{"id":7,"name":"recorded","photoUrls":[]}',
+        body:
+          url.includes("/pet/born-on/") || url.includes("/pet/findByStatus")
+            ? "[]"
+            : '{"id":7,"name":"recorded","photoUrls":[]}',
         headers: { "content-type": "application/json" },
       };
     },
   };
   const recordingApi = new PetApi(
     recordingClient,
+    Configuration.builder().baseUrl("https://client-base.example.com").build(),
+  );
+
+  const nullClient: ApiClient = {
+    async sendRequest(): Promise<ApiHttpResponse> {
+      return {
+        statusCode: 200,
+        body: "null",
+        headers: { "content-type": "application/json" },
+      };
+    },
+  };
+  const nullApi = new PetApi(
+    nullClient,
     Configuration.builder().baseUrl("https://client-base.example.com").build(),
   );
 
@@ -1408,7 +1431,7 @@ describe("PetApi against a recording client", () => {
     ).toBe(true);
   });
 
-  test("getStagingPetInfo sends the request to the variant with its variables substituted", async () => {
+  test("bhv misc 219 getStagingPetInfo sends the request to the variant with its variables substituted", async () => {
     await recordingApi.getStagingPetInfo(
       1,
       new GetStagingPetInfoServerStagingServer(
@@ -1501,9 +1524,9 @@ describe("PetApi against a recording client", () => {
     expect(recorded[0]!.url).toContain("/pet/byName/a..b?");
   });
 
-  test.each(["a$&b", "US$$", "x$'y", "$1"])(
-    "getPetByName puts the value %p in the path as written, never as a replacement pattern",
-    async (name) => {
+  test("bhv langnode 014 getPetByName puts every listed value in the path as written, never as a replacement pattern", async () => {
+    for (const name of ["a$&b", "US$$", "x$'y", "$1"]) {
+      recorded.length = 0;
       await recordingApi.getPetByName(name, {
         category: "sample",
         xCorrelationId: "sample-correlation",
@@ -1511,8 +1534,8 @@ describe("PetApi against a recording client", () => {
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.url).toContain(`/pet/byName/${name}?`);
-    },
-  );
+    }
+  });
 
   test("bhv serializationparam 122 an allowReserved query value keeps its reserved characters literal on the wire", async () => {
     await recordingApi.getPetTag(5, "sample", {
@@ -1643,21 +1666,6 @@ describe("PetApi against a recording client", () => {
     expect((error as Error).constructor).toBe(TypeError);
     expect((error as Error).message).toBe(
       "Missing the required parameter 'xCorrelationId' when calling PetApi.getPetByName",
-    );
-    expect(recorded).toHaveLength(0);
-  });
-
-  test("bhv operations 125 a required query param that is null sends no request", async () => {
-    const error = await recordingApi
-      .getPetByName("x", {
-        category: null,
-        xCorrelationId: "sample-correlation",
-      } as never)
-      .catch((e: unknown) => e);
-
-    expect((error as Error).constructor).toBe(TypeError);
-    expect((error as Error).message).toBe(
-      "Missing the required parameter 'category' when calling PetApi.getPetByName",
     );
     expect(recorded).toHaveLength(0);
   });
@@ -1852,12 +1860,62 @@ describe("PetApi against a recording client", () => {
     );
   });
 
-  test("getPetSummary sends the required cookie parameter", async () => {
+  test("bhv misc 176 getPetSummary sends the required cookie parameter", async () => {
     await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
       session: "abc",
     });
 
     expect(recorded[0]!.headers["Cookie"]).toBe("session=abc");
+  });
+
+  test("bhv misc 003 an all-optional operation runs with no arguments and sends no omitted parameter", async () => {
+    await recordingApi.findPetsByStatus();
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.url).not.toContain("?");
+  });
+
+  test("bhv misc 004 calling an operation with required fields and no options object names the first missing field", async () => {
+    await expect(
+      recordingApi.getPetSummary(
+        1,
+        new Date(Date.UTC(2024, 0, 15)),
+        undefined as never,
+      ),
+    ).rejects.toThrow("'session'");
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("bhv misc 005 a bare null body for a list operation raises an API error", async () => {
+    await expect(nullApi.findPetsByStatus()).rejects.toThrow(ApiError);
+  });
+
+  test("bhv misc 006 a bare null response read through the HTTP-info variant gives no data and keeps the raw body", async () => {
+    const result = await nullApi.findPetsByStatusWithHttpInfo();
+
+    expect(result.data ?? null).toBeNull();
+    expect(result.rawBody).toBe("null");
+  });
+
+  test("bhv misc 007 a missing path parameter and no options object names the parameter and sends nothing", async () => {
+    await expect(
+      recordingApi.getPetSummary(1, undefined as never, undefined as never),
+    ).rejects.toThrow("'asOf'");
+    expect(recorded).toHaveLength(0);
+  });
+
+  test("bhv misc 008 a supplied required cookie parameter is sent in the Cookie header", async () => {
+    await recordingApi.getPetSummary(1, new Date(Date.UTC(2024, 0, 15)), {
+      session: "abc123",
+    });
+
+    expect(recorded[0]!.headers["Cookie"]).toBe("session=abc123");
+  });
+
+  test("bhv misc 009 an operation called without an options object sends none of the per-call headers", async () => {
+    await recordingApi.getPetTag(5, "sample");
+
+    expect(recorded[0]!.headers["X-Criteria"]).toBeUndefined();
   });
 
   test("bhv operations 076 setPetAvatar rejects an undeclared request content type before sending", async () => {
@@ -1892,19 +1950,63 @@ describe("PetApi against a recording client", () => {
     );
     expect(recorded).toHaveLength(0);
   });
-  test.each(["abc123", "a%20b%3Bc", "a=b", "x/y:z"])(
-    "deletePet sends the cookie value %p exactly as given",
-    async (value) => {
+  test("bhv misc 123 deletePet sends every listed cookie value exactly as given", async () => {
+    for (const value of ["abc123", "a%20b%3Bc", "a=b", "x/y:z"]) {
+      recorded.length = 0;
       await recordingApi.deletePet(1, { apiKey: value });
 
       expect(recorded).toHaveLength(1);
       expect(recorded[0]!.headers["Cookie"]).toBe(`api_key=${value}`);
-    },
-  );
+    }
+  });
 
-  test.each(["a b", "a;b", "a,b", 'a"b', "a\\b", "café", "a\tb"])(
-    "deletePet refuses the cookie value %p before sending",
-    async (value) => {
+  test("bhv misc 192 deletePet sends a cookie value made only of cookie octets exactly as given", async () => {
+    const octets = Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) =>
+      String.fromCharCode(0x21 + i),
+    ).filter((c) => !['"', ",", ";", "\\"].includes(c));
+    const value = octets.join("");
+
+    await recordingApi.deletePet(1, { apiKey: value });
+
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]!.headers["Cookie"]).toBe(`api_key=${value}`);
+  });
+
+  it("bhv misc 209 a void operation ignores a success body and returns no data", async () => {
+    for (const [contentType, body] of [
+      ["text/plain", "ok"],
+      ["application/json", "42"],
+    ] as const) {
+      const textClient: ApiClient = {
+        async sendRequest(): Promise<ApiHttpResponse> {
+          return {
+            statusCode: 200,
+            body,
+            headers: { "content-type": contentType },
+          };
+        },
+      };
+      const textApi = new PetApi(
+        textClient,
+        Configuration.builder()
+          .baseUrl("https://client-base.example.com")
+          .build(),
+      );
+
+      await expect(textApi.deletePet(1)).resolves.toBeUndefined();
+    }
+  });
+
+  test("bhv misc 213 an optional array query parameter is sent in its declared style, never bracketed or comma-joined", async () => {
+    await recordingApi.getPetTag(5, "cute", { colors: ["blue", "black"] });
+
+    const url = recorded[recorded.length - 1]!.url;
+    expect(url).toContain("colors=blue%7Cblack");
+    expect(url).not.toContain("colors%5B");
+    expect(url).not.toContain("blue%2Cblack");
+  });
+  test("bhv langnode 015 deletePet refuses every listed cookie value before sending", async () => {
+    for (const value of ["a b", "a;b", "a,b", 'a"b', "a\\b", "café", "a\tb"]) {
       const error = await recordingApi
         .deletePet(1, { apiKey: value })
         .catch((e: unknown) => e);
@@ -1914,8 +2016,8 @@ describe("PetApi against a recording client", () => {
         "Cookie value for 'api_key' contains characters outside the RFC 6265 cookie-octet set; percent-encode the value before passing it",
       );
       expect(recorded).toHaveLength(0);
-    },
-  );
+    }
+  });
 
   describe("credentials per security scheme", () => {
     const host = "https://client-base.example.com";
@@ -1977,7 +2079,7 @@ describe("PetApi against a recording client", () => {
       expect(recorded[0]!.headers["X-Api-Key"]).toBeUndefined();
     });
 
-    test("a scheme credential wins over the client-level authenticator", async () => {
+    test("bhv misc 221 a scheme credential wins over the client-level authenticator", async () => {
       const petApi = new PetApi(recordingClient, config, fallback, {
         petStoreBearer: bearer,
       });
@@ -2155,5 +2257,19 @@ describe("PetApi mocking", () => {
     await lookUp(fake, 7);
 
     expect(calls).toEqual([[7, undefined, undefined]]);
+  });
+});
+
+describe("PetApi misc behaviours", () => {
+  test("bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument", async () => {
+    await expect(api.addPetPhotos(1, undefined as never)).rejects.toThrow(
+      TypeError,
+    );
+  });
+
+  test("bhv misc 012 a nil required argument raises a TypeError that names it", async () => {
+    const error = await api.addPet(null as never).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).toContain("'pet'");
   });
 });

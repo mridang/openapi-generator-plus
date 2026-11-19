@@ -452,12 +452,12 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
-        query_params.push(("{{baseName}}".to_string(), object_serializer::serialize(&opts.{{paramName}})?, false));
+        query_params.push(("{{baseName}}".to_string(), value_serializer::serialize_query_content(&opts.{{paramName}})?, false));
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
-                query_params.push(("{{baseName}}".to_string(), object_serializer::serialize(val)?, false));
+                query_params.push(("{{baseName}}".to_string(), value_serializer::serialize_query_content(val)?, false));
             }
         }
 {{/required}}
@@ -687,7 +687,7 @@ impl {{classname}} {
 {{/isString}}
         if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
             "{{baseName}}",
-            {{#vendorExtensions.param.queryContent}}Some(&urlencoding::encode(&object_serializer::serialize(&opts.{{paramName}})?).into_owned()){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/vendorExtensions.param.queryContent}},
+            {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(&opts.{{paramName}})?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(&opts.{{paramName}})){{/vendorExtensions.param.queryContent}},
             None,
             "cookie",
             "{{{dataType}}}",
@@ -725,7 +725,7 @@ impl {{classname}} {
             if let Some(ref val) = opts.{{paramName}} {
                 if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
                     "{{baseName}}",
-                    {{#vendorExtensions.param.queryContent}}Some(&urlencoding::encode(&object_serializer::serialize(val)?).into_owned()){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(val)){{/vendorExtensions.param.queryContent}},
+                    {{#vendorExtensions.param.queryContent}}Some(&object_serializer::encode_content_cookie(&object_serializer::serialize(val)?)){{/vendorExtensions.param.queryContent}}{{^vendorExtensions.param.queryContent}}Some(&object_serializer::stringify(val)){{/vendorExtensions.param.queryContent}},
                     None,
                     "cookie",
                     "{{{dataType}}}",

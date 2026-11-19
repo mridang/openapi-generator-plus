@@ -11,6 +11,8 @@ using PetstoreClient.Errors;
 using PetstoreClient.Models;
 using Xunit;
 
+#pragma warning disable CA1861
+
 namespace Test;
 
 public class ValueSerializerTest
@@ -19,19 +21,19 @@ public class ValueSerializerTest
     //    member name (TestHue.Red -> "red", not "Red") --
 
     [Fact]
-    public void EnumPathParameterSerializesWireValue()
+    public void BhvMisc082EnumPathParameterSerializesWireValue()
     {
         Assert.Equal("red", ValueSerializer.Serialize(TestHue.Red, "path", "TestHue"));
     }
 
     [Fact]
-    public void EnumQueryParameterSerializesWireValue()
+    public void BhvLangcsharp037EnumQueryParameterSerializesWireValue()
     {
         Assert.Equal("blue", ValueSerializer.Serialize(TestHue.Blue, "query", "TestHue"));
     }
 
     [Fact]
-    public void EnumHeaderParameterSerializesWireValue()
+    public void BhvLangcsharp038EnumHeaderParameterSerializesWireValue()
     {
         Assert.Equal("green", ValueSerializer.Serialize(TestHue.Green, "header", "TestHue"));
     }
@@ -45,7 +47,7 @@ public class ValueSerializerTest
     // -- uniqueItems sets expand exactly like lists --
 
     [Fact]
-    public void QuerySetExpandsLikeListNonExploded()
+    public void BhvSerialization106QuerySetExpandsLikeListNonExploded()
     {
         var set = new HashSet<string> { "red" };
         Assert.Equal(
@@ -60,11 +62,19 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void BhvSerializationparam105SerializeStyledFormScalar()
+    public void BhvSerializationparam105SerializeStyledFormScalarAndAddressIsCanonicalText()
     {
         Assert.Equal(
             "blue",
             ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true)
+        );
+        Assert.Equal(
+            "192.0.2.1",
+            ObjectSerializer.Stringify(System.Net.IPAddress.Parse("192.0.2.1"))
+        );
+        Assert.Equal(
+            "2001:db8::1",
+            ObjectSerializer.Stringify(System.Net.IPAddress.Parse("2001:0DB8::1"))
         );
     }
 
@@ -79,7 +89,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QuerySetWithMultiCollectionFormatExpands()
+    public void BhvLangcsharp039QuerySetWithMultiCollectionFormatExpands()
     {
         var two = new SortedSet<string> { "blue", "red" };
         Assert.Equal(
@@ -91,11 +101,15 @@ public class ValueSerializerTest
     // -- path location --
 
     [Fact]
-    public void BhvSerializationparam106PathWithNullStyleBehavesLikeSimple()
+    public void BhvSerializationparam106PathWithNullStyleBehavesLikeSimpleAndDecimalIsPlainNotation()
     {
         Assert.Equal(
             "5",
             ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
+        );
+        Assert.Equal(
+            "12.345678901234567890123",
+            ObjectSerializer.Stringify(12.345678901234567890123m)
         );
     }
 
@@ -121,6 +135,15 @@ public class ValueSerializerTest
     public void BhvSerializationparam101PathStringWithSlashIsUrlEncoded()
     {
         Assert.Equal("a%2Fb", ValueSerializer.Serialize("a/b", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvMisc232AStringPathParameterInSimpleStylePercentEncodesSlashes()
+    {
+        Assert.Equal(
+            "a%2Fb",
+            ValueSerializer.SerializeStyled("id", "a/b", "path", "string", null, null, false)
+        );
     }
 
     [Fact]
@@ -249,7 +272,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void QueryMultiArrayKeepsAnEmptyEntryForANullElement()
+    public void BhvLangcsharp040QueryMultiArrayKeepsAnEmptyEntryForANullElement()
     {
         var result = ValueSerializer.Serialize(
             new List<object?> { 1, null, 3 },
@@ -335,6 +358,18 @@ public class ValueSerializerTest
 
         Assert.Single(result);
         Assert.Equal("blue", result["filter[color]"]);
+    }
+
+    [Fact]
+    public void BhvMisc120AbsentDeepObjectValuesAreLeftOut()
+    {
+        var result = ValueSerializer.SerializeDeepObject(
+            "filter",
+            new Dictionary<string, object?> { { "type", "alpha" }, { "status", null } }
+        );
+
+        Assert.False(result.ContainsKey("filter[status]"));
+        Assert.Equal("alpha", result["filter[type]"]);
     }
 
     [Fact]
@@ -621,6 +656,22 @@ public class ValueSerializerTest
     }
 
     // -- serializeStyled: spaceDelimited style --
+
+    [Fact]
+    public void BhvMisc213AnOptionalArrayQueryParameterUsesItsDeclaredStyleWithoutBracketsOrCommas()
+    {
+        var rendered = ValueSerializer.SerializeStyled(
+            "color",
+            new List<object> { "blue", "black" },
+            "query",
+            "array",
+            null,
+            "pipeDelimited",
+            false
+        );
+
+        Assert.Equal("blue|black", rendered);
+    }
 
     [Fact]
     public void BhvSerializationparam093SpaceDelimitedArrayJoinsWithSpace()
@@ -1325,7 +1376,7 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void SerializeEncodesByteArrayAsBase64NotAList()
+    public void BhvLangcsharp041SerializeEncodesByteArrayAsBase64NotAList()
     {
         Assert.Equal(
             "aGk=",
@@ -1408,6 +1459,38 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
     }
 
     [Fact]
+    public void BhvMisc083ARawQueryKeepsItsRepeatedKeysValuesAndEscapesAsWritten()
+    {
+        Assert.Equal(
+            "a=1&a=2&b=%20x",
+            ValueSerializer.EncodeQueryAllowingReserved("a=1&a=2&b=%20x")
+        );
+    }
+
+    [Fact]
+    public void BhvMisc084ASetOptionalScalarIsSentInEveryLocation()
+    {
+        int? value = 7;
+        Assert.Equal("7", ObjectSerializer.ToPathValue(value));
+        Assert.Equal("7", ObjectSerializer.ToHeaderValue(value));
+    }
+
+    [Fact]
+    public void BhvMisc086AnElementHoldingJsonTextIsNotDecodedAgain()
+    {
+        object? result = ValueSerializer.SerializeStyled(
+            "tags",
+            new[] { "{\"a\":1}" },
+            "query",
+            "array",
+            null,
+            "form",
+            false
+        );
+        Assert.Contains("{\"a\":1}", result?.ToString() ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvSerialization015MatrixAndLabelStylesExpandAnObjectPerTheExplodeFlag()
     {
         var category = new Category { Id = 3, Name = "lab" };
@@ -1472,6 +1555,55 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
         };
         Assert.Throws<SerializationException>(() =>
             ValueSerializer.SerializeStyled("c", nested, "query", "object", null, "matrix", true)
+        );
+    }
+
+    [Fact]
+    public void BhvSerialization107AnExplodedArrayQueryParameterRepeatsItsKeyPerElement()
+    {
+        Assert.Equal(
+            new List<string> { "a", "b" },
+            ValueSerializer.SerializeStyled(
+                "ids",
+                new List<string> { "a", "b" },
+                "query",
+                "array",
+                null,
+                "form",
+                true
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvSerialization108APathValueWithoutAStyleMatchesTheSimpleStyle()
+    {
+        Assert.Equal("hello%20world", ValueSerializer.Serialize("hello world", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvSerialization110AnAbsentPathValueIsEmptyAndAnAbsentQueryValueIsNull()
+    {
+        Assert.Equal("", ValueSerializer.Serialize(null, "path", "string"));
+        Assert.Null(ValueSerializer.Serialize(null, "query", "string"));
+    }
+
+    [Fact]
+    public void BhvSerialization111OnlyUnreservedCharactersStayLiteralAndOthersAreUtf8Encoded()
+    {
+        Assert.Equal("a~b-._z%20%C3%A9", ValueSerializer.Serialize("a~b-._z é", "path", "string"));
+    }
+
+    [Fact]
+    public void BhvSerialization118ADateTimeQueryValueKeepsItsTimeAndOffset()
+    {
+        var moment = new DateTimeOffset(2024, 1, 15, 13, 45, 30, TimeSpan.Zero);
+        var rendered = Assert.IsType<string>(ValueSerializer.Serialize(moment, "query", "string"));
+        Assert.Contains("T13:45:30", rendered, StringComparison.Ordinal);
+        Assert.True(
+            rendered.EndsWith("+00:00", StringComparison.Ordinal)
+                || rendered.EndsWith('Z')
+                || rendered.EndsWith("%2B00:00", StringComparison.Ordinal)
         );
     }
 }

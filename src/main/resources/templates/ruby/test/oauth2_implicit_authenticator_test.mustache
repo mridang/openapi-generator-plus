@@ -23,7 +23,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
     url = auth.build_authorization_url
     _(url.split('?').first).must_equal 'https://auth.example.com/authorize'
     _(url).must_include 'scope=read%20write'
-    _(URI.decode_www_form(URI(url).query).to_h).must_equal({ 'response_type' => 'token', 'client_id' => 'my_client_id', 'scope' => 'read write' })
+    _(URI.decode_www_form(URI(url).query.to_s).to_h).must_equal({ 'response_type' => 'token', 'client_id' => 'my_client_id', 'scope' => 'read write' })
   end
 
   it 'bhv_authoauthtwoimplicit_003 builds authorization URL with response type token' do
@@ -53,7 +53,7 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(url).must_equal auth.build_authorization_url
   end
 
-  it 'treats an empty access token as unset' do
+  it 'bhv_misc_069 treats an empty access token as unset' do
     auth.access_token = ''
     err = assert_raises(RuntimeError) { auth.auth_headers }
     _(err.message).must_equal 'Must set the access token before making API requests'
@@ -106,8 +106,8 @@ describe {{moduleName}}::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(url).must_include 'state=state~%2A%21%27%28%29'
   end
 
-  ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", "t\u00F6ken", "abc\u007Fdef"].each do |token|
-    it "bhv_authoauthtwoimplicit_013 rejects the access token #{token.inspect}" do
+  it 'bhv_authoauthtwoimplicit_013 rejects an access token holding a control, non-ASCII or non-printable character' do
+    ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", "t\u00F6ken", "abc\u007Fdef"].each_case do |token|
       err = assert_raises(ArgumentError) { auth.access_token = token }
       _(err.message).must_equal 'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
       err = assert_raises(RuntimeError) { auth.auth_headers }
