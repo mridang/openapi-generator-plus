@@ -752,3 +752,9 @@ kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which name
 kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
 kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
 ||||||| e442aeefb
+swift | misc214 | Query content is a typed Codable value at the call site, so a value that cannot be serialized (a cyclic or NaN-bearing object) cannot be passed to the operation; the compiler rules it out
+swift | misc241 | Swift has no time-of-day type: a time value is a String the caller supplies and checks at the call site, so the SDK never truncates milliseconds from a time
+swift | misc260 | Server variable overrides are a [String: String] map, so a nil value for an enum variable cannot be passed; the compiler rules it out
+swift | misc271 | URLSession takes proxy settings from the system configuration or the explicit proxy option and never reads HTTP(S)_PROXY environment variables, so no environment variable can route a request through a proxy here
+swift | misc272 | Proving an authenticating proxy accepts the credentials needs a live proxy server, which the Swift unit suite cannot start; the proxy URL credentials are passed to URLSession unchanged
+swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself

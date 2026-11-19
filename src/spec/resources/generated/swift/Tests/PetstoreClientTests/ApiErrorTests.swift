@@ -1023,4 +1023,11 @@ import Testing
     #expect(other is ApiError)
     #expect(!(other is ServerError))
   }
+
+  /* When the rendered message truncates a response body, it states how many bytes were left out. */
+  @Test func testBhvMisc280ATruncatedBodyStatesHowManyBytesWereLeftOut() {
+    let body = String(repeating: "b", count: 1100)
+    #expect(
+      ApiError.renderedBody(body) == String(repeating: "b", count: 1024) + "... (76 more bytes)")
+  }
 }
