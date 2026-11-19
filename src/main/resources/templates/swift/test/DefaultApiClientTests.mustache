@@ -1375,6 +1375,29 @@ import FoundationNetworking
             #expect(error.statusCode == 307)
         }
     }
+
+    /* Cancelling a call through its own handle stops that request at once. */
+    @Test func testBhvTransport084CancellingTheCallThroughItsHandleStopsTheRequestAtOnce() async throws {
+        HangingURLProtocol.reset()
+        let client = DefaultApiClient(transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+        let task = Task {
+            try await client.sendRequest(
+                method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+        }
+        for _ in 0..<300 where !HangingURLProtocol.started {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let cancelledAt = Date()
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await task.value
+        }
+        #expect(Date().timeIntervalSince(cancelledAt) < 5)
+        for _ in 0..<300 where !HangingURLProtocol.stopped {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        #expect(HangingURLProtocol.stopped)
+    }
 }
 
 /// A URLProtocol that accepts a request and never answers it, so a test can

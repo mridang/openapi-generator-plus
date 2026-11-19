@@ -768,3 +768,5 @@ kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to 
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
 kotlin | serialization130 | Kotlin has no canonical serialize message prefix: a failed serialize throws the kotlinx.serialization exception carrying its own detail message
 swift | serialization096 | Swift decodes an absent optional field to nil; the schema default is applied only by the generated initializer, so decoding an absent field does not yield the declared default
+swift | transport083 | Swift has no client-level cancellation token: cancellation is the calling Task, per call, and transport084 covers cancelling a call through its handle
+swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
