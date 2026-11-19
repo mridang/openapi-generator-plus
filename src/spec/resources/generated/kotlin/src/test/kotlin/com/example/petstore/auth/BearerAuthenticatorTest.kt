@@ -281,8 +281,8 @@ class BearerAuthenticatorTest {
 
     @Test
     fun bhvMisc068AnEmptyTokenArgumentCountsAsNotPassedAndReadsTheEnvironment() {
-        val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
-        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com", "") }
+        val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "from-env")
+        val auth = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "") }
         val headers = withEnvironment(env) { runBlocking { auth.getAuthHeaders() } }
         assertEquals("Bearer from-env", headers["Authorization"])
     }

@@ -503,11 +503,14 @@ internal class ObjectSerializer(
      */
     private fun toWireElement(value: Any?): JsonElement =
         when {
+            // A JsonObject is a Map, so it is matched first: its members keep their insertion order.
+            value is JsonElement -> value
             value is Set<*> -> JsonArray(sortedSetItems(value).map { toWireElement(it) })
             value is Map<*, *> ->
                 JsonObject(value.entries.sortedBy { it.key.toString() }.associate { (k, v) -> k.toString() to toWireElement(v) })
             value is Collection<*> -> JsonArray(value.map { toWireElement(it) })
             value is TemporalAccessor || value is Uuid || value is java.net.URI -> JsonPrimitive(stringify(value))
+            value is BigDecimal -> JsonUnquotedLiteral(value.toPlainString())
             value == null ||
                 value is JsonElement ||
                 value is Number ||
@@ -1529,6 +1532,8 @@ internal class ObjectSerializer(
                 // A JsonElement already is the wire value: keep it as is, so a JsonObject
                 // (a Map) keeps its numbers and nested values instead of being stringified.
                 is JsonElement -> value
+                // A decimal is a bare number with its exact digits, so its scale is kept (12.50 stays 12.50).
+                is BigDecimal -> Json.Default.parseToJsonElement(value.toPlainString())
                 is Number -> JsonPrimitive(value)
                 is Boolean -> JsonPrimitive(value)
                 is String -> JsonPrimitive(value)
