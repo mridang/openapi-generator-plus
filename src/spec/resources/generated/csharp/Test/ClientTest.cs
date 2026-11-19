@@ -629,6 +629,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("CreateAccountWithHttpInfoAsync", StoreListed);
         Assert.Contains("DeleteOrderAsync", StoreListed);
         Assert.Contains("DeleteOrderWithHttpInfoAsync", StoreListed);
+        Assert.Contains("ExportOrdersAsync", StoreListed);
+        Assert.Contains("ExportOrdersWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetBySwatchAsync", StoreListed);
         Assert.Contains("GetBySwatchWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetDefaultsAsync", StoreListed);
@@ -663,6 +665,10 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("ReserveStockWithHttpInfoAsync", StoreListed);
         Assert.Contains("SearchStoreAsync", StoreListed);
         Assert.Contains("SearchStoreWithHttpInfoAsync", StoreListed);
+        Assert.Contains("WatchNoticesAsync", StoreListed);
+        Assert.Contains("WatchNoticesWithHttpInfoAsync", StoreListed);
+        Assert.Contains("WatchOrdersAsync", StoreListed);
+        Assert.Contains("WatchOrdersWithHttpInfoAsync", StoreListed);
     }
 
     private static SortedSet<string> PublicMethodNames(

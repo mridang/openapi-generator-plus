@@ -25,7 +25,7 @@ func run() error {
 	}
 	defer func() { _ = client.Close() }()
 
-	result, err := client.Store.GetDefaults(context.Background())
+	result, err := client.Store.ExportOrders(context.Background())
 	if err != nil {
 		return err
 	}

@@ -15,5 +15,5 @@ var token =
     Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
     ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
 using var client = Client.WithToken(host, token);
-var result = await client.Store.GetDefaultsAsync();
+var result = await client.Store.ExportOrdersAsync();
 Console.WriteLine(result);

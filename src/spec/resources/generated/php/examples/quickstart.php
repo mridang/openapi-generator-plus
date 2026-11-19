@@ -19,7 +19,7 @@ $host = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL') ?: throw new \RuntimeEx
 $token = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
 $client = Client::withToken($host, $token);
 try {
-    $result = $client->store->getDefaults();
+    $result = $client->store->exportOrders();
     print_r($result);
 } finally {
     $client->close();

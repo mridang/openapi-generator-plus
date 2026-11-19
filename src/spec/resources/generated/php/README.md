@@ -49,7 +49,7 @@ $host = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL') ?: throw new \RuntimeEx
 $token = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
 $client = Client::withToken($host, $token);
 try {
-    $result = $client->store->getDefaults();
+    $result = $client->store->exportOrders();
     print_r($result);
 } finally {
     $client->close();
@@ -88,11 +88,11 @@ Every operation takes an options object as its last argument, even one with no q
 
 ```php file
 use PetstoreClient\Client;
-use PetstoreClient\Api\Options\GetDefaultsOptions;
+use PetstoreClient\Api\Options\ExportOrdersOptions;
 
-function getDefaultsWithinTwoSeconds(Client $client): void
+function exportOrdersWithinTwoSeconds(Client $client): void
 {
-    $client->store->getDefaults(new GetDefaultsOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+    $client->store->exportOrders(new ExportOrdersOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
 }
 ```
 

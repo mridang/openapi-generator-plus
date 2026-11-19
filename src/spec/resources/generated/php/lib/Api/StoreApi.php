@@ -22,6 +22,7 @@ use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\NoAuth;
 use PetstoreClient\Api\Options\CreateAccountOptions;
 use PetstoreClient\Api\Options\DeleteOrderOptions;
+use PetstoreClient\Api\Options\ExportOrdersOptions;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
 use PetstoreClient\Api\Options\GetDefaultsOptions;
 use PetstoreClient\Api\Options\GetDepartmentOptions;
@@ -39,6 +40,8 @@ use PetstoreClient\Api\Options\GetTreeOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\WatchNoticesOptions;
+use PetstoreClient\Api\Options\WatchOrdersOptions;
 use PetstoreClient\Models\Swatch;
 
 /**
@@ -195,6 +198,78 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
             operationId: 'deleteOrder',
             urlTemplate: '/store/order/{orderId}',
+        );
+        return $result;
+    }
+
+    /**
+     * Exports every order as JSON Lines
+     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function exportOrders(?ExportOrdersOptions $options = null): \PetstoreClient\Models\Order
+    {
+        $apiResult = $this->exportOrdersWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for exportOrders but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function exportOrdersWithHttpInfo(?ExportOrdersOptions $options = null): ApiResult
+    {
+        $path = '/store/orders/export';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/x-ndjson'],
+            'application/json',
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'exportOrders',
+            urlTemplate: '/store/orders/export',
         );
         return $result;
     }
@@ -681,6 +756,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getNativeValues(?GetNativeValuesOptions $options = null): \PetstoreClient\Models\NativeValues
     {
@@ -707,6 +783,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\NativeValues>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getNativeValuesWithHttpInfo(?GetNativeValuesOptions $options = null): ApiResult
     {
@@ -1603,6 +1680,161 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'searchStore',
             urlTemplate: '/store/search',
+        );
+        return $result;
+    }
+
+    /**
+     * Streams plain text notices as server-sent events
+     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchNotices(?WatchNoticesOptions $options = null): string
+    {
+        $apiResult = $this->watchNoticesWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for watchNotices but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var string $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchNoticesWithHttpInfo(?WatchNoticesOptions $options = null): ApiResult
+    {
+        $path = '/store/notices';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<string> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['text/event-stream'],
+            'application/json',
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'watchNotices',
+            urlTemplate: '/store/notices',
+        );
+        return $result;
+    }
+
+    /**
+     * Streams order changes as server-sent events
+     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchOrders(?WatchOrdersOptions $options = null): \PetstoreClient\Models\Order
+    {
+        $apiResult = $this->watchOrdersWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for watchOrders but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchOrdersWithHttpInfo(?WatchOrdersOptions $options = null): ApiResult
+    {
+        $path = '/store/orders/events';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\WatchOrdersOptions && $options->status !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'status', ValueSerializer::serializeStyled(
+                'status',
+                $options->status,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['text/event-stream'],
+            'application/json',
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'watchOrders',
+            urlTemplate: '/store/orders/events',
         );
         return $result;
     }

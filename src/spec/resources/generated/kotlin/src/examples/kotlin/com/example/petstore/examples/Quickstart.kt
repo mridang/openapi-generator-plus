@@ -18,7 +18,7 @@ fun main() {
     val host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
     val token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
     Client.withToken(host, token).use { client ->
-        val result = runBlocking { client.store.getDefaults() }
+        val result = runBlocking { client.store.exportOrders() }
         println(result)
     }
 }

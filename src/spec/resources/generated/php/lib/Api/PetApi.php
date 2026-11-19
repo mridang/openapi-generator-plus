@@ -1340,6 +1340,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Look up a pet by note (required query parameters whose value may be null)
      * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getPetByNote(GetPetByNoteOptions $options): \PetstoreClient\Models\Pet
     {
@@ -1366,6 +1367,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @param GetPetByNoteOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\Pet>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getPetByNoteWithHttpInfo(GetPetByNoteOptions $options): ApiResult
     {

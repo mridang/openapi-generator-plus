@@ -16,6 +16,7 @@ namespace PetstoreClient\Api;
 use PetstoreClient\ApiResult;
 use PetstoreClient\Api\Options\CreateAccountOptions;
 use PetstoreClient\Api\Options\DeleteOrderOptions;
+use PetstoreClient\Api\Options\ExportOrdersOptions;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
 use PetstoreClient\Api\Options\GetDefaultsOptions;
 use PetstoreClient\Api\Options\GetDepartmentOptions;
@@ -33,6 +34,8 @@ use PetstoreClient\Api\Options\GetTreeOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\WatchNoticesOptions;
+use PetstoreClient\Api\Options\WatchOrdersOptions;
 use PetstoreClient\Models\Swatch;
 
 /**
@@ -75,6 +78,20 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
     public function deleteOrderWithHttpInfo(int $orderId, ?DeleteOrderOptions $options = null): ApiResult;
+
+    /**
+     * Exports every order as JSON Lines
+     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function exportOrders(?ExportOrdersOptions $options = null): \PetstoreClient\Models\Order;
+
+    /**
+     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function exportOrdersWithHttpInfo(?ExportOrdersOptions $options = null): ApiResult;
 
     /**
      * Echoes a swatch supplied via path, query and header parameters.
@@ -330,4 +347,32 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function searchStoreWithHttpInfo(?SearchStoreOptions $options = null): ApiResult;
+
+    /**
+     * Streams plain text notices as server-sent events
+     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function watchNotices(?WatchNoticesOptions $options = null): string;
+
+    /**
+     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<string>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function watchNoticesWithHttpInfo(?WatchNoticesOptions $options = null): ApiResult;
+
+    /**
+     * Streams order changes as server-sent events
+     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function watchOrders(?WatchOrdersOptions $options = null): \PetstoreClient\Models\Order;
+
+    /**
+     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function watchOrdersWithHttpInfo(?WatchOrdersOptions $options = null): ApiResult;
 }

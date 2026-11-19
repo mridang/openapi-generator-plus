@@ -27,7 +27,7 @@ import kotlinx.coroutines.runBlocking
 val host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
 val token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
 Client.withToken(host, token).use { client ->
-    val result = runBlocking { client.store.getDefaults() }
+    val result = runBlocking { client.store.exportOrders() }
     println(result)
 }
 ```
@@ -312,10 +312,10 @@ Every operation takes an options object, also one with no parameters and no secu
 
 ```kotlin file
 import com.example.petstore.Client
-import com.example.petstore.api.options.GetDefaultsOptions
+import com.example.petstore.api.options.ExportOrdersOptions
 
-suspend fun getDefaultsWithOptions(client: Client) {
-    client.store.getDefaults(options = GetDefaultsOptions(timeout = 2_000, maxRetries = 0))
+suspend fun exportOrdersWithOptions(client: Client) {
+    client.store.exportOrders(options = ExportOrdersOptions(timeout = 2_000, maxRetries = 0))
 }
 ```
 

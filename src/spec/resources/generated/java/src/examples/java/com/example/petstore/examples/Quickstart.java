@@ -27,7 +27,7 @@ public final class Quickstart {
     String host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL");
     String token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN");
     try (Client client = Client.withToken(host, token)) {
-      var result = client.store.getDefaults();
+      var result = client.store.exportOrders();
       System.out.println(result);
     }
   }

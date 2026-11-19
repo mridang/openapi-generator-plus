@@ -23,7 +23,7 @@ from petstore_client.client import Client
 host = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"]
 token = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"]
 with Client.with_token(host, token) as client:
-    result = await client.store.get_defaults()
+    result = await client.store.export_orders()
     print(result)
 ```
 
@@ -166,11 +166,11 @@ A cookie parameter is sent exactly as you give it when every character is a lega
 Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
 
 ```python file
-from petstore_client.api.options import GetDefaultsOptions
+from petstore_client.api.options import ExportOrdersOptions
 from petstore_client.client import Client
 
 async def call(client: Client) -> object:
-    return await client.store.get_defaults(options=GetDefaultsOptions(timeout=2000, max_retries=0))
+    return await client.store.export_orders(options=ExportOrdersOptions(timeout=2000, max_retries=0))
 ```
 
 A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.

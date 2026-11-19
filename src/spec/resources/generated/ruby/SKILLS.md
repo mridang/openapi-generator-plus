@@ -17,7 +17,7 @@ host = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL')
 token = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN')
 client = Petstore::Client::Petstore.with_token(host, token)
 begin
-  result = client.store.get_defaults
+  result = client.store.export_orders
   pp result
 ensure
   client.close
@@ -330,9 +330,9 @@ Every operation takes an optional Options object whose `timeout` (milliseconds),
 ```ruby file
 require 'petstore_client'
 
-def get_defaults_within_two_seconds(client)
-  options = Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: 2_000, max_retries: 0)
-  client.store.get_defaults(options)
+def export_orders_within_two_seconds(client)
+  options = Petstore::Client::Api::Options::ExportOrdersOptions.new(timeout: 2_000, max_retries: 0)
+  client.store.export_orders(options)
 end
 ```
 

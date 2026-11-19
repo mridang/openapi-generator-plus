@@ -12,6 +12,7 @@ package com.example.petstore.api
 import com.example.petstore.ApiResult
 import com.example.petstore.api.options.CreateAccountOptions
 import com.example.petstore.api.options.DeleteOrderOptions
+import com.example.petstore.api.options.ExportOrdersOptions
 import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetDefaultsOptions
 import com.example.petstore.api.options.GetDepartmentOptions
@@ -29,6 +30,8 @@ import com.example.petstore.api.options.GetTreeOptions
 import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
+import com.example.petstore.api.options.WatchNoticesOptions
+import com.example.petstore.api.options.WatchOrdersOptions
 import com.example.petstore.models.Account
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
@@ -74,6 +77,12 @@ interface StoreApiInterface {
         orderId: Long,
         options: DeleteOrderOptions? = null,
     ): ApiResult<Unit>
+
+    /** The `exportOrders` operation. */
+    suspend fun exportOrders(options: ExportOrdersOptions? = null): Order
+
+    /** The `exportOrders` operation with its status code, headers and body. */
+    suspend fun exportOrdersWithHttpInfo(options: ExportOrdersOptions? = null): ApiResult<Order>
 
     /** The `getBySwatch` operation. */
     suspend fun getBySwatch(
@@ -200,4 +209,16 @@ interface StoreApiInterface {
 
     /** The `searchStore` operation with its status code, headers and body. */
     suspend fun searchStoreWithHttpInfo(options: SearchStoreOptions? = null): ApiResult<List<Order>>
+
+    /** The `watchNotices` operation. */
+    suspend fun watchNotices(options: WatchNoticesOptions? = null): String
+
+    /** The `watchNotices` operation with its status code, headers and body. */
+    suspend fun watchNoticesWithHttpInfo(options: WatchNoticesOptions? = null): ApiResult<String>
+
+    /** The `watchOrders` operation. */
+    suspend fun watchOrders(options: WatchOrdersOptions? = null): Order
+
+    /** The `watchOrders` operation with its status code, headers and body. */
+    suspend fun watchOrdersWithHttpInfo(options: WatchOrdersOptions? = null): ApiResult<Order>
 }

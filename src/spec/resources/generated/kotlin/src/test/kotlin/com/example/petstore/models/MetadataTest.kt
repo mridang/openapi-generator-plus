@@ -589,7 +589,7 @@ class MetadataTest {
         val quickstart = quickstart()
         assertTrue(quickstart.contains("fun main()"), "the quickstart must have a main function")
         assertTrue(quickstart.contains("Client.withToken(host, token).use { client ->"), "the client must be closed by use")
-        val call = "client.store.getDefaults()"
+        val call = "client.store.exportOrders()"
         assertTrue(quickstart.contains("runBlocking { $call }"), "the quickstart must call $call")
     }
 

@@ -474,3 +474,102 @@ test('bhv misc 136 the debug output shows the base url and the non sensitive def
     expect($dump)->toContain('X-Trace');
     expect($dump)->toContain('visible');
 });
+
+/**
+ * The info string and the body of every fence tagged php, in file order.
+ *
+ * @return list<array{0: string, 1: string}>
+ */
+function examplesPhpFences(string $text): array
+{
+    preg_match_all('/^```(php[^\n]*)\n(.*?)^```$/ms', $text, $matches, PREG_SET_ORDER);
+    $fences = [];
+    foreach ($matches as $match) {
+        $fences[] = [$match[1], $match[2]];
+    }
+
+    return $fences;
+}
+
+function examplesRootFile(string $name): string
+{
+    return (string) file_get_contents(__DIR__ . '/../' . $name);
+}
+
+test('bhv examples 001 the quickstart builds a client, calls an operation and closes it', function (): void {
+    $quickstart = examplesRootFile('examples/quickstart.php');
+
+    expect($quickstart)->toContain("require __DIR__ . '/../vendor/autoload.php';");
+    expect($quickstart)->toContain('$client = Client::withToken($host, $token);');
+    expect($quickstart)->toContain('$client->store->exportOrders();');
+    expect($quickstart)->toContain('$client->close();');
+});
+
+test('bhv examples 002 the quickstart reads the host and the token from the environment the README names', function (): void {
+    $quickstart = examplesRootFile('examples/quickstart.php');
+    $readme = examplesRootFile('README.md');
+
+    foreach (['SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL', 'SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN'] as $name) {
+        expect($quickstart)->toContain("getenv('" . $name . "')");
+        expect($readme)->toContain($name);
+    }
+    expect($quickstart)->not->toContain('your-token');
+});
+
+test('bhv examples 003 the README usage fence and the quickstart hold the same statements', function (): void {
+    $readme = examplesRootFile('README.md');
+    $start = strpos($readme, "\n## Usage\n");
+    expect($start)->toBeInt();
+    assert(is_int($start));
+    $end = strpos($readme, "\n## ", $start + 1);
+    $usage = $end === false ? substr($readme, $start) : substr($readme, $start, $end - $start);
+    $fences = examplesPhpFences($usage);
+    expect($fences)->not->toBeEmpty();
+    $quickstart = (string) preg_replace('/\s+/', '', examplesRootFile('examples/quickstart.php'));
+
+    $position = 0;
+    foreach (explode("\n", $fences[0][1]) as $line) {
+        $statement = (string) preg_replace('/\s+/', '', $line);
+        if ($statement === '' || str_starts_with($line, 'use ')) {
+            continue;
+        }
+        $found = strpos($quickstart, $statement, $position);
+        expect($found)->toBeInt('expected the quickstart to hold, in order: ' . $line);
+        assert(is_int($found));
+        $position = $found + strlen($statement);
+    }
+});
+
+test('bhv examples 004 every php fence of the README and SKILLS declares its kind', function (): void {
+    foreach (['README.md', 'SKILLS.md'] as $name) {
+        $fences = examplesPhpFences(examplesRootFile($name));
+        expect($fences)->not->toBeEmpty();
+        foreach ($fences as [$info]) {
+            expect(in_array($info, ['php file', 'php statements'], true))->toBeTrue($name . ': ' . $info);
+        }
+    }
+});
+
+test('bhv examples 005 no php fence holds a placeholder or an undeclared value', function (): void {
+    foreach (['README.md', 'SKILLS.md'] as $name) {
+        foreach (examplesPhpFences(examplesRootFile($name)) as [, $body]) {
+            foreach (explode("\n", $body) as $line) {
+                $stripped = trim($line);
+                expect($stripped === '...' || str_contains($line, '(...)'))->toBeFalse($name . ': ' . $line);
+                expect(str_starts_with($stripped, '<') && str_ends_with($stripped, '>'))->toBeFalse($name . ': ' . $line);
+                expect($line)->not->toContain('$api->');
+                expect($line)->not->toContain('$body');
+                expect($line)->not->toContain('OperationOptions(');
+            }
+        }
+    }
+});
+
+test('bhv examples 006 the Makefile has an examples target that checks the examples directory', function (): void {
+    $makefile = examplesRootFile('Makefile');
+
+    expect($makefile)->toContain("\nexamples: install\n");
+    expect($makefile)->toContain("\nexamples-run: examples\n");
+    expect($makefile)->toContain("find examples -name '*.php'");
+    expect($makefile)->toContain('vendor/bin/phpstan analyse --no-progress --memory-limit=-1 examples');
+});

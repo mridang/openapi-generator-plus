@@ -488,6 +488,8 @@ class ClientTest {
     assertTrue(storeListed.contains("createAccountWithHttpInfo"));
     assertTrue(storeListed.contains("deleteOrder"));
     assertTrue(storeListed.contains("deleteOrderWithHttpInfo"));
+    assertTrue(storeListed.contains("exportOrders"));
+    assertTrue(storeListed.contains("exportOrdersWithHttpInfo"));
     assertTrue(storeListed.contains("getBySwatch"));
     assertTrue(storeListed.contains("getBySwatchWithHttpInfo"));
     assertTrue(storeListed.contains("getDefaults"));
@@ -522,6 +524,10 @@ class ClientTest {
     assertTrue(storeListed.contains("reserveStockWithHttpInfo"));
     assertTrue(storeListed.contains("searchStore"));
     assertTrue(storeListed.contains("searchStoreWithHttpInfo"));
+    assertTrue(storeListed.contains("watchNotices"));
+    assertTrue(storeListed.contains("watchNoticesWithHttpInfo"));
+    assertTrue(storeListed.contains("watchOrders"));
+    assertTrue(storeListed.contains("watchOrdersWithHttpInfo"));
   }
 
   @Test

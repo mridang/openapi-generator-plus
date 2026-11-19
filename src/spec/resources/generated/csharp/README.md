@@ -32,7 +32,7 @@ var token =
     Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
     ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
 using var client = Client.WithToken(host, token);
-var result = await client.Store.GetDefaultsAsync();
+var result = await client.Store.ExportOrdersAsync();
 Console.WriteLine(result);
 ```
 
@@ -249,10 +249,10 @@ using PetstoreClient;
 
 public static class Cancellation
 {
-    public static async Task GetDefaultsWithinTwoSecondsAsync(Client client)
+    public static async Task ExportOrdersWithinTwoSecondsAsync(Client client)
     {
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-        await client.Store.GetDefaultsAsync(cancellationToken: cts.Token);
+        await client.Store.ExportOrdersAsync(cancellationToken: cts.Token);
     }
 }
 ```

@@ -501,7 +501,7 @@ class TestReadmeAndSkillsText:
         assert "asyncio.run(main())" in quickstart
         assert "Client.with_token(" in quickstart
         assert " as client:" in quickstart
-        assert "await client.store.get_defaults(" in quickstart
+        assert "await client.store.export_orders(" in quickstart
 
     def test_bhv_examples_002_the_quickstart_reads_the_host_and_the_token_from_the_environment(
         self,
@@ -866,6 +866,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "export_orders",
+            "ExportOrdersOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "get_by_swatch",
             "GetBySwatchOptions",
             False,
@@ -980,6 +987,20 @@ class TestEveryOperationTakesOptions:
             "StoreApi",
             "search_store",
             "SearchStoreOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "watch_notices",
+            "WatchNoticesOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "watch_orders",
+            "WatchOrdersOptions",
             False,
         ),
     ]

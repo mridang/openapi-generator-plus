@@ -152,3 +152,124 @@ func TestBhvMocking009_Readme_TestingYourCodeNamesTheGroupInterfaceAndTheClient(
 		}
 	}
 }
+
+// goFences returns the body lines of every fence of text whose info string starts with go,
+// together with that info string.
+func goFences(text string) (infos []string, bodies [][]string) {
+	inside := false
+	for _, line := range strings.Split(text, "\n") {
+		switch {
+		case !inside && (line == "```go" || strings.HasPrefix(line, "```go ")):
+			inside = true
+			infos = append(infos, line)
+			bodies = append(bodies, nil)
+		case inside && strings.HasPrefix(line, "```"):
+			inside = false
+		case inside:
+			bodies[len(bodies)-1] = append(bodies[len(bodies)-1], line)
+		}
+	}
+	return infos, bodies
+}
+
+func TestBhvExamples001_Quickstart_BuildsACallsAnOperationAndClosesTheClient(t *testing.T) {
+	t.Parallel()
+	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
+	for _, want := range []string{"package main", "petstore.NewClientWithToken(", "defer func() { _ = client.Close() }()"} {
+		if !strings.Contains(quickstart, want) {
+			t.Errorf("expected the quickstart to contain %q", want)
+		}
+	}
+	if !strings.Contains(quickstart, "client.Store.ExportOrders(") {
+		t.Errorf("expected the quickstart to call ExportOrders")
+	}
+}
+
+func TestBhvExamples002_Quickstart_ReadsTheHostAndTheTokenFromTheEnvironment(t *testing.T) {
+	t.Parallel()
+	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
+	readme := readSourceFile(t, "../README.md")
+	for _, name := range []string{"SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"} {
+		if !strings.Contains(quickstart, `os.Getenv("`+name+`")`) {
+			t.Errorf("expected the quickstart to read %s", name)
+		}
+		if !strings.Contains(readme, name) {
+			t.Errorf("expected the README to name %s", name)
+		}
+	}
+	if strings.Contains(quickstart, "your-token") {
+		t.Errorf("expected the quickstart to hold no literal credential")
+	}
+}
+
+func TestBhvExamples003_Readme_UsageFenceAndQuickstartHoldTheSameStatements(t *testing.T) {
+	t.Parallel()
+	readme := readSourceFile(t, "../README.md")
+	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
+	usage := readme[strings.Index(readme, "\n## Usage\n"):]
+	_, bodies := goFences(usage)
+	if len(bodies) == 0 {
+		t.Fatalf("expected the Usage section to hold a go fence")
+	}
+	position := 0
+	inImports := false
+	for _, line := range bodies[0] {
+		trimmed := strings.TrimSpace(line)
+		if inImports {
+			inImports = trimmed != ")"
+			continue
+		}
+		if strings.HasPrefix(trimmed, "import") {
+			inImports = strings.HasSuffix(trimmed, "(")
+			continue
+		}
+		if trimmed == "" {
+			continue
+		}
+		next := strings.Index(quickstart[position:], trimmed)
+		if next < 0 {
+			t.Errorf("expected the quickstart to hold the Usage line %q, in order", trimmed)
+			continue
+		}
+		position += next
+	}
+}
+
+func TestBhvExamples004_Fences_EveryGoFenceDeclaresItsKind(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"../README.md", "../SKILLS.md"} {
+		infos, _ := goFences(readSourceFile(t, name))
+		for _, info := range infos {
+			if info != "```go file" && info != "```go statements" {
+				t.Errorf("expected %s to declare file or statements on the fence %q", name, info)
+			}
+		}
+	}
+}
+
+func TestBhvExamples005_Fences_NoGoFenceHoldsAPlaceholderOrAModelBuiltFromNothing(t *testing.T) {
+	t.Parallel()
+	for _, name := range []string{"../README.md", "../SKILLS.md"} {
+		_, bodies := goFences(readSourceFile(t, name))
+		for _, body := range bodies {
+			for _, line := range body {
+				trimmed := strings.TrimSpace(line)
+				placeholder := trimmed == "..." || strings.HasSuffix(trimmed, "/* ... */") || strings.HasPrefix(trimmed, "<") && strings.HasSuffix(trimmed, ">")
+				fromNothing := strings.Contains(line, "models.") && strings.Contains(line, "{}")
+				if placeholder || fromNothing {
+					t.Errorf("expected %s to hold no placeholder or empty model, found %q", name, line)
+				}
+			}
+		}
+	}
+}
+
+func TestBhvExamples006_Makefile_HasAnExamplesTargetThatBuildsTheExamplesDirectory(t *testing.T) {
+	t.Parallel()
+	makefile := readSourceFile(t, "../Makefile")
+	for _, want := range []string{"\nexamples:\n", "\nexamples-run:", "./examples/..."} {
+		if !strings.Contains(makefile, want) {
+			t.Errorf("expected the Makefile to contain %q", want)
+		}
+	}
+}
