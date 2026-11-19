@@ -892,8 +892,8 @@ import FoundationNetworking
         #expect(response.statusCode == 200)
     }
 
-    /* A 302 from HTTPS to plain HTTP is followed rather than refused, because the next request carries no body. */
-    @Test func testBhvRedirects040A302FromHttpsToHttpIsFollowed() async throws {
+    /* A 302 from HTTPS to plain HTTP is refused for a POST that carries a body, so the body is never sent in cleartext. */
+    @Test func testBhvRedirects040A302FromHttpsToHttpWithABodyIsRefused() async throws {
         let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
         let hopCount = HopCounter()
         let client = makeClient(transport: transport) { _ in
@@ -903,9 +903,10 @@ import FoundationNetworking
             }
             return (Data("{}".utf8), 200, [:])
         }
-        let response = try await client.sendRequest(
-            method: "POST", url: "https://example.com/start", headers: [:], body: "payload".data(using: .utf8)!)
-        #expect(response.statusCode == 200)
+        await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://example.com/start", headers: [:], body: "payload".data(using: .utf8)!)
+        }
     }
 
     /* A 307 redirect of a bodyless POST keeps the request a POST. */
