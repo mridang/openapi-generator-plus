@@ -501,7 +501,7 @@ class TestReadmeAndSkillsText:
         assert "asyncio.run(main())" in quickstart
         assert "Client.with_token(" in quickstart
         assert " as client:" in quickstart
-        assert "await client.store.export_orders(" in quickstart
+        assert "await client.store.get_defaults(" in quickstart
 
     def test_bhv_examples_002_the_quickstart_reads_the_host_and_the_token_from_the_environment(
         self,

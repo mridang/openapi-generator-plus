@@ -132,7 +132,7 @@ The SDK sends `Accept-Encoding` for the encodings it can decode and decompresses
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
 
-```php
+```php file
 use {{invokerPackage}}\CallHook;
 use {{invokerPackage}}\CallInfo;
 use {{invokerPackage}}\CallObserver;
@@ -166,7 +166,8 @@ $client = {{clientClassName}}::withToken('https://api.example.com', 'your-token'
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `open-telemetry/api` to your `composer.json` (the SDK itself does not need it) and configure the OpenTelemetry SDK in your application, then pass `OpenTelemetryCallHook::create()` for the global providers or `OpenTelemetryCallHook::create($tracerProvider, $meterProvider)` for your own. A PHP process runs one request at a time, so a metric only reaches a backend when your application flushes its meter provider.
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\OpenTelemetryCallHook;
 
 $client = {{clientClassName}}::withToken('https://api.example.com', 'your-token', callHook: OpenTelemetryCallHook::create());
@@ -231,9 +232,7 @@ follow from PSR-18 being a deliberately minimal, send-only contract:
 
 Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```php
-<?php
-
+```php file
 use {{apiPackage}}\{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
 use {{invokerPackage}}\{{clientClassName}}Interface;
 

@@ -27,7 +27,7 @@ import kotlinx.coroutines.runBlocking
 val host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
 val token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
 Client.withToken(host, token).use { client ->
-    val result = runBlocking { client.store.exportOrders() }
+    val result = runBlocking { client.store.getDefaults() }
     println(result)
 }
 ```
@@ -83,8 +83,8 @@ and needs none.
 import com.example.petstore.Client
 import kotlinx.coroutines.withTimeout
 
-suspend fun exportOrdersWithinTwoSeconds(client: Client) {
-    withTimeout(2_000) { client.store.exportOrders() }
+suspend fun getDefaultsWithinTwoSeconds(client: Client) {
+    withTimeout(2_000) { client.store.getDefaults() }
 }
 ```
 
@@ -102,8 +102,10 @@ TLS on the client you supply.
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```kotlin
+```kotlin file
 import com.example.petstore.api.PetApiInterface
+import com.example.petstore.api.ProblemsApiInterface
+import com.example.petstore.api.StoreApiInterface
 import com.example.petstore.ClientInterface
 import java.lang.reflect.Proxy
 
@@ -252,10 +254,10 @@ and leaves it as it was for every other.
 
 ```kotlin file
 import com.example.petstore.Client
-import com.example.petstore.api.options.ExportOrdersOptions
+import com.example.petstore.api.options.GetDefaultsOptions
 
-suspend fun exportOrdersWithOptions(client: Client) {
-    client.store.exportOrders(options = ExportOrdersOptions(timeout = 2_000, maxRetries = 0))
+suspend fun getDefaultsWithOptions(client: Client) {
+    client.store.getDefaults(options = GetDefaultsOptions(timeout = 2_000, maxRetries = 0))
 }
 ```
 
@@ -291,7 +293,11 @@ Every operation calls one small, optional hook around the call. The hook can edi
 
 `start` runs once per operation call, however many sends happen inside it (retries, the one replay after a `401`), after the request headers are final and before the body is encoded. It receives the call (`operationId` as written in the spec, `method`, `urlTemplate`, the `url` without its query string and `serverAddress`) and the headers, which it may read and replace; what it sets is on every send of the call. It returns an observer, or nothing. The observer's `finish` runs exactly once, whatever way the call ends, with the `statusCode` (0 when no response arrived), the lower-cased response `headers` (nothing when no response arrived) and the very error the caller receives. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. A hook never changes the result or the error of a call, and it also runs when you supply your own transport. Several hooks are combined with `chain`, which starts them in the order given and finishes them in the reverse order.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.CallHook
+import com.example.petstore.CallObserver
+import com.example.petstore.Client
+
 val hook = CallHook { info, headers ->
     headers["X-Request-Source"] = "reports"
     CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
@@ -303,7 +309,10 @@ The hook runs inline on the calling coroutine, so it must not block.
 
 The optional `OpenTelemetryCallHook` records one span, one request count and one duration value per call. It is built on the OpenTelemetry API package only; add `io.opentelemetry:opentelemetry-api` to your project to use it. The span is named with the operation id, has kind client and is a child of the active span; the hook injects `traceparent` itself. Attributes are `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure); the instruments are the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`), whose own count equals the counter. The instrumentation scope is `petstore-client` with the SDK version. Without a configured provider the hook does nothing.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
+import com.example.petstore.OpenTelemetryCallHook
+
 val client = Client.withToken("https://api.example.com", "token", callHook = OpenTelemetryCallHook.create())
 ```
 

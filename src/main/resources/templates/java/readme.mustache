@@ -110,14 +110,20 @@ at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
 
 Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`) and the client has one (`{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```java
-import {{apiPackage}}.{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}};
+```java file
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+import {{apiPackage}}.{{classname}}Interface;
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
 import {{invokerPackage}}.{{clientClassName}}Interface;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class FakeExample {
+final class FakeExample {
     // Code under test takes the group interface, never the generated class.
     static void use({{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}} api) {}
 
@@ -170,7 +176,10 @@ from the client, as described next.
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
 
-```java
+```java statements
+import {{invokerPackage}}.CallHook;
+import {{invokerPackage}}.{{clientClassName}};
+
 CallHook hook = (info, headers) -> {
     headers.put("X-Caller", "billing");
     long started = System.nanoTime();
@@ -187,7 +196,10 @@ CallHook hook = (info, headers) -> {
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `opentelemetry-api` to your build (the SDK itself does not need it), then pass `OpenTelemetryCallHook.create()` for the global instance or `OpenTelemetryCallHook.create(openTelemetry)` for your own.
 
-```java
+```java statements
+import {{invokerPackage}}.{{clientClassName}};
+import {{invokerPackage}}.OpenTelemetryCallHook;
+
 {{clientClassName}} client = {{clientClassName}}.builder("https://api.example.com")
         .callHook(OpenTelemetryCallHook.create())
         .build();

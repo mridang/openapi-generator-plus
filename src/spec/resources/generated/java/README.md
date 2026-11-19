@@ -39,7 +39,7 @@ import com.example.petstore.Client;
 String host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL");
 String token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN");
 try (Client client = Client.withToken(host, token)) {
-    var result = client.store.exportOrders();
+    var result = client.store.getDefaults();
     System.out.println(result);
 }
 ```
@@ -115,14 +115,16 @@ at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```java
+```java file
 import com.example.petstore.api.PetApiInterface;
+import com.example.petstore.api.ProblemsApiInterface;
+import com.example.petstore.api.StoreApiInterface;
 import com.example.petstore.ClientInterface;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class FakeExample {
+final class FakeExample {
     // Code under test takes the group interface, never the generated class.
     static void use(PetApiInterface api) {}
 
@@ -185,7 +187,10 @@ from the client, as described next.
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
 
-```java
+```java statements
+import com.example.petstore.CallHook;
+import com.example.petstore.Client;
+
 CallHook hook = (info, headers) -> {
     headers.put("X-Caller", "billing");
     long started = System.nanoTime();
@@ -202,7 +207,10 @@ Client client = Client.builder("https://api.example.com")
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `opentelemetry-api` to your build (the SDK itself does not need it), then pass `OpenTelemetryCallHook.create()` for the global instance or `OpenTelemetryCallHook.create(openTelemetry)` for your own.
 
-```java
+```java statements
+import com.example.petstore.Client;
+import com.example.petstore.OpenTelemetryCallHook;
+
 Client client = Client.builder("https://api.example.com")
         .callHook(OpenTelemetryCallHook.create())
         .build();

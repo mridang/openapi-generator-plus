@@ -26,7 +26,7 @@ import com.example.petstore.Client;
 String host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL");
 String token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN");
 try (Client client = Client.withToken(host, token)) {
-    var result = client.store.exportOrders();
+    var result = client.store.getDefaults();
     System.out.println(result);
 }
 ```

@@ -123,7 +123,7 @@ describe 'README' do
   it 'bhv_examples_001 ships a quickstart that builds a client, calls an operation and closes it' do
     _(quickstart).must_include "require 'petstore_client'"
     _(quickstart).must_include 'Petstore::Client::Petstore.with_token(host, token)'
-    _(quickstart).must_include 'client.store.export_orders'
+    _(quickstart).must_include 'client.store.get_defaults'
     _(quickstart).must_include 'client.close'
   end
 

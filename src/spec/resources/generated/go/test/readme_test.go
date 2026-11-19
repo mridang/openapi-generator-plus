@@ -180,8 +180,8 @@ func TestBhvExamples001_Quickstart_BuildsACallsAnOperationAndClosesTheClient(t *
 			t.Errorf("expected the quickstart to contain %q", want)
 		}
 	}
-	if !strings.Contains(quickstart, "client.Store.ExportOrders(") {
-		t.Errorf("expected the quickstart to call ExportOrders")
+	if !strings.Contains(quickstart, "client.Store.GetDefaults(") {
+		t.Errorf("expected the quickstart to call GetDefaults")
 	}
 }
 

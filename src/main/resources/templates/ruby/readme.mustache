@@ -67,18 +67,15 @@ A cookie parameter is sent as it is, without percent-encoding, when every charac
 
 Every API group has an interface (`{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}_{{classname}}Interface{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}`, an RBS interface) and the client has one (`_{{clientClassName}}Interface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```ruby
-# Code under test takes anything that satisfies the group interface, never the generated class.
-def use(api)
-  api
-end
-
+```ruby statements
 # A fake is any object that responds to the operations you use; Ruby needs no base class.
-fake = Object.new
-def fake.close; end
+fake = Class.new do
+  def close; end
+end.new
 
-use(fake)
-fake.close
+# Code under test takes anything that satisfies the group interface, never the generated class.
+use = ->(api) { api }
+use.call(fake)
 ```
 
 A new operation in the API adds a method to the interface, so a fake that must satisfy the whole interface for Steep fails to type-check after you regenerate; fake only the operations your code calls, or delegate the rest to a base fake.
@@ -138,26 +135,28 @@ A hook is any object that responds to `start(info, headers)`. `info` is a `CallI
 
 `start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline on the calling thread, so it must not block. Headers are a plain `Hash`: reuse the spelling of an existing name to replace it.
 
-```ruby
-class TenantHook
+```ruby statements
+require '{{gemName}}'
+
+tenant_hook = Class.new do
   def start(_info, headers)
     headers['X-Tenant'] = 'a'
     nil
   end
-end
+end.new
 
-client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'token', call_hook: TenantHook.new)
+client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'token', call_hook: tenant_hook)
 ```
 
 #### OpenTelemetry
 
 This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry gem: the Ruby OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the gem and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry-api` and `opentelemetry-metrics-api` to your own `Gemfile`; without an OpenTelemetry SDK it does nothing.
 
-```ruby
+```rb
 {{>call_hook_recipe}}
 ```
 
-```ruby
+```rb
 client = {{moduleName}}::{{clientClassName}}.with_token('{{{basePath}}}', 'token', call_hook: TelemetryCallHook.new)
 ```
 

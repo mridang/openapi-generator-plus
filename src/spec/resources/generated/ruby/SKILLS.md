@@ -17,7 +17,7 @@ host = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL')
 token = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN')
 client = Petstore::Client::Petstore.with_token(host, token)
 begin
-  result = client.store.export_orders
+  result = client.store.get_defaults
   pp result
 ensure
   client.close
@@ -330,9 +330,9 @@ Every operation takes an optional Options object whose `timeout` (milliseconds),
 ```ruby file
 require 'petstore_client'
 
-def export_orders_within_two_seconds(client)
-  options = Petstore::Client::Api::Options::ExportOrdersOptions.new(timeout: 2_000, max_retries: 0)
-  client.store.export_orders(options)
+def get_defaults_within_two_seconds(client)
+  options = Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: 2_000, max_retries: 0)
+  client.store.get_defaults(options)
 end
 ```
 
@@ -342,15 +342,17 @@ Every operation calls one small, optional hook around the call. The hook can edi
 
 A hook is any object that responds to `start(info, headers)` and returns an observer that responds to `finish(outcome)`, or `nil`. `info` is a `CallInfo` (`operation_id`, `http_method`, `url_template`, `url`, `server_address`), `headers` is the final mutable request header Hash and `outcome` is a `CallOutcome` (`status_code`, `headers`, `error`). `start` runs once per call, `finish` exactly once on every way the call can end, an error raised by `start` reaches the caller and an error raised by `finish` is swallowed. `CallHook.chain(first, second)` runs several hooks in order.
 
-```ruby
-class TenantHook
+```ruby statements
+require 'petstore_client'
+
+tenant_hook = Class.new do
   def start(_info, headers)
     headers['X-Tenant'] = 'a'
     nil
   end
-end
+end.new
 
-client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TenantHook.new)
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: tenant_hook)
 ```
 
 For OpenTelemetry the SDK ships no adapter, and the README shows a `TelemetryCallHook` recipe that records one span, one request count and one duration per call.

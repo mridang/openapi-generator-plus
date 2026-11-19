@@ -626,7 +626,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     /**
      * Hands the templates the example operation: the first operation, in the order the
      * documents are generated, that needs no path, query, header, cookie or body parameter and
-     * no security, and is not deprecated (an example must not teach a deprecated call, and the
+     * no security, is not a stream operation and is not deprecated (an example must not teach a deprecated call, and the
      * deprecation linters of several languages reject one). It is exposed as {@code exampleOperation} (the operation itself, so a
      * template reads {@code operationId} and {@code vendorExtensions.op.signatureArgs} from it),
      * {@code exampleOperationApi} (the name of its API group), {@code exampleOperationGroup} (the
@@ -679,7 +679,15 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     private static boolean needsNoInput(final CodegenOperation op) {
         final boolean security = op.authMethods != null && !op.authMethods.isEmpty();
         final boolean required = op.requiredParams != null && !op.requiredParams.isEmpty();
-        return !security && !required && op.bodyParam == null && !op.isDeprecated;
+        return !security && !required && op.bodyParam == null && !op.isDeprecated && !hasStreamMethod(op);
+    }
+
+    /** Whether the operation has a stream method, so the buffered call a quickstart makes does not apply to it. */
+    @SuppressWarnings("unchecked")
+    private static boolean hasStreamMethod(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get(OP_DECORATOR_NS);
+        return decorators instanceof Map
+                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasStreamMethod"));
     }
 
     /**

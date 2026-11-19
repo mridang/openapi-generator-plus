@@ -177,7 +177,7 @@ class ReadmeTest {
     assertTrue(quickstart.contains("public static void main(String[] args)"));
     assertTrue(quickstart.contains("Client.withToken(host, token)"));
     assertTrue(quickstart.contains("try (Client client = Client.withToken(host, token))"));
-    assertTrue(quickstart.contains("client.store.exportOrders()"));
+    assertTrue(quickstart.contains("client.store.getDefaults()"));
   }
 
   @Test

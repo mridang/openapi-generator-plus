@@ -635,7 +635,7 @@ public class MetadataTest
             StringComparison.Ordinal
         );
         Assert.Contains(
-            "await client.Store.ExportOrdersAsync()",
+            "await client.Store.GetDefaultsAsync()",
             quickstart,
             StringComparison.Ordinal
         );

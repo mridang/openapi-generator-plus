@@ -501,7 +501,7 @@ test('bhv examples 001 the quickstart builds a client, calls an operation and cl
 
     expect($quickstart)->toContain("require __DIR__ . '/../vendor/autoload.php';");
     expect($quickstart)->toContain('$client = Client::withToken($host, $token);');
-    expect($quickstart)->toContain('$client->store->exportOrders();');
+    expect($quickstart)->toContain('$client->store->getDefaults();');
     expect($quickstart)->toContain('$client->close();');
 });
 

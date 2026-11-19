@@ -16,7 +16,7 @@ from petstore_client.client import Client
 host = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"]
 token = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"]
 with Client.with_token(host, token) as client:
-    result = await client.store.export_orders()
+    result = await client.store.get_defaults()
     print(result)
 ```
 
