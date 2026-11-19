@@ -398,6 +398,22 @@ test('bhv authoauthtwotokenmgr 001 malformed 2xx token response throws OAuth2Tok
         });
 });
 
+test('bhv misc 172 a token request that answers 503 is sent once and raises the server error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(new ApiHttpResponse(
+        503,
+        (string) json_encode(['error' => 'temporarily_unavailable']),
+        ['Content-Type' => 'application/json']
+    ));
+
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+
+    expect(fn () => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))
+        ->toThrow(OAuth2ServerException::class);
+    expect(count($client->capturedRequests))->toBe(1);
+});
+
 test('bhv authoauthtwotokenmgr 037 token transport failure propagates NetworkException', function (): void {
     // A transport failure on the token POST reaches the caller unchanged.
     $failure = new \PetstoreClient\Errors\NetworkException('connection refused', new \RuntimeException('refused'));
