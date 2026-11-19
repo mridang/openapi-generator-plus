@@ -194,7 +194,7 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
       _(error.message).must_equal "Missing Bearer token: pass it or set the environment variable #{prefix}_TOKEN"
     end
 
-    it 'bhv_misc_068 an empty string passed for a credential counts as not passed and is read from the environment' do
+    it 'bhv_misc_068 a credential environment variable that is set but empty counts as unset' do
       error = _(-> { {{moduleName}}::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => '' }) })
               .must_raise ArgumentError
 
@@ -258,12 +258,20 @@ describe {{moduleName}}::Auth::BearerAuthenticator do
       _(auth.auth_headers['Authorization']).must_equal 'Bearer token-2'
     end
 
-    it 'bhv_auth_022 prefers the environment variable to the token provider' do
+    it 'bhv_auth_038 a token provider passed in outranks the environment variable' do
       auth = {{moduleName}}::Auth::BearerAuthenticator.new(
         'https://api.example.com', token_provider: -> { 'from-provider' }, env: { "#{prefix}_TOKEN" => 'from-env' }
       )
 
-      _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer from-provider'
+    end
+
+    it 'bhv_auth_022 an explicit argument is used first, then the token provider, then the environment variable' do
+      auth = {{moduleName}}::Auth::BearerAuthenticator.new(
+        'https://api.example.com', token_provider: -> { 'from-provider' }, env: { "#{prefix}_TOKEN" => 'from-env' }
+      )
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer from-provider'
     end
 
     it 'bhv_misc_066 a token provider value is sent as the bearer credential on the authenticated request' do

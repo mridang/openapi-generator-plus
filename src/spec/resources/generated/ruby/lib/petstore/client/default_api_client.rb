@@ -316,7 +316,7 @@ module Petstore::Client
         # A multipart type the caller declared (multipart/related, say) keeps its subtype.
         declared = (merged.find { |name, _value| name.to_s.casecmp?('Content-Type') } || [nil, ''])[1].to_s
         subtype = declared.split(';').first.to_s.strip
-        subtype = 'multipart/form-data' unless subtype.start_with?('multipart/')
+        subtype = 'multipart/form-data' unless subtype.match?(%r{\Amultipart/[#A-Za-z0-9!$&^_.+-]+\z})
         merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }
         merged['Content-Type'] = "#{subtype}; boundary=#{boundary}"
         serialized_body = build_multipart_body(body, boundary)

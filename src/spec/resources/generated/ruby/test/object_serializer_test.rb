@@ -960,6 +960,39 @@ describe Petstore::Client::ObjectSerializer do
       )
     end
 
+    it 'bhv_misc_105 copying a model never validates the values it is given' do
+      copy = Petstore::Client::Models::Order.new.with(quantity: 500)
+
+      _(copy.quantity).must_equal 500
+    end
+
+    it 'bhv_misc_108 a model built with an integer enum member keeps its wire value' do
+      subscription = Petstore::Client::Models::Subscription.new(rank: Petstore::Client::Models::Rank::LOW)
+
+      _(Petstore::Client::ObjectSerializer.serialize(subscription)).must_include '"rank":1'
+    end
+
+    it 'bhv_misc_122 a string default from the schema is applied as the exact literal' do
+      _(Petstore::Client::Models::Defaults.new.greeting).must_equal(
+        "it's \"quoted\" \\ back\tslash\nnext $USD \#{x} a*/b"
+      )
+    end
+
+    it 'bhv_serialization_037 a decimal is written with every significant digit and is not rounded to float precision' do
+      digits = '12345678901234567890.123456789012345678'
+
+      _(Petstore::Client::ObjectSerializer.stringify(BigDecimal(digits))).must_equal digits
+    end
+
+    it 'bhv_misc_242 a readOnly and a writeOnly property have no wire effect' do
+      account = Petstore::Client::Models::Account.new(id: 7, username: 'ann', password: 'hunter2')
+      _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(account))).must_equal(
+        'id' => 7, 'username' => 'ann', 'password' => 'hunter2'
+      )
+      decoded = Petstore::Client::ObjectSerializer.deserialize('{"id":7,"username":"ann","password":"x"}', 'Account')
+      _([decoded.id, decoded.password]).must_equal([7, 'x'])
+    end
+
     it 'bhv_serializationobject_017 decodes a writeOnly property' do
       account = Petstore::Client::ObjectSerializer.deserialize('{"username":"ann","password":"hunter2"}', 'Account')
       _(account.password).must_equal('hunter2')
@@ -1839,6 +1872,11 @@ describe Petstore::Client::ObjectSerializer do
 
     it 'bhv_serializationobject_181 stringifies a zero Duration as 0s' do
       _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('PT0S'))).must_equal('0s')
+    end
+
+    it 'bhv_misc_256 a duration fraction is never trimmed below three digits' do
+      _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('PT1.1S'))).must_equal('1.100s')
+      _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('PT1.5S'))).wont_equal('1.5s')
     end
 
     it 'bhv_serializationobject_179 stringify trims trailing zeros to three fractional digits' do

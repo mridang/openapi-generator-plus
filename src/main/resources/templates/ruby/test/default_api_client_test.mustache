@@ -3,6 +3,8 @@
 require 'json'
 require 'openssl'
 require 'tempfile'
+require 'io/wait'
+require 'timeout'
 require 'test_helper'
 
 describe {{moduleName}}::DefaultApiClient do
@@ -447,6 +449,260 @@ describe {{moduleName}}::DefaultApiClient do
       client = {{moduleName}}::DefaultApiClient.new(transport)
       response = client.send_request(:GET, "#{chasm_url}/test/redirect/chain/1", {}, nil)
       _(response.status_code).must_equal(200)
+    end
+  end
+
+  # A caller's cancellation in Ruby is an exception raised into, or a kill of,
+  # the thread that runs the call: the SDK has no signal of its own (S7).
+  describe 'caller cancellation' do
+    # A server that accepts connections and never answers; each accepted
+    # connection is queued after its request head was read.
+    def hanging_server
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      accepted = Queue.new
+      thread = Thread.new do
+        loop do
+          conn = server.accept
+          while (line = conn.gets)
+            break if line.strip.empty?
+          end
+          accepted << conn
+        end
+      rescue IOError, SystemCallError
+        nil
+      end
+      [server, accepted, thread, "http://127.0.0.1:#{server.addr[1]}/slow"]
+    end
+
+    # True when the other end of +conn+ was closed within +seconds+.
+    def peer_closed?(conn, seconds = 5)
+      return false unless conn.wait_readable(seconds)
+
+      conn.read(1).nil?
+    rescue SystemCallError
+      true
+    end
+
+    # Cancelling before the call starts: the interruption is already pending when
+    # the call is entered, so it raises there and nothing reaches the server.
+    def assert_cancelled_before_sending
+      server, accepted, thread, url = hanging_server
+      client = {{moduleName}}::DefaultApiClient.new
+      cancelled = Class.new(StandardError)
+      main = Thread.current
+      Thread.handle_interrupt(cancelled => :never) do
+        Thread.new { main.raise(cancelled.new('already cancelled')) }.join
+        error = assert_raises(cancelled) do
+          Thread.handle_interrupt(cancelled => :immediate) { client.send_request(:GET, url, {}, nil) }
+        end
+        _(error.message).must_equal 'already cancelled'
+      end
+      sleep 0.2
+      _(accepted.empty?).must_equal true
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_transport_068 a call made after the caller was cancelled raises that cancellation and sends no request' do
+      assert_cancelled_before_sending
+    end
+
+    it 'bhv_misc_035 a call whose cancellation already happened is rejected with it, not with a timeout error' do
+      assert_cancelled_before_sending
+    end
+
+    it 'bhv_misc_152 a call whose cancellation already happened rejects immediately without sending the request' do
+      assert_cancelled_before_sending
+    end
+
+    it 'bhv_transport_083 a cancellation raised into the thread of an in-flight call aborts the request and surfaces unchanged' do
+      server, accepted, thread, url = hanging_server
+      cancelled = Class.new(StandardError)
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(30_000).build)
+      worker = Thread.new { client.send_request(:GET, url, {}, nil) }
+      worker.report_on_exception = false
+      conn = accepted.pop
+      worker.raise(cancelled.new('stop'))
+
+      error = assert_raises(cancelled) { worker.join(10) }
+      _(error.message).must_equal 'stop'
+      _(peer_closed?(conn)).must_equal true
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_transport_084 dropping an in-flight call by killing its thread closes the request connection at once' do
+      server, accepted, thread, url = hanging_server
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(30_000).build)
+      worker = Thread.new { client.send_request(:GET, url, {}, nil) }
+      conn = accepted.pop
+      worker.kill
+      worker.join(10)
+
+      _(worker.alive?).must_equal false
+      _(peer_closed?(conn)).must_equal true
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_transport_069 a cancellation that fires through an outer timeout reaches the request and closes it' do
+      server, accepted, thread, url = hanging_server
+      cancelled = Class.new(StandardError)
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(30_000).build)
+      assert_raises(cancelled) do
+        Timeout.timeout(0.4, cancelled) do
+          client.send_request(:GET, url, {}, nil)
+        end
+      end
+      conn = accepted.pop
+      _(peer_closed?(conn)).must_equal true
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_misc_153 cancelling one in-flight request of a client leaves the same client usable for the next one' do
+      server, accepted, thread, url = hanging_server
+      cancelled = Class.new(StandardError)
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(30_000).build)
+      worker = Thread.new { client.send_request(:GET, url, {}, nil) }
+      worker.report_on_exception = false
+      first = accepted.pop
+      worker.raise(cancelled.new('stop'))
+      assert_raises(cancelled) { worker.join(10) }
+      _(peer_closed?(first)).must_equal true
+
+      second_worker = Thread.new { client.send_request(:GET, url, {}, nil) }
+      _(accepted.pop).wont_be_nil
+      second_worker.kill
+      second_worker.join(10)
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_transport_085 the timeout still raises the network timeout error when an outer cancellation never fires' do
+      server, _accepted, thread, url = hanging_server
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(500).build)
+      error = assert_raises({{moduleName}}::Errors::NetworkTimeoutError) do
+        Timeout.timeout(30, Class.new(StandardError)) { client.send_request(:GET, url, {}, nil) }
+      end
+      _(error.status_code).must_equal 0
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+
+    it 'bhv_misc_029 a caller timeout that fires surfaces as the caller own error and is never wrapped in the SDK error type' do
+      server, _accepted, thread, url = hanging_server
+      mine = Class.new(StandardError)
+      client = {{moduleName}}::DefaultApiClient.new({{moduleName}}::TransportOptions.builder.timeout(30_000).build)
+      error = assert_raises(mine) do
+        Timeout.timeout(0.4, mine) { client.send_request(:GET, url, {}, nil) }
+      end
+      _(error).wont_be_kind_of({{moduleName}}::Errors::NetworkError)
+      _(error).wont_be_kind_of({{apiErrorParent}})
+    ensure
+      server&.close
+      thread&.join(2)
+    end
+  end
+
+  describe 'proxy credential across a redirect' do
+    it 'bhv_misc_128 a cross-origin redirect keeps the proxy credential on every request through the shared transport' do
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      seen = []
+      thread = Thread.new do
+        2.times do |hop|
+          conn = server.accept
+          request_line = conn.gets.to_s
+          headers = {}
+          while (line = conn.gets)
+            break if line.strip.empty?
+
+            name, value = line.split(':', 2)
+            headers[name.to_s.strip.downcase] = value.to_s.strip
+          end
+          seen << [request_line.split[1], headers['proxy-authorization']]
+          if hop.zero?
+            conn.print("HTTP/1.1 302 Found\r\nLocation: http://other.example.invalid:81/next\r\n" \
+                       "Content-Length: 0\r\nConnection: close\r\n\r\n")
+          else
+            conn.print("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+          end
+          conn.close
+        end
+      end
+
+      transport = {{moduleName}}::TransportOptions.builder
+        .proxy("http://user:pass@127.0.0.1:#{server.addr[1]}")
+        .build
+      response = {{moduleName}}::DefaultApiClient.new(transport).send_request(:GET, 'http://origin.example.invalid:80/start', {}, nil)
+      thread.join(5)
+
+      _(response.status_code).must_equal 200
+      expected = "Basic #{['user:pass'].pack('m0')}"
+      _(seen).must_equal [['http://origin.example.invalid/start', expected], ['http://other.example.invalid:81/next', expected]]
+    ensure
+      server&.close
+    end
+  end
+
+  describe 'hostname verification' do
+    it 'bhv_misc_268 a certificate from the trusted CA is rejected when its names do not include the host reached' do
+      ca_key = OpenSSL::PKey::RSA.new(2048)
+      ca = OpenSSL::X509::Certificate.new
+      ca.version = 2
+      ca.serial = 1
+      ca.subject = ca.issuer = OpenSSL::X509::Name.parse('/CN=hostname-test-ca')
+      ca.public_key = ca_key.public_key
+      ca.not_before = Time.now - 60
+      ca.not_after = Time.now + 3600
+      ext = OpenSSL::X509::ExtensionFactory.new(ca, ca)
+      ca.add_extension(ext.create_extension('basicConstraints', 'CA:TRUE', true))
+      ca.sign(ca_key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+
+      leaf_key = OpenSSL::PKey::RSA.new(2048)
+      leaf = OpenSSL::X509::Certificate.new
+      leaf.version = 2
+      leaf.serial = 2
+      leaf.subject = OpenSSL::X509::Name.parse('/CN=elsewhere.example')
+      leaf.issuer = ca.subject
+      leaf.public_key = leaf_key.public_key
+      leaf.not_before = Time.now - 60
+      leaf.not_after = Time.now + 3600
+      leaf_ext = OpenSSL::X509::ExtensionFactory.new(ca, leaf)
+      leaf.add_extension(leaf_ext.create_extension('subjectAltName', 'DNS:elsewhere.example'))
+      leaf.sign(ca_key, OpenSSL::Digest.new('SHA256')) # steep:ignore ArgumentTypeMismatch
+
+      context = OpenSSL::SSL::SSLContext.new
+      context.cert = leaf
+      context.key = leaf_key
+      tcp = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
+      ssl = OpenSSL::SSL::SSLServer.new(tcp, context)
+      thread = Thread.new do
+        conn = ssl.accept
+        conn.close
+      rescue StandardError
+        nil
+      end
+      file = Tempfile.new(['hostname-ca', '.pem'])
+      file.write(ca.to_pem)
+      file.close
+
+      transport = {{moduleName}}::TransportOptions.builder.verify_ssl(true).ca_cert_path(file.path).build
+      error = assert_raises({{moduleName}}::Errors::NetworkError) do
+        {{moduleName}}::DefaultApiClient.new(transport).send_request(:GET, "https://127.0.0.1:#{tcp.addr[1]}/x", {}, nil)
+      end
+
+      _(error.cause).must_be_kind_of(Faraday::SSLError)
+    ensure
+      ssl&.close
+      thread&.join(2)
+      file&.unlink
     end
   end
 

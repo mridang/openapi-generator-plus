@@ -13,10 +13,11 @@ module Petstore::Client
     class BearerAuthenticator < BaseAuthenticator
       attr_reader :host
 
-      # The token comes from the first of: the +token+ given here, the
-      # environment variable +token_env+ (read once, here; an empty value counts
-      # as unset) and the result of +token_provider+ (called for every request,
-      # so a short-lived token can be renewed). It fails here when there is none.
+      # The token comes from the first of: the +token+ given here, the result of
+      # +token_provider+ (called for every request, so a short-lived token can be
+      # renewed) and the environment variable +token_env+ (read once, here; an
+      # empty value counts as unset, and it is read only when neither was passed).
+      # It fails here when there is none.
       #
       # @param host [String] API base URL
       # @param token [String, nil] Bearer token
@@ -28,7 +29,7 @@ module Petstore::Client
         raise ArgumentError, 'Pass a Bearer token or a token provider, not both' if token && token_provider
 
         @token_provider = token_provider
-        token = credential_from(token, token_env, env)
+        token = credential_from(token, token_env, env) unless token_provider
         raise ArgumentError, "Missing Bearer token: pass it or set the environment variable #{token_env}" if token.nil? && token_provider.nil?
 
         validate_token!(token) unless token.nil? && token_provider

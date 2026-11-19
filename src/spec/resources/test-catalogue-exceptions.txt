@@ -188,11 +188,6 @@ php | auth015 | PHP's header call raises the token error instead of returning he
 python | options058 | TransportOptions has no HTTP client field; a caller's HTTP client is the pool_manager argument of DefaultApiClient, which the client tests cover
 python | options059 | TransportOptions has no transport hook field, and the python client exposes no per-request hook to leave unset
 python | transport079 | urllib3 honours verify_ssl=False directly, so no client has to refuse it at construction because it cannot apply it
-ruby | serialization037 | Ruby maps a bare decimal number to Float (the README precision caveat), so digits beyond double precision cannot be kept; a BigDecimal would emit scientific or quoted text and break the unquoted wire form
-ruby | transport068 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a call cannot be handed an already-cancelled signal
-ruby | transport069 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancellation signal or context reaches a request
-ruby | auth013 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can cancel the token request it started
-ruby | auth027 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancelled refresh can be rethrown as a distinct case
 ruby | auth001 | The token exchange runs inside the synchronous auth_headers call and no credential needs an asynchronous step, so the refusal cannot occur
 rust | options058 | The transport options hold no HTTP client: an injected client is an argument to DefaultApiClient::with_client, so there is no built options value to read it back from
 rust | options059 | Rust has no transport hook option: a caller replaces the transport by implementing the ApiClient trait and passing it to the constructor, so there is no hook value on the built options
@@ -278,7 +273,6 @@ elixir | serializationobject412 | Elixir decodes a bare type: number or a decima
 java | tracing014 | the call is blocking and builds the headers on the caller's thread, so no suspension or thread change can happen before the span is read; tracing013 covers the path
 php | tracing014 | PHP runs one request at a time and has no suspension point in the header path; tracing013 covers the path
 php | tracing015 | PHP runs one request at a time in one process, so two operations cannot be in flight together
-ruby | tracing014 | the call is blocking and builds the headers on the caller's thread; tracing013 covers the path
 go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
 kotlin | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
@@ -290,11 +284,6 @@ php | hooks015 | PHP has no per-call cancellation (S7) and runs one request at a
 java | auth038 | the generated scheme wrappers take one static token and no token provider, so there is no provider to rank above an environment variable; a provider is covered by bhv auth 037 on BearerAuthenticator
 python | retries045 | python has no streamed request body: the SDK materialises a body as a dict, bytes, bytearray, memoryview or str before the call, so a replay after a 401 never has a stream to exhaust
 python | serialization129 | python datetime.timedelta stores microseconds at most, so a nanosecond-precision duration cannot be represented; the duration test pins the refusal of a nanosecond argument instead
-ruby | transport083 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no client-level signal can abort a request in flight
-ruby | transport084 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call handle exists to cancel a request or drop an in-flight call
-ruby | transport085 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancellation token or signal can be supplied alongside a timeout
-ruby | misc029 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
-ruby | misc035 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
 node | auth039 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal (the same case as authbearer026)
 dart | operations164 | Dart's sound null safety makes a nil required parameter unrepresentable: passing null is a compile error, so no ArgumentError can be raised at runtime; empty required values are covered by bhv operations 050
 go | auth039 | Go's client constructors take a token or a token provider through separate constructors (NewClientWithToken and NewClientWithTokenProvider), so no call can pass both
@@ -330,7 +319,6 @@ go | misc087 | Go's number is float64 and documented lossy (serializationobject0
 go | misc088 | Go's number is float64 (no stdlib decimal, documented lossy), so the decimal places a value was written with are not kept, as serializationobject002 records
 go | misc092 | encoding/json matches a key to a field by case-folding the tag, so a key differing from the wire name only by case is matched; the petstore has no property whose Go name differs from its wire name by more than case
 kotlin | operations164 | a required parameter is a non-null Kotlin type, so a nil argument is rejected by the compiler and cannot reach the call; a missing required Options field is refused with an argument error by bhv operations 132
-ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
 swift | operations161 | the fixture has no operation whose success response is text/plain, so no generated call returns a raw text body to test
 swift | operations162 | the fixture has no date-only (format: date) parameter in form, query, header or path positions; its only temporal values are date-time fields
 swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
@@ -341,7 +329,6 @@ rust | misc010 | Rust operations take an options object with required fields as 
 rust | misc012 | Rust has no nil value, so a required argument cannot be absent at run time; omitting it is refused by the compiler and no run-time argument error exists
 php | misc185 | The PHP token manager has no stop operation, so there is no stop to repeat and no stopped state to report; the client's close is covered by bhv lifecycle 013 and 035
 php | misc187 | The PHP client takes its host as a required constructor argument and has no environment host variable; the token fallback to the environment is covered by bhv lifecycle 028 and bhv config 025
-ruby | misc030 | The SDK takes only a relative timeout per call and has no absolute deadline argument, so a deadline cannot already have passed when a call starts
 go | misc100 | The Go SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
 go | misc103 | Go decodes every model leniently and has no strict-mode option, so no single model can reject undeclared keys while others ignore them
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
@@ -355,11 +342,6 @@ elixir | misc083 | Elixir takes query parameters as a keyword list that the SDK 
 elixir | misc087 | Elixir has no decimal type: a decimal field is a binary float, so it cannot be written with its exact digits in plain notation (see serializationobject410)
 elixir | misc088 | Elixir decodes a decimal into a binary float, so it cannot keep the number of decimal places it was written with (see serializationobject410)
 elixir | misc098 | Elixir multipart parts take binary content only, so there is no caller-supplied stream for the SDK to read into the body or leave open
-ruby | misc152 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
-ruby | misc153 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
-ruby | misc052 | Ruby keyword arguments cannot name the same option twice in one call (a repeated keyword is a syntax error), so there is no second value of the same per-call option to resolve
-ruby | misc054 | a call reads its header hash before it returns and keeps no reference to it, and no option object holds the map for later, so a change the caller makes afterwards cannot reach a request
-ruby | misc059 | JSON.parse rejects the NaN and Infinity literals by default, so a token response cannot carry a non-finite lifetime for the cache to refuse
 ruby | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so there is no combined credential to send
 kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
@@ -376,8 +358,6 @@ python | misc051 | operation Options objects are typed, so an option the operati
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
 dart | misc012 | Dart parameters are non-nullable, so a null required argument is refused at compile time and no runtime ArgumentError can name it; the empty-string case is covered by bhv misc 007
 ruby | misc088 | A BigDecimal keeps every digit of the value it was read from but not the trailing zeros of its text, since they are not part of the number, so the written number of decimal places cannot be kept
-ruby | misc100 | The Ruby client sends a multipart body only when the body is a Hash, always as multipart/form-data with its own boundary, so no caller can declare another multipart subtype and there is no declared value to fall back from
-ruby | misc105 | The copy is built through the model constructor, so it validates its values exactly as building the model by hand does, and a copy never skips those checks
 php | misc029 | PHP has no cancellation API, so a caller cancellation never reaches the SDK; timeouts are the only bound
 php | misc033 | libcurl and the TLS stack build the chain from the CA file, and the unit tests cannot run a live TLS handshake to check it
 php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no separate HTTP client option to combine with it
@@ -434,11 +414,7 @@ kotlin | misc052 | Kotlin named arguments can be passed only once per call, so a
 node | misc033 | the node harness has no intermediate certificate fixture and Node has no X.509 builder
 node | misc052 | RequestOptions is one object literal per call, and TypeScript rejects a repeated property in an object literal, so one kind of option cannot be given twice
 node | misc060 | the bearer constructor takes one argument that is either the token or its provider, and the API key constructor takes no provider, so supplying both does not compile
-ruby | misc108 | The test fixture declares no integer-valued enum, so no model exists whose integer enum member's wire value could be checked
-ruby | misc114 | The test fixture declares no operation with more than one success response, so no status code selects between two success decoders
 ruby | misc116 | The Ruby client sends int32 query values as given and does no int32 range or fraction check on them, so there is no refusal to test
-ruby | misc122 | The test models declare no string default containing quotes, backslashes or control characters, so the literal default value cannot be observed
-ruby | misc128 | the proxy credential is applied by the connection to the proxy (Faraday reads the proxy userinfo), below the request headers the redirect loop controls, and the test adapter never opens a proxy connection, so the credential cannot be observed on a redirected request
 ruby | misc129 | the SDK adds no proxy credential header of its own (the proxy userinfo is applied by the connection), so a redirect has no SDK-added proxy header to re-send, and the test adapter never opens a proxy connection to observe one
 ruby | misc135 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so the builder never receives or stores a client-level cancellation handle
 php | misc052 | PHP named arguments refuse the same option twice in one call at compile time, so a per-call option given more than once cannot be written
@@ -546,8 +522,6 @@ kotlin | misc185 | Kotlin's OAuth2 token manager exposes no stop operation, so a
 kotlin | misc187 | Kotlin's withToken takes the host as a required argument, so a missing host is refused at compile time and there is no environment fallback for it; the token fallback is pinned by bhv lifecycle 014
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
-ruby | misc267 | ruby's DefaultApiClient builds its own HTTP connection from TransportOptions and accepts no caller-supplied HTTP client, so there are no caller client default headers to send (default headers come from TransportOptions, see bhv_transport_011)
-ruby | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway), so no reachable address is missing from its names and a hostname mismatch cannot be produced
 dart | misc231 | Dart's typed constructor takes an int for quantity, so a fractional number cannot be passed in code and the compiler refuses it before any run-time check
 java | misc176 | The Java petstore fixture declares no operation with a required cookie parameter, only the optional api_key cookie on deletePet, which bhvOperations030 already covers
 java | misc178 | The Java SDK takes no declared multipart subtype and always sends a multipart body as multipart/form-data, so a declared non-form-data type cannot reach the transport
@@ -567,7 +541,6 @@ java | misc187 | The Java authenticators never read the API base URL from the en
 dart | misc260 | url takes its overrides as Map<String, String>, so a null value for an enum variable cannot be passed and the compiler refuses it before any run-time check
 dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
-ruby | misc185 | The Ruby OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be expressed
 kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: the SDK defines no package-root module that re-exports the error types, so each one is named by its errors import
 rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
 rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
