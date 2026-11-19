@@ -117,6 +117,15 @@ final class ValueSerializer
     }
 
     /**
+     * Percent-encodes the JSON text of a `content:` cookie parameter. Only
+     * A-Za-z0-9 - _ ~ stay literal: rawurlencode keeps the dot, so it is encoded too.
+     */
+    public static function encodeContentCookie(string $json): string
+    {
+        return str_replace('.', '%2E', rawurlencode($json));
+    }
+
+    /**
      * Percent-encodes a value for use as a URL path segment.
      *
      * Encodes characters that are not allowed in a URI path segment per
