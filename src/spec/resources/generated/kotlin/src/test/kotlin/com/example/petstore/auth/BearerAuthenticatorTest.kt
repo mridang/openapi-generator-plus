@@ -489,4 +489,25 @@ class BearerAuthenticatorTest {
             CredentialEnvironment.lookup = previous
         }
     }
+
+    @Test
+    @DisplayName("bhvMisc190 the printed output of the authenticator hides the secret")
+    fun bhvMisc190PrintedBearerAuthenticatorHidesTheToken() {
+        val text = BearerAuthenticator("https://api.example.com", "super-secret-token").toString()
+        assertFalse(text.contains("super-secret-token"), text)
+    }
+
+    @Test
+    @DisplayName("bhvMisc193 the Basic and Bearer authenticators send their base header and refuse invalid input like their base")
+    fun bhvMisc193BasicAndBearerSendBaseHeaderAndRefuseInvalidTokenLikeBase() =
+        runBlocking<Unit> {
+            assertEquals(
+                "Basic dXNlcjpwYXNz",
+                BasicAuthenticator("https://api.example.com", "user", "pass").getAuthHeaders()["Authorization"],
+            )
+            assertEquals("Bearer tok-123", BearerAuthenticator("https://api.example.com", "tok-123").getAuthHeaders()["Authorization"])
+            assertThrows(IllegalArgumentException::class.java) {
+                BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+            }
+        }
 }

@@ -195,7 +195,7 @@ function newRecordingTransport(): array
     $counts = new \stdClass();
     $counts->sent = 0;
     $counts->closes = 0;
-    $transport = new readonly class($counts) implements ApiClient {
+    $transport = new readonly class ($counts) implements ApiClient {
         public function __construct(private \stdClass $counts)
         {
         }
@@ -350,7 +350,7 @@ function newCapturingTransport(): array
     $seen = new \stdClass();
     $seen->url = null;
     $seen->headers = [];
-    $transport = new readonly class($seen) implements ApiClient {
+    $transport = new readonly class ($seen) implements ApiClient {
         public function __construct(private \stdClass $seen)
         {
         }
@@ -757,7 +757,7 @@ test('bhv misc 205 a credential found nowhere makes the missing credential error
 });
 
 test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
-    $credential = new class('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
+    $credential = new class ('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
         public ?ApiClient $received = null;
 
         public function setApiClient(ApiClient $apiClient): void

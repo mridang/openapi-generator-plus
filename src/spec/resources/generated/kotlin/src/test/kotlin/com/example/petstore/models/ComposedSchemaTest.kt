@@ -818,4 +818,22 @@ class ComposedSchemaTest {
             val result = json.decodeFromString<DryFood>("""{"weightKg":2.5}""")
             assertEquals("dry", result.foodType)
         }
+
+    @Test
+    fun bhvSerialization076UnionValueMatchingNoCandidateRaisesAnError() =
+        runBlocking<Unit> {
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<PetFood>("""{"foodType":"fish"}""")
+            }
+        }
+
+    @Test
+    fun bhvSerialization082MissingDiscriminatorFailsNamingTheKey() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                    json.decodeFromString<PetFood>("""{"weightKg":2.5}""")
+                }
+            assertTrue(ex.message!!.contains("foodType"), ex.message)
+        }
 }
