@@ -412,6 +412,17 @@ pub fn serialize_styled(
     }
 }
 
+/// Serializes a `content: application/json` query parameter to its JSON text.
+///
+/// The object serializer writes the canonical SDK wire form for every nested
+/// value, so a date-time inside the JSON keeps its `format: date-time` form. The
+/// text is returned unencoded; the query builder percent-encodes it once.
+pub fn serialize_query_content<T: serde::Serialize>(
+    value: &T,
+) -> Result<String, crate::errors::serialization_error::SerializationError> {
+    crate::object_serializer::serialize(value)
+}
+
 fn serialize_nil(location: &str) -> Option<String> {
     if location == "query" {
         None
@@ -1116,6 +1127,14 @@ mod tests {
         let result =
             super::serialize_styled("q", Some(json), None, "path", "", "", "simple", false);
         assert_eq!(unwrap_single(result), "%7B%22a%22:%22b%20c%22%7D");
+    }
+
+    /* misc211: a date-time inside a JSON query content value keeps its wire form. */
+    #[test]
+    fn test_bhv_misc_211_a_date_time_inside_a_json_query_content_keeps_its_wire_form() {
+        let when: crate::date_time::DateTime = "2024-01-15T10:30:00Z".parse().unwrap();
+        let json = serialize_query_content(&serde_json::json!({ "at": when })).unwrap();
+        assert_eq!(json, r#"{"at":"2024-01-15T10:30:00.000+00:00"}"#);
     }
 
     #[test]

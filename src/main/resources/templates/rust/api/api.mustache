@@ -452,12 +452,12 @@ impl {{classname}} {
         let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
             Box::new(crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!("Missing the required parameter '{}' when calling {{classname}}.{{operationId}}", "{{baseName}}")))
         })?;
-        query_params.push(("{{baseName}}".to_string(), object_serializer::serialize(&opts.{{paramName}})?, false));
+        query_params.push(("{{baseName}}".to_string(), value_serializer::serialize_query_content(&opts.{{paramName}})?, false));
 {{/required}}
 {{^required}}
         if let Some(opts) = options {
             if let Some(ref val) = opts.{{paramName}} {
-                query_params.push(("{{baseName}}".to_string(), object_serializer::serialize(val)?, false));
+                query_params.push(("{{baseName}}".to_string(), value_serializer::serialize_query_content(val)?, false));
             }
         }
 {{/required}}

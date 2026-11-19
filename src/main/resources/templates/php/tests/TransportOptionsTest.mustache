@@ -436,3 +436,8 @@ test('bhv misc 180 the printable form shows non sensitive default header values 
     expect($printed)->toContain('shown-value');
     expect($printed)->not->toContain('hidden-secret');
 });
+
+test('bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+});

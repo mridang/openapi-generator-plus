@@ -2258,6 +2258,16 @@ mod tests {
         assert_eq!(category.name.as_deref(), Some("first"));
     }
 
+    /* misc119: keys that differ only by an escape sequence are one key, last wins. */
+    #[test]
+    fn test_bhv_misc_119_two_keys_differing_by_an_escape_are_one_key_last_wins() {
+        let payload = br#"{"name":"First","\u006eame":"Last"}"#;
+        let category: Option<Category> =
+            object_serializer::deserialize(payload).expect("deserialize must succeed");
+        let category = category.expect("expected Some(Category)");
+        assert_eq!(category.name.as_deref(), Some("Last"));
+    }
+
     #[test]
     fn test_bhv_serialization_023_deserialize_duplicate_key_still_rejects_trailing_content() {
         let payload = br#"{"id":1,"id":2} trailing"#;

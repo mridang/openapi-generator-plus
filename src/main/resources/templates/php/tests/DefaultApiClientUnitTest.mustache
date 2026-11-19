@@ -3946,3 +3946,18 @@ test('bhv misc 299 a header the caller sets is sent with the caller value overri
     [, $value] = explode(': ', $headers['user-agent'][0], 2);
     expect($value)->toBe('Caller/2.0');
 });
+
+test('bhv misc 133 a 300 or 305 response is returned as it is, even with a location header', function (int $status): void {
+    $redirect = new MockResponse('', [
+        'http_code' => $status,
+        'response_headers' => ['Location' => 'https://api.example.com/next'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), TransportOptions::builder()->build());
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe($status);
+})->with([
+    '300' => [300],
+    '305' => [305],
+]);
