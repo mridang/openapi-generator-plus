@@ -2802,4 +2802,47 @@ private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
         #expect(str == "at=2024-01-02T03%3A04%3A05%2B02%3A00")
     }
 
+
+    /* A form-urlencoded body repeats the key for each element of an array property. */
+    @Test func testBhvSerialization122AFormBodyRepeatsTheKeyForEachArrayElement() throws {
+        let data = try BaseApi.serializeBody(
+            ["tags": ["a", "b"]] as [String: Any], contentType: "application/x-www-form-urlencoded")
+        let text = String(data: data ?? Data(), encoding: .utf8) ?? ""
+
+        #expect(text.contains("tags=a&tags=b"))
+    }
+
+    /* Multipart field names containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header. */
+    @Test(arguments: ["a\r\nb", "a\nb", "a\u{0}b", "a\"b"])
+    func testBhvSerialization123AMultipartNameWithAControlCharacterOrQuoteIsRejected(name: String) {
+        #expect(throws: Error.self) {
+            _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
+        }
+    }
+
+    /* Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B. */
+    @Test func testBhvSerialization125FormKeysAndValuesPercentEncodeReservedCharacters() throws {
+        let data = try BaseApi.serializeBody(
+            ["a+b": "c+d&e"] as [String: Any], contentType: "application/x-www-form-urlencoded")
+        let text = String(data: data ?? Data(), encoding: .utf8) ?? ""
+
+        #expect(text.contains("a%2Bb=c%2Bd%26e"))
+    }
+
+    /* A non-ASCII multipart field name is preserved as UTF-8 in the part header. */
+    @Test func testBhvSerialization126ANonAsciiMultipartFieldNameIsPreservedAsUtf8() throws {
+        let data = try BaseApi.buildMultipartBody(["名前": "x"], boundary: "b")
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("name=\"名前\""))
+    }
+
+    /* A model sent as a multipart part is serialized with its wire property names. */
+    @Test func testBhvSerialization121AMultipartModelPartUsesItsWirePropertyNames() throws {
+        let data = try BaseApi.buildMultipartBody(["meta": Freeform(label: "x")], boundary: "b")
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("\"label\":\"x\""))
+        #expect(!text.contains("additionalProperties"))
+    }
 }
