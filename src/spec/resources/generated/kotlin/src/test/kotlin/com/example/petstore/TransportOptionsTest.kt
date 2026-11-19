@@ -370,6 +370,18 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvMisc056 setting the proxy to an empty string removes a proxy set earlier")
+        fun bhvMisc056EmptyProxyRemovesAnEarlierProxy() {
+            val options =
+                TransportOptions
+                    .builder()
+                    .proxy("http://proxy.example.com:3128")
+                    .proxy("")
+                    .build()
+            assertNull(options.proxy)
+        }
+
+        @Test
         @DisplayName("bhvOptions051 a proxy URL with a scheme other than http or https is rejected with its message")
         fun nonHttpProxySchemeIsRejected() {
             for (proxy in listOf("ftp://proxy:21", "socks5://proxy:1080")) {

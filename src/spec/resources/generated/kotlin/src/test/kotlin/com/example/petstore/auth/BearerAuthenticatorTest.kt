@@ -35,6 +35,14 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth038 a token provider that is passed is used even when the environment holds a token")
+    fun bhvAuth038ProviderWinsOverEnvironment() {
+        val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
+        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = { "from-provider" }) }
+        assertEquals("Bearer from-provider", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
     @DisplayName("bhvAuthbearer028 a bearer token containing CRLF is rejected at construction")
     fun bhvAuthbearer028ABearerTokenContainingCrlfIsRejectedAtConstruction() =
         runBlocking<Unit> {

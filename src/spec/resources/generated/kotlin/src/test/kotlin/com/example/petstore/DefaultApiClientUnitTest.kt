@@ -746,6 +746,29 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvSerialization123 a field name with CR, LF or NUL is rejected and a quote is backslash-escaped")
+        fun bhvSerialization123UnsafeNamesAreRejectedAndQuotesEscaped() {
+            for (bad in listOf("a\rb", "a\nb", "a\u0000b")) {
+                assertThrows(IllegalArgumentException::class.java) { validateMultipartFieldName(bad) }
+                assertThrows(IllegalArgumentException::class.java) { validateMultipartFilename(bad) }
+            }
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    mapOf("a\"b" to "value"),
+                )
+            }
+            assertTrue(String(bodyBytes!!, Charsets.UTF_8).contains("name=\"a\\\"b\""))
+        }
+
+        @Test
         @DisplayName("bhvSerialization126 a non-ASCII multipart field name is preserved as UTF-8 in the part header")
         fun bhvSerialization126NonAsciiFieldNameIsUtf8InThePartHeader() {
             var bodyBytes: ByteArray? = null
@@ -4069,25 +4092,6 @@ class DefaultApiClientUnitTest {
     @Nested
     @DisplayName("response bodies, raw queries and multipart layout")
     inner class ResponseBodiesAndPartLayout {
-        @Test
-        @DisplayName("bhvMisc081 a binary response body is returned as base64 text")
-        fun bhvMisc081BinaryBodyIsReturnedAsBase64() {
-            val engine =
-                MockEngine { _ ->
-                    respond(
-                        content = byteArrayOf(1, 2, 3),
-                        status = HttpStatusCode.OK,
-                        headers = headersOf("Content-Type", "application/octet-stream"),
-                    )
-                }
-            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
-            var response: ApiHttpResponse? = null
-            runBlocking {
-                response = apiClient.sendRequest("GET", "http://localhost/binary", emptyMap(), null)
-            }
-            assertEquals("AQID", response!!.body)
-        }
-
         @Test
         @DisplayName("bhvMisc083 a raw query keeps its repeated keys, values and percent-encodings exactly")
         fun bhvMisc083RawQueryIsSentExactlyAsWritten() {

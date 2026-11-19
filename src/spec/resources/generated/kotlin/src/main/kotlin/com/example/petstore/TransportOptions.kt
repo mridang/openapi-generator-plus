@@ -139,10 +139,10 @@ class TransportOptions private constructor(
         /**
          * Set the HTTP/HTTPS proxy URL.
          *
-         * @param proxy proxy URL (e.g. `"http://proxy:3128"`), or `null`
+         * @param proxy proxy URL (e.g. `"http://proxy:3128"`); `null` or an empty string removes a proxy set earlier
          * @return this builder (the URL is validated by [build], not here)
          */
-        fun proxy(proxy: String?): Builder = apply { this.proxy = proxy }
+        fun proxy(proxy: String?): Builder = apply { this.proxy = proxy?.takeIf { it.isNotEmpty() } }
 
         /**
          * Set the end-to-end request timeout in milliseconds.

@@ -400,7 +400,6 @@ php | misc029 | PHP has no cancellation API, so a caller cancellation never reac
 php | misc033 | libcurl and the TLS stack build the chain from the CA file, and the unit tests cannot run a live TLS handshake to check it
 php | misc034 | PHP has one caller transport, the PSR-18 client, so there is no separate HTTP client option to combine with it
 php | misc035 | PHP has no abort signal to pass to a call, so an already aborted call cannot exist
-kotlin | misc030 | sendRequest takes no per-call deadline and a caller's deadline is a coroutine withTimeout (pinned by langkotlin026), so a deadline already past cannot be handed to a call
 kotlin | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
 go | misc135 | Go has no client-level cancellation handle: cancellation is the context.Context each call takes, so the ConfigurationBuilder has no field to store one
 node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
@@ -456,8 +455,6 @@ python | misc074 | Python sends one credential per operation, the first configur
 csharp | misc135 | the C# client has no client-level cancellation handle: cancellation is a CancellationToken passed to each call, and ConfigurationBuilder has no setter for one
 kotlin | misc051 | Kotlin builders and operation option classes are typed, so an option the builder does not know is a compile error rather than a refusal at runtime
 kotlin | misc052 | Kotlin named arguments can be passed only once per call, so a repeated per-call option cannot be written and there is no second value to resolve
-kotlin | misc056 | the Kotlin proxy setter takes null to clear a proxy and an empty string is not a URL with a scheme, so an empty string cannot clear a proxy
-kotlin | misc060 | the Kotlin API-key authenticator takes an explicit key ahead of its provider and does not refuse both (bhvAuthscheme009 pins that precedence)
 node | misc033 | the node harness has no intermediate certificate fixture and Node has no X.509 builder
 node | misc052 | RequestOptions is one object literal per call, and TypeScript rejects a repeated property in an object literal, so one kind of option cannot be given twice
 node | misc060 | the bearer constructor takes one argument that is either the token or its provider, and the API key constructor takes no provider, so supplying both does not compile
@@ -608,9 +605,6 @@ dart | misc262 | The SDK always wraps an http.ClientException from a cancelled r
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
 ruby | misc185 | The Ruby OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be expressed
 kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: the SDK defines no package-root module that re-exports the error types, so each one is named by its errors import
-kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
-kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
-kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
 rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
 rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
 
@@ -623,12 +617,7 @@ swift | misc260 | Server variable overrides are a [String: String] map, so a nil
 swift | misc271 | URLSession takes proxy settings from the system configuration or the explicit proxy option and never reads HTTP(S)_PROXY environment variables, so no environment variable can route a request through a proxy here
 swift | misc272 | Proving an authenticating proxy accepts the credentials needs a live proxy server, which the Swift unit suite cannot start; the proxy URL credentials are passed to URLSession unchanged
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
-kotlin | misc215 | Kotlin gives every declared default as a constructor default argument, so an input object with no fields is filled by the compiler when it is built and no runtime fill step exists to test
-kotlin | misc216 | Kotlin returns a binary body as its raw bytes without base64 decoding, pinned by bhv serialization wire 060, so the body is never decoded and the raw text is the value returned
-kotlin | transport083 | Kotlin has no client-level cancellation setting: a call is cancelled only through the coroutine that makes it, so there is no supplied cancellation to honour (see transport084)
-kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
-kotlin | serialization130 | Kotlin has no canonical serialize message prefix: a failed serialize throws the kotlinx.serialization exception carrying its own detail message
 rust | serialization068 | Rust model fields are statically typed, so a value of the wrong type cannot be constructed and there is no wrong-typed value to keep as given
 rust | retries045 | Rust request bodies are always buffered as bytes or multipart, so there is no streamed body type that could be sent once and then not replayed after a 401
 kotlin | misc231 | Kotlin types a model property as its declared type, so a model built in code cannot hold a value of the wrong type; the compiler refuses it before any SDK code runs, and the decode half is pinned by bhv serializationobject 095
@@ -738,3 +727,4 @@ swift | retries051 | swift-corelibs-foundation on Linux traps when a stub URLPro
 swift | transport088 | URLSession on Linux decodes only gzip and deflate and the Linux toolchain image has no importable zlib module, so this decoding cannot be exercised there; the test runs on Apple platforms only (A response body that is validly gzip-encoded is decoded before it is returned)
 
 dart | misc241 | Dart has no time-of-day type: a format: time property is a String passed through unchanged (serializationobject114), so the SDK formats no milliseconds
+kotlin | misc056 | options051 and options031 refuse an empty proxy URL as missing its scheme, so an empty string cannot also clear a proxy; clearing is proxy(null) (the two promises contradict each other)
