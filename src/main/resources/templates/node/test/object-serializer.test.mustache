@@ -3375,3 +3375,37 @@ describe('ObjectSerializer serialization behaviours (bhv serialization 112 to 13
     expect(() => ObjectSerializer.serialize({ count: BigInt(1) })).toThrow(/^Failed to serialize object to JSON: /);
   });
 });
+
+describe('ObjectSerializer misc model and duration behaviours', () => {
+  test('bhv misc 230 a model with no extra properties writes exactly its declared keys', () => {
+    expect(JSON.parse(ObjectSerializer.serialize(new Order({ quantity: 2 })))).toEqual({ quantity: 2 });
+  });
+
+  test('bhv misc 234 a model with additional properties keeps them through serialize and deserialize', () => {
+    const metadata = ObjectSerializer.deserialize({ rogue: { inner: 'x' } }, Metadata) as Metadata;
+    expect(JSON.parse(ObjectSerializer.serialize(metadata))).toEqual({ rogue: { inner: 'x' } });
+  });
+
+  test('bhv misc 235 a duration with fractional seconds keeps its fraction when serialized', () => {
+    expect(durationToProtoJson(Temporal.Duration.from({ milliseconds: 1500 }))).toBe('1.5s');
+  });
+});
+
+describe('ObjectSerializer misc decoding and duration behaviours', () => {
+  test('bhv misc 243 an absent optional array field decodes to null, not to an empty list', () => {
+    const decoded = ObjectSerializer.deserialize({}, NativeValues)!;
+    expect(decoded.addresses ?? null).toBeNull();
+  });
+
+  test('bhv misc 246 a negative whole-second protobuf duration string parses to a negative duration', () => {
+    expect(Temporal.Duration.compare(durationFromProtoJson('-5s'), Temporal.Duration.from({ seconds: -5 }))).toBe(0);
+  });
+
+  test.each(['P1D', '1d'])('bhv misc 251 a duration string with a day designator (%s) is rejected', (value) => {
+    expect(() => durationFromProtoJson(value)).toThrow();
+  });
+
+  test('bhv misc 252 an enum wire value containing separators round-trips unchanged', () => {
+    expect(JSON.parse(ObjectSerializer.serialize('a,b;c d/e:f'))).toBe('a,b;c d/e:f');
+  });
+});

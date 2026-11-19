@@ -695,23 +695,16 @@ export abstract class AbstractApiClient implements ApiClient {
            * downgrade (HTTPS -> HTTP). Replaying the body in cleartext
            * after the original request was sent over TLS leaks whatever
            * the caller trusted to TLS to protect (credentials, PII,
-           * signed tokens). Only 307 / 308 preserve the method AND body
-           * across a redirect (RFC 7231 sec 6.4.7 / RFC 7538), so they are
-           * the only statuses that can replay a body onto a downgraded
-           * http:// target -- restrict the guard to them. 301 / 302 / 303
-           * coerce the follow-up to a bodyless GET (handled above), so a
-           * downgrade on those statuses carries nothing sensitive and must
-           * PROCEED rather than throw; gating only on `nextBody` (without
-           * the status check) wrongly refused a GET-with-body whose body
-           * the 301/302 coercion preserves. N1: guard 307/308, plus any 301/302 that keeps a body
-           * on a method other than GET/HEAD (PUT, PATCH, DELETE keep it). */
+           * signed tokens). Only 303 leaves the body behind: it coerces the
+           * follow-up to a bodyless GET. 301, 302, 307 and 308 would carry
+           * the body onto the http:// target, so a body on any of them is
+           * refused. The body is checked as sent (currentBody), not as the
+           * follow-up (nextBody), because a POST's body is dropped on 301/302. */
           const currentProto = new URL(currentUrl).protocol;
           if (
-            (statusCode === 307 ||
-              statusCode === 308 ||
-              !['GET', 'HEAD'].includes(nextMethod.toUpperCase())) &&
-            nextBody !== undefined &&
-            nextBody !== null &&
+            statusCode !== 303 &&
+            currentBody !== undefined &&
+            currentBody !== null &&
             currentProto === 'https:' &&
             nextParsed.protocol === 'http:'
           ) {

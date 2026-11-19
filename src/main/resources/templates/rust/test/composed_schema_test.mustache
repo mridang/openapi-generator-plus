@@ -1354,3 +1354,56 @@ fn test_bhv_misc_049_a_choice_between_binary_and_a_list_writes_the_list_as_base6
         .expect("a list of binary values serializes");
     assert_eq!(r#"["AQI=","BA=="]"#, json);
 }
+
+#[test]
+fn test_bhv_unions_044_each_variant_has_a_typed_constructor_and_a_typed_match_that_identify_it() {
+    let built = PetFood::WetFood(WetFood::new(400));
+    let decoded: PetFood =
+        serde_json::from_str(r#"{"foodType":"wet","volumeMl":400}"#).expect("a wet payload decodes");
+
+    assert!(matches!(built, PetFood::WetFood(_)));
+    assert!(matches!(decoded, PetFood::WetFood(_)));
+    assert!(!matches!(decoded, PetFood::DryFood(_)));
+}
+
+#[test]
+fn test_bhv_unions_045_two_values_built_from_the_same_data_compare_equal() {
+    let decoded_first: PetFood =
+        serde_json::from_str(r#"{"foodType":"dry","weightKg":2.5}"#).expect("a dry payload decodes");
+    let decoded_second: PetFood =
+        serde_json::from_str(r#"{"foodType":"dry","weightKg":2.5}"#).expect("a dry payload decodes");
+    let built = PetFood::DryFood(DryFood::new(2.5));
+
+    assert_eq!(decoded_first, decoded_second);
+    assert_eq!(decoded_first, built);
+}
+
+#[test]
+fn test_bhv_unions_046_a_payload_matching_two_members_keeps_both_and_a_non_matching_member_stays_empty() {
+    let both: PetTreatment = serde_json::from_str(
+        r#"{"drugName":"Amoxicillin","dosage":"250mg","procedureName":"Spay","durationMinutes":45}"#,
+    )
+    .expect("a payload satisfying both members decodes");
+    assert!(both.medication.is_some(), "the Medication member must report itself as matched");
+    assert!(both.surgery.is_some(), "the Surgery member must report itself as matched");
+    assert!(both.matches_any());
+
+    let medication_only: PetTreatment =
+        serde_json::from_str(r#"{"drugName":"Amoxicillin"}"#).expect("a medication-only payload decodes");
+    assert!(medication_only.medication.is_some());
+    assert!(medication_only.surgery.is_none(), "a non-matching member must stay empty");
+}
+
+#[test]
+fn test_bhv_unions_047_an_unlisted_or_empty_discriminator_raises_a_clear_error() {
+    for (value, shown) in [("raw", "`raw`"), ("", "``")] {
+        let json = String::from(r#"{"foodType":""#) + value + r#"","weightKg":2.5}"#;
+        let err = serde_json::from_str::<PetFood>(&json)
+            .expect_err("a discriminator outside the mapping must be refused");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("unknown discriminator value") && msg.contains(shown),
+            "expected a clear unknown-discriminator error for {shown}, got: {msg}"
+        );
+    }
+}

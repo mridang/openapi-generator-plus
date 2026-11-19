@@ -3215,3 +3215,155 @@ async fn test_bhv_misc_192_an_auth_cookie_of_only_legal_octets_is_sent_exactly_a
         headers.get("Cookie").map(|s| s.as_str())
     );
 }
+
+#[tokio::test]
+async fn test_bhv_misc_159_a_401_is_replayed_once_even_with_retries_off() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(401, None), Scripted::Status(200, None)], 0, None);
+    retrying_api_with(&client, Arc::new(RenewableAuthenticator::new()))
+        .delete_pet(1, None)
+        .await
+        .expect("the replayed call succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_161_a_dropped_post_is_sent_once_and_its_error_is_returned() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 2, None);
+    let err = retrying_api(&client)
+        .add_pet(Pet::new("TestPet".to_string(), HashSet::new()), Some(&AddPetOptions::new()))
+        .await
+        .expect_err("a dropped POST fails the call");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+    assert_eq!(1, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_176_cookie_value_is_sent_in_the_cookie_header() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new().api_key("abc123".to_string()))).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(Some("api_key=abc123"), headers.get("Cookie").map(|s| s.as_str()));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_189_the_query_wrapper_sends_the_key_as_the_api_key_query_parameter() {
+    use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
+    use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let auth = ApiKeyAuthenticator::new("http://localhost", "api_key", "abc123", ApiKeyLocation::Query).unwrap();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
+    let _ = api.delete_pet(1, None).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.contains("api_key=abc123"), "got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_212_a_404_or_500_response_raises_its_error_class_through_the_api_layer() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(404, None)], 0, None);
+    let err = retrying_api(&client).delete_pet(1, None).await.expect_err("a 404 fails the call");
+    assert!(err.downcast_ref::<NotFoundError>().is_some(), "got: {}", err);
+
+    let client = ScriptedApiClient::new(vec![Scripted::Status(500, None)], 0, None);
+    let err = retrying_api(&client).delete_pet(1, None).await.expect_err("a 500 fails the call");
+    assert!(err.downcast_ref::<InternalServerError>().is_some(), "got: {}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_227_a_connection_dropped_before_any_response_is_retried_for_an_idempotent_method() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the dropped connection succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_228_an_unparseable_retry_after_falls_back_to_the_normal_backoff() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(503, Some("soon")), Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the 503 succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_264_each_listed_error_status_raises_its_typed_error() {
+    let cases: [(u16, fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool); 3] = [
+        (400, |e| e.downcast_ref::<BadRequestError>().is_some()),
+        (401, |e| e.downcast_ref::<UnauthorizedError>().is_some()),
+        (500, |e| e.downcast_ref::<InternalServerError>().is_some()),
+    ];
+    for (status, is_typed) in cases {
+        let base_url = format!("{}/test/status/{}", testcontainers_helper::chasm_http_url(), status);
+        let config = ConfigurationBuilder::new().base_url(&base_url).build();
+        let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+        let err = api.get_pet_by_id(1, None, None).await.expect_err("expected an error status");
+        assert!(is_typed(err.as_ref()), "status {} did not raise its typed error: {}", status, err);
+    }
+}
+#[tokio::test]
+async fn test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new().status("a/b:c".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(url.contains("status=a%2Fb%3Ac"), "expected slash and colon to be percent-encoded, got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_255_separate_query_parameters_encode_a_space_as_percent_20() {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = {{packageName}}::api::options::FindPetsByStatusOptions::new().status("a b".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(url.contains("status=a%20b"), "expected a space to be written as %20, got: {}", url);
+}
+
+/// Answers every request with one fixed status and an empty JSON body.
+struct StatusApiClient {
+    status: u16,
+}
+
+impl {{packageName}}::api_client::ApiClient for StatusApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&{{packageName}}::api_client::RequestBody>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<{{packageName}}::api_http_response::ApiHttpResponse, Box<dyn std::error::Error + Send + Sync>>> + Send + '_>> {
+        let status = self.status;
+        Box::pin(async move {
+            Ok({{packageName}}::api_http_response::ApiHttpResponse::new(status, "{}".to_string(), HashMap::new()))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_listed_status() {
+    let cases: [(u16, fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool); 8] = [
+        (400, |e| e.downcast_ref::<BadRequestError>().is_some()),
+        (403, |e| e.downcast_ref::<ForbiddenError>().is_some()),
+        (404, |e| e.downcast_ref::<NotFoundError>().is_some()),
+        (409, |e| e.downcast_ref::<ConflictError>().is_some()),
+        (422, |e| e.downcast_ref::<UnprocessableEntityError>().is_some()),
+        (429, |e| e.downcast_ref::<TooManyRequestsError>().is_some()),
+        (500, |e| e.downcast_ref::<InternalServerError>().is_some()),
+        (502, |e| e.downcast_ref::<BadGatewayError>().is_some()),
+    ];
+    for (status, is_typed) in cases {
+        let config = ConfigurationBuilder::new().base_url("https://example.test").build();
+        let api = PetApi::new(Arc::new(StatusApiClient { status }), config, None);
+        let err = api.get_pet_by_id(1, None, None).await.expect_err("a listed error status must fail the call");
+        assert!(is_typed(err.as_ref()), "status {} did not raise its typed error: {}", status, err);
+    }
+}

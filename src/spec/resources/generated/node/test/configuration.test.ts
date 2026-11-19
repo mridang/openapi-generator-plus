@@ -331,3 +331,26 @@ describe("Configuration debug text misc behaviours", () => {
     expect(text).toContain("text/plain");
   });
 });
+
+describe("Configuration misc default behaviours", () => {
+  test("bhv misc 276 the default configuration and the default builder both use the base URL declared in the spec", () => {
+    expect(Configuration.defaultConfiguration().baseUrl).toBe("/api/v3");
+    expect(new ConfigurationBuilder().build().baseUrl).toBe("/api/v3");
+  });
+
+  test("bhv misc 277 each call to the default configuration returns a distinct configuration object", () => {
+    expect(Configuration.defaultConfiguration()).not.toBe(
+      Configuration.defaultConfiguration(),
+    );
+  });
+
+  test("bhv misc 279 changing a copy of the headers returned from a configuration does not change the headers it holds", () => {
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { "X-One": "1" },
+    });
+    const copy = { ...config.defaultHeaders, "X-Two": "2" };
+    expect(copy).toEqual({ "X-One": "1", "X-Two": "2" });
+    expect(config.defaultHeaders).toEqual({ "X-One": "1" });
+  });
+});

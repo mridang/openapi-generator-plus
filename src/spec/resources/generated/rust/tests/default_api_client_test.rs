@@ -337,6 +337,37 @@ async fn test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust
     );
 }
 
+#[tokio::test]
+async fn test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error() {
+    use std::net::ToSocketAddrs;
+    let reachable = "example.com:443"
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
+        })
+        .unwrap_or(false);
+    assert!(
+        reachable,
+        "example.com:443 must be reachable: the replacement check needs a public CA chain"
+    );
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let result = DefaultApiClient::new(Some(transport))
+        .send_request("GET", "https://example.com/", &HashMap::new(), None)
+        .await;
+    let err = result.expect_err("a public CA must not be trusted next to a configured CA");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_some(),
+        "expected a NetworkError, got: {}",
+        err
+    );
+}
+
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo
 // (`http://user:pass@127.0.0.1:3128`) must preserve those credentials end-to-end
 // so the proxy can authenticate the tunnel (otherwise it 407s). Java's
@@ -1259,4 +1290,191 @@ async fn test_bhv_lifecycle_044_a_request_in_flight_when_the_client_closes_still
         .expect("the task must not panic")
         .expect("the in-flight request must complete after close");
     assert_eq!(200, response.status_code());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_266_caller_default_headers_replace_user_agent_and_request_id_any_case() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("SdkDefault/1.0")
+        .inject_request_id(true)
+        .default_header("USER-agent", "Caller/2.0")
+        .default_header("x-REQUEST-id", "caller-request-7")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("unexpected error");
+
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
+    let h = &json["headers"];
+    assert_eq!(
+        h.get("user-agent").and_then(|v| v.as_str()),
+        Some("Caller/2.0")
+    );
+    assert_eq!(
+        h.get("x-request-id").and_then(|v| v.as_str()),
+        Some("caller-request-7")
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_269_self_signed_endpoint_is_reached_only_when_verification_is_off() {
+    let chasm_url = testcontainers_helper::chasm_https_url();
+    let off = TransportOptionsBuilder::new()
+        .verify_ssl(false)
+        .build()
+        .expect("valid transport options");
+    let on = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .build()
+        .expect("valid transport options");
+
+    let reached = DefaultApiClient::new(Some(off))
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("self-signed endpoint must be reached with verification off");
+    assert_eq!(reached.status_code(), 200);
+
+    let refused = DefaultApiClient::new(Some(on))
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await;
+    assert!(
+        refused.is_err(),
+        "self-signed endpoint must be rejected with verification on"
+    );
+}
+#[tokio::test]
+async fn test_bhv_misc_267_a_caller_supplied_http_client_default_headers_are_sent_with_each_request(
+) {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let mut defaults = reqwest::header::HeaderMap::new();
+    defaults.insert(
+        "x-pool-default",
+        reqwest::header::HeaderValue::from_static("yes"),
+    );
+    let http = reqwest::Client::builder()
+        .default_headers(defaults)
+        .build()
+        .expect("valid client");
+    let client = DefaultApiClient::with_client(http, None).expect("valid client");
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("unexpected error");
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
+    assert_eq!(Some("yes"), json["headers"]["x-pool-default"].as_str());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_268_a_trusted_ca_certificate_is_rejected_when_the_hostname_does_not_match() {
+    use std::net::ToSocketAddrs;
+    let https_url = testcontainers_helper::chasm_https_url();
+    let (host, port) = https_url
+        .trim_start_matches("https://")
+        .rsplit_once(':')
+        .expect("the https url must carry a port");
+    let ip = (host, 0u16)
+        .to_socket_addrs()
+        .expect("the fixture host resolves")
+        .next()
+        .expect("an address")
+        .ip();
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let err = client
+        .send_request(
+            "GET",
+            &format!("https://{}:{}/test/echo", ip, port),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect_err("a certificate for another host must be rejected");
+    assert!(
+        err.downcast_ref::<petstore::NetworkError>().is_some(),
+        "{}",
+        err
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_271_a_client_without_a_proxy_connects_directly() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let variables = [
+        "HTTP_PROXY",
+        "http_proxy",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+    ];
+    for name in variables {
+        std::env::set_var(name, "http://127.0.0.1:1");
+    }
+    for name in ["NO_PROXY", "no_proxy"] {
+        std::env::remove_var(name);
+    }
+    let client = DefaultApiClient::new(None);
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("a direct connection must succeed");
+    for name in variables {
+        std::env::remove_var(name);
+    }
+    assert_eq!(200, resp.status_code());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_proxy_url() {
+    let chasm_url = testcontainers_helper::chasm_internal_http_url();
+    let auth_proxy = testcontainers_helper::auth_proxy_url();
+    let transport = TransportOptionsBuilder::new()
+        .proxy(&auth_proxy.replacen("http://", "http://user:pass@", 1))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("the proxy must accept the credentials");
+    assert_eq!(200, resp.status_code());
+    assert!(resp.body().contains(r#""method""#), "{}", resp.body());
 }

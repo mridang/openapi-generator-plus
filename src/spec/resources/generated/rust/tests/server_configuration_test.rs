@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use petstore::{ConfigurationError, ServerConfiguration, ServerVariable};
+use petstore::{ConfigurationBuilder, ConfigurationError, ServerConfiguration, ServerVariable};
 
 fn server_with_vars() -> ServerConfiguration {
     let mut variables = HashMap::new();
@@ -486,5 +486,152 @@ fn test_bhv_misc_156_the_list_of_all_servers_keeps_the_declared_order() {
     assert_eq!(
         all[2].url_template(),
         petstore::servers::server_2().url_template()
+    );
+}
+fn server_from_template(
+    template: &str,
+    variables: Vec<(&str, ServerVariable)>,
+) -> ServerConfiguration {
+    let variables: HashMap<String, ServerVariable> = variables
+        .into_iter()
+        .map(|(name, variable)| (name.to_string(), variable))
+        .collect();
+    ServerConfiguration::new(template.to_string(), String::new(), variables)
+}
+
+#[test]
+fn test_bhv_misc_257_a_variable_with_an_empty_enum_accepts_any_value() {
+    let server = server_from_template(
+        "https://{env}.example.com",
+        vec![(
+            "env",
+            ServerVariable::new("x".to_string(), String::new(), vec![]),
+        )],
+    );
+    let overrides = HashMap::from([("env".to_string(), "anything".to_string())]);
+    assert_eq!(
+        "https://anything.example.com",
+        server.url(&overrides).expect("any value is accepted")
+    );
+}
+
+#[test]
+fn test_bhv_misc_258_a_variable_without_an_override_uses_its_default() {
+    let server = server_from_template(
+        "https://{env}.example.com",
+        vec![(
+            "env",
+            ServerVariable::new("prod".to_string(), String::new(), vec![]),
+        )],
+    );
+    assert_eq!(
+        "https://prod.example.com",
+        server.url(&HashMap::new()).expect("the default is used")
+    );
+}
+
+#[test]
+fn test_bhv_misc_259_a_placeholder_with_no_declared_variable_stays_in_the_url() {
+    let server = server_from_template(
+        "https://{env}.{region}.example.com",
+        vec![(
+            "env",
+            ServerVariable::new("prod".to_string(), String::new(), vec![]),
+        )],
+    );
+    assert_eq!(
+        "https://prod.{region}.example.com",
+        server
+            .url(&HashMap::new())
+            .expect("an undeclared placeholder is not an error")
+    );
+}
+
+/// Rust's override map is a `HashMap<String, String>`, so a nil value cannot be
+/// passed; the nearest rejection is an override outside the enum, which must
+/// fail with an error and never be substituted into the URL.
+#[test]
+fn test_bhv_misc_260_a_value_outside_the_enum_for_a_variable_is_rejected_not_substituted() {
+    let server = server_from_template(
+        "https://{env}.example.com",
+        vec![(
+            "env",
+            ServerVariable::new(
+                "prod".to_string(),
+                String::new(),
+                vec!["prod".to_string(), "staging".to_string()],
+            ),
+        )],
+    );
+    let overrides = HashMap::from([("env".to_string(), "other".to_string())]);
+    assert!(
+        server.url(&overrides).is_err(),
+        "a value outside the enum must be rejected"
+    );
+}
+
+#[test]
+fn test_bhv_misc_261_a_value_with_backslashes_is_inserted_without_escape_processing() {
+    let server = server_from_template(
+        "https://example.com/{path}",
+        vec![(
+            "path",
+            ServerVariable::new("x".to_string(), String::new(), vec![]),
+        )],
+    );
+    let overrides = HashMap::from([("path".to_string(), r"a\b\n".to_string())]);
+    assert_eq!(
+        r"https://example.com/a\b\n",
+        server.url(&overrides).expect("the value is accepted")
+    );
+}
+
+#[test]
+fn test_bhv_misc_278_a_templated_server_url_resolves_each_default_when_no_overrides_are_given() {
+    let server = server_from_template(
+        "https://{env}.example.com/v{version}",
+        vec![
+            (
+                "env",
+                ServerVariable::new("prod".to_string(), String::new(), vec![]),
+            ),
+            (
+                "version",
+                ServerVariable::new("2".to_string(), String::new(), vec![]),
+            ),
+        ],
+    );
+    assert_eq!(
+        "https://prod.example.com/v2",
+        server.url(&HashMap::new()).expect("defaults are used")
+    );
+}
+
+#[test]
+fn test_bhv_servers_030_a_value_not_in_the_declared_enum_is_rejected_with_an_error() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable::new(
+            "api".to_string(),
+            String::new(),
+            vec!["api".to_string(), "staging".to_string()],
+        ),
+    );
+
+    let server = ServerConfiguration::new(
+        "https://{env}.example.com".to_string(),
+        "Test server".to_string(),
+        variables,
+    );
+
+    let mut overrides = HashMap::new();
+    overrides.insert("env".to_string(), "invalid".to_string());
+
+    let result = ConfigurationBuilder::new().server(&server, &overrides);
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidServerVariable(_))),
+        "expected InvalidServerVariable, got {:?}",
+        result.map(|b| b.build().base_url().to_string())
     );
 }

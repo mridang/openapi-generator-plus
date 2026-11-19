@@ -701,3 +701,48 @@ fn test_bhv_models_024_a_newly_built_model_leaves_its_optional_properties_unset(
         "an optional property starts unset"
     );
 }
+#[test]
+fn test_bhv_misc_287_wire_key_named_additional_properties_alongside_other_extras() {
+    let wire =
+        r#"{"createdAt":"2024-01-15T10:30:00+00:00","additional_properties":"bar","region":"eu"}"#;
+    let metadata: Metadata = serde_json::from_str(wire).expect("failed to deserialize Metadata");
+    assert_eq!(
+        Some(&"bar".to_string()),
+        metadata.additional_properties.get("additional_properties")
+    );
+    assert_eq!(
+        Some(&"eu".to_string()),
+        metadata.additional_properties.get("region")
+    );
+}
+
+#[test]
+fn test_bhv_misc_290_dict_valued_wire_key_survives_full_round_trip() {
+    let wire = r#"{"createdAt":"2024-01-15T10:30:00+00:00","additional_properties":"bar"}"#;
+    let metadata: Metadata = serde_json::from_str(wire).expect("failed to deserialize Metadata");
+    let json = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
+    let restored: Metadata = serde_json::from_str(&json).expect("the round trip must decode");
+    assert_eq!(
+        Some(&"bar".to_string()),
+        restored.additional_properties.get("additional_properties")
+    );
+}
+
+#[test]
+fn test_bhv_serialization_121_a_model_sent_as_a_multipart_part_uses_wire_names_and_the_sdk_date_time_format(
+) {
+    let metadata: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-02T03:04:05Z"}"#)
+        .expect("failed to deserialize Metadata");
+
+    let part = serde_json::to_string(&metadata).expect("failed to serialize the model part");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&part).expect("failed to parse the model part");
+    assert_eq!(
+        parsed["createdAt"], "2024-01-02T03:04:05.000+00:00",
+        "got: {part}"
+    );
+    assert!(
+        parsed.get("created_at").is_none(),
+        "snake_case key leaked into the part: {part}"
+    );
+}

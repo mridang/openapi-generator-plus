@@ -3430,4 +3430,50 @@ class BaseApiTest {
             assertEquals("q=a%2Bb%26c", String.valueOf(client.capturedBody));
         }
     }
+
+
+
+    @Test
+    @DisplayName("bhvMisc239 an operation query parameter is serialized with no authenticator")
+    void bhvMisc239AnOperationQueryParameterIsSerializedWithNoAuthenticator() throws ApiException {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        Map<String, Object> query = new HashMap<>();
+        query.put("q", "a b");
+        testApi.call(
+                "GET", "/test/echo", query, new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null);
+        assertEquals("http://localhost/test/echo?q=a%20b", client.capturedUrl);
+    }
+
+    @Test
+    @DisplayName("bhvMisc241 a time-of-day query value is sent as HH:mm:ss with milliseconds dropped")
+    void bhvMisc241ATimeOfDayQueryValueIsSentAsHhMmSs() throws ApiException {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        Map<String, Object> query = new HashMap<>();
+        query.put("t", java.time.LocalTime.of(10, 20, 30, 999_000_000));
+        testApi.call(
+                "GET", "/test/echo", query, new HashMap<>(), null,
+                new String[] {"application/json"}, "application/json", null, null);
+        assertEquals("http://localhost/test/echo?t=10%3A20%3A30", client.capturedUrl);
+    }
+
+
+    static Stream<Integer> misc264ListedErrorStatuses() {
+        return Stream.of(400, 401, 403, 404, 409, 422, 429, 500, 502);
+    }
+
+    @ParameterizedTest
+    @MethodSource("misc264ListedErrorStatuses")
+    @DisplayName("bhvMisc264 each listed error status raises the API error with that code")
+    void bhvMisc264EachListedErrorStatusRaisesTheApiErrorWithThatCode(int status) {
+        ApiException ex =
+                assertThrows(
+                        ApiException.class,
+                        () -> api().call(
+                                "GET", "/test/status/" + status, new HashMap<>(), new HashMap<>(),
+                                null, new String[] {"application/json"}, "application/json", null, null));
+        assertEquals(status, ex.getStatusCode());
+    }
 }

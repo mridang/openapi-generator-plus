@@ -153,6 +153,27 @@ class TestableApi extends BaseApi {
       urlTemplate,
     );
   }
+
+  async binaryForResult(
+    method: string,
+    path: string,
+    accepts: string[],
+  ): Promise<ApiResult<Buffer>> {
+    return this.invokeApiForResult<Buffer>(
+      method,
+      path,
+      {},
+      {},
+      null,
+      accepts,
+      "application/json",
+      (json: unknown) => json as Buffer,
+      null,
+      false,
+      "binary",
+      "testOperation",
+    );
+  }
 }
 
 class TestAuthenticator implements Authenticator {
@@ -4074,5 +4095,162 @@ describe("BaseApi body and response encoding behaviours (bhv serialization 122, 
       "string",
     );
     expect(result).toBe('{"a":1}');
+  });
+});
+
+describe("BaseApi misc response behaviours", () => {
+  test("bhv misc 216 a binary response is returned as decoded bytes while the raw body keeps the encoded text", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = "AQI=";
+    client.responseHeaders = { "content-type": "application/octet-stream" };
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const result = await api.binaryForResult("GET", "/api/bin", [
+      "application/octet-stream",
+    ]);
+    expect(result.data).toEqual(Buffer.from([1, 2]));
+    expect(result.rawBody).toBe("AQI=");
+  });
+
+  test("bhv misc 218 a per-call header is sent and takes precedence over a configured header of the same name, without a duplicate key", async () => {
+    const client = new CapturingApiClient();
+    const config = new Configuration({
+      baseUrl: "http://localhost",
+      defaultHeaders: { "X-Trace": "configured" },
+    });
+    const api = new TestableApi(client, config);
+    await api.call(
+      "GET",
+      "/test/echo",
+      {},
+      { "X-Trace": "per-call" },
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    const keys = Object.keys(client.capturedHeaders).filter(
+      (k) => k.toLowerCase() === "x-trace",
+    );
+    expect(keys).toEqual(["X-Trace"]);
+    expect(client.capturedHeaders["X-Trace"]).toBe("per-call");
+  });
+
+  test("bhv misc 220 a call returning the full response keeps the status code and decodes the body type", async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 201;
+    client.responseBody = '{"id":2,"name":"b"}';
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const result = await api.callForResult(
+      "POST",
+      "/x",
+      {},
+      {},
+      {},
+      ["application/json"],
+      "application/json",
+      (json: unknown) =>
+        ObjectSerializer.deserialize(json, Category) as Category,
+    );
+    expect(result.statusCode).toBe(201);
+    expect(result.data).toBeInstanceOf(Category);
+    expect(result.data?.name).toBe("b");
+  });
+
+  test("bhv misc 222 a success response with a 201 status and an empty body returns no data, without an error", async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 201;
+    client.responseBody = "";
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    const result = await api.callForResult(
+      "POST",
+      "/x",
+      {},
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      (json: unknown) => json,
+    );
+    expect(result.statusCode).toBe(201);
+    expect(result.data).toBeUndefined();
+  });
+});
+
+describe("BaseApi misc query and status behaviours", () => {
+  test("bhv misc 239 an operation query parameter is serialized when no authenticator is configured", async () => {
+    const client = new CapturingApiClient();
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await api.call(
+      "GET",
+      "/test/echo",
+      { limit: 5 },
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(client.capturedUrl).toContain("limit=5");
+  });
+
+  test.each([400, 401, 403, 404, 409, 422, 429, 500, 502, 503])(
+    "bhv misc 264 a listed error status %i from the server raises the SDK error carrying that status code",
+    async (status) => {
+      const client = new CapturingApiClient();
+      client.responseStatus = status;
+      client.responseBody = "{}";
+      const api = new TestableApi(
+        client,
+        new Configuration({ baseUrl: "http://localhost" }),
+      );
+      await expect(
+        api.call(
+          "GET",
+          "/x",
+          {},
+          {},
+          null,
+          ["application/json"],
+          "application/json",
+          null,
+        ),
+      ).rejects.toMatchObject({ statusCode: status });
+    },
+  );
+});
+
+describe("BaseApi misc truncation behaviours", () => {
+  test("bhv misc 280 when the rendered message truncates a response body it states how many bytes were left out", async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 500;
+    client.responseBody = "x".repeat(1500);
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await expect(
+      api.call(
+        "GET",
+        "/x",
+        {},
+        {},
+        null,
+        ["application/json"],
+        "application/json",
+        null,
+      ),
+    ).rejects.toThrow("(476 more bytes)");
   });
 });

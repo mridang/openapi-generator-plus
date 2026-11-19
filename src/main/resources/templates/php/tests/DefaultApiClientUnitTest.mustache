@@ -1773,6 +1773,22 @@ test('bhv transport 030 AL: content-encoding gzip lie with plaintext body surfac
         });
 });
 
+test('bhv misc 285 a response with a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message', function (): void {
+    $mockResponse = new MockResponse('payload', [
+        'http_code' => 200,
+        'response_headers' => [
+            'Content-Type' => 'text/plain',
+            'Content-Encoding' => 'compress',
+        ],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/compressed', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e->getMessage())->toContain("Unsupported Content-Encoding 'compress'");
+        });
+});
+
 test('bhv transport 037 AL: empty body declared gzip passes through as empty, never raises', function (): void {
     /* A zero-byte body still advertising `Content-Encoding: gzip` has nothing
      * to inflate. gzdecode('') must not make the client raise: the transport
