@@ -110,7 +110,7 @@ describe 'DefaultApiClientUnit' do
         client.send_request(:POST, 'http://localhost/upload', headers, { 'field' => 'value' })
       end
 
-      _(sent).must_match(/\A#{Regexp.escape(expected)}; boundary=/)
+      _(sent).must_match(/\A#{Regexp.escape(expected.to_s)}; boundary=/)
     end
   end
 

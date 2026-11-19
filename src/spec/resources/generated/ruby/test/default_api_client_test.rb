@@ -490,10 +490,10 @@ describe Petstore::Client::DefaultApiClient do
       client = Petstore::Client::DefaultApiClient.new
       cancelled = Class.new(StandardError)
       main = Thread.current
-      Thread.handle_interrupt(cancelled => :never) do
+      Thread.handle_interrupt(cancelled => :never) do # steep:ignore UnexpectedBlockGiven
         Thread.new { main.raise(cancelled.new('already cancelled')) }.join
         error = assert_raises(cancelled) do
-          Thread.handle_interrupt(cancelled => :immediate) { client.send_request(:GET, url, {}, nil) }
+          Thread.handle_interrupt(cancelled => :immediate) { client.send_request(:GET, url, {}, nil) } # steep:ignore UnexpectedBlockGiven
         end
         _(error.message).must_equal 'already cancelled'
       end
@@ -553,7 +553,7 @@ describe Petstore::Client::DefaultApiClient do
       cancelled = Class.new(StandardError)
       client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(30_000).build)
       assert_raises(cancelled) do
-        Timeout.timeout(0.4, cancelled) do
+        Timeout.timeout(0.4, cancelled) do # steep:ignore ArgumentTypeMismatch
           client.send_request(:GET, url, {}, nil)
         end
       end
@@ -588,7 +588,7 @@ describe Petstore::Client::DefaultApiClient do
       server, _accepted, thread, url = hanging_server
       client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(500).build)
       error = assert_raises(Petstore::Client::Errors::NetworkTimeoutError) do
-        Timeout.timeout(30, Class.new(StandardError)) { client.send_request(:GET, url, {}, nil) }
+        Timeout.timeout(30, Class.new(StandardError)) { client.send_request(:GET, url, {}, nil) } # steep:ignore ArgumentTypeMismatch
       end
       _(error.status_code).must_equal 0
     ensure
@@ -601,7 +601,7 @@ describe Petstore::Client::DefaultApiClient do
       mine = Class.new(StandardError)
       client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.timeout(30_000).build)
       error = assert_raises(mine) do
-        Timeout.timeout(0.4, mine) { client.send_request(:GET, url, {}, nil) }
+        Timeout.timeout(0.4, mine) { client.send_request(:GET, url, {}, nil) } # steep:ignore ArgumentTypeMismatch
       end
       _(error).wont_be_kind_of(Petstore::Client::Errors::NetworkError)
       _(error).wont_be_kind_of(::Petstore::Client::Errors::OpenAPIError)

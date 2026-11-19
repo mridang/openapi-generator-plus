@@ -110,7 +110,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     client = Class.new do
       attr_reader :count
 
-      def initialize(cancelled)
+      def initialize(cancelled) # steep:ignore MethodParameterMismatch
         @cancelled = cancelled
         @count = 0
       end
