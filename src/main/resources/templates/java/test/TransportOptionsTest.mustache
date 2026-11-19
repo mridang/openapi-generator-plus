@@ -630,7 +630,7 @@ class TransportOptionsTest {
         IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
                 IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1).build());
         org.junit.jupiter.api.Assertions.assertFalse(
-                ex instanceof {{invokerPackage}}.errors.ApiException);
+                ((Object) ex) instanceof {{invokerPackage}}.errors.ApiException);
     }
 
     @Test
@@ -642,7 +642,7 @@ class TransportOptionsTest {
     void bhvMisc134AZeroTimeoutIsAnArgumentErrorAndNotAnSdkError() {
         IllegalArgumentException thrown =
                 assertThrowsExactly(IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
-        assertFalse(thrown instanceof {{errorPrefix}}Exception);
+        assertFalse(((Object) thrown) instanceof {{errorPrefix}}Exception);
     }
 
     @Test

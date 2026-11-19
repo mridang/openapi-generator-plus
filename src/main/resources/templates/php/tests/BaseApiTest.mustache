@@ -2591,6 +2591,17 @@ test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
 
+test('bhv misc 237 an iso 8859 1 error response body decodes to utf 8 text in the error', function (): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, "caf\xE9", ['Content-Type' => 'application/json; charset=ISO-8859-1'])]);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $thrown = null;
+    try {
+        $api->call('GET', '/x', [], [], null, ['application/json'], 'application/json', null);
+    } catch (\{{invokerPackage}}\Errors\ApiException $e) {
+        $thrown = $e;
+    }
+    expect($thrown?->getResponseBody())->toBe('café');
+});
 test('bhv serialization 125 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));
