@@ -2455,7 +2455,12 @@ private final class UnitStubURLProtocol: URLProtocol {
         }
         var (data, statusCode, headers) = handler(UnitStubURLProtocol.withBody(request))
         if let failBefore = headers.removeValue(forKey: UnitStubURLProtocol.failBeforeResponseHeader) {
-            let code: URLError.Code = failBefore == "timedOut" ? .timedOut : .cannotConnectToHost
+            let code: URLError.Code
+            switch failBefore {
+            case "timedOut": code = .timedOut
+            case "secureConnectionFailed": code = .secureConnectionFailed
+            default: code = .cannotConnectToHost
+            }
             client?.urlProtocol(self, didFailWithError: URLError(code))
             return
         }
@@ -2678,7 +2683,7 @@ private final class UnitStubURLProtocol: URLProtocol {
 
     /* An error that is not a network failure is never retried. */
     @Test func testBhvMisc160AnErrorThatIsNotANetworkFailureIsNeverRetried() {
-        #expect(!DefaultApiClient.isRetryableError(ConfigurationError.invalidTimeout(0)))
+        #expect(!DefaultApiClient.isRetryableError(ConfigurationError.invalidTimeout(0), method: "GET"))
     }
 
     /* A request dropped before any response, when it is idempotent, is sent again exactly once. */
@@ -2891,4 +2896,66 @@ private final class UnitStubURLProtocol: URLProtocol {
             _ = try await api.getInventory()
         }
     }
+
+    /* When the connection drops before any response arrives, a POST or PATCH is sent exactly once. */
+    @Test(arguments: ["POST", "PATCH"])
+    func testBhvMisc161ANonIdempotentRequestDroppedBeforeAResponseIsSentOnce(method: String) async throws {
+        var calls = 0
+        let client = makeClient(transport: try TransportOptionsBuilder().build(), handler: { _ in
+            calls += 1
+            return (self.body(), 200, ["X-Stub-Fail-Before-Response": "cannotConnectToHost"])
+        })
+        _ = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(method: method, url: "https://example.com/write", headers: [:], body: nil, noRedirect: false)
+        }
+        #expect(calls == 1)
+    }
+
+    /* QUERY is an idempotent method, so a request dropped before any response is sent again. */
+    @Test func testBhvMisc161AQueryRequestDroppedBeforeAResponseIsSentAgain() async throws {
+        var calls = 0
+        let client = makeClient(transport: try TransportOptionsBuilder().build(), handler: { _ in
+            calls += 1
+            if calls == 1 {
+                return (self.body(), 200, ["X-Stub-Fail-Before-Response": "cannotConnectToHost"])
+            }
+            return (self.body(), 200, [:])
+        })
+        _ = try await client.sendRequest(method: "QUERY", url: "https://example.com/search", headers: [:], body: nil, noRedirect: false)
+        #expect(calls == 2)
+    }
+
+    /* A TLS or certificate failure is reported as a network error on the first attempt and is never retried. */
+    @Test func testBhvMisc170ATlsFailureIsReportedOnceAndNeverRetried() async throws {
+        var calls = 0
+        let client = makeClient(transport: try TransportOptionsBuilder().build(), handler: { _ in
+            calls += 1
+            return (self.body(), 200, ["X-Stub-Fail-Before-Response": "secureConnectionFailed"])
+        })
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(method: "GET", url: "https://example.com/secure", headers: [:], body: nil, noRedirect: false)
+        }
+        #expect(calls == 1)
+        #expect((error?.underlyingError as? URLError)?.code == .secureConnectionFailed)
+    }
+
+    /* Closing a client returns without waiting for a request that is still running and does not cancel it. */
+    @Test func testBhvMisc184CloseDoesNotWaitForOrCancelARunningRequest() async throws {
+        let entered = DispatchSemaphore(value: 0)
+        let release = DispatchSemaphore(value: 0)
+        let client = makeClient(transport: try TransportOptionsBuilder().build(), handler: { _ in
+            entered.signal()
+            release.wait()
+            return (self.body(), 200, [:])
+        })
+        let running = Task {
+            try await client.sendRequest(method: "GET", url: "https://example.com/slow", headers: [:], body: nil, noRedirect: false)
+        }
+        await Task.detached { entered.wait() }.value
+        client.close()
+        release.signal()
+        let response = try await running.value
+        #expect(response.statusCode == 200)
+    }
+
 }

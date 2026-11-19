@@ -2953,4 +2953,11 @@ import Testing
       try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
     #expect(Set(fields.keys) == ["username", "password"])
   }
+
+  /* A date-time inside a JSON query parameter keeps its wire date-time form. */
+  @Test func testBhvMisc211ADateTimeInsideAJsonQueryParameterKeepsItsWireForm() throws {
+    let json = try ObjectSerializer.serialize(["at": Date(timeIntervalSince1970: 0)])
+    #expect(json == "{\"at\":\"1970-01-01T00:00:00.000+00:00\"}")
+  }
+
 }

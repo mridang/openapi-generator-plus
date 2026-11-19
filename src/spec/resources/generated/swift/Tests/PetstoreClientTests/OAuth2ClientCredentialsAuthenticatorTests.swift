@@ -421,4 +421,20 @@ import Testing
     #expect(auth.description.contains("tokenURL: https://auth.example.com/token"))
     #expect(!auth.description.contains("masked-client-secret"))
   }
+
+  /* A new grant without expires_in clears the expiry of the previous token, so the new token is kept until invalidated. */
+  @Test func testBhvMisc198ANewGrantWithoutExpiresInClearsThePreviousExpiry() async throws {
+    let client = MockApiClient()
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
+    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\"}"))
+
+    let auth = createAuthenticator()
+    auth.setApiClient(client)
+
+    _ = try await auth.authHeaders()
+    _ = try await auth.authHeaders()
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
+    #expect(client.responses.isEmpty)
+  }
+
 }
