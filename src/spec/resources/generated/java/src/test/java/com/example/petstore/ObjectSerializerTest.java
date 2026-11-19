@@ -4658,4 +4658,75 @@ class ObjectSerializerTest {
         assertThrows(SerializationException.class, () -> serializer.serialize(new Object()));
     assertTrue(ex.getMessage().startsWith("Failed to serialize object to JSON: "), ex.getMessage());
   }
+
+  @Test
+  @DisplayName("bhvMisc230 a model with no extra properties writes only its declared keys")
+  void bhvMisc230AModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys() throws Exception {
+    var parsed =
+        new com.fasterxml.jackson.databind.ObjectMapper()
+            .readTree(
+                serializer.serialize(
+                    com.example.petstore.models.Category.builder().name("x").build()));
+    assertFalse(parsed.has("data"));
+    assertFalse(parsed.has("additionalProperties"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc234 a model in a list keeps its additional properties through a round trip")
+  void bhvMisc234AModelInAListKeepsItsAdditionalPropertiesThroughARoundTrip() {
+    var listType =
+        new com.fasterxml.jackson.core.type.TypeReference<
+            List<com.example.petstore.models.Metadata>>() {}.getType();
+    List<com.example.petstore.models.Metadata> items =
+        serializer.deserialize("[{\"label\":\"x\",\"extra\":\"y\"}]", listType);
+    List<com.example.petstore.models.Metadata> restored =
+        serializer.deserialize(serializer.serialize(items), listType);
+    assertEquals("y", restored.get(0).getAdditionalProperties().get("extra"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc235 a duration with fractional seconds keeps its fraction when serialized")
+  void bhvMisc235ADurationWithFractionalSecondsKeepsItsFraction() {
+    assertEquals("1.5s", ObjectSerializer.formatDuration(java.time.Duration.ofMillis(1500)));
+  }
+
+  @Test
+  @DisplayName("bhvMisc243 an absent optional array field decodes to null, not an empty list")
+  void bhvMisc243AnAbsentOptionalArrayFieldDecodesToNull() {
+    com.example.petstore.models.NativeValues restored =
+        serializer.deserialize("{}", com.example.petstore.models.NativeValues.class);
+    assertNull(restored.addresses);
+  }
+
+  @Test
+  @DisplayName("bhvMisc244 a body with a leading byte-order mark decodes into the model")
+  void bhvMisc244ABodyWithALeadingByteOrderMarkDecodesIntoTheModel() {
+    com.example.petstore.models.Category category =
+        serializer.deserialize(
+            "﻿{\"id\":1,\"name\":\"Dogs\"}", com.example.petstore.models.Category.class);
+    assertEquals(Long.valueOf(1L), category.id);
+  }
+
+  @Test
+  @DisplayName("bhvMisc245 a time of day in a plain object is serialized as a JSON string")
+  void bhvMisc245ATimeOfDayInAPlainObjectIsSerializedAsAJsonString() throws Exception {
+    var out =
+        new com.fasterxml.jackson.databind.ObjectMapper()
+            .readTree(serializer.serialize(Map.of("at", java.time.LocalTime.of(10, 20, 30))));
+    assertEquals("10:20:30", out.get("at").asText());
+  }
+
+  @Test
+  @DisplayName("bhvMisc246 a negative whole-second duration string parses to a negative duration")
+  void bhvMisc246ANegativeWholeSecondDurationStringParsesToANegativeDuration() {
+    assertEquals(java.time.Duration.ofSeconds(-3), ObjectSerializer.parseDuration("-3s"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc247 a UUID string with the wrong segment lengths is rejected")
+  void bhvMisc247AUuidStringWithTheWrongSegmentLengthsIsRejected() {
+    assertThrows(
+        SerializationException.class,
+        () -> serializer.deserialize("\"1234-5678-1234-5678-1234567890\"", java.util.UUID.class));
+  }
 }
