@@ -805,3 +805,4 @@ php | misc145 | PHP returns the stored Ds\Map handle for the undeclared keys, an
 php | misc152 | PHP has no per-call cancellation (S7): a call takes no cancellation signal, so there is no already-aborted call to refuse before a request is sent
 php | misc153 | PHP has no per-call cancellation (S7): a call takes no cancellation signal and the client has none, so no signal can cancel an in-flight request
 php | misc184 | PHP is single threaded and runs each request to completion before it returns, so close cannot run while a request is in flight and there is no cancellation handle to leave alone (misc029, misc001)
+rust | misc214 | A Rust JSON content value is a serde_json::Value tree with string keys and no cycles, so no value can be built that fails to serialize; the error path cannot be reached
