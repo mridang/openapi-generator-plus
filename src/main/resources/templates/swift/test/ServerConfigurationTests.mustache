@@ -266,4 +266,39 @@ import Testing
             _ = try server.url(variables: ["env": "dev"])
         }
     }
+    @Test func testBhvMisc155AnUnsetEnumVariableWithADisallowedDefaultIsRefusedNamingIt() {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{region}.example.com",
+            variables: ["region": ServerVariable(defaultValue: "apac", enumValues: ["eu", "us"])])
+        do {
+            _ = try server.url()
+            Issue.record("expected the disallowed default to be refused")
+        } catch {
+            let described = (error as? LocalizedError)?.errorDescription ?? ""
+            #expect(described.contains("'region'"))
+        }
+    }
+
+    @Test func testBhvMisc156TheListOfAllServersKeepsTheDeclaredOrder() {
+        #expect(Servers.all.map(\.urlTemplate) == [{{#serverConfigs}}Servers.server{{serverIndex}}.urlTemplate{{^-last}}, {{/-last}}{{/serverConfigs}}])
+    }
+
+    @Test func testBhvMisc157ExplicitVariableValuesAreResolvedIntoTheUrl() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com/v{version}",
+            variables: [
+                "env": ServerVariable(defaultValue: "prod"),
+                "version": ServerVariable(defaultValue: "1"),
+            ]
+        )
+        let resolved = try server.url(variables: ["env": "prod", "version": "2"])
+        #expect(resolved == "https://prod.api.example.com/v2")
+    }
+
+    @Test func testBhvMisc158AServerWithAFixedUrlReportsExactlyThatUrl() throws {
+        let server = ServerConfiguration(urlTemplate: "https://api.example.com/v1")
+        #expect(server.urlTemplate == "https://api.example.com/v1")
+        #expect(try server.url() == "https://api.example.com/v1")
+    }
+
 }
