@@ -2823,4 +2823,41 @@ mod tests {
             "12:34:56"
         );
     }
+
+    #[test]
+    fn test_bhv_serialization_071_json_nested_beyond_the_depth_cap_is_refused_before_parsing() {
+        let deep = format!("{}{}", "[".repeat(1001), "]".repeat(1001));
+        let err = deserialize::<serde_json::Value>(deep.as_bytes())
+            .expect_err("nesting beyond the cap must be refused");
+        assert!(err.to_string().contains("exceeds limit 1000"), "got: {err}");
+    }
+
+    #[test]
+    fn test_bhv_serialization_074_nested_arrays_serialize_to_the_same_nested_shape() {
+        let text = serialize(&vec![vec![1, 2], vec![3]]).expect("serializes");
+        assert_eq!(text, "[[1,2],[3]]");
+    }
+
+    #[test]
+    fn test_bhv_serialization_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second(
+    ) {
+        use chrono::NaiveTime;
+        assert_eq!(
+            super::format_time(&NaiveTime::from_hms_opt(9, 5, 3).unwrap()),
+            "09:05:03"
+        );
+        assert_eq!(
+            super::format_time(&NaiveTime::from_hms_micro_opt(9, 5, 3, 500000).unwrap()),
+            "09:05:03.500"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_083_a_serialization_error_is_the_library_error_type_with_a_message() {
+        let err = deserialize::<serde_json::Value>(b"{").expect_err("malformed JSON must fail");
+        assert!(
+            !err.to_string().is_empty(),
+            "the error must carry a message"
+        );
+    }
 }

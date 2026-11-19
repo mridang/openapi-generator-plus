@@ -4527,3 +4527,147 @@ async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three
         started.elapsed()
     );
 }
+
+/// A redirect server whose every hop answers only after `hop_delay`, so a chain of
+/// hops spends the caller's timeout budget.
+fn start_slow_redirect_server(hop_delay: std::time::Duration) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let loc = format!("{}/hop", base_url);
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let loc = loc.clone();
+            thread::spawn(move || {
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                thread::sleep(hop_delay);
+                let response = format!(
+                    "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    loc
+                );
+                let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            });
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
+    let (base_url, captured) = start_307_redirect_server("/next".to_string());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = RequestBody::Bytes(b"{\"a\":1}".to_vec());
+
+    client
+        .send_request(
+            "POST",
+            &format!("{}/start", base_url),
+            &HashMap::new(),
+            Some(&body),
+        )
+        .await
+        .expect("the redirected request succeeds");
+
+    let calls = captured.lock().unwrap();
+    assert_eq!(2, calls.len(), "the 307 must be followed exactly once");
+    assert!(
+        calls[1].starts_with("POST /next"),
+        "the replay keeps the method: {}",
+        calls[1]
+    );
+    assert!(
+        calls[1].contains("{\"a\":1}"),
+        "the replay carries the body unchanged: {}",
+        calls[1]
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_054_a_chain_past_the_timeout_budget_fails_with_a_timeout() {
+    let base_url = start_slow_redirect_server(std::time::Duration::from_millis(500));
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .timeout(Some(1200))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await;
+
+    let err = result
+        .expect_err("the redirect chain must run past the shared budget")
+        .to_string()
+        .to_lowercase();
+    assert!(
+        err.contains("timed out") || err.contains("timeout"),
+        "expected a timeout error, got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_055_a_redirect_to_a_non_http_scheme_is_refused_with_an_error() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 302 Found\r\nLocation: ftp://example.com/file\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a redirect to a non-http scheme must be refused with an error"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_056_an_opted_out_request_sends_no_default_header_and_the_next_one_does()
+{
+    let (opted_out_url, opted_out_head) = start_head_capture_server();
+    let (next_url, next_head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("X-Default", "d")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = RequestBody::Bytes(b"a=b".to_vec());
+
+    client
+        .send_request_with_options(
+            "POST",
+            &format!("{}/token", opted_out_url),
+            &HashMap::new(),
+            Some(&body),
+            &RequestOptions::new().no_redirect(true),
+        )
+        .await
+        .expect("the opted-out request succeeds");
+    client
+        .send_request("GET", &format!("{}/x", next_url), &HashMap::new(), None)
+        .await
+        .expect("the next request succeeds");
+
+    let first = opted_out_head
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("a captured request");
+    let second = next_head
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("a captured request");
+    assert_eq!(None, head_header(&first, "X-Default"));
+    assert_eq!(Some("d".to_string()), head_header(&second, "X-Default"));
+}

@@ -1354,3 +1354,31 @@ fn test_bhv_misc_049_a_choice_between_binary_and_a_list_writes_the_list_as_base6
         .expect("a list of binary values serializes");
     assert_eq!(r#"["AQI=","BA=="]"#, json);
 }
+
+#[test]
+fn test_bhv_misc_292_a_union_wrapper_serializes_its_bare_payload_and_reads_it_back() {
+    let value = SetPetAvatarThumbnailRequest::VecU8(b"hi".to_vec());
+
+    let data = serde_json::to_string(&value).expect("failed to serialize");
+    assert_eq!(data, r#""aGk=""#, "the bare payload is base64 with no wrapper envelope");
+
+    let back: SetPetAvatarThumbnailRequest = serde_json::from_str(&data).expect("failed to decode");
+    assert_eq!(back, value);
+}
+
+#[test]
+fn test_bhv_serialization_076_a_union_value_matching_no_candidate_raises() {
+    let result = serde_json::from_str::<PetTreatment>(r#"{"unrelatedKey":"value"}"#);
+    assert!(result.is_err(), "a payload matching no candidate must raise an error");
+}
+
+#[test]
+fn test_bhv_serialization_082_a_missing_discriminator_fails_with_an_error_naming_it() {
+    let err = serde_json::from_str::<PetFood>(r#"{"weightKg":2.5}"#)
+        .expect_err("a missing discriminator must fail");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("foodType") || msg.contains("discriminator"),
+        "error should name the missing discriminator, got: {msg}"
+    );
+}

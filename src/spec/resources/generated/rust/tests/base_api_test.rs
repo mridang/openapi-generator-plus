@@ -4026,3 +4026,66 @@ async fn test_bhv_misc_192_an_auth_cookie_of_only_legal_octets_is_sent_exactly_a
         headers.get("Cookie").map(|s| s.as_str())
     );
 }
+
+#[tokio::test]
+async fn test_bhv_retries_047_a_wait_that_would_overrun_the_caller_timeout_is_not_taken() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("30")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        Some(std::time::Duration::from_secs(2)),
+    );
+    let started = std::time::Instant::now();
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "waited {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_049_max_retries_sets_the_number_of_retries() {
+    let scripts: Vec<Scripted> = (0..5).map(|_| Scripted::Status(503, Some("0"))).collect();
+    let client = ScriptedApiClient::new(scripts, 4, None);
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(5, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_retries_050_retry_after_as_an_http_date_is_honoured() {
+    let when = (chrono::Utc::now() + chrono::TimeDelta::seconds(2))
+        .format("%a, %d %b %Y %H:%M:%S GMT")
+        .to_string();
+    let when: &'static str = Box::leak(when.into_boxed_str());
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some(when)),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+    let started = std::time::Instant::now();
+
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert!(
+        started.elapsed() >= std::time::Duration::from_millis(900),
+        "{:?}",
+        started.elapsed()
+    );
+    assert_eq!(2, client.calls());
+}

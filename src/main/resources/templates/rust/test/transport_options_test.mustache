@@ -825,3 +825,15 @@ fn test_bhv_misc_134_a_zero_timeout_is_refused_at_build_with_a_configuration_err
         result
     );
 }
+
+#[test]
+fn test_bhv_options_068_a_socks_proxy_is_refused_at_construction_with_the_documented_message() {
+    let err = TransportOptionsBuilder::new()
+        .proxy("socks5://proxy.example.com:1080")
+        .build()
+        .expect_err("a socks proxy must be refused at construction");
+    assert_eq!(
+        err.to_string(),
+        "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080"
+    );
+}
