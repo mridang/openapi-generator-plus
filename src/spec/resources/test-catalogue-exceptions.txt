@@ -309,7 +309,6 @@ csharp | mocking009 | This language has no README test yet (#118); the section i
 php | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 node | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
-dart | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 rust | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 elixir | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
@@ -335,8 +334,6 @@ ruby | misc035 | The SDK has no cancellation API of its own (readme and skills: 
 node | auth039 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal (the same case as authbearer026)
 dart | auth038 | F862 credential order: dart reads the environment variable before the token provider, so an environment value is the fixed token and the provider is never asked
 dart | operations164 | Dart's sound null safety makes a nil required parameter unrepresentable: passing null is a compile error, so no ArgumentError can be raised at runtime; empty required values are covered by bhv operations 050
-dart | operations162 | the fixture has no date-only path parameter
-dart | operations165 | the fixture has no operation with a path serialization style
 go | auth039 | Go's client constructors take a token or a token provider through separate constructors (NewClientWithToken and NewClientWithTokenProvider), so no call can pass both
 go | auth042 | Go strings have no absent value, so an explicitly passed empty string is the same argument as an omitted one and both read the environment (bhv authapikey021 pins that); keeping them apart needs a pointer parameter on every credential constructor, a breaking change to the public API
 rust | auth039 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test
@@ -456,7 +453,6 @@ rust | misc038 | the Rust suite has no TLS server, so a server presenting a self
 dart | misc030 | Dart has no per-call deadline: the only deadline is the client-wide timeout, which must be a positive number of milliseconds when built, so a deadline cannot already be past when a request starts
 dart | misc033 | the suite ships a single server certificate with no root and intermediate pair, so a root-only pinned CA file cannot be paired with a server that also sends the intermediate
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
-dart | misc047 | PetFood.toJson passes a value that is not one of its variants through unchanged instead of raising, so no serialization error names the union
 elixir | misc048 | The fixture has no operation whose declared response is a union, so no undeclared success status can decode as a union return type
 elixir | misc054 | Elixir maps are immutable, so a later change to the caller's variable cannot reach a call and there is no shared map to copy
 elixir | misc056 | Elixir transport options are a keyword list given once to TransportOptions.new/1, so there is no earlier proxy setting for an empty string to remove
@@ -589,8 +585,6 @@ go | misc214 | the petstore fixture declares no query parameter with a content m
 dart | misc098 | Dart multipart parts are Uint8List values already held in memory and the SDK accepts no caller stream as a part, so there is no stream to read or to leave open
 dart | misc100 | Dart always builds a Map body as multipart/form-data through package:http's MultipartRequest and takes no declared subtype or caller header to keep, so there is no declared subtype to keep or fall back from
 dart | misc101 | Dart multipart parts are Uint8List values already held in memory and no stream part exists, so no source can fail to be read after the call is built
-dart | misc104 | the generic fixture models have no string field with the email format outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic email-format field exists to decode
-dart | misc112 | the generic fixture models have no unique-array field outside the petstore model, and the templates may not name that model (FixtureVocabularyLeakTest), so no generic set-typed field exists to decode
 swift | misc122 | The Swift test fixture declares no model with a string default, so a default containing quotes, backslashes or control characters cannot be observed
 swift | misc128 | the proxy credential is applied by URLSession to the proxy connection (a proxy challenge), below the request headers the redirect loop controls, and the test protocol never opens a proxy connection, so the credential cannot be observed on a redirected request
 swift | misc129 | the SDK adds no proxy credential header of its own (URLSession answers the proxy challenge), so a redirect has no SDK-added proxy header to re-send, and the test protocol never opens a proxy connection to observe one
@@ -611,9 +605,7 @@ dart | misc152 | Dart has no cancellation signal on a call: a request is cancell
 dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
 dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
 dart | misc173 | Dart request bodies have no streamed form (text, bytes, a map or absent), so a streamed body cannot be replayed or refused across a redirect
-dart | misc176 | the dart fixture has no operation with a required cookie parameter, so there is no call that sends a cookie parameter; cookies are sent only from authentication (authintegration 004 and 017)
 dart | misc185 | the dart OAuth token managers expose no stop operation, so a second stop and a token request after stop cannot be made
-dart | misc188 | the dart client keeps its closed flag private and exposes no getter, so the closed state cannot be observed from outside the client
 kotlin | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 kotlin | misc098 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is nothing for it to close (transport061 pins the buffering)
 node | misc149 | TypeScript rejects an undeclared property in the typed constructor argument at compile time, so no copy can carry one through the typed API.
@@ -671,7 +663,6 @@ rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stop
 rust | misc262 | The Rust client has no cancellation API: a pending request is cancelled by dropping its future, and no client operation cancels pending requests or reports a cancellation to the caller.
 rust | misc263 | The Rust client has no per-call timeout: the timeout is set on the transport options when the client is built and no call accepts its own value, so a per-call timeout longer than the client timeout cannot be expressed.
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
-
 
 php | serialization068 | PHP typed constructor parameters and enum-typed properties reject a wrong-typed or unknown value at construction under strict types, so a model cannot hold one as given
 swift | misc214 | Query content is a typed Codable value at the call site, so a value that cannot be serialized (a cyclic or NaN-bearing object) cannot be passed to the operation; the compiler rules it out
@@ -797,3 +788,5 @@ swift | redirects055 | swift-corelibs-foundation on Linux traps when a stub URLP
 swift | retries046 | swift-corelibs-foundation on Linux traps when a stub URLProtocol reports a redirect and cannot observe the SDK's redirect handling without it, so the Linux suite cannot drive this case; the test runs on Apple platforms only (A request body is resent unchanged when a 307 redirect keeps the same scheme)
 swift | retries051 | swift-corelibs-foundation on Linux traps when a stub URLProtocol reports a redirect and cannot observe the SDK's redirect handling without it, so the Linux suite cannot drive this case; the test runs on Apple platforms only (A request with a body is refused, and fails with status 307, when a redirect downgrades ht)
 swift | transport088 | URLSession on Linux decodes only gzip and deflate and the Linux toolchain image has no importable zlib module, so this decoding cannot be exercised there; the test runs on Apple platforms only (A response body that is validly gzip-encoded is decoded before it is returned)
+
+dart | misc241 | Dart has no time-of-day type: a format: time property is a String passed through unchanged (serializationobject114), so the SDK formats no milliseconds

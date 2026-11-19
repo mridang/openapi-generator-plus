@@ -709,6 +709,15 @@ class BaseApi {
           data = decode(response.body);
         } else if (returnType == 'String' && _isTextContentType(responseContentType)) {
           data = response.body as T?;
+        } else if (returnType == 'String') {
+          /* A string result under a binary content type: the transport carries
+           * the bytes as base64 text, which is an internal carrier and never
+           * reaches the caller; return the decoded bytes as text. */
+          try {
+            data = utf8.decode(base64Decode(response.body), allowMalformed: true) as T?;
+          } on FormatException {
+            data = response.body as T?;
+          }
         } else if (responseContentType.isEmpty ||
             _headerSelector.isJsonMime(responseContentType)) {
           /* A JSON body with no deserializer supplied leaves data null;

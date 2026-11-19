@@ -3914,6 +3914,57 @@ void main() {
     );
 
     test(
+      'bhv serialization 123 a multipart field name containing CR or LF is rejected',
+      () {
+        for (final name in ['a\rb', 'a\nb']) {
+          expect(
+            _RecordingApi(_BodyCapturingApiClient()).invokeApi(
+              method: 'POST',
+              path: '/test/echo',
+              body: {name: 'x'},
+              contentType: 'multipart/form-data',
+            ),
+            throwsArgumentError,
+          );
+        }
+      },
+    );
+
+    test(
+      'bhv serialization 123 a double quote in a multipart field name is backslash-escaped',
+      () async {
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'a"b': 'x'},
+          contentType: 'multipart/form-data',
+        );
+        expect(client.capturedBody, contains(r'name="a\"b"'));
+      },
+    );
+
+    test(
+      'bhv misc 081 a string result under a binary content type is the decoded body',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 200,
+            body: 'aGVsbG8=',
+            headers: {'content-type': 'application/pdf'},
+          ),
+        ]);
+        final result = await _RecordingApi(client).invokeApiForResult<String>(
+          method: 'GET',
+          path: '/api/doc',
+          accepts: const ['application/pdf'],
+          returnType: 'String',
+        );
+        expect(result.data, equals('hello'));
+      },
+    );
+
+    test(
       'bhv serialization 124 a non-ASCII multipart filename has an RFC 5987 form with percent-encoding',
       () async {
         final client = _BodyCapturingApiClient();

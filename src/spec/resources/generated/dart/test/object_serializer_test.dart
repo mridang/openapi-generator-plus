@@ -100,6 +100,47 @@ void main() {
     });
 
     test(
+      'bhv misc 047 serializing a union holding a value that is not one of its variants fails naming the union',
+      () {
+        const wrapped = PetFood('kibble');
+        expect(
+          () => wrapped.toJson(),
+          throwsA(
+            isA<SerializationException>().having(
+              (e) => e.message,
+              'message',
+              contains('PetFood'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 104 a string field declared with the email format decodes to a plain string without validation',
+      () {
+        final decoded = PetWithOwner.fromJson({
+          'name': 'n',
+          'photoUrls': ['u'],
+          'ownerName': 'o',
+          'ownerEmail': 'not-an-email',
+        });
+        expect(decoded.ownerEmail, equals('not-an-email'));
+      },
+    );
+
+    test(
+      'bhv misc 112 a repeated element of a unique array keeps one copy of each',
+      () {
+        final decoded = Pet.fromJson({
+          'name': 'n',
+          'photoUrls': ['u', 'u', 'v'],
+        });
+        expect(decoded.photoUrls.toList(), equals(['u', 'v']));
+      },
+    );
+
+    test(
       'bhv misc 111 a set of unique strings is written in code point order',
       () {
         final wire = wireList<String>(
@@ -949,6 +990,19 @@ void main() {
       expect(decoded.id, equals(7));
     });
 
+    test(
+      'bhv misc 242 a readOnly and a writeOnly property have no wire effect',
+      () {
+        final encoded = serialize(
+          const Account(id: 7, username: 'u', password: 'p'),
+        );
+        expect(
+          jsonDecode(encoded),
+          equals({'id': 7, 'username': 'u', 'password': 'p'}),
+        );
+      },
+    );
+
     test('bhv serializationobject 018 a writeOnly property is serialized', () {
       final encoded = serialize(const Account(username: 'u', password: 'p'));
       expect(jsonDecode(encoded), equals({'username': 'u', 'password': 'p'}));
@@ -1766,6 +1820,16 @@ void main() {
             jsonDecode(serialize(WetFood(volumeMl: 120)))
                 as Map<String, dynamic>;
         expect(parsed['foodType'], equals('wet'));
+      },
+    );
+
+    test(
+      'bhv misc 256 a duration fraction is never trimmed below three digits',
+      () {
+        expect(
+          formatProtobufDuration(const Duration(milliseconds: 1500)),
+          equals('1.500s'),
+        );
       },
     );
 

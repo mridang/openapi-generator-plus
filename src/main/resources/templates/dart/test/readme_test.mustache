@@ -1,0 +1,30 @@
+{{>api_info}}
+{{#generateTests}}
+import 'dart:io';
+
+import 'package:test/test.dart';
+
+String _readme() => File('README.md').readAsStringSync();
+
+void main() {
+  group('README', () {
+    test('bhv mocking 009 Testing your code names the group interface and the client interface', () {
+      final readme = _readme();
+      final start = readme.indexOf('\n### Testing your code\n');
+      expect(start, greaterThanOrEqualTo(0));
+      final end = readme.indexOf('\n### ', start + 4);
+      final section = end < 0 ? readme.substring(start) : readme.substring(start, end);
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+      expect(section, contains('{{classname}}Interface'));
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+      expect(section, contains('{{clientClassName}}Interface'));
+    });
+  });
+}
+{{/generateTests}}

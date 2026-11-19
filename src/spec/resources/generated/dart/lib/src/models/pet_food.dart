@@ -49,11 +49,17 @@ class PetFood {
     return v is WetFood ? v : null;
   }
 
-  /// Converts this union type to a JSON value.
+  /// Converts this union type to a JSON value. A held value that is not one
+  /// of the variants fails with a [SerializationException] naming the union.
   Object? toJson() {
     final v = _value;
     if (v == null) return null;
     if (v is Map) return v;
+    if (!(v is DryFood || v is WetFood || false)) {
+      throw SerializationException(
+        'Cannot serialize PetFood: ${v.runtimeType} is not a variant of PetFood',
+      );
+    }
     try {
       return (v as dynamic).toJson();
     } catch (_) {
