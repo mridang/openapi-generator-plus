@@ -1257,7 +1257,7 @@ async fn test_bhv_operations_065_pet_api_get_pet_by_name_required_query_on_wire(
 }
 
 #[tokio::test]
-async fn test_bhv_operations_157_pet_api_get_pet_by_note_sends_a_null_required_nullable_query_parameter_as_an_empty_value(
+async fn test_bhv_operations_157_a_null_required_nullable_query_parameter_is_sent_empty_and_a_binary_body_is_raw_bytes(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(None, Some(3));
@@ -1270,10 +1270,30 @@ async fn test_bhv_operations_157_pet_api_get_pet_by_note_sends_a_null_required_n
         "expected the query note=&rank=3, got request line: {}",
         request_line
     );
+
+    let (byte_api, byte_rx, _) = new_pet_api_for_byte_capture();
+    let image_bytes: Vec<u8> = vec![0x00, 0xFF, 0xD8, 0x0D, 0x0A, 0x2D, 0x2D];
+    let _ = byte_api
+        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/jpeg"))
+        .await;
+    let raw = byte_rx.recv().expect("expected a captured request");
+    let (headers, body) = split_http_request(&raw);
+    assert_eq!(
+        body,
+        image_bytes.as_slice(),
+        "the body must be the exact bytes"
+    );
+    assert!(
+        !String::from_utf8_lossy(headers)
+            .to_ascii_lowercase()
+            .contains("multipart"),
+        "a binary body must not be multipart: {}",
+        String::from_utf8_lossy(headers)
+    );
 }
 
 #[tokio::test]
-async fn test_bhv_operations_158_pet_api_get_pet_by_note_sends_every_null_required_nullable_query_parameter_in_declaration_order(
+async fn test_bhv_operations_158_every_null_required_nullable_query_parameter_is_sent_in_declaration_order_and_a_per_call_header_is_sent(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(None, None);
@@ -1286,10 +1306,27 @@ async fn test_bhv_operations_158_pet_api_get_pet_by_note_sends_every_null_requir
         "expected the query note=&rank=, got request line: {}",
         request_line
     );
+
+    let (trace_api, trace_rx, _) = new_pet_api_for_capture();
+    let trace_opts = AddPetOptions::new().header("X-Call-Trace", "call-158");
+    let pet = Pet::new(
+        "TraceDog".to_string(),
+        HashSet::from(["http://example.com/p.jpg".to_string()]),
+    );
+    let _ = trace_api.add_pet(pet, Some(&trace_opts)).await;
+    let trace_request = trace_rx
+        .recv()
+        .expect("expected a captured request")
+        .to_lowercase();
+    assert!(
+        trace_request.contains("x-call-trace: call-158"),
+        "request: {}",
+        trace_request
+    );
 }
 
 #[tokio::test]
-async fn test_bhv_operations_159_pet_api_get_pet_by_note_sends_a_non_null_required_nullable_query_parameter_with_its_value(
+async fn test_bhv_operations_159_a_non_null_required_nullable_query_parameter_is_sent_with_its_value_and_an_empty_success_body_is_a_typed_error(
 ) {
     let (api, rx, _) = new_pet_api_for_capture();
     let opts = GetPetByNoteOptions::new(Some("a b".to_string()), Some(3));
@@ -1301,6 +1338,21 @@ async fn test_bhv_operations_159_pet_api_get_pet_by_note_sends_a_non_null_requir
         request_line.contains(" /pet/byNote?note=a%20b&rank=3 "),
         "expected the query note=a%20b&rank=3, got request line: {}",
         request_line
+    );
+
+    let config = ConfigurationBuilder::new()
+        .base_url(&start_empty_ok_server())
+        .build();
+    let empty_api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
+    let err = empty_api
+        .get_pet_by_id(1, None, None)
+        .await
+        .expect_err("a value call must not accept an empty body")
+        .to_string();
+    assert!(
+        err.contains("Expected a response body for get_pet_by_id but received none"),
+        "{}",
+        err
     );
 }
 
@@ -3226,51 +3278,6 @@ async fn test_bhv_auth_047_an_operation_sends_no_scheme_credential_when_none_is_
     assert!(!request.contains("key-one"), "request: {}", request);
 }
 
-/// operations157: a binary request body reaches the wire as its exact bytes, with no multipart encoding.
-#[tokio::test]
-async fn test_bhv_operations_157_a_binary_body_is_sent_as_its_exact_bytes_without_multipart() {
-    let (api, rx, _) = new_pet_api_for_byte_capture();
-    let image_bytes: Vec<u8> = vec![0x00, 0xFF, 0xD8, 0x0D, 0x0A, 0x2D, 0x2D];
-    let _ = api
-        .set_pet_avatar(1, image_bytes.clone(), None, Some("image/jpeg"))
-        .await;
-    let raw = rx.recv().expect("expected a captured request");
-    let (headers, body) = split_http_request(&raw);
-    assert_eq!(
-        body,
-        image_bytes.as_slice(),
-        "the body must be the exact bytes"
-    );
-    assert!(
-        !String::from_utf8_lossy(headers)
-            .to_ascii_lowercase()
-            .contains("multipart"),
-        "a binary body must not be multipart: {}",
-        String::from_utf8_lossy(headers)
-    );
-}
-
-/// operations158: a header supplied on an individual call is sent with that call.
-#[tokio::test]
-async fn test_bhv_operations_158_a_per_call_header_is_sent_with_that_call() {
-    let (api, rx, _) = new_pet_api_for_capture();
-    let opts = AddPetOptions::new().header("X-Call-Trace", "call-158");
-    let pet = Pet::new(
-        "TraceDog".to_string(),
-        HashSet::from(["http://example.com/p.jpg".to_string()]),
-    );
-    let _ = api.add_pet(pet, Some(&opts)).await;
-    let request = rx
-        .recv()
-        .expect("expected a captured request")
-        .to_lowercase();
-    assert!(
-        request.contains("x-call-trace: call-158"),
-        "request: {}",
-        request
-    );
-}
-
 /// Starts a local server that answers every request with 200 and no body.
 fn start_empty_ok_server() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
@@ -3287,25 +3294,6 @@ fn start_empty_ok_server() -> String {
         }
     });
     base_url
-}
-
-/// operations159: a value-returning call that gets a success with an empty body raises a typed error.
-#[tokio::test]
-async fn test_bhv_operations_159_a_value_call_with_an_empty_success_body_is_a_typed_error() {
-    let config = ConfigurationBuilder::new()
-        .base_url(&start_empty_ok_server())
-        .build();
-    let api = PetApi::new(Arc::new(DefaultApiClient::new(None)), config, None);
-    let err = api
-        .get_pet_by_id(1, None, None)
-        .await
-        .expect_err("a value call must not accept an empty body")
-        .to_string();
-    assert!(
-        err.contains("Expected a response body for get_pet_by_id but received none"),
-        "{}",
-        err
-    );
 }
 
 /// operations160: an operation whose server is an external variant is sent to that variant's URL.

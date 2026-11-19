@@ -540,8 +540,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 1
   end
 
-  ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
-    it "bhv_auth_056 expires_in #{raw.inspect} is not a decimal number, so the token is stale" do
+  it 'bhv_auth_056 expires_in is honoured only as a decimal number, with padding allowed; any other value marks the token stale' do
+    ['0x1000', '1e4', '1_000_000', '3600d', '-5'].each do |raw|
       client = FakeTokenClient.new([
                                      { status: 200, body: { 'access_token' => 'first', 'expires_in' => raw } },
                                      { status: 200, body: { 'access_token' => 'second', 'expires_in' => 3600 } }
@@ -554,6 +554,17 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
       _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'second'
       _(client.call_count).must_equal 2
     end
+
+    client = FakeTokenClient.new([
+                                   { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
+                                 ])
+    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+
+    params = { 'grant_type' => 'client_credentials' }
+    manager.get_access_token('https://auth.example.com/token', params)
+    manager.get_access_token('https://auth.example.com/token', params)
+    _(client.call_count).must_equal 1
   end
 
   [1e20, 10**30, '9' * 400].each do |raw|
@@ -570,19 +581,6 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
       _(client.call_count).must_equal 1
       _(manager.instance_variable_get(:@token_expiry)).must_be :<=, Time.now.to_f + 31_536_000
     end
-  end
-
-  it 'bhv_auth_056 expires_in as a padded decimal string with a fraction is accepted' do
-    client = FakeTokenClient.new([
-                                   { status: 200, body: { 'access_token' => 'padded', 'expires_in' => " 3600.5\n" } }
-                                 ])
-    manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
-    manager.api_client = client
-
-    params = { 'grant_type' => 'client_credentials' }
-    manager.get_access_token('https://auth.example.com/token', params)
-    manager.get_access_token('https://auth.example.com/token', params)
-    _(client.call_count).must_equal 1
   end
 
   it 'bhv_authoauthtwotokenmgr_008 expires_in as float is floored' do

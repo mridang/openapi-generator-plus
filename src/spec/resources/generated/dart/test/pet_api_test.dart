@@ -1027,7 +1027,7 @@ void main() {
     );
 
     test(
-      'bhv operations 159 a call that returns a value raises a typed ApiException when a success response has an empty body',
+      'bhv operations 159 a call that returns a value raises a typed ApiException when a success response has an empty body, and a non-null required nullable query parameter is sent with its value',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) {
@@ -1049,6 +1049,41 @@ void main() {
           );
         } finally {
           await server.close();
+        }
+
+        String? capturedQuery;
+        final petServer = await HttpServer.bind(
+          InternetAddress.loopbackIPv4,
+          0,
+        );
+        petServer.listen((request) {
+          capturedQuery = request.uri.query;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final petApi = PetApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://localhost:${petServer.port}')
+                .build(),
+          );
+
+          await petApi.getPetByNote(
+            const GetPetByNoteOptions(note: 'a b', rank: 3),
+          );
+
+          expect(
+            capturedQuery,
+            'note=a%20b&rank=3',
+            reason: 'a non-null value is sent with its value',
+          );
+        } finally {
+          await petServer.close(force: true);
         }
       },
     );
@@ -1532,99 +1567,6 @@ void main() {
           expect(bytes, equals(Uint8List.fromList(<int>[1, 2, 3])));
         } finally {
           await server.close();
-        }
-      },
-    );
-
-    test(
-      'bhv operations 157 getPetByNote sends a null required nullable query parameter as an empty value',
-      () async {
-        String? capturedQuery;
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        server.listen((request) {
-          capturedQuery = request.uri.query;
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
-            ..close();
-        });
-
-        try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-          await api.getPetByNote(
-            const GetPetByNoteOptions(note: null, rank: 3),
-          );
-
-          expect(capturedQuery, 'note=&rank=3');
-        } finally {
-          await server.close(force: true);
-        }
-      },
-    );
-
-    test(
-      'bhv operations 158 getPetByNote sends every null required nullable query parameter in declaration order',
-      () async {
-        String? capturedQuery;
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        server.listen((request) {
-          capturedQuery = request.uri.query;
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
-            ..close();
-        });
-
-        try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-          await api.getPetByNote(
-            const GetPetByNoteOptions(note: null, rank: null),
-          );
-
-          expect(capturedQuery, 'note=&rank=');
-        } finally {
-          await server.close(force: true);
-        }
-      },
-    );
-
-    test(
-      'bhv operations 159 getPetByNote sends a non-null required nullable query parameter with its value',
-      () async {
-        String? capturedQuery;
-        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-        server.listen((request) {
-          capturedQuery = request.uri.query;
-          request.response
-            ..statusCode = 200
-            ..headers.contentType = ContentType.json
-            ..write('{"id":1,"name":"Rex","photoUrls":[]}')
-            ..close();
-        });
-
-        try {
-          final config = ConfigurationBuilder()
-              .baseUrl('http://localhost:${server.port}')
-              .build();
-          final api = PetApi(apiClient: DefaultApiClient(), config: config);
-
-          await api.getPetByNote(
-            const GetPetByNoteOptions(note: 'a b', rank: 3),
-          );
-
-          expect(capturedQuery, 'note=a%20b&rank=3');
-        } finally {
-          await server.close(force: true);
         }
       },
     );

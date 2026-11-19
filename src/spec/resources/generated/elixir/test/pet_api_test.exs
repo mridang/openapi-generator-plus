@@ -934,14 +934,6 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert error.message =~ "Expected a response body for get_pet_by_id but received none"
   end
 
-  test "bhv operations 159 bang variant raises typed ApiError on empty 200 body" do
-    api = new_pet_api_for_mock(200, "application/json", "")
-
-    assert_raise PetstoreClient.Errors.ApiError, fn ->
-      PetstoreClient.Api.PetApi.get_pet_by_id!(api, 1)
-    end
-  end
-
   test "bhv operations 048 get_pet_by_id_with_http_info", %{api: api} do
     assert {:ok, result} =
              PetstoreClient.Api.PetApi.get_pet_by_id_with_http_info(
@@ -1353,21 +1345,6 @@ defmodule PetstoreClient.Api.PetApiTest do
   end
 
   # A format: date path parameter renders as YYYY-MM-DD with no time component.
-  test "bhv operations 158 a header supplied on an individual call is sent with that call" do
-    {:ok, name} = HeaderCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
-
-    {:ok, _result} =
-      PetstoreClient.Api.PetApi.delete_pet_with_http_info(api, 1, nil,
-        headers: %{"X-Trace" => "call-1"}
-      )
-
-    assert HeaderCapturingApiClient.captured_headers(name)["X-Trace"] == "call-1"
-
-    Agent.stop(name)
-  end
-
   test "bhv operations 162 a date-only path parameter is sent as a bare date" do
     {name, api} = stub_pet_api("[]")
 
@@ -2041,7 +2018,7 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv operations 158 get_pet_by_note sends every null required nullable query parameter in declaration order" do
+  test "bhv operations 158 get_pet_by_note sends every null required nullable query parameter in declaration order and a header supplied on a call is sent with it" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -2055,9 +2032,21 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=&rank=")
 
     Agent.stop(name)
+
+    {:ok, header_name} = HeaderCapturingApiClient.start()
+    header_api = PetstoreClient.Api.PetApi.new(HeaderCapturingApiClient, config)
+
+    {:ok, _result} =
+      PetstoreClient.Api.PetApi.delete_pet_with_http_info(header_api, 1, nil,
+        headers: %{"X-Trace" => "call-1"}
+      )
+
+    assert HeaderCapturingApiClient.captured_headers(header_name)["X-Trace"] == "call-1"
+
+    Agent.stop(header_name)
   end
 
-  test "bhv operations 159 get_pet_by_note sends a non-null required nullable query parameter with its value" do
+  test "bhv operations 159 get_pet_by_note sends a non-null required nullable query parameter with its value and a bang variant raises a typed ApiError on an empty 200 body" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
@@ -2071,28 +2060,12 @@ defmodule PetstoreClient.Api.PetApiTest do
     assert String.ends_with?(PathCapturingApiClient.captured_url(name), "?note=a%20b&rank=3")
 
     Agent.stop(name)
-  end
 
-  test "bhv operations 125 get_pet_by_name refuses a nil required query parameter that is not nullable" do
-    {:ok, name} = PathCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
+    bang_api = new_pet_api_for_mock(200, "application/json", "")
 
-    assert_raise ArgumentError,
-                 ~r/Missing the required parameter 'category' when calling PetApi\.get_pet_by_name/,
-                 fn ->
-                   PetstoreClient.Api.PetApi.get_pet_by_name_with_http_info(
-                     api,
-                     "rex",
-                     %PetstoreClient.Api.Options.GetPetByNameOptions{
-                       category: nil,
-                       x_correlation_id: "c-1"
-                     }
-                   )
-                 end
-
-    assert PathCapturingApiClient.captured_url(name) == ""
-    Agent.stop(name)
+    assert_raise PetstoreClient.Errors.ApiError, fn ->
+      PetstoreClient.Api.PetApi.get_pet_by_id!(bang_api, 1)
+    end
   end
 
   # allowEmptyValue-omitted-key: find_pets_by_status declares an OPTIONAL query

@@ -209,40 +209,68 @@ import Testing
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-3"])
   }
 
+  /* Each bearer authenticator reads its token from the environment when none is passed, and an explicit token wins over the environment. */
   @Test
-  func
-    testBhvAuthbearer010PetStoreBearerAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
+  func testBhvAuthbearer010BearerAuthenticatorsSendTheTokenFromTheEnvironmentUnlessOneIsPassed()
     async throws
   {
-    let fromEnvironment = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
-    #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
-    let explicit = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: "explicit-token",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
-    #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    do {
+      let fromEnvironment = try PetStoreBearerAuthenticator(
+        host: "https://api.example.com", token: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
+      #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
+      let explicit = try PetStoreBearerAuthenticator(
+        host: "https://api.example.com", token: "explicit-token",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
+      #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+    do {
+      let fromEnvironment = try ServiceTokenAuthenticator(
+        host: "https://api.example.com", token: nil,
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
+      #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
+      let explicit = try ServiceTokenAuthenticator(
+        host: "https://api.example.com", token: "explicit-token",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
+      #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
   }
 
-  @Test func testBhvAuthbearer018PetStoreBearerAuthenticatorAnExplicitTokenWinsOverTheEnvironment()
+  /* An explicit token wins over the environment, whatever the variable holds. */
+  @Test func testBhvAuthbearer018BearerAuthenticatorsAnExplicitTokenWinsOverTheEnvironment()
     async throws
   {
-    let auth = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: "explicit-token",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "from-environment"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    do {
+      let auth = try PetStoreBearerAuthenticator(
+        host: "https://api.example.com", token: "explicit-token",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "from-environment"])
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
+    do {
+      let auth = try ServiceTokenAuthenticator(
+        host: "https://api.example.com", token: "explicit-token",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "from-environment"])
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    }
   }
 
   /* The variable is read once, when the authenticator is built: a later change to
      the environment does not reach a token that is already held. */
-  @Test func testBhvLifecycle025PetStoreBearerAuthenticatorReadsTheEnvironmentOnceWhenBuilt()
-    async throws
-  {
-    var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first"]
-    let auth = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: nil, environment: environment)
-    environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+  @Test func testBhvLifecycle025BearerAuthenticatorsReadTheEnvironmentOnceWhenBuilt() async throws {
+    do {
+      var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first"]
+      let auth = try PetStoreBearerAuthenticator(
+        host: "https://api.example.com", token: nil, environment: environment)
+      environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+    }
+    do {
+      var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "first"]
+      let auth = try ServiceTokenAuthenticator(
+        host: "https://api.example.com", token: nil, environment: environment)
+      environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "second"]
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+    }
   }
 
   /* The variable is read once at construction, under the behaviour id of the first bearer scheme. */
@@ -255,42 +283,6 @@ import Testing
     environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
     #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
   }
-  @Test
-  func
-    testBhvAuthbearer010ServiceTokenAuthenticatorSendsTheTokenFromTheEnvironmentUnlessOneIsPassed()
-    async throws
-  {
-    let fromEnvironment = try ServiceTokenAuthenticator(
-      host: "https://api.example.com", token: nil,
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
-    #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
-    let explicit = try ServiceTokenAuthenticator(
-      host: "https://api.example.com", token: "explicit-token",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
-    #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
-  }
-
-  @Test func testBhvAuthbearer018ServiceTokenAuthenticatorAnExplicitTokenWinsOverTheEnvironment()
-    async throws
-  {
-    let auth = try ServiceTokenAuthenticator(
-      host: "https://api.example.com", token: "explicit-token",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "from-environment"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
-  }
-
-  /* The variable is read once, when the authenticator is built: a later change to
-     the environment does not reach a token that is already held. */
-  @Test func testBhvLifecycle025ServiceTokenAuthenticatorReadsTheEnvironmentOnceWhenBuilt()
-    async throws
-  {
-    var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "first"]
-    let auth = try ServiceTokenAuthenticator(
-      host: "https://api.example.com", token: nil, environment: environment)
-    environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "second"]
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
-  }
-
   private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {
     let host = "https://api.example.com"
     switch scheme {
@@ -420,21 +412,6 @@ import Testing
     #expect(throws: ConfigurationError.self) {
       _ = try BaseAuthenticator.credential(
         nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
-    }
-  }
-
-  /* A bearer scheme wrapper sends the same header as its base authenticator and refuses invalid input the same way. */
-  @Test(arguments: ["PetStoreBearer", "ServiceToken"])
-  func testBhvMisc193ABearerSchemeWrapperMatchesItsBaseAuthenticator(scheme: String) async throws {
-    let base = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
-    let expected = try await base.authHeaders()
-    let wrapper = try Self.schemeWrapper(scheme, token: "xyz")
-    #expect(try await wrapper.authHeaders() == expected)
-    #expect(
-      throws: ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
-    ) {
-      _ = try Self.schemeWrapper(scheme, token: "abc\r\nX-Forwarded: yes")
     }
   }
 

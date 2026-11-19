@@ -2,6 +2,8 @@
 
 import { AllowReservedValue, ExplodedObject, ValueSerializer } from '../src/value-serializer{{importFileExtension}}';
 import { SerializationError } from '../src/errors/serialization-error{{importFileExtension}}';
+import { ObjectSerializer } from '../src/object-serializer{{importFileExtension}}';
+import { Temporal } from 'temporal-polyfill';
 
 describe('ValueSerializer', () => {
   describe('path location', () => {
@@ -287,8 +289,9 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.serializeStyled('color', ['blue', 'black'], 'query', 'array', null, 'form', true)).toEqual(['blue', 'black']);
     });
 
-    test('bhv serializationparam 105 SerializeStyled form scalar', () => {
+    test('bhv serializationparam 105 SerializeStyled form scalar, and an address parameter is written as its text', () => {
       expect(ValueSerializer.serializeStyled('color', 'blue', 'query', 'string', null, 'form', true)).toBe('blue');
+      expect(ObjectSerializer.stringify('192.0.2.1')).toBe('192.0.2.1');
     });
 
     test('bhv serializationparam 041 scalar with explode true returns string not list', () => {
@@ -386,8 +389,9 @@ describe('ValueSerializer', () => {
   });
 
   describe('serializeStyled - null style falls back to location default', () => {
-    test('bhv serializationparam 106 path with null style behaves like simple', () => {
+    test('bhv serializationparam 106 path with null style behaves like simple, and a decimal parameter is written in plain notation', () => {
       expect(ValueSerializer.serializeStyled('id', '5', 'path', 'string', null, null, false)).toBe('5');
+      expect(ObjectSerializer.stringify('12.345678901234567890123')).toBe('12.345678901234567890123');
     });
 
     test('bhv serializationparam 109 an unknown style falls back to plain value serialization', () => {
@@ -764,10 +768,11 @@ describe('ValueSerializer', () => {
       expect(ValueSerializer.encodeQueryComponent(json)).toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
     });
 
-    test('bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal', () => {
+    test('bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal, and a duration parameter is written in the protobuf form', () => {
       expect(ValueSerializer.encodeCookieComponent('AZaz09-_~')).toBe('AZaz09-_~');
       expect(ValueSerializer.encodeCookieComponent('.')).toBe('%2E');
       expect(ValueSerializer.encodeCookieComponent("!'()*,")).toBe('%21%27%28%29%2A%2C');
+      expect(ObjectSerializer.stringify(Temporal.Duration.from('PT1H'))).toBe('3600s');
     });
 
     test('bhv serializationparam 003 percent-encodes a space and a reserved character', () => {

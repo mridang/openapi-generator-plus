@@ -508,7 +508,9 @@ class TestNativeValueFormats:
         assert ObjectSerializer.stringify(ipaddress.IPv4Address('192.0.2.1')) == '192.0.2.1'
         assert ObjectSerializer.stringify(ipaddress.IPv6Address('2001:0DB8::1')) == '2001:db8::1'
 
-    def test_bhv_serializationparam_106_decimal_parameter_is_plain_notation(self) -> None:
+    def test_bhv_serializationparam_106_null_style_is_simple_and_decimal_parameter_is_plain_notation(self) -> None:
+        from {{packageName}}.value_serializer import ValueSerializer
+        assert ValueSerializer.serialize_styled('id', '5', 'path', 'string', None, None, False) == '5'
         assert ObjectSerializer.stringify(Decimal('12.345678901234567890123')) == '12.345678901234567890123'
         assert ObjectSerializer.stringify(Decimal('1E+3')) == '1000'
 

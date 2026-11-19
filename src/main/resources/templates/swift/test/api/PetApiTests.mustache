@@ -786,27 +786,53 @@ final class PetApiTests {
     }
 
     /* A header supplied on one call is sent with that call only. */
-    @Test func testBhvOperations158PerCallHeaderIsSentWithThatCall() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 200
-        mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"
-        mockClient.responseHeaders = ["Content-Type": "application/json"]
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-        _ = try await api.getPetByIdWithHTTPInfo(petId: 7, options: GetPetByIdOptions(headers: ["X-Call-Id": "call-158"]))
-        #expect(mockClient.lastHeaders["X-Call-Id"] == "call-158")
+    @Test func testBhvOperations158PerCallHeaderIsSentWithThatCallAndEveryNullQueryParameterIsSent() async throws {
+        do {
+            let mockClient = MockApiClient()
+            mockClient.responseStatusCode = 200
+            mockClient.responseBody = "{\"id\":7,\"name\":\"Fido\",\"photoUrls\":[]}"
+            mockClient.responseHeaders = ["Content-Type": "application/json"]
+            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+            let api = PetApi(apiClient: mockClient, config: config)
+            _ = try await api.getPetByIdWithHTTPInfo(petId: 7, options: GetPetByIdOptions(headers: ["X-Call-Id": "call-158"]))
+            #expect(mockClient.lastHeaders["X-Call-Id"] == "call-158")
+        }
+        do {
+            let mockClient = MockApiClient()
+            mockClient.responseStatusCode = 200
+            mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+            mockClient.responseHeaders = ["Content-Type": "application/json"]
+            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+            let api = PetApi(apiClient: mockClient, config: config)
+
+            _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: nil, rank: nil))
+            #expect(mockClient.lastURL.hasSuffix("?note=&rank="))
+        }
     }
 
     /* A call that returns a value raises a typed API error when a success response has an empty body. */
-    @Test func testBhvOperations159EmptySuccessBodyRaisesATypedApiError() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 200
-        mockClient.responseBody = ""
-        mockClient.responseHeaders = ["Content-Type": "application/json"]
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-        await #expect(throws: ApiError.self) {
-            _ = try await api.getPetById(petId: 7)
+    @Test func testBhvOperations159EmptySuccessBodyRaisesATypedApiErrorAndANonNullQueryParameterIsSentWithItsValue() async throws {
+        do {
+            let mockClient = MockApiClient()
+            mockClient.responseStatusCode = 200
+            mockClient.responseBody = ""
+            mockClient.responseHeaders = ["Content-Type": "application/json"]
+            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+            let api = PetApi(apiClient: mockClient, config: config)
+            await #expect(throws: ApiError.self) {
+                _ = try await api.getPetById(petId: 7)
+            }
+        }
+        do {
+            let mockClient = MockApiClient()
+            mockClient.responseStatusCode = 200
+            mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
+            mockClient.responseHeaders = ["Content-Type": "application/json"]
+            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+            let api = PetApi(apiClient: mockClient, config: config)
+
+            _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: "a b", rank: 3))
+            #expect(mockClient.lastURL.hasSuffix("?note=a%20b&rank=3"))
         }
     }
 
@@ -1179,30 +1205,6 @@ final class PetApiTests {
 
         _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: nil, rank: 3))
         #expect(mockClient.lastURL.hasSuffix("?note=&rank=3"))
-    }
-
-    @Test func testBhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 200
-        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
-        mockClient.responseHeaders = ["Content-Type": "application/json"]
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: nil, rank: nil))
-        #expect(mockClient.lastURL.hasSuffix("?note=&rank="))
-    }
-
-    @Test func testBhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 200
-        mockClient.responseBody = "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[]}"
-        mockClient.responseHeaders = ["Content-Type": "application/json"]
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        _ = try await api.getPetByNote(options: GetPetByNoteOptions(note: "a b", rank: 3))
-        #expect(mockClient.lastURL.hasSuffix("?note=a%20b&rank=3"))
     }
 
     /* A simple-style path value of exactly "." or ".." would be resolved as a

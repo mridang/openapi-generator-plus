@@ -1210,15 +1210,6 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_body).wont_be_nil
   end
 
-  it 'bhv_operations_157 a binary request body is sent as its exact raw bytes with no multipart encoding' do
-    client = CapturingApiClient.new
-    config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
-    test_api = TestableApi.new(client, config)
-    test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
-                  ['application/json'], 'application/octet-stream', nil)
-    _(client.captured_body).wont_be_nil
-  end
-
   it 'bhv_operations_014 passes binary body as-is' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost').build
@@ -1923,21 +1914,6 @@ describe {{moduleName}}::Api::BaseApi do
 
   # ── Per-call request options ──
 
-  it 'bhv_operations_158 a header supplied on an individual call is sent with that call' do
-    client = CapturingApiClient.new
-    config = {{moduleName}}::Configuration.builder.base_url('http://localhost')
-                                          .default_headers({ 'X-Trace' => 'client', 'Accept-Language' => 'en' }).build
-    test_api = TestableApi.new(client, config)
-    options = CallOptions.new(nil, { 'x-trace' => 'call' }, nil)
-
-    test_api.call_for_result(:get, '/items', {}, {}, nil, ['application/json'], 'application/json', nil,
-                             request_options: options)
-
-    _(client.captured_headers['x-trace']).must_equal 'call'
-    _(client.captured_headers.keys.count { |name| name.casecmp?('x-trace') }).must_equal 1
-    _(client.captured_headers['Accept-Language']).must_equal 'en'
-  end
-
   it 'bhv_operations_001 sends the headers of the call over the configured default headers' do
     client = CapturingApiClient.new
     config = {{moduleName}}::Configuration.builder.base_url('http://localhost')
@@ -2170,7 +2146,7 @@ describe {{moduleName}}::Api::BaseApi do
     _(client.captured_headers['Authorization']).must_equal 'Bearer replaced'
   end
 
-  it 'bhv_hooks_006 sends a header the hook sets on every send of a transport retry' do
+  it 'bhv_hooks_006 sends a header the hook sets on every send of the call, retries and the replay after a 401 included' do
     seen = []
     hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
     client = retrying_client([[503, { 'Retry-After' => '0' }, 'busy'], [200, { 'content-type' => 'application/json' }, '{}']], seen)
@@ -2179,17 +2155,15 @@ describe {{moduleName}}::Api::BaseApi do
 
     _(seen.length).must_equal 2
     _(seen.map { |headers| headers['X-Hook'] }).must_equal %w[set set]
-  end
 
-  it 'bhv_hooks_006 sends a header the hook sets on the replay after a 401' do
-    client = ReplayApiClient.new([401, 200])
+    replay = ReplayApiClient.new([401, 200])
     auth = client_credentials_auth
-    auth.api_client = client
+    auth.api_client = replay
     hook = RecordingCallHook.new { |headers| headers['X-Hook'] = 'set' }
 
-    hooked_call(hooked_api(hook, client, auth), method: :post, path: '/items')
+    hooked_call(hooked_api(hook, replay, auth), method: :post, path: '/items')
 
-    _(client.api_requests.map { |request| request[:headers]['X-Hook'] }).must_equal %w[set set]
+    _(replay.api_requests.map { |request| request[:headers]['X-Hook'] }).must_equal %w[set set]
   end
 
   it 'bhv_hooks_007 lets the fresh credentials of a replay replace a hook header of the same name' do

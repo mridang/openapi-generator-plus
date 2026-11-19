@@ -93,7 +93,7 @@ fn test_bhv_serializationobject_073_proto_duration_round_trip() {
 }
 
 #[test]
-fn test_bhv_serializationobject_080_proto_duration_rejects_malformed() {
+fn test_bhv_serializationobject_080_proto_duration_rejects_malformed_and_accepts_the_full_range() {
     use petstore::proto_duration;
 
     assert!(proto_duration::parse("PT1H").is_err());
@@ -103,6 +103,9 @@ fn test_bhv_serializationobject_080_proto_duration_rejects_malformed() {
     assert!(proto_duration::parse("1.2345678901s").is_err());
     let err = proto_duration::parse("PT1H").expect_err("an ISO-8601 duration must be rejected");
     let _: &petstore::SerializationError = &err;
+    assert!(proto_duration::parse("315576000000s").is_ok());
+    assert!(proto_duration::parse("-315576000000s").is_ok());
+    assert!(proto_duration::parse("315576000001s").is_err());
 }
 
 #[test]
@@ -1321,7 +1324,7 @@ fn test_bhv_serializationobject_409_a_hostname_and_an_email_are_kept_as_given() 
 }
 
 #[test]
-fn test_bhv_serializationparam_104_a_duration_parameter_is_the_protobuf_form() {
+fn test_a_duration_parameter_is_the_protobuf_form() {
     use petstore::proto_duration;
 
     assert_eq!(
@@ -1331,7 +1334,7 @@ fn test_bhv_serializationparam_104_a_duration_parameter_is_the_protobuf_form() {
 }
 
 #[test]
-fn test_bhv_serializationparam_105_an_address_parameter_is_the_canonical_text() {
+fn test_an_address_parameter_is_the_canonical_text() {
     assert_eq!(
         serde_json::to_value(std::net::Ipv4Addr::new(192, 0, 2, 1)).expect("encode"),
         "192.0.2.1"
@@ -1460,9 +1463,9 @@ fn test_bhv_enums_011_a_hostile_description_stays_a_comment() {
         "    /// The largest tier. Ends with */ and #{x} and $x.\n    #[serde(rename = \"l\")]"
     ));
 }
-/// serialization077: a duration written to its wire string and decoded back is the same duration, across zero, negative, sub-second, multi-day and extreme values.
+/// A duration written to its wire string and decoded back is the same duration, across zero, negative, sub-second, multi-day and extreme values.
 #[test]
-fn test_bhv_serializationobject_077_durations_round_trip_through_their_wire_string() {
+fn test_durations_round_trip_through_their_wire_string() {
     use chrono::Duration;
     use petstore::proto_duration;
 
@@ -1478,10 +1481,9 @@ fn test_bhv_serializationobject_077_durations_round_trip_through_their_wire_stri
     }
 }
 
-/// serialization078: a time of day is written as zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
+/// A time of day is written as zero-padded HH:MM:SS, with a fraction only when it has a sub-second value.
 #[test]
-fn test_bhv_serializationobject_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second(
-) {
+fn test_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second() {
     use chrono::NaiveTime;
 
     let whole = NaiveTime::from_hms_opt(9, 5, 3).expect("a valid time");
@@ -1494,16 +1496,6 @@ fn test_bhv_serializationobject_078_a_time_of_day_is_zero_padded_with_a_fraction
         serde_json::to_string(&fractional).expect("serialize"),
         "\"09:05:03.250\""
     );
-}
-
-/// serialization080: protobuf durations are accepted across the full range, and a value one second past the upper bound is rejected.
-#[test]
-fn test_bhv_serializationobject_080_protobuf_durations_accept_the_full_range_and_reject_one_past() {
-    use petstore::proto_duration;
-
-    assert!(proto_duration::parse("315576000000s").is_ok());
-    assert!(proto_duration::parse("-315576000000s").is_ok());
-    assert!(proto_duration::parse("315576000001s").is_err());
 }
 
 #[test]

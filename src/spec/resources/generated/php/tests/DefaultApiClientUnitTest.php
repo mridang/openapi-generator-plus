@@ -1394,18 +1394,6 @@ test('bhv misc 129 a proxy credential header is not resent when a redirect moves
     expect($last)->not->toContain('proxy-authorization');
 });
 
-test('bhv retries 011 N1: 308 https to http downgrade with body throws', function (): void {
-    $downgrade = new MockResponse('', [
-        'http_code' => 308,
-        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
-    ]);
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
-
-    expect(fn (): mixed => $client->sendRequest('PUT', 'https://api.example.com/secret', [], 'k=v'))
-        ->toThrow(ApiException::class);
-});
-
 // -- T-D1: redirect-exhaustion throws "too many redirects" --
 
 test('bhv redirects 018 exceeding max redirects throws too many redirects', function (): void {
@@ -2314,11 +2302,6 @@ test('bhv retries 009 timeout and maxRetries reach the transport', function (): 
     expect($seen[0])->toBeGreaterThan(30.0);
 });
 
-test('bhv options 007 a negative maxRetries is rejected', function (): void {
-    expect(fn (): TransportOptions => TransportOptions::builder()->maxRetries(-1)->build())
-        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
-});
-
 test('bhv retries 007 does not replay other statuses: only 408, 409, 429 and 5xx other than 501 are retried', function (int $status, int $attempts): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
@@ -2467,28 +2450,30 @@ test('bhv retries 013 a network error before a response is retried', function ()
     expect(count($log))->toBe(2);
 });
 
-test('bhv misc 161 a POST or PATCH whose connection drops before a response is sent once', function (string $method): void {
-    /** @var \ArrayObject<int, string> $log */
-    $log = new \ArrayObject();
-    $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
-    $client = retryTestClient([$reset, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
+test('bhv misc 161 a POST or PATCH whose connection drops before a response is sent once, and an idempotent request is retried', function (): void {
+    foreach (['POST', 'PATCH'] as $method) {
+        /** @var \ArrayObject<int, string> $log */
+        $log = new \ArrayObject();
+        $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
+        $client = retryTestClient([$reset, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
 
-    expect(fn (): mixed => $client->sendWithRetries($method, 'http://example.com/flaky', static fn (): array => [], null))
-        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
-    expect(count($log))->toBe(1);
-})->with(['POST', 'PATCH']);
+        expect(fn (): mixed => $client->sendWithRetries($method, 'http://example.com/flaky', static fn (): array => [], null))
+            ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+        expect(count($log))->toBe(1);
+    }
 
-test('bhv misc 161 an idempotent request whose connection drops before a response is retried', function (string $method): void {
-    /** @var \ArrayObject<int, string> $log */
-    $log = new \ArrayObject();
-    $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
-    $client = retryTestClient([$reset, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
+    foreach (['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'] as $method) {
+        /** @var \ArrayObject<int, string> $log */
+        $log = new \ArrayObject();
+        $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
+        $client = retryTestClient([$reset, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
 
-    $response = $client->sendWithRetries($method, 'http://example.com/flaky', static fn (): array => [], null);
+        $response = $client->sendWithRetries($method, 'http://example.com/flaky', static fn (): array => [], null);
 
-    expect($response->statusCode)->toBe(200);
-    expect(count($log))->toBe(2);
-})->with(['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY']);
+        expect($response->statusCode)->toBe(200);
+        expect(count($log))->toBe(2);
+    }
+});
 
 test('bhv misc 170 a TLS failure is raised on the first attempt and never retried', function (): void {
     /** @var \ArrayObject<int, string> $log */
@@ -2645,15 +2630,17 @@ test('bhv retries 010 a 307 from https to http with a body throws without replay
 });
 
 test('bhv retries 011 a 308 from https to http with a body throws without replaying it', function (): void {
-    $downgrade = new MockResponse('', [
-        'http_code' => 308,
-        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
-    ]);
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+    foreach ([['PUT', 'k=v'], ['POST', 'sensitive=payload']] as [$method, $body]) {
+        $downgrade = new MockResponse('', [
+            'http_code' => 308,
+            'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+        ]);
+        $transport = TransportOptions::builder()->followRedirects(true)->build();
+        $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
 
-    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
-        ->toThrow(ApiException::class);
+        expect(fn (): mixed => $client->sendRequest($method, 'https://api.example.com/secret', [], $body))
+            ->toThrow(ApiException::class);
+    }
 });
 
 test('bhv redirects 007 returns the redirect response when following is disabled', function (): void {

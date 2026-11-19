@@ -167,33 +167,36 @@ import Testing
 
   private struct NetworkDown: Error, Equatable {}
 
-  /* A numeric expires_in is honoured as decimal seconds, so a second call reuses the cached token. */
-  @Test func testBhvAuth056NumericExpiresInIsHonouredAsDecimalSeconds() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+  /* An expires_in is honoured only as a decimal number: a numeric one caches the token, any other value marks it stale. */
+  @Test func testBhvAuth056ExpiresInIsHonouredAsDecimalSecondsAndAnythingElseMarksTheTokenStale()
+    async throws
+  {
+    do {
+      let client = MockApiClient()
+      client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+      client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
+      let auth = createAuthenticator()
+      auth.setApiClient(client)
 
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
-    #expect(client.responses.count == 1)
-  }
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+      #expect(client.responses.count == 1)
+    }
+    /* An expires_in that is not a decimal number marks the token as stale, so the next call fetches again. */
+    do {
+      let client = MockApiClient()
+      client.responses.append(
+        makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":\"soon\"}"))
+      client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-  /* An expires_in that is not a decimal number marks the token as stale, so the next call fetches again. */
-  @Test func testBhvAuth056NonNumericExpiresInMarksTheTokenStale() async throws {
-    let client = MockApiClient()
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":\"soon\"}"))
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+      let auth = createAuthenticator()
+      auth.setApiClient(client)
 
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
-    #expect(client.responses.isEmpty)
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
+      #expect(client.responses.isEmpty)
+    }
   }
 
   @Test func testBhvAuthoauthtwoclientcred013SendsScopes() async throws {
