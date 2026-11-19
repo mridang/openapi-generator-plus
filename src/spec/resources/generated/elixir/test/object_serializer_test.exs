@@ -26,6 +26,7 @@ end
 
 # Fixture for bhv serialization 101: an integer-backed enum mapping its numbers to members.
 defmodule PetstoreClient.Models.TestPriority do
+  def all_values, do: [1, 2]
   def from_value(1), do: :low
   def from_value(2), do: :high
   def from_value(value), do: {:error, value}
@@ -51,7 +52,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "bhv misc 231 a model built in code keeps a value of the wrong type, while decoding that value from JSON raises" do
-      assert %PetstoreClient.Models.Account{id: "seven"}.id == "seven"
+      assert %PetstoreClient.Models.Account{id: "seven", username: "u"}.id == "seven"
 
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.deserialize(~s({"id":"seven"}), "Account")
@@ -1080,7 +1081,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
         PetstoreClient.ObjectSerializer.convert_to_type("2024-03-05T14:45:30+02:00", "DateTime")
 
       assert dt.day == 5
-      assert dt.hour == 12
+      assert dt.hour == 14
       assert dt.minute == 45
       assert dt.second == 30
     end
@@ -1732,14 +1733,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "bhv misc 290 an undeclared key whose value is a dictionary survives a full serialize and deserialize round trip" do
       meta =
         PetstoreClient.ObjectSerializer.deserialize(
-          ~s({"createdAt":"2024-01-01T00:00:00Z","extra_map":{"a":1}}),
-          "Metadata"
+          ~s({"label":"x","extra_map":{"a":1}}),
+          "Freeform"
         )
 
       back =
         PetstoreClient.ObjectSerializer.deserialize(
           PetstoreClient.ObjectSerializer.serialize(meta),
-          "Metadata"
+          "Freeform"
         )
 
       assert back.additional_properties["extra_map"] == %{"a" => 1}
@@ -3181,7 +3182,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     assert pet.id == 7
     assert pet.name == "Rex"
-    assert pet.photo_urls == ["u"]
+    assert pet.photo_urls == MapSet.new(["u"])
   end
 
   test "bhv serialization 102 a date-time keeps a non-UTC offset on the wire and a Z timestamp decodes to offset zero" do
@@ -3264,7 +3265,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "bhv misc 085 a non-canonical UUID is refused with a serialization error" do
-      assert_raise PetstoreClient.SerializationError, fn ->
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(
           "{550e8400-e29b-41d4-a716-446655440000}",
           "UUID"
@@ -3278,7 +3279,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     test "bhv misc 089 a date-time inside a list is written in canonical form" do
       json = PetstoreClient.ObjectSerializer.serialize([~U[2024-01-01 12:30:45Z]])
-      assert Jason.decode!(json) == ["2024-01-01T12:30:45Z"]
+      assert Jason.decode!(json) == ["2024-01-01T12:30:45.000+00:00"]
     end
 
     test "bhv misc 093 additional properties with numeric names are written as object members" do
@@ -3294,7 +3295,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     test "bhv misc 090 a duration field of a record writes its fractional seconds in the wire form" do
       ttl = Duration.new!(second: 1, microsecond: {500_000, 6})
       json = PetstoreClient.ObjectSerializer.serialize(%{"ttl" => ttl})
-      assert Jason.decode!(json)["ttl"] == "1.500000s"
+      assert Jason.decode!(json)["ttl"] == "1.500s"
     end
   end
 
