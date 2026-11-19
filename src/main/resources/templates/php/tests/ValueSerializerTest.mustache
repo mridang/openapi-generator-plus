@@ -41,6 +41,16 @@ test('bhv serializationparam 118 a content cookie value is encoded to the shared
     expect(rawurlencode($json))->toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
 });
 
+test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, dots included', function (): void {
+    expect(ValueSerializer::encodeContentCookie('{"a":1.5}'))->toBe('%7B%22a%22%3A1%2E5%7D');
+});
+
+test('bhv serializationparam 104 a content cookie keeps only the unreserved set literal', function (): void {
+    expect(ValueSerializer::encodeContentCookie('AZaz09-_~'))->toBe('AZaz09-_~');
+    expect(ValueSerializer::encodeContentCookie('.'))->toBe('%2E');
+    expect(ValueSerializer::encodeContentCookie("!'()*,"))->toBe('%21%27%28%29%2A%2C');
+});
+
 test('bhv serializationparam 062 path null returns empty string', function (): void {
     expect(ValueSerializer::serialize(null, 'path', 'string'))->toBe('');
 });

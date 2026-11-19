@@ -1478,3 +1478,23 @@ async fn test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_pro
     assert_eq!(200, resp.status_code());
     assert!(resp.body().contains(r#""method""#), "{}", resp.body());
 }
+
+#[tokio::test]
+async fn test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let client = DefaultApiClient::new(None);
+    let body = petstore::api_client::RequestBody::Multipart(vec![(
+        "file".to_string(),
+        petstore::api_client::MultipartValue::Bytes(b"file content".to_vec()),
+    )]);
+    let resp = client
+        .send_request(
+            "POST",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            Some(&body),
+        )
+        .await
+        .expect("unexpected error");
+    assert!(resp.body().contains("file content"), "{}", resp.body());
+}

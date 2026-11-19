@@ -128,7 +128,6 @@ swift | options034 | the Apple-platform variant of the proxy test; on Linux the 
 dart | operations125 | Dart types the required category as a non-nullable String, so a nil value cannot be passed to GetPetByNameOptions; an empty string is refused with the canonical message by bhv operations 049
 java | errors047 | java Throwable has no name property, and the base type is named ApiException by the Java naming of exception classes (the normaliser maps that to ApiError), so there is no name value to assert; the type identity is pinned by the hierarchy rows of ApiExceptionTest
 php | operations125 | GetPetByNameOptions types category as a non-nullable string, so a nil value is a PHP TypeError at construction and cannot reach the missing-parameter check; the empty string is bhv operations 049
-php | serializationparam104 | php has no content-cookie encoder: a cookie value is sent raw when every character is a cookie-octet and refused otherwise (F840), so the unreserved-set encoding does not apply
 php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025
 swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035; Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 swift | transport059 | the proxy setter raises on Linux (testSettingProxyRaisesOnLinux), so a request through the authenticating proxy runs only in the Apple-platform stub suite, the same reason as options034
@@ -770,6 +769,10 @@ kotlin | transport083 | Kotlin has no client-level cancellation setting: a call 
 kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
 kotlin | serialization130 | Kotlin has no canonical serialize message prefix: a failed serialize throws the kotlinx.serialization exception carrying its own detail message
+rust | misc291 | Rust keeps every matching variant of a union rather than the first declared, as the anyOf test test_bhv_misc_293 and the RETAIN-ALL decision require
+rust | serialization068 | Rust model fields are statically typed, so a value of the wrong type cannot be constructed and there is no wrong-typed value to keep as given
+rust | serialization079 | Rust models have no copy-with-changes method; a copy with named changes is written with struct update syntax on a clone, which is the language itself and not an SDK API
+rust | retries045 | Rust request bodies are always buffered as bytes or multipart, so there is no streamed body type that could be sent once and then not replayed after a 401
 kotlin | misc231 | Kotlin types a model property as its declared type, so a model built in code cannot hold a value of the wrong type; the compiler refuses it before any SDK code runs, and the decode half is pinned by bhv serializationobject 095
 kotlin | misc260 | Kotlin's Map of server variable values is typed Map<String, String>, so a nil value cannot be passed to getUrl; the compiler refuses the call before the enum check runs
 
@@ -790,5 +793,7 @@ rust | transport085 | The SDK has no cancellation token or signal parameter, so 
 rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
 rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.
 node | misc242 | Node keeps readOnly and writeOnly properties as the model holds them: a writeOnly password is decoded and kept on the wire (serializationobject017, operations098) and a readOnly id is decoded (serializationobject014), so no property is dropped from the wire by design.
+rust | misc231 | A Rust model field has a fixed declared type, so the compiler refuses a wrong-typed value when a model is built in code; there is no constructor that bypasses the type, and the wrong-type check runs only when decoding
+rust | misc242 | Rust sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect in any SDK; the model documentation states it), so no property is left off the wire
 php | misc241 | PHP keeps the non-zero milliseconds of a time of day in a query value, as settled by operations139 and serialization078, so it does not truncate them to HH:mm:ss as this promise states
 php | misc256 | Settled serialization046 writes a duration fraction in the shortest group of three, six or nine digits (1.500s, not 1.5s), so trailing zeros are not trimmed to the digits present; serializationobject179 pins the same rule

@@ -92,3 +92,21 @@ fn test_bhv_results_006_the_headers_of_a_result_are_a_copy_taken_when_it_is_buil
         Some("one")
     );
 }
+
+#[test]
+fn test_bhv_results_007_data_raw_body_and_headers_are_returned_exactly_as_supplied() {
+    let mut headers = HashMap::new();
+    headers.insert("Content-Type".to_string(), "application/json".to_string());
+    let data = serde_json::json!({"id": 1});
+
+    let result = ApiResult::new(
+        200,
+        Some(data.clone()),
+        r#"{"id": 1}"#.to_string(),
+        headers.clone(),
+    );
+
+    assert_eq!(result.data(), Some(&data));
+    assert_eq!(result.raw_body(), r#"{"id": 1}"#);
+    assert_eq!(result.headers(), &headers);
+}

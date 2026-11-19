@@ -93,11 +93,10 @@ class TestValueSerializerPath:
     def test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded(
         self,
     ) -> None:
-        rendered = ValueSerializer.serialize('{"a":1.5}', "cookie", "string")
-
-        assert "%7B" in rendered
-        assert "%3A" in rendered
-        assert ":" not in rendered
+        assert (
+            ValueSerializer.encode_content("c", '{"a":1.5}', "cookie")
+            == "%7B%22a%22%3A1%2E5%7D"
+        )
 
     def test_bhv_misc_211_a_date_time_inside_a_json_query_parameter_keeps_its_wire_form(
         self,

@@ -550,6 +550,10 @@ void main() {
       expect(toFormValue(false), equals('false'));
     });
 
+    test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, dots included', () {
+      expect(encodeContentCookie('{"a":1.5}'), equals('%7B%22a%22%3A1%2E5%7D'));
+    });
+
     test('bhv serializationparam 118 a content cookie value is encoded to the shared percent encoded bytes', () {
       expect(
         encodeContentCookie('{"k":"a b~*\u00e9"}'),
@@ -562,7 +566,8 @@ void main() {
         encodeContentCookie('{"k":"a b~*\u00e9"}'),
         equals('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D'),
       );
-      expect(encodeContentCookie("AZaz09-._~"), equals('AZaz09-._~'));
+      expect(encodeContentCookie("AZaz09-_~"), equals('AZaz09-_~'));
+      expect(encodeContentCookie("."), equals('%2E'));
       expect(encodeContentCookie("!'()*,"), equals('%21%27%28%29%2A%2C'));
     });
 

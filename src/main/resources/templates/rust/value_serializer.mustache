@@ -19,6 +19,20 @@ pub enum SerializedValue {
 /// but preserves the sub-delimiters (including `;`, `=`, `,`, `:`, etc.) that
 /// OAS 3.0 matrix/label/simple styles use as structural separators in the
 /// styled value: `; = , : @ ! $ & ' ( ) * +`.
+/// Percent-encodes every byte that is not an ASCII letter or digit, so a cookie
+/// parameter value carrying a model's JSON arrives fully encoded.
+fn encode_cookie_value(s: &str) -> String {
+    s.bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() {
+                (b as char).to_string()
+            } else {
+                format!("%{:02X}", b)
+            }
+        })
+        .collect()
+}
+
 fn encode_path_segment(s: &str) -> String {
     urlencoding::encode(s)
         .into_owned()
@@ -113,6 +127,8 @@ pub fn serialize_value(
         Some(val) => {
             if location == "path" {
                 Some(encode_path_segment(val))
+            } else if location == "cookie" {
+                Some(encode_cookie_value(val))
             } else {
                 Some(val.to_string())
             }
@@ -1339,5 +1355,23 @@ mod tests {
             .unwrap();
         assert!(rendered.contains("T13:45:30"), "got: {}", rendered);
         assert!(rendered.ends_with("+00:00"), "got: {}", rendered);
+    }
+
+    #[test]
+    fn test_bhv_misc_232_a_string_path_parameter_in_simple_style_percent_encodes_slashes() {
+        assert_eq!(Some("a%2Fb".to_string()), serialize_value(Some("a/b"), "path", "string", ""));
+    }
+
+    #[test]
+    fn test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded() {
+        assert_eq!(
+            Some("%7B%22a%22%3A1%2E5%7D".to_string()),
+            serialize_value(Some("{\"a\":1.5}"), "cookie", "string", "")
+        );
+    }
+
+    #[test]
+    fn test_bhv_misc_238_a_number_query_value_is_sent_as_a_plain_number() {
+        assert_eq!(Some("2.5".to_string()), serialize_value(Some("2.5"), "query", "number", ""));
     }
 }
