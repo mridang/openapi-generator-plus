@@ -1030,4 +1030,13 @@ import Testing
     #expect(
       ApiError.renderedBody(body) == String(repeating: "b", count: 1024) + "... (76 more bytes)")
   }
+
+  /* An OAuth server error's message names both its HTTP status and its OAuth error code. */
+  @Test func testBhvMisc286AnOAuthServerErrorMessageNamesItsHttpStatusAndItsOAuthCode() {
+    let error = OAuth2ServerError(
+      statusCode: 401, code: "invalid_client", description: nil, uri: nil, rawBody: "{}")
+
+    #expect(error.localizedDescription.contains("401"))
+    #expect(error.localizedDescription.contains("invalid_client"))
+  }
 }
