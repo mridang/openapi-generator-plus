@@ -41,6 +41,16 @@ namespace {
         expect(rawurlencode($json))->toBe('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D');
     });
 
+    test('bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, dots included', function (): void {
+        expect(ValueSerializer::encodeContentCookie('{"a":1.5}'))->toBe('%7B%22a%22%3A1%2E5%7D');
+    });
+
+    test('bhv serializationparam 104 a content cookie keeps only the unreserved set literal', function (): void {
+        expect(ValueSerializer::encodeContentCookie('AZaz09-_~'))->toBe('AZaz09-_~');
+        expect(ValueSerializer::encodeContentCookie('.'))->toBe('%2E');
+        expect(ValueSerializer::encodeContentCookie("!'()*,"))->toBe('%21%27%28%29%2A%2C');
+    });
+
     test('bhv serializationparam 062 path null returns empty string', function (): void {
         expect(ValueSerializer::serialize(null, 'path', 'string'))->toBe('');
     });
@@ -727,5 +737,14 @@ namespace {
 
     test('bhv misc 238 a number query parameter is serialized as a plain number', function (): void {
         expect(ValueSerializer::serialize(2.5, 'query', 'number'))->toBe('2.5');
+    });
+
+    test('bhv misc 250 array items containing a comma keep the literal comma across path styles', function (): void {
+        expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'simple', false))->toBe('a%2Cb,c');
+        expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'label', false))->toBe('.a%2Cb.c');
+    });
+
+    test('bhv misc 253 an allowReserved query value still percent encodes hash and bracket characters', function (): void {
+        expect(ValueSerializer::encodeQueryAllowingReserved('a#b[c]'))->toBe('a%23b%5Bc%5D');
     });
 }

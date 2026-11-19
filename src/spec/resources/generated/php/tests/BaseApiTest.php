@@ -2884,3 +2884,21 @@ test('bhv serialization 128 a binary return type gets the raw bytes of a JSON bo
     );
     expect($result)->toBe('{"id":7,"name":"photo"}');
 });
+
+test('bhv misc 254 an unmarked query value percent encodes reserved characters such as slash and colon', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => 'a/b:c'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Fb%3Ac');
+});
+
+test('bhv misc 255 separate query parameters encode a space as percent 20', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['a' => 'x y', 'b' => 'z'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?a=x%20y&b=z');
+});

@@ -896,8 +896,8 @@ public abstract class BaseApi {
   }
 
   /**
-   * Percent-encodes the JSON text of a {@code content:} cookie parameter. Only the unreserved set
-   * {@code A-Z a-z 0-9 - . _ ~} stays literal; every other byte of the UTF-8 form is written as
+   * Percent-encodes the JSON text of a {@code content:} cookie parameter. Only {@code A-Z a-z 0-9 -
+   * _ ~} stays literal (the dot is encoded too); every other byte of the UTF-8 form is written as
    * {@code %XX} with upper-case hex, so the result is a valid RFC 6265 cookie value and is
    * byte-identical across the SDKs.
    *
@@ -912,7 +912,6 @@ public abstract class BaseApi {
           || (c >= 'a' && c <= 'z')
           || (c >= '0' && c <= '9')
           || c == '-'
-          || c == '.'
           || c == '_'
           || c == '~') {
         out.append((char) c);
