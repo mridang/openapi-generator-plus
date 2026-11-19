@@ -1,392 +1,212 @@
 # Streaming design (issue #114, items F18 and F19 of #131)
 
-Status: proposal for owner review. Nothing here is built. This document fixes one shape for all twelve SDKs (java, kotlin, csharp, php, python, ruby, node, dart, go, rust, swift, elixir) so that no language is implemented first and the other eleven made to follow. It replaces decision F837 ("streaming is deferred") once the owner accepts it.
+Status: proposal for owner review, second revision. Nothing here is built. It replaces the first proposal (the file of the same name on `feat/error-hierarchy`) after a critical read against the templates of this branch. Where a language or library fact could not be read in this repository it is marked **not verified**; "verified in <file>" means the file was read for this revision.
 
-Scope: streaming of response bodies (binary and line-delimited JSON), streaming of request bodies, and a server-sent-events (SSE) client with reconnect and `Last-Event-ID`.
+## 1. Goal
 
-## 1. What exists today
+Every one of the twelve SDKs gets the same streaming surface in its own idiom: a response body can be consumed as it arrives (binary, JSON Lines, and server-sent events with reconnect and `Last-Event-ID`), and a binary request body can be sent as it is read instead of being buffered. Retries, redirects, authentication refresh, redaction and the error contract keep working exactly as for a buffered call, and a call that is never opted into behaves exactly as today. The shape is chosen once for all twelve, so no language is built first and the other eleven made to follow.
 
-The transport contract in all twelve SDKs reads a whole response and sends a whole request body. Three clients were read to ground this design.
+## 2. Owner decisions that bind this work
 
-- Java (`java/api_client.mustache`, `java/default_api_client.mustache`). `ApiClient.sendRequest(method, url, headers, body)` returns the record `ApiHttpResponse(int statusCode, String body, Map headers)`. The body is a `String`. The default client calls `HttpClient.send` with a `byte[]` body handler, drives redirects by hand (HttpClient's own redirects are off), decompresses after the whole body is in memory, and decodes by charset. A binary response is carried as base64 inside that `String` and rebuilt into `byte[]` or an `InputStream` by `base_api.mustache` (it checks `returnType == InputStream.class || byte[].class`). A request body of type `InputStream` or `File` is read fully into a `byte[]` first, on purpose: the redirect loop and the retry loop must be able to send the body again, and a raw `InputStream` cannot be replayed. A multipart body (`Map`) is never retried.
-- Node (`node/api_client.mustache`, `node/abstract_api_client.mustache`). `sendRequest(method, url, headers, body: string | Buffer | Record | null, options)` returns `ApiHttpResponse` whose body is a string; binary is base64 and `base_api.mustache` turns it into a `Buffer` (`returnKind: 'binary'`). Retries and the end-to-end deadline are in `sendCounted`; a multipart body is never retried; `AbortSignal` is already the cancellation handle. Decompression is left to `fetch`.
-- Go (`go/api_client.mustache`, `go/default_api_client.mustache`). `SendRequest(method, url, headers, body any)` returns `*ApiHttpResponse` with `Body string`. The client does `io.ReadAll(resp.Body)`, then `decompressBody` on the full byte slice, then base64-encodes binary into the string. Redirects run in `CheckRedirect` with a `GetBody`-based replay; the end-to-end timeout is a `context.WithTimeout` around everything including the body read.
+- Client SDKs only, twelve languages, identical capabilities and the same API shape; a difference between two languages is a defect until a named language feature forces it (root `AGENTS.md`).
+- No client-side validation (S3, owner decision of the #131 debate): the stream layer enforces framing limits only, never schema constraints.
+- Typed errors are thrown, never returned as values (#131); the error tree of `generators/AGENTS.md` ("The error contract") is the only one.
+- Native types where the language has one (#156 and the type table in `docs/types.md`); no invented wrapper where a native stream type exists.
+- Templates never read a spec-sourced `x-*` extension and are Mustache files; the generator computes values and hands them over under a non-`x-` name (`vendorExtensions.op.*`).
+- F827: the per-call options are `timeout`, `headers`, `maxRetries` on the operation's Options object; a fourth option reopens F827 (so stream settings live elsewhere, section 5).
+- F828: `TransportOptions` says how bytes travel, `Configuration` what the API is.
+- F823 retries on by default (two, backoff, jitter, `Retry-After`, one end-to-end budget); S16 one budget across redirect hops and a caller-supplied stream is never closed by the SDK; S7 cancellation is never a timeout error; F1078 `close()` is graceful and idempotent; S15 redaction; D13 an unusable response is an `ApiError` with the real status; D29 use after close; D35 binary bodies are never re-encoded.
+- Feature flags are declined (#131, "Opt-in feature flags ... one fixed, opinionated shape"): this design adds no generator option.
+- Never edit `.github/workflows` (S13); the shared test catalogue (`src/spec/resources/test-catalogue.txt`) names every behaviour once, and each language needs a test carrying the id or an entry in `test-catalogue-exceptions.txt` with the forcing reason.
+- F837 ("streaming is deferred") is superseded by this work once the owner accepts it; the owner request in #131 (F18, F19) asks for streaming request and response bodies and an SSE client with reconnect and `Last-Event-ID` in all twelve, keeping retries and error handling intact.
 
-The other nine follow the same contract on their libraries: kotlin Ktor (`bodyAsBytes()`), csharp `HttpClient.SendAsync` with `ReadAsByteArrayAsync` and `AutomaticDecompression = None`, php an abstract client over PSR-18 plus a default curl/native transport, python urllib3 (`preload_content=False`, `decode_content=False`, then one `response.read()`), ruby Faraday with the net_http adapter, dart `package:http` over `IOClient` (and a web variant), rust reqwest, swift `URLSession` with a delegate and `dataTask`, elixir Req.
+## 3. Critique of the first proposal, and what changed
 
-Consequences that the design has to respect: (a) the body is a `String` in `ApiHttpResponse`, so streaming cannot be expressed by changing a type in place; (b) retries, redirects, the end-to-end deadline, decompression and redaction all assume the body is complete before they finish; (c) several things the SDKs already promise (S7 cancellation, S16 one budget across redirect hops, F1078 graceful `close()`, F823 retries, S15 redaction, the error tree of #123) must keep holding.
+Facts the first proposal got wrong or missed (each checked in this branch):
 
-## 2. Principles
+1. **Python is async-first.** Every generated operation is `async def` (`python/base_api.mustache`: `async def _invoke_api_for_result`), and the sync urllib3 transport runs under `asyncio.to_thread`. There is no "sync API plus async facade". The stream types are therefore async iterators and a thread bridges each read.
+2. **PHP's default transport is Symfony HttpClient**, not curl or Guzzle (verified in `php/default_api_client.mustache` and `php/composer.mustache`: `symfony/http-client ^6.4|^7.4`). The Guzzle `stream => true` option does not apply.
+3. **The retry loop and the 401 replay live in different layers.** Transport layer: java (`sendWithBackoff`), kotlin (`default_api_client.mustache`), csharp, node (`sendCounted`), php (`AbstractApiClient::sendWithRetries`), ruby (`transmit_with_retries`). Operation layer (`BaseApi`): go (`invokeApiForResult`, with `retryPolicyProvider`) and python (`_send_with_retries`). Rust exposes `max_retries()` and `request_timeout()` on its `ApiClient` trait (verified in `rust/api_client.mustache`), which points to the operation layer too, but its loop was not read. Swift, elixir and dart were not read for the loop. So "one internal function that stops before the body" is not one refactor but a per-language one, and the phase-1 retry has to be reused where it lives.
+4. **Every existing timeout also covers the body read**, which the first proposal did not see: java `sendBounded` wraps the whole `sendAsync` future; csharp sets `HttpClient.Timeout = Infinite` and arms its own `CancellationTokenSource` that is passed to `SendAsync` and to `ReadAsByteArrayAsync`; go sets `http.Client.Timeout` (which includes the body) and a context deadline in `BaseApi`; node passes `AbortSignal.timeout(...)` to `fetch` (it cannot be disarmed); python uses a monotonic deadline; kotlin installs `HttpTimeout` with `requestTimeoutMillis`. For a stream each of these must be disarmed at the headers, so the claim that csharp's `HttpClient.Timeout` already stops at the headers is irrelevant here.
+5. **Elixir already sets `retry: false` and `raw: true`** on Req (verified in `elixir/default_api_client.mustache`), so the open question about `:retry` with `:into` disappears; the SDK keeps its own retry.
+6. **The test fixture cannot serve streams.** The shared server (the `chasm` project, read in `~/Code/mridang/chasm`) supports only `x-chasm-delay-ms` (a delay before the response), `x-chasm-content-encoding` and `x-chasm-echo`; it is stateless. A chunked body, a connection dropped after N events and a `Last-Event-ID`-aware feed are impossible with it. The first proposal's three "x-internal operations" would not work. The behaviours go in the existing `*ApiClientUnitTest` templates that already start an in-process server (verified for java `com.sun.net.httpserver`, and by file for dart, go, node, python, ruby; php, rust, swift, elixir have the file but the in-process server was not verified). The spec only needs real (non-internal) operations so that the generator emits the methods.
+7. **`BodySource` is an invented wrapper in twelve languages.** Seven languages already type a raw binary body with a native stream (java `InputStream`, csharp `Stream`, go `io.Reader`, php `\SplFileObject|StreamInterface|string`, ruby `File`; verified in the goldens). The new design uses the native stream types and a single native rule for replay (section 6), and adds no wrapper type.
+8. **The `streaming` generator option contradicts the declined "feature flags" verdict** and doubles goldens. Removed: the stream method is generated whenever the spec declares a streaming media type (section 4).
+9. **`StreamOptions` extending the per-call options would reopen F827.** Stream settings are a separate trailing argument that exists only on stream methods, plus one `TransportOptions.idleTimeout` (F828: how bytes travel).
+10. **A new error class `StreamError` is not needed.** Today a failure after the headers (reset, truncation) is already a `NetworkError` with status 0 (go: "a failure reading the body after headers ... is a transport failure"; node marks it in `afterResponse`), and a body that arrived but cannot be decoded is an `ApiError` with the real status (D13). Reusing them changes no public surface.
+11. **`OnlyAllowJsonRule` strips the streaming media types** (verified in `rules/OnlyAllowJsonRule.java`: `ALLOWED_TYPES` has no `text/event-stream` or NDJSON type, and a validation step throws on any remaining other type). A user who enables `ONLY_ALLOW_JSON` would lose the signal. This is a shared-generator change the first proposal missed.
+12. **The question of #114 "stream or bytes for binary responses" was left open.** Today the buffered binary return type differs: java `InputStream`, csharp `Stream`, ruby `File`/`StringIO` (memory-backed), against `ByteArray` (kotlin), `Buffer` (node), `Uint8List` (dart), `[]byte` (go), `Vec<u8>` (rust), `Data` (swift), `bytes` (python), `string` (php), `binary()` (elixir). This is decided in section 8 (O1).
 
-1. Additive. No existing operation, option or type changes. Streaming is a second method per selected operation and a second method on the transport interface. A caller who never opts in sees nothing new except types.
-2. One shape in twelve languages. Names, option names, error classes and behaviours are the same; only the stream type follows the language idiom (section 4).
-3. Same safety as the buffered path. A streamed response passes through the same redirect rules, header stripping, error mapping and redaction. Nothing weaker is allowed because "it is a stream".
-4. Never retry once the caller has been handed bytes. Never buffer an unbounded body to make a retry possible.
-5. The caller owns the stream and closing it is always safe and idempotent. A stream that is never closed is a leak the docs name, not something the SDK hides.
-6. No vendor extension and no petstore vocabulary in templates. The spec signals are standard OpenAPI (section 3).
+Decisions of the first proposal kept: additive second method (`<operation>Stream`), a separate transport entry point with a safe default, never retry after the first body byte is delivered, never buffer a body to make it replayable, SSE parser per the WHATWG grammar, SSE reconnect separate from `maxRetries`, `Accept-Encoding: identity` for SSE, an idle timeout, one bounded error-body read, redaction.
 
-## 3. Spec signals and the opt-in
+## 4. The shared behaviour
 
-Signals (read from the operation, no `x-` extension, per the root AGENTS.md rule on spec-sourced extensions):
+### 4.1 What is streamed (spec signals, no extension)
 
-| Where | Signal | Kind selected |
+| Where | Signal | Method |
 | --- | --- | --- |
-| response, 2xx content type | `text/event-stream` | SSE: stream of `ServerSentEvent<T>` (the `data` of each event is decoded as the media type's schema when it is `application/json`-shaped, else string) |
-| response, 2xx content type | `application/x-ndjson`, `application/jsonl`, `application/jsonlines` (all treated as one kind) | line-delimited JSON: stream of the schema of the media type, one item per line |
-| response, 2xx content type | `application/octet-stream`, or any content type whose schema is `type: string, format: binary` | binary: byte stream |
-| request body | `application/octet-stream` or `type: string, format: binary` (already carried as a raw body today) | binary upload from a source of unknown length |
+| 2xx response media type | `text/event-stream` | `<op>Stream` returning `EventStream<T>`; there is no buffered method (a buffered SSE call never ends) |
+| 2xx response media type | `application/x-ndjson`, `application/jsonl`, `application/jsonlines` (one kind) | `<op>Stream` returning `JsonLinesStream<T>`, `T` the schema of the media type; no buffered method |
+| 2xx response media type | `application/octet-stream` or a schema `type: string, format: binary` | `<op>Stream` returning `ByteStream`, next to the existing buffered method |
+| request body | a raw binary body (`requestBodyKind == "binary"`) | the `<op>Stream` method (generated for this operation too) takes the body as the language's native stream, sent without buffering |
 
-Not selected: `application/json-seq` (record separator framing; add later on request), `multipart/mixed` and `multipart/x-mixed-replace` (no consumer in the corpus), WebSocket (not HTTP).
+An operation with both a streamed request and a streamed response has one `<op>Stream` method. Not selected: `application/json-seq`, `multipart/mixed`, WebSocket; multipart bodies stay buffered (decision O5). The `data` of an SSE event is decoded as the media type's schema when one is declared and the type is not a plain string; otherwise it is the raw string.
 
-Opt-in. The generator option `streaming` (boolean, default `false`) adds the streaming variants. With `false` the output is byte-identical to today, which keeps every existing golden unchanged and lets each language stage land without touching the others. With `true`, each operation that matches a signal in the table gets a `<operation>Stream` method (casing per language) next to its existing method; the existing method keeps buffering. An operation that declares `text/event-stream` as its only success content type gets only the stream method (a buffered SSE call never ends). Rejected alternative: a per-operation vendor extension, which the repository forbids.
+### 4.2 Catalogue lines
 
-Open point for the owner: whether the default flips to `true` after one release. Recommendation: keep `false` until stage 6 has run for a release.
+Two new areas, `streaming` and `sse` (new areas, so no id collides with other work; the format is `areaNNN | promise`). The test name carries `bhvstreaming001` in the language's casing (`bhvStreaming001...`, `test_bhv_streaming_001_...`, `TestBhvStreaming001_...`).
 
-## 4. API shape per language
-
-Common vocabulary used in every language:
-
-- `ByteStream` (binary), `JsonLinesStream<T>`, `EventStream<T>`: the idiomatic stream type of the language, plus a handle with `status`, `headers`, and `close()`.
-- `StreamOptions` extends the per-call options (F827: `timeout`, `headers`, `maxRetries`) with `idleTimeout` and, for SSE, `maxReconnects`, `reconnectDelay`, `lastEventId`.
-- `ServerSentEvent<T>`: `id` (string or absent), `event` (string, default `message`), `data` (decoded `T`, or the raw string when no schema), `retry` (duration or absent), `raw` (the joined data string).
-
-Snippets use the neutral operations `exportItems` (GET `/items/export`, `application/x-ndjson`, item schema `Item`), `downloadContent` (GET `/items/{id}/content`, `application/octet-stream`), `uploadContent` (PUT `/items/{id}/content`, `application/octet-stream`), `watchEvents` (GET `/events`, `text/event-stream`).
-
-Library claims were checked against the library documentation on 2026-11-18 unless marked "to verify in stage 0".
-
-### java (Java 21, `java.net.http`)
-
-Binary and JSON Lines use `HttpResponse.BodyHandlers.ofInputStream()` (the body "can be read as it is received"; closing it before the body is complete cancels the exchange). `ofLines()` exists but cannot be closed on a decode error with our error mapping, so the SDK wraps `ofInputStream()` itself. `Flow.Publisher` is offered through `ofPublisher()` only as an adapter; the primary type is blocking, which suits Java 21 virtual threads.
-
-```java
-// binary: caller closes
-try (ByteStream in = api.downloadContentStream(id)) {        // extends InputStream
-    in.transferTo(out);
-}
-// json lines: AutoCloseable iterator
-try (JsonLinesStream<Item> items = api.exportItemsStream()) { // Iterator<Item>, AutoCloseable, stream()
-    items.forEachRemaining(handle);
-}
-// sse
-try (EventStream<Change> ev = api.watchEventsStream(StreamOptions.builder().maxReconnects(5).build())) {
-    for (ServerSentEvent<Change> e : (Iterable<ServerSentEvent<Change>>) ev::iterator) { ... }
-}
-// adapter for reactive callers
-Flow.Publisher<ServerSentEvent<Change>> p = ev.asPublisher();
-// upload: a supplier makes the body replayable; a bare InputStream is sent once
-api.uploadContent(id, BodySource.of(() -> Files.newInputStream(path)), opts);
-api.uploadContent(id, BodySource.once(inputStream), opts);
+```
+streaming001 | A binary stream call delivers the bytes in order and returns before the body has ended
+streaming002 | A JSON Lines stream yields one decoded item per line and skips blank lines
+streaming003 | A JSON Lines stream accepts CRLF line ends and a last line without a newline
+streaming004 | A JSON Lines line that does not decode raises a serialization error naming the 1-based line and ends the stream after the items before it
+streaming005 | A line or event longer than the limit raises a serialization error and ends the stream
+streaming006 | A gzip encoded stream is decoded incrementally, so the first item arrives before the body ends
+streaming007 | A corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried
+streaming008 | A non-2xx streaming call raises the typed error with the status and the error body and never returns a stream
+streaming009 | A stream exposes the status and the lower-cased response headers
+streaming010 | The call timeout bounds only the wait for the response headers, not the body
+streaming011 | The idle timeout raises a network timeout error when the server stalls in the middle of the body
+streaming012 | A connection reset in the middle of the body raises a network error and is not retried
+streaming013 | A body shorter than its Content-Length raises a network error and is never a silent short success
+streaming014 | A streaming call retries a 503 before the headers and then streams the retried response
+streaming015 | A streaming call never retries after the first body byte was delivered
+streaming016 | A streaming call follows a redirect before the body and strips credentials across origins
+streaming017 | A streaming call sends the same User-Agent, request id, trace context and authentication headers as a buffered call
+streaming018 | A 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned
+streaming019 | Closing a stream twice is safe and aborts the connection
+streaming020 | Cancelling the call aborts the stream and is never raised as a timeout
+streaming021 | Closing the client waits for open streams like any request in flight and refuses new calls
+streaming022 | The string form of a stream and its options hides credentials, the query and the data
+streaming023 | A streamed upload of unknown length is sent chunked and arrives intact
+streaming024 | A streamed upload with a known length sends Content-Length
+streaming025 | A caller supplied upload stream is never closed by the SDK
+streaming026 | A seekable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error
+streaming027 | A 307 or 308 with a single use upload is refused and the body is never buffered
+streaming028 | An operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method
+sse001 | An SSE stream yields the id, event, data and retry fields of each event, with message as the default event
+sse002 | An SSE stream joins consecutive data lines with a newline and skips comment lines
+sse003 | An SSE stream drops a leading byte order mark, accepts CR, LF and CRLF line ends and removes one space after the colon
+sse004 | An SSE event with an empty data buffer is not delivered but its id is kept
+sse005 | An SSE data payload is decoded as the declared schema, and a payload that does not decode raises a serialization error and ends the stream
+sse006 | An SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them
+sse007 | An SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID
+sse008 | An SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap
+sse009 | An SSE stream stops after the maximum number of consecutive failed reconnects and raises the last failure
+sse010 | An SSE reconnect counter resets after an event is received
+sse011 | An SSE stream does not reconnect after a 204, a 4xx status or a response that is not text/event-stream
+sse012 | An SSE stream sends the initial last event id of the call on its first request
+sse013 | An SSE reconnect rebuilds the headers so a refreshed token is the one sent
+sse014 | An SSE retry field that is not digits and an id containing NUL are ignored
+sse015 | An idle timeout on an SSE stream counts as a lost connection and reconnects
+sse016 | An SSE request with a single use body is not reconnected
 ```
 
-### kotlin (Ktor 3, multiplatform)
-
-Ktor streams with `prepareGet(url).execute { response -> response.body<ByteReadChannel>() }`; "by default `body()` loads the full response into memory" so the SDK must use `execute`, and the channel is valid only inside the block. Therefore the public type is a cold `Flow` that opens the request on collection and closes it when collection ends or is cancelled. The Ktor SSE plugin (`install(SSE)`, `sse()`) was not confirmed from the documentation page read, so the SDK ships its own parser (section 8) on the byte channel (to verify in stage 0 whether the plugin offers reconnect hooks worth using).
-
-```kotlin
-api.downloadContentStream(id).collect { chunk: ByteArray -> out.write(chunk) }   // Flow<ByteArray>
-api.exportItemsStream().collect { item: Item -> ... }                            // Flow<Item>
-api.watchEventsStream(StreamOptions(maxReconnects = 5)).collect { e: ServerSentEvent<Change> -> ... }
-api.uploadContent(id, BodySource.of { channel() })                               // () -> ByteReadChannel
-```
-
-Cancelling the collecting coroutine cancels the request (S7 already maps interrupts and cancellation).
-
-### csharp (.NET 10)
-
-`HttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token)` returns when headers are read and leaves the content unread. Microsoft's remarks matter here: with `ResponseHeadersRead` the `HttpClient.Timeout` applies only until the headers end, and `MaxResponseContentBufferSize` is not enforced. So the SDK must enforce idle timeout and size limits itself (section 6). Types: `Stream` for binary (`ByteStream : Stream`), `IAsyncEnumerable<T>` for the rest.
-
-```csharp
-await using ByteStream s = await api.DownloadContentStreamAsync(id, ct);
-await s.CopyToAsync(file, ct);
-await foreach (Item item in api.ExportItemsStreamAsync(ct: ct)) { ... }            // IAsyncEnumerable<Item>
-await foreach (var e in api.WatchEventsStreamAsync(new StreamOptions { MaxReconnects = 5 }, ct)) { ... }
-await api.UploadContentAsync(id, BodySource.FromFactory(() => File.OpenRead(path)), cancellationToken: ct);
-```
-
-The trailing `CancellationToken` stays (S7); `[EnumeratorCancellation]` threads it into the iterator.
-
-### php (8.3, PSR-7/PSR-18, curl or native transport)
-
-Guzzle's `stream => true` request option streams a response instead of downloading it up front and the body is read with `getBody()->read($n)` until `eof()`; `read_timeout` bounds one read. The abstract PSR-18 client cannot stream (PSR-18 returns a `ResponseInterface` whose body stream may or may not be lazy depending on the implementation), so streaming needs its own transport method; a PSR-18 client whose response body is not lazy degrades to buffered with a documented warning, never a silent hang. Types: `Psr\Http\Message\StreamInterface` for binary, `\Generator` (or `iterable`) for the rest.
-
-```php
-$body = $api->downloadContentStream($id);            // StreamInterface, caller calls $body->close()
-foreach ($api->exportItemsStream() as $item) { ... }  // Generator<int, Item>; leaving the loop or unset() closes it
-foreach ($api->watchEventsStream(new StreamOptions(maxReconnects: 5)) as $event) { ... } // Generator<ServerSentEvent>
-$api->uploadContent($id, BodySource::fromCallable(fn () => fopen($path, 'rb')));
-```
-
-A generator closes its connection in a `finally`, which runs on `break` when the generator is destroyed.
-
-### python (3.10, urllib3 2.x; sync plus the async facade)
-
-The default client already calls urllib3 with `preload_content=False`, so the connection is open and unread after the request; the guide shows wrapping it for line iteration. Today it then does one `response.read()`; streaming returns the response wrapped instead. Sync types are context managers that are also iterators; the async facade offers `AsyncIterator` because it already runs requests off-thread (it cannot be genuinely non-blocking without a new dependency, see section 12).
-
-```python
-with api.download_content_stream(id) as body:            # io.RawIOBase-like: .read(n), iter_chunks()
-    shutil.copyfileobj(body, out)
-with api.export_items_stream() as items:                  # Iterator[Item]
-    for item in items: ...
-with api.watch_events_stream(StreamOptions(max_reconnects=5)) as events:  # Iterator[ServerSentEvent[Change]]
-    for e in events: ...
-async with async_api.watch_events_stream() as events:     # AsyncIterator, async facade
-    async for e in events: ...
-api.upload_content(id, BodySource.from_factory(lambda: open(path, "rb")))
-```
-
-### ruby (3.2, Faraday 2)
-
-Faraday supports a per-request `on_data` callback that receives each chunk, on adapters that implement it; this is the mechanism needed, but its exact signature and the adapter support list could not be confirmed from the documentation page that was fetched (to verify in stage 0; if net_http lacks it the default client drops to `Net::HTTP#request` with `read_body { |chunk| }` for streaming calls only). Because `on_data` is push-style, an `Enumerator` is built over a producer thread with a bounded queue, which gives back-pressure and lets `break` close the connection.
-
-```ruby
-api.download_content_stream(id) { |chunk| out.write(chunk) }   # block form: IO-like, no enumerator
-io = api.download_content_stream(id)                           # no block: an IO-like with #read(n), #close
-api.export_items_stream.each { |item| ... }                    # Enumerator::Lazy[Item]; #close available
-api.watch_events_stream(max_reconnects: 5).each { |e| ... }    # Enumerator[ServerSentEvent]
-api.upload_content(id, BodySource.from_proc { File.open(path, "rb") })
-```
-
-### node (Node 20+/22, fetch/undici, plus the web transport)
-
-`fetch` returns after the headers and `response.body` is a Web `ReadableStream`; it is also async-iterable in Node. The SDK passes the caller's `AbortSignal` and the decompression is already done by `fetch` (undici), so it stays out of the SDK; the portable web transport relies on the runtime the same way.
-
-```ts
-const body: ReadableStream<Uint8Array> = await api.downloadContentStream(id, { signal });
-for await (const item of api.exportItemsStream({ signal })) { ... }          // AsyncIterable<Item> & AsyncDisposable
-for await (const e of api.watchEventsStream({ maxReconnects: 5, signal })) { ... } // AsyncIterable<ServerSentEvent<Change>>
-await api.uploadContent(id, { body: bodySource(() => fs.createReadStream(path)) }); // ReadableStream | AsyncIterable | factory
-```
-
-Breaking out of `for await` calls the iterator's `return()`, which cancels the stream.
-
-### dart (3.11, package:http)
-
-`Client.send` returns `Future<StreamedResponse>`; `StreamedResponse.stream` is a `ByteStream`. Caution: the package documentation page read covers only the request side, so the response-side contract (a never-listened stream keeps the socket) is taken from the library's README and must be verified in stage 0. Types are plain `Stream`s; cancelling the subscription cancels the request.
-
-```dart
-final Stream<List<int>> body = api.downloadContentStream(id);          // Stream<List<int>>
-await for (final item in api.exportItemsStream()) { ... }              // Stream<Item>
-await for (final e in api.watchEventsStream(StreamOptions(maxReconnects: 5))) { ... } // Stream<ServerSentEvent<Change>>
-await api.uploadContent(id, BodySource.fromFactory(() => File(path).openRead()));
-```
-
-### go (1.25)
-
-`resp.Body` is already an `io.ReadCloser` after `Do` returns; the SDK simply does not `ReadAll` it. Go 1.23+ `iter.Seq2` gives the range-over-func form, so no custom iterator type is needed. `ctx` stays the first parameter (S7); cancelling it aborts the body read.
-
-```go
-body, err := api.DownloadContentStream(ctx, id)        // io.ReadCloser; defer body.Close()
-for item, err := range api.ExportItemsStream(ctx) {    // iter.Seq2[Item, error]; break closes the stream
-    if err != nil { return err }
-}
-events := api.WatchEventsStream(ctx, WithMaxReconnects(5)) // iter.Seq2[ServerSentEvent[Change], error]
-err = api.UploadContent(ctx, id, BodyFromFactory(func() (io.ReadCloser, error) { return os.Open(path) }))
-```
-
-The go end-to-end `context.WithTimeout` that currently wraps the body read cannot be used for streams (section 6); the streaming path wraps only the dial and header phase.
-
-### rust (reqwest 0.12, tokio)
-
-`reqwest::Response` has `bytes_stream()` (requires the `stream` crate feature, which `rust/cargo_toml.mustache` does not enable today; stage 4 adds it) and `chunk()`. Types: `impl Stream<Item = Result<Bytes, Error>>`, and for convenience `AsyncRead` via `tokio_util::io::StreamReader` (a new dependency, pure Rust). Dropping the stream cancels the request.
-
-```rust
-let mut body = api.download_content_stream(&id, opts).await?;          // ByteStream: Stream<Item = Result<Bytes, Error>> + .into_async_read()
-while let Some(chunk) = body.next().await { out.write_all(&chunk?).await?; }
-let mut items = api.export_items_stream(opts).await?;                  // impl Stream<Item = Result<Item, Error>>
-let mut events = api.watch_events_stream(StreamOptions::default().max_reconnects(5)).await?;
-api.upload_content(&id, BodySource::from_factory(|| async { Ok(File::open(path).await?) }), opts).await?;
-```
-
-### swift (6.0, Foundation)
-
-`URLSession.bytes(for:delegate:)` returns `(URLSession.AsyncBytes, URLResponse)`, an `AsyncSequence` of `UInt8` that has `.lines`; it is available from iOS 15 and macOS 12. The current default client uses `dataTask` plus a delegate (and the delegate carries the redirect and proxy logic), so streaming adds a second delegate-driven path that yields through an `AsyncThrowingStream`; this also covers Linux, where `AsyncBytes` support in swift-corelibs-foundation must be verified in stage 0.
-
-```swift
-let body: ByteStream = try await api.downloadContentStream(id: id)             // AsyncSequence<Data>
-for try await item in try await api.exportItemsStream() { ... }                // AsyncThrowingStream<Item, Error>
-for try await e in try await api.watchEventsStream(options: .init(maxReconnects: 5)) { ... }
-try await api.uploadContent(id: id, body: .factory { try FileHandle(forReadingFrom: url) })
-```
-
-Task cancellation cancels the stream.
-
-### elixir (1.17, Req 0.5)
-
-Req's `:into` option: `nil` reads the whole body; a function receives `{:data, chunk}` and returns `{:cont, {req, resp}}` or `{:halt, ...}`; a collectable is used only when the status is 200; `:self` sends chunks to the caller's mailbox, sets `response.body` to a `Req.Response.Async` that is `Enumerable`, and `Req.cancel_async_response/1` cancels. The `:self` mode fits a lazy `Stream`; the docs do not say how `:retry` behaves with `:into` (to verify in stage 0, and the SDK disables Req retry for streaming calls and keeps its own, section 5).
-
-```elixir
-{:ok, body} = Client.download_content_stream(client, id)          # Enumerable of binaries (Stream.resource-backed); Enum.each/Stream.into
-{:ok, items} = Client.export_items_stream(client)                 # Enumerable of %Item{}
-{:ok, events} = Client.watch_events_stream(client, max_reconnects: 5)   # Enumerable of %ServerSentEvent{}
-Enum.each(events, &handle/1)                                      # leaving the enumeration early (Enum.take, halt) cancels the response
-Client.upload_content(client, id, BodySource.from_factory(fn -> File.stream!(path, 2048) end))
-```
-
-## 5. Retries
-
-The rule in one line: the SDK may retry a streaming call until the response headers have been accepted for delivery; after the first byte of the body has been handed to the caller it never retries.
-
-- Phase 1, before the handle is returned: connect, send, wait for headers. Identical to F823: a network error before any response, and 408, 409, 429 and 5xx except 501, with backoff, jitter, `Retry-After` and the cap, bounded by `maxRetries`. A retryable status body is read and discarded (bounded) and the connection closed before waiting.
-- Phase 2, after the handle is returned: no retries, no reconnects (except SSE, below). A failure is raised to the consumer as a stream error.
-- Request bodies: a streamed upload is retried (phase 1) only when its `BodySource` is replayable (a factory, a byte array, a file path). A source created with `once(...)` is sent a single time; a connection error or a retryable status then surfaces immediately with the original error and the message names the cause (`request body is not replayable`). The SDK never buffers a stream to make it replayable. This reverses today's Java behaviour (buffering `InputStream` to `byte[]`) for the streaming method only; the buffered methods keep their current behaviour.
-- SSE reconnect is a separate mechanism (section 8) with its own counter. It never reuses `maxRetries`, and a reconnect never happens after a clean 204 or a non-retryable status.
-- The end-to-end budget in phase 1 is the existing one (F823: one budget across all attempts and redirect hops, S16).
-
-## 6. Timeouts
-
-The end-to-end timeout (default 10 seconds) is meaningless for a stream that may legitimately last an hour, and it is also the thing that #116 wants to hold for the buffered path while the body is read. For the streaming methods:
-
-- `timeout` (the F827 per-call value, or the transport's) bounds phase 1 only: dial, TLS, send, headers, including redirect hops and retry waits. In csharp this is the documented behaviour of `ResponseHeadersRead`; in go the `context.WithTimeout` is cancelled as soon as headers arrive (it must not be `defer cancel()` over the lifetime of the stream, or it would cut the stream).
-- `idleTimeout` (new, per call and on `TransportOptions`) bounds the gap between two reads of the body. Default `60s` for binary and JSON Lines, and `none` for SSE (a server may be quiet; heartbeats are the server's business). `0` or `none` disables it. Idle expiry raises `NetworkTimeoutError` (status 0) with the same message prefix as today and is not retried.
-- A maximum total duration is not provided. A caller that wants one cancels (section 7).
-- Size: the future maximum response size option (#112) applies to the buffered path; for streams it applies per line (JSON Lines and SSE: default 1 MiB per line or event, `StreamError` when exceeded) and not to byte streams.
-
-## 7. Cancellation and closing
-
-Every stream handle has `close()` in the language's idiom (`AutoCloseable`, `IDisposable`/`IAsyncDisposable`, context manager, `defer`, `Drop`, `Stream` cancellation, `return()`/`AsyncDisposable`). It is idempotent, safe from another thread, and it aborts the connection rather than draining it (a drained SSE stream never ends). Language-native cancellation (S7: go ctx, csharp token, node signal, kotlin coroutine, swift task, python task) cancels the same way. A stream abandoned without closing is released when the language can notice (Rust `Drop`, Elixir process exit, Python `__del__` with a `ResourceWarning`); in the others the docs state it is a leak.
-
-Client `close()` (F1078 says graceful and idempotent): open streams are not "in flight finishing", they may never finish. Proposal, for the owner to confirm: `client.close()` cancels every open stream of that client, and the consumer gets a `ClientClosedError` (the closed-client error, D29). The buffered calls keep finishing as today.
-
-A caller-supplied stream or file handle for an upload is never closed by the SDK (S16); one made by a factory the SDK called is closed by the SDK.
-
-## 8. SSE client
-
-Parser (one grammar, written once in the Java reference and mirrored; implemented per the WHATWG HTML Living Standard, section "Server-sent events", which the MDN page summarises):
-
-- UTF-8; a leading BOM is dropped; lines end in CRLF, LF or CR; a blank line dispatches the buffered event; an event with an empty data buffer is not dispatched.
-- Fields `event`, `data`, `id`, `retry`; a line starting with `:` is a comment (kept as a heartbeat, never delivered); one optional space after the colon is removed; unknown fields are ignored; consecutive `data` lines join with a newline.
-- `id` containing NUL is ignored; the last event id persists across events until changed; `retry` accepts only digits and sets the reconnect delay in milliseconds, otherwise ignored.
-- `data` is decoded as the media type's schema if one is declared, otherwise delivered as the raw string. A decode failure raises `SerializationError` naming the event id and ends the stream (an out-of-date spec fails where it can be seen, F835).
-
-Request: method and body as declared (usually GET); `Accept: text/event-stream`; `Cache-Control: no-cache`; `Accept-Encoding: identity` (compressing proxies buffer small events; see section 10); `Last-Event-ID` when an id is known (from the caller's `lastEventId` option on the first request, afterwards the last received id).
-
-Reconnect policy (the EventSource standard leaves the default delay to the implementation; these are the SDK's choices):
-
-- Reconnect after a clean end of body and after a network error or idle timeout, up to `maxReconnects` consecutive failures without receiving a single event (default 5; `-1` unlimited). Receiving an event resets the counter.
-- Delay: the last `retry` value from the server, else `reconnectDelay` (default 1 second); on consecutive failures it doubles with jitter up to 30 seconds. `Retry-After` on a 429, 502, 503, 504 response is honoured as in F823.
-- Do not reconnect after: 204 (the standard's "stop"), any non-2xx other than 408/429/5xx (raised as the typed error from #123, status class preserved), a 2xx with a content type other than `text/event-stream` (raised as `SerializationError`), a `401` unless the authenticator can refresh, in which case one refreshed attempt is made and then the error is raised, caller cancellation, and client close.
-- A request body that is not replayable disables reconnect (the stream ends with `StreamError` after a break, message says why).
-- Redirects on reconnect re-apply the same cross-origin stripping; a 3xx at reconnect time that changes origin is followed only if the transport follows redirects, with the id header kept (it is not a credential).
-- Each reconnect is observable: a `reconnect` hook `(attempt, delay, lastEventId, cause)` on `StreamOptions`, so applications can log or stop; returning "stop" ends the stream.
-
-## 9. Redirects, errors, error hierarchy
-
-- Redirects before the body use the existing loop unchanged (S16, D76, scheme refusal, HTTPS to HTTP body-replay refusal, header stripping). A 307 or 308 with a non-replayable streamed upload is refused with the same `NetworkError` message used for the HTTPS to HTTP refusal (`Refusing to replay a streamed request body`), never buffered.
-- Non-2xx at headers: the SDK reads the error body, bounded to 64 KiB, closes the connection and throws the typed error from #123 exactly as the buffered path does (`NotFoundError` with `errorBody`, method, path without query, etc.). The caller never receives a stream for a non-2xx.
-- Failures after the handle exists (connection reset, truncated body, bad chunk framing, decompression failure, idle timeout, line too long) are raised from the stream's read or next call. Proposed new class `StreamError`, a child of `NetworkError` (so existing `catch NetworkError` code still catches it), carrying `method`, `path`, `status` (the 2xx status), `bytesDelivered` and `cause`. Idle timeout stays `NetworkTimeoutError`. Mapping per language mirrors the existing tree (java exception, go error type with `errors.As`, elixir tagged tuple inside the enumerable raised as an exception, rust enum variant). This adds one class to twelve surfaces, so it is the single API-surface change; flagged for the owner (D-S3).
-- Content-Length shorter than the body or a chunked stream that ends without the final chunk is a truncated body: `StreamError`, never a silent short success.
-- Decode errors in JSON Lines: `SerializationError` with the 1-based line number; the stream ends (no skip-and-continue option in v1).
-
-## 10. Compression
-
-- Binary and JSON Lines: the same `Accept-Encoding` as the buffered path, decoded incrementally with the language's streaming decoder over the same set (gzip and deflate everywhere; br and zstd where the buffered path has them, raising the same "library absent" error). The raw-deflate fallback of transport049 must also work incrementally: decide from the first two bytes, as the buffered path does.
-- SSE: `Accept-Encoding: identity`. If the server compresses anyway the SDK still decodes, and flushes per event; for libraries that buffer decoder output (to verify per language in stage 0) the SSE kind documents the limitation.
-- A corrupt compressed stream raises `StreamError` with cause the decoder error, not a transport failure that triggers a retry.
-- Content-Length for a compressed body describes encoded bytes, so `bytesDelivered` counts decoded bytes and no progress percentage is promised.
-- node and the web transports leave decoding to `fetch`; dart's web variant to the browser; this stays a forced divergence (already listed for Content-Encoding).
-
-## 11. Redaction
-
-Extends S15. The string form of a stream handle and of `StreamOptions` shows kind, method, path without query, status, bytes delivered and last event id; never headers' values, never a body or event data, never the query. The `Authorization`, `Proxy-Authorization`, `Cookie` and key/token/secret-named headers stay masked as `***` in `StreamOptions.headers`. Log or hook output of events uses the redacted form by default; `Last-Event-ID` is not a secret but is not logged by the SDK either. Errors from a stream follow the #123 rule: no query string and no fragment in the message.
-
-## 12. Request streaming (uploads)
-
-`BodySource` (name per language idiom) is a small type with three constructors: `of(bytes)` (replayable, known length), `fromFactory(() -> stream)` (replayable, unknown or known length, the SDK closes what the factory returns), `once(stream)` (single use, caller keeps ownership, S16). Behaviour:
-
-- Known length (bytes, a file by path): send `Content-Length`. Unknown length: chunked transfer, or the library's equivalent (`HttpRequest.BodyPublishers.fromPublisher` without a length in Java; `ReadOnlyStream` content without length in .NET; reqwest `Body::wrap_stream`; Go `Body` with `ContentLength = -1`).
-- Multipart bodies containing a stream part stay buffered in v1 (the multipart envelope needs the part boundaries and every language builds it in memory today). Only the raw binary body of an operation streams in v1; a streamed multipart part is a later item.
-- Phase-1 retry and redirect rules as in section 5 and 9. The request deadline for a long upload is the `timeout` of phase 1 extended by progress: the idle timeout applies to the write side as well (no bytes written for `idleTimeout`).
-- Python's urllib3 and Ruby's Faraday net_http adapter accept an iterable or an IO body with `Transfer-Encoding: chunked`; to verify in stage 0 for each library the exact body types, and where a library cannot stream a body the method says so at build time of the client, not at call time.
-
-## 13. Transport contract change
-
-One new method on each `ApiClient` interface, with a default that throws a clear unsupported error so custom and injected transports keep compiling and keep working for buffered calls:
-
-```java
-// java
-default ApiStreamResponse sendStreaming(String method, String url, Map<String, String> headers,
-                                        @Nullable Object body, StreamRequestOptions options) {
-    throw new UnsupportedOperationException("This transport does not support streaming");
-}
-public interface ApiStreamResponse extends AutoCloseable {   // status, headers, InputStream body(), close()
-    int statusCode(); Map<String, String> headers(); InputStream body(); void close();
-}
-```
-
-The existing `ApiHttpResponse` and `sendRequest` are untouched. Everything the streaming path shares with the buffered one (redirect loop, header merge, request id, tracing, auth refresh, retry phase 1, redaction) is moved behind one internal function that stops before the body, so there is no second copy of the redirect and retry logic (the maintenance risk in all twelve). The streaming wrappers (line splitter, SSE parser, NDJSON decoder, idle timer) are a template set of their own, `stream/` in each language, written for java first as the reference and reviewed for parity.
-
-## 14. Parity test plan
-
-New catalogue lines, in the 300 range of the existing areas (format `areaNNN | promise [| multi]`; the exception file `test-catalogue-exceptions.txt` is not touched by this document). Where a behaviour holds in all twelve it is a plain line; `multi` marks one id satisfied by several tests in one language. Tests use the chasm test server of the shared fixture and neutral operations; the fixture spec needs three new `x-internal` operations (a binary body that arrives in chunks, an NDJSON feed, an SSE feed that drops after N events and honours `Last-Event-ID`); they are added to `specs/petstore/openapi.yaml` without removing or renaming anything, as the fixture rule requires.
-
-| Id | Promise |
+All 44 ids apply to all twelve languages. Expected exceptions (to be written in `test-catalogue-exceptions.txt` with the reason, never silently): node `streaming006` and `streaming007` (fetch owns Content-Encoding, precedent `transport049` and `errors042`); swift `streaming006`/`streaming007` if `URLSession` hides the decoder the same way (not verified); dart web transport for the same reason. No other gap is expected.
+
+### 4.3 The promises in prose
+
+- **Phase 1 and phase 2.** The SDK may retry a streaming call until the response headers are accepted for delivery, with the F823 rules (network error before any response, 408, 409, 429, 5xx except 501, backoff, jitter, `Retry-After`, `maxRetries`, one budget across hops). A retryable status body is read bounded (64 KiB) and discarded, and the connection closed, before the wait. After the first body byte is handed to the caller the SDK never retries; a failure is raised from the stream's next read.
+- **Non-2xx.** The error body is read bounded to 64 KiB, the connection closed, and the typed error of #123 thrown exactly as for a buffered call. A caller never receives a stream for a non-2xx.
+- **Timeouts.** `timeout` (the F827 per-call value, or the transport's) covers dial, TLS, send, headers, redirect hops and retry waits, and stops at the headers. `idleTimeout` (new) bounds the gap between two reads of the body, default 60 s for every kind (one default, section 8 O3), `0` or none disables it, and expiry raises `NetworkTimeoutError` and is not retried (for SSE it is a lost connection and reconnects, `sse015`). No total-duration option: a caller cancels.
+- **Errors reuse the existing tree.** Reset or truncation after the headers: `NetworkError` (status 0). Idle expiry: `NetworkTimeoutError`. Corrupt compression: `ApiError` with the real status and the cause (D13). Line, event or size over the limit (default 1 MiB per line or event): `SerializationError`. JSON Lines or SSE decode failure: `SerializationError` with the 1-based line number or the event id. No new class.
+- **Cancellation and closing.** Every handle has an idempotent `close()` in the language's idiom that aborts the connection instead of draining it. Language-native cancellation (S7) does the same and is never a timeout error. `Client.close()` is graceful (F1078): a stream counts as a request in flight, so the transport is released when the last stream ends or is closed; new calls fail with D29. A stream abandoned without closing is a leak the docs name, except where the language releases it (rust `Drop`, elixir process exit, php generator destruction).
+- **Redaction (S15).** The string form of a stream and of `StreamOptions` shows kind, method, path without query, status, bytes delivered and last event id; never header values, body, event data or the query.
+- **Compression.** Binary and JSON Lines send the same `Accept-Encoding` as the buffered path and decode incrementally with the language's streaming decoder (gzip and deflate everywhere; br and zstd where the buffered path has them). SSE sends `Accept-Encoding: identity` unless the caller set one (D21); if the server compresses anyway the stream still decodes. `bytesDelivered` counts decoded bytes.
+- **Upload (replay rule).** A body is replayable when its native type can be rewound (a seekable stream, a file or path that can be reopened, bytes); then it is retried and replayed across 307/308. Anything else is single use: never buffered, never retried (the original error is raised unchanged), and a 307/308 is refused with `Refusing to replay a streamed request body`. A known length sends `Content-Length`; an unknown length is chunked. The SDK never closes a stream the caller passed (S16). Multipart bodies stay buffered (O5).
+- **SSE grammar** (WHATWG HTML, "Server-sent events"): UTF-8, leading BOM dropped, lines end in CRLF, LF or CR, a blank line dispatches, an empty data buffer is not dispatched, fields `event` `data` `id` `retry`, a `:` line is a comment, one optional space after the colon is removed, unknown fields ignored, data lines join with a newline, an `id` with NUL is ignored, `retry` only digits, the last event id persists.
+- **SSE reconnect.** After a clean end, a network error or an idle timeout, up to `maxReconnects` consecutive failures without an event (default 5, `-1` unlimited; an event resets the counter, `sse010`). Delay: the last `retry` value, else `reconnectDelay` (default 1 s) doubling with jitter to 30 s; `Retry-After` on 429, 502, 503, 504 as in F823. Each reconnect is a fresh request: headers rebuilt (authentication asked again, `sse013`), `Last-Event-ID` set, redirects and header stripping as for any call. No reconnect after 204, any non-2xx other than 408/429/5xx (typed error), a 2xx that is not `text/event-stream` (`SerializationError`, D32 wording), cancellation, client close, or a single-use request body. A 401 on reconnect follows the one-replay rule of `streaming018`. There is no reconnect hook in v1 (O4).
+
+## 5. The shared generator changes
+
+| File | Change |
 | --- | --- |
-| results301 | A binary streaming call delivers the bytes in order without reading the whole body first |
-| results302 | A JSON Lines streaming call yields one decoded item per line, skipping blank lines |
-| results303 | A JSON Lines line that fails to decode raises a serialization error naming the line and ends the stream |
-| results304 | A JSON Lines stream tolerates CRLF line ends and a final line without a newline |
-| results305 | An SSE stream yields id, event, data and retry fields of each event |
-| results306 | An SSE stream joins consecutive data lines with a newline and skips comments |
-| results307 | An SSE stream drops a leading byte order mark and accepts CR, LF and CRLF line ends |
-| results308 | An SSE event with an empty data buffer is not delivered |
-| results309 | An SSE data payload is decoded as the declared schema |
-| transport301 | A streaming call sends Accept text/event-stream for SSE and identity encoding |
-| transport302 | A gzip encoded JSON Lines stream is decoded incrementally |
-| transport303 | A corrupt compressed stream raises a stream error, not a retry |
-| transport304 | A streamed upload of unknown length is sent chunked and arrives intact |
-| transport305 | A streamed upload with a known length sends Content-Length |
-| transport306 | A caller supplied upload stream is never closed by the SDK |
-| transport307 | A factory made upload stream is closed by the SDK |
-| transport308 | The idle timeout raises a network timeout error when the server stalls mid body |
-| transport309 | The call timeout applies only until the headers and not to the body |
-| transport310 | A line longer than the limit raises a stream error |
-| retries301 | A streaming call retries a 503 before the headers and succeeds |
-| retries302 | A streaming call never retries after the first body byte was delivered |
-| retries303 | A replayable streamed upload is retried after a 503 |
-| retries304 | A single use streamed upload is not retried and reports why |
-| retries305 | SSE reconnects after the connection drops and sends Last-Event-ID |
-| retries306 | SSE reconnect waits the server retry value |
-| retries307 | SSE reconnect stops after the maximum number of consecutive failures |
-| retries308 | SSE does not reconnect after 204 or a 4xx status |
-| retries309 | SSE reconnect counter resets after an event is received |
-| redirects301 | A streaming call follows a redirect before the body and strips credentials across origins |
-| redirects302 | A 307 with a single use streamed upload is refused and not buffered |
-| errors301 | A non-2xx streaming call raises the typed error with the error body and never returns a stream |
-| errors302 | A connection reset mid body raises a stream error that is a network error |
-| errors303 | A body shorter than its Content-Length raises a stream error |
-| errors304 | The string form of a stream and its options hides credentials, query and event data |
-| lifecycle301 | Closing a stream twice is safe and aborts the connection |
-| lifecycle302 | Cancelling the call context or token aborts the stream and is not a timeout |
-| lifecycle303 | Closing the client cancels its open streams with the closed client error |
-| options301 | The streaming option set accepts idle timeout, max reconnects, reconnect delay and last event id |
-| operations301 | An operation with an NDJSON, SSE or binary response gets a streaming method only when streaming is enabled |
+| `src/main/java/io/github/mridang/codegen/generators/AbstractBetterCodegen.java`, `populateOperationDecorators` (one place, all twelve) | Compute and put on `vendorExtensions.op`: `streamKind` (`sse`, `jsonlines`, `binary`, `none`), `hasStreamMethod`, `streamOnly` (no buffered method), `streamItemType` (the type declaration of the item or event schema), `streamEventIsText`, `hasStreamRequestBody` (from the existing `requestBodyKind == "binary"`), `streamMethodName` per `NamingConvention`. Reading the 2xx media type: whether `CodegenResponse` exposes its content map in generator 7.22 was **not verified**; the fallback is the swagger `Operation` the class already reads around line 4754 for `r.getContent()`. Non-`x-` names, per the repository rule. |
+| same file, buffered-method emission | An operation with `streamOnly` emits no buffered method, no `WithHttpInfo` variant and no Options-class members that only the buffered path needs (stream methods keep the Options class: it carries the operation's parameters and F827 values). |
+| `rules/OnlyAllowJsonRule.java` | Add `text/event-stream`, `application/x-ndjson`, `application/jsonl`, `application/jsonlines` to `ALLOWED_TYPES` (verified: the list and the validation step use it). |
+| `AdvancedOpenAPINormalizer.java` | No change. |
+| `src/spec/resources/specs/petstore/openapi.yaml` | Add (nothing removed or renamed, fixture rule) one NDJSON export operation, one SSE feed operation with a JSON schema, and one with a plain string payload; the existing binary download, binary upload and avatar operations already trigger `binary`. They are real operations, not `x-internal`, because internal ones are dropped from generation. |
+| `src/spec/resources/specs/probe/openapi.yaml` | Add the shapes: stream-only operation with path and query parameters, both a request and a response stream, an SSE response with two success media types (decision on which wins is "the first declared streaming type"; an operation mixing streaming and JSON 2xx media types is rejected at generation with a warning through `SpecWarnings`). |
+| Per-language Codegen (`Better<Lang>Codegen.java`) | Wire the new template files and reserved names (`EventStream`, `ServerSentEvent`, `ByteStream`, `JsonLinesStream`, `StreamOptions`); swift and kotlin model-name collision prefixes (D45) are checked against them. Rust adds the `stream` feature (see the table). |
+| `src/test/java` unit tests | A generator unit test mirroring `AbstractBetterCodegen`: the five decorator values for each signal, `streamOnly`, the `OnlyAllowJsonRule` list, and a golden diff proving a spec without streaming signals gives an unchanged output except for the binary operations' new `...Stream` method (this is the one intended change to the existing goldens). |
+| `FixtureVocabularyLeakTest` | Templates and generated-test sample data use neutral names (`/items`, `/events`); the fixture names live only in petstore-derived goldens. |
+| Docs in the same change (root `AGENTS.md` rule) | `docs/decisions.md` (replace "Streaming is not supported" and the #114 line, link the issue), `docs/types.md` (line on binary and the "no SDK streams a response" sentence), `docs/how-it-works.md` (the retries paragraph: "a request whose body is a stream is never retried" becomes the replay rule), twelve `docs/languages/<lang>.md` (the "no streaming" lines, verified present in csharp, dart, elixir, go, java, kotlin, node, php, rust; ruby and python and swift pages not checked), the twelve `readme.mustache` and `skills.mustache` "Streaming" sections (character-aligned prose), `generators/AGENTS.md` (supersede F837, add the decisions of section 9, matrix rows) and each `<lang>/AGENTS.md`. |
 
-Unit tests mirror source files and the specs stay one per command, per the test-layout rules (the SSE parser unit test lives with the parser template's test file; the behaviours above live in the existing `DefaultApiClientTest` and `ClientTest` templates, not in new files). A Java test for the generator option checks the gating (operations301) and that `streaming=false` output is byte-identical to the current golden. All 39 ids must be listed in every language's test name; a language that cannot do one (for example node cannot show decoding done by `fetch`) lists the gap with its forced reason in `test-parity-allow.json`, never silently.
+## 6. Per language
 
-## 15. Staged implementation plan
+Common vocabulary in the table: `ByteStream`, `JsonLinesStream<T>`, `EventStream<T>` are the idiomatic stream types (each also exposes `statusCode`, `headers`, `close`); `ServerSentEvent<T>` has `id`, `event` (default `message`), `data`, `retry`, `raw`; `StreamOptions` has `idleTimeout`, `maxReconnects`, `reconnectDelay`, `lastEventId`, `maxEventBytes`. Names follow each language's casing. Every language gets new template files `api_stream_response` (the transport result), `event_stream` (line splitter, JSON Lines decoder, SSE parser, reconnect), `stream_options`, and edits `api_client`, `default_api_client` (or the abstract client where the loop is there), `base_api`, `api/api`, `transport_options`, `readme`, `skills`, `client` (close accounting), the test templates and the golden of the same language (`src/spec/resources/generated/<lang>/`, regenerated, all twelve committed together).
 
-Effort is one engineer-day for a reviewed, gated language unless stated; the Docker gates run in CI.
+"Idiom and limit" says what the language uses and any real limit; "verified in" names what was read.
 
-| Stage | Content | Effort |
+| Language | Public names and signatures | Templates touched (under `src/main/resources/templates/<lang>/`) | Idiom and real limit |
+| --- | --- | --- | --- |
+| java | `InputStream downloadX(...)` stays; `ByteStream downloadXStream(args, @Nullable Options, @Nullable StreamOptions)` (`ByteStream extends InputStream`, `AutoCloseable`); `JsonLinesStream<T>` and `EventStream<T>` are `Iterator<T>` plus `AutoCloseable` plus `stream()`; upload takes `InputStream` or `File` unbuffered; transport `default ApiStreamResponse sendStreaming(method, url, headers, body, timeoutMillis, maxRetries, idleTimeoutMillis)` throwing `UnsupportedOperationException` | `api_client`, `default_api_client`, `base_api`, `api/api`, `transport_options`, `client`, new `api_stream_response`, `event_stream`, `stream_options`, `test/DefaultApiClientUnitTest`, `test/BaseApiTest`, `test/ClientTest`, `readme`, `skills`; golden `generated/java` | Blocking types suit Java 21 virtual threads (floor 21, verified in `java/pom.mustache`). Use `HttpResponse.BodyHandlers.ofInputStream()` instead of `ofByteArray()` in a second send path; `sendBounded`'s whole-future timeout must not wrap it (verified in `default_api_client.mustache`). The redirect loop (verified, lines 600-740) is entangled with the buffered body, so it is extracted into a header-phase function used by both paths; today an `InputStream` upload is buffered on purpose for replay (verified): the stream method stops buffering and obeys the replay rule. Java `HttpClient.close()` waits for in-flight exchanges (floor reason, verified in AGENTS floor note). Library behaviour of `ofInputStream` cancel-on-close: not verified. Size L (reference implementation). |
+| kotlin | `suspend fun downloadXStream(args, options, streamOptions): ByteStream`; types are cold `Flow<ByteArray>`, `Flow<T>`, `Flow<ServerSentEvent<T>>` (each a `StreamResult` with status and headers read before the first emission via a suspending `open()`); upload takes `ByteReadChannel` or `Flow<ByteArray>`; `ApiClient` gains `suspend fun sendStreaming(...)` with a default that throws | `api_client`, `default_api_client`, `base_api`, `http_client_factory_jvm`, `api/api`, `transport_options`, new stream files, tests `DefaultApiClientUnitTest`, `DefaultApiClientTest`, readme, skills; golden `generated/kotlin` | Ktor 3.5.0 with CIO (verified in `build_gradle.mustache`); the SDK installs `HttpTimeout` with `requestTimeoutMillis` equal to the whole budget (verified), so streaming needs a per-request override where the request timeout is infinite and the socket timeout is the idle timeout. Whether Ktor's socket timeout measures the read gap, and the `prepareGet().execute { }` channel-valid-only-inside-the-block rule, are **not verified** here. Multiplatform (`expect fun buildPlatformHttpClient`, verified): the parser stays in common code. Size M. |
+| csharp | `Task<System.IO.Stream> DownloadXAsync(...)` stays (O1: becomes `byte[]`); `ValueTask<ByteStream> DownloadXStreamAsync(args, options, StreamOptions?, CancellationToken)` with `ByteStream : Stream`; `IAsyncEnumerable<T>` for JSON Lines and `IAsyncEnumerable<ServerSentEvent<T>>` with `[EnumeratorCancellation]`; upload takes `Stream`; `IApiClient` gains `SendStreamingAsync(...)` as a default interface method throwing `NotSupportedException` (default interface methods in this interface: **not verified**) | `api_client`, `default_api_client`, `base_api`, `api/api`, `transport_options`, new stream files, tests `DefaultApiClientUnitTest`, `DefaultApiClientTest`, `ClientTest`; golden `generated/csharp` | .NET 10 (verified in `csproj.mustache`). `SendAsync(request, token)` buffers the content by default, so streaming needs `HttpCompletionOption.ResponseHeadersRead`; the SDK's own `timeoutSource` token (verified) is passed to the body read too, so it is replaced by a timer cancelled at the headers and an idle token per read. `AutomaticDecompression = None` (verified): decode incrementally with `GZipStream`/`ZLibStream`/`BrotliStream` over the content stream. Size M. |
+| php | `downloadXStream($id, ?Options, ?StreamOptions): StreamInterface`; JSON Lines and SSE return `\Generator`; upload takes `\SplFileObject|StreamInterface`; transport interface `StreamingApiClient` (separate, `instanceof`-checked, so the `ApiClient` interface keeps compiling for custom clients) with `sendStreaming(...)` | `api_client`, new `streaming_api_client`, `abstract_api_client`, `default_api_client`, `psr18_api_client`, `base_api`, `api/api`, `transport_options` (+ builder), new stream files, tests `DefaultApiClientUnitTest`, `Psr18ApiClientUnitTest`, `StubbedDefaultApiClient`; golden `generated/php` | PHP 8.3 (verified in `composer.mustache`); default transport Symfony HttpClient (verified), whose response streaming (`stream()` over lazy responses) is **not verified**. A PSR-18 client returns a `ResponseInterface` whose body may be lazy or buffered, **not verified**: `Psr18ApiClient` implements `sendStreaming` only as far as the response body is read lazily and documents that a buffering PSR-18 client delivers all at once, never a hang. A generator closes its connection in `finally` when destroyed. Retries and redirects are in `AbstractApiClient` (verified), shared by both transports. Size M. |
+| python | `async def download_x_stream(...)` returning `ByteStream`, an async context manager and `AsyncIterator[bytes]`; `JsonLinesStream[T]` and `EventStream[T]` are `AsyncIterator`; `stream_options: Optional[StreamOptions] = None`; upload takes `bytes` or a binary file object or an iterable of bytes; transport `Protocol` `StreamingApiClient` with `send_streaming(...)` returning a handle with `read(n)` and `close()` | `api_client`, `default_api_client`, `base_api`, `api/api`, `transport_options`, `errors`-free, new stream files, tests `test_default_api_client_unit`, `test_base_api`, `test_default_api_client`; golden `generated/python` | Floor 3.10, urllib3 `>=2.1,<3` (verified in `pyproject_toml.mustache`). The SDK is async-first over a sync urllib3 client run with `asyncio.to_thread` (verified): each read is one `to_thread` call, and the existing `RequestHandle.cancel()` (verified) closes the socket on cancellation or `close()`. The client already requests with `preload_content=False, decode_content=False` (verified), so the response is open and unread; the decode is done by the SDK with `zlib.decompressobj`. Retries and the 401 replay are in `BaseApi._send_with_retries` (verified) and are reused. Whether urllib3 sends an iterable body chunked: **not verified**. Size M. |
+| ruby | `download_x_stream(id, options = nil, stream_options = nil) { \|chunk\| }` block form, or without a block an `Enumerator`-backed object (`ByteStream` responds to `read(n)`, `each`, `close`); `JsonLinesStream` and `EventStream` are `Enumerator::Lazy` with `close`; upload takes `File` or any `IO`; transport `send_streaming(method, url, headers, body, ...)` found by `respond_to?` | `api_client`, `default_api_client`, `base_api`, `api/api`, `transport_options`, new stream files, rbs signatures (`faraday_rbs`, `infrastructure_rbs`, `types`), tests `default_api_client_unit_test`, `base_api_test`; golden `generated/ruby` | Faraday `~> 2.0` is the only HTTP dependency (verified in `gemspec.mustache`); the SDK's own comment says `net_http` opens a socket per request (verified). Faraday's `on_data` callback and which adapter supports it: **not verified** (a documentation fetch of the Faraday site returned no adapter details); if the default adapter lacks it the stream path drops to `Net::HTTP#request` with `read_body` for streaming calls only. Push-style callbacks become an `Enumerator` through a producer thread and a bounded queue. Steep must type the new files (RBS required, KT-3). Size L. |
+| node | `downloadXStream(id, requestOptions?): Promise<ByteStream>` where `ByteStream` is a Web `ReadableStream<Uint8Array>` plus `statusCode` and `headers`; `exportXStream(requestOptions?)` returns `JsonLinesStream<T>` (`AsyncIterable<T> & AsyncDisposable`); `watchXStream(streamRequestOptions?)` returns `EventStream<T>`; `StreamRequestOptions extends RequestOptions` (adds the stream settings, used only by stream methods); upload body accepts `ReadableStream`, `AsyncIterable<Uint8Array>` and a Node `Readable` besides `Buffer`; transport `sendStreaming?` optional method on `ApiClient` | `api_client`, `abstract_api_client`, `default_api_client`, `web_api_client`, `base_api`, `api/api`, `transport_options`, new stream files, tests `default-api-client-unit.test`, `default-api-client.test`, `web-api-client.test`, api tests; golden `generated/node` | Node `>=22` (verified in `package.mustache`). Retries and redirect loop in `AbstractApiClient.sendCounted` (verified). `AbortSignal.timeout(timeout)` is passed to `fetch` and cannot be disarmed (verified usage), so the stream path uses an `AbortController` plus `setTimeout` cleared at the headers and a per-read idle timer. `fetch` owns Content-Encoding (verified in the exceptions file), so incremental decode is not the SDK's (exceptions `streaming006/007`). A stream request body needs `duplex: 'half'` in undici: **not verified**; the portable `web_api_client` shares the code with runtimes that may not support stream bodies (documented, refused at call time with a built-in `TypeError`). Size M. |
+| dart | `Stream<List<int>> downloadXStream(id, [options, streamOptions])` for bytes (`ByteStream` = a `Stream<List<int>>` with `statusCode`, `headers`); `Stream<T>` and `Stream<ServerSentEvent<T>>`; upload takes `Stream<List<int>>` as well as `Uint8List` (the call type becomes a union through an extra named method `setXFromStream`, because Dart has no overloads); `ApiClient` gains a concrete default `sendStreaming` that throws `UnsupportedError` | `api_client`, `abstract_api_client`, `default_api_client_io`, `default_api_client_web`, `base_api`, `api/api`, `transport_options`, new stream files, tests `default_api_client_unit_test`, `default_api_client_test`, `base_api_test`; golden `generated/dart` | SDK `>=3.11`, `http ^1.2.0` (verified in `pubspec.mustache`). The client already calls `_httpClient.send(request)` and gets an `http.StreamedResponse` before reading it (verified in `abstract_api_client.mustache`), the smallest gap of all twelve; the retry loop is in `RetryingApiClient` (name verified, body not read). Cancelling the subscription cancels the request. The web variant cannot set the idle timeout or a request stream (documented). The response-side contract that an unlistened stream keeps the socket: **not verified**. Size M. |
+| go | `DownloadXStream(ctx, id, callOptions ...RequestOption) (*ByteStream, error)` (`ByteStream` is an `io.ReadCloser` with `StatusCode()` and `Headers()`); `ExportXStream(ctx, ...) (iter.Seq2[T, error])`; `WatchXStream(ctx, ...) iter.Seq2[ServerSentEvent[T], error]`; stream settings are `RequestOption`s (`WithIdleTimeout`, `WithMaxReconnects`, `WithReconnectDelay`, `WithLastEventID`) like `WithRequestContentType`, which already applies to some operations only (verified in `request_option.mustache`); upload `io.Reader`, seekable via `io.Seeker` is replayable; transport interface `StreamingApiClient` (separate; a method added to `ApiClient` would break every custom implementation, as Go has no default methods) found by type assertion, the pattern `retryPolicyProvider` already uses (verified) | `api_client`, `default_api_client`, `base_api`, `api/api` (group interface `<Group>ApiInterface` gains the stream methods, F879), `request_option`, `transport_options`, new stream files, tests `default_api_client_unit_test`, `default_api_client_test`, `base_api_test`, `client_test`, api tests; golden `generated/go` | Go 1.25 (verified in `go_mod.mustache`), so `iter.Seq2` is available. The policy `http.Client` sets `Timeout`, which includes the body read (verified), so streams use a copy with `Timeout = 0` (the same copy trick the per-call timeout already uses, verified) and a timer that cancels the context unless stopped at the headers; an injected non-`*http.Client` `HttpDoer` has no client timeout, so the context timer does it (verified). Retries and the 401 replay are in `baseApi.invokeApiForResult` (verified), which a custom `ApiClient` never gets (so a custom streaming client is never retried, consistent with today). `Close()` does not cancel (comment verified in `default_api_client.mustache`; the matrix cell "cancelled by `Close()`" is stale: to correct). Size M. |
+| rust | `download_x_stream(&self, id, options, stream_options) -> Result<ByteStream, Error>` where `ByteStream: Stream<Item = Result<Bytes, Error>>`; `JsonLinesStream<T>` and `EventStream<T>` are `Stream<Item = Result<T, Error>>`; `StreamOptions` builder (`StreamOptions::default().max_reconnects(5)`); upload takes `impl Stream<Item = io::Result<Bytes>> + Send + 'static` as well as `Vec<u8>` (through a second method name `set_x_from_stream`, no overloads); `ApiClient` trait gets `fn send_streaming(...)` with a default returning an error (the trait already has default methods `max_retries`, `request_timeout`, `close`, verified) | `api_client`, `default_api_client`, `base_api`, `api/api`, `cargo_toml`, `transport_options`, new stream files, tests `default_api_client_unit_test`, `default_api_client_test`, `base_api_test`; golden `generated/rust` | reqwest 0.12 with `default-features = false` and features `json multipart http2 charset rustls-tls-native-roots` (verified in `cargo_toml.mustache`): the `stream` feature is not enabled, and `Response::bytes_stream` requires it (verified against docs.rs 0.12). So the manifest gains `features = [..., "stream"]` (a version bump of a feature, no native binary, S10 holds) and likely `tokio-util` or `futures-util`. Decompression today is whole-buffer with `flate2`/`brotli`/`zstd` (verified in the manifest): an incremental async decode needs either `async-compression` (new pure-Rust dependency) or bridging the sync decoders; this is the one place where S10 is exercised (recommendation O6). `chunk()` needs no feature (verified in docs.rs). Dropping the stream cancels the request. Size L. |
+| swift | `func downloadXStream(id:options:streamOptions:) async throws -> ByteStream` where `ByteStream` is an `AsyncSequence` of `Data` with `statusCode` and `headers`; `AsyncThrowingStream<T, Error>` for JSON Lines and `AsyncThrowingStream<ServerSentEvent<T>, Error>`; upload takes `InputStream` or an `AsyncSequence` of `Data` besides `Data` (an overload, as Swift has them); `ApiClient` protocol extension default `sendStreaming(...)` that throws, the pattern already used for `sendRequest(... noRedirect:)` (verified in `api_client.mustache`) | `api_client`, `default_api_client`, `base_api`, `api/api`, `transport_options`, new stream files, tests `DefaultApiClientUnitTests`, `DefaultApiClientTests`; golden `generated/swift` | Swift tools 6.0, macOS 12 and iOS 15 floors (verified in `package_swift.mustache`), which matches the OS floor of `URLSession.bytes(for:)`. The default client is delegate-driven on a `URLSession` with `dataTask` (verified), and imports `FoundationNetworking` on Linux (verified): `bytes(for:)` is **not verified** on Linux, so the recommended path is a `URLSessionDataDelegate` feeding an `AsyncThrowingStream` in all environments. URLSession negotiates and decodes encoding itself (verified comment), so incremental decode is not the SDK's (possible exceptions `streaming006/007`). Task cancellation cancels the stream. Size L. |
+| elixir | `download_x_stream(api, id, options \\ nil, opts \\ [])` returns `{:ok, stream}` where `stream` is an `Enumerable` of binaries (a lazy `Stream.resource`) and `download_x_stream!` raises; `{:ok, enumerable of %Item{}}`; `{:ok, enumerable of %ServerSentEvent{}}`; stream settings in the existing `opts` keyword list; upload accepts an `Enumerable` of binaries besides a binary; `ApiClient` behaviour gets `send_streaming/6` as an optional callback (the behaviour already declares `@optional_callbacks`, verified) | `api_client`, `default_api_client`, `base_api`, `api/api`, `transport_options`, new stream files, tests `default_api_client_unit_test`, `default_api_client_test`, `base_api_test`; golden `generated/elixir` | Elixir `~> 1.17`, Req `~> 0.5` (verified in `mix_exs.mustache`); the SDK already sets `retry: false` and `raw: true` (verified) and owns retries and decompression, so the Req `:into` mode applies without a retry interaction. Req's `:into` modes (`:self`, `Req.Response.Async`, cancel) are **not verified** here (a documentation fetch returned only a note that decode and decompress steps are disabled when streaming). An error tuple is the language's own way (matrix: Elixir uses tagged tuples with `!` variants), unlike the other eleven's throws; this is an existing forced divergence. Leaving the enumeration early cancels the response. Size M. |
+
+Idle-timeout and cancellation hooks per language are the same names the language already uses for the timeout (section 5.1 of each template is the existing deadline code, replaced for the stream path as the table says).
+
+## 7. The tests
+
+All behaviour ids of section 4.2 apply to all twelve. Where each lives (the repository rule: do not add test files; extend the templates that exist):
+
+- Wire framing, timeouts, retry phase 1, redirects, reset and truncation, upload, close and cancellation (`streaming001-007`, `009-013`, `015-016`, `019-020`, `023-027`, `sse001-016` against the transport): the existing `DefaultApiClientUnitTest` template of each language (the in-process-server one), as table rows or sibling tests named with the ids. One local server per test, stateful where needed (the Nth request answers differently, a body dropped after N events, `Last-Event-ID` recorded).
+- Behaviour through the operation (`streaming008`, `014`, `017`, `018`, `021`, `022`, `028`, `sse013`): `BaseApiTest` and `ClientTest` templates, plus the petstore API tests for the generated methods; `streaming028` asserts, per golden, the presence of the stream methods on the fixture operations.
+- Parser and decoder pieces (`streaming002-005`, `sse002-005`, `sse014`) are driven through the transport rows above and asserted on the public stream types; the SSE grammar is one table of raw byte inputs and expected events, so each language runs the same table.
+- A new mirror test file for the new source file `event_stream` (`<EventStream>Test` in each language) would be the global default (mirror the source file), but the repository rule says no new test files. Recommendation (O7): add it in all twelve in this one change; the catalogue compares by id, so twelve identically named files cannot drift, and the table of raw inputs belongs there, not in a transport test.
+- Generator unit tests in `src/test/java` as in section 5; goldens regenerated for all twelve and committed together; `etc/ci-local.sh check <Lang>` per language, then the whole run, with the Docker caveats of the shared `AGENTS.md`.
+
+Each id asserts what its promise says and nothing more; for example `streaming010` has a server that holds the headers for less than the call timeout and the body for longer, and asserts the stream completes; `streaming015` has a server that sends one chunk, closes, and counts requests; `sse007` has a server that drops after two events and asserts the second request carries `Last-Event-ID` equal to the id of the second event; `sse009` has a server that always drops without an event and asserts exactly `maxReconnects + 1` requests then `NetworkError`.
+
+## 8. Risks and open questions
+
+Open questions with recommended answers (the first is the one #114 itself asks):
+
+- **O1. Binary responses: stream or bytes in the buffered method?** Recommendation: bytes in every language, and the stream only in `<op>Stream`. Java, csharp and ruby return a memory-backed stream today (verified: `InputStream`, `Stream`, `File`/`StringIO`), which looks like streaming and is not, and the csharp skills text already says `byte[]` while the language page says `Stream`. The change is breaking for those three (`byte[]`, `byte[]`, binary `String`) and must land before the first release; if a release already went out, keep the types and document the memory backing. Upload parameter types stay native streams.
+- **O2. No generator option.** Recommendation: none; the method appears when the spec signals it (the first proposal's `streaming=false` default is dropped). Cost: every existing golden gains the stream method for its binary operations. Alternative if the owner dislikes growing the surface of binary operations: generate the binary stream method only when the spec also declares `format: binary` responses over a size hint (not available), so no.
+- **O3. One idle default.** Recommendation: 60 s for every kind including SSE, and for SSE an idle expiry is a lost connection that reconnects (`sse015`). This removes the "none for SSE" special case; a quiet server needs a heartbeat or a larger `idleTimeout` on the call.
+- **O4. No `onReconnect` hook in v1.** Recommendation: leave it out (new callback API in twelve languages with retry semantics to settle, as for the declined #140 hooks); a reconnect is visible through the tracing hook of #108 when that lands. Add it later additively.
+- **O5. Multipart with a stream part stays buffered in v1.** Recommendation: yes, as in the first proposal.
+- **O6. Dependencies.** Recommendation: rust adds reqwest `stream` and `async-compression` (pure Rust, S10); swift, php, ruby add none; python none; node none. If rust prefers no new crate, decode br and zstd through blocking decoders on a `spawn_blocking` bridge (more code, less clean).
+- **O7. One new mirror test file per language** for `event_stream` (see section 7). Recommendation: allow it for this change only.
+- **O8. `close()` and open streams.** Recommendation: graceful (F1078): a stream is a request in flight and the transport is released when the last stream ends or is closed; a never-ending SSE stream keeps the transport until the caller closes it (documented). The first proposal's "close cancels streams" would contradict F1078 and Go's documented behaviour (verified); fix the stale Go matrix cell.
+- **O9. Streaming methods and the per-group interfaces.** Adding methods to Go's `<Group>ApiInterface` (F879) breaks users' own fakes that implement it. Recommendation: accept (pre-release, the interface is generated), state it in the Go page.
+- **O10. A custom `ApiClient` without streaming.** Recommendation: the stream call fails with the language's built-in unsupported-operation error naming the transport, never a silent buffered fallback (an SSE call would hang).
+
+Real risks:
+
+1. **The fixture server cannot stream** (verified in the chasm source). Every behaviour needs an in-process server in twelve test templates, and four languages (php, rust, swift, elixir) were not checked for an existing in-process server in their unit-test templates. Mitigation: stage 0 checks them; if one has none, a minimal server helper is added to that language's test template, not to the fixture.
+2. **Two architectures for retries and deadlines** (section 3, points 3 and 4). A streaming path that reuses phase 1 must be written twice in shape (transport layer versus `BaseApi`), and each timeout facility must be disarmed at the headers. A mistake here either kills a long stream at the call timeout (the first proposal's note on csharp and go) or leaves a hung connection. Mitigation: `streaming010`, `011`, `012` and `015` are table rows in every language's unit test and are the first thing implemented after the reference.
+3. **Unverified library facts in the languages with the least certain path:** ruby (Faraday `on_data`), elixir (Req `:into`), swift (Linux `bytes(for:)` and delegate streaming), php (Symfony response streaming and PSR-18 laziness), node (`duplex: 'half'`), kotlin (Ktor socket timeout), java (`ofInputStream` close), python (urllib3 chunked iterable bodies). Mitigation: stage 0 proves each with a ten-line probe in its language container before the stage that depends on it.
+4. **The public surface grows by about fifty names per language** (three stream types, `ServerSentEvent`, `StreamOptions`, the transport entry, methods per operation) and the API guard (#122) does not exist yet; the twelve surfaces must be compared by hand (root `AGENTS.md`).
+5. **Binary type change (O1)** is breaking in three languages if a release has shipped.
+
+## 9. Decisions to record in `generators/AGENTS.md` when accepted
+
+Next free numbers after D94, to be assigned at write time: the opt-in rule (spec signal, no option); the `<op>Stream` method and naming; no buffered method for SSE and JSON Lines operations; `StreamOptions` separate from the F827 options; `TransportOptions.idleTimeout`; timeout and idle semantics (section 4.3); the error mapping that adds no class; graceful close; the replay rule and "never buffer"; the SSE grammar and reconnect policy; binary buffered types (O1); supersession of F837.
+
+## 10. Order of work and size per language
+
+All twelve need real code; none can be done with tests or docs alone.
+
+| Stage | Content | Size |
 | --- | --- | --- |
-| 0 | Verify every "to verify" item above against the libraries (ruby `on_data`, dart response stream, swift `AsyncBytes` on Linux, elixir `:retry` with `:into`, kotlin SSE plugin, python and ruby chunked request bodies, php PSR-18 laziness); extend the chasm fixture with the three operations; owner decisions D-S1 to D-S5 | 2 days |
-| 1 | Generator: option `streaming`, signal detection (`BetterCodegen` base, one place), model flags for the three kinds, gating test, docs page; no template output yet | 3 days |
-| 2 | Java reference: refactor the redirect/retry code behind a header-phase function, `sendStreaming`, `ByteStream`, JSON Lines, SSE parser and reconnect, `BodySource`, `StreamError`, tests for the 39 ids, README "Streaming" section replacing "Not supported" | 8 days |
-| 3 | The three closest to Java by library shape: kotlin, csharp, go (go and csharp already have the lowest-level hooks) | 3 x 4 days |
-| 4 | node, python, rust (rust adds the `stream` feature and `tokio-util`; python adds the async facade iterator) | 3 x 4 days |
-| 5 | The remaining five: php, ruby, dart, swift, elixir (the five with a library question from stage 0) | 5 x 5 days |
-| 6 | Cross-language parity review pass against the canonical Java surface (the "APIs harmonized" rule), docs/decisions.md update (F837 superseded), README and language pages, flip the default decision | 3 days |
+| 0 | Probe the unverified library facts of risk 3 and the unit-test servers of php, rust, swift, elixir; verify `CodegenResponse` content exposure in generator 7.22; owner answers O1 to O10 | 2 days |
+| 1 | Shared generator (decorators, `OnlyAllowJsonRule`), fixture operations in the petstore and probe specs, catalogue lines and the `test-catalogue-exceptions.txt` draft, generator unit tests, doc skeletons; goldens regenerated (binary operations gain the method only after stage 2) | M |
+| 2 | java reference: header-phase refactor of the redirect and retry code, `sendStreaming`, the three stream types, SSE parser and reconnect, upload without buffering, the 44 ids, readme and skills sections | L |
+| 3 | The languages closest to java by shape: kotlin (M), csharp (M), go (M), dart (M, smallest gap) | M each |
+| 4 | node (M), python (M), php (M), elixir (M) | M each |
+| 5 | The languages with the heaviest library questions: ruby (L), rust (L), swift (L) | L each |
+| 6 | Cross-language parity pass against the java surface (public members compared by hand), `docs/decisions.md`, `docs/types.md`, `docs/how-it-works.md`, twelve language pages, `AGENTS.md` decisions, supersede F837, stale Go matrix cell | M |
 
-Total about 65 engineer-days, or about three weeks of calendar time if stages 3, 4 and 5 run in parallel worktrees. The first release that ships the option should include java, kotlin, csharp and go only if the owner accepts a staggered release; the standing rule is that all twelve expose the same shape, so the recommendation is to release all twelve together and keep `streaming=false` as the default until then.
-
-## 16. Decisions for the owner
-
-- D-S1: the opt-in is the generator option `streaming` (default false), not a vendor extension. Alternative: always on for matching content types.
-- D-S2: a streaming method is additive (`<operation>Stream`); the buffered method stays and, for an SSE-only operation, does not exist.
-- D-S3: one new error class `StreamError` under `NetworkError`, the only surface addition.
-- D-S4: `timeout` covers only the header phase for stream calls; a new `idleTimeout` covers body gaps (default 60s, none for SSE). The end-to-end budget no longer applies once the stream starts.
-- D-S5: `client.close()` cancels open streams, an intentional exception to the "in flight finishes" wording of F1078.
-- D-S6: SSE reconnect defaults (5 consecutive failures, 1 second start, doubling to 30 seconds, jitter) and `Accept-Encoding: identity` for SSE.
-- D-S7: a non-replayable streamed upload is never buffered and never retried; Java's current buffering stays only for the buffered methods.
-- D-S8: multipart with a stream part is not streamed in v1.
-- D-S9: python's async facade is thread-backed and not a true async transport; true async would need a new dependency (see S dependency rule: a small pure library is acceptable if it standardises behaviour cleanly).
+Sizes: java L, kotlin M, csharp M, php M, python M, ruby L, node M, dart M, go M, rust L, swift L, elixir M. Releasing all twelve together is the standing rule; a partial release is possible only if the owner accepts it. Stages 3 to 5 can run in parallel worktrees, at most four gates at once (shared `AGENTS.md`), and each stage ends with `etc/ci-local.sh check <Lang>` per language and a push once per round.
