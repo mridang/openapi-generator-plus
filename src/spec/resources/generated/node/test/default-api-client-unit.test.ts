@@ -23,7 +23,7 @@ import {
 } from "../src/errors/index.js";
 import { ClientError } from "../src/errors/client-error.js";
 import { TransportOptions } from "../src/transport-options.js";
-import { EdgeCases } from "../src/models/index.js";
+import { Account, EdgeCases } from "../src/models/index.js";
 
 let server: http.Server;
 let baseUrl: string;
@@ -3347,6 +3347,19 @@ describe("Content-Encoding lie surfaces ApiError (canonical AL)", () => {
     ).rejects.toThrow(ApiError);
   });
 
+  it("bhvMisc285 a response with a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message", async () => {
+    await expect(
+      DefaultApiClient.ensureDecoded(
+        Buffer.from("payload", "utf-8"),
+        "compress",
+        200,
+      ),
+    ).rejects.toMatchObject({
+      name: "ApiError",
+      message: "Unsupported Content-Encoding 'compress'",
+    });
+  });
+
   it("bhv transport 035 decompresses a zlib-wrapped deflate response", async () => {
     const body = zlib.deflateSync(Buffer.from('{"userId":1}', "utf-8"));
     const srv = http.createServer((_req, res) => {
@@ -5044,6 +5057,289 @@ describe("DefaultApiClient misc cause and redirects", () => {
     } finally {
       await client.close();
       await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
+  });
+});
+
+describe("DefaultApiClient transport and multipart behaviours (bhv transport 084 to 093, serialization 119 to 127)", () => {
+  function hungServer(): Promise<{ url: string; close: () => Promise<void> }> {
+    return new Promise((resolve) => {
+      const srv = http.createServer(() => {
+        /* never answers, so the call stays in flight */
+      });
+      srv.listen(0, "127.0.0.1", () => {
+        const { port } = srv.address() as { port: number };
+        resolve({
+          url: `http://127.0.0.1:${port}/hang`,
+          close: () =>
+            new Promise<void>((done) => {
+              srv.closeAllConnections();
+              srv.close(() => done());
+            }),
+        });
+      });
+    });
+  }
+
+  function captureRawMultipart(): Promise<{
+    url: string;
+    getBody: () => string;
+    close: () => void;
+  }> {
+    return new Promise((resolve) => {
+      let chunks: Buffer[] = [];
+      const srv = http.createServer((req, res) => {
+        chunks = [];
+        req.on("data", (chunk: Buffer) => chunks.push(chunk));
+        req.on("end", () => {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end('{"ok":true}');
+        });
+      });
+      srv.listen(0, "127.0.0.1", () => {
+        const { port } = srv.address() as { port: number };
+        resolve({
+          url: `http://127.0.0.1:${port}/upload`,
+          getBody: () => Buffer.concat(chunks).toString("binary"),
+          close: () => srv.close(),
+        });
+      });
+    });
+  }
+
+  it("bhv transport 084 cancelling a call through its own signal stops that request at once", async () => {
+    const hung = await hungServer();
+    const client = new DefaultApiClient();
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 50);
+    const started = Date.now();
+    try {
+      await expect(
+        client.sendRequest("GET", hung.url, {}, null, {
+          signal: controller.signal,
+        }),
+      ).rejects.toMatchObject({ name: "AbortError" });
+      expect(Date.now() - started).toBeLessThan(1000);
+    } finally {
+      await client.close();
+      await hung.close();
+    }
+  });
+
+  it("bhv transport 085 a timeout still raises the network timeout error when a signal is supplied but never fires", async () => {
+    const hung = await hungServer();
+    const client = new DefaultApiClient(
+      TransportOptions.builder().timeout(100).maxRetries(0).build(),
+    );
+    const controller = new AbortController();
+    let caught: unknown;
+    try {
+      await client.sendRequest("GET", hung.url, {}, null, {
+        signal: controller.signal,
+      });
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+      await hung.close();
+    }
+    expect((caught as Error).constructor).toBe(NetworkTimeoutError);
+  });
+
+  it("bhv transport 087 a connection that cannot be established raises the SDK network error", async () => {
+    const client = new DefaultApiClient();
+    let caught: unknown;
+    try {
+      await client.sendRequest("GET", "http://127.0.0.1:1/never", {}, null);
+    } catch (e) {
+      caught = e;
+    } finally {
+      await client.close();
+    }
+    expect(caught).toBeInstanceOf(NetworkError);
+  });
+
+  it("bhv transport 089 a response whose Content-Encoding does not match its body raises the SDK API error", async () => {
+    const originalFetch = global.fetch;
+    const lyingBody = Buffer.concat([
+      Buffer.from([0x1f, 0x8b]),
+      Buffer.from("not gzip at all", "utf-8"),
+    ]);
+    global.fetch = (async (): Promise<Response> =>
+      new Response(lyingBody, {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Encoding": "gzip",
+        },
+      })) as unknown as typeof fetch;
+    try {
+      await expect(
+        new DefaultApiClient().sendRequest(
+          "GET",
+          "http://api.example/items",
+          {},
+          null,
+        ),
+      ).rejects.toBeInstanceOf(ApiError);
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("bhv transport 090 response headers repeated on the wire are returned with every value present", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (): Promise<Response> =>
+      new Response("{}", {
+        status: 200,
+        headers: [
+          ["X-Multi", "first"],
+          ["X-Multi", "second"],
+          ["Content-Type", "application/json"],
+        ],
+      })) as unknown as typeof fetch;
+    try {
+      const response = await new DefaultApiClient().sendRequest(
+        "GET",
+        "http://api.example/items",
+        {},
+        null,
+      );
+      expect(response.headers["x-multi"]).toContain("first");
+      expect(response.headers["x-multi"]).toContain("second");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("bhv transport 091 the SDK leaves a caller-supplied upload open after sending the request", async () => {
+    const originalFetch = global.fetch;
+    global.fetch = (async (): Promise<Response> =>
+      new Response("{}", { status: 200 })) as unknown as typeof fetch;
+    try {
+      const upload = new Blob(["upload-bytes"]);
+      await new DefaultApiClient().sendRequest(
+        "POST",
+        "http://api.example/up",
+        {},
+        { file: upload },
+      );
+      expect(await upload.text()).toBe("upload-bytes");
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
+
+  it("bhv transport 092 a caller-supplied HTTP client receives the SDK request", async () => {
+    let hits = 0;
+    const countingFetch = (async (): Promise<Response> => {
+      hits++;
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().fetch(countingFetch).build(),
+    );
+    try {
+      await client.sendRequest("GET", "http://api.example/items", {}, null);
+      expect(hits).toBe(1);
+    } finally {
+      await client.close();
+    }
+  });
+
+  it("bhv serialization 119 a response body is decoded by its declared charset, falling back to UTF-8 and reading BOM-less UTF-16 as big-endian", () => {
+    expect(
+      DefaultApiClient.decodeBody(
+        Buffer.from([0xe9]),
+        "text/plain; charset=iso-8859-1",
+      ),
+    ).toBe("é");
+    expect(
+      DefaultApiClient.decodeBody(Buffer.from("é", "utf-8"), "text/plain"),
+    ).toBe("é");
+    expect(
+      DefaultApiClient.decodeBody(
+        Buffer.from("hi", "utf-8"),
+        "text/plain; charset=bogus-label",
+      ),
+    ).toBe("hi");
+    expect(
+      DefaultApiClient.decodeBody(
+        Buffer.from([0x00, 0x41]),
+        "text/plain; charset=utf-16",
+      ),
+    ).toBe("A");
+  });
+
+  it("bhv serialization 120 a file part takes its Content-Type from its extension and uses application/octet-stream otherwise", () => {
+    expect(DefaultApiClient.mimeTypeForFilename("picture.png")).toBe(
+      "image/png",
+    );
+    expect(DefaultApiClient.mimeTypeForFilename("noextension")).toBe(
+      "application/octet-stream",
+    );
+    expect(DefaultApiClient.mimeTypeForFilename("data.zzzunknownext")).toBe(
+      "application/octet-stream",
+    );
+  });
+
+  it("bhv serialization 123 multipart field names and filenames containing CR, LF or NUL are rejected rather than written into the header", () => {
+    for (const unsafe of ["a\r\nb", "a\x00b"]) {
+      expect(() =>
+        DefaultApiClient.buildContentDisposition(unsafe, "file.txt"),
+      ).toThrow(TypeError);
+      expect(() =>
+        DefaultApiClient.buildContentDisposition("file", unsafe),
+      ).toThrow(TypeError);
+    }
+  });
+
+  it("bhv serialization 124 a non-ASCII multipart filename is sent with an ASCII fallback and an RFC 5987 form", async () => {
+    const { url, getBody, close } = await captureRawMultipart();
+    try {
+      const file = Object.assign(new Blob(["x"]), { name: "naïve.txt" });
+      await new DefaultApiClient().sendRequest("POST", url, {}, { file });
+      expect(getBody()).toContain(
+        Buffer.from("filename*=UTF-8''na%C3%AFve.txt").toString("binary"),
+      );
+    } finally {
+      close();
+    }
+  });
+
+  it("bhv serialization 126 a non-ASCII multipart field name is preserved as UTF-8 in the part header", async () => {
+    const { url, getBody, close } = await captureRawMultipart();
+    try {
+      await new DefaultApiClient().sendRequest(
+        "POST",
+        url,
+        {},
+        { "nom-é": "x" },
+      );
+      expect(getBody()).toContain(
+        Buffer.from('name="nom-é"', "utf-8").toString("binary"),
+      );
+    } finally {
+      close();
+    }
+  });
+
+  it("bhv serialization 127 primitive multipart parts are sent as plain text and only model parts are sent as JSON", async () => {
+    const { url, getBody, close } = await captureRawMultipart();
+    try {
+      await new DefaultApiClient().sendRequest(
+        "POST",
+        url,
+        {},
+        { n: 5, meta: new Account({ username: "user" }) },
+      );
+      const body = getBody();
+      expect(body).toContain(
+        'Content-Disposition: form-data; name="n"\r\n\r\n5\r\n',
+      );
+      expect(body.split("Content-Type: application/json").length - 1).toBe(1);
+    } finally {
+      close();
     }
   });
 });

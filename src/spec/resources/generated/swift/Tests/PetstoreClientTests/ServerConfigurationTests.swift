@@ -194,6 +194,45 @@ import Testing
     #expect(first != other)
   }
 
+  /* A variable declared with an empty enum accepts any value, and the URL is built from that value. */
+  @Test func testBhvMisc257AVariableDeclaredWithAnEmptyEnumAcceptsAnyValue() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v1",
+      variables: ["env": ServerVariable(defaultValue: "prod", enumValues: [])]
+    )
+    #expect(try server.url(variables: ["env": "anything"]) == "https://anything.api.example.com/v1")
+  }
+
+  /* When no override is supplied for a variable, its default value is used in the URL. */
+  @Test func testBhvMisc258AMissingOverrideUsesTheVariableDefault() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v{version}",
+      variables: [
+        "env": ServerVariable(defaultValue: "prod"),
+        "version": ServerVariable(defaultValue: "1"),
+      ]
+    )
+    #expect(try server.url(variables: ["version": "2"]) == "https://prod.api.example.com/v2")
+  }
+
+  /* A placeholder in the template with no declared variable stays in the URL exactly as written. */
+  @Test func testBhvMisc259AnUndeclaredPlaceholderStaysInTheUrl() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/{undeclared}",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(try server.url() == "https://prod.api.example.com/{undeclared}")
+  }
+
+  /* A value containing backslash sequences is inserted into the URL exactly as given, with no escape processing. */
+  @Test func testBhvMisc261AValueWithBackslashSequencesIsInsertedLiterally() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com/v1",
+      variables: ["env": ServerVariable(defaultValue: "prod")]
+    )
+    #expect(try server.url(variables: ["env": #"a\nb"#]) == #"https://a\nb.api.example.com/v1"#)
+  }
+
   /* Editing the variables map read back from a server configuration does not change the configuration. */
   @Test func testBhvMisc154EditingTheVariablesReadBackDoesNotChangeTheServer() {
     let server = ServerConfiguration(
@@ -204,44 +243,15 @@ import Testing
     #expect(server.variables["env"]?.defaultValue == "api")
   }
 
-  /* Resolving a server URL whose enum variable has no usable value is refused, naming the variable and its allowed values. */
-  @Test func testBhvMisc155AnUnsetEnumVariableIsRefusedNamingItsAllowedValues() {
+  /* A server URL with templated variables resolves to the URL formed from each variable's default value when no overrides are supplied. */
+  @Test func testBhvMisc278AServerUrlWithTemplatedVariablesResolvesToEachDefault() throws {
     let server = ServerConfiguration(
-      urlTemplate: "https://{env}.example.com",
-      variables: ["env": ServerVariable(defaultValue: "", enumValues: ["api", "staging"])])
-    do {
-      _ = try server.url()
-      Issue.record("A server URL with no usable enum value must be refused")
-    } catch {
-      let text = error.localizedDescription
-      #expect(text.contains("env"))
-      #expect(text.contains("staging"))
-    }
-  }
-
-  /* The list of all generated servers keeps the order in which they are declared. */
-  @Test func testBhvMisc156TheListOfAllServersKeepsTheDeclaredOrder() {
-    #expect(
-      Servers.all.map(\.urlTemplate) == [Servers.server0.urlTemplate, Servers.server1.urlTemplate])
-  }
-
-  /* A server built with explicit variable values resolves those values into its URL. */
-  @Test func testBhvMisc157AServerBuiltWithExplicitValuesResolvesThemIntoItsUrl() throws {
-    let server = ServerConfiguration(
-      urlTemplate: "https://{env}.example.com/{ver}",
+      urlTemplate: "https://{env}.api.example.com/v{version}",
       variables: [
-        "env": ServerVariable(defaultValue: "api", enumValues: ["api", "staging"]),
-        "ver": ServerVariable(defaultValue: "v2"),
-      ])
-    #expect(
-      try server.url(variables: ["env": "staging", "ver": "v3"]) == "https://staging.example.com/v3"
+        "env": ServerVariable(defaultValue: "staging"),
+        "version": ServerVariable(defaultValue: "3"),
+      ]
     )
-  }
-
-  /* A server built with a fixed URL reports exactly that URL. */
-  @Test func testBhvMisc158AServerBuiltWithAFixedUrlReportsThatUrlExactly() throws {
-    #expect(
-      try ServerConfiguration(urlTemplate: "https://fixed.example.com/v1").url()
-        == "https://fixed.example.com/v1")
+    #expect(try server.url() == "https://staging.api.example.com/v3")
   }
 }

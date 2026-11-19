@@ -826,6 +826,15 @@ describe('ValueSerializer misc behaviours', () => {
   });
 });
 
+describe('ValueSerializer absent-value behaviour (bhv serialization 110)', () => {
+  test('bhv serialization 110 an absent or nil value is sent as null in the query location and as an empty value elsewhere', () => {
+    expect(ValueSerializer.serialize(null, 'query', 'string')).toBeUndefined();
+    expect(ValueSerializer.serialize(undefined, 'query', 'string')).toBeUndefined();
+    expect(ValueSerializer.serialize(null, 'path', 'string')).toBe('');
+    expect(ValueSerializer.serialize(null, 'header', 'string')).toBe('');
+  });
+});
+
 describe('ValueSerializer misc behaviours (chunk 11)', () => {
   test('bhv serialization 106 a non-exploded array query parameter joins its values with commas', () => {
     expect(ValueSerializer.serialize(['a', 'b'], 'query', 'array', 'csv')).toBe('a,b');
@@ -833,5 +842,12 @@ describe('ValueSerializer misc behaviours (chunk 11)', () => {
 
   test('bhv serialization 108 a path parameter with no declared style uses the simple style', () => {
     expect(ValueSerializer.serialize('v', 'path', 'string')).toBe('v');
+  });
+});
+
+describe('ValueSerializer date-time query behaviour (bhv serialization 118)', () => {
+  test('bhv serialization 118 a date-time query or path parameter keeps its full ISO-8601 time and offset rather than being cut to the date', () => {
+    const at = new Date(Date.UTC(2026, 0, 2, 3, 4, 5));
+    expect(ValueSerializer.serializeStyled('at', at, 'query', 'Date', null, 'form', true)).toContain('2026-01-02T03:04:05');
   });
 });

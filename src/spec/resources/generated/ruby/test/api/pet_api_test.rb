@@ -1922,6 +1922,16 @@ describe Petstore::Client::Api::PetApi do
       _(regional).must_equal 'https://eu.example.com/v1/pet/7/multi'
     end
 
+    it 'bhv_misc_219 an operation with several servers sends its request to the server chosen for that operation' do
+      server = Petstore::Client::Api::GetStagingPetInfoServerStagingServer.new(
+        environment: Petstore::Client::Api::GetStagingPetInfoServerEnvironment::SANDBOX,
+        version: Petstore::Client::Api::GetStagingPetInfoServerVersion::V3
+      )
+      url = url_sent_to(server) { |api, chosen| api.get_staging_pet_info(7, server: chosen) }
+
+      _(url).must_match %r{\Ahttps://sandbox\.example\.com/api/v3/}
+    end
+
     # The Mirror variant has two variables, and its channel values hold
     # characters that are special in a URL and in a string literal.
     {

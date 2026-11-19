@@ -2556,6 +2556,8 @@ test('bhv misc 296 a failed request is retried twice by default, so three reques
     expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
         ->toThrow(ServerException::class);
     expect(count($seen))->toBe(3);
+});
+
 test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
     $client = new class implements ApiClient {
         public function close(): void
@@ -2578,4 +2580,13 @@ test('bhv misc 081 a base64 body under a binary content type is decoded before t
     $result = $testApi->call('GET', '/test/echo', [], [], null, ['image/png'], 'application/json', 'string');
 
     expect($result)->toBe("\x89PNG\r\n");
+});
+
+test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set literal and escapes the rest', function (): void {
+    $client = new CapturingApiClient();
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $testApi->call('POST', '/test/echo', [], [], ['k~*' => "a~b*c!'()"],
+        ['application/json'], 'application/x-www-form-urlencoded', null);
+    expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });

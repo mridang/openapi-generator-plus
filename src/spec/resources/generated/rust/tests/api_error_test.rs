@@ -1038,8 +1038,10 @@ fn test_bhv_misc_020_the_request_line_is_shown_only_when_both_method_and_path_ar
 #[test]
 fn test_bhv_misc_022_a_server_error_is_the_root_error_type_and_wraps_the_api_error() {
     assert_type_is_open_api_error::<InternalServerError>();
-    let server = InternalServerError::try_from(ApiError::new(500, "boom".to_string(), None, None))
-        .expect("a 500 is an internal server error");
+    let server_error = ServerError::try_from(ApiError::new(500, "boom".to_string(), None, None))
+        .expect("a 500 is a server error");
+    let server =
+        InternalServerError::try_from(server_error).expect("a 500 is an internal server error");
     let err: Box<dyn std::error::Error + Send + Sync> = Box::new(server);
     assert!(
         is_a::<ApiError>(&*err),

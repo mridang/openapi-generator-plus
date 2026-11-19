@@ -1,3 +1,13 @@
+rust | misc129 | The HTTPS proxy tunnel is opened by the HTTP client per origin, and its CONNECT credential cannot be observed without a TLS-capable proxy fixture, which the Rust suite does not have.
+rust | misc135 | The Rust configuration builder takes a call hook and no cancellation handle; cancelling a call means dropping its future, so there is no handle to store.
+rust | misc145 | Rust returns a shared reference to the undeclared-key map, so the compiler forbids changing the model through a read; a copy exists only when the caller clones it.
+rust | misc147 | A Rust value owns its nested Box, so a clone always holds its own copy and never shares the nested object; sharing would need Rc, which the models do not use.
+rust | misc149 | Rust copies use typed with_* setters, so an attribute the model does not declare does not compile and cannot reach a copy at run time.
+rust | misc152 | Rust calls take no cancel-signal parameter; cancelling means dropping the future, so an already-aborted signal cannot be passed in.
+rust | misc153 | Rust calls and clients take no cancel-signal parameter; cancelling means dropping the future, so a signal shared by the client and a call cannot exist.
+rust | misc154 | The variables() accessor returns a shared reference, so the compiler refuses edits through it and no run-time test can reach the case.
+rust | misc163 | The Rust request body is Bytes or Multipart only; there is no one-shot stream body type, so a stream cannot be replayed or refused.
+rust | misc171 | The per-call retry override (CallOptions) is crate-private and RequestOptions has no retry field, so an application cannot raise the retry count above the transport limit for one call.
 dart | transport083 | The Dart client returns plain Futures and exposes no cancellation token, so an in-flight request cannot be aborted from outside
 dart | transport084 | The Dart client exposes no call handle, so an in-flight request cannot be cancelled through a handle or by dropping it
 dart | transport085 | The Dart client has no cancellation token or signal to supply, so a timeout is the only way to end a request early
@@ -680,7 +690,6 @@ dart | misc149 | Dart named parameters are checked at compile time, so an undecl
 dart | misc152 | Dart has no cancellation signal on a call: a request is cancelled by cancelling the stream subscription it returns, so there is no already-aborted signal to pass
 dart | misc153 | Dart has no cancellation signal on a call or client: a request is cancelled by cancelling its stream subscription, so no signal can abort an in-flight request
 dart | misc166 | invokeApi treats a null per-call timeout as the transport timeout, so a call has no way to switch its own deadline off
-dart | misc170 | TLS failures are dart:io TlsException values that the shared retry loop cannot name, since the web build has no dart:io; they are retried like other network errors
 dart | misc173 | Dart request bodies have no streamed form (text, bytes, a map or absent), so a streamed body cannot be replayed or refused across a redirect
 dart | misc176 | the dart fixture has no operation with a required cookie parameter, so there is no call that sends a cookie parameter; cookies are sent only from authentication (authintegration 004 and 017)
 dart | misc185 | the dart OAuth token managers expose no stop operation, so a second stop and a token request after stop cannot be made
@@ -704,6 +713,8 @@ python | misc186 | python transport options take no ready-made HTTP connection v
 kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or String values read in full before the call (transport061 pins the buffering), so no source can become unreadable during the send and a missing value fails when the caller builds the body
 kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
+kotlin | misc185 | Kotlin's OAuth2 token manager exposes no stop operation, so a second stop and a token request after stop cannot be made; the token manager has no lifecycle to end
+kotlin | misc187 | Kotlin's withToken takes the host as a required argument, so a missing host is refused at compile time and there is no environment fallback for it; the token fallback is pinned by bhv lifecycle 014
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
 ruby | misc256 | ruby writes a protobuf duration fraction at a fixed three-digit width, so 1.1s is written as 1.100s (see bhv_serializationobject_179) and trailing zeros are not trimmed
@@ -734,4 +745,22 @@ dart | misc256 | Dart date-times are written with a fixed three-digit millisecon
 dart | misc260 | url takes its overrides as Map<String, String>, so a null value for an enum variable cannot be passed and the compiler refuses it before any run-time check
 dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
+ruby | misc185 | The Ruby OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be expressed
 kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: the SDK defines no package-root module that re-exports the error types, so each one is named by its errors import
+kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
+kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
+kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
+php | serialization068 | PHP typed constructor parameters and enum-typed properties reject a wrong-typed or unknown value at construction under strict types, so a model cannot hold one as given
+swift | misc214 | Query content is a typed Codable value at the call site, so a value that cannot be serialized (a cyclic or NaN-bearing object) cannot be passed to the operation; the compiler rules it out
+swift | misc241 | Swift has no time-of-day type: a time value is a String the caller supplies and checks at the call site, so the SDK never truncates milliseconds from a time
+swift | misc260 | Server variable overrides are a [String: String] map, so a nil value for an enum variable cannot be passed; the compiler rules it out
+swift | misc271 | URLSession takes proxy settings from the system configuration or the explicit proxy option and never reads HTTP(S)_PROXY environment variables, so no environment variable can route a request through a proxy here
+swift | misc272 | Proving an authenticating proxy accepts the credentials needs a live proxy server, which the Swift unit suite cannot start; the proxy URL credentials are passed to URLSession unchanged
+swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
+kotlin | misc215 | Kotlin gives every declared default as a constructor default argument, so an input object with no fields is filled by the compiler when it is built and no runtime fill step exists to test
+kotlin | misc216 | Kotlin returns a binary body as its raw bytes without base64 decoding, pinned by bhv serialization wire 060, so the body is never decoded and the raw text is the value returned
+swift | misc285 | The Swift transport decodes only gzip, detected by its magic bytes; any other Content-Encoding is passed through unchanged, and no refusal with an unsupported-encoding message exists
+kotlin | transport083 | Kotlin has no client-level cancellation setting: a call is cancelled only through the coroutine that makes it, so there is no supplied cancellation to honour (see transport084)
+kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
+kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
+kotlin | serialization130 | Kotlin has no canonical serialize message prefix: a failed serialize throws the kotlinx.serialization exception carrying its own detail message

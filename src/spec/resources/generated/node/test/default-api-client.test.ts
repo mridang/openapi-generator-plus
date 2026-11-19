@@ -114,6 +114,30 @@ describe("DefaultApiClient", () => {
     }
   });
 
+  test("bhv transport 093 a server whose certificate is signed by another CA than the configured one is rejected with a network error", async () => {
+    const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
+    /* node:crypto cannot sign an X.509 certificate, so the other CA is a public root shipped with Node. It is not the CA that signed the chasm certificate, so the handshake must fail. */
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "ca-other-"));
+    const bundle = path.join(dir, "other-ca.pem");
+    fs.writeFileSync(bundle, tls.rootCertificates[1]!);
+
+    const transport = TransportOptions.builder()
+      .verifySsl(true)
+      .caCertPath(bundle)
+      .maxRetries(0)
+      .build();
+
+    const client = new DefaultApiClient(transport);
+    try {
+      await expect(
+        client.sendRequest("GET", `${chasmUrl}/test/echo`, {}, null),
+      ).rejects.toBeInstanceOf(NetworkError);
+    } finally {
+      await client.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("bhv transport 066 a CA bundle file trusts every certificate it contains", async () => {
     const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
     const caCertPath = process.env["CA_CERT_PATH"]!;

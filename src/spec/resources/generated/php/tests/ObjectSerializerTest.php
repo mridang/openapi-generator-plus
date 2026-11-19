@@ -132,7 +132,6 @@ test('bhv serializationobject 065 deserialize uuid from string', function (): vo
     $result = ObjectSerializer::deserialize($json, \Symfony\Component\Uid\Uuid::class);
     \assert($result instanceof \Symfony\Component\Uid\Uuid);
     expect($result)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
-    assert($result instanceof \Symfony\Component\Uid\Uuid);
     expect($result->toRfc4122())->toBe('550e8400-e29b-41d4-a716-446655440000');
 });
 
@@ -148,14 +147,12 @@ test('bhv serializationobject 176 a uuid round trip preserves its identity', fun
     $back = ObjectSerializer::deserialize(ObjectSerializer::serialize($uuid), \Symfony\Component\Uid\Uuid::class);
     \assert($back instanceof \Symfony\Component\Uid\Uuid);
     expect($back)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
-    assert($back instanceof \Symfony\Component\Uid\Uuid);
     expect($back->equals($uuid))->toBeTrue();
 });
 
 test('bhv serializationobject 016 a uuid model property is decoded from uppercase and written lowercase', function (): void {
     /** @var Order $order */
     $order = ObjectSerializer::deserialize('{"trackingId":"123E4567-E89B-12D3-A456-426614174000"}', Order::class);
-    \assert($order instanceof Order);
 
     expect($order->trackingId)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
     expect(ObjectSerializer::serialize($order))->toContain('"trackingId":"123e4567-e89b-12d3-a456-426614174000"');
@@ -177,7 +174,6 @@ test('bhv serializationobject 104 models named Error and Result nest and round t
     expect($json)->toContain('"outcome":{"ok":true}');
     /** @var EdgeCases $back */
     $back = ObjectSerializer::deserialize($json, EdgeCases::class);
-    \assert($back instanceof EdgeCases);
     expect($back->lastError)->toBeInstanceOf(\PetstoreClient\Models\Error::class);
     expect($back->lastError?->code)->toBe(500);
     expect($back->lastError?->message)->toBe('boom');
@@ -191,7 +187,6 @@ test('bhv serializationobject 024 an inline enum keeps its mixed-case wire value
     expect($json)->toContain('"phase":"' . $wire . '"');
     /** @var EdgeCases $back */
     $back = ObjectSerializer::deserialize($json, EdgeCases::class);
-    \assert($back instanceof EdgeCases);
     expect($back->phase)->toBe($case);
 })->with([
     'hyphenated and capitalised' => [\PetstoreClient\Models\EdgeCasesPhaseEnum::IN_STOCK, 'In-Stock'],
@@ -205,7 +200,6 @@ test('bhv serializationobject 022 every member of the inline enum round trips it
 
         /** @var EdgeCases $back */
         $back = ObjectSerializer::deserialize($json, EdgeCases::class);
-        \assert($back instanceof EdgeCases);
         expect($back->phase)->toBe($case);
     }
 });
@@ -213,7 +207,6 @@ test('bhv serializationobject 022 every member of the inline enum round trips it
 test('bhv serializationobject 069 an inline enum deserializes a known wire value to its member', function (): void {
     /** @var EdgeCases $model */
     $model = ObjectSerializer::deserialize('{"phase":"on-hold"}', EdgeCases::class);
-    \assert($model instanceof EdgeCases);
 
     expect($model->phase)->toBe(\PetstoreClient\Models\EdgeCasesPhaseEnum::ON_HOLD);
 });
@@ -227,7 +220,6 @@ test('bhv serializationobject 076 availability members with quotes, backslashes 
     expect($json)->toContain('"availability":' . $wireJson);
     /** @var StockItem $back */
     $back = ObjectSerializer::deserialize($json, StockItem::class);
-    \assert($back instanceof StockItem);
     expect($back->availability)->toBe($case);
 })->with([
     'apostrophe' => [Availability::OCLOCK, '"o\'clock"'],
@@ -629,7 +621,6 @@ test('bhv serializationobject 171 type number field serializes as unquoted json 
     // And it must survive a round-trip back to a numeric float.
     /** @var Pet $back */
     $back = ObjectSerializer::deserialize($json, Pet::class);
-    \assert($back instanceof Pet);
     expect($back->weightKg)->toBe(1.5);
 });
 
@@ -638,7 +629,6 @@ test('bhv serializationobject 177 a weight of type number survives a serialize a
 
     /** @var Pet $back */
     $back = ObjectSerializer::deserialize(ObjectSerializer::serialize($pet), Pet::class);
-    \assert($back instanceof Pet);
     expect($back->weightKg)->toBe(2.25);
 });
 
@@ -692,7 +682,6 @@ test('bhv serializationobject 070 deserialize deserializes json to typed model',
     $category = ObjectSerializer::deserialize($json, Category::class);
     \assert($category instanceof Category);
     expect($category)->toBeInstanceOf(Category::class);
-    assert($category instanceof Category);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
 });
@@ -708,7 +697,6 @@ test('bhv serializationobject 068 deserialize decodes a self-referential model r
     $json = '{"value":"root","child":{"value":"leaf"}}';
     /** @var TreeNode $top */
     $top = ObjectSerializer::deserialize($json, TreeNode::class);
-    \assert($top instanceof TreeNode);
     expect($top)->toBeInstanceOf(TreeNode::class);
     expect($top->value)->toBe('root');
     expect($top->child)->toBeInstanceOf(TreeNode::class);
@@ -731,7 +719,6 @@ test('bhv serializationobject 060 deserialize tolerates utf-8 BOM prefix', funct
     $category = ObjectSerializer::deserialize($json, Category::class);
     \assert($category instanceof Category);
     expect($category)->toBeInstanceOf(Category::class);
-    assert($category instanceof Category);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
 });
@@ -753,7 +740,6 @@ test('bhv serializationobject 053 deserialize applies schema default for absent 
     $json = '{"id":10,"petId":198772}'; // "status" is absent
     /** @var Order $order */
     $order = ObjectSerializer::deserialize($json, Order::class);
-    \assert($order instanceof Order);
     expect($order)->toBeInstanceOf(Order::class);
     expect($order->status)->toBe(OrderStatusEnum::PLACED);
 });
@@ -772,7 +758,6 @@ test('bhv serializationobject 025 deserialize applies defaults only when fields 
     $json = '{}';
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize($json, Defaults::class);
-    \assert($defaults instanceof Defaults);
     expect($defaults)->toBeInstanceOf(Defaults::class);
     expect($defaults->retries)->toBe(3);
     expect($defaults->mode)->toBe(DefaultsModeEnum::MEDIUM);
@@ -782,7 +767,6 @@ test('bhv serializationobject 025 deserialize applies defaults only when fields 
 test('bhv misc 122 deserialize holds the exact string default literal for greeting', function (): void {
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
-    \assert($defaults instanceof Defaults);
     expect($defaults)->toBeInstanceOf(Defaults::class);
     expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
 });
@@ -790,7 +774,6 @@ test('bhv misc 122 deserialize holds the exact string default literal for greeti
 test('bhv serializationobject 111 numeric schema defaults are exact typed values', function (): void {
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
-    \assert($defaults instanceof Defaults);
 
     expect($defaults->ratio)->toBe(1.5);
     expect($defaults->scale)->toBe(0.25);
@@ -801,7 +784,6 @@ test('bhv serializationobject 111 numeric schema defaults are exact typed values
 test('bhv serializationobject 196 an explicit value on the wire replaces the declared default', function (): void {
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize('{"ratio":2.5,"scale":0.5,"weight":3,"ceiling":7}', Defaults::class);
-    \assert($defaults instanceof Defaults);
 
     expect($defaults->ratio)->toBe(2.5);
     expect($defaults->scale)->toBe(0.5);
@@ -813,7 +795,6 @@ test('bhv serializationobject 056 deserialize preserves explicit null over a def
     $json = '{"label":null,"retries":7}';
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize($json, Defaults::class);
-    \assert($defaults instanceof Defaults);
     expect($defaults)->toBeInstanceOf(Defaults::class);
     // Explicit null is PRESERVED, not replaced by the "untitled" default.
     expect($defaults->label)->toBeNull();
@@ -942,7 +923,6 @@ test('bhv serializationobject 218 a required nullable property that has a value 
 test('bhv serializationobject 125 required nullable property keeps an explicit null and writes the key', function (): void {
     /** @var RequiredNullable $decoded */
     $decoded = ObjectSerializer::deserialize('{"note":null}', RequiredNullable::class);
-    \assert($decoded instanceof RequiredNullable);
 
     expect($decoded->note)->toBeNull();
     expect(ObjectSerializer::serialize($decoded))->toBe('{"note":null}');
@@ -1142,7 +1122,6 @@ test('bhv serialization 046 serialize model DateInterval property keeps fraction
 test('bhv serialization 117 deserialize model with DateInterval property parses protobuf seconds', function (): void {
     /** @var EdgeCases $model */
     $model = ObjectSerializer::deserialize('{"retryAfter":"3600s"}', EdgeCases::class);
-    \assert($model instanceof EdgeCases);
 
     expect($model)->toBeInstanceOf(EdgeCases::class);
     expect($model->retryAfter)->toBeInstanceOf(\DateInterval::class);
@@ -1214,7 +1193,6 @@ test('bhv serializationobject 080 a duration whose seconds overflow the integer 
 test('bhv serializationobject 223 a protobuf duration at the bound is accepted and one past it is rejected', function (): void {
     /** @var EdgeCases $edge */
     $edge = ObjectSerializer::deserialize('{"retryAfter":"315576000000s"}', EdgeCases::class);
-    \assert($edge instanceof EdgeCases);
     expect($edge->retryAfter?->s)->toBe(315576000000);
 
     foreach (['315576000001s', '-315576000001s', '315576000000.000000001s'] as $wire) {
@@ -1279,7 +1257,6 @@ test('bhv serializationobject 061 deserialize succeeds when all required fields 
     $json = '{"name":"doggie","photoUrls":["http://x/a.png"]}';
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize($json, Pet::class);
-    \assert($pet instanceof Pet);
     expect($pet)->toBeInstanceOf(Pet::class);
     expect($pet->name)->toBe('doggie');
 });
@@ -1291,7 +1268,6 @@ test('bhv serialization 066 deserialize allows an optional nullable field set to
     $json = '{"name":"doggie","photoUrls":["http://x/a.png"],"id":null}';
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize($json, Pet::class);
-    \assert($pet instanceof Pet);
     expect($pet)->toBeInstanceOf(Pet::class);
     expect($pet->id)->toBeNull();
 });
@@ -1351,7 +1327,7 @@ test('bhv serializationobject 085 deserialize PetFood missing discriminator thro
 test('bhv serializationobject 023 serialize omits model fields that are null', function (): void {
     /* Category's id/name are nullable. A field left null must be dropped
      * from the JSON payload (SKIP_NULL_VALUES), not emitted as "id":null. */
-    $category = new Category(id: null, name: 'Dogs');
+    $category = new Category(name: 'Dogs');
     $json = ObjectSerializer::serialize($category);
     $data = json_decode($json, true);
     \assert(is_array($data));
@@ -1360,7 +1336,7 @@ test('bhv serializationobject 023 serialize omits model fields that are null', f
 });
 
 test('bhv serializationobject 202 a null field is omitted on serialize while non-null fields are kept', function (): void {
-    $json = ObjectSerializer::serialize(new Category(id: null, name: 'Dogs'));
+    $json = ObjectSerializer::serialize(new Category(name: 'Dogs'));
 
     expect($json)->not->toContain('"id"');
     expect($json)->toContain('"name":"Dogs"');
@@ -1449,7 +1425,6 @@ test('bhv serializationobject 092 integer-backed enum deserializes from a JSON n
     $json = '{"priority":2}';
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize($json, StockItem::class);
-    \assert($item instanceof StockItem);
     expect($item)->toBeInstanceOf(StockItem::class);
     expect($item->priority)->toBe(Priority::NUMBER_2);
 });
@@ -1470,7 +1445,6 @@ test('bhv serializationobject 001 a property with a default beside its reference
 test('bhv serializationobject 050 a decoded model without the property takes the default beside its reference', function (): void {
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize('{"priority":2}', StockItem::class);
-    \assert($item instanceof StockItem);
 
     expect($item->availability)->toBe(Availability::ON_HOLD);
 });
@@ -1478,7 +1452,6 @@ test('bhv serializationobject 050 a decoded model without the property takes the
 test('bhv langphp 005 a decoded model with the property keeps the value on the wire over the default', function (): void {
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize('{"priority":2,"availability":"Sold"}', StockItem::class);
-    \assert($item instanceof StockItem);
 
     expect($item->availability)->toBe(Availability::SOLD);
 });
@@ -1504,17 +1477,18 @@ test('bhv serializationobject 193 an unknown integer enum value is rejected on d
 // a non-lowercase string enum).
 
 test('bhv serializationobject 109 non-lowercase string enum round-trips with wire casing preserved', function (): void {
-    foreach ([
+    foreach (
+        [
         [Availability::AVAILABLE, 'Available'],
         [Availability::SOLD, 'Sold'],
         [Availability::ON_HOLD, 'on-hold'],
-    ] as [$case, $wire]) {
+        ] as [$case, $wire]
+    ) {
         $item = new StockItem(Priority::NUMBER_1, $case);
         $json = ObjectSerializer::serialize($item);
         expect($json)->toContain('"availability":"' . $wire . '"');
         /** @var StockItem $back */
         $back = ObjectSerializer::deserialize($json, StockItem::class);
-        \assert($back instanceof StockItem);
         expect($back->availability)->toBe($case);
     }
 });
@@ -1523,7 +1497,6 @@ test('bhv serialization 003 non-lowercase string enum deserializes Available to 
     $json = '{"priority":1,"availability":"Available"}';
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize($json, StockItem::class);
-    \assert($item instanceof StockItem);
     expect($item->availability)->toBe(Availability::AVAILABLE);
 });
 
@@ -1544,7 +1517,6 @@ test('bhv serializationobject 208 hostile availability wire strings are kept exa
     $quoted = (string) json_encode($wire);
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize('{"priority":1,"availability":' . $quoted . '}', StockItem::class);
-    \assert($item instanceof StockItem);
 
     expect($item->availability)->toBe($member);
     expect(ObjectSerializer::serialize($item))->toContain('"availability":' . $quoted);
@@ -1607,7 +1579,6 @@ test('bhv serializationobject 079 byte fields hold raw bytes and are base64 only
 
     /** @var PetPassport $back */
     $back = ObjectSerializer::deserialize($json, PetPassport::class);
-    \assert($back instanceof PetPassport);
     expect($back)->toBeInstanceOf(PetPassport::class);
     expect($back->thumbnail)->toBe('thumb-bytes');
     /** @var \Ds\Vector<string> $backScans */
@@ -1644,14 +1615,12 @@ test('bhv serializationobject 115 a contentEncoding base64 property holds raw by
 
     /** @var PetPassport $back */
     $back = ObjectSerializer::deserialize('{"biometricChip":"' . base64_encode("chip\x00\xff") . '"}', PetPassport::class);
-    \assert($back instanceof PetPassport);
     expect($back->biometricChip)->toBe("chip\x00\xff");
 });
 
 test('bhv serializationobject 015 a uniqueItems array of strings keeps the Set insertion order', function (): void {
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":["b","a","c"]}', Pet::class);
-    \assert($pet instanceof Pet);
 
     expect($pet->photoUrls->toArray())->toBe(['b', 'a', 'c']);
     expect(ObjectSerializer::serialize($pet))->toContain('"photoUrls":["b","a","c"]');
@@ -1685,37 +1654,31 @@ test('bhv serializationobject 161 every separator enum value decodes to its own 
 test('bhv serializationobject 032 constraint keywords are not enforced: slug, nickname and quantity decode as given', function (): void {
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"nickname":"x"}', Pet::class);
-    \assert($pet instanceof Pet);
     expect($pet->nickname)->toBe('x');
 
     /** @var Order $order */
     $order = ObjectSerializer::deserialize('{"quantity":500}', Order::class);
-    \assert($order instanceof Order);
     expect($order->quantity)->toBe(500);
 
     /** @var EdgeCases $model */
     $model = ObjectSerializer::deserialize('{"slug":"abc"}', EdgeCases::class);
-    \assert($model instanceof EdgeCases);
     expect($model->slug)->toBe('abc');
 });
 
 test('bhv serializationobject 010 values beyond the schema constraints are accepted and round trip', function (): void {
     /** @var Pet $pet */
     $pet = ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"nickname":"ZZZZZZZZZZ"}', Pet::class);
-    \assert($pet instanceof Pet);
     expect($pet->nickname)->toBe('ZZZZZZZZZZ');
     expect(ObjectSerializer::serialize($pet))->toContain('"nickname":"ZZZZZZZZZZ"');
 
     /** @var Order $order */
     $order = ObjectSerializer::deserialize('{"quantity":500}', Order::class);
-    \assert($order instanceof Order);
     expect($order->quantity)->toBe(500);
 });
 
 test('bhv serializationobject 074 a pattern constrained property accepts and round trips a matching value', function (): void {
     /** @var EdgeCases $model */
     $model = ObjectSerializer::deserialize('{"slug":"12/ab"}', EdgeCases::class);
-    \assert($model instanceof EdgeCases);
 
     expect($model->slug)->toBe('12/ab');
     expect(ObjectSerializer::serialize($model))->toContain('"slug":"12/ab"');
@@ -1724,7 +1687,6 @@ test('bhv serializationobject 074 a pattern constrained property accepts and rou
 test('bhv serializationobject 006 a duplicate object key resolves to the last value', function (): void {
     /** @var Category $category */
     $category = ObjectSerializer::deserialize('{"id":1,"id":2,"name":"Dogs"}', Category::class);
-    \assert($category instanceof Category);
 
     expect($category->id)->toBe(2);
     expect($category->name)->toBe('Dogs');
@@ -1736,7 +1698,6 @@ test('bhv serialization 050 a digit-leading property keeps its wire name', funct
     expect($json)->toContain('"2fa":true');
     /** @var EdgeCases $back */
     $back = ObjectSerializer::deserialize('{"2fa":true}', EdgeCases::class);
-    \assert($back instanceof EdgeCases);
     expect($back->n2fa)->toBeTrue();
 });
 
@@ -1760,7 +1721,6 @@ test('bhv serializationobject 026 byte list and map fields round-trip raw bytes 
 
     /** @var BinaryVault $back */
     $back = ObjectSerializer::deserialize($json, BinaryVault::class);
-    \assert($back instanceof BinaryVault);
     expect($back->seal)->toBe("\x01");
     expect($back->shards?->toArray())->toBe(["\x02", "\x03"]);
     expect($back->labels?->toArray())->toBe(['a' => "\x04"]);
@@ -1853,7 +1813,6 @@ test('bhv serialization 063 byte property with a description serializes raw byte
 
     /** @var SetPetAvatarRequest $back */
     $back = ObjectSerializer::deserialize($json, SetPetAvatarRequest::class);
-    \assert($back instanceof SetPetAvatarRequest);
     expect($back->data)->toBe("\x01\x02");
     expect($back->mimeType)->toBe('image/png');
 });
@@ -1868,7 +1827,6 @@ test('bhv serialization 090 byte property with bad base64 on the wire is rejecte
 test('bhv serializationobject 047 declared keys of a strict model decode', function (): void {
     /** @var StrictTag $tag */
     $tag = ObjectSerializer::deserialize('{"id":1,"name":"x"}', StrictTag::class);
-    \assert($tag instanceof StrictTag);
 
     expect($tag->id)->toBe(1);
     expect($tag->name)->toBe('x');
@@ -1879,7 +1837,6 @@ test('bhv serializationobject 052 a strict model accepts its own serialized form
 
     /** @var StrictTag $back */
     $back = ObjectSerializer::deserialize($json, StrictTag::class);
-    \assert($back instanceof StrictTag);
     expect($back->id)->toBe(7);
     expect($back->name)->toBe('x');
 });
@@ -1938,7 +1895,6 @@ test('bhv serializationobject 071 double field deserializes from an integral JSO
     $json = '{"lat":5,"lng":-8}';
     /** @var PhotoMetadataLocation $loc */
     $loc = ObjectSerializer::deserialize($json, PhotoMetadataLocation::class);
-    \assert($loc instanceof PhotoMetadataLocation);
     expect($loc)->toBeInstanceOf(PhotoMetadataLocation::class);
     expect($loc->lat)->toBe(5.0);
     expect($loc->lng)->toBe(-8.0);
@@ -1956,7 +1912,6 @@ test('bhv serializationobject 020 additional property re-serializes at the top l
     $json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello"}';
     /** @var Metadata $meta */
     $meta = ObjectSerializer::deserialize($json, Metadata::class);
-    \assert($meta instanceof Metadata);
     expect($meta->additionalProperties)->toBeInstanceOf(\Ds\Map::class);
     expect($meta->additionalProperties->get('customField'))->toBe('hello');
 
@@ -1974,10 +1929,8 @@ test('bhv serializationobject 020 additional property re-serializes at the top l
 test('bhv serializationobject 205 an extra key survives a full deserialize then serialize round-trip', function (): void {
     /** @var Metadata $meta */
     $meta = ObjectSerializer::deserialize('{"region":"emea"}', Metadata::class);
-    \assert($meta instanceof Metadata);
     /** @var Metadata $back */
     $back = ObjectSerializer::deserialize(ObjectSerializer::serialize($meta), Metadata::class);
-    \assert($back instanceof Metadata);
 
     expect($back->additionalProperties->get('region'))->toBe('emea');
 });
@@ -2008,7 +1961,7 @@ test('bhv serialization 053 a model nested in another model keeps its additional
 
     $decoded = ObjectSerializer::deserialize($json, $holder::class);
     assert($decoded instanceof $holder);
-    assert($decoded->meta !== null);
+    assert($decoded->meta instanceof \PetstoreClient\Models\Metadata);
     expect($decoded->meta->additionalProperties->toArray())->toBe(['extra' => 'a']);
 
     expect(ObjectSerializer::serialize($decoded))->toBe($json);
@@ -2025,7 +1978,6 @@ test('bhv serializationobject 108 nested array-of-array deep-round-trips to type
     $json = '{"priority":1,"matrix":[[1,2,3],[4,5]]}';
     /** @var StockItem $item */
     $item = ObjectSerializer::deserialize($json, StockItem::class);
-    \assert($item instanceof StockItem);
     expect($item)->toBeInstanceOf(StockItem::class);
     /** @var \Ds\Vector<\Ds\Vector<int>> $matrix */
     $matrix = $item->matrix;
@@ -2126,7 +2078,7 @@ test('bhv misc 086 a container leaf is not JSON-decoded a second time', function
     'DateTime' => ['DateTime', '2024-01-15T10:00:00Z'],
     'DateTimeImmutable' => ['DateTimeImmutable', '2024-01-15T10:00:00Z'],
     'DateInterval' => ['DateInterval', '3600s'],
-    'Uuid' => ['Symfony\Component\Uid\Uuid', '123e4567-e89b-12d3-a456-426614174000'],
+    'Uuid' => [\Symfony\Component\Uid\Uuid::class, '123e4567-e89b-12d3-a456-426614174000'],
 ]);
 
 test('bhv langphp 008 a raw JSON string literal body still unwraps for a date-time', function (): void {
@@ -2221,7 +2173,6 @@ test('bhv serializationobject 014 a readOnly property is decoded from a response
     \assert($account instanceof Account);
 
     expect($account)->toBeInstanceOf(Account::class);
-    assert($account instanceof Account);
     expect($account->id)->toBe(7);
     expect($account->username)->toBe('ada');
 });
@@ -2231,7 +2182,6 @@ test('bhv serializationobject 231 deserializing a payload that omits optional fi
     \assert($account instanceof Account);
 
     expect($account)->toBeInstanceOf(Account::class);
-    assert($account instanceof Account);
     expect($account->id)->toBeNull();
     expect($account->password)->toBeNull();
 });
@@ -2241,7 +2191,6 @@ test('bhv serializationobject 230 a time value survives a stringify and parse ro
     $wire = json_encode(ObjectSerializer::formatTime($original));
     /** @var \DateTimeImmutable $restored */
     $restored = ObjectSerializer::deserialize($wire, \DateTimeImmutable::class);
-    \assert($restored instanceof \DateTimeImmutable);
 
     expect($restored->format('H:i:s'))->toBe('07:30:15');
 });
@@ -2266,14 +2215,12 @@ test('bhv serializationobject 017 a writeOnly property is kept when decoded', fu
     \assert($account instanceof Account);
 
     expect($account)->toBeInstanceOf(Account::class);
-    assert($account instanceof Account);
     expect($account->password)->toBe('hunter2');
 });
 
 test('bhv serialization 039 date-time decode accepts RFC 3339 with any fraction length', function (string $text, string $expected): void {
     /** @var Order $order */
     $order = ObjectSerializer::deserialize('{"shipDate":"' . $text . '"}', Order::class);
-    \assert($order instanceof Order);
     expect($order->shipDate?->format('Y-m-d\TH:i:s.uP'))->toBe($expected);
     $value = ObjectSerializer::deserialize('"' . $text . '"', 'DateTime');
     expect($value)->toBeInstanceOf(\DateTime::class);
@@ -2331,7 +2278,6 @@ test('bhv serializationobject 207 a non-standard base64 value is rejected on dec
 test('bhv serializationobject 185 deserialize accepts canonical padded base64', function (): void {
     /** @var PetPassport $passport */
     $passport = ObjectSerializer::deserialize('{"thumbnail":"dGVzdA=="}', PetPassport::class);
-    \assert($passport instanceof PetPassport);
     expect($passport->thumbnail)->toBe('test');
     expect(ObjectSerializer::deserialize('"dGVzdA=="', 'byte'))->toBe('test');
 });
@@ -2342,7 +2288,6 @@ test('bhv serializationobject 021 uri field is a plain string that is re-emitted
     $json = (string) json_encode(['name' => 'n', 'photoUrls' => [], 'homepageUrl' => $uri], JSON_UNESCAPED_SLASHES);
     /** @var Pet $item */
     $item = ObjectSerializer::deserialize($json, Pet::class);
-    \assert($item instanceof Pet);
     expect($item->homepageUrl)->toBe($uri);
     expect(ObjectSerializer::serialize($item))->toContain('"homepageUrl":"' . $uri . '"');
 })->with([
@@ -2356,7 +2301,6 @@ test('bhv serializationobject 173 uri-reference field still accepts a relative r
     $json = '{"name":"n","photoUrls":[],"thumbnailRef":"/assets/thumb.png"}';
     /** @var Pet $item */
     $item = ObjectSerializer::deserialize($json, Pet::class);
-    \assert($item instanceof Pet);
     expect($item->thumbnailRef)->toBe('/assets/thumb.png');
 });
 
@@ -2377,7 +2321,6 @@ test('bhv serializationobject 117 keyword-named properties keep their names and 
 
     /** @var EdgeCases $back */
     $back = ObjectSerializer::deserialize('{"and":false,"class":"k","return":"v"}', EdgeCases::class);
-    \assert($back instanceof EdgeCases);
     expect($back->and)->toBeFalse();
     expect($back->class)->toBe('k');
     expect($back->return)->toBe('v');
@@ -2392,7 +2335,6 @@ test('bhv serializationobject 082 deserialize silently ignores unknown extra fie
     $category = ObjectSerializer::deserialize('{"id":1,"name":"Dogs","unexpected":"extra"}', Category::class);
     \assert($category instanceof Category);
     expect($category)->toBeInstanceOf(Category::class);
-    assert($category instanceof Category);
     expect($category->id)->toBe(1);
     expect($category->name)->toBe('Dogs');
 });
@@ -2626,7 +2568,7 @@ test('bhv serializationparam 105 an address parameter is its text unchanged', fu
 
 function enumModelSource(string $name): string
 {
-    return (string) file_get_contents(dirname(__DIR__) . '/lib/Models/' . $name . '.php');
+    return (string) file_get_contents(__DIR__ . '/../lib/Models/' . $name . '.php');
 }
 
 test('bhv enums 001 a string enum member named by an array exposes the given name and its wire value', function (): void {
@@ -2733,7 +2675,7 @@ test('bhv misc 290 an undeclared key holding an object survives a full serialize
     $again = ObjectSerializer::deserialize(ObjectSerializer::serialize($metadata), \PetstoreClient\Models\Metadata::class);
 
     expect($again->additionalProperties->toArray())->toBe(['extra' => ['k' => ['n' => 1]]]);
-||||||| 3712f2407
+});
 test('bhv misc 085 a non canonical uuid text is refused as a type error when the model is built', function (): void {
     expect(fn () => new \PetstoreClient\Models\Order(trackingId: 'not-a-uuid'))->toThrow(\TypeError::class);
 });
@@ -2796,4 +2738,261 @@ test('bhv misc 105 copying a model keeps every value it holds', function (): voi
 
 test('bhv misc 106 a null element in an array body is kept in its position when serialized', function (): void {
     expect(ObjectSerializer::serialize(['a', null, 'b']))->toBe('["a",null,"b"]');
+});
+
+test('bhv serialization 067 extra properties are written as top level keys beside the declared fields', function (): void {
+    $metadata = new Metadata(createdAt: new \DateTime('2024-01-01T00:00:00+00:00'));
+    $metadata->additionalProperties = new \Ds\Map(['region' => 'eu']);
+
+    $wire = json_decode(ObjectSerializer::serialize($metadata), true);
+
+    expect($wire['region'])->toBe('eu');
+    expect($wire)->toHaveKey('createdAt');
+});
+
+test('bhv serialization 069 a value outside a schema bound is kept at construction', function (): void {
+    $long = str_repeat('a', 300);
+
+    expect((new Category(name: $long))->name)->toBe($long);
+});
+
+test('bhv serialization 070 a json null for an optional field decodes to null', function (): void {
+    /** @var Tag $tag */
+    $tag = ObjectSerializer::deserialize('{"id":null,"name":"x"}', Tag::class);
+
+    expect($tag->id)->toBeNull();
+    expect($tag->name)->toBe('x');
+});
+
+test('bhv serialization 071 json nested beyond the depth cap is refused before parsing', function (): void {
+    $deep = str_repeat('[', 1001) . str_repeat(']', 1001);
+
+    expect(fn (): mixed => ObjectSerializer::deserialize($deep, Tag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'exceeds limit 1000');
+});
+
+test('bhv serialization 072 several undeclared keys of any shape are skipped', function (): void {
+    /** @var Category $category */
+    $category = ObjectSerializer::deserialize('{"id":1,"name":"Dogs","a":1,"b":"x","c":{"d":[1,2]},"e":null}', Category::class);
+
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('bhv serialization 073 a null required field fails decoding with an error naming that field', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"child":null}', TreeNode::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'value');
+});
+
+test('bhv serialization 074 nested arrays serialize back to the same nested shape', function (): void {
+    expect(json_decode(ObjectSerializer::serialize([[1, 2], [3]]), true))->toBe([[1, 2], [3]]);
+});
+
+test('bhv serialization 075 an enum value decodes from its wire string to its member', function (): void {
+    expect(ObjectSerializer::deserialize('"placed"', OrderStatusEnum::class))->toBe(OrderStatusEnum::PLACED);
+});
+
+test('bhv serialization 077 a duration round trips for zero, negative, sub second, multi day and extreme values', function (): void {
+    foreach (['0s', '-90.25s', '259205s', '315576000000s'] as $wire) {
+        expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration($wire)))->toBe($wire);
+    }
+});
+
+test('bhv serialization 078 a time of day is zero padded with a fraction only when it has a sub second value', function (): void {
+    expect(ObjectSerializer::formatTime(ObjectSerializer::parseTime('09:05:03')))->toBe('09:05:03');
+    expect(ObjectSerializer::formatTime(ObjectSerializer::parseTime('09:05:03.500')))->toBe('09:05:03.500');
+});
+
+test('bhv serialization 079 a copy with named changes leaves the original untouched and keeps the other fields', function (): void {
+    $tag = new Tag(id: 1, name: 'Fido');
+
+    $copy = clone $tag;
+    $copy->name = 'Rex';
+
+    expect($copy)->not->toBe($tag);
+    expect($copy->name)->toBe('Rex');
+    expect($tag->name)->toBe('Fido');
+    expect($copy->id)->toBe(1);
+});
+
+test('bhv serialization 080 a protobuf duration spans the full range and rejects one second past it', function (): void {
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('315576000000s')))->toBe('315576000000s');
+    expect(fn (): mixed => ObjectSerializer::parseProtobufDuration('315576000001s'))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serialization 081 a value of the wrong json type raises an error and is never coerced', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":"abc","name":"x"}', Tag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serialization 083 a serialization error is the library error type and carries a message', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{', Tag::class))
+        ->toThrow(function (\PetstoreClient\Errors\SerializationException $e): void {
+            expect($e->getMessage())->not->toBe('');
+        });
+});
+
+test('bhv serialization 084 protobuf fractions parse to their exact value and keep their padding', function (): void {
+    foreach (['1.5s', '0.1s', '1.000001s'] as $wire) {
+        expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration($wire)))->toBe($wire);
+    }
+});
+
+test('bhv serialization 085 a date time field decodes from its iso string', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{"createdAt":"2024-01-01T00:00:00Z"}', Metadata::class);
+
+    expect($metadata->createdAt)->toBeInstanceOf(\DateTime::class);
+});
+
+test('bhv serialization 086 a duration is written as protobuf seconds with days folded in', function (): void {
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('86405s')))->toBe('86405s');
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('2s')))->toBe('2s');
+});
+
+test('bhv serialization 087 a tiny duration is fixed point and never scientific', function (): void {
+    $out = ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('0.000001s'));
+
+    expect($out)->toBe('0.000001s');
+    expect(strtolower($out))->not->toContain('e');
+});
+
+test('bhv serialization 089 a base64 wire string decodes into bytes', function (): void {
+    expect(ObjectSerializer::decodeByteOneOfScalar('aGk='))->toBe('hi');
+});
+
+test('bhv serialization 091 bytes with the high bit set survive an encode and decode round trip', function (): void {
+    $data = "\xff\x80\x00";
+    $encoded = ObjectSerializer::encodeBase64Param($data);
+
+    expect(ObjectSerializer::decodeByteOneOfScalar($encoded))->toBe($data);
+});
+
+test('bhv serialization 092 a time of day round trips through its string form', function (): void {
+    $original = '23:59:59';
+
+    expect(ObjectSerializer::formatTime(ObjectSerializer::parseTime(ObjectSerializer::formatTime(ObjectSerializer::parseTime($original)))))->toBe($original);
+});
+
+test('bhv serialization 093 a date time keeps its sub seconds and a numeric utc offset and never a Z', function (): void {
+    $moment = new \DateTimeImmutable('2024-01-02T03:04:05.005+00:00');
+
+    $out = ObjectSerializer::stringify($moment);
+
+    expect($out)->toEndWith('+00:00');
+    expect($out)->toContain('.005');
+});
+
+test('bhv serialization 094 html characters ampersands and slashes in a model field are written verbatim', function (): void {
+    $text = ObjectSerializer::serialize(new Tag(name: '<a>&/b'));
+
+    expect(json_decode($text, true)['name'])->toBe('<a>&/b');
+    expect($text)->not->toContain('\\u003c');
+    expect($text)->not->toContain('\\u0026');
+});
+
+test('bhv serialization 095 an explicit null on the wire replaces the schema default', function (): void {
+    /** @var Defaults $decoded */
+    $decoded = ObjectSerializer::deserialize('{"label":null}', Defaults::class);
+
+    expect($decoded->label)->toBeNull();
+});
+
+test('bhv serialization 099 undeclared keys are rejected by a strict model and ignored by a loose one', function (): void {
+    $tag = ObjectSerializer::deserialize('{"id":1,"name":"x","extra":1}', Tag::class);
+    \assert($tag instanceof Tag);
+
+    expect($tag->id)->toBe(1);
+    expect(fn () => ObjectSerializer::deserialize('{"id":1,"name":"x","extra":1}', StrictTag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serialization 104 a uuid model property is decoded from uppercase and written lowercase', function (): void {
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"trackingId":"123E4567-E89B-12D3-A456-426614174000"}', Order::class);
+
+    expect($order->trackingId)->toBeInstanceOf(\Symfony\Component\Uid\Uuid::class);
+    expect(ObjectSerializer::serialize($order))->toContain('"trackingId":"123e4567-e89b-12d3-a456-426614174000"');
+});
+
+test('bhv serialization 106 to query value joins array with comma by default', function (): void {
+    expect(ObjectSerializer::toQueryValue(['a', 'b', 'c']))->toBe('a,b,c');
+});
+
+test('bhv serialization 096 an absent field decodes to its declared schema default', function (): void {
+    /** @var Defaults $decoded */
+    $decoded = ObjectSerializer::deserialize('{}', Defaults::class);
+
+    expect($decoded->retries)->toBe(3);
+});
+
+test('bhv serialization 097 an enum field with a schema default is written with that default value', function (): void {
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"id":10,"petId":198772}', Order::class);
+
+    expect(json_decode(ObjectSerializer::serialize($order), true)['status'])->toBe('placed');
+});
+
+test('bhv serialization 098 an unset optional field is left out of the serialized output at any depth', function (): void {
+    $data = json_decode(ObjectSerializer::serialize(['current' => new Category(name: 'Dogs')]), true);
+
+    expect($data['current'])->not->toHaveKey('id');
+    expect($data['current']['name'])->toBe('Dogs');
+});
+
+test('bhv serialization 100 every declared field of a valid payload decodes through the typed decoder', function (): void {
+    /** @var Order $order */
+    $order = ObjectSerializer::deserialize('{"id":1,"petId":2,"quantity":3,"status":"placed","complete":true}', Order::class);
+
+    expect($order->id)->toBe(1);
+    expect($order->petId)->toBe(2);
+    expect($order->quantity)->toBe(3);
+    expect($order->status)->toBe(OrderStatusEnum::PLACED);
+    expect($order->complete)->toBeTrue();
+});
+
+test('bhv serialization 101 an integer backed enum is written as a json number and a json number decodes to its member', function (): void {
+    expect(ObjectSerializer::serialize(Priority::NUMBER_2))->toBe('2');
+    expect(ObjectSerializer::deserialize('2', Priority::class))->toBe(Priority::NUMBER_2);
+});
+
+test('bhv serialization 102 a zulu timestamp decodes to the same instant as its offset form', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{"createdAt":"2024-01-01T00:00:00Z"}', Metadata::class);
+
+    expect($metadata->createdAt->getTimestamp())->toBe(1704067200);
+});
+
+test('bhv serialization 105 an enum value with the wrong case raises a serialization error', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('"PLACED"', OrderStatusEnum::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serialization 107 an exploded array query parameter repeats its key once per element', function (): void {
+    expect(ObjectSerializer::toQueryValue(['a', 'b'], 'multi'))->toBe(['a', 'b']);
+});
+
+test('bhv serialization 108 a path value without a declared style is encoded like the simple style', function (): void {
+    expect(rawurlencode(ObjectSerializer::toPathValue('hello world')))->toBe('hello%20world');
+});
+
+test('bhv serialization 109 a string path value is percent encoded exactly once', function (): void {
+    expect(rawurlencode(ObjectSerializer::toPathValue('a%b')))->toBe('a%25b');
+});
+
+test('bhv serialization 110 an absent path value is empty and an absent query value is null', function (): void {
+    expect(ObjectSerializer::toPathValue(null))->toBe('');
+    expect(ObjectSerializer::toQueryValue(null))->toBeNull();
+});
+
+test('bhv serialization 113 a string passes through unchanged without normalising its form', function (): void {
+    $decomposed = "e\u{0301}";
+
+    expect(ObjectSerializer::stringify($decomposed))->toBe($decomposed);
+});
+
+test('bhv serialization 114 numeric values keep every digit when serialized', function (): void {
+    expect(ObjectSerializer::serialize(PHP_INT_MAX))->toBe('9223372036854775807');
+    expect(ObjectSerializer::serialize(['n' => 1234567890123456789]))->toBe('{"n":1234567890123456789}');
 });

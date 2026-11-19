@@ -311,7 +311,12 @@ module Petstore::Client
 
       if body.is_a?(Hash)
         boundary = SecureRandom.uuid
-        merged['Content-Type'] = "multipart/form-data; boundary=#{boundary}"
+        # A multipart type the caller declared (multipart/related, say) keeps its subtype.
+        declared = (merged.find { |name, _value| name.to_s.casecmp?('Content-Type') } || [nil, ''])[1].to_s
+        subtype = declared.split(';').first.to_s.strip
+        subtype = 'multipart/form-data' unless subtype.start_with?('multipart/')
+        merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }
+        merged['Content-Type'] = "#{subtype}; boundary=#{boundary}"
         serialized_body = build_multipart_body(body, boundary)
       elsif body.nil?
         merged.delete_if { |name, _value| name.to_s.casecmp?('Content-Type') }
@@ -329,6 +334,7 @@ module Petstore::Client
         end
       else
         serialized_body = body
+        merged['Content-Type'] = 'application/json' unless header?(merged, 'Content-Type')
       end
 
       # Field names are case-insensitive: a caller's accept-encoding in any casing
@@ -403,8 +409,12 @@ module Petstore::Client
             # drops the body and is allowed. The empty body substituted for a
             # bodyless POST/PUT/PATCH (the Content-Length: 0 workaround above)
             # is not a body either, so it is followed like the other SDKs do.
+            # misc124: a 301 or 302 is refused across the downgrade whenever the
+            # original request carried a body, even though the follow-up drops it.
             replays_body = !rewrite_to_get && !next_body.nil? && !next_body.to_s.empty?
-            if replays_body && https_to_http_downgrade?(url, next_url)
+            body_sent = !current_body.nil? && !current_body.to_s.empty?
+            refuses_body = [301, 302].include?(status_code) ? body_sent : replays_body
+            if refuses_body && https_to_http_downgrade?(url, next_url)
               raise unusable_response(response, 'Refusing to replay request body across HTTPS->HTTP ' \
                                                 "redirect: #{url} -> #{next_url}")
             end
@@ -511,7 +521,20 @@ module Petstore::Client
     def retryable_network_error?(error)
       return false if error.is_a?(Errors::NetworkTimeoutError)
 
-      !error.cause.is_a?(Faraday::SSLError)
+      !tls_failure?(error)
+    end
+
+    # Whether an error, or any error it wraps or was raised from, is an OpenSSL
+    # or Faraday SSL error (misc170).
+    def tls_failure?(error)
+      seen = error
+      while seen
+        return true if seen.is_a?(OpenSSL::SSL::SSLError) || seen.is_a?(Faraday::SSLError)
+
+        wrapped = seen.respond_to?(:wrapped_exception) ? seen.wrapped_exception : nil
+        seen = wrapped || seen.cause
+      end
+      false
     end
 
     # The headers of a retry, or +nil+ when they cannot be built (a failed

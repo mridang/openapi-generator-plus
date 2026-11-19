@@ -13,6 +13,30 @@ require 'petstore_client'
 describe Petstore::Client::Auth::ApiKeyAuthenticator do
   parallelize_me!
 
+  it 'bhv_misc_205 a missing API key error names the variable that should have supplied it' do
+    prefix = Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX
+    error = _(lambda do
+      Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-Api-Key', nil,
+                                                      Petstore::Client::Auth::ApiKeyLocation::HEADER, env: {})
+    end).must_raise ArgumentError
+
+    _(error.message).must_equal "Missing API key for 'X-Api-Key': pass it or set the environment variable #{prefix}_API_KEY"
+  end
+
+  it 'bhv_misc_189 the API-key query wrapper sends its key as the api_key query parameter' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'api_key', 'abc123',
+                                                           Petstore::Client::Auth::ApiKeyLocation::QUERY)
+
+    _(auth.query_params).must_equal({ 'api_key' => 'abc123' })
+  end
+
+  it 'bhv_misc_190 the printed output of the API-key authenticator hides the secret' do
+    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', 'abc123',
+                                                           Petstore::Client::Auth::ApiKeyLocation::HEADER)
+
+    _(auth.inspect).wont_include 'abc123'
+  end
+
   it 'bhv_authapikey_014 valid header key is exposed via auth_headers' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-API-Key', 'abc123', Petstore::Client::Auth::ApiKeyLocation::HEADER

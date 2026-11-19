@@ -146,6 +146,19 @@ describe 'scheme authenticators' do
     end
   end
 
+  it 'bhv_misc_193 every Basic and Bearer wrapper sends the same header as its base and refuses a colon in the username' do
+    expected = Petstore::Client::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
+    wrappers_of(Petstore::Client::Auth::BasicAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'alice', 's3cret').auth_headers).must_equal(expected, klass.name)
+      _(-> { klass.new('https://api.example.com', 'ali:ce', 's3cret') }).must_raise ArgumentError
+    end
+
+    expected = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', 'tok', env: {}).auth_headers
+    wrappers_of(Petstore::Client::Auth::BearerAuthenticator).each do |klass|
+      _(klass.new('https://api.example.com', 'tok', env: {}).auth_headers).must_equal(expected, klass.name)
+    end
+  end
+
   it 'bhv_authbasic_019 every Basic wrapper emits the same Basic header as the base authenticator' do
     expected = Petstore::Client::Auth::BasicAuthenticator.new('https://api.example.com', 'alice', 's3cret').auth_headers
     wrappers_of(Petstore::Client::Auth::BasicAuthenticator).each do |klass|

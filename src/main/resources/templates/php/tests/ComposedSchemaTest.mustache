@@ -593,3 +593,19 @@ test('bhv misc 295 a oneOf with a byte string variant round trips through base64
     \assert($restored instanceof SetPetAvatarThumbnailRequest);
     expect($restored->getActualInstance())->toBe($raw);
 });
+
+test('bhv serialization 076 any of no matching variant throws', function (): void {
+    // oneof-nondiscriminator-no-match-silent: a body matching neither
+    // Medication nor Surgery must throw rather than yield a silently-empty
+    // union. resolveAnyOfAll throws UnexpectedValueException on union no-match.
+    $data = ['unrelatedKey' => 'value', 'anotherUnknown' => 123];
+    expect(fn () => PetTreatment::build($data))
+        ->toThrow(\UnexpectedValueException::class);
+});
+
+test('bhv serialization 082 one of missing discriminator throws', function (): void {
+    // Gap AU: missing discriminator field must throw, not silently wrap.
+    $data = ['weightKg' => 2.5];
+    expect(fn () => PetFood::build($data))
+        ->toThrow(\InvalidArgumentException::class, 'Missing discriminator');
+});

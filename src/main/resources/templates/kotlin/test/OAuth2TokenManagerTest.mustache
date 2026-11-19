@@ -1385,4 +1385,30 @@ class OAuth2TokenManagerTest {
             assertEquals(2, client.bodies.size, raw)
         }
     }
+
+
+    @Test
+    fun bhvMisc286ServerErrorMessageNamesHttpStatusAndOauthCode() = runBlocking<Unit> {
+        val ex = oauth2ErrorFor("""{"error":"invalid_client"}""")
+        assertEquals(400, ex.statusCode)
+        assertEquals("invalid_client", ex.code)
+        assertTrue(ex.message!!.contains("400") && ex.message!!.contains("invalid_client"), ex.message)
+    }
+    @Test
+    @DisplayName("bhvMisc198 a new client-credentials grant without expires_in clears the expiry of the previous token")
+    fun bhvMisc198GrantWithoutExpiresInClearsThePreviousExpiry() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"a1","expires_in":60}""")
+        client.enqueue("""{"access_token":"a2"}""")
+        client.enqueue("""{"access_token":"a3"}""")
+        val manager = OAuth2TokenManager()
+        manager.apiClient = client
+        val params = mapOf("grant_type" to "client_credentials")
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        manager.invalidateAccessToken()
+        runBlocking { manager.getAccessToken("https://auth.example.com/token", params) }
+        repeat(2) { runBlocking { manager.getAccessToken("https://auth.example.com/token", params) } }
+        assertEquals(2, client.bodies.size)
+    }
+
 }

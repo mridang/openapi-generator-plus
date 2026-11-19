@@ -2953,4 +2953,98 @@ import Testing
       try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
     #expect(Set(fields.keys) == ["username", "password"])
   }
+
+  /* A date-time inside a JSON query parameter keeps its wire date-time form. */
+  @Test func testBhvMisc211ADateTimeInsideAJsonQueryParameterKeepsItsWireForm() throws {
+    let json = try ObjectSerializer.serialize(["at": Date(timeIntervalSince1970: 0)])
+    #expect(json == "{\"at\":\"1970-01-01T00:00:00.000+00:00\"}")
+  }
+
+  /* A free-form object-valued field keeps its object and integer entries through a JSON round trip. */
+  @Test func testBhvMisc249AFreeFormObjectKeepsItsObjectAndIntegerEntriesThroughARoundTrip() throws
+  {
+    let original = Freeform(additionalProperties: [
+      "meta": AnyCodable(["k": "v"]), "n": AnyCodable(7),
+    ])
+    let json = try ObjectSerializer.serialize(original)
+    let restored = try #require(
+      try ObjectSerializer.deserialize(Data(json.utf8), as: Freeform.self))
+    #expect(
+      (restored.additionalProperties["meta"]?.value as? [String: Any])?["k"] as? String == "v")
+    #expect(restored.additionalProperties["n"]?.value as? Int == 7)
+  }
+
+  /* A duration string with a day designator is rejected. */
+  @Test func testBhvMisc251ADurationStringWithADayDesignatorIsRejected() throws {
+    #expect(throws: (any Error).self) {
+      _ = try ObjectSerializer.decodeDuration("1d")
+    }
+  }
+
+  /* An enum wire value containing separators round-trips unchanged. */
+  @Test func testBhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged() throws {
+    enum Wire: String, Codable { case slashed = "a/b:c" }
+    struct Holder: Codable { let wire: Wire }
+    let json = try ObjectSerializer.serialize(Holder(wire: .slashed))
+    let restored = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Holder.self))
+    #expect(restored.wire == .slashed)
+  }
+
+  /* A fractional second is written with trailing zeros trimmed, keeping only the digits present. */
+  @Test func testBhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed() throws {
+    #expect(try ObjectSerializer.encodeDuration(1.1) == "1.1s")
+  }
+
+  /* A wire key literally named additional_properties is kept as an undeclared extra rather than clashing with the extras container. */
+  @Test func testBhvMisc287AWireKeyNamedAdditionalPropertiesIsKeptAsAnExtra() throws {
+    let json = Data(#"{"label":"x","additional_properties":"kept"}"#.utf8)
+    let model = try JSONDecoder().decode(Freeform.self, from: json)
+
+    #expect(model.label == "x")
+    #expect(model.additionalProperties["additional_properties"] == AnyCodable("kept"))
+  }
+
+  /* A snake_case name used as an input key, at the top level of an object, is captured as an undeclared extra. */
+  @Test func testBhvMisc288ASnakeCaseKeyAtTheTopLevelIsCapturedAsAnUndeclaredExtra() throws {
+    let model = try JSONDecoder().decode(Freeform.self, from: Data(#"{"user_name":"ada"}"#.utf8))
+
+    #expect(model.additionalProperties["user_name"] == AnyCodable("ada"))
+  }
+
+  /* A snake_case name used as an input key inside a list element is captured as an undeclared extra. */
+  @Test func testBhvMisc289ASnakeCaseKeyInsideAListElementIsCapturedAsAnUndeclaredExtra() throws {
+    let items = try JSONDecoder().decode(
+      [Freeform].self, from: Data(#"[{"user_name":"ada"}]"#.utf8))
+
+    #expect(items.count == 1)
+    #expect(items[0].additionalProperties["user_name"] == AnyCodable("ada"))
+  }
+
+  /* An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip. */
+  @Test func testBhvMisc290AnUndeclaredKeyWithADictionaryValueSurvivesAFullRoundTrip() throws {
+    let original = Freeform(additionalProperties: ["meta": AnyCodable(["k": "v"])])
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(Freeform.self, from: data)
+
+    #expect(decoded.additionalProperties["meta"] == AnyCodable(["k": "v"]))
+  }
+
+  /* Extra properties set on a model are written as top-level keys beside its declared fields. */
+  @Test func testBhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeysBesideTheFields() throws
+  {
+    let model = Freeform(label: "x", additionalProperties: ["extra": AnyCodable("y")])
+    let object =
+      try JSONSerialization.jsonObject(with: JSONEncoder().encode(model)) as? [String: Any]
+
+    #expect(object?["label"] as? String == "x")
+    #expect(object?["extra"] as? String == "y")
+    #expect(object?["additionalProperties"] == nil)
+  }
+
+  /* Schema constraint keywords such as maximum are not enforced, so an out-of-bound value decodes and is accepted. */
+  @Test func testBhvSerialization069ASchemaMaximumIsNotEnforcedOnDecode() throws {
+    let order = try JSONDecoder().decode(Order.self, from: Data(#"{"quantity":1000}"#.utf8))
+
+    #expect(order.quantity == 1000)
+  }
 }

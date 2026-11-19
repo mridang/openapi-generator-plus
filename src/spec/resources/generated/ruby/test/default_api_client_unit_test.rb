@@ -110,6 +110,22 @@ describe 'DefaultApiClientUnit' do
     _(seen).must_equal [:query, 'q=1']
   end
 
+  it 'bhv_misc_218 a per-call header is sent and takes precedence over a configured header of the same name, without a duplicate key' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/echo') do |env|
+        seen = env.request_headers.to_h.select { |k, _v| k.casecmp?('x-token') }
+        [200, {}, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.default_headers({ 'x-token' => 'default' }).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/echo', { 'X-Token' => 'caller' }, nil)
+    end
+    _(seen.values).must_equal ['caller']
+  end
+
   it 'bhv_transport_047 a caller header replaces a default header of the same name in any case' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
@@ -1466,10 +1482,10 @@ describe 'DefaultApiClientUnit' do
     _(seen).must_equal ['{"a":1}', 'application/json']
   end
 
-  it 'bhv_redirects_040 follows a 301, 302 or 303 redirect from HTTPS to plain HTTP for a POST with a body' do
-    # Those statuses send the next request as a GET with no body, so there is
-    # nothing to leak across the downgrade and the redirect is followed.
-    [301, 302, 303].each do |status|
+  it 'bhv_redirects_040 follows a 303 redirect from HTTPS to plain HTTP for a POST with a body' do
+    # A 303 sends the next request as a GET with no body, so there is nothing
+    # to leak across the downgrade and the redirect is followed.
+    [303].each do |status|
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [status, { 'location' => 'http://localhost/landing' }, '']
@@ -1485,6 +1501,28 @@ describe 'DefaultApiClientUnit' do
         _(resp.status_code).must_equal 200
         _(resp.body).must_equal 'ok'
       end
+    end
+  end
+
+  it 'bhv_misc_223 a redirect that turns the follow-up into a GET drops the request body and its Content-Length' do
+    [301, 302, 303].each do |status|
+      seen = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
+        stub.get('/landing') do |env|
+          seen = env.request_headers.keys.map(&:downcase)
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:POST, 'http://localhost/r', {}, nil)
+      end
+      _(seen).wont_include 'content-length'
+      _(seen).wont_include 'content-type'
     end
   end
 
@@ -1640,6 +1678,19 @@ describe 'DefaultApiClientUnit' do
       stub.get('/moved') { [302, { 'content-type' => 'text/plain' }, 'moved body'] }
     end
     transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).max_redirects(0).build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
+      _(resp.status_code).must_equal 302
+      _(resp.body).must_equal 'moved body'
+    end
+  end
+
+  it 'bhv_misc_225 a 3xx response with no Location header is returned to the caller as the final response' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/moved') { [302, { 'location' => '', 'content-type' => 'text/plain' }, 'moved body'] }
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
     client = Petstore::Client::DefaultApiClient.new(transport)
     client.stub(:build_connection, stub_connection(stubs)) do
       resp = client.send_request(:GET, 'http://localhost/moved', {}, nil)
@@ -2878,6 +2929,125 @@ describe 'DefaultApiClientUnit' do
     _(envs.first.request_headers['content-type']).must_be_nil
   end
 
+  it 'bhv_misc_178 a declared multipart content type other than form-data reaches the transport with its subtype kept' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'multipart/related' },
+                                      body: { 'note' => 'hello' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_match %r{\Amultipart/related; boundary=}
+  end
+
+  it 'bhv_misc_179 a form-urlencoded body sends the application/x-www-form-urlencoded Content-Type' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+                                      body: 'a=1') { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/x-www-form-urlencoded'
+  end
+
+  it 'bhv_misc_181 content placed in a header is sent exactly as serialised, with no percent-encoding applied' do
+    _outcome, envs, = run_retry_probe(headers: { 'X-Raw' => 'a%20b c/d' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['X-Raw']).must_equal 'a%20b c/d'
+  end
+
+  it 'bhv_misc_182 a cross-origin redirect removes the Authorization header whatever its letter case' do
+    %w[Authorization authorization AUTHORIZATION].each do |name|
+      followup = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/start') { [302, { 'location' => 'http://otherhost.example.com/landing' }, ''] }
+        stub.get('http://otherhost.example.com/landing') do |env|
+          followup = env.request_headers
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.follow_redirects(true).build)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:GET, 'http://localhost/start', { name => 'Bearer x' }, nil)
+      end
+
+      _(followup['Authorization']).must_be_nil
+    end
+  end
+
+  it 'bhv_misc_183 closing a client whose credentials hold nothing that needs releasing succeeds' do
+    _(-> { Petstore::Client::DefaultApiClient.new.close }).must_be_silent
+  end
+
+  it 'bhv_misc_184 close does not wait for a request that is still running and does not cancel it' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
+    client.close
+    _(closes).must_be_empty
+    release << true
+    response = request.value
+
+    _(response.status_code).must_equal 200
+    thread.join
+  end
+
+  it 'bhv_misc_188 a client reports itself as closed only after close has been called on it' do
+    client = Petstore::Client::DefaultApiClient.new
+    _(client.instance_variable_get(:@closed)).must_equal false
+    client.close
+    _(client.instance_variable_get(:@closed)).must_equal true
+  end
+
+  it 'bhv_misc_202 a text body sent without a declared content type goes out with the JSON media type and no parameters' do
+    _outcome, envs, = run_retry_probe(verb: :post, body: 'hello') { [200, {}, '{}'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/json'
+  end
+
+  it 'bhv_misc_203 closing a client that is already closed does nothing and raises no error' do
+    client = Petstore::Client::DefaultApiClient.new
+    client.close
+
+    _(-> { client.close }).must_be_silent
+  end
+
+  it 'bhv_misc_224 transport default headers are not sent on a request that goes to another origin after a redirect' do
+    followup = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://otherhost.example.com/landing' }, ''] }
+      stub.get('http://otherhost.example.com/landing') do |env|
+        followup = env.request_headers
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).default_header('X-Default', 'configured').build
+    client = Petstore::Client::DefaultApiClient.new(transport)
+    client.stub(:build_connection, stub_connection(stubs)) do
+      client.send_request(:GET, 'http://localhost/start', {}, nil)
+    end
+
+    _(followup['X-Default']).must_be_nil
+  end
+
+  it 'bhv_misc_226 with redirect following enabled a 302 is followed to its target and the final 200 is returned' do
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/start') { [302, { 'location' => 'http://localhost/landing' }, ''] }
+      stub.get('/landing') { [200, { 'content-type' => 'text/plain' }, 'landed'] }
+    end
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.follow_redirects(true).build)
+    outcome = nil
+    client.stub(:build_connection, stub_connection(stubs)) do
+      outcome = client.send_request(:GET, 'http://localhost/start', {}, nil)
+    end
+
+    _(outcome.status_code).must_equal 200
+    _(outcome.body).must_equal 'landed'
+  end
+
+  it 'bhv_misc_229 a per-call max retries value lets a call retry when the client was built with no retries' do
+    options = Petstore::Client::TransportOptions.builder.max_retries(0).build
+    _outcome, envs, = run_retry_probe(options: options, call_max_retries: 2) { [503, {}, 'busy'] }
+
+    _(envs.length).must_equal 3
+  end
+
   it 'bhv_retries_038 sends the request again after a 503 and returns the later success' do
     outcome, envs, delays = run_retry_probe(&ok_after(2, [503, {}, 'busy']))
 
@@ -3067,11 +3237,30 @@ describe 'DefaultApiClientUnit' do
     _(delays.first).must_be_within_delta 30, 1.5
   end
 
+  it 'bhv_misc_228 a Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay' do
+    _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => 'soon' }, 'later']))
+
+    _(delays.first).must_be :<=, 0.5
+    _(delays.first).must_be :>=, 0.375
+  end
+
   it 'bhv_retries_029 falls back to the backoff when Retry-After cannot be read' do
     _outcome, _envs, delays = run_retry_probe(&ok_after(1, [503, { 'retry-after' => 'soon' }, 'later']))
 
     _(delays.first).must_be :<=, 0.5
     _(delays.first).must_be :>=, 0.375
+  end
+
+  it 'bhv_misc_227 a network error before any response is retried, so a dropped connection produces a second request' do
+    flaky = lambda do |attempt|
+      raise Faraday::ConnectionFailed, 'reset' if attempt < 3
+
+      [200, { 'content-type' => 'text/plain' }, 'ok']
+    end
+    outcome, envs, = run_retry_probe(&flaky)
+
+    _(outcome.status_code).must_equal 200
+    _(envs.length).must_equal 3
   end
 
   it 'bhv_retries_021 retries a network error and returns the later success' do
@@ -3097,6 +3286,13 @@ describe 'DefaultApiClientUnit' do
 
   it 'bhv_misc_170 does not retry a TLS failure' do
     outcome, envs, = run_retry_probe { raise Faraday::SSLError, 'bad certificate' }
+
+    _(outcome).must_be_instance_of Petstore::Client::Errors::NetworkError
+    _(envs.length).must_equal 1
+
+    outcome, envs, = run_retry_probe do
+      raise Faraday::ConnectionFailed, OpenSSL::SSL::SSLError.new('certificate verify failed')
+    end
 
     _(outcome).must_be_instance_of Petstore::Client::Errors::NetworkError
     _(envs.length).must_equal 1
@@ -3574,18 +3770,20 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  it 'bhv_misc_124 refuses a 301 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
-    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
-      stub.post('/r') do
-        [301, { 'location' => 'http://localhost/landing' }, '']
+  it 'bhv_misc_124 refuses a 301 or 302 redirect from HTTPS to HTTP for a POST with a body instead of replaying it' do
+    [301, 302].each do |status|
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/r') do
+          [status, { 'location' => 'http://localhost/landing' }, '']
+        end
       end
-    end
-    transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
-    client = Petstore::Client::DefaultApiClient.new(transport)
-    client.stub(:build_connection, stub_connection(stubs)) do
-      _(proc {
-        client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
-      }).must_raise Petstore::Client::Errors::ApiError
+      transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
+      client = Petstore::Client::DefaultApiClient.new(transport)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        _(proc {
+          client.send_request(:POST, 'https://localhost/r', {}, 'k=v')
+        }).must_raise Petstore::Client::Errors::ApiError
+      end
     end
   end
 

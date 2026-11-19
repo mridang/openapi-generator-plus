@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Swagger Petstore - OpenAPI 3.0
  * A simplified Pet Store API for integration testing. Covers pets & owners, <admin> notes, "quoted" text, it's $USD and #{x}.
@@ -321,4 +322,25 @@ test('bhv misc 193 a basic scheme sends the same header as its base authenticato
 test('bhv misc 193 a basic scheme rejects the same invalid input as its base authenticator', function (): void {
     expect(fn () => new BasicAuthenticator('https://api.example.com', "alice\r\n", 's3cret'))
         ->toThrow(\InvalidArgumentException::class);
+});
+
+test('bhv serialization 112 masks the password in var_dump and print_r output', function (): void {
+    /* php-authenticator-secret-leaks: __debugInfo() makes PHP's debug dumps
+     * (var_dump / print_r / debug_zval_dump) and var_export-style traces use
+     * the masked array, so the password never leaks through a stray dump or
+     * an exception/stack-trace log. */
+    $auth = new BasicAuthenticator('https://api.example.com', 'alice', 's3cret');
+
+    ob_start();
+    var_dump($auth);
+    $varDump = (string) ob_get_clean();
+
+    $printR = print_r($auth, true);
+
+    expect($varDump)->not->toContain('s3cret');
+    expect($varDump)->toContain('***');
+    expect($printR)->not->toContain('s3cret');
+    expect($printR)->toContain('***');
+    // Username is non-secret and should still be visible for debugging.
+    expect($printR)->toContain('alice');
 });

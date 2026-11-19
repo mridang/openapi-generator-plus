@@ -438,6 +438,23 @@ describe Petstore::Client::ObjectSerializer do
       }).must_raise(Petstore::Client::Errors::SerializationError)
     end
 
+    it 'bhv_misc_230 a model with no extra properties writes exactly its declared keys, with no nested data key' do
+      parsed = JSON.parse(Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Category.new(name: 'x')))
+
+      _(parsed['name']).must_equal 'x'
+      _(parsed).wont_include 'data'
+      _(parsed).wont_include 'additionalProperties'
+    end
+
+    it 'bhv_misc_231 a model built in code keeps a value of the wrong type, while decoding that value from JSON raises' do
+      built = Petstore::Client::Models::Category.new(name: 123)
+
+      _(built.name).must_equal 123
+      _(proc {
+        Petstore::Client::ObjectSerializer.deserialize('{"name":123}', 'Category')
+      }).must_raise(Petstore::Client::Errors::SerializationError)
+    end
+
     it 'bhv_misc_087 a decimal in a loosely built body is written as a bare JSON number' do
       _(Petstore::Client::ObjectSerializer.serialize({ 'amount' => BigDecimal('1.5') })).must_equal('{"amount":1.5}')
     end
@@ -834,6 +851,15 @@ describe Petstore::Client::ObjectSerializer do
     end
 
     it 'bhv_serialization_097 an enum field with a schema default is written with that default value' do
+      defaults = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
+      _(defaults.ratio).must_equal(1.5)
+      _(defaults.scale).must_equal(0.25)
+      _(defaults.weight).must_equal(2)
+      _(defaults.ceiling).must_equal(9_000_000_000)
+      _(defaults.swatch).must_equal('green')
+    end
+
+    it 'bhv_misc_215 an input object with no fields is filled with every declared default value' do
       defaults = Petstore::Client::ObjectSerializer.deserialize('{}', 'Defaults')
       _(defaults.ratio).must_equal(1.5)
       _(defaults.scale).must_equal(0.25)

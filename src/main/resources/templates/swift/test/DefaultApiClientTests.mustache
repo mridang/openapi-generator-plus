@@ -1115,6 +1115,266 @@ import FoundationNetworking
             method: "GET", url: "https://example.com/api/missing", headers: [:], body: nil)
         #expect(response.body == "caf\u{e9}")
     }
+
+    /* Cancelling a pending request surfaces the cancellation to the caller without wrapping it in an SDK error. */
+    @Test func testBhvMisc262CancellingAPendingRequestSurfacesCancellationUnwrapped() async throws {
+        HangingURLProtocol.reset()
+        let client = DefaultApiClient(transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+        let task = Task {
+            try await client.sendRequest(
+                method: "GET", url: "https://example.com/pending", headers: [:], body: nil)
+        }
+        for _ in 0..<300 where !HangingURLProtocol.started {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            _ = try await task.value
+        }
+    }
+
+    /* A per-call timeout longer than the client's timeout lets a slow response complete. */
+    @Test func testBhvMisc263ALongerPerCallTimeoutLetsASlowResponseComplete() async throws {
+        let transport = try TransportOptionsBuilder().timeout(1000).build()
+        let client = makeClient(transport: transport) { _ in
+            (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/slow", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, timeout: 5000)
+        #expect(response.statusCode == 200)
+    }
+
+    /* A redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status, not as a network error. */
+    @Test func testBhvMisc265ANonHttpRedirectSurfacesAsAnApiErrorWithItsStatus() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).build()
+        RedirectStubURLProtocol.configure { _ in
+            return .redirect(status: 302, location: "file:///etc/passwd")
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport, protocolClasses: [RedirectStubURLProtocol.self])
+        let error = await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com/start", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 302)
+    }
+
+    /* Default headers supplied by the caller replace the SDK's user agent and request id on the wire, in any header name case. */
+    @Test func testBhvMisc266ACallerDefaultHeaderReplacesTheSdkHeadersInAnyCase() async throws {
+        let transport = try TransportOptionsBuilder()
+            .userAgent("sdk/1.0")
+            .injectRequestID(true)
+            .defaultHeaders(["user-agent": "caller/2.0", "X-REQUEST-ID": "caller-id"])
+            .build()
+        var userAgent: String?
+        var requestID: String?
+        let client = makeClient(transport: transport) { req in
+            userAgent = req.value(forHTTPHeaderField: "User-Agent")
+            requestID = req.value(forHTTPHeaderField: "X-Request-ID")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com/headers", headers: [:], body: nil)
+        #expect(userAgent == "caller/2.0")
+        #expect(requestID == "caller-id")
+    }
+
+    /* A caller-supplied HTTP client's own default headers are sent on the wire with each request. */
+    @Test func testBhvMisc267ACallerSuppliedClientsDefaultHeadersAreSentOnTheWire() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        config.httpAdditionalHeaders = ["X-Client-Default": "from-session"]
+        var seen: String?
+        StubURLProtocol.handler = { req in
+            seen = req.value(forHTTPHeaderField: "X-Client-Default")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let transport = try TransportOptionsBuilder()
+            .session(URLSession(configuration: config)).build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com/headers", headers: [:], body: nil)
+        #expect(seen == "from-session")
+    }
+
+    /* The request-id header carries a UUID v4 when enabled and is omitted when disabled. */
+    @Test func testBhvMisc273TheRequestIdIsAVersion4UuidWhenEnabledAndOmittedWhenDisabled() async throws {
+        var enabled: String?
+        var disabled: String?
+        let onTransport = try TransportOptionsBuilder().injectRequestID(true).build()
+        let on = makeClient(transport: onTransport) { req in
+            enabled = req.value(forHTTPHeaderField: "X-Request-ID")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await on.sendRequest(method: "GET", url: "https://example.com/a", headers: [:], body: nil)
+        let value = try #require(enabled)
+        #expect(UUID(uuidString: value) != nil)
+        #expect(value.dropFirst(14).first == "4")
+
+        let offTransport = try TransportOptionsBuilder().injectRequestID(false).build()
+        let off = makeClient(transport: offTransport) { req in
+            disabled = req.value(forHTTPHeaderField: "X-Request-ID")
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await off.sendRequest(method: "GET", url: "https://example.com/b", headers: [:], body: nil)
+        #expect(disabled == nil)
+    }
+
+    /* A non-2xx response is returned to the caller with its status code intact. */
+    @Test func testBhvMisc274ANon2xxResponseIsReturnedWithItsStatusCodeIntact() async throws {
+        let client = makeClient { _ in
+            (Data("{}".utf8), 418, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/teapot", headers: [:], body: nil)
+        #expect(response.statusCode == 418)
+    }
+
+    /* The request is sent with the intended HTTP method and the response is returned to the caller. */
+    @Test func testBhvMisc275TheRequestIsSentWithItsMethodAndItsResponseIsReturned() async throws {
+        var method: String?
+        let client = makeClient { req in
+            method = req.httpMethod
+            return (Data("{\"ok\":true}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "PUT", url: "https://example.com/items/1",
+            headers: ["Content-Type": "application/json"], body: Data("{}".utf8))
+        #expect(method == "PUT")
+        #expect(response.body.contains("ok"))
+    }
+
+    /* A network failure raised after the connection drops keeps the underlying transport error as its cause. */
+    @Test func testBhvMisc282ANetworkFailureAfterADroppedConnectionKeepsTheTransportError() async throws {
+        RedirectStubURLProtocol.configure { _ in .dropped }
+        let transport = try TransportOptionsBuilder().maxRetries(0).build()
+        let client = try DefaultApiClient(
+            transportOptions: transport, protocolClasses: [RedirectStubURLProtocol.self])
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "https://example.com/dropped", headers: [:], body: nil)
+        }
+        #expect(error?.underlyingError != nil)
+    }
+
+    /* A streamed request body is sent only once: after a 401 that invalidates the token, the request is not replayed. */
+    @Test func testBhvRetries045AStreamedBodyIsSentOnceAfterAnUnauthorizedResponse() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(3).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            _ = hops.increment()
+            return (Data(), 401, [:])
+        }
+        let response = try await client.sendRequest(
+            method: "POST", url: "https://example.com/upload", headers: [:],
+            body: InputStream(data: Data("payload".utf8)))
+
+        #expect(response.statusCode == 401)
+        #expect(hops.increment() == 2)
+    }
+
+    /* A request body is resent unchanged when a 307 redirect keeps the same scheme. */
+    @Test func testBhvRetries046A307ResendsTheBodyUnchangedWhenTheSchemeIsKept() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).build()
+        let hops = HopCounter()
+        var followupBody: String?
+        let client = makeClient(transport: transport) { req in
+            if hops.increment() == 1 {
+                return (Data(), 307, ["Location": "https://example.com/next"])
+            }
+            if let body = req.httpBody {
+                followupBody = String(data: body, encoding: .utf8)
+            }
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "POST", url: "https://example.com/start",
+            headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
+
+        #expect(followupBody == "payload")
+    }
+
+    /* All attempts and their backoff or Retry-After waits together stay within the timeout the caller set, and a wait that would overrun it is not taken. */
+    @Test func testBhvRetries047AWaitThatWouldOverrunTheCallerTimeoutIsNotTaken() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(3).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            _ = hops.increment()
+            return (Data(), 503, ["Retry-After": "60"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, timeout: 5000)
+
+        #expect(response.statusCode == 503)
+        #expect(hops.increment() == 2)
+    }
+
+    /* The default client retries a 503 response and returns the later success. The stub covers the retry logic only, not a live connection. */
+    @Test func testBhvRetries048TheDefaultClientRetriesA503AndReturnsTheLaterSuccess() async throws {
+        let hops = HopCounter()
+        let client = makeClient { _ in
+            if hops.increment() == 1 {
+                return (Data(), 503, ["Retry-After": "0"])
+            }
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil)
+
+        #expect(response.statusCode == 200)
+        #expect(hops.increment() == 3)
+    }
+
+    /* The max retries setting allows that many retries after the first attempt, so n retries means n plus one requests, after which the last failure is returned. */
+    @Test func testBhvRetries049MaxRetriesAllowsThatManyRetriesAfterTheFirstAttempt() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(2).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            _ = hops.increment()
+            return (Data(), 503, ["Retry-After": "0"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil)
+
+        #expect(response.statusCode == 503)
+        #expect(hops.increment() == 4)
+    }
+
+    /* A Retry-After header given as an HTTP date is honoured: the wait is the time left until that date. */
+    @Test func testBhvRetries050AnHttpDateRetryAfterWaitsTheTimeLeftUntilThatDate() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        let httpDate = formatter.string(from: now.addingTimeInterval(30))
+
+        let delay = DefaultApiClient.retryDelay(attempt: 0, retryAfter: httpDate, now: now)
+
+        #expect(delay == 30)
+    }
+
+    /* A request with a body is refused, and fails with status 307, when a redirect downgrades https to http rather than resending the body. */
+    @Test func testBhvRetries051ABodyIsRefusedWithStatus307OnAnHttpsToHttpDowngrade() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).build()
+        RedirectStubURLProtocol.configure { _ in
+            return .redirect(status: 307, location: "http://example.com/downgrade")
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport,
+            protocolClasses: [RedirectStubURLProtocol.self])
+        do {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://example.com/start",
+                headers: ["Content-Type": "application/json"],
+                body: Data("payload".utf8))
+            Issue.record("the downgrading redirect with a body was not refused")
+        } catch let error as ApiError {
+            #expect(error.statusCode == 307)
+        }
+    }
 }
 
 /// A URLProtocol that accepts a request and never answers it, so a test can
@@ -1657,5 +1917,28 @@ private final class RedirectStubURLProtocol: URLProtocol {
         } catch {
             Issue.record("expected CancellationError, got \(error)")
         }
+    }
+
+    /* A server presenting a certificate from a trusted CA is still rejected when the hostname does not match. */
+    @Test func testBhvMisc268ATrustedCertificateForAnotherHostnameIsRejected() async throws {
+        var components = try #require(URLComponents(string: chasmHttpsUrl))
+        components.host = "127.0.0.1"
+        let address = try #require(components.string)
+        let client = try DefaultApiClient(
+            transportOptions: TransportOptionsBuilder().verifySsl(true).build())
+        let error = await #expect(throws: NetworkError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: address + "/test/echo", headers: [:], body: nil)
+        }
+        #expect(error?.statusCode == 0)
+    }
+
+    /* A self-signed endpoint is reached only when certificate verification is disabled. */
+    @Test func testBhvMisc269ASelfSignedEndpointIsReachedWithVerificationDisabled() async throws {
+        let transport = try TransportOptionsBuilder().verifySsl(false).build()
+        let client = try DefaultApiClient(transportOptions: transport)
+        let response = try await client.sendRequest(
+            method: "GET", url: chasmHttpsUrl + "/test/echo", headers: [:], body: nil)
+        #expect(response.statusCode == 200)
     }
 }

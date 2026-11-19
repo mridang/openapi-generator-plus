@@ -401,6 +401,28 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvMisc194 a token returned by a token provider is sent under the same Bearer prefix rule as a static token")
+    fun bhvMisc194ProviderTokenIsSentUnderTheBearerPrefix() = runBlocking<Unit> {
+        val auth = BearerAuthenticator("https://api.example.com", null, { "tok-123" })
+        assertEquals("Bearer tok-123", auth.getAuthHeaders()["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc195 a whitespace-only token returned by a token provider is rejected when the request is made")
+    fun bhvMisc195WhitespaceOnlyProviderTokenIsRejectedWhenRequested() = runBlocking<Unit> {
+        val auth = BearerAuthenticator("https://api.example.com", null, { "   " })
+        assertThrows(IllegalArgumentException::class.java) { runBlocking { auth.getAuthHeaders() } }
+    }
+
+    @Test
+    @DisplayName("bhvMisc196 a scheme wrapper with no token from its argument or environment fails with an error")
+    fun bhvMisc196SchemeWrapperWithNoTokenFailsWithAnError() {
+        withEnvironment(mapOf("{{envVarPrefix}}_PET_STORE_BEARER_TOKEN" to "")) {
+            assertThrows(IllegalArgumentException::class.java) { PetStoreBearerAuthenticator("https://api.example.com") }
+        }
+    }
+
+    @Test
     @DisplayName("bhvAuth012 each refused token raises a message that states why it was refused")
     fun refusedTokenMessageStatesTheReason() {
         val blank = assertThrows(IllegalArgumentException::class.java) {
@@ -444,4 +466,21 @@ class BearerAuthenticatorTest {
             CredentialEnvironment.lookup = previous
         }
     }
+    @Test
+    @DisplayName("bhvMisc190 the printed output of the authenticator hides the secret")
+    fun bhvMisc190PrintedBearerAuthenticatorHidesTheToken() {
+        val text = BearerAuthenticator("https://api.example.com", "super-secret-token").toString()
+        assertFalse(text.contains("super-secret-token"), text)
+    }
+
+    @Test
+    @DisplayName("bhvMisc193 the Basic and Bearer authenticators send their base header and refuse invalid input like their base")
+    fun bhvMisc193BasicAndBearerSendBaseHeaderAndRefuseInvalidTokenLikeBase() = runBlocking<Unit> {
+        assertEquals("Basic dXNlcjpwYXNz", BasicAuthenticator("https://api.example.com", "user", "pass").getAuthHeaders()["Authorization"])
+        assertEquals("Bearer tok-123", BearerAuthenticator("https://api.example.com", "tok-123").getAuthHeaders()["Authorization"])
+        assertThrows(IllegalArgumentException::class.java) {
+            BearerAuthenticator("https://api.example.com", "tok\r\nInjected: yes")
+        }
+    }
+
 }
