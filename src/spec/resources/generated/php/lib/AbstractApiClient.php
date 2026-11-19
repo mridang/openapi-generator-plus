@@ -71,6 +71,9 @@ abstract class AbstractApiClient implements ApiClient
      */
     protected bool $closed = false;
 
+    /** True while a {@see sendWithRetries()} call that was admitted before close() runs its attempts. */
+    private bool $inCall = false;
+
     /**
      * Monotonic instant (seconds) at which the request timeout of the call in
      * flight is spent, or null when the timeout is disabled or no call is in
@@ -180,7 +183,7 @@ abstract class AbstractApiClient implements ApiClient
         /* Gap T-D4: refuse to send on a closed client. Using a client after
          * close() is a wrong call order, so it raises \LogicException rather
          * than silently re-using a reset transport. */
-        if ($this->closed) {
+        if ($this->closed && !$this->inCall) {
             throw new \LogicException(ClientLifecycle::CLOSED_MESSAGE);
         }
 
@@ -259,6 +262,13 @@ abstract class AbstractApiClient implements ApiClient
         }
 
         try {
+            /* A deadline that has already passed raises the timeout before the
+             * transport is touched. */
+            if ($timeoutMs !== null && $this->remainingTimeout() === 0.0) {
+                throw new NetworkTimeoutException(
+                    "API Request timed out: the $timeoutMs ms timeout was spent before the request was sent"
+                );
+            }
             $response = $this->execute($method, $url, $mergedHeaders, $body);
 
             /* Gap BH: manual redirect loop with cross-origin sensitive-
@@ -522,6 +532,31 @@ abstract class AbstractApiClient implements ApiClient
      * @param callable(): array<string, string> $headers builds the request headers for one attempt
      */
     private function sendAndRetry(
+        string $method,
+        string $url,
+        callable $headers,
+        mixed $body,
+        ?int $timeout,
+        int $retries,
+    ): ApiHttpResponse {
+        if ($this->closed) {
+            throw new \LogicException(ClientLifecycle::CLOSED_MESSAGE);
+        }
+        /* A call admitted before close() finishes, including its retries. */
+        $this->inCall = true;
+        try {
+            return $this->attemptLoop($method, $url, $headers, $body, $timeout, $retries);
+        } finally {
+            $this->inCall = false;
+        }
+    }
+
+    /**
+     * Runs the attempts of one admitted call.
+     *
+     * @param callable(): array<string, string> $headers builds the request headers for one attempt
+     */
+    private function attemptLoop(
         string $method,
         string $url,
         callable $headers,
@@ -803,7 +838,7 @@ abstract class AbstractApiClient implements ApiClient
 
         $charset = $this->extractCharset($contentType);
         if ($charset === null || strcasecmp($charset, 'utf-8') === 0 || strcasecmp($charset, 'utf8') === 0) {
-            return $body;
+            return $this->replaceInvalidBytes($body);
         }
 
         if (!function_exists('mb_convert_encoding')) {
@@ -829,9 +864,36 @@ abstract class AbstractApiClient implements ApiClient
             return $body;
         }
 
-        $converted = @mb_convert_encoding($body, 'UTF-8', $charset);
+        $previous = mb_substitute_character();
+        mb_substitute_character(0xFFFD);
+        try {
+            $converted = @mb_convert_encoding($body, 'UTF-8', $charset);
+        } finally {
+            mb_substitute_character($previous);
+        }
 
         return is_string($converted) ? $converted : $body;
+    }
+
+    /**
+     * Replaces each byte that is not valid UTF-8 with U+FFFD, so a body with a bad byte decodes
+     * instead of failing later.
+     *
+     * @param string $body the response body bytes, declared or assumed to be UTF-8
+     * @return string the body with every invalid byte replaced
+     */
+    private function replaceInvalidBytes(string $body): string
+    {
+        if (!function_exists('mb_scrub') || mb_check_encoding($body, 'UTF-8')) {
+            return $body;
+        }
+        $previous = mb_substitute_character();
+        mb_substitute_character(0xFFFD);
+        try {
+            return mb_scrub($body, 'UTF-8');
+        } finally {
+            mb_substitute_character($previous);
+        }
     }
 
     /**

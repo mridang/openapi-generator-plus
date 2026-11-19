@@ -268,6 +268,18 @@ test('bhv models 018 models whose decimal fields differ only in trailing zeros c
         ->toEqual(ObjectSerializer::deserialize('{"weightKg":1.5}', DryFood::class));
 });
 
+test('bhv models 005 equality includes the additional properties', function (): void {
+    /** @var Metadata $one */
+    $one = ObjectSerializer::deserialize('{"extra":"a"}', Metadata::class);
+    /** @var Metadata $same */
+    $same = ObjectSerializer::deserialize('{"extra":"a"}', Metadata::class);
+    /** @var Metadata $other */
+    $other = ObjectSerializer::deserialize('{"extra":"b"}', Metadata::class);
+
+    expect($one->equals($same))->toBeTrue();
+    expect($one->equals($other))->toBeFalse();
+});
+
 test('bhv models 019 two models with a different value in any field compare unequal', function (): void {
     expect(new Category(id: 1, name: 'Dogs'))->not->toEqual(new Category(id: 1, name: 'Cats'));
     expect(new Category(id: 1, name: 'Dogs'))->not->toEqual(new Category(id: 2, name: 'Dogs'));
