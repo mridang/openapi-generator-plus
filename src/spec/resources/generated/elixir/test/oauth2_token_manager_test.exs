@@ -448,14 +448,13 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
       assert FakeApiClient.call_count(fake_client) == 2
     end
 
-    for expires_in <- [31, 60, 90, 120] do
-      test "bhv authoauthtwotokenmgr 004 a token with expires_in #{expires_in} is reused, not refetched on every call" do
+    test "bhv authoauthtwotokenmgr 004 a token with a long enough expires_in is reused, not refetched on every call" do
+      for expires_in <- [31, 60, 90, 120] do
         fake_client =
           FakeApiClient.new([
             %PetstoreClient.ApiHttpResponse{
               status_code: 200,
-              body:
-                Jason.encode!(%{"access_token" => "reused", "expires_in" => unquote(expires_in)})
+              body: Jason.encode!(%{"access_token" => "reused", "expires_in" => expires_in})
             }
           ])
 
@@ -469,15 +468,17 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
                  manager,
                  token_url,
                  params
-               ) == "reused"
+               ) == "reused",
+               "expires_in #{expires_in}"
 
         assert PetstoreClient.Auth.OAuth.OAuth2TokenManager.get_access_token(
                  manager,
                  token_url,
                  params
-               ) == "reused"
+               ) == "reused",
+               "expires_in #{expires_in}"
 
-        assert FakeApiClient.call_count(fake_client) == 1
+        assert FakeApiClient.call_count(fake_client) == 1, "expires_in #{expires_in}"
       end
     end
 
@@ -1595,13 +1596,12 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
     # 307/308, rather than replay the credential-bearing POST. Like any non-2xx
     # answer, the refusal is an OAuth2ServerError carrying that status.
 
-    for status <- [301, 302, 303, 307, 308] do
-      @redirect_status status
-      test "bhv authoauthtwotokenmgr 033 refuses #{@redirect_status} from token endpoint with OAuth2ServerError" do
+    test "bhv authoauthtwotokenmgr 033 refuses every redirect status from the token endpoint with OAuth2ServerError" do
+      for status <- [301, 302, 303, 307, 308] do
         fake_client =
           FakeApiClient.new([
             %PetstoreClient.ApiHttpResponse{
-              status_code: @redirect_status,
+              status_code: status,
               headers: %{"location" => "https://attacker.example/token"},
               body: ""
             }
@@ -1619,7 +1619,7 @@ defmodule PetstoreClient.Auth.OAuth.OAuth2TokenManagerTest do
             )
           end
 
-        assert err.status_code == @redirect_status
+        assert err.status_code == status, "status #{status}"
       end
     end
 
