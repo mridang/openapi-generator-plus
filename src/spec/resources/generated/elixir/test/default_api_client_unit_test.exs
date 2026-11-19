@@ -3134,7 +3134,7 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert error.message =~ "no such file or directory"
   end
 
-  describe "bhv misc multipart and charset" do
+  describe "misc multipart and charset" do
     test "bhv misc 095 a body with bytes invalid in its charset replaces each bad byte with U+FFFD" do
       assert PetstoreClient.DefaultApiClient.decode_text_body(
                <<"a", 0xFF, "b">>,

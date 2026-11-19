@@ -3241,7 +3241,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
     assert PetstoreClient.ObjectSerializer.stringify(dt) =~ "+02:00"
   end
 
-  describe "bhv misc wire behaviours" do
+  describe "misc wire behaviours" do
     test "bhv misc 081 a base64 body under a binary type is decoded before it is returned" do
       assert PetstoreClient.ObjectSerializer.convert_to_type(Base.encode64("hello"), "ByteArray") ==
                "hello"
