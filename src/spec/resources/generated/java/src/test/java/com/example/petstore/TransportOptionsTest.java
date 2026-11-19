@@ -432,10 +432,20 @@ class TransportOptionsTest {
       })
   @DisplayName("an unusable proxy URL is rejected with the exact message")
   void bhvOptions010UnusableProxyUrlIsRejectedWithTheExactMessage(String proxy, String message) {
-    IllegalArgumentException ex =
-        assertThrowsExactly(
-            IllegalArgumentException.class, () -> TransportOptions.builder().proxy(proxy).build());
-    assertEquals(message, ex.getMessage());
+    {
+      IllegalArgumentException ex =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () -> TransportOptions.builder().proxy(proxy).build());
+      assertEquals(message, ex.getMessage());
+    }
+    {
+      IllegalArgumentException ex =
+          assertThrowsExactly(
+              IllegalArgumentException.class,
+              () -> TransportOptions.builder().proxy("http://[::1:3128").build());
+      assertEquals("Invalid proxy URL: http://[::1:3128", ex.getMessage());
+    }
   }
 
   @Test
@@ -450,16 +460,6 @@ class TransportOptionsTest {
                     .build());
     assertFalse(String.valueOf(ex.getMessage()).contains("s3cret"));
     assertTrue(String.valueOf(ex.getMessage()).contains("***@proxy.example.com:1080"));
-  }
-
-  @Test
-  @DisplayName("bhvOptions010 a proxy URL with an unterminated IPv6 literal is rejected")
-  void bhvOptions010UnterminatedIpv6ProxyUrlIsRejected() {
-    IllegalArgumentException ex =
-        assertThrowsExactly(
-            IllegalArgumentException.class,
-            () -> TransportOptions.builder().proxy("http://[::1:3128").build());
-    assertEquals("Invalid proxy URL: http://[::1:3128", ex.getMessage());
   }
 
   @Test
@@ -681,26 +681,27 @@ class TransportOptionsTest {
   }
 
   @Test
-  void bhvLifecycle041SuppliedHttpClientRejectsAnSdkProxySetting() {
-    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
-    try {
-      org.junit.jupiter.api.Assertions.assertThrows(
-          IllegalArgumentException.class,
-          () -> TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
-    } finally {
-      supplied.close();
+  void bhvLifecycle041SuppliedHttpClientRejectsAnSdkProxyOrTlsSetting() {
+    {
+      java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+      try {
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                TransportOptions.builder().httpClient(supplied).proxy("http://proxy:3128").build());
+      } finally {
+        supplied.close();
+      }
     }
-  }
-
-  @Test
-  void bhvLifecycle041SuppliedHttpClientRejectsAnSdkTlsSetting() {
-    java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
-    try {
-      org.junit.jupiter.api.Assertions.assertThrows(
-          IllegalArgumentException.class,
-          () -> TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
-    } finally {
-      supplied.close();
+    {
+      java.net.http.HttpClient supplied = java.net.http.HttpClient.newHttpClient();
+      try {
+        org.junit.jupiter.api.Assertions.assertThrows(
+            IllegalArgumentException.class,
+            () -> TransportOptions.builder().httpClient(supplied).verifySsl(false).build());
+      } finally {
+        supplied.close();
+      }
     }
   }
 

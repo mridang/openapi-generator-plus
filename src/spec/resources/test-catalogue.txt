@@ -2241,6 +2241,9 @@ langjava061 | A failed first token exchange leaves no session behind and is not 
 langjava062 | An API key built from the environment alone reads the key from its variable when none is passed.
 langjava063 | A 3xx response with an unusable or missing Location is returned to the caller untouched.
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
+langjava065 | A key made only of control characters reports as empty, not as a control-character failure.
+langjava066 | A client credentials wrapper reads both of its credentials from its own environment variables when none are passed.
+langjava067 | An explicit client id is kept while an empty client secret counts as not passed, so the environment secret is used.
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text

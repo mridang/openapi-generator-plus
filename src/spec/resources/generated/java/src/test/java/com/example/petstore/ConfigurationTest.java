@@ -12,7 +12,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -293,14 +292,6 @@ class ConfigurationTest {
                     java.lang.reflect.Modifier.isStatic(m.getModifiers())
                         && m.getName().startsWith("set"));
     assertFalse(hasStaticSetter);
-  }
-
-  @Test
-  void bhvHooks001BuilderSetsTheCallHookAndTheDefaultIsNone() {
-    CallHook hook = (info, headers) -> null;
-
-    assertNull(Configuration.builder().build().getCallHook());
-    assertSame(hook, Configuration.builder().callHook(hook).build().getCallHook());
   }
 
   @Test

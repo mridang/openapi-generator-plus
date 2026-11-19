@@ -779,37 +779,85 @@ class PetApiTest {
   @Test
   void bhvOperations157GetPetByNoteSendsANullRequiredNullableQueryParameterAsAnEmptyValue()
       throws Exception {
-    CapturingApiClient capturing = new CapturingApiClient();
-    PetApi petApi =
-        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+    {
+      CapturingApiClient capturing = new CapturingApiClient();
+      PetApi petApi =
+          new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-    petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
+      petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
 
-    assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
-  }
+      assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
+    }
+    {
+      // End-to-end transport check against a real HttpServer: selecting
+      // application/octet-stream must put the RAW file bytes on the wire with
+      // Content-Type: application/octet-stream — proving the transport does
+      // not re-wrap the body as multipart. Guards the DefaultApiClient
+      // dispatch, which previously emitted multipart whenever the body was a
+      // Map regardless of the selected content-type.
+      final byte[][] capturedBody = new byte[1][];
+      final String[] capturedContentType = new String[1];
+      HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+      server.createContext(
+          "/",
+          exchange -> {
+            capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
+            capturedBody[0] = exchange.getRequestBody().readAllBytes();
+            byte[] responseBytes =
+                "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, responseBytes.length);
+            exchange.getResponseBody().write(responseBytes);
+            exchange.getResponseBody().close();
+          });
+      server.start();
+      try {
+        String baseUrl = "http://localhost:" + server.getAddress().getPort();
+        Configuration config = Configuration.builder().baseUrl(baseUrl).build();
+        PetApi petApi = new PetApi(new DefaultApiClient(), config);
 
-  @Test
-  void bhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
-      throws Exception {
-    CapturingApiClient capturing = new CapturingApiClient();
-    PetApi petApi =
-        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+        byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
 
-    petApi.getPetByNote(new GetPetByNoteOptions(null, null));
+        petApi.uploadPetDocument(
+            1L,
+            new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
+            "application/octet-stream");
 
-    assertThat(capturing.capturedUrl).endsWith("?note=&rank=");
+        // The wire body is exactly the raw payload — no boundary, no part
+        // headers, no base64.
+        assertNotNull(capturedBody[0]);
+        assertThat(capturedBody[0]).isEqualTo(payload);
+
+        // Content-Type is the selected octet-stream, never multipart.
+        assertNotNull(capturedContentType[0]);
+        assertThat(capturedContentType[0]).startsWith("application/octet-stream");
+        assertThat(capturedContentType[0]).doesNotContain("multipart");
+        assertThat(capturedContentType[0]).doesNotContain("boundary");
+      } finally {
+        server.stop(0);
+      }
+    }
   }
 
   @Test
   void bhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
       throws Exception {
-    CapturingApiClient capturing = new CapturingApiClient();
-    PetApi petApi =
-        new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
+    {
+      CapturingApiClient capturing = new CapturingApiClient();
+      PetApi petApi =
+          new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-    petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
+      petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
 
-    assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
+      assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
+    }
+    {
+      ApiClient empty = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
+      PetApi petApi =
+          new PetApi(empty, Configuration.builder().baseUrl("http://localhost").build());
+      assertThatThrownBy(() -> petApi.findPetsByStatus())
+          .isInstanceOf(com.example.petstore.errors.ApiException.class);
+    }
   }
 
   @Test
@@ -1264,57 +1312,6 @@ class PetApiTest {
     // multipart/form-data.
     assertNotNull(capturing.capturedHeaders);
     assertThat(capturing.capturedHeaders).containsEntry("Content-Type", "application/octet-stream");
-  }
-
-  @Test
-  void bhvOperations157UploadPetDocumentOctetStreamSelectionWireBodyIsRawBytes() throws Exception {
-    // End-to-end transport check against a real HttpServer: selecting
-    // application/octet-stream must put the RAW file bytes on the wire with
-    // Content-Type: application/octet-stream — proving the transport does
-    // not re-wrap the body as multipart. Guards the DefaultApiClient
-    // dispatch, which previously emitted multipart whenever the body was a
-    // Map regardless of the selected content-type.
-    final byte[][] capturedBody = new byte[1][];
-    final String[] capturedContentType = new String[1];
-    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
-    server.createContext(
-        "/",
-        exchange -> {
-          capturedContentType[0] = exchange.getRequestHeaders().getFirst("Content-Type");
-          capturedBody[0] = exchange.getRequestBody().readAllBytes();
-          byte[] responseBytes =
-              "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}".getBytes(StandardCharsets.UTF_8);
-          exchange.getResponseHeaders().set("Content-Type", "application/json");
-          exchange.sendResponseHeaders(200, responseBytes.length);
-          exchange.getResponseBody().write(responseBytes);
-          exchange.getResponseBody().close();
-        });
-    server.start();
-    try {
-      String baseUrl = "http://localhost:" + server.getAddress().getPort();
-      Configuration config = Configuration.builder().baseUrl(baseUrl).build();
-      PetApi petApi = new PetApi(new DefaultApiClient(), config);
-
-      byte[] payload = new byte[] {(byte) 0x89, 0x50, 0x4E, 0x47, (byte) 0xFF, 0x00, 0x01};
-
-      petApi.uploadPetDocument(
-          1L,
-          new UploadPetDocumentOptions(new ByteArrayInputStream(payload)),
-          "application/octet-stream");
-
-      // The wire body is exactly the raw payload — no boundary, no part
-      // headers, no base64.
-      assertNotNull(capturedBody[0]);
-      assertThat(capturedBody[0]).isEqualTo(payload);
-
-      // Content-Type is the selected octet-stream, never multipart.
-      assertNotNull(capturedContentType[0]);
-      assertThat(capturedContentType[0]).startsWith("application/octet-stream");
-      assertThat(capturedContentType[0]).doesNotContain("multipart");
-      assertThat(capturedContentType[0]).doesNotContain("boundary");
-    } finally {
-      server.stop(0);
-    }
   }
 
   @Test
@@ -2148,14 +2145,6 @@ class PetApiTest {
     mockedApi.deletePet(7L);
 
     assertThat(sent.get("Authorization")).isNull();
-  }
-
-  @Test
-  void bhvOperations159ValueCallWithEmptySuccessBodyRaisesATypedError() {
-    ApiClient empty = (method, url, headers, body) -> new ApiHttpResponse(200, "", Map.of());
-    PetApi petApi = new PetApi(empty, Configuration.builder().baseUrl("http://localhost").build());
-    assertThatThrownBy(() -> petApi.findPetsByStatus())
-        .isInstanceOf(com.example.petstore.errors.ApiException.class);
   }
 
   @Test

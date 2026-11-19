@@ -143,7 +143,7 @@ class ApiKeyAuthenticatorTest {
   }
 
   @Test
-  void bhvLangjava053NewlineOnlyKeyReportsEmptyNotControlCharacters() {
+  void bhvLangjava065NewlineOnlyKeyReportsEmptyNotControlCharacters() {
     for (ApiKeyLocation location : ApiKeyLocation.values()) {
       for (String blank : new String[] {"\n", "\r\n", "\t", "\013", "\f"}) {
         IllegalArgumentException ex =

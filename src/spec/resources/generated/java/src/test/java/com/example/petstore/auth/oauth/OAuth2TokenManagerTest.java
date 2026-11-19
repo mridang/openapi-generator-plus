@@ -1528,65 +1528,67 @@ class OAuth2TokenManagerTest {
   }
 
   @Test
-  void bhvAuth057RejectedRefreshFallsBackToTheOriginalGrant() {
-    java.util.List<String> bodies = new java.util.ArrayList<>();
-    ApiClient client =
-        (method, url, headers, body) -> {
-          bodies.add(body != null ? body.toString() : "");
-          int n = bodies.size();
-          if (n == 1) {
+  void bhvAuth057RejectedOrMalformedRefreshFallsBackToTheOriginalGrant() {
+    {
+      java.util.List<String> bodies = new java.util.ArrayList<>();
+      ApiClient client =
+          (method, url, headers, body) -> {
+            bodies.add(body != null ? body.toString() : "");
+            int n = bodies.size();
+            if (n == 1) {
+              return new ApiHttpResponse(
+                  200,
+                  "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}",
+                  Map.of());
+            }
+            if (n == 2) {
+              return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
+            }
             return new ApiHttpResponse(
-                200,
-                "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}",
-                Map.of());
-          }
-          if (n == 2) {
-            return new ApiHttpResponse(400, "{\"error\":\"invalid_grant\"}", Map.of());
-          }
-          return new ApiHttpResponse(
-              200, "{\"access_token\":\"fallback\",\"expires_in\":3600}", Map.of());
-        };
-    OAuth2TokenManager manager = new OAuth2TokenManager();
-    manager.setApiClient(client);
-    Map<String, String> grant = new HashMap<>();
-    grant.put("grant_type", "client_credentials");
-    manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+                200, "{\"access_token\":\"fallback\",\"expires_in\":3600}", Map.of());
+          };
+      OAuth2TokenManager manager = new OAuth2TokenManager();
+      manager.setApiClient(client);
+      Map<String, String> grant = new HashMap<>();
+      grant.put("grant_type", "client_credentials");
+      manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
 
-    String token = manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+      String token =
+          manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
 
-    assertEquals("fallback", token);
-    assertTrue(bodies.get(2).contains("grant_type=client_credentials"), bodies.get(2));
-  }
-
-  @Test
-  void bhvAuth057MalformedRefreshResponseFallsBackToTheOriginalGrant() {
-    java.util.List<String> bodies = new java.util.ArrayList<>();
-    ApiClient client =
-        (method, url, headers, body) -> {
-          bodies.add(body != null ? body.toString() : "");
-          int n = bodies.size();
-          if (n == 1) {
+      assertEquals("fallback", token);
+      assertTrue(bodies.get(2).contains("grant_type=client_credentials"), bodies.get(2));
+    }
+    {
+      java.util.List<String> bodies = new java.util.ArrayList<>();
+      ApiClient client =
+          (method, url, headers, body) -> {
+            bodies.add(body != null ? body.toString() : "");
+            int n = bodies.size();
+            if (n == 1) {
+              return new ApiHttpResponse(
+                  200,
+                  "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}",
+                  Map.of());
+            }
+            if (n == 2) {
+              return new ApiHttpResponse(200, "not json at all", Map.of());
+            }
             return new ApiHttpResponse(
-                200,
-                "{\"access_token\":\"first\",\"expires_in\":0,\"refresh_token\":\"r1\"}",
-                Map.of());
-          }
-          if (n == 2) {
-            return new ApiHttpResponse(200, "not json at all", Map.of());
-          }
-          return new ApiHttpResponse(
-              200, "{\"access_token\":\"fallback\",\"expires_in\":3600}", Map.of());
-        };
-    OAuth2TokenManager manager = new OAuth2TokenManager();
-    manager.setApiClient(client);
-    Map<String, String> grant = new HashMap<>();
-    grant.put("grant_type", "client_credentials");
-    manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+                200, "{\"access_token\":\"fallback\",\"expires_in\":3600}", Map.of());
+          };
+      OAuth2TokenManager manager = new OAuth2TokenManager();
+      manager.setApiClient(client);
+      Map<String, String> grant = new HashMap<>();
+      grant.put("grant_type", "client_credentials");
+      manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
 
-    String token = manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
+      String token =
+          manager.getAccessToken("https://auth.example.com/token", grant, Map.of(), null);
 
-    assertEquals("fallback", token);
-    assertTrue(bodies.get(2).contains("grant_type=client_credentials"), bodies.get(2));
+      assertEquals("fallback", token);
+      assertTrue(bodies.get(2).contains("grant_type=client_credentials"), bodies.get(2));
+    }
   }
 
   @Test

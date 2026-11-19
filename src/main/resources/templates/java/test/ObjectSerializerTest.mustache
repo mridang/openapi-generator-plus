@@ -467,7 +467,12 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("numeric date-time is rejected instead of read as epoch seconds")
         void bhvSerialization030NumericDateTimeThrows() {
-            assertDateTimeRejected("{\"shipDate\":1700000000}");
+            {
+                assertDateTimeRejected("{\"shipDate\":1700000000}");
+            }
+            {
+                assertDateTimeRejected("{\"shipDate\":[2023,11,14,22,13,20]}");
+            }
         }
 
         @Test
@@ -476,11 +481,6 @@ class ObjectSerializerTest {
             assertDateTimeRejected("{\"shipDate\":true}");
         }
 
-        @Test
-        @DisplayName("array date-time is rejected")
-        void bhvSerialization030ArrayDateTimeThrows() {
-            assertDateTimeRejected("{\"shipDate\":[2023,11,14,22,13,20]}");
-        }
 
         private void assertDateTimeRejected(String json) {
             SerializationException ex = assertThrowsExactly(SerializationException.class, () ->
@@ -1051,26 +1051,22 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("integral float literal for an integer field throws")
         void bhvLangjava020IntegralFloatForLongFieldThrows() {
-            assertCoercionRejected("{\"id\":1.0}", {{modelPackage}}.Order.class, "Floating-point value (1.0)");
+            {
+                assertCoercionRejected("{\"id\":1.0}", {{modelPackage}}.Order.class, "Floating-point value (1.0)");
+            }
+            {
+                assertCoercionRejected("{\"id\":1e2}", {{modelPackage}}.Order.class, "Floating-point value (1e2)");
+            }
+            {
+                assertCoercionRejected("{\"name\":5}", {{modelPackage}}.Category.class, "Integer value (5)");
+            }
+            {
+                assertCoercionRejected("{\"name\":1.5}", {{modelPackage}}.Category.class, "Float value (1.5)");
+            }
         }
 
-        @Test
-        @DisplayName("exponent literal for an integer field throws")
-        void bhvLangjava020ExponentLiteralForLongFieldThrows() {
-            assertCoercionRejected("{\"id\":1e2}", {{modelPackage}}.Order.class, "Floating-point value (1e2)");
-        }
 
-        @Test
-        @DisplayName("integer number for a string field throws instead of becoming text")
-        void bhvLangjava020IntegerForStringFieldThrows() {
-            assertCoercionRejected("{\"name\":5}", {{modelPackage}}.Category.class, "Integer value (5)");
-        }
 
-        @Test
-        @DisplayName("fractional number for a string field throws instead of becoming text")
-        void bhvLangjava020FloatForStringFieldThrows() {
-            assertCoercionRejected("{\"name\":1.5}", {{modelPackage}}.Category.class, "Float value (1.5)");
-        }
 
         @Test
         @DisplayName("bhvSerializationObject155 boolean for a string field throws instead of becoming text")
@@ -3245,14 +3241,6 @@ class ObjectSerializerTest {
             assertEquals("2001:db8::1", ObjectSerializer.stringify("2001:db8::1"));
         }
 
-        @Test
-        @DisplayName("bhvSerializationParam106 a decimal parameter is written in plain notation")
-        void bhvSerializationParam106DecimalParameterIsPlain() {
-            assertEquals(
-                    "12.345678901234567890123",
-                    ObjectSerializer.stringify(new java.math.BigDecimal("12.345678901234567890123")));
-            assertEquals("1000", ObjectSerializer.stringify(new java.math.BigDecimal("1E+3")));
-        }
     }
 
     @Test

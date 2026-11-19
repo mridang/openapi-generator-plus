@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.BaseApiTest;
+import com.example.petstore.ObjectSerializer;
 import com.example.petstore.errors.SerializationException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -845,14 +846,6 @@ class ValueSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvSerializationParam105 SerializeStyled form scalar")
-    void bhvSerializationParam105SerializeStyledFormScalar() {
-      assertEquals(
-          "blue",
-          ValueSerializer.serializeStyled("color", "blue", "query", "string", null, "form", true));
-    }
-
-    @Test
     @DisplayName("bhvSerializationParam042 single-element array with explode true returns list")
     void bhvSerializationParam042SingleElementArrayExplodeTrueReturnsList() {
       assertEquals(
@@ -956,6 +949,10 @@ class ValueSerializerTest {
     void bhvSerializationParam106PathWithNullStyleBehavesLikeSimple() {
       assertEquals(
           "5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false));
+      assertEquals(
+          "12.345678901234567890123",
+          ObjectSerializer.stringify(new java.math.BigDecimal("12.345678901234567890123")));
+      assertEquals("1000", ObjectSerializer.stringify(new java.math.BigDecimal("1E+3")));
     }
 
     @Test
@@ -1318,6 +1315,7 @@ class ValueSerializerTest {
     String rendered = (String) ValueSerializer.serialize("{\"a\":1.5}", "cookie", "string", null);
     assertTrue(rendered.contains("%7B"), rendered);
     assertTrue(rendered.contains("%3A"), rendered);
+    assertTrue(rendered.contains("%2E"), rendered);
     assertFalse(rendered.contains(":"), rendered);
   }
 

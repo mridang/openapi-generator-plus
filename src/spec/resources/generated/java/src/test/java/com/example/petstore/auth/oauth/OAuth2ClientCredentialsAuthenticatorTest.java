@@ -421,7 +421,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void bhvAuthscheme001SchemeWrapperReadsTheClientCredentialsFromItsEnvironmentVariables() {
+  void bhvLangjava066ClientCredentialsWrapperReadsBothCredentialsFromItsOwnVariables() {
     MachineAuthClientCredentialsAuthenticator auth =
         new MachineAuthClientCredentialsAuthenticator(
             "https://api.example.com",
@@ -434,7 +434,7 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void bhvLangjava015SchemeWrapperPrefersWhatYouPassToTheEnvironmentAndTreatsEmptyAsNotPassed() {
+  void bhvLangjava067ExplicitClientIdIsKeptAndEmptySecretIsNotPassed() {
     MachineAuthClientCredentialsAuthenticator auth =
         new MachineAuthClientCredentialsAuthenticator(
             "https://api.example.com",
@@ -447,42 +447,42 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void bhvAuthscheme003SchemeWrapperRefusesAMissingOrEmptyCredentialNamingTheVariable() {
-    IllegalArgumentException missing =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                new MachineAuthClientCredentialsAuthenticator(
-                    "https://api.example.com", null, "x", Map.of()));
-    assertEquals(
-        "The 'clientId' credential of the 'machineAuth' security scheme is required: "
-            + "pass it or set the "
-            + CLIENT_ID_VARIABLE
-            + " environment variable",
-        missing.getMessage());
-
-    IllegalArgumentException empty =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                new MachineAuthClientCredentialsAuthenticator(
-                    "https://api.example.com", "x", null, Map.of(CLIENT_SECRET_VARIABLE, "")));
-    assertTrue(
-        java.util.Objects.requireNonNull(empty.getMessage()).contains(CLIENT_SECRET_VARIABLE),
-        empty.getMessage());
-  }
-
-  @Test
   void bhvAuthScheme013AnEmptyClientIdVariableIsUnsetAndNamesIt() {
-    IllegalArgumentException ex =
-        assertThrows(
-            IllegalArgumentException.class,
-            () ->
-                new MachineAuthClientCredentialsAuthenticator(
-                    "https://api.example.com", null, "x", Map.of(CLIENT_ID_VARIABLE, "")));
-    assertTrue(
-        java.util.Objects.requireNonNull(ex.getMessage()).contains(CLIENT_ID_VARIABLE),
-        ex.getMessage());
+    {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  new MachineAuthClientCredentialsAuthenticator(
+                      "https://api.example.com", null, "x", Map.of(CLIENT_ID_VARIABLE, "")));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage()).contains(CLIENT_ID_VARIABLE),
+          ex.getMessage());
+    }
+    {
+      IllegalArgumentException missing =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  new MachineAuthClientCredentialsAuthenticator(
+                      "https://api.example.com", null, "x", Map.of()));
+      assertEquals(
+          "The 'clientId' credential of the 'machineAuth' security scheme is required: "
+              + "pass it or set the "
+              + CLIENT_ID_VARIABLE
+              + " environment variable",
+          missing.getMessage());
+
+      IllegalArgumentException empty =
+          assertThrows(
+              IllegalArgumentException.class,
+              () ->
+                  new MachineAuthClientCredentialsAuthenticator(
+                      "https://api.example.com", "x", null, Map.of(CLIENT_SECRET_VARIABLE, "")));
+      assertTrue(
+          java.util.Objects.requireNonNull(empty.getMessage()).contains(CLIENT_SECRET_VARIABLE),
+          empty.getMessage());
+    }
   }
 
   @Test

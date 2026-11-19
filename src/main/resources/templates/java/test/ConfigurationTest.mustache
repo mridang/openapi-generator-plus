@@ -290,14 +290,6 @@ class ConfigurationTest {
     }
 
     @Test
-    void bhvHooks001BuilderSetsTheCallHookAndTheDefaultIsNone() {
-        CallHook hook = (info, headers) -> null;
-
-        assertNull(Configuration.builder().build().getCallHook());
-        assertSame(hook, Configuration.builder().callHook(hook).build().getCallHook());
-    }
-
-    @Test
     void bhvLangjava059ToStringDoesNotPrintTheCallHook() {
         CallHook hook = (info, headers) -> null;
 

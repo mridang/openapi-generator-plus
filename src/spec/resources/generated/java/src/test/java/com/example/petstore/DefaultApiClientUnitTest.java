@@ -2019,9 +2019,25 @@ class DefaultApiClientUnitTest {
 
   @Test
   void bhvSerializationWire028NonBmpCharacterInFilenameBecomesOneUnderscore() {
-    assertEquals(
-        "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
-        DefaultApiClient.buildFilenameDirective("😀.png"));
+    {
+      assertEquals(
+          "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
+          DefaultApiClient.buildFilenameDirective("😀.png"));
+    }
+    {
+      for (String[] row :
+          new String[][] {
+            {
+              "résumé*(1).pdf",
+              "filename=\"r_sum_*(1).pdf\"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf"
+            },
+            {"a\"b\\c.txt", "filename=\"a\\\"b\\\\c.txt\""},
+            {"😀.png", "filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png"},
+            {"plain.txt", "filename=\"plain.txt\""}
+          }) {
+        assertEquals(row[1], DefaultApiClient.buildFilenameDirective(row[0]));
+      }
+    }
   }
 
   @Test
@@ -2047,11 +2063,6 @@ class DefaultApiClientUnitTest {
         "😀.png | filename=\"_.png\"; filename*=UTF-8''%F0%9F%98%80.png",
         "plain.txt | filename=\"plain.txt\""
       })
-  void bhvSerializationwire028MultipartFilenameDirectiveFollowsTheCanonicalRule(
-      String filename, String expected) {
-    assertEquals(expected, DefaultApiClient.buildFilenameDirective(filename));
-  }
-
   @Test
   void bhvRedirects039BodylessRequestMayFollowAnHttpsToHttpRedirect() {
     java.net.URI https = java.net.URI.create("https://api.example.com/start");

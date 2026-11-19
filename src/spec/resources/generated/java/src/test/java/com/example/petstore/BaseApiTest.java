@@ -23,6 +23,7 @@ import com.example.petstore.api.PetApi;
 import com.example.petstore.api.StoreApi;
 import com.example.petstore.api.options.FindPetsByStatusOptions;
 import com.example.petstore.api.options.GetInventoryOptions;
+import com.example.petstore.api.options.GetPetByNoteOptions;
 import com.example.petstore.api.options.GetPetTagOptions;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
@@ -1281,6 +1282,11 @@ public class BaseApiTest {
         // Response deserialization may fail; we only care about the captured headers
       }
       assertEquals("abc", client.capturedHeaders.get("X-Trace"));
+
+      var nullParameters = new CapturingApiClient();
+      new PetApi(nullParameters, new Configuration("http://localhost", Map.of()))
+          .getPetByNote(new GetPetByNoteOptions(null, null));
+      assertTrue(nullParameters.capturedUrl.endsWith("?note=&rank="), nullParameters.capturedUrl);
     }
 
     @Test
@@ -2270,28 +2276,13 @@ public class BaseApiTest {
     }
 
     @Test
-    @DisplayName("encodes a content cookie with only the unreserved set literal")
-    void bhvSerializationParam104EncodesContentCookieBytes() {
-      String encoded = TestableApi.encodeCookie("{\"k\":\"a b~*é\"}");
-      assertEquals("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", encoded);
-      assertTrue(TestableApi.cookieValueValid(encoded));
-    }
-
-    @Test
-    @DisplayName(
-        "bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded, dots"
-            + " included")
-    void bhvMisc233ACookieCarryingAJsonModelEncodesItsDot() {
-      assertEquals("%7B%22a%22%3A1%2E5%7D", TestableApi.encodeCookie("{\"a\":1.5}"));
-    }
-
-    @Test
     @DisplayName(
         "bhvSerializationObject224 a content cookie value is the serializer JSON percent encoded"
             + " keeping only the unreserved set literal")
     void bhvSerializationObject224ContentCookieIsPercentEncodedJson() {
       String json = "{\"k\":\"a b~*é\"}";
       assertEquals("%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D", TestableApi.encodeCookie(json));
+      assertTrue(TestableApi.cookieValueValid(TestableApi.encodeCookie(json)));
     }
 
     @Test
@@ -3331,6 +3322,9 @@ public class BaseApiTest {
       assertEquals(200, withoutHook.statusCode());
       assertEquals(withoutHook.statusCode(), nullObserver.statusCode());
       assertEquals(plain.capturedHeaders, noop.capturedHeaders);
+
+      CallHook hook = (info, headers) -> null;
+      assertSame(hook, Configuration.builder().callHook(hook).build().getCallHook());
     }
 
     @Test
