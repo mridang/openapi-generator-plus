@@ -65,10 +65,13 @@ import Testing
     #expect(calls == 1)
   }
 
-  /* Setting the proxy to an empty string removes a proxy set earlier. */
-  @Test func testBhvMisc056AnEmptyProxyRemovesTheEarlierProxy() throws {
-    let opts = try TransportOptionsBuilder().proxy("http://127.0.0.1:1").proxy("").build()
+  /* Clearing the proxy with no value removes a proxy set earlier; an empty string is never a way to clear it. */
+  @Test func testBhvMisc056ClearingTheProxyWithNoValueRemovesTheEarlierProxy() throws {
+    let opts = try TransportOptionsBuilder().proxy("http://127.0.0.1:1").proxy(nil).build()
     #expect(opts.proxy == nil)
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("http://127.0.0.1:1").proxy("").build()
+    }
   }
 
   /* A proxy credential exists only when the proxy URL carries user information. */
