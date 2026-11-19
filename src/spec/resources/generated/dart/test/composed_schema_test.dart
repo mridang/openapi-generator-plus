@@ -953,7 +953,7 @@ void main() {
     );
 
     test(
-      'bhv unions 046 when a payload matches several anyOf variants each matching variant keeps its value',
+      'bhv unions 046 when a payload matches several anyOf variants each matching variant keeps its value, and a non-matching variant reports false and null',
       () {
         final treatment = PetTreatment.fromJson(<String, dynamic>{
           'drugName': 'Amoxicillin',
@@ -966,18 +966,13 @@ void main() {
         expect(treatment.asMedication?.drugName, equals('Amoxicillin'));
         expect(treatment.asSurgery?.procedureName, equals('Spay'));
         expect(treatment.matchedInstances, hasLength(2));
-      },
-    );
 
-    test(
-      'bhv unions 046 a non-matching anyOf variant reports false and null',
-      () {
-        final treatment = PetTreatment.fromJson(<String, dynamic>{
+        final partial = PetTreatment.fromJson(<String, dynamic>{
           'drugName': 'Amoxicillin',
         });
 
-        expect(treatment.isSurgery, isFalse);
-        expect(treatment.asSurgery, isNull);
+        expect(partial.isSurgery, isFalse);
+        expect(partial.asSurgery, isNull);
       },
     );
     test(

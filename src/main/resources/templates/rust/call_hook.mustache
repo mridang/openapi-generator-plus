@@ -295,10 +295,7 @@ mod tests {
             vec!["start a", "start b", "finish b", "finish a"],
             *events.lock().unwrap()
         );
-    }
 
-    #[test]
-    fn test_bhv_hooks_020_chain_skips_a_hook_that_returns_nothing() {
         let events = Arc::new(Mutex::new(Vec::new()));
         let silent: Arc<dyn CallHook> = Arc::new(Recording {
             name: "quiet",
@@ -320,7 +317,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_hooks_020_chain_shares_the_headers_between_the_hooks() {
+    fn test_chain_shares_the_headers_between_the_hooks() {
         struct Setter;
         impl CallHook for Setter {
             fn start(
@@ -352,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_hooks_020_a_refusing_start_finishes_the_earlier_hooks_and_is_rethrown() {
+    fn test_a_refusing_start_finishes_the_earlier_hooks_and_is_rethrown() {
         let events = Arc::new(Mutex::new(Vec::new()));
         let refusing: Arc<dyn CallHook> = Arc::new(Recording {
             name: "refuser",
@@ -369,7 +366,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_hooks_019_a_panic_in_finish_is_swallowed_and_the_others_still_finish() {
+    fn test_a_panic_in_finish_is_swallowed_and_the_others_still_finish() {
         struct Panicking;
         impl CallObserver for Panicking {
             fn finish(self: Box<Self>, _outcome: &CallOutcome<'_>) {
@@ -396,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_hooks_015_a_scope_dropped_before_the_call_ends_finishes_as_cancelled() {
+    fn test_a_scope_dropped_before_the_call_ends_finishes_as_cancelled() {
         struct Capture(Arc<Mutex<Vec<String>>>);
         impl CallObserver for Capture {
             fn finish(self: Box<Self>, outcome: &CallOutcome<'_>) {

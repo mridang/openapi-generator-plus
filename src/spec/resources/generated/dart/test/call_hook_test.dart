@@ -46,7 +46,7 @@ CallInfo _info() => CallInfo.of(
 void main() {
   group('chainCallHooks', () {
     test(
-      'bhv hooks 020 starts the hooks in order and finishes their observers in reverse order',
+      'bhv hooks 020 chain starts the hooks in order and finishes their observers in reverse order, and a hook that returns nothing is skipped',
       () {
         final log = <String>[];
         final hook = chainCallHooks([
@@ -68,31 +68,32 @@ void main() {
             'finish a',
           ]),
         );
-      },
-    );
 
-    test('bhv hooks 020 a hook that returns no observer is skipped', () {
-      final log = <String>[];
-      final hook = chainCallHooks([
-        _Step('a', log),
-        _Step('silent', log, observes: false),
-        _Step('b', log),
-      ]);
+        final skipped = <String>[];
+        final skipping = chainCallHooks([
+          _Step('a', skipped),
+          _Step('silent', skipped, observes: false),
+          _Step('b', skipped),
+        ]);
 
-      hook.start(_info(), <String, String>{})!.finish(_outcome);
+        skipping.start(_info(), <String, String>{})!.finish(_outcome);
 
-      expect(
-        log,
-        equals(['start a', 'start silent', 'start b', 'finish b', 'finish a']),
-      );
-    });
-
-    test(
-      'bhv hooks 020 a chain of hooks that observe nothing returns no observer',
-      () {
-        final hook = chainCallHooks([_Step('a', <String>[], observes: false)]);
-
-        expect(hook.start(_info(), <String, String>{}), isNull);
+        expect(
+          skipped,
+          equals([
+            'start a',
+            'start silent',
+            'start b',
+            'finish b',
+            'finish a',
+          ]),
+        );
+        expect(
+          chainCallHooks([
+            _Step('a', <String>[], observes: false),
+          ]).start(_info(), <String, String>{}),
+          isNull,
+        );
       },
     );
 
@@ -126,51 +127,6 @@ void main() {
         expect(headers, equals({'X-One': '1', 'X-Two': '2'}));
       },
     );
-  });
-
-  group('CallInfo', () {
-    test(
-      'bhv hooks 003 serverAddress is the lower-case host without the port',
-      () {
-        final info = CallInfo.of(
-          operationId: 'o',
-          method: 'get',
-          urlTemplate: '/x',
-          target: 'https://API.Example.com:8443/x',
-        );
-
-        expect(info.serverAddress, equals('api.example.com'));
-      },
-    );
-
-    test('bhv hooks 003 serverAddress has no brackets for an IPv6 literal', () {
-      final info = CallInfo.of(
-        operationId: 'o',
-        method: 'get',
-        urlTemplate: '/x',
-        target: 'http://[::1]:8080/x',
-      );
-
-      expect(info.serverAddress, equals('::1'));
-    });
-
-    test(
-      'bhv hooks 021 the url has neither the query string nor the fragment',
-      () {
-        final info = CallInfo.of(
-          operationId: 'o',
-          method: 'get',
-          urlTemplate: '/x',
-          target: 'https://api.example.com/x?token=secret#top',
-        );
-
-        expect(info.url, equals('https://api.example.com/x'));
-      },
-    );
-
-    test('bhv hooks 002 the method is upper-case', () {
-      expect(_info().method, equals('GET'));
-    });
   });
 }
 

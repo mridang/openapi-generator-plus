@@ -842,10 +842,6 @@ class BaseApiTest {
         }
 
         @Test
-        @DisplayName("bhvOperations158 a header supplied on an individual call is sent with that call")
-        fun bhvOperations158PerCallHeaderIsSent() = callHeadersReplaceAnyLayer()
-
-        @Test
         @DisplayName("bhvOperations001 F827: per-call headers replace a header of the same name, whatever its case")
         fun callHeadersReplaceAnyLayer() {
             val client = CapturingApiClient()
@@ -2008,10 +2004,6 @@ class BaseApiTest {
             }
             assertEquals("emoji=%F0%9F%98%80", client.capturedBody.toString())
         }
-
-        @Test
-        @DisplayName("bhvOperations157 a binary request body is sent as its exact raw bytes with no multipart encoding")
-        fun bhvOperations157BinaryBodyIsSentRaw() = passesBinaryBody()
 
         @Test
         @DisplayName("bhvOperations014 passes binary body as-is")

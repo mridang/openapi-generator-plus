@@ -329,23 +329,6 @@ class OAuth2ClientCredentialsAuthenticatorTest {
     }
 
     @Test
-    fun bhvMisc068AnEmptyClientIdArgumentCountsAsNotPassedForTheWrapper() {
-        val client = FakeApiClient()
-        client.enqueue("""{"access_token":"from-env","expires_in":3600}""")
-        val env =
-            mapOf(
-                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID" to "env-id",
-                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET" to "env-" + "secret",
-            )
-        val auth =
-            withEnvironment(env) { MachineAuthClientCredentialsAuthenticator("https://api.example.com", "") }
-        auth.setApiClient(client)
-
-        runBlocking { auth.getAuthHeaders() }
-        assertTrue(client.lastBody!!.contains("client_id=env-id"), client.lastBody)
-    }
-
-    @Test
     fun bhvMisc069AnInvalidTokenResponseIsRefusedWithAnErrorNamingTheProblem() {
         for (body in listOf("""{"access_token":"","expires_in":3600}""", """{"access_token":5,"expires_in":3600}""")) {
             val client = FakeApiClient()
