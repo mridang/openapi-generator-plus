@@ -96,7 +96,9 @@ import FoundationNetworking
         #expect(response.headers["content-length"] == "5")
     }
 
-    /* A well-formed gzip stream whose decoded content is an empty string or zero is returned as that content. */
+    /* A well-formed gzip stream whose decoded content is an empty string or zero is returned as that content.
+     * Linux ships no zlib module, so the SDK cannot inflate any gzip stream there; this runs only where zlib exists. */
+    #if canImport(zlib)
     @Test func testBhvMisc039AGzipOfAnEmptyOrZeroValueIsNotCorrupt() async throws {
         let emptyClient = makeClient { _ in
             (Data([0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]), 200, ["Content-Encoding": "gzip"])
@@ -112,6 +114,7 @@ import FoundationNetworking
             method: "GET", url: "http://localhost/gzip-zero", headers: [:], body: nil)
         #expect(zero.body == "0")
     }
+    #endif
 
     /* A response with a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message. */
     @Test func testBhvMisc285AnUnsupportedContentEncodingIsRefused() async throws {
@@ -1633,17 +1636,15 @@ import FoundationNetworking
 
     // MARK: - Accept-Encoding
 
-    /* URLSession negotiates and decodes content encodings itself only while
-     * the header is left unset, so the client must not advertise one of its
-     * own. */
-    @Test func testBhvTransport045DoesNotSetAcceptEncodingByDefault() async throws {
+    /* The client advertises the codings it decodes, gzip and deflate, never br or zstd. */
+    @Test func testBhvSerializationwire029AdvertisesOnlyTheCodingItDecodes() async throws {
         var capturedEncoding: String?
         let client = makeClient { req in
             capturedEncoding = req.value(forHTTPHeaderField: "Accept-Encoding")
             return (self.body(), 200, [:])
         }
         _ = try await client.sendRequest(method: "GET", url: "http://localhost/test", headers: [:], body: nil)
-        #expect(capturedEncoding == nil)
+        #expect(capturedEncoding == "gzip, deflate")
     }
 
     // MARK: - Session configuration
@@ -2318,207 +2319,6 @@ import FoundationNetworking
         #expect(String(decoding: body, as: UTF8.self).contains("Content-Type: application/json"))
     }
 
-}
-
-// MARK: - Model-part stand-in for multipart unit tests
-
-/// A Codable stand-in for a generated model used as a multipart part. Its
-/// stored properties carry camelCase WIRE names, exactly as generated models
-/// do, so the multipart model-part branch can be exercised without referring
-/// to any model that happens to exist in the spec being generated.
-private struct MultipartModelPartFixture: Codable {
-    let isEnabled: Bool
-    let recordedAt: Date
-}
-
-/// A string enum standing in for a generated enum in the multipart tests.
-private enum MultipartEnumFixture: String, Codable {
-    case crimson = "crimson-red"
-}
-
-private final class CloseGate: @unchecked Sendable {
-    private let lock = NSLock()
-    private var flag = false
-    private let proceed = DispatchSemaphore(value: 0)
-
-    /// Called by the stub when the request has reached it; blocks until `release()`.
-    func holdRequest() {
-        lock.lock()
-        flag = true
-        lock.unlock()
-        proceed.wait()
-    }
-
-    /// Lets the held request go on.
-    func release() {
-        proceed.signal()
-    }
-
-    /// Waits, without blocking a thread, until the stub holds the request.
-    func waitUntilHeld() async throws {
-        for _ in 0..<500 {
-            lock.lock()
-            let held = flag
-            lock.unlock()
-            if held { return }
-            try await Task.sleep(nanoseconds: 10_000_000)
-        }
-        throw ConfigurationError.invalidState("the request never reached the stub")
-    }
-}
-
-/// Counts the requests a stub has answered.
-private final class CallCounter: @unchecked Sendable {
-    private let lock = NSLock()
-    private var calls = 0
-
-    /// Counts one more call and returns its number, starting at 1.
-    func next() -> Int {
-        lock.lock()
-        defer { lock.unlock() }
-        calls += 1
-        return calls
-    }
-
-    var count: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return calls
-    }
-}
-
-/// Records whether a session was invalidated.
-private final class SessionInvalidationProbe: NSObject, URLSessionDelegate, @unchecked Sendable {
-    private let lock = NSLock()
-    private var flag = false
-
-    var invalidated: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return flag
-    }
-
-    func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
-        lock.lock()
-        flag = true
-        lock.unlock()
-    }
-}
-
-// MARK: - URL Protocol stub for unit tests
-
-/* Never answers a request, and counts how often the loader stops it, so a test can see a cancelled call reach the transport. */
-private final class StallingURLProtocol: URLProtocol {
-    nonisolated(unsafe) static var stopCount = 0
-
-    override class func canInit(with request: URLRequest) -> Bool { return true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
-    override func startLoading() {}
-    override func stopLoading() {
-        StallingURLProtocol.stopCount += 1
-    }
-}
-
-private final class UnitStubURLProtocol: URLProtocol {
-    nonisolated(unsafe) static var handler: ((URLRequest) -> (Data, Int, [String: String]))?
-    /// A response header naming a URLError code makes the stub fail the load
-    /// with that error after the response is delivered.
-    static let failWithHeader = "X-Stub-Fail-With"
-    /// A response header naming a URLError code makes the stub fail the load
-    /// before any response arrives (a connect deadline or a refused connection).
-    static let failBeforeResponseHeader = "X-Stub-Fail-Before-Response"
-
-    static func session(handler: @escaping (URLRequest) -> (Data, Int, [String: String])) -> URLSession {
-        self.handler = handler
-        let config = URLSessionConfiguration.ephemeral
-        config.protocolClasses = [UnitStubURLProtocol.self]
-        return URLSession(configuration: config)
-    }
-
-    override class func canInit(with request: URLRequest) -> Bool { return true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
-
-    /// URLSession hands a protocol the body as `httpBodyStream`, not
-    /// `httpBody`; read it back so handlers can inspect what was sent.
-    static func withBody(_ request: URLRequest) -> URLRequest {
-        guard request.httpBody == nil, let stream = request.httpBodyStream else { return request }
-        var copy = request
-        var data = Data()
-        stream.open()
-        defer { stream.close() }
-        let bufferSize = 4096
-        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
-        defer { buffer.deallocate() }
-        while stream.hasBytesAvailable {
-            let read = stream.read(buffer, maxLength: bufferSize)
-            if read <= 0 { break }
-            data.append(buffer, count: read)
-        }
-        copy.httpBody = data
-        return copy
-    }
-
-    override func startLoading() {
-        guard let handler = UnitStubURLProtocol.handler else {
-            client?.urlProtocolDidFinishLoading(self)
-            return
-        }
-        var (data, statusCode, headers) = handler(UnitStubURLProtocol.withBody(request))
-        if let failBefore = headers.removeValue(forKey: UnitStubURLProtocol.failBeforeResponseHeader) {
-            let code: URLError.Code
-            switch failBefore {
-            case "timedOut": code = .timedOut
-            case "secureConnectionFailed": code = .secureConnectionFailed
-            default: code = .cannotConnectToHost
-            }
-            client?.urlProtocol(self, didFailWithError: URLError(code))
-            return
-        }
-        let failWith = headers.removeValue(forKey: UnitStubURLProtocol.failWithHeader)
-        guard let requestURL = request.url,
-            let response = HTTPURLResponse(
-                url: requestURL,
-                statusCode: statusCode,
-                httpVersion: "HTTP/1.1",
-                headerFields: headers
-            )
-        else {
-            client?.urlProtocolDidFinishLoading(self)
-            return
-        }
-        /* URLSession follows a redirect only when the protocol reports it through
-         * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed.
-         * swift-corelibs-foundation traps on wasRedirectedTo, so on Linux the stub
-         * never reports one and the redirect-following tests are Darwin-only. */
-#if !os(Linux)
-        if (300..<400).contains(statusCode), let location = headers["Location"],
-            let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
-        {
-            var next = request
-            next.url = redirectURL
-            client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
-        }
-#endif
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        if failWith == "cannotDecodeContentData" {
-            client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
-            return
-        }
-        /* The connection dies, or the deadline passes, after the response
-         * headers and part of the body have already arrived. */
-        if failWith == "networkConnectionLost" || failWith == "timedOut" {
-            client?.urlProtocol(self, didLoad: data.prefix(1))
-            let code: URLError.Code = failWith == "timedOut" ? .timedOut : .networkConnectionLost
-            client?.urlProtocol(self, didFailWithError: URLError(code))
-            return
-        }
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
-
-
     /* A CA path that does not exist fails at construction, naming the path and wrapping the read failure. */
     @Test func testBhvErrors098AMissingCaPathNamesTheCertificateAndWrapsTheCause() throws {
         let transport = try TransportOptionsBuilder().caCertPath("/nonexistent/ca.pem").build()
@@ -2981,4 +2781,206 @@ private final class UnitStubURLProtocol: URLProtocol {
         }
         #expect(message.contains("/nonexistent/ca.pem"))
     }
+}
+
+
+// MARK: - Model-part stand-in for multipart unit tests
+
+/// A Codable stand-in for a generated model used as a multipart part. Its
+/// stored properties carry camelCase WIRE names, exactly as generated models
+/// do, so the multipart model-part branch can be exercised without referring
+/// to any model that happens to exist in the spec being generated.
+private struct MultipartModelPartFixture: Codable {
+    let isEnabled: Bool
+    let recordedAt: Date
+}
+
+/// A string enum standing in for a generated enum in the multipart tests.
+private enum MultipartEnumFixture: String, Codable {
+    case crimson = "crimson-red"
+}
+
+private final class CloseGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+    private let proceed = DispatchSemaphore(value: 0)
+
+    /// Called by the stub when the request has reached it; blocks until `release()`.
+    func holdRequest() {
+        lock.lock()
+        flag = true
+        lock.unlock()
+        proceed.wait()
+    }
+
+    /// Lets the held request go on.
+    func release() {
+        proceed.signal()
+    }
+
+    /// Waits, without blocking a thread, until the stub holds the request.
+    func waitUntilHeld() async throws {
+        for _ in 0..<500 {
+            lock.lock()
+            let held = flag
+            lock.unlock()
+            if held { return }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        throw ConfigurationError.invalidState("the request never reached the stub")
+    }
+}
+
+/// Counts the requests a stub has answered.
+private final class CallCounter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var calls = 0
+
+    /// Counts one more call and returns its number, starting at 1.
+    func next() -> Int {
+        lock.lock()
+        defer { lock.unlock() }
+        calls += 1
+        return calls
+    }
+
+    var count: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return calls
+    }
+}
+
+/// Records whether a session was invalidated.
+private final class SessionInvalidationProbe: NSObject, URLSessionDelegate, @unchecked Sendable {
+    private let lock = NSLock()
+    private var flag = false
+
+    var invalidated: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return flag
+    }
+
+    func urlSession(_ session: URLSession, didBecomeInvalidWithError error: Error?) {
+        lock.lock()
+        flag = true
+        lock.unlock()
+    }
+}
+
+// MARK: - URL Protocol stub for unit tests
+
+/* Never answers a request, and counts how often the loader stops it, so a test can see a cancelled call reach the transport. */
+private final class StallingURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var stopCount = 0
+
+    override class func canInit(with request: URLRequest) -> Bool { return true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+    override func startLoading() {}
+    override func stopLoading() {
+        StallingURLProtocol.stopCount += 1
+    }
+}
+
+private final class UnitStubURLProtocol: URLProtocol {
+    nonisolated(unsafe) static var handler: ((URLRequest) -> (Data, Int, [String: String]))?
+    /// A response header naming a URLError code makes the stub fail the load
+    /// with that error after the response is delivered.
+    static let failWithHeader = "X-Stub-Fail-With"
+    /// A response header naming a URLError code makes the stub fail the load
+    /// before any response arrives (a connect deadline or a refused connection).
+    static let failBeforeResponseHeader = "X-Stub-Fail-Before-Response"
+
+    static func session(handler: @escaping (URLRequest) -> (Data, Int, [String: String])) -> URLSession {
+        self.handler = handler
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [UnitStubURLProtocol.self]
+        return URLSession(configuration: config)
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { return true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
+
+    /// URLSession hands a protocol the body as `httpBodyStream`, not
+    /// `httpBody`; read it back so handlers can inspect what was sent.
+    static func withBody(_ request: URLRequest) -> URLRequest {
+        guard request.httpBody == nil, let stream = request.httpBodyStream else { return request }
+        var copy = request
+        var data = Data()
+        stream.open()
+        defer { stream.close() }
+        let bufferSize = 4096
+        let buffer = UnsafeMutablePointer<UInt8>.allocate(capacity: bufferSize)
+        defer { buffer.deallocate() }
+        while stream.hasBytesAvailable {
+            let read = stream.read(buffer, maxLength: bufferSize)
+            if read <= 0 { break }
+            data.append(buffer, count: read)
+        }
+        copy.httpBody = data
+        return copy
+    }
+
+    override func startLoading() {
+        guard let handler = UnitStubURLProtocol.handler else {
+            client?.urlProtocolDidFinishLoading(self)
+            return
+        }
+        var (data, statusCode, headers) = handler(UnitStubURLProtocol.withBody(request))
+        if let failBefore = headers.removeValue(forKey: UnitStubURLProtocol.failBeforeResponseHeader) {
+            let code: URLError.Code
+            switch failBefore {
+            case "timedOut": code = .timedOut
+            case "secureConnectionFailed": code = .secureConnectionFailed
+            default: code = .cannotConnectToHost
+            }
+            client?.urlProtocol(self, didFailWithError: URLError(code))
+            return
+        }
+        let failWith = headers.removeValue(forKey: UnitStubURLProtocol.failWithHeader)
+        guard let requestURL = request.url,
+            let response = HTTPURLResponse(
+                url: requestURL,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )
+        else {
+            client?.urlProtocolDidFinishLoading(self)
+            return
+        }
+        /* URLSession follows a redirect only when the protocol reports it through
+         * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed.
+         * swift-corelibs-foundation traps on wasRedirectedTo, so on Linux the stub
+         * never reports one and the redirect-following tests are Darwin-only. */
+#if !os(Linux)
+        if (300..<400).contains(statusCode), let location = headers["Location"],
+            let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
+        {
+            var next = request
+            next.url = redirectURL
+            client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
+        }
+#endif
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        if failWith == "cannotDecodeContentData" {
+            client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))
+            return
+        }
+        /* The connection dies, or the deadline passes, after the response
+         * headers and part of the body have already arrived. */
+        if failWith == "networkConnectionLost" || failWith == "timedOut" {
+            client?.urlProtocol(self, didLoad: data.prefix(1))
+            let code: URLError.Code = failWith == "timedOut" ? .timedOut : .networkConnectionLost
+            client?.urlProtocol(self, didFailWithError: URLError(code))
+            return
+        }
+        client?.urlProtocol(self, didLoad: data)
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+
+
 }

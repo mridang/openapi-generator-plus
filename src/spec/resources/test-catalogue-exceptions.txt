@@ -52,7 +52,6 @@ swift | serializationobject164 | format: time maps to String in Swift (testTimeF
 swift | operations111 | the typed trackingId is a Foundation UUID, so a malformed value cannot be passed to getOrderByTrackingId; a malformed wire value is refused by the decoder (bhv serializationobject048)
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
-swift | errors042 | URLSession owns Content-Encoding negotiation and has already decoded the body, so an unknown coding cannot be told apart from an encoded body; swift never raises on it (forced, see generators/swift AGENTS.md, Decompression and Content-Encoding)
 swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert
 csharp | serializationobject015 | S6 leaves uniqueItems order to the natural collection, and a HashSet promises no insertion order
 csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject
@@ -773,3 +772,7 @@ java | misc128 | Java refuses a caller-supplied HttpClient combined with a proxy
 java | misc129 | Java refuses a caller-supplied HttpClient combined with a proxy by design, so the SDK never adds the proxy credential to a request it sends through a caller client; the redirect case cannot arise and is not tested
 java | misc083 | Java builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written; repeated keys are pinned by bhv misc083 on the wire
 java | misc081 | Java returns a binary response as the base64 text of its bytes, as bhv serializationwire017 settles for binary bodies, so a base64 body under a binary content type is not decoded to a string; the body is not decoded and the test is removed
+swift | misc256 | serialization046 settles the duration fraction as the shortest 3, 6 or 9 digit group, so 1.1 is written 1.100s, not 1.1s
+swift | misc269 | swift-corelibs-foundation cannot apply a disabled verification, so verifySsl false is refused on Linux (transport062); the reached-endpoint half cannot run here
+swift | serialization123 | quote characters are backslash-escaped in multipart names and filenames (serialization056, serializationwire061, serializationwire042), so only CR, LF and NUL are rejected
+swift | misc039 | Linux ships no zlib module, so the SDK cannot inflate any gzip stream there and an empty or zero gzip body raises; the test is compiled only where zlib exists, as transport074 is compiled only where it does not

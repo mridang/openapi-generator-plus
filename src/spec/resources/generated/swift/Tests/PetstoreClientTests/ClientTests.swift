@@ -237,20 +237,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }
 
-  private func firstApiAuthenticator(of client: Client) -> Authenticator? {
-    return client.pet.authenticator
-  }
-
-  private func environmentClient(
-    host: String? = nil, token: String? = nil,
-    tokenProvider: (@Sendable () async throws -> String)? = nil,
-    environment: [String: String]
-  ) throws -> Client {
-    return try Client.fromEnvironment(
-      host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
-      environment: environment)
-  }
-
   @Test func testBhvLifecycle014FromEnvironmentReadsTheHostAndTheToken() async throws {
     let client = try environmentClient(environment: [
       "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
@@ -278,7 +264,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       throws: ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
       ])
@@ -288,7 +274,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
       )
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "",
       ])
@@ -308,7 +294,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
     let error = #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+      _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
     }
     #expect(
       error
@@ -320,7 +306,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
   /* An authenticator with no token, no environment value and a nil provider is refused at construction. */
   @Test func testBhvAuth004NoTokenNoEnvironmentAndANilProviderIsRefused() {
     let error = #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(
+      _ = try environmentClient(
         host: "https://explicit.example.com", token: nil, tokenProvider: nil, environment: [:])
     }
     #expect(
@@ -335,7 +321,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
       throws: ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token",
       ])
@@ -345,7 +331,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
       )
     ) {
-      _ = try self.environmentClient(environment: [
+      _ = try environmentClient(environment: [
         "SWAGGER_PETSTORE_OPEN_API_3_0_HOST": "https://env.example.com",
         "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "",
       ])
@@ -354,10 +340,10 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
   @Test func testBhvLifecycle013AMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
     #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(environment: [:])
+      _ = try environmentClient(environment: [:])
     }
     #expect(throws: ConfigurationError.self) {
-      _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+      _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
     }
     #expect(throws: ConfigurationError.self) {
       _ = try Client.fromEnvironment(host: "https://explicit.example.com")
@@ -2697,6 +2683,20 @@ private func operationNames(file: String, from start: String, to end: String?, p
     guard trimmed.hasPrefix(prefix) else { return nil }
     return trimmed.dropFirst(prefix.count).split(separator: "(").first.map(String.init)
   }
+}
+
+private func firstApiAuthenticator(of client: Client) -> Authenticator? {
+  return client.pet.authenticator
+}
+
+private func environmentClient(
+  host: String? = nil, token: String? = nil,
+  tokenProvider: (@Sendable () async throws -> String)? = nil,
+  environment: [String: String]
+) throws -> Client {
+  return try Client.fromEnvironment(
+    host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
+    environment: environment)
 }
 
 @Suite struct MockingTests {

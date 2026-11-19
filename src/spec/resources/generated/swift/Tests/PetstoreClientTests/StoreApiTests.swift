@@ -420,6 +420,26 @@ import Testing
     }
     #expect(error?.statusCode == 404)
   }
+
+  /* An operation with no parameters can be called with no argument and returns its decoded result. */
+  @Test func testBhvMisc013ANoParameterOperationReturnsItsResult() async throws {
+    let api = storeApiForMock(statusCode: 200, body: "{\"available\":3}")
+    let inventory = try await api.getInventory()
+    #expect(inventory["available"] == 3)
+  }
+
+  /* An options object for an operation with no parameters carries the per-call header to the request. */
+  @Test func testBhvMisc011ANoParameterOperationAcceptsCallSettings() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "{\"available\":1}"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(apiClient: mockClient, config: config)
+    _ = try await api.getInventory(
+      options: GetInventoryOptions(timeout: 1000, headers: ["X-Per-Call": "yes"], maxRetries: 0))
+    #expect(mockClient.lastHeaders["X-Per-Call"] == "yes")
+  }
 }
 
 private final class MockApiClient: ApiClient, @unchecked Sendable {
@@ -453,25 +473,5 @@ private final class MockApiClient: ApiClient, @unchecked Sendable {
       body: responseBody,
       headers: responseHeaders
     )
-  }
-
-  /* An operation with no parameters can be called with no argument and returns its decoded result. */
-  @Test func testBhvMisc013ANoParameterOperationReturnsItsResult() async throws {
-    let api = storeApiForMock(statusCode: 200, body: "{\"available\":3}")
-    let inventory = try await api.getInventory()
-    #expect(inventory["available"] == 3)
-  }
-
-  /* An options object for an operation with no parameters carries the per-call header to the request. */
-  @Test func testBhvMisc011ANoParameterOperationAcceptsCallSettings() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 200
-    mockClient.responseBody = "{\"available\":1}"
-    mockClient.responseHeaders = ["Content-Type": "application/json"]
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-    _ = try await api.getInventory(
-      options: GetInventoryOptions(timeout: 1000, headers: ["X-Per-Call": "yes"], maxRetries: 0))
-    #expect(mockClient.lastHeaders["X-Per-Call"] == "yes")
   }
 }
