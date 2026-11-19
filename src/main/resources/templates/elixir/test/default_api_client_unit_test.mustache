@@ -2745,5 +2745,131 @@ defmodule {{moduleName}}.DefaultApiClientUnitTest do
     refute {{moduleName}}.DefaultApiClient.refuse_body_replay?(307, "http://api.example.com/x", "http://api.example.com/y", ~s({"a":1}))
   end
 
+  test "bhv misc 027 a transport failure with no HTTP response becomes a timeout or network error and keeps its cause" do
+    closed = fn request -> {request, %Req.TransportError{reason: :closed}} end
+    timed_out = fn request -> {request, %Req.TransportError{reason: :timeout}} end
+
+    net_err =
+      assert_raise {{moduleName}}.Errors.NetworkError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: closed])),
+          :get,
+          "http://custom.invalid/drop",
+          %{},
+          nil
+        )
+      end
+
+    assert %Req.TransportError{reason: :closed} = net_err.cause
+
+    timeout_err =
+      assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+        {{moduleName}}.DefaultApiClient.send_request(
+          {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: timed_out])),
+          :get,
+          "http://custom.invalid/slow",
+          %{},
+          nil
+        )
+      end
+
+    assert %Req.TransportError{reason: :timeout} = timeout_err.cause
+  end
+
+  test "bhv misc 030 a request whose deadline has already passed raises a timeout and never reaches the transport" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, :reached_transport)
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: adapter]))
+    past = System.monotonic_time(:millisecond) - 1
+
+    assert_raise {{moduleName}}.Errors.NetworkTimeoutError, fn ->
+      {{moduleName}}.DefaultApiClient.send_request(client, :get, "http://custom.invalid/echo", %{}, nil, deadline: past)
+    end
+
+    refute_received :reached_transport
+  end
+
+  test "bhv misc 031 a proxy credential is sent to the proxy exactly when the proxy URL includes user information" do
+    with_credentials = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(proxy: "http://user:pass@127.0.0.1:3128"))
+    without_credentials = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(proxy: "http://127.0.0.1:3128"))
+
+    assert {{moduleName}}.DefaultApiClient.proxy_auth_header(with_credentials) == "Basic " <> Base.encode64("user:pass")
+    assert {{moduleName}}.DefaultApiClient.proxy_auth_header(without_credentials) == nil
+  end
+
+  test "bhv misc 032 the raw response exposes its status code, body and headers under public names" do
+    base_url = start_server(200, "application/json", ~s({"method":"GET"}), [{"X-Test-Header", "test-value"}])
+    client = {{moduleName}}.DefaultApiClient.new()
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
+
+    assert %{{moduleName}}.ApiHttpResponse{} = response
+    assert response.status_code == 200
+    assert response.body == ~s({"method":"GET"})
+    assert response.headers["x-test-header"] == "test-value"
+  end
+
+  test "bhv misc 037 a response body that is not decoded keeps its Content-Length header" do
+    base_url = start_server(200, "text/plain", "", [{"Content-Encoding", "gzip"}])
+    client = {{moduleName}}.DefaultApiClient.new()
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/empty-gzip", %{}, nil)
+
+    assert response.headers["content-length"] == "0"
+  end
+
+  test "bhv misc 039 a well-formed gzip stream whose content is zero or empty is returned as that content" do
+    client = {{moduleName}}.DefaultApiClient.new()
+    zero_url = start_server(200, "text/plain", :zlib.gzip("0"), [{"Content-Encoding", "gzip"}])
+    blank_url = start_server(200, "text/plain", :zlib.gzip(""), [{"Content-Encoding", "gzip"}])
+
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{zero_url}/zero-gzip", %{}, nil).body == "0"
+    assert {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{blank_url}/blank-gzip", %{}, nil).body == ""
+  end
+
+  test "bhv misc 040 response header names are returned in lower case" do
+    base_url = start_server(200, "text/plain", "ok", [{"X-Test-Header", "test-value"}])
+    client = {{moduleName}}.DefaultApiClient.new()
+    response = {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/echo", %{}, nil)
+
+    assert response.headers != %{}
+    assert Enum.all?(Map.keys(response.headers), &(&1 == String.downcase(&1)))
+  end
+
+  test "bhv misc 041 a request with an HTTP method outside the standard set is sent with its body intact" do
+    test_pid = self()
+
+    adapter = fn request ->
+      send(test_pid, {:sent, request})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(req_options: [adapter: adapter]))
+
+    {{moduleName}}.DefaultApiClient.send_request(
+      client,
+      :propfind,
+      "http://custom.invalid/echo",
+      %{"Content-Type" => "application/json"},
+      ~s({"key":"value"})
+    )
+
+    assert_receive {:sent, request}, 5000
+    assert String.upcase(to_string(request.method)) == "PROPFIND"
+    assert IO.iodata_to_binary(request.body) == ~s({"key":"value"})
+  end
+
+  test "bhv misc 043 a user agent that is explicitly cleared is omitted from the request" do
+    {base_url, _port} = start_header_capture_server()
+    client = {{moduleName}}.DefaultApiClient.new({{moduleName}}.TransportOptions.new(user_agent: nil))
+    {{moduleName}}.DefaultApiClient.send_request(client, :get, "#{base_url}/test", %{}, nil)
+
+    assert_receive {:captured_headers, headers}, 5000
+    refute Map.has_key?(headers, "user-agent")
+  end
+
 end
 {{/generateTests}}

@@ -610,8 +610,8 @@ String toCookieValue(Object? value) {
 
 /// Percent-encode [value] for a `content:` cookie parameter.
 ///
-/// Only the unreserved set A-Z a-z 0-9 - . _ ~ stays literal; every other
-/// character, including * ! ' ( ) and every non-ASCII character, is
+/// Only A-Z a-z 0-9 - _ ~ stays literal (the dot is encoded too); every other
+/// character, including * . ! ' ( ) and every non-ASCII character, is
 /// percent-encoded as UTF-8 with upper-case hex digits, so the bytes are the
 /// same in every SDK and always satisfy the RFC 6265 cookie-value grammar.
 String encodeContentCookie(String value) {
@@ -622,7 +622,6 @@ String encodeContentCookie(String value) {
         (b >= 0x61 && b <= 0x7A) ||
         (b >= 0x30 && b <= 0x39) ||
         b == 0x2D ||
-        b == 0x2E ||
         b == 0x5F ||
         b == 0x7E;
     if (unreserved) {

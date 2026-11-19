@@ -148,8 +148,11 @@ class ValueSerializer:
         Raises:
             ValueError: If a header value carries a CR or LF.
         """
-        if location in ("path", "cookie"):
+        if location == "path":
             return quote(json_text, safe="")
+        if location == "cookie":
+            # Only A-Za-z0-9 - _ ~ stay literal: quote() keeps the dot, so encode it too.
+            return quote(json_text, safe="").replace(".", "%2E")
         if location == "header" and ("\r" in json_text or "\n" in json_text):
             raise ValueError(f"Header parameter '{name}' must not contain CR or LF")
         return json_text

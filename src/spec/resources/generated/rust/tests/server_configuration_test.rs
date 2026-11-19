@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use petstore::{ConfigurationError, ServerConfiguration, ServerVariable};
+use petstore::{ConfigurationBuilder, ConfigurationError, ServerConfiguration, ServerVariable};
 
 fn server_with_vars() -> ServerConfiguration {
     let mut variables = HashMap::new();
@@ -604,5 +604,34 @@ fn test_bhv_misc_278_a_templated_server_url_resolves_each_default_when_no_overri
     assert_eq!(
         "https://prod.example.com/v2",
         server.url(&HashMap::new()).expect("defaults are used")
+    );
+}
+
+#[test]
+fn test_bhv_servers_030_a_value_not_in_the_declared_enum_is_rejected_with_an_error() {
+    let mut variables = HashMap::new();
+    variables.insert(
+        "env".to_string(),
+        ServerVariable::new(
+            "api".to_string(),
+            String::new(),
+            vec!["api".to_string(), "staging".to_string()],
+        ),
+    );
+
+    let server = ServerConfiguration::new(
+        "https://{env}.example.com".to_string(),
+        "Test server".to_string(),
+        variables,
+    );
+
+    let mut overrides = HashMap::new();
+    overrides.insert("env".to_string(), "invalid".to_string());
+
+    let result = ConfigurationBuilder::new().server(&server, &overrides);
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidServerVariable(_))),
+        "expected InvalidServerVariable, got {:?}",
+        result.map(|b| b.build().base_url().to_string())
     );
 }

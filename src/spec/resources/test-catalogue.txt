@@ -1016,7 +1016,7 @@ authapikey018 | Rejects a CR in a header API key value at construction
 authoauthtwoimplicit014 | Rejects a non-ASCII access token with the RFC 7230 message
 operations125 | Raises the language's argument error, naming the required query param category, when it is nil | multi
 errors044 | Every error lives in src/errors and the package root exports it
-serializationparam104 | EncodeContentCookie keeps only the unreserved set literal / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
+serializationparam104 | EncodeContentCookie keeps only the unreserved set literal and encodes the dot too / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s / A format: duration query, header and path parameter is written in the protobuf-JSON form 3600s | multi
 config017 | Configuration is immutable
 retries027 | Backoff doubles from half a second to eight seconds with quarter jitter
 serializationobject182 | Unknown enum value on deserialize throws
@@ -1191,7 +1191,7 @@ serializationobject219 | A time value keeps its milliseconds when it is written
 serializationobject221 | Deserializing an array of base64 strings decodes each element to raw bytes
 serializationobject222 | Serializing an array of byte values encodes each element to base64 in the wire array
 serializationobject223 | A protobuf duration at the bound of plus or minus 315576000000 seconds is accepted and one past it is rejected
-serializationobject224 | A content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal
+serializationobject224 | A content cookie value is the serializer JSON percent encoded keeping only the unreserved set literal and encoding the dot too
 serializationobject227 | A model externalDocs description is documented verbatim without HTML entities
 serializationobject229 | Deserializing a map of models returns a model instance for each value
 serializationobject230 | A time value survives a stringify and parse round trip

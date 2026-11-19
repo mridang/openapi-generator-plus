@@ -268,6 +268,12 @@ impl serde::ser::SerializeStructVariant for FiniteFloatCheck {
     fn end(self) -> Result<(), NonFiniteError> { Ok(()) }
 }
 
+/// Percent-encodes the JSON text of a `content:` cookie parameter. Only
+/// A-Z a-z 0-9 - _ ~ stay literal: `urlencoding` keeps the dot, so it is encoded too.
+pub fn encode_content_cookie(json: &str) -> String {
+    urlencoding::encode(json).replace('.', "%2E")
+}
+
 /// Serializes an object to a JSON string.
 ///
 /// Returns a [`SerializationError`] if serialization fails. Rejects a
@@ -278,14 +284,14 @@ impl serde::ser::SerializeStructVariant for FiniteFloatCheck {
 pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> {
     if value.serialize(FiniteFloatCheck).is_err() {
         return Err(SerializationError::new(
-            "failed to serialize object to JSON: non-finite float (NaN or Infinity) \
+            "Failed to serialize object to JSON: non-finite float (NaN or Infinity) \
              is not permitted by RFC 8259"
                 .to_string(),
             None,
         ));
     }
     serde_json::to_string(value).map_err(|e| SerializationError::new(
-        format!("failed to serialize object to JSON: {}", e),
+        format!("Failed to serialize object to JSON: {}", e),
         Some(Box::new(e)),
     ))
 }
@@ -787,6 +793,10 @@ pub enum QueryValue {
 /// For collections, joins using the specified collection format delimiter.
 /// Returns `QueryValue::Multi` for the "multi" format, `QueryValue::Single` otherwise.
 pub fn to_query_value<T: Serialize + 'static>(value: &T, collection_format: &str) -> QueryValue {
+    /* A time-of-day query value is HH:mm:ss; the fraction of a second is dropped. */
+    if let Some(time) = (value as &dyn std::any::Any).downcast_ref::<chrono::NaiveTime>() {
+        return QueryValue::Single(time.format("%H:%M:%S").to_string());
+    }
     if let Some(text) = scalar_override(value) {
         return QueryValue::Single(text);
     }
@@ -869,8 +879,8 @@ fn join_collection(items: &[String], collection_format: &str) -> QueryValue {
 #[cfg(test)]
 mod tests {
     use super::{
-        self as object_serializer, deserialize, object_query_pairs, serialize, to_header_value,
-        to_query_value, QueryValue, SerializationError,
+        self as object_serializer, deserialize, encode_content_cookie, object_query_pairs, serialize,
+        to_header_value, to_query_value, QueryValue, SerializationError,
     };
 
     fn sample_object() -> std::collections::HashMap<String, serde_json::Value> {
@@ -953,7 +963,7 @@ mod tests {
     fn test_bhv_serializationobject_200_a_serialize_failure_carries_the_canonical_prefix_and_the_detail() {
         let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
         assert_eq!(
-            "failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
+            "Failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
             non_finite.message()
         );
 
@@ -961,9 +971,19 @@ mod tests {
         keyed_by_pair.insert((1, 2), 3);
         let unwritable = object_serializer::serialize(&keyed_by_pair).expect_err("keys must be strings");
         assert!(
-            unwritable.message().starts_with("failed to serialize object to JSON: "),
+            unwritable.message().starts_with("Failed to serialize object to JSON: "),
             "{}",
             unwritable.message()
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_130_a_failed_serialize_reports_the_canonical_prefix() {
+        let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
+        assert!(
+            non_finite.message().starts_with("Failed to serialize object to JSON: "),
+            "{}",
+            non_finite.message()
         );
     }
 
@@ -1049,7 +1069,7 @@ mod tests {
     }
 
     /* F833: a content cookie is the SDK's JSON, percent-encoded keeping only
-     * A-Z a-z 0-9 - . _ ~ literal, so the bytes match the other eleven SDKs
+     * A-Z a-z 0-9 - _ ~ literal, so the bytes match the other eleven SDKs
      * and the value passes the RFC 6265 cookie-octet check. */
     #[test]
     fn test_bhv_serializationparam_118_a_content_cookie_value_is_encoded_to_the_shared_percent_encoded_bytes() {
@@ -1336,13 +1356,18 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded() {
+        assert_eq!(encode_content_cookie(r#"{"a":1.5}"#), "%7B%22a%22%3A1%2E5%7D");
+    }
+
+    #[test]
     fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal() {
-        /* Every ASCII byte: the unreserved set A-Z a-z 0-9 - . _ ~ stays literal and
-         * every other byte is written as %XX, the encoding a content cookie uses. */
+        /* Every ASCII byte: A-Z a-z 0-9 - _ ~ stays literal and every other byte,
+         * the dot included, is written as %XX, the encoding a content cookie uses. */
         for byte in 0u8..=0x7f {
             let text = (byte as char).to_string();
-            let encoded = urlencoding::encode(&text).into_owned();
-            let unreserved = (byte as char).is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~');
+            let encoded = encode_content_cookie(&text);
+            let unreserved = (byte as char).is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'~');
             if unreserved {
                 assert_eq!(text, encoded, "byte {:#04x} must stay literal", byte);
             } else {
@@ -2556,5 +2581,73 @@ mod tests {
         assert_eq!(object_serializer::to_path_value(&"12:34:56".to_string()), "12:34:56");
     }
 
+    #[test]
+    fn test_bhv_misc_230_a_model_with_no_extra_properties_writes_only_its_declared_keys() {
+        let parsed: serde_json::Value =
+            serde_json::from_str(&serialize(&crate::models::Category::new()).unwrap()).unwrap();
+        assert!(parsed.get("data").is_none(), "{}", parsed);
+        assert!(parsed.get("additionalProperties").is_none(), "{}", parsed);
+    }
+
+    #[test]
+    fn test_bhv_misc_234_a_model_in_a_list_keeps_its_additional_properties_through_a_round_trip() {
+        let items: Vec<crate::models::Freeform> =
+            serde_json::from_str(r#"[{"label":"x","extra":"y"}]"#).unwrap();
+        let restored: Vec<crate::models::Freeform> =
+            deserialize(serialize(&items).unwrap().as_bytes()).unwrap().unwrap();
+        assert_eq!(serde_json::json!("y"), serde_json::to_value(restored[0].additional_properties.get("extra")).unwrap());
+    }
+
+    #[test]
+    fn test_bhv_misc_241_a_time_of_day_query_value_is_sent_as_hh_mm_ss_with_milliseconds_truncated() {
+        let time = chrono::NaiveTime::from_hms_milli_opt(10, 20, 30, 999).unwrap();
+        assert!(matches!(to_query_value(&time, ""), QueryValue::Single(ref s) if s == "10:20:30"));
+    }
+
+    #[test]
+    fn test_bhv_misc_244_a_body_with_a_leading_byte_order_mark_decodes_into_the_model() {
+        let category: Option<crate::models::Category> =
+            deserialize(b"\xEF\xBB\xBF{\"id\":1,\"name\":\"Dogs\"}").unwrap();
+        assert_eq!(Some(1), category.and_then(|c| c.id));
+    }
+
+    #[test]
+    fn test_bhv_misc_245_a_time_of_day_in_a_plain_object_is_serialized_as_a_json_string() {
+        let mut map = std::collections::HashMap::new();
+        map.insert("at".to_string(), chrono::NaiveTime::from_hms_opt(10, 20, 30).unwrap());
+        assert_eq!(r#"{"at":"10:20:30"}"#, serialize(&map).unwrap());
+    }
+
 {{/generateTests}}
+
+    #[test]
+    fn test_bhv_serialization_071_json_nested_beyond_the_depth_cap_is_refused_before_parsing() {
+        let deep = format!("{}{}", "[".repeat(1001), "]".repeat(1001));
+        let err = deserialize::<serde_json::Value>(deep.as_bytes())
+            .expect_err("nesting beyond the cap must be refused");
+        assert!(err.to_string().contains("exceeds limit 1000"), "got: {err}");
+    }
+
+    #[test]
+    fn test_bhv_serialization_074_nested_arrays_serialize_to_the_same_nested_shape() {
+        let text = serialize(&vec![vec![1, 2], vec![3]]).expect("serializes");
+        assert_eq!(text, "[[1,2],[3]]");
+    }
+
+    #[test]
+    fn test_bhv_serialization_078_a_time_of_day_is_zero_padded_with_a_fraction_only_when_sub_second() {
+        use chrono::NaiveTime;
+        assert_eq!(super::format_time(&NaiveTime::from_hms_opt(9, 5, 3).unwrap()), "09:05:03");
+        assert_eq!(
+            super::format_time(&NaiveTime::from_hms_micro_opt(9, 5, 3, 500000).unwrap()),
+            "09:05:03.500"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_083_a_serialization_error_is_the_library_error_type_with_a_message() {
+        let err = deserialize::<serde_json::Value>(b"{").expect_err("malformed JSON must fail");
+        assert!(!err.to_string().is_empty(), "the error must carry a message");
+    }
+
 }

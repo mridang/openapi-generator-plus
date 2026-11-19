@@ -2629,3 +2629,14 @@ describe('BaseApi misc query and status behaviours', () => {
     },
   );
 });
+
+describe('BaseApi misc truncation behaviours', () => {
+  test('bhv misc 280 when the rendered message truncates a response body it states how many bytes were left out', async () => {
+    const client = new CapturingApiClient();
+    client.responseStatus = 500;
+    client.responseBody = 'x'.repeat(1500);
+    const api = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    await expect(api.call('GET', '/x', {}, {}, null, ['application/json'], 'application/json', null))
+      .rejects.toThrow('(476 more bytes)');
+  });
+});

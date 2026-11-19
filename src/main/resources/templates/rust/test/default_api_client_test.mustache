@@ -267,6 +267,30 @@ async fn test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust
     assert!(err.downcast_ref::<NetworkError>().is_some(), "expected a NetworkError, got: {}", err);
 }
 
+#[tokio::test]
+async fn test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error() {
+    use std::net::ToSocketAddrs;
+    let reachable = "example.com:443"
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
+        })
+        .unwrap_or(false);
+    assert!(reachable, "example.com:443 must be reachable: the replacement check needs a public CA chain");
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let result = DefaultApiClient::new(Some(transport))
+        .send_request("GET", "https://example.com/", &HashMap::new(), None)
+        .await;
+    let err = result.expect_err("a public CA must not be trusted next to a configured CA");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "expected a NetworkError, got: {}", err);
+}
+
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo
 // (`http://user:pass@127.0.0.1:3128`) must preserve those credentials end-to-end
 // so the proxy can authenticate the tunnel (otherwise it 407s). Java's
@@ -1191,4 +1215,19 @@ async fn test_bhv_misc_272_authenticating_proxy_accepts_credentials_from_the_pro
         .expect("the proxy must accept the credentials");
     assert_eq!(200, resp.status_code());
     assert!(resp.body().contains(r#""method""#), "{}", resp.body());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let client = DefaultApiClient::new(None);
+    let body = {{packageName}}::api_client::RequestBody::Multipart(vec![(
+        "file".to_string(),
+        {{packageName}}::api_client::MultipartValue::Bytes(b"file content".to_vec()),
+    )]);
+    let resp = client
+        .send_request("POST", &format!("{}/test/echo", chasm_url), &HashMap::new(), Some(&body))
+        .await
+        .expect("unexpected error");
+    assert!(resp.body().contains("file content"), "{}", resp.body());
 }

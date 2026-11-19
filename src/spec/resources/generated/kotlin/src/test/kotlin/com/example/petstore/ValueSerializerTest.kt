@@ -903,7 +903,7 @@ class ValueSerializerTest {
                 ValueSerializer.serializeContent("p", "a b~*\u00e9", "cookie"),
             )
             assertEquals(
-                "%22%21%27%28%29%2C%2B%25-._~%22",
+                "%22%21%27%28%29%2C%2B%25-%2E_~%22",
                 ValueSerializer.serializeContent("p", "!'(),+%-._~", "cookie"),
             )
         }
@@ -1323,12 +1323,12 @@ class ValueSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included")
+    @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded, colons and dots included")
     fun bhvMisc233CookieJsonModelIsFullyPercentEncoded() {
-        val result = ValueSerializer.serialize("{\"a\":1.5}", "cookie", "string", null)
-        assertTrue(result.contains("%7B"), result)
-        assertTrue(result.contains("%3A"), result)
-        assertFalse(result.contains(":"), result)
+        assertEquals(
+            "%7B%22a%22%3A1%2E5%7D",
+            ValueSerializer.serializeContent("c", mapOf("a" to 1.5), "cookie"),
+        )
     }
 
     @Test

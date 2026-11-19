@@ -1465,10 +1465,11 @@ describe("ValueSerializer", () => {
     });
 
     test("bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal", () => {
-      expect(ValueSerializer.encodeQueryComponent("AZaz09-._~")).toBe(
-        "AZaz09-._~",
+      expect(ValueSerializer.encodeCookieComponent("AZaz09-_~")).toBe(
+        "AZaz09-_~",
       );
-      expect(ValueSerializer.encodeQueryComponent("!'()*,")).toBe(
+      expect(ValueSerializer.encodeCookieComponent(".")).toBe("%2E");
+      expect(ValueSerializer.encodeCookieComponent("!'()*,")).toBe(
         "%21%27%28%29%2A%2C",
       );
     });
@@ -1606,15 +1607,10 @@ describe("ValueSerializer misc location behaviours", () => {
     expect(ValueSerializer.serialize("a/b", "path", "string")).toBe("a%2Fb");
   });
 
-  test("bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included", () => {
-    const result = ValueSerializer.serialize(
-      '{"a":1.5}',
-      "cookie",
-      "string",
-    ) as string;
-    expect(result).toContain("%7B");
-    expect(result).toContain("%3A");
-    expect(result).not.toContain(":");
+  test("bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons and dots included", () => {
+    expect(ValueSerializer.encodeCookieComponent('{"a":1.5}')).toBe(
+      "%7B%22a%22%3A1%2E5%7D",
+    );
   });
 
   test("bhv misc 236 a date-only value is written as yyyy-mm-dd with no time in query, header and cookie locations", () => {

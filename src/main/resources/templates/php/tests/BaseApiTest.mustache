@@ -287,6 +287,37 @@ test('bhv options 054 an operation accepts per call options alongside its other 
     expect($headers['x-trace'] ?? null)->toBe('abc');
 });
 
+test('bhv misc 229 a per call max retries value overrides the client setting so a call can retry when the client has none', function (): void {
+    /** @var \ArrayObject<int, string> $attempts */
+    $attempts = new \ArrayObject();
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($attempts): \Symfony\Component\HttpClient\Response\MockResponse {
+            $attempts[] = $url;
+            $status = count($attempts) <= 2 ? 503 : 200;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $status, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->maxRetries(0)->build());
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object', null, maxRetries: 2);
+
+    expect(count($attempts))->toBe(3);
+});
+
+test('bhv misc 239 an operation query parameter is serialized when no authenticator is configured', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => 'a b'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%20b');
+});
+
 test('bhv options 057 a per call timeout below one millisecond is refused before any request is sent', function (): void {
     $client = new CapturingApiClient();
     $api = new PetApi($client, new Configuration('http://localhost'));
@@ -2591,6 +2622,17 @@ test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
 
+test('bhv misc 237 an iso 8859 1 error response body decodes to utf 8 text in the error', function (): void {
+    $client = new ScriptedApiClient([new ApiHttpResponse(404, "caf\xE9", ['Content-Type' => 'application/json; charset=ISO-8859-1'])]);
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $thrown = null;
+    try {
+        $api->call('GET', '/x', [], [], null, ['application/json'], 'application/json', null);
+    } catch (\{{invokerPackage}}\Errors\ApiException $e) {
+        $thrown = $e;
+    }
+    expect($thrown?->getResponseBody())->toBe('café');
+});
 test('bhv serialization 125 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));
@@ -2625,4 +2667,22 @@ test('bhv serialization 128 a binary return type gets the raw bytes of a JSON bo
     $result = $testApi->call('GET', '/test/echo', [], [], null,
         ['image/jpeg', 'application/json'], 'application/json', 'string');
     expect($result)->toBe('{"id":7,"name":"photo"}');
+});
+
+test('bhv misc 254 an unmarked query value percent encodes reserved characters such as slash and colon', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => 'a/b:c'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Fb%3Ac');
+});
+
+test('bhv misc 255 separate query parameters encode a space as percent 20', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['a' => 'x y', 'b' => 'z'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?a=x%20y&b=z');
 });

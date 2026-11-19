@@ -4028,6 +4028,69 @@ async fn test_bhv_misc_192_an_auth_cookie_of_only_legal_octets_is_sent_exactly_a
 }
 
 #[tokio::test]
+async fn test_bhv_retries_047_a_wait_that_would_overrun_the_caller_timeout_is_not_taken() {
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some("30")),
+            Scripted::Status(200, None),
+        ],
+        2,
+        Some(std::time::Duration::from_secs(2)),
+    );
+    let started = std::time::Instant::now();
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.calls());
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(10),
+        "waited {:?}",
+        started.elapsed()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_retries_049_max_retries_sets_the_number_of_retries() {
+    let scripts: Vec<Scripted> = (0..5).map(|_| Scripted::Status(503, Some("0"))).collect();
+    let client = ScriptedApiClient::new(scripts, 4, None);
+
+    let outcome = retrying_api(&client).delete_pet(1, None).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(5, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_retries_050_retry_after_as_an_http_date_is_honoured() {
+    let when = (chrono::Utc::now() + chrono::TimeDelta::seconds(2))
+        .format("%a, %d %b %Y %H:%M:%S GMT")
+        .to_string();
+    let when: &'static str = Box::leak(when.into_boxed_str());
+    let client = ScriptedApiClient::new(
+        vec![
+            Scripted::Status(503, Some(when)),
+            Scripted::Status(200, None),
+        ],
+        2,
+        None,
+    );
+    let started = std::time::Instant::now();
+
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry succeeds");
+
+    assert!(
+        started.elapsed() >= std::time::Duration::from_millis(900),
+        "{:?}",
+        started.elapsed()
+    );
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
 async fn test_bhv_misc_159_a_401_is_replayed_once_even_with_retries_off() {
     let client = ScriptedApiClient::new(
         vec![Scripted::Status(401, None), Scripted::Status(200, None)],
@@ -4288,6 +4351,88 @@ async fn test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_list
             err
         );
     }
+}
+
+/// Answers every request with one fixed status and an empty body.
+struct EmptyBodyApiClient {
+    status: u16,
+}
+
+impl petstore::api_client::ApiClient for EmptyBodyApiClient {
+    fn send_request(
+        &self,
+        _method: &str,
+        _url: &str,
+        _headers: &HashMap<String, String>,
+        _body: Option<&petstore::api_client::RequestBody>,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        petstore::api_http_response::ApiHttpResponse,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + '_,
+        >,
+    > {
+        let status = self.status;
+        Box::pin(async move {
+            Ok(petstore::api_http_response::ApiHttpResponse::new(
+                status,
+                String::new(),
+                HashMap::new(),
+            ))
+        })
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_222_a_success_response_with_a_201_status_and_an_empty_body_returns_no_data()
+{
+    let config = ConfigurationBuilder::new()
+        .base_url("https://example.test")
+        .build();
+    let api = PetApi::new(Arc::new(EmptyBodyApiClient { status: 201 }), config, None);
+    api.delete_pet(1, None)
+        .await
+        .expect("an empty 201 body is not an error");
+}
+
+#[tokio::test]
+async fn test_bhv_misc_236_query_and_header_date_params_emit_date_only() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let date = chrono::NaiveDate::from_ymd_opt(2024, 1, 1).unwrap();
+    let opts = FindPetsByStatusOptions::new()
+        .born_after(date)
+        .report_date(date);
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.contains("bornAfter=2024-01-01"), "got: {}", url);
+    assert!(!url.contains("bornAfter=2024-01-01T"), "got: {}", url);
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        Some("2024-01-01"),
+        headers.get("Report-Date").map(|s| s.as_str())
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_239_an_operation_query_parameter_is_serialized_when_no_authenticator_is_configured(
+) {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::FindPetsByStatusOptions::new().status("a b".to_string());
+    let _ = api.find_pets_by_status(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.ends_with("status=a%20b"), "got: {}", url);
 }
 
 #[tokio::test]
