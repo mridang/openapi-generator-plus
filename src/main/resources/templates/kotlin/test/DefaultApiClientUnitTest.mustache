@@ -258,24 +258,20 @@ class DefaultApiClientUnitTest {
 
 
         @Test
-        fun bhvMisc273RequestIdIsAVersion4Uuid() = runBlocking<Unit> {
-            var capturedRequestId: String? = null
-            val client = mockClient(requestCapture = { req -> capturedRequestId = req.headers["X-Request-ID"] })
-            val apiClient = DefaultApiClient(client, TransportOptions.builder().injectRequestId(true).build())
-            apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+        fun bhvMisc273RequestIdIsAVersion4UuidWhenEnabledAndOmittedWhenDisabled() = runBlocking<Unit> {
+            var enabledRequestId: String? = null
+            val enabledClient = mockClient(requestCapture = { req -> enabledRequestId = req.headers["X-Request-ID"] })
+            val enabled = DefaultApiClient(enabledClient, TransportOptions.builder().injectRequestId(true).build())
+            enabled.sendRequest("GET", "http://localhost/test", emptyMap(), null)
             assertTrue(
-                Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$").matches(capturedRequestId.orEmpty()),
-                capturedRequestId,
+                Regex("^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$").matches(enabledRequestId.orEmpty()),
+                enabledRequestId,
             )
-        }
-
-        @Test
-        fun bhvMisc273RequestIdIsOmittedWhenDisabled() = runBlocking<Unit> {
-            var capturedRequestId: String? = null
-            val client = mockClient(requestCapture = { req -> capturedRequestId = req.headers["X-Request-ID"] })
-            val apiClient = DefaultApiClient(client, TransportOptions.builder().injectRequestId(false).build())
-            apiClient.sendRequest("GET", "http://localhost/test", emptyMap(), null)
-            assertNull(capturedRequestId)
+            var disabledRequestId: String? = null
+            val disabledClient = mockClient(requestCapture = { req -> disabledRequestId = req.headers["X-Request-ID"] })
+            val disabled = DefaultApiClient(disabledClient, TransportOptions.builder().injectRequestId(false).build())
+            disabled.sendRequest("GET", "http://localhost/test", emptyMap(), null)
+            assertNull(disabledRequestId)
         }
     }
 
