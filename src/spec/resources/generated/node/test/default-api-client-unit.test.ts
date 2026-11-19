@@ -4977,6 +4977,32 @@ describe("automatic retries misc behaviours", () => {
       expect(headerValue(calls[1]!.headers, "authorization")).toBeUndefined();
     },
   );
+
+  it("bhv misc 227 a network error raised before any response is received is retried, so a dropped connection sends a second request", async () => {
+    const response = await send(
+      playing([new TypeError("other side closed"), reply(200)]),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("bhv misc 228 a Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay", async () => {
+    jest.spyOn(Math, "random").mockReturnValue(0);
+    await send(playing([reply(503, { "Retry-After": "soon" }), reply(200)]));
+    expect(calls).toHaveLength(2);
+    expect(delays).toEqual([500]);
+  });
+
+  it("bhv misc 229 a per-call max retries value overrides the client setting, so a call can retry even when the client was built with no retries", async () => {
+    const response = await send(
+      playing([reply(503), reply(503), reply(503), reply(200)], (builder) =>
+        builder.maxRetries(0),
+      ),
+      { maxRetries: 3 },
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(4);
+  });
 });
 
 describe("DefaultApiClient lifecycle misc behaviours", () => {
@@ -5341,5 +5367,164 @@ describe("DefaultApiClient transport and multipart behaviours (bhv transport 084
     } finally {
       close();
     }
+  });
+});
+
+describe("DefaultApiClient redirect and body misc behaviours", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("bhv misc 223 a POST turned into a GET by a 302 drops its body and Content-Length", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "https://example.invalid/landing" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    await client.sendRequest(
+      "POST",
+      "https://example.invalid/start",
+      {},
+      "payload",
+    );
+
+    expect(calls[1]!.init.method).toBe("GET");
+    expect(calls[1]!.init.body).toBeUndefined();
+    const names = Object.keys(
+      (calls[1]!.init.headers ?? {}) as Record<string, string>,
+    ).map((key) => key.toLowerCase());
+    expect(names).not.toContain("content-length");
+  });
+
+  it("bhv misc 224 transport default headers are not sent to another origin after a redirect", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "https://other.example.invalid/landing" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .followRedirects(true)
+        .defaultHeaders({ "X-Tenant-Token": "tenant-secret" })
+        .build(),
+    );
+
+    await client.sendRequest("GET", "https://example.invalid/start", {}, null);
+
+    const first = Object.keys(
+      (calls[0]!.init.headers ?? {}) as Record<string, string>,
+    ).map((key) => key.toLowerCase());
+    const second = Object.keys(
+      (calls[1]!.init.headers ?? {}) as Record<string, string>,
+    ).map((key) => key.toLowerCase());
+    expect(first).toContain("x-tenant-token");
+    expect(second).not.toContain("x-tenant-token");
+  });
+
+  it("bhv misc 225 a 3xx response without a Location header is returned to the caller as the final response", async () => {
+    const seen: number[] = [];
+    global.fetch = (async (): Promise<Response> => {
+      seen.push(1);
+      return new Response(null, { status: 301 });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    const response = await client.sendRequest(
+      "GET",
+      "https://secure.example/start",
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(301);
+    expect(seen).toHaveLength(1);
+  });
+
+  it("bhv misc 226 with redirect following enabled a 302 is followed to its target and the final 200 is returned", async () => {
+    const seen: string[] = [];
+    global.fetch = (async (
+      input: string | URL | Request,
+    ): Promise<Response> => {
+      seen.push(String(input));
+      if (seen.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "https://example.invalid/landing" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    const response = await client.sendRequest(
+      "GET",
+      "https://example.invalid/start",
+      {},
+      null,
+    );
+
+    expect(seen).toEqual([
+      "https://example.invalid/start",
+      "https://example.invalid/landing",
+    ]);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("ok");
+  });
+
+  it("bhv misc 237 an ISO-8859-1 error response body decodes to UTF-8 text", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(new Uint8Array([0xe9]), {
+        status: 400,
+        headers: { "Content-Type": "text/plain; charset=ISO-8859-1" },
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+
+    const response = await client.sendRequest(
+      "GET",
+      "https://example.invalid/fail",
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toBe("é");
   });
 });
