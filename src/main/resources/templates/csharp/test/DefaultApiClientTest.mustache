@@ -953,34 +953,29 @@ public class DefaultApiClientTest
         Assert.Equal("", json.RootElement.GetProperty("body").GetString());
     }
 
-    // Canonical scenario N1: an HTTPS->HTTP downgrade redirect carrying a body.
-    // A 302 forces the follow-up to GET and drops the body (per RFC the request
-    // becomes GET), so the hop PROCEEDS — nothing sensitive is replayed in
-    // cleartext. A 307/308 would preserve method+body, so replaying it over the
-    // downgraded cleartext leg is refused with a typed ApiException. These two
-    // mock-handler cases are fixture-independent; node guards every status
-    // (throws where others proceed), the canonical guards 307/308 only.
+    // An HTTPS->HTTP downgrade redirect carrying a body. Only a 303 drops the
+    // body (it becomes GET), so it alone may cross to the cleartext leg. A 302
+    // with a body is refused with a typed ApiException, as 301, 307 and 308 are.
+    // These mock-handler cases are fixture-independent.
 
     [Fact]
-    public async Task BhvRedirects001Downgrade302WithBodyProceedsAsGet()
+    public async Task BhvRedirects001Downgrade302WithBodyIsRefused()
     {
         var handler = new DowngradeRedirectHandler(
             firstStatus: HttpStatusCode.Redirect, // 302
             location: new Uri("http://downgraded.example.com/landed"));
         var client = new DefaultApiClient(new HttpClient(handler));
 
-        var response = await client.SendRequestAsync(
+        // A 302 can replay the body onto the HTTP target, so the hop is refused
+        // and the plaintext target is never requested.
+        await Assert.ThrowsAsync<ApiException>(() => client.SendRequestAsync(
             "POST",
             new Uri("https://secure.example.com/start"),
             new Dictionary<string, string>(),
             "secret-payload"
-        );
+        ));
 
-        // The 302 downgrade proceeds: the body is dropped and the follow-up is
-        // a GET, so the downgrade body-replay guard does not fire.
-        Assert.Equal(200, response.StatusCode);
-        Assert.Equal(2, handler.Requests.Count);
-        Assert.Equal(HttpMethod.Get, handler.Requests[1].Method);
+        Assert.Single(handler.Requests);
     }
 
     [Theory]

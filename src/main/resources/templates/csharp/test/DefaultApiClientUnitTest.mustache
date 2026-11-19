@@ -2596,16 +2596,14 @@ public class DefaultApiClientUnitTest
         Assert.Empty(handler.Requests);
     }
 
-    [Theory]
-    [InlineData(301)]
-    [InlineData(302)]
-    [InlineData(303)]
-    public async Task BhvRedirects040AFollowedHttpsToHttpRedirectOf301Or302Or303IsNotRefusedForAPost(int statusCode)
+    [Fact]
+    public async Task BhvRedirects040AFollowedHttpsToHttpRedirectOf303IsNotRefusedForAPost()
     {
-        // These statuses send the next request without a body, so there is
-        // nothing to replay across the downgrade and the hop is followed.
+        // 303 sends the next request without a body, so there is nothing to
+        // replay across the downgrade and the hop is followed. 301 and 302
+        // with a body are refused (misc124, redirects001).
         var handler = new RedirectingHandler(
-            firstStatus: (HttpStatusCode)statusCode,
+            firstStatus: HttpStatusCode.SeeOther,
             location: new Uri("http://downgraded.example.com/landed"));
         var client = new DefaultApiClient(new HttpClient(handler));
 
