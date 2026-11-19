@@ -83,7 +83,7 @@ describe("ValueSerializer", () => {
         ["#", "%23"],
         ["[", "%5B"],
         [" ", "%20"],
-      ]) {
+      ] as const) {
         expect(ValueSerializer.encodePathSegment(raw)).toBe(encoded);
         expect(ValueSerializer.serialize(`a${raw}b`, "path", "string")).toBe(
           `a${encoded}b`,
@@ -187,7 +187,7 @@ describe("ValueSerializer", () => {
         ["ssv", "1  3"],
         ["tsv", "1\t\t3"],
         ["pipes", "1||3"],
-      ]) {
+      ] as const) {
         expect(
           ValueSerializer.serialize([1, null, 3], "query", "array", format),
         ).toBe(expected);
@@ -599,7 +599,7 @@ describe("ValueSerializer", () => {
       for (const [explode, expected] of [
         [true, ["red", "blue"]],
         [false, "red,blue"],
-      ]) {
+      ] as const) {
         const value = new Set(["red", "blue"]);
         expect(
           ValueSerializer.serializeStyled(
@@ -1031,7 +1031,7 @@ describe("ValueSerializer", () => {
         ["label", true, ".color=red.min_count=3"],
         ["pipeDelimited", false, "color|red|min_count|3"],
         ["spaceDelimited", false, "color red min_count 3"],
-      ]) {
+      ] as const) {
         expect(
           ValueSerializer.serializeStyled(
             "criteria",

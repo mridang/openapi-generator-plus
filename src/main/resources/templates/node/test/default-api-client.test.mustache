@@ -1123,7 +1123,7 @@ describe('DefaultApiClient retry misc behaviours', () => {
     ['POST', 1],
     ['PATCH', 1],
     ['QUERY', 2]
-  ]) {
+  ] as const) {
       const transport = scripted([connectionDropped(), 200]);
       const outcome: unknown = await clientFor(transport.fetch)
         .sendRequest(method, url, {}, method === 'QUERY' ? '{}' : null)

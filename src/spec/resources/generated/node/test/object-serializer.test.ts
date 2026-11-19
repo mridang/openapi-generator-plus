@@ -1160,11 +1160,11 @@ describe("ObjectSerializer", () => {
     });
 
     test("bhv serialization 028 rejects a number, a string or an array where a nested model is expected", () => {
-      for (const [_label, value, received] of [
+      for (const [, value, received] of [
         ["a string", "oops", "string"],
         ["a number", 5, "number"],
         ["an array", [1, 2], "array"],
-      ]) {
+      ] as const) {
         const json = { name: "x", photoUrls: [], category: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
@@ -1175,11 +1175,11 @@ describe("ObjectSerializer", () => {
     });
 
     test("bhv langnode 152 rejects a number, a string or an object where an array of models is expected", () => {
-      for (const [_label, value, received] of [
+      for (const [, value, received] of [
         ["a string", "abc", "string"],
         ["a number", 5, "number"],
         ["an object", { id: 1 }, "object"],
-      ]) {
+      ] as const) {
         const json = { name: "x", photoUrls: [], tags: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
@@ -1190,11 +1190,11 @@ describe("ObjectSerializer", () => {
     });
 
     test("bhv langnode 153 rejects a number, a string or an array as an element of an array of models", () => {
-      for (const [_label, element, received] of [
+      for (const [, element, received] of [
         ["a number", 5, "number"],
         ["a string", "abc", "string"],
         ["an array", [1], "array"],
-      ]) {
+      ] as const) {
         const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, element] };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
@@ -1386,7 +1386,7 @@ describe("ObjectSerializer", () => {
     });
 
     test("bhv langnode 154 rejects every listed non-integer value for an int32", () => {
-      for (const [_label, json] of [
+      for (const [, json] of [
         ["an int32 above the range", { quantity: 3000000000 }],
         ["an int32 below the range", { quantity: -2147483649 }],
         ["a fractional int32", { quantity: 1.5 }],
@@ -1394,7 +1394,7 @@ describe("ObjectSerializer", () => {
         ["a boolean int32", { quantity: true }],
         ["a fractional int64", { id: 1.5 }],
         ["a quoted int64", { id: "5" }],
-      ]) {
+      ] as const) {
         expect(() => ObjectSerializer.deserialize(json, Order)).toThrow(
           SerializationError,
         );
@@ -1424,11 +1424,11 @@ describe("ObjectSerializer", () => {
       ObjectSerializer.deserializeLeaf<number>(x, "int32");
 
     test("bhv langnode 155 rejects every listed non-integer value of a map of int32", () => {
-      for (const [_label, json] of [
+      for (const [, json] of [
         ["a quoted element", { a: "5" }],
         ["an out-of-range element", { a: 3000000000 }],
         ["a fractional element", { a: 1.5 }],
-      ]) {
+      ] as const) {
         expect(() => ObjectSerializer.deserializeMap(json, int32Leaf)).toThrow(
           SerializationError,
         );
@@ -1453,11 +1453,11 @@ describe("ObjectSerializer", () => {
     });
 
     test("bhv serialization 030 rejects every listed non-string value for a date-time field", () => {
-      for (const [_label, value] of [
+      for (const [, value] of [
         ["a number", 1700000000],
         ["a boolean", true],
         ["an array", [2024]],
-      ]) {
+      ] as const) {
         expect(() =>
           ObjectSerializer.deserialize({ shipDate: value }, Order),
         ).toThrow(
@@ -1865,7 +1865,7 @@ describe("ObjectSerializer", () => {
       for (const [shipDate, instant] of [
         ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
         ["2024-01-01T10:00:00.123456789+05:30", "2024-01-01T04:30:00.123Z"],
-      ]) {
+      ] as const) {
         const order = ObjectSerializer.deserialize({ shipDate }, Order);
         expect(order!.shipDate!.toISOString()).toBe(instant);
       }
@@ -2069,7 +2069,7 @@ describe("ObjectSerializer", () => {
           ["10:30:00.123456789", "10:30:00.123"],
           ["10:30:00.9996", "10:30:00.999"],
           ["10:30:00.000999", "10:30:00"],
-        ]) {
+        ] as const) {
           expect(
             ObjectSerializer.stringify(Temporal.PlainTime.from(input)),
           ).toBe(expected);
@@ -3071,13 +3071,13 @@ describe("validation happens at decode, never at construction (F316)", () => {
   });
 
   test("bhv langnode 161 decoding a missing or null required field fails with a SerializationError", () => {
-    for (const [_label, model, json] of [
+    for (const [, model, json] of [
       ["a wrong-typed integer", Order, { quantity: "many" }],
       ["a missing required field", Pet, { photoUrls: [] }],
       ["a wrong-typed required field", Pet, { name: 42, photoUrls: [] }],
       ["an unknown inline enum string", Order, { status: "teleported" }],
       ["an unknown referenced enum string", StockItem, { priority: "urgent" }],
-    ]) {
+    ] as const) {
       expect(() =>
         ObjectSerializer.deserialize(json, model as ClassConstructor<unknown>),
       ).toThrow(SerializationError);
@@ -3744,7 +3744,12 @@ describe("toBinary", () => {
     });
 
     test("bhv langnode 166 every availability value round-trips through its member", () => {
-      for (const [wire] of [["o'clock"], ["a\\b"], ["$eq"], ["#{x}"]]) {
+      for (const [wire] of [
+        ["o'clock"],
+        ["a\\b"],
+        ["$eq"],
+        ["#{x}"],
+      ] as const) {
         const member = Object.values(Availability).find(
           (value) => value === wire,
         );

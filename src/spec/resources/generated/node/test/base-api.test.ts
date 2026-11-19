@@ -1263,7 +1263,7 @@ describe("BaseApi", () => {
     });
 
     test("bhv langnode 027 is never replayed for an api key or bearer authenticator", async () => {
-      for (const [_name, make] of [
+      for (const [, make] of [
         [
           "bearer",
           () => new BearerAuthenticator("https://api.example.com", "fixed"),
@@ -1278,7 +1278,7 @@ describe("BaseApi", () => {
               ApiKeyLocation.HEADER,
             ),
         ],
-      ]) {
+      ] as const) {
         let calls = 0;
         const stub: ApiClient = {
           async sendRequest() {
@@ -1589,11 +1589,11 @@ describe("BaseApi", () => {
   });
 
   test("bhv langnode 028 form-urlencoded body rejects a lone surrogate in a key or a value with URIError", async () => {
-    for (const [_label, body] of [
+    for (const [, body] of [
       ["a value", { name: "a\uD800b" }],
       ["a key", { "k\uDC00": "v" }],
       ["an array item", { names: ["ok", "a\uD800"] }],
-    ]) {
+    ] as const) {
       const client = new CapturingApiClient();
       const config = new Configuration({ baseUrl: "http://localhost" });
       const testApi = new TestableApi(client, config);
@@ -3410,7 +3410,7 @@ describe("BaseApi call hook", () => {
       ["https://API.Example.com:8443", "api.example.com"],
       ["http://[::1]:8080", "::1"],
       ["http://[2001:db8::1]", "2001:db8::1"],
-    ]) {
+    ] as const) {
       const { client } = scripted({ status: 200 });
       const { hook, seen } = recording();
 

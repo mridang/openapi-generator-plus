@@ -488,7 +488,7 @@ describe("OpenIdConnectAuthenticator", () => {
     for (const [status, errorClass] of [
       [404, NotFoundError],
       [500, InternalServerError],
-    ]) {
+    ] as const) {
       mockClient.callCount = 0;
       // oauth-oidc-discovery-no-status-check: a non-2xx answer (e.g. a 500
       // HTML error page) must surface as the same status-specific error an
@@ -751,7 +751,7 @@ describe("OpenIdConnectAuthenticator", () => {
         ["max-age=abc", 86399, 1],
         [undefined, 86399, 1],
         [undefined, 86401, 2],
-      ]) {
+      ] as const) {
         await urlsAfter(seconds, cacheControl);
 
         expect(mockClient.callCount).toBe(fetches);

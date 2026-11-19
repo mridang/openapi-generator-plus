@@ -573,7 +573,7 @@ describe('scheme authenticators the spec declares', () => {
     ['InternalApiKeyAuthenticator', new InternalApiKeyAuthenticator(host, 'k-1'), 'header', { 'X-Internal-Key': 'k-1' }],
     ['ApiKeyQueryAuthenticator', new ApiKeyQueryAuthenticator(host, 'k-1'), 'query', { api_key: 'k-1' }],
     ['SessionCookieAuthenticator', new SessionCookieAuthenticator(host, 'k-1'), 'cookie', { SESSION_ID: 'k-1' }],
-  ]) {
+  ] as const) {
       expect(auth.getAuthHeaders()).toEqual(location === 'header' ? expected : {});
       expect(auth.getQueryParams()).toEqual(location === 'query' ? expected : {});
       expect(auth.getCookieParams()).toEqual(location === 'cookie' ? expected : {});
@@ -583,12 +583,12 @@ describe('scheme authenticators the spec declares', () => {
   });
 
   test('bhv langnode 049 every API-key scheme authenticator rejects an empty key at construction', () => {
-    for (const [_name, Wrapper] of [
+    for (const [, Wrapper] of [
     ['ApiKeyHeaderAuthenticator', ApiKeyHeaderAuthenticator],
     ['InternalApiKeyAuthenticator', InternalApiKeyAuthenticator],
     ['ApiKeyQueryAuthenticator', ApiKeyQueryAuthenticator],
     ['SessionCookieAuthenticator', SessionCookieAuthenticator],
-  ]) {
+  ] as const) {
       expect(() => new Wrapper(host, '')).toThrow(TypeError);
     }
   });

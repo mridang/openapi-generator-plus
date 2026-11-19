@@ -223,11 +223,11 @@ describe("StoreApi nested container deserialization", () => {
   });
 
   test("bhv langnode 017 getMatrix rejects a fractional number element", async () => {
-    for (const [_label, body] of [
+    for (const [, body] of [
       ["a quoted number", '[[1,"2"]]'],
       ["a fractional number", "[[1,2.5]]"],
       ["a null", "[[1,null]]"],
-    ]) {
+    ] as const) {
       const { api: mockApi, close } = await createMockServer(
         200,
         "application/json",
@@ -244,11 +244,11 @@ describe("StoreApi nested container deserialization", () => {
   });
 
   test("bhv langnode 018 getInventory rejects a fractional number element", async () => {
-    for (const [_label, body] of [
+    for (const [, body] of [
       ["a quoted number", '{"available":"5"}'],
       ["a fractional number", '{"available":5.5}'],
       ["a null", '{"available":null}'],
-    ]) {
+    ] as const) {
       const { api: mockApi, close } = await createMockServer(
         200,
         "application/json",
@@ -657,7 +657,7 @@ describe("StoreApi content-encoded query parameters", () => {
     for (const [time, expected] of [
       ["10:30:00.123456789", "at=10%3A30%3A00.123"],
       ["10:30:00", "at=10%3A30%3A00"],
-    ]) {
+    ] as const) {
       const url = await captureRequest((s) =>
         s.searchStore({ at: Temporal.PlainTime.from(time) }),
       );
@@ -834,7 +834,7 @@ describe("StoreApi error dispatch through the typed status routes", () => {
       [422, UnprocessableEntityError],
       [500, InternalServerError],
       [502, BadGatewayError],
-    ]) {
+    ] as const) {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()

@@ -367,7 +367,7 @@ describe("ApiKeyAuthenticator", () => {
       [ApiKeyLocation.HEADER, "X-Api-Key"],
       [ApiKeyLocation.QUERY, "api_key"],
       [ApiKeyLocation.COOKIE, "SESSION_ID"],
-    ]) {
+    ] as const) {
       for (const value of ["abc\rdef", "abc\ndef", "abc\0def"]) {
         expect(
           () =>
@@ -398,7 +398,7 @@ describe("ApiKeyAuthenticator", () => {
       [ApiKeyLocation.HEADER, "X-Api-Key"],
       [ApiKeyLocation.QUERY, "api_key"],
       [ApiKeyLocation.COOKIE, "SESSION_ID"],
-    ]) {
+    ] as const) {
       for (const value of ["", "   ", " \t\n\v\f\r"]) {
         expect(
           () =>

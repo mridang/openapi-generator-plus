@@ -224,7 +224,7 @@ describe("OpenTelemetryCallHook", () => {
       ["serialization_error", new SerializationError("bad body")],
       ["cancelled", new DOMException("aborted", "AbortError")],
       ["_OTHER", new Error("something else")],
-    ]) {
+    ] as const) {
       const { hook, exporter } = telemetry();
 
       run(hook, { statusCode: 0, headers: null, error });

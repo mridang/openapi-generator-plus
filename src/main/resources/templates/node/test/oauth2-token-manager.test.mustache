@@ -700,11 +700,11 @@ describe('OAuth2TokenManager', () => {
   });
 
   test('bhv langnode 092 every token request is form-encoded and asks for JSON', async () => {
-    for (const [_grant, params] of [
+    for (const [, params] of [
     ['authorization_code', { grant_type: 'authorization_code', code: 'abc' }],
     ['client_credentials', { grant_type: 'client_credentials' }],
     ['password', { grant_type: 'password', username: 'user', password: 'pass' }]
-  ]) {
+  ] as const) {
       mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
 
       await tokenManager.getAccessToken('https://auth.example.com/token', params);

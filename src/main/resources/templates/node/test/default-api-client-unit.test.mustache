@@ -802,7 +802,7 @@ describe('DefaultApiClient.buildContentDisposition multipart filename safety', (
     ['a"b\\c.txt', 'filename="a\\"b\\\\c.txt"'],
     ['\u{1F600}.png', `filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png`],
     ['plain.txt', 'filename="plain.txt"'],
-  ]) {
+  ] as const) {
       expect(DefaultApiClient.buildContentDisposition('file', filename)).toBe(
         `form-data; name="file"; ${expected}`
       );
@@ -909,7 +909,7 @@ describe('DefaultApiClient multipart wire form (canonical behaviors #4, #5)', ()
     ['multipart/mixed', 'multipart/mixed; boundary='],
     ['multipart/related', 'multipart/related; boundary='],
     ['Multipart/Related; type="application/json"', 'multipart/Related; boundary='],
-  ]) {
+  ] as const) {
       let contentType: string | undefined;
       const srv = http.createServer((req, res) => {
         contentType = req.headers['content-type'];
@@ -1360,7 +1360,7 @@ describe('redirect origin comparison', () => {
     ['https://api.example.com:443/a', 'https://api.example.com/b'],
     ['http://api.example.com/a', 'http://api.example.com:80/b'],
     ['https://API.example.com/a', 'https://api.example.com/b']
-  ]) {
+  ] as const) {
       expect(sameOrigin(a, b)).toBe(true);
     }
   });
@@ -1371,7 +1371,7 @@ describe('redirect origin comparison', () => {
     ['https://api.example.com/a', 'http://api.example.com/b'],
     ['http://api.example.com/a', 'https://api.example.com:80/b'],
     ['https://api.example.com/a', 'https://other.example.com/b']
-  ]) {
+  ] as const) {
       expect(sameOrigin(a, b)).toBe(false);
     }
   });
@@ -1800,7 +1800,7 @@ describe('redirect method rewriting (RFC 9110 section 15.4)', () => {
     [303, 'HEAD', 'HEAD', false],
     [307, 'PUT', 'PUT', true],
     [308, 'DELETE', 'DELETE', true],
-  ]) {
+  ] as const) {
       const calls: Array<{ method: unknown; body: unknown }> = [];
       global.fetch = (async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
         calls.push({ method: init?.method, body: init?.body });
@@ -3482,7 +3482,7 @@ describe('DefaultApiClient misc transport behaviours', () => {
     ['gzip', '0'],
     ['deflate', ''],
     ['deflate', '0'],
-  ]) {
+  ] as const) {
       const plain = Buffer.from(content, 'utf-8');
       const wire = encoding === 'gzip' ? zlib.gzipSync(plain) : zlib.deflateSync(plain);
       const out = await DefaultApiClient.ensureDecoded(wire, encoding);

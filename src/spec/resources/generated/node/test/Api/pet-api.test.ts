@@ -519,7 +519,7 @@ describe("PetApi", () => {
     for (const [status, errorClass] of [
       [404, NotFoundError],
       [500, InternalServerError],
-    ]) {
+    ] as const) {
       const { api: mockApi, close } = await createMockServer(
         status,
         "application/json",
@@ -558,7 +558,7 @@ describe("PetApi", () => {
       [422, UnprocessableEntityError],
       [500, InternalServerError],
       [502, BadGatewayError],
-    ]) {
+    ] as const) {
       const statusApi = new PetApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()
@@ -1319,7 +1319,7 @@ describe("PetApi doc comments", () => {
         "getPetSummary",
         "* @param options options for query, header, form, and cookie parameters\n",
       ],
-    ]) {
+    ] as const) {
       const start = source.lastIndexOf(
         "/**",
         source.indexOf(`  async ${operation}(`),
@@ -1976,7 +1976,7 @@ describe("PetApi against a recording client", () => {
     for (const [contentType, body] of [
       ["text/plain", "ok"],
       ["application/json", "42"],
-    ]) {
+    ] as const) {
       const textClient: ApiClient = {
         async sendRequest(): Promise<ApiHttpResponse> {
           return {

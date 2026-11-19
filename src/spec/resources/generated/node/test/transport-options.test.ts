@@ -236,7 +236,7 @@ describe("TransportOptions", () => {
   });
 
   test("bhv options 008 the proxy error for every listed proxy never prints the userinfo", () => {
-    for (const [_label, proxy, message] of [
+    for (const [, proxy, message] of [
       [
         "a socks scheme",
         "socks5://u:p@h:1",
@@ -252,7 +252,7 @@ describe("TransportOptions", () => {
         "http://u:p@",
         "Invalid proxy URL (unparseable): http://***@",
       ],
-    ]) {
+    ] as const) {
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
       expect(() => new TransportOptions({ ...directOptions, proxy })).toThrow(

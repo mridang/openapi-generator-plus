@@ -33,7 +33,7 @@ import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 describe("SchemeAuthenticators", () => {
   it("bhv langnode 100 every scheme authenticator is exported from the package entry point and extends its base", () => {
-    for (const [_name, cls, base] of [
+    for (const [, cls, base] of [
       [
         "PetStoreBasicAuthenticator",
         PetStoreBasicAuthenticator,
@@ -95,7 +95,7 @@ describe("SchemeAuthenticators", () => {
         SsoAuthAuthenticator,
         OpenIdConnectAuthenticator,
       ],
-    ]) {
+    ] as const) {
       expect(typeof cls).toBe("function");
       expect(Object.getPrototypeOf(cls)).toBe(base);
     }

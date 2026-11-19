@@ -318,7 +318,7 @@ describe("ApiError", () => {
         [599, ServerError],
         [418, ClientError],
         [302, ApiError],
-      ]) {
+      ] as const) {
         expect(ApiError.fromResponse(status, null, null).constructor).toBe(
           expected,
         );
@@ -342,7 +342,7 @@ describe("ApiError", () => {
     });
 
     test("bhv langnode 002 every error class accepts an optional cause", () => {
-      for (const [_name, build, status] of [
+      for (const [, build, status] of [
         [
           "BadRequestError",
           (c: Error) =>
@@ -464,7 +464,7 @@ describe("ApiError", () => {
             new ServerError(503, "m", null, null, null, { cause: c }),
           503,
         ],
-      ]) {
+      ] as const) {
         const cause = new Error("root cause");
         const err = build(cause);
         expect(err.cause).toBe(cause);
@@ -746,7 +746,7 @@ describe("ApiError", () => {
       new TooManyRequestsError("m", headers);
 
     test("bhv langnode 003 reads seconds, fractional seconds and a date in the past", () => {
-      for (const [_label, headers, expected] of [
+      for (const [, headers, expected] of [
         ["seconds", { "retry-after": "7" }, 7],
         ["fractional seconds", { "Retry-After": " 1.5 " }, 1.5],
         [
@@ -754,7 +754,7 @@ describe("ApiError", () => {
           { "retry-after": "Wed, 21 Oct 2015 07:28:00 GMT" },
           0,
         ],
-      ]) {
+      ] as const) {
         expect(tooMany(headers).retryAfter).toBe(expected);
       }
     });
@@ -768,12 +768,12 @@ describe("ApiError", () => {
     });
 
     test("bhv langnode 004 is null with an empty value, an unparseable value or no header", () => {
-      for (const [_label, headers] of [
+      for (const [, headers] of [
         ["no headers", null],
         ["no Retry-After", { "x-other": "1" }],
         ["an unparseable value", { "retry-after": "soon" }],
         ["an empty value", { "retry-after": "" }],
-      ]) {
+      ] as const) {
         expect(tooMany(headers).retryAfter).toBeNull();
       }
     });
@@ -804,7 +804,7 @@ describe("ApiError", () => {
         [500, InternalServerError],
         [599, ServerError],
         [302, ApiError],
-      ]) {
+      ] as const) {
         const err = ApiError.fromResponse(
           status,
           { "x-request-id": "abc" },
@@ -837,11 +837,11 @@ describe("ApiError", () => {
     });
 
     test("bhv errors 093 keeps a JSON string, number or boolean as the error body", () => {
-      for (const [_label, body, expected] of [
+      for (const [, body, expected] of [
         ["a JSON string", '"plain text"', "plain text"],
         ["a JSON number", "42", 42],
         ["a JSON boolean", "true", true],
-      ]) {
+      ] as const) {
         const err = ApiError.fromResponse(400, {}, body);
         expect(err.constructor).toBe(BadRequestError);
         expect(err.responseBody).toBe(body);
@@ -872,7 +872,7 @@ describe("ApiError", () => {
         [418, ClientError],
         [599, ServerError],
         [200, ApiError],
-      ]) {
+      ] as const) {
         const err = ApiError.fromResponse(status, {}, null, {
           method: "POST",
           path: "/items",
@@ -1110,7 +1110,7 @@ describe("ApiError typed errors", () => {
       ...[302, 400, 401, 403, 404, 422, 501].map(
         (status): [number, boolean] => [status, false],
       ),
-    ]) {
+    ] as const) {
       expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(
         retryable,
       );
