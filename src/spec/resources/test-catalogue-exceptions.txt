@@ -783,3 +783,7 @@ swift | transport083 | Swift has no client-level cancellation token: cancellatio
 swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
 swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists
 
+rust | transport083 | The SDK has no client-level cancellation setting, so a call is cancelled only by dropping its future (README Cancellation); there is nothing a client-level signal could abort.
+rust | transport085 | The SDK has no cancellation token or signal parameter, so there is no unfired handle to hold while a timeout runs; the timeout itself is covered by transport086.
+rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
+rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.
