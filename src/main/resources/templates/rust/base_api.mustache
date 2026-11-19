@@ -2628,4 +2628,121 @@ mod tests {
         let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded").unwrap().unwrap();
         assert_eq!(String::from_utf8(result).unwrap(), "q=a%2Bb%26c");
     }
+
+    /* The retries run inside `invoke_api`, so the retry tests drive a `BaseApi` over a
+     * `DefaultApiClient` against a scripted loopback server. */
+    fn bind_local_server() -> (std::net::TcpListener, String) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+        let url = format!("http://{}", listener.local_addr().expect("local address"));
+        (listener, url)
+    }
+
+    /* Serves one connection per scripted response, recording each request head. */
+    fn serve_scripted(
+        listener: std::net::TcpListener,
+        responses: Vec<String>,
+        log: Arc<std::sync::Mutex<Vec<String>>>,
+    ) {
+        std::thread::spawn(move || {
+            for response in responses {
+                let Ok((mut stream, _)) = listener.accept() else { return };
+                let mut buf = [0u8; 4096];
+                let n_read = std::io::Read::read(&mut stream, &mut buf).unwrap_or(0);
+                log.lock().unwrap().push(String::from_utf8_lossy(&buf[..n_read]).to_string());
+                let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            }
+        });
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    }
+
+    fn empty_ok_response() -> String {
+        "HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_string()
+    }
+
+    fn service_unavailable_response(retry_after: &str) -> String {
+        let retry = if retry_after.is_empty() { String::new() } else { format!("Retry-After: {}\r\n", retry_after) };
+        format!("HTTP/1.1 503 Service Unavailable\r\n{}Content-Length: 0\r\nConnection: close\r\n\r\n", retry)
+    }
+
+    /* The status code of the `ApiError` found in the source chain of `err`. */
+    fn status_of(err: &(dyn std::error::Error + Send + Sync + 'static)) -> u16 {
+        std::iter::successors(Some(err as &(dyn std::error::Error + 'static)), |e| e.source())
+            .find_map(|e| e.downcast_ref::<crate::errors::api_error::ApiError>())
+            .expect("an ApiError in the chain")
+            .status_code()
+    }
+
+    /* A `BaseApi` sending through a `DefaultApiClient` built from `transport`, against `base_url`. */
+    fn api_with_transport(base_url: &str, transport: crate::transport_options::TransportOptions) -> BaseApi {
+        let config = ConfigurationBuilder::new().base_url(base_url).build();
+        BaseApi::new(Arc::new(crate::default_api_client::DefaultApiClient::new(Some(transport))), config, None)
+    }
+
+    fn get_params() -> InvokeApiParams<'static> {
+        InvokeApiParams { path: "/items/1", ..call_params(CallOptions::default()) }
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_166_a_call_that_disables_its_deadline_is_not_cut_short_while_it_waits_to_retry() {
+        let (origin, origin_url) = bind_local_server();
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        serve_scripted(origin, vec![service_unavailable_response("1"), empty_ok_response()], log.clone());
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .timeout(None)
+            .build()
+            .expect("valid transport options");
+        let api = api_with_transport(&origin_url, transport);
+
+        let response = api.invoke_api(get_params()).await.expect("unexpected error");
+
+        assert_eq!(200, response.status_code());
+        assert_eq!(2, log.lock().unwrap().len());
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_167_a_retryable_status_is_attempted_up_to_the_limit_then_returned() {
+        let (origin, origin_url) = bind_local_server();
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        serve_scripted(origin, vec![
+            service_unavailable_response("0"),
+            service_unavailable_response("0"),
+            service_unavailable_response("0"),
+        ], log.clone());
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .max_retries(2)
+            .build()
+            .expect("valid transport options");
+        let api = api_with_transport(&origin_url, transport);
+
+        let Err(err) = api.invoke_api(get_params()).await else {
+            panic!("a 503 that outlives the retries must surface as an error");
+        };
+
+        assert_eq!(503, status_of(err.as_ref()));
+        assert_eq!(3, log.lock().unwrap().len(), "one send plus two retries");
+    }
+
+    #[tokio::test]
+    async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three_times_with_pauses() {
+        let (origin, origin_url) = bind_local_server();
+        let log = Arc::new(std::sync::Mutex::new(Vec::new()));
+        serve_scripted(origin, vec![
+            service_unavailable_response(""),
+            service_unavailable_response(""),
+            service_unavailable_response(""),
+        ], log.clone());
+        let transport = crate::transport_options::TransportOptionsBuilder::new()
+            .build()
+            .expect("valid transport options");
+        let api = api_with_transport(&origin_url, transport);
+        let started = std::time::Instant::now();
+
+        let Err(err) = api.invoke_api(get_params()).await else {
+            panic!("a 503 that outlives the retries must surface as an error");
+        };
+
+        assert_eq!(503, status_of(err.as_ref()));
+        assert_eq!(3, log.lock().unwrap().len());
+        assert!(started.elapsed() >= std::time::Duration::from_millis(1100), "{:?}", started.elapsed());
+    }
 }
