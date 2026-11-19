@@ -1,0 +1,23 @@
+{{#generateTests}}
+defmodule {{moduleName}}.ReadmeTest do
+  use ExUnit.Case, async: true
+
+  test "bhv mocking 009 Testing your code names the group interface and the client and shows a fake" do
+    readme = File.read!("README.md")
+    [_, rest] = String.split(readme, "### Testing your code", parts: 2)
+    [section | _] = String.split(rest, "\n### ", parts: 2)
+
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+    assert section =~ "{{moduleName}}.Api.{{classname}}Behaviour"
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+    assert section =~ "the client is a struct of the group structs"
+    assert section =~ "@behaviour"
+  end
+end
+{{/generateTests}}

@@ -964,6 +964,15 @@ defmodule PetstoreClient.ClientTest do
     assert listed == declared
   end
 
+  test "bhv mocking 007 the client holds every group and can be closed" do
+    keys = Map.keys(struct(PetstoreClient.Client))
+
+    assert :pet in keys
+    assert :problems in keys
+    assert :store in keys
+    assert function_exported?(PetstoreClient.Client, :close, 1)
+  end
+
   test "bhv langelixir 024 a call hook given to the client reaches the configuration of every API" do
     authenticator = PetstoreClient.Auth.BearerAuthenticator.new("/api/v3", "test-token")
     hook = PetstoreClient.CallHook.chain([])

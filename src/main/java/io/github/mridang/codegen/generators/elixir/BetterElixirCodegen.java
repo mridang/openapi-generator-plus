@@ -543,6 +543,8 @@ public class BetterElixirCodegen extends AbstractBetterCodegen {
                     new SupportingFile(
                             "test/metadata_test.mustache", "test", "metadata_test.exs"));
             supportingFiles.add(
+                    new SupportingFile("test/readme_test.mustache", "test", "readme_test.exs"));
+            supportingFiles.add(
                     new SupportingFile(
                             "test/composed_schema_test.mustache",
                             "test",

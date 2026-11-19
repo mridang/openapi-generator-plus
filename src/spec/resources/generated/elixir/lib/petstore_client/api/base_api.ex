@@ -1077,6 +1077,14 @@ defmodule PetstoreClient.Api.BaseApi do
               :error -> response.body
             end
 
+          return_type in ["String", "String.t()"] and not text_content_type?(resp_content_type) ->
+            # A string result under a binary content type is the decoded body:
+            # the base64 text the transport carries never reaches the caller (D107).
+            case Base.decode64(response.body) do
+              {:ok, decoded} -> decoded
+              :error -> response.body
+            end
+
           return_type in ["String", "String.t()"] ->
             response.body
 
@@ -1100,6 +1108,13 @@ defmodule PetstoreClient.Api.BaseApi do
        raw_body: response.body,
        headers: response.headers
      }}
+  end
+
+  # Text content types reach the caller as the body text; every other one is a binary
+  # type whose body the transport carries as base64.
+  defp text_content_type?(content_type) do
+    String.starts_with?(content_type, "text/") or String.ends_with?(content_type, "xml") or
+      String.contains?(content_type, "javascript")
   end
 
   # An operation with several 2xx responses carries one type per status: the one

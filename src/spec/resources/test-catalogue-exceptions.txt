@@ -20,7 +20,6 @@ swift | headers002 | HeaderSelector.selectHeaders takes a non-optional contentTy
 swift | headers005 | HeaderSelector.selectHeaders takes a non-optional accept array, so a null accept cannot be passed; an empty array is covered by headers004
 swift | headers015 | HeaderSelector.isJsonMime takes a non-optional String, so nil cannot be passed
 kotlin | transport009 | The Ktor CIO engine asks the JVM default ProxySelector when no proxy is configured and has no way to say direct, so ambient proxy settings are not ignored; the pinned behaviour is bhv transport 046
-elixir | options013 | Elixir has no option setter: TransportOptions is a keyword list fixed by TransportOptions.new/1, so the URL is validated only at construction and there is no later setter to reject it in
 elixir | retries019 | The psr18 client is a PHP transport object with its own timeout budget; the Elixir deadline is fixed once per call and retries never extend it (bhv retries 025)
 go | lifecycle015 | Go has no keyword arguments, so one credential per security scheme is a positional constructor parameter and cannot be passed by name
 rust | authintegration011 | Rust operations take no per-call authenticator and the Options structs are plain data with no authenticator field, a shape the type system enforces at compile time, so no run-time test can observe its absence
@@ -287,15 +286,12 @@ php | tracing014 | PHP runs one request at a time and has no suspension point in
 php | tracing015 | PHP runs one request at a time in one process, so two operations cannot be in flight together
 ruby | tracing014 | the call is blocking and builds the headers on the caller's thread; tracing013 covers the path
 go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
-elixir | tracing014 | the headers are built in the calling process with no hand-off; tracing013 covers the path
 kotlin | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 csharp | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 node | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
-elixir | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 go | mocking007 | Go interfaces carry methods and not fields, so there is no client interface; the Client struct holds group-interface fields and mocking008 covers a client built from fakes
-elixir | mocking007 | Elixir has no client behaviour: the Client is a struct of group structs and a fake is a module that implements the group behaviour (mocking001 to 004)
 elixir | mocking008 | There is no client behaviour to implement, so no fake client exists; a fake group module opens no connection by construction
 dart | hooks015 | Dart has no per-call cancellation (S7), so there is no cancelled call to report to finish; the timeout path is bhv hooks 014
 php | hooks015 | PHP has no per-call cancellation (S7) and runs one request at a time, so there is no cancelled call to observe; the timeout path is bhv hooks 014
@@ -408,7 +404,6 @@ node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementati
 java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
 java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
 csharp | misc030 | C# has no request deadline: its timeout is a duration that starts when the call starts, so no call can begin already past its deadline
-elixir | misc029 | The SDK has no cancellation argument (readme: a caller stops a call by terminating its process), so the SDK never sees a caller's cancellation and cannot wrap it in its error type
 elixir | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
 elixir | misc035 | The SDK has no cancellation argument and no abort signal (readme), so no call can carry an already-aborted signal
@@ -424,7 +419,6 @@ elixir | misc059 | JSON has no NaN or Infinity literal and Jason refuses them, s
 elixir | misc060 | The bearer authenticator constructor takes one token and has no token provider argument, so both cannot be supplied together
 elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
 elixir | misc074 | BaseApi.scheme_auth returns the one credential of the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
-elixir | misc262 | Elixir has no client-level cancellation to surface: a call is stopped only by its own process exiting (S7), and the SDK never receives or wraps a caller's cancellation (misc029)
 elixir | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway, see TestCertificates), so no reachable address is missing from its names and a hostname mismatch cannot be produced
 elixir | misc277 | Elixir configuration is an immutable struct value with no object identity, so two calls return equal values rather than distinct objects; bhv config 023 asserts the equal values and bhv config 022 that a change does not leak
 elixir | misc100 | Elixir always writes a multipart body as multipart/form-data with a generated boundary and ignores a declared multipart subtype, so there is no declared value to keep or fall back from
@@ -570,9 +564,6 @@ node | misc156 | The node generator emits no list of every server, so there is n
 java | misc135 | Java has no client-level cancellation handle to store: cancellation is the calling thread's interruption, so the configuration builder takes no cancel signal
 go | misc231 | Go model fields are statically typed, so a model built in code cannot hold a wrong-typed value for a declared property; the wrong-type check runs only when decoding
 go | misc215 | an input object with no declared fields has no declared defaults to fill, so there is no observable default-filling behaviour to test for it
-elixir | transport083 | Elixir has no client-level cancellation: a call is cancelled only by its own process exiting (S7), and the SDK never receives a caller's cancellation to apply to an in-flight request
-elixir | transport084 | Elixir has no cancellation handle on a call: the only cancellation is the calling process exiting, which bhv transport 060 asserts reaches the request, so there is no separate handle to cancel through
-elixir | transport085 | Elixir has no cancellation token or signal argument, so there is no cancellation that could be supplied and left unfired
 elixir | transport091 | Elixir multipart file content is in-memory bytes given to the call and the SDK never opens a caller file or stream, so no caller handle exists that could stay open after the request
 elixir | serialization129 | Elixir Duration holds microseconds at most, so a nanosecond-precision value cannot be built and the nine-digit fraction is never produced from a Duration
 go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
@@ -677,7 +668,6 @@ java | misc083 | Java builds every query from typed parameters and has no raw-qu
 swift | misc269 | swift-corelibs-foundation cannot apply a disabled verification, so verifySsl false is refused on Linux (transport062); the reached-endpoint half cannot run here
 elixir | misc010 | Elixir has no optional positional arguments: a call that omits a required positional argument is an arity error (UndefinedFunctionError) at compile or call time, not a runtime ArgumentError that names the parameter
 elixir | misc043 | Elixir sends every request through Req, which hands the request to Mint, and Mint adds its own mint/<version> User-Agent whenever the request carries none and no option turns that off, so an explicitly cleared User-Agent cannot be omitted from the wire; the test is removed
-elixir | misc216 | Elixir returns a binary response as the base64 text of its bytes, as bhv serializationwire017 settles for binary bodies, so a base64 body is not decoded to bytes; the test is removed
 swift | options034 | swift-corelibs-foundation on Linux has no connectionProxyDictionary and never surfaces a server-trust challenge, so the SDK refuses a proxy, a CA certificate or disabled verification there; the test runs on Apple platforms only (Setting proxy is supported on all platforms)
 swift | redirects001 | swift-corelibs-foundation on Linux traps when a stub URLProtocol reports a redirect and cannot observe the SDK's redirect handling without it, so the Linux suite cannot drive this case; the test runs on Apple platforms only (302 https->http with a body is refused (the body is never replayed in plain text and the c)
 swift | redirects003 | swift-corelibs-foundation on Linux traps when a stub URLProtocol reports a redirect and cannot observe the SDK's redirect handling without it, so the Linux suite cannot drive this case; the test runs on Apple platforms only (Concurrent requests do not share redirect budget (Wave E))
