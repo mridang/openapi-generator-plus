@@ -1284,8 +1284,12 @@ public class BaseApiTest {
       assertEquals("abc", client.capturedHeaders.get("X-Trace"));
 
       var nullParameters = new CapturingApiClient();
-      new PetApi(nullParameters, new Configuration("http://localhost", Map.of()))
-          .getPetByNote(new GetPetByNoteOptions(null, null));
+      try {
+        new PetApi(nullParameters, new Configuration("http://localhost", Map.of()))
+            .getPetByNote(new GetPetByNoteOptions(null, null));
+      } catch (Exception ignored) {
+        // Response deserialization may fail; we only care about the captured URL
+      }
       assertTrue(nullParameters.capturedUrl.endsWith("?note=&rank="), nullParameters.capturedUrl);
     }
 

@@ -2290,6 +2290,26 @@ describe('BaseApi call hook', () => {
     expect(JSON.stringify(seen.infos[0])).not.toContain('frag');
   });
 
+  const tokenUrl = 'https://auth.example.com/token';
+
+  function renewing(): { stub: ApiClient; seen: Array<{ url: string; headers: Record<string, string> }>; oauth: OAuth2ClientCredentialsAuthenticator } {
+    const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+    let issued = 0;
+    const stub: ApiClient = {
+      async sendRequest(_method, url, headers): Promise<ApiHttpResponse> {
+        seen.push({ url, headers: { ...headers } });
+        if (url === tokenUrl) {
+          issued += 1;
+          return { statusCode: 200, body: JSON.stringify({ access_token: `tok-${issued}`, expires_in: 3600 }), headers: json };
+        }
+        return { statusCode: headers['Authorization'] === 'Bearer tok-2' ? 200 : 401, body: '{}', headers: json };
+      }
+    };
+    const oauth = new OAuth2ClientCredentialsAuthenticator('https://api.example.com', 'client-id', 'client-secret', tokenUrl, []);
+    oauth.setApiClient(stub);
+    return { stub, seen, oauth };
+  }
+
   describe('through the default transport', () => {
     let delays: number[];
     beforeEach(() => {
@@ -2363,26 +2383,6 @@ describe('BaseApi call hook', () => {
   });
 
   describe('a 401 on an OAuth2 call', () => {
-    const tokenUrl = 'https://auth.example.com/token';
-
-    function renewing(): { stub: ApiClient; seen: Array<{ url: string; headers: Record<string, string> }>; oauth: OAuth2ClientCredentialsAuthenticator } {
-      const seen: Array<{ url: string; headers: Record<string, string> }> = [];
-      let issued = 0;
-      const stub: ApiClient = {
-        async sendRequest(_method, url, headers): Promise<ApiHttpResponse> {
-          seen.push({ url, headers: { ...headers } });
-          if (url === tokenUrl) {
-            issued += 1;
-            return { statusCode: 200, body: JSON.stringify({ access_token: `tok-${issued}`, expires_in: 3600 }), headers: json };
-          }
-          return { statusCode: headers['Authorization'] === 'Bearer tok-2' ? 200 : 401, body: '{}', headers: json };
-        }
-      };
-      const oauth = new OAuth2ClientCredentialsAuthenticator('https://api.example.com', 'client-id', 'client-secret', tokenUrl, []);
-      oauth.setApiClient(stub);
-      return { stub, seen, oauth };
-    }
-
     test('bhv hooks 007 the fresh authentication headers of a replay still replace a hook header of the same name', async () => {
       const { stub, seen, oauth } = renewing();
       const { hook } = recording((headers) => {
