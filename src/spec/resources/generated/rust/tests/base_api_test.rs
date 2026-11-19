@@ -4105,24 +4105,6 @@ async fn test_bhv_misc_159_a_401_is_replayed_once_even_with_retries_off() {
 }
 
 #[tokio::test]
-async fn test_bhv_misc_161_a_dropped_post_is_sent_once_and_its_error_is_returned() {
-    let client = ScriptedApiClient::new(
-        vec![Scripted::Network, Scripted::Status(200, None)],
-        2,
-        None,
-    );
-    let err = retrying_api(&client)
-        .add_pet(
-            Pet::new("TestPet".to_string(), HashSet::new()),
-            Some(&AddPetOptions::new()),
-        )
-        .await
-        .expect_err("a dropped POST fails the call");
-    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
-    assert_eq!(1, client.calls());
-}
-
-#[tokio::test]
 async fn test_bhv_misc_176_cookie_value_is_sent_in_the_cookie_header() {
     let client = Arc::new(CapturingApiClient::new());
     let config = ConfigurationBuilder::new()

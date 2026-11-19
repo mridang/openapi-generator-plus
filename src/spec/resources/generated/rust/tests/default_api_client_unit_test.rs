@@ -4730,7 +4730,7 @@ fn start_slow_redirect_server(hop_delay: std::time::Duration) -> String {
 }
 
 #[tokio::test]
-async fn test_bhv_redirects_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
+async fn test_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
     let (base_url, captured) = start_307_redirect_server("/next".to_string());
     let transport = TransportOptionsBuilder::new()
         .follow_redirects(true)

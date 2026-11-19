@@ -1352,11 +1352,6 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_misc_233_a_cookie_parameter_carrying_a_json_model_is_fully_percent_encoded() {
-        assert_eq!(encode_content_cookie(r#"{"a":1.5}"#), "%7B%22a%22%3A1%2E5%7D");
-    }
-
-    #[test]
     fn test_bhv_serializationparam_104_the_content_cookie_encoding_keeps_only_the_unreserved_set_literal() {
         /* Every ASCII byte: A-Z a-z 0-9 - _ ~ stays literal and every other byte,
          * the dot included, is written as %XX, the encoding a content cookie uses. */

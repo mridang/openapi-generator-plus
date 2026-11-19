@@ -2161,7 +2161,7 @@ fn test_bhv_mocking_008_client_built_from_fakes_never_connects_and_closes_withou
 
 /* The hook set on the client reaches every API group. */
 #[tokio::test]
-async fn test_bhv_hooks_010_the_client_hands_the_call_hook_to_every_api_group() {
+async fn test_the_client_hands_the_call_hook_to_every_api_group() {
     use petstore::{CallHook, CallInfo, CallObserver};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
