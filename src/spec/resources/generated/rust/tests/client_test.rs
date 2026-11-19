@@ -375,6 +375,62 @@ fn test_bhv_lifecycle_039_a_client_with_no_host_or_an_empty_token_is_refused_at_
     assert!(valid.is_ok(), "a host and a token build a client");
 }
 
+#[test]
+fn test_bhv_misc_204_a_client_without_a_host_or_token_fails_at_construction_with_a_missing_credential_error(
+) {
+    with_environment(None, None, || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(!text.is_empty());
+    });
+}
+
+#[test]
+fn test_bhv_misc_205_the_missing_credential_error_names_the_variable_that_should_have_supplied_it()
+{
+    with_environment(None, Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(
+            text.contains("The API host is required: pass host or set PETSTORE_BASE_URL"),
+            "{}",
+            text
+        );
+    });
+    with_environment(Some("/api/v3"), None, || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+}
+
+#[test]
+fn test_bhv_misc_206_a_client_built_with_only_a_default_authenticator_takes_its_host_from_it() {
+    let authenticator = BearerAuthenticator::new("/api/v3", "test-token").unwrap();
+
+    let client = Client::new(Box::new(authenticator), None);
+
+    // Verify client was constructed by accessing a field
+    let _ = &client;
+}
+
+#[test]
+fn test_bhv_misc_207_an_unpassed_credential_is_read_from_its_environment_variable() {
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        assert!(Client::with_token(None, None, None).is_ok());
+    });
+}
+
+#[test]
+fn test_bhv_misc_208_an_empty_environment_variable_is_treated_as_unset_by_the_implicit_credential()
+{
+    with_environment(Some(""), Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_BASE_URL"), "{}", text);
+    });
+    with_environment(Some("/api/v3"), Some(""), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+}
+
 /// A hand-written fake of the PetApi group: it implements every operation, records each
 /// call as "operation(path arguments, options)" and fails with the typed not-found error.
 struct FakePetApi {

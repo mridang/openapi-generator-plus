@@ -2202,6 +2202,27 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc210AFormDateTimeFieldIsEncodedInCanonicalFormOnTheWire()
+    {
+        var client = new CapturingApiClient();
+        var testApi = new TestableApi(client, "http://localhost");
+        await testApi.CallAsync<object>(
+            "POST",
+            "/test/echo",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object>
+            {
+                { "when", new DateTimeOffset(2024, 1, 15, 10, 30, 0, TimeSpan.Zero) },
+            },
+            ["application/json"],
+            "application/x-www-form-urlencoded"
+        );
+        Assert.NotNull(client.CapturedBody);
+        Assert.Equal("when=2024-01-15T10%3A30%3A00.000%2B00%3A00", client.CapturedBody.ToString());
+    }
+
+    [Fact]
     public async Task BhvSerializationwire013FormUrlencodedBodyKeepsAWellFormedSurrogatePair()
     {
         var client = new CapturingApiClient();
