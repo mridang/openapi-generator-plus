@@ -3168,4 +3168,18 @@ private final class UnitStubURLProtocol: URLProtocol {
       _ = try await api.getInventory()
     }
   }
+
+  /* A missing CA certificate file is rejected even when certificate verification is disabled, and the error names the file. */
+  @Test func testBhvMisc270AMissingCaCertificateFileIsRejectedEvenWithVerificationOff() throws {
+    let transport = try TransportOptionsBuilder()
+      .verifySsl(false).caCertPath("/nonexistent/ca.pem").build()
+    let error = #expect(throws: ConfigurationError.self) {
+      _ = try DefaultApiClient(transportOptions: transport)
+    }
+    guard case .invalidCACertificate(let message)? = error else {
+      Issue.record("expected invalidCACertificate, got \(String(describing: error))")
+      return
+    }
+    #expect(message.contains("/nonexistent/ca.pem"))
+  }
 }
