@@ -36,7 +36,7 @@ class ClientTest {
             injected = apiClient
         }
 
-        override fun invalidateAccessToken() {}
+        override fun invalidateAccessToken() = Unit
 
         override fun getHost(): String = ""
 

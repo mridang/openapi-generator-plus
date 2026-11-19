@@ -113,6 +113,24 @@ class PetApiTest {
     @Nested
     @DisplayName("Integration tests")
     inner class IntegrationTests {
+        private fun capturingPetApi(
+            responseBody: String,
+            contentType: String = "application/json",
+            capture: (io.ktor.client.request.HttpRequestData, String) -> Unit,
+        ): PetApi {
+            val engine =
+                MockEngine { request ->
+                    capture(request, String(request.body.toByteArray(), Charsets.UTF_8))
+                    respond(
+                        content = responseBody,
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", contentType),
+                    )
+                }
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            return PetApi(DefaultApiClient(HttpClient(engine)), config)
+        }
+
         private val api: PetApi get() = sharedApi
 
         private fun statusPetApi(

@@ -18,6 +18,10 @@ formatting:
     active: false
   ParameterListWrapping:
     active: false
+  PropertyWrapping:
+    active: false
+  Wrapping:
+    active: false
   NoWildcardImports:
     active: false
 
