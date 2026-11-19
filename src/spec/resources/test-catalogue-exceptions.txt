@@ -794,3 +794,4 @@ rust | transport085 | The SDK has no cancellation token or signal parameter, so 
 rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
 rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.
 node | misc242 | Node keeps readOnly and writeOnly properties as the model holds them: a writeOnly password is decoded and kept on the wire (serializationobject017, operations098) and a readOnly id is decoded (serializationobject014), so no property is dropped from the wire by design.
+php | misc241 | PHP keeps the non-zero milliseconds of a time of day in a query value, as settled by operations139 and serialization078, so it does not truncate them to HH:mm:ss as this promise states
