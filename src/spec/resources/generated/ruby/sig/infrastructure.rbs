@@ -356,7 +356,7 @@ module Petstore::Client
     def close: () -> void
     def self.supported_encodings: () -> String
     private
-    def perform_request: (Symbol | String, String, Hash[String, String], untyped, bool, (^() -> Hash[String, String])?, bool, Numeric?, Integer?) -> ApiHttpResponse
+    def perform_request: (Symbol | String, String, Hash[String, String], untyped, bool, (^() -> Hash[String, String])?, bool, (Numeric | false)?, Integer?) -> ApiHttpResponse
     def enter_request: () -> void
     def leave_request: () -> void
     def release_connection: () -> void

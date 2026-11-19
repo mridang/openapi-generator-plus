@@ -452,12 +452,12 @@ describe {{moduleName}}::DefaultApiClient do
 
   describe 'HTTP method and body' do
     it 'bhv_misc_041 a request with an HTTP method outside the standard set is sent with its body intact' do
-      server = TCPServer.new('127.0.0.1', 0)
+      server = TCPServer.new('127.0.0.1', 0) # steep:ignore UnexpectedPositionalArgument
       seen = []
       thread = Thread.new do
         conn = server.accept
         head = +''
-        head << conn.gets until head.end_with?("\r\n\r\n")
+        head << conn.readline until head.end_with?("\r\n\r\n")
         length = head[/content-length: *(\d+)/i, 1].to_i
         seen = [head.lines.first.split.first, conn.read(length)]
         conn.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
