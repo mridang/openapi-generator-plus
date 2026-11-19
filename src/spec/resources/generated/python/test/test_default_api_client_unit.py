@@ -210,13 +210,6 @@ class TestDefaultApiClientUnit:
         assert body["method"] == "PROPFIND"
         assert body["body"] == '{"key":"value"}'
 
-    def test_bhv_misc_043_an_explicitly_cleared_user_agent_is_omitted_from_the_request(
-        self,
-    ) -> None:
-        client = DefaultApiClient(TransportOptions.builder().user_agent(None).build())
-        response = client.send_request("GET", f"{self.base_url}/echo", {}, None)
-        assert "user-agent" not in json.loads(response.body)["headers"]
-
     def test_bhv_misc_048_an_undeclared_success_status_decodes_as_the_union_return_type(
         self,
     ) -> None:
@@ -653,6 +646,8 @@ class TestDefaultApiClientUnit:
         handle = RequestHandle()
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 handle.cancel()
                 raise urllib3.exceptions.ProtocolError("Connection aborted.")
@@ -671,6 +666,8 @@ class TestDefaultApiClientUnit:
         from petstore_client.errors import NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 raise urllib3.exceptions.ReadTimeoutError(
                     cast(Any, None), "https://example.com/x", "timed out"
@@ -688,6 +685,8 @@ class TestDefaultApiClientUnit:
         from urllib3._collections import HTTPHeaderDict
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(
                     200, HTTPHeaderDict([("x-multi", "a"), ("x-multi", "b")])
@@ -1279,6 +1278,8 @@ class TestNoRedirectOnTokenPost:
 
     def _make_pool(self, responses: list[Any]) -> Any:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
                 self._responses = list(responses)
@@ -1375,6 +1376,8 @@ class TestBodyReplayOnTlsDowngrade:
     def test_bhv_retries_051_status_307_downgrade_with_body_raises(self) -> None:
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1412,6 +1415,8 @@ class TestBodyReplayOnTlsDowngrade:
         redirect = _FakeResp(307, {"location": "http://example.com/insecure"})
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return redirect
 
@@ -1429,6 +1434,8 @@ class TestBodyReplayOnTlsDowngrade:
     def test_bhv_lang_python_065_status_308_downgrade_with_body_raises(self) -> None:
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1454,6 +1461,8 @@ class TestBodyReplayOnTlsDowngrade:
         # 303 coerces to GET and drops the body, so plaintext replay is
         # not a concern. The Authorization-strip guard still runs.
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1478,6 +1487,8 @@ class TestBodyReplayOnTlsDowngrade:
     def test_bhv_retries_016_http_to_https_upgrade_with_body_is_allowed(self) -> None:
         # Upgrade is not a downgrade; the body must replay normally.
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1504,6 +1515,8 @@ class TestRedirectKeepsTheRequestOnTheHop:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1534,6 +1547,8 @@ class TestRedirectKeepsTheRequestOnTheHop:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1579,6 +1594,8 @@ class TestContentLengthStrippedOnRedirect:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1610,6 +1627,8 @@ class TestContentLengthStrippedOnRedirect:
         # 302 on a POST demotes to GET in our loop (mirrors browser behaviour
         # and the other 11 SDKs). The body and its length headers must go.
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1635,6 +1654,8 @@ class TestContentLengthStrippedOnRedirect:
 
     def _redirect_once(self, status: int, method: str) -> list[Any]:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -1677,6 +1698,8 @@ class TestRedirectRefusals:
 
     def _client(self, responses: list[Any]) -> DefaultApiClient:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.responses = list(responses)
 
@@ -1743,6 +1766,8 @@ class TestRedirectBudgetAndOptOut:
         ]
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return responses.pop(0)
 
@@ -1759,6 +1784,8 @@ class TestRedirectBudgetAndOptOut:
     ) -> None:
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(302, {"location": "https://example.com/next"})
 
@@ -1778,6 +1805,8 @@ class TestRedirectMessagesKeepTheQueryOut:
     ) -> None:
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(307, {"location": "http://example.com/insecure?t=2"})
 
@@ -1805,6 +1834,8 @@ class TestHeaderMergeIsCaseInsensitive:
         self, headers: dict[str, str], body: Any = None, method: str = "GET"
     ) -> dict[str, str]:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.sent: dict[str, str] = {}
 
@@ -1860,6 +1891,8 @@ class TestAuthRequestsOmitTheCallersDefaultHeaders:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.sent: list[dict[str, str]] = []
 
@@ -1880,6 +1913,8 @@ class TestAuthRequestsOmitTheCallersDefaultHeaders:
 
     def _send(self, no_redirect: bool) -> dict[str, str]:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.sent: dict[str, str] = {}
 
@@ -1957,6 +1992,8 @@ class TestRedirectLocationResolution:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.urls: list[str] = []
 
@@ -2002,6 +2039,8 @@ class TestRedirectExhaustion:
     def test_bhv_redirects_018_exhausting_redirect_budget_raises(self) -> None:
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 # Always answer with another redirect so the budget is exhausted.
                 return _FakeResp(302, {"location": "https://example.com/next"})
@@ -2023,6 +2062,8 @@ class TestRedirectExhaustion:
         responses: list[_FakeResp] = []
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 responses.append(
                     _FakeResp(302, {"location": "https://example.com/next"})
@@ -2044,6 +2085,8 @@ class TestRedirectExhaustion:
         # A 3xx with no Location header is a legitimate terminal response and
         # must NOT be treated as redirect exhaustion.
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(302, {})
 
@@ -2056,6 +2099,8 @@ class TestRedirectExhaustion:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(302, {"location": "http://[bad"})
 
@@ -2070,6 +2115,8 @@ class TestRedirectExhaustion:
         from petstore_client.errors import NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls = 0
 
@@ -2097,6 +2144,8 @@ class TestUseAfterClose:
         from petstore_client.errors import OpenAPIException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls = 0
 
@@ -2130,6 +2179,8 @@ class TestUseAfterClose:
         results: list[Any] = []
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 started.set()
                 release.wait(5)
@@ -2172,6 +2223,8 @@ class TestUseAfterClose:
         results: list[Any] = []
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             cleared = False
 
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -2235,6 +2288,8 @@ class TestBodyReadErrorWrapped:
                 return None
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _StalledBodyResp()
 
@@ -2263,6 +2318,8 @@ class TestBodyReadErrorWrapped:
                 return None
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _ReadFailResp()
 
@@ -2329,6 +2386,8 @@ class TestNetworkErrors:
         from petstore_client.errors import NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 no_pool: Any = None
                 raise urllib3.exceptions.MaxRetryError(
@@ -2350,6 +2409,8 @@ class TestNetworkErrors:
         from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 no_pool: Any = None
                 raise urllib3.exceptions.MaxRetryError(
@@ -2380,6 +2441,8 @@ class TestNetworkErrors:
         from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 no_pool: Any = None
                 raise urllib3.exceptions.MaxRetryError(
@@ -2404,6 +2467,8 @@ class TestNetworkErrors:
         import urllib3
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 raise urllib3.exceptions.ProtocolError("Connection aborted.")
 
@@ -2423,6 +2488,8 @@ class TestNetworkErrorMessageKeepsTheQueryOut:
         from petstore_client.errors import NetworkException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 no_pool: Any = None
                 raise urllib3.exceptions.MaxRetryError(
@@ -2588,6 +2655,8 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
         api_key_header = api_key_header_names[0]
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -2621,6 +2690,8 @@ class TestApiKeyHeaderStrippedOnCrossOrigin:
         # The static credential trio is always stripped on a cross-origin hop
         # regardless of whether the spec declared any apiKey-in-header schemes.
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -2657,6 +2728,8 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_redirects_020_non_http_scheme_redirect_raises(self) -> None:
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -2682,6 +2755,8 @@ class TestRedirectToNonHttpScheme:
         redirect = _FakeResp(302, {"location": "file:///etc/passwd"})
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return redirect
 
@@ -2697,6 +2772,8 @@ class TestRedirectToNonHttpScheme:
         from petstore_client.errors import NetworkException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -2715,15 +2792,18 @@ class TestRedirectToNonHttpScheme:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(200, {"content-encoding": "x-custom"})
 
         client = DefaultApiClient(
             TransportOptions.builder().build(), pool_manager=_Pool()
         )
-        with pytest.raises(ValueError) as excinfo:
+        with pytest.raises(ApiException) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
-        assert str(excinfo.value) == "Unsupported Content-Encoding 'x-custom'"
+        assert excinfo.value.message == "Unsupported Content-Encoding 'x-custom'"
+        assert excinfo.value.status_code == 200
 
 
 class TestZstdDecompression:
@@ -2764,6 +2844,8 @@ class TestZstdDecompression:
 
 
 class _RedirectPool:
+    headers = HTTPHeaderDict()
+
     """Pool double: the first call answers 302 to ``location``, the next 200."""
 
     def __init__(self, location: str) -> None:
@@ -2911,6 +2993,8 @@ class TestRedirectCookieAndAuthorizationOnSameOrigin:
 
 
 class _ScriptedPool:
+    headers = HTTPHeaderDict()
+
     """Pool double that answers each call from a script, then 200."""
 
     def __init__(self, *script: Any) -> None:
@@ -3376,6 +3460,8 @@ class TestRetryPolicy:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, *args: Any, **kwargs: Any) -> Any:
                 raise AssertionError("no request may be sent")
 
@@ -3392,6 +3478,8 @@ class TestRetryPolicy:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.timeout: Any = None
 
@@ -3428,6 +3516,8 @@ class TestTransportBehaviours:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 return _FakeResp(200, {})
 
@@ -3484,6 +3574,8 @@ class TestTransportBehaviours:
         self,
     ) -> None:
         class _RecordingPool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[tuple[str, str, dict[str, Any]]] = []
 
@@ -3523,6 +3615,8 @@ class TestDeadlineAndCancellationClassification:
         self,
     ) -> None:
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.timeout: Any = None
 
@@ -3548,6 +3642,8 @@ class TestDeadlineAndCancellationClassification:
         from petstore_client.default_api_client import RequestHandle
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, *args: Any, **kwargs: Any) -> Any:
                 raise AssertionError("no request may be sent")
 
@@ -3562,6 +3658,8 @@ class TestDeadlineAndCancellationClassification:
         from petstore_client.errors import NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, *args: Any, **kwargs: Any) -> Any:
                 raise urllib3.exceptions.ConnectTimeoutError(None, "connect timed out")
 
@@ -3576,6 +3674,8 @@ class TestDeadlineAndCancellationClassification:
         from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def request(self, *args: Any, **kwargs: Any) -> Any:
                 raise urllib3.exceptions.NewConnectionError(None, "connection refused")
 

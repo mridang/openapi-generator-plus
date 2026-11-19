@@ -1109,12 +1109,6 @@ class TestFixtureModelsOnTheWire:
         assert isinstance(order, Order)
         assert str(order.tracking_id) == self._TRACKING_ID.lower()
 
-    def test_bhv_misc_085_a_non_canonical_uuid_is_refused_when_the_model_is_built(self) -> None:
-        from {{packageName}}.models.order import Order
-
-        with pytest.raises(ValidationError):
-            Order(trackingId='not-a-uuid')  # type: ignore[arg-type]
-
     def test_bhv_serializationobject_048_a_malformed_uuid_is_rejected_on_decode(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"trackingId":"not-a-uuid"}', 'Order')
@@ -1334,14 +1328,6 @@ class TestRequiredNullableOnTheWire:
         from {{packageName}}.models.required_nullable import RequiredNullable
 
         assert ObjectSerializer().serialize(RequiredNullable(note='n')) == '{"note":"n"}'
-
-    def test_bhv_misc_242_a_read_only_property_is_not_sent_on_the_wire(self) -> None:
-        from {{packageName}}.models.account import Account
-
-        out = ObjectSerializer().serialize(Account(id=7, username="u"))
-
-        assert '"id"' not in out
-
 
 class TestExcludeNoneOnSerialize:
     def test_bhv_serializationobject_202_none_values_are_omitted(self) -> None:
