@@ -750,6 +750,8 @@ kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: th
 kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
 kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
 kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
+rust | misc262 | The Rust client has no cancellation API: a pending request is cancelled by dropping its future, and no client operation cancels pending requests or reports a cancellation to the caller.
+rust | misc263 | The Rust client has no per-call timeout: the timeout is set on the transport options when the client is built and no call accepts its own value, so a per-call timeout longer than the client timeout cannot be expressed.
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
 
 
@@ -762,7 +764,6 @@ swift | misc272 | Proving an authenticating proxy accepts the credentials needs 
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
 kotlin | misc215 | Kotlin gives every declared default as a constructor default argument, so an input object with no fields is filled by the compiler when it is built and no runtime fill step exists to test
 kotlin | misc216 | Kotlin returns a binary body as its raw bytes without base64 decoding, pinned by bhv serialization wire 060, so the body is never decoded and the raw text is the value returned
-swift | misc285 | The Swift transport decodes only gzip, detected by its magic bytes; any other Content-Encoding is passed through unchanged, and no refusal with an unsupported-encoding message exists
 kotlin | transport083 | Kotlin has no client-level cancellation setting: a call is cancelled only through the coroutine that makes it, so there is no supplied cancellation to honour (see transport084)
 kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
@@ -771,11 +772,16 @@ rust | misc291 | Rust keeps every matching variant of a union rather than the fi
 rust | serialization068 | Rust model fields are statically typed, so a value of the wrong type cannot be constructed and there is no wrong-typed value to keep as given
 rust | serialization079 | Rust models have no copy-with-changes method; a copy with named changes is written with struct update syntax on a clone, which is the language itself and not an SDK API
 rust | retries045 | Rust request bodies are always buffered as bytes or multipart, so there is no streamed body type that could be sent once and then not replayed after a 401
+kotlin | misc231 | Kotlin types a model property as its declared type, so a model built in code cannot hold a value of the wrong type; the compiler refuses it before any SDK code runs, and the decode half is pinned by bhv serializationobject 095
+kotlin | misc260 | Kotlin's Map of server variable values is typed Map<String, String>, so a nil value cannot be passed to getUrl; the compiler refuses the call before the enum check runs
 
 php | transport083 | PHP SDK has no cancellation handle or signal API (its readme states it has no cancellation API of its own), so a request cannot be aborted from outside
 php | transport084 | PHP SDK has no cancellation handle or signal API (its readme states it has no cancellation API of its own), so a call cannot be stopped through a handle
 php | transport085 | PHP SDK has no cancellation token or signal API (its readme states it has no cancellation API of its own), so there is no token to supply or leave unfired
 swift | serialization096 | Swift decodes an absent optional field to nil; the schema default is applied only by the generated initializer, so decoding an absent field does not yield the declared default
+java | misc231 | Java builders and setters take the declared property type, so a wrong-typed value cannot be passed to a model built in code and the compiler refuses it; the wrong-type check runs only when decoding
+java | misc242 | Java sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect in any SDK; the model javadoc states it), so no property is left off the wire
+
 swift | transport083 | Swift has no client-level cancellation token: cancellation is the calling Task, per call, and transport084 covers cancelling a call through its handle
 swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
 swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists

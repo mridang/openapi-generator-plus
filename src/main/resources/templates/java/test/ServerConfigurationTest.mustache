@@ -2,6 +2,7 @@
 
 package {{invokerPackage}};
 
+import org.junit.jupiter.api.DisplayName;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import {{invokerPackage}}.errors.{{errorPrefix}}Exception;
@@ -374,5 +375,59 @@ class ServerConfigurationTest {
                 Map.of("env", new ServerVariable("api", null, List.of("api", "staging"))));
 
         assertThrowsExactly(IllegalArgumentException.class, () -> config.getUrl(Map.of("env", "bogus")));
+    }
+
+
+    @Test
+    @DisplayName("bhvMisc257 a variable with an empty enum accepts any value")
+    void bhvMisc257AVariableWithAnEmptyEnumAcceptsAnyValue() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.example.com", null,
+                        Map.of("env", new ServerVariable("x", null, List.of())));
+        assertEquals("https://anything.example.com", config.getUrl(Map.of("env", "anything")));
+    }
+
+    @Test
+    @DisplayName("bhvMisc258 a variable without an override uses its default")
+    void bhvMisc258AVariableWithoutAnOverrideUsesItsDefault() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.example.com", null,
+                        Map.of("env", new ServerVariable("prod", null, List.of())));
+        assertEquals("https://prod.example.com", config.getUrl());
+    }
+
+    @Test
+    @DisplayName("bhvMisc259 a placeholder with no declared variable stays in the URL")
+    void bhvMisc259APlaceholderWithNoDeclaredVariableStaysInTheUrl() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.{region}.example.com", null,
+                        Map.of("env", new ServerVariable("prod", null, List.of())));
+        assertEquals("https://prod.{region}.example.com", config.getUrl());
+    }
+
+    @Test
+    @DisplayName("bhvMisc260 a null value for an enum variable is rejected")
+    void bhvMisc260ANullValueForAnEnumVariableIsRejected() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://{env}.example.com", null,
+                        Map.of("env", new ServerVariable("prod", null, List.of("prod", "staging"))));
+        Map<String, String> overrides = new java.util.HashMap<>();
+        overrides.put("env", null);
+        assertThrows(IllegalArgumentException.class, () -> config.getUrl(overrides));
+    }
+
+    @Test
+    @DisplayName("bhvMisc261 a value with backslashes is inserted without escape processing")
+    void bhvMisc261AValueWithBackslashesIsInsertedWithoutEscapeProcessing() {
+        ServerConfiguration config =
+                new ServerConfiguration(
+                        "https://example.com/{path}", null,
+                        Map.of("path", new ServerVariable("x", null, List.of())));
+        assertEquals(
+                "https://example.com/a\\b\\n", config.getUrl(Map.of("path", "a\\b\\n")));
     }
 }

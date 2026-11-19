@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 class DefaultApiClientUnitTest {
@@ -4874,5 +4875,111 @@ class DefaultApiClientUnitTest {
     String part = renderMultipartPart("blob", stream);
     assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
     assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
+  }
+
+  @Test
+  void bhvMisc237AnIso88591ErrorBodyDecodesToUtf8TextInTheError() throws Exception {
+    HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+    server.createContext(
+        "/fail",
+        exchange -> {
+          byte[] body = "café".getBytes(StandardCharsets.ISO_8859_1);
+          exchange.getResponseHeaders().add("Content-Type", "application/json; charset=ISO-8859-1");
+          exchange.sendResponseHeaders(404, body.length);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write(body);
+          }
+        });
+    server.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET", "http://localhost:" + server.getAddress().getPort() + "/fail", Map.of(), null);
+      assertEquals(404, response.statusCode());
+      assertEquals("café", response.body());
+    } finally {
+      server.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc262CancellingPendingRequestsSurfacesTheCancellationUnwrapped() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/never-answers";
+      DefaultApiClient client = new DefaultApiClient();
+      java.util.concurrent.atomic.AtomicReference<Throwable> thrown =
+          new java.util.concurrent.atomic.AtomicReference<>();
+      Thread caller =
+          new Thread(
+              () -> {
+                try {
+                  client.sendRequest("GET", url, Map.of(), null);
+                } catch (Throwable failure) {
+                  thrown.set(failure);
+                }
+              });
+      caller.start();
+      silent.setSoTimeout(10_000);
+      java.net.Socket reached = silent.accept();
+      try (reached) {
+        caller.interrupt();
+        caller.join(5000);
+        assertInstanceOf(java.util.concurrent.CancellationException.class, thrown.get());
+        assertFalse(thrown.get() instanceof ApiException, "the cancellation must not be wrapped");
+      }
+    }
+  }
+
+  @Test
+  void bhvMisc263APerCallTimeoutLongerThanTheClientTimeoutLetsASlowResponseComplete()
+      throws Exception {
+    HttpServer slow = HttpServer.create(new InetSocketAddress(0), 0);
+    slow.createContext(
+        "/slow",
+        exchange -> {
+          try {
+            Thread.sleep(300);
+          } catch (InterruptedException interrupted) {
+            Thread.currentThread().interrupt();
+          }
+          exchange.sendResponseHeaders(200, 2);
+          try (OutputStream os = exchange.getResponseBody()) {
+            os.write("{}".getBytes(StandardCharsets.UTF_8));
+          }
+        });
+    slow.start();
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().timeout(100).maxRetries(0).build());
+      ApiHttpResponse response =
+          client.sendRequest(
+              "GET",
+              "http://localhost:" + slow.getAddress().getPort() + "/slow",
+              Map.of(),
+              null,
+              5000,
+              null);
+      assertEquals(200, response.statusCode());
+    } finally {
+      slow.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc265ANonHttpRedirectIsAnApiErrorNotANetworkError() throws Exception {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder =
+        request -> RecordingHttpClient.redirect(302, "file:///etc/passwd", request);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiException ex =
+        assertThrowsExactly(
+            ApiException.class,
+            () -> client.sendRequest("GET", "http://localhost/start", Map.of(), null));
+    assertFalse(ex instanceof com.example.petstore.errors.NetworkException);
+    assertEquals(302, ex.getStatusCode());
   }
 }

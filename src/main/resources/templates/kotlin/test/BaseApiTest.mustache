@@ -3138,4 +3138,81 @@ class BaseApiTest {
             assertEquals("http://localhost:8080/items/7", hook.infos.single().url)
         }
     }
+
+    private class FixedAnswerApiClient(private val response: ApiHttpResponse) : CapturingApiClient() {
+        override suspend fun sendRequest(
+            method: String,
+            url: String,
+            headers: Map<String, String>,
+            body: Any?,
+            noRedirect: Boolean,
+        ): ApiHttpResponse = response
+    }
+
+    @Test
+    @DisplayName("bhvMisc236 a date-only query value is written as yyyy-mm-dd with no time")
+    fun bhvMisc236DateOnlyQueryIsWrittenWithNoTime() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost").call(
+            "GET", "/test/echo", mutableMapOf<String, Any?>("bornAfter" to java.time.LocalDate.of(2024, 1, 1)),
+        )
+        assertTrue(client.capturedUrl.contains("bornAfter=2024-01-01"), client.capturedUrl)
+        assertFalse(client.capturedUrl.contains("2024-01-01T"), client.capturedUrl)
+    }
+
+    @Test
+    @DisplayName("bhvMisc239 an operation query parameter is serialized when no authenticator is configured")
+    fun bhvMisc239QueryParameterIsSerializedWithoutAuthenticator() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", mutableMapOf<String, Any?>("q" to "a b"))
+        assertTrue(client.capturedUrl.contains("q=a%20b"), client.capturedUrl)
+    }
+
+    @Test
+    @DisplayName("bhvMisc262 cancelling the call surfaces the cancellation to the caller without wrapping it")
+    fun bhvMisc262CancellationIsSurfacedUnwrapped() {
+        val client = object : ApiClient {
+            override suspend fun sendRequest(
+                method: String,
+                url: String,
+                headers: Map<String, String>,
+                body: Any?,
+                noRedirect: Boolean,
+            ): ApiHttpResponse = throw kotlinx.coroutines.CancellationException("cancelled")
+        }
+        assertThrows(kotlinx.coroutines.CancellationException::class.java) {
+            runBlocking { PerCallApi(client).call() }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc263 a per-call timeout longer than the client timeout lets a response complete")
+    fun bhvMisc263LongerPerCallTimeoutLetsResponseComplete() {
+        val (client, _) = statusClient(200)
+        val ok = runBlocking { PerCallApi(client).call(callTimeout = 5000L) }
+        assertEquals(200, ok.statusCode)
+    }
+
+    @Test
+    @DisplayName("bhvMisc264 each listed error status raises the API error carrying that status code")
+    fun bhvMisc264EachListedErrorStatusRaisesItsApiError() {
+        for (status in listOf(400, 404, 500)) {
+            val (client, _) = statusClient(status)
+            val ex = assertThrows(ApiException::class.java) {
+                runBlocking { PerCallApi(client).call() }
+            }
+            assertEquals(status, ex.statusCode)
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status")
+    fun bhvMisc265RedirectToNonHttpSchemeIsAnApiError() {
+        val ex = assertThrows(ApiException::class.java) {
+            runBlocking {
+                PerCallApi(FixedAnswerApiClient(ApiHttpResponse(302, "", mapOf("Location" to "ftp://example.com/x")))).call()
+            }
+        }
+        assertEquals(302, ex.statusCode)
+    }
 }

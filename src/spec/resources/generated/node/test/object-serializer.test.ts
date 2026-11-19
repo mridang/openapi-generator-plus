@@ -4496,3 +4496,27 @@ describe("ObjectSerializer serialization behaviours (bhv serialization 112 to 13
     );
   });
 });
+
+describe("ObjectSerializer misc model and duration behaviours", () => {
+  test("bhv misc 230 a model with no extra properties writes exactly its declared keys", () => {
+    expect(
+      JSON.parse(ObjectSerializer.serialize(new Order({ quantity: 2 }))),
+    ).toEqual({ quantity: 2 });
+  });
+
+  test("bhv misc 234 a model with additional properties keeps them through serialize and deserialize", () => {
+    const metadata = ObjectSerializer.deserialize(
+      { rogue: { inner: "x" } },
+      Metadata,
+    ) as Metadata;
+    expect(JSON.parse(ObjectSerializer.serialize(metadata))).toEqual({
+      rogue: { inner: "x" },
+    });
+  });
+
+  test("bhv misc 235 a duration with fractional seconds keeps its fraction when serialized", () => {
+    expect(
+      durationToProtoJson(Temporal.Duration.from({ milliseconds: 1500 })),
+    ).toBe("1.5s");
+  });
+});

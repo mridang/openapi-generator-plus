@@ -113,6 +113,16 @@ import FoundationNetworking
         #expect(zero.body == "0")
     }
 
+    /* A response with a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message. */
+    @Test func testBhvMisc285AnUnsupportedContentEncodingIsRefused() async throws {
+        let client = makeClient { _ in (Data("payload".utf8), 200, ["Content-Encoding": "compress"]) }
+        let error = await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://localhost/compressed", headers: [:], body: nil)
+        }
+        #expect(error?.message == "Unsupported Content-Encoding 'compress'")
+    }
+
     /* Response header names are returned in lower case. */
     @Test func testBhvMisc040ResponseHeaderNamesAreLowerCase() async throws {
         let client = makeClient { _ in (Data("{}".utf8), 200, ["X-Custom-Thing": "v"]) }

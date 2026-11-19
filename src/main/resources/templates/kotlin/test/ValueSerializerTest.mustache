@@ -1248,4 +1248,59 @@ class ValueSerializerTest {
         val value = ValueSerializer.serialize(java.time.OffsetDateTime.parse("2024-01-02T03:04:05+02:00"), "query", "string", null)
         assertTrue(value.toString().contains("T03:04:05+02:00"), value.toString())
     }
+
+    @Test
+    @DisplayName("bhvMisc232 a string path parameter in explicit simple style percent-encodes slashes")
+    fun bhvMisc232StringPathParameterInSimpleStyleEncodesSlashes() {
+        assertEquals("a%2Fb", ValueSerializer.serializeStyled("name", "a/b", "path", "string", null, "simple", false))
+    }
+
+    @Test
+    @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included")
+    fun bhvMisc233CookieJsonModelIsFullyPercentEncoded() {
+        val result = ValueSerializer.serialize("{\"a\":1.5}", "cookie", "string", null)
+        assertTrue(result.contains("%7B"), result)
+        assertTrue(result.contains("%3A"), result)
+        assertFalse(result.contains(":"), result)
+    }
+
+
+    @Test
+    @DisplayName("bhvMisc238 a number query parameter is serialized as a plain number")
+    fun bhvMisc238NumberQueryValueIsAPlainNumber() {
+        assertEquals("2.5", ValueSerializer.serialize(2.5, "query", "number", null))
+    }
+
+    @Test
+    @DisplayName("bhvMisc241 a time-of-day query value is sent as HH:mm:ss")
+    fun bhvMisc241TimeOfDayQueryValueIsHhMmSs() {
+        assertEquals("10:20:30", ValueSerializer.serialize(java.time.LocalTime.of(10, 20, 30), "query", "string", null))
+    }
+
+    @Test
+    @DisplayName("bhvMisc250 an array item containing a comma keeps its comma encoded on a path")
+    fun bhvMisc250ArrayItemCommaStaysEncodedOnAPath() {
+        assertEquals(
+            "a%2Cb,c",
+            ValueSerializer.serializeStyled("list", listOf("a,b", "c"), "path", "array", null, "simple", false),
+        )
+    }
+
+    @Test
+    @DisplayName("bhvMisc253 an allowReserved value still percent-encodes hash and bracket characters")
+    fun bhvMisc253AllowReservedStillEncodesHashAndBrackets() {
+        assertEquals("a/b%23c%5Bd%5D", ValueSerializer.encodeQueryAllowingReserved("a/b#c[d]"))
+    }
+
+    @Test
+    @DisplayName("bhvMisc254 an unmarked query value percent-encodes reserved characters such as slash and colon")
+    fun bhvMisc254UnmarkedQueryValueEncodesSlashAndColon() {
+        assertEquals("a%2Fb%3Ac", ValueSerializer.serialize("a/b:c", "query", "string", null))
+    }
+
+    @Test
+    @DisplayName("bhvMisc255 separate query parameters encode a space as %20")
+    fun bhvMisc255QueryParameterEncodesSpaceAsPercent20() {
+        assertEquals("a%20b", ValueSerializer.serialize("a b", "query", "string", null))
+    }
 }
