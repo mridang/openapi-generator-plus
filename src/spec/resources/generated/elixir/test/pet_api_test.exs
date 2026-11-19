@@ -2837,4 +2837,11 @@ defmodule PetstoreClient.Api.PetApiTest do
     refute PetstoreClient.Errors.ApiError.api_error?(error)
     Agent.stop(name)
   end
+
+  test "bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument",
+       %{api: api} do
+    assert_raise UndefinedFunctionError, fn ->
+      apply(PetstoreClient.Api.PetApi, :get_pet_by_note, [api])
+    end
+  end
 end

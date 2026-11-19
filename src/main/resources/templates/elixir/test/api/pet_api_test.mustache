@@ -2133,5 +2133,11 @@ defmodule {{moduleName}}.Api.PetApiTest do
     Agent.stop(name)
   end
 
+  test "bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument", %{api: api} do
+    assert_raise UndefinedFunctionError, fn ->
+      apply({{moduleName}}.Api.PetApi, :get_pet_by_note, [api])
+    end
+  end
+
 end
 {{/generateTests}}
