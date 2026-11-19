@@ -246,7 +246,8 @@ describe("ServerConfiguration misc behaviours", () => {
         region: new ServerVariable("eu", null, []),
       },
     );
-    config.variables["region"] = new ServerVariable("us", null, []);
+    (config.variables as Record<string, ServerVariable>)["region"] =
+      new ServerVariable("us", null, []);
     expect(config.getUrl()).toBe("https://eu.example.com");
   });
 

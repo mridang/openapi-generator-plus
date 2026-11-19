@@ -371,10 +371,9 @@ function isNestedModelClass(
 
 function revalidateNestedValue(value: unknown): unknown {
   if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i++) {
-      value[i] = revalidateNestedValue(value[i]);
-    }
-    return value;
+    return Object.freeze(
+      value.map((element) => revalidateNestedValue(element)),
+    );
   }
   if (value instanceof Set) {
     return new Set([...value].map((element) => revalidateNestedValue(element)));
@@ -389,7 +388,14 @@ function revalidateNestedValue(value: unknown): unknown {
     return rebuilt;
   }
   if (ctor === Object) {
-    revalidateNestedFields(value as Record<string, unknown>);
+    return Object.freeze(
+      Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+          k,
+          revalidateNestedValue(v),
+        ]),
+      ),
+    );
   }
   return value;
 }
