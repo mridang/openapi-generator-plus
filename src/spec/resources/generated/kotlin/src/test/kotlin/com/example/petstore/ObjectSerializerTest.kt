@@ -2968,6 +2968,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvMisc215 an input object with no fields is filled with every declared default value")
+        fun bhvMisc215EmptyObjectIsFilledWithDefaults() {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{}")
+            assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order!!.status)
+        }
+
+        @Test
         @DisplayName("bhvMisc242 a readOnly and a writeOnly property are written and decoded like any other")
         fun bhvMisc242ReadOnlyAndWriteOnlyHaveNoWireEffect() {
             val json =

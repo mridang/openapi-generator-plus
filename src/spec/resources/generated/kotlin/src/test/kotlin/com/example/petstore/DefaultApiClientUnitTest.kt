@@ -2806,6 +2806,37 @@ class DefaultApiClientUnitTest {
         }
 
         @Test
+        @DisplayName("bhvTransport085 a timeout still raises the network timeout error when a cancellation context never fires")
+        fun bhvTransport085TimeoutStillRaisesWithANeverFiringJob() {
+            withServer({ exchange ->
+                Thread.sleep(1500)
+                val bytes = "ok".toByteArray()
+                exchange.sendResponseHeaders(200, bytes.size.toLong())
+                exchange.responseBody.write(bytes)
+            }) { port ->
+                val apiClient =
+                    DefaultApiClient(
+                        TransportOptions
+                            .builder()
+                            .timeout(null)
+                            .maxRetries(0)
+                            .build(),
+                    )
+                assertThrows(
+                    com.example.petstore.errors.NetworkTimeoutException::class.java,
+                    {
+                        runBlocking {
+                            kotlinx.coroutines.withContext(CallSettings(200L, null) + kotlinx.coroutines.Job()) {
+                                apiClient.sendRequest("GET", "http://127.0.0.1:$port/slow", emptyMap(), null)
+                            }
+                        }
+                    },
+                )
+                apiClient.close()
+            }
+        }
+
+        @Test
         @DisplayName("bhvTransport029 a response body that stalls after the headers throws NetworkTimeoutException")
         fun stalledResponseBodyRaisesNetworkTimeoutException() {
             withServer({ exchange ->
@@ -3337,6 +3368,26 @@ class DefaultApiClientUnitTest {
             }
             assertInstanceOf(kotlinx.coroutines.CancellationException::class.java, caught)
             assertFalse(caught is ApiException, "cancellation must not be rewrapped, was: $caught")
+        }
+
+        @Test
+        @DisplayName("bhvTransport083 cancelling the scope the client's calls run in aborts a request already in flight")
+        fun bhvTransport083CancellingTheSharedScopeAbortsTheRequest() {
+            val engine =
+                MockEngine { _ ->
+                    kotlinx.coroutines.delay(60_000L)
+                    respond("late", HttpStatusCode.OK, headersOf("Content-Type", "text/plain"))
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val started = System.nanoTime()
+            runBlocking {
+                val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Job())
+                val call = scope.launch { apiClient.sendRequest("GET", "http://localhost/slow", emptyMap(), null) }
+                kotlinx.coroutines.delay(50L)
+                scope.coroutineContext[kotlinx.coroutines.Job]!!.cancelAndJoin()
+                assertTrue(call.isCancelled)
+            }
+            assertTrue(System.nanoTime() - started < 10_000_000_000L, "the request must stop at once")
         }
 
         @Test

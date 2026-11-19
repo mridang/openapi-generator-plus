@@ -388,7 +388,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
+    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the provider, then the variable")
     fun schemeWrapperPrecedence() =
         runBlocking {
             val provider: suspend () -> String = { "from-provider" }
@@ -396,14 +396,11 @@ class BearerAuthenticatorTest {
             val explicit =
                 withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit") }
             assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
-            val fromEnv =
+            val fromProvider =
                 withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+            assertEquals("Bearer from-provider", fromProvider.getAuthHeaders()["Authorization"])
+            val fromEnv = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
             assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
-            val empty =
-                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "")) {
-                    PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider)
-                }
-            assertEquals("Bearer from-provider", empty.getAuthHeaders()["Authorization"])
         }
 
     @Test
