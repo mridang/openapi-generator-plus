@@ -335,7 +335,7 @@ fn test_bhv_config_010_configuration_builder_sets_all_fields() {
 /// A hook set on the builder is read back, and the debug form names no hook
 /// internals.
 #[test]
-fn test_bhv_hooks_020_configuration_carries_the_call_hook_and_does_not_print_it() {
+fn test_configuration_carries_the_call_hook_and_does_not_print_it() {
     use std::sync::Arc;
 
     struct SecretHook;

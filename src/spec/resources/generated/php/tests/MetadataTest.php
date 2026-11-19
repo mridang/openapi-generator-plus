@@ -27,13 +27,23 @@ test('bhv models 013 additional properties start as an empty map, never null', f
     expect($metadata->additionalProperties)->toHaveCount(0);
 });
 
-test('bhv models 026 undeclared wire keys land in the map and are written back flat', function (): void {
+test('bhv models 026 undeclared wire keys land in the map and are written back flat, and an additional property decodes to its model', function (): void {
     $json = '{"customField":"hello"}';
     /** @var Metadata $metadata */
     $metadata = ObjectSerializer::deserialize($json, Metadata::class);
 
     expect($metadata->additionalProperties->toArray())->toBe(['customField' => 'hello']);
     expect(ObjectSerializer::serialize($metadata))->toBe($json);
+
+    /** @var \PetstoreClient\Models\Roster $roster */
+    $roster = ObjectSerializer::deserialize('{"label":"l","a":{"id":1,"name":"x"}}', \PetstoreClient\Models\Roster::class);
+    $category = $roster->additionalProperties->get('a');
+
+    expect($category)->toBeInstanceOf(\PetstoreClient\Models\Category::class);
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('x');
+    expect(fn () => ObjectSerializer::deserialize('{"a":{"id":"x"}}', \PetstoreClient\Models\Roster::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 test('bhv models 001 a metadata without undeclared keys keeps an empty map after deserializing', function (): void {
@@ -89,18 +99,6 @@ test('bhv models 025 an additional property of the wrong JSON type fails the dec
             ->toThrow(\PetstoreClient\Errors\SerializationException::class);
     }
     expect(fn () => ObjectSerializer::deserialize('{"a":3}', Metadata::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
-});
-
-test('bhv models 026 an additional property whose value type is a model decodes to that model', function (): void {
-    /** @var \PetstoreClient\Models\Roster $roster */
-    $roster = ObjectSerializer::deserialize('{"label":"l","a":{"id":1,"name":"x"}}', \PetstoreClient\Models\Roster::class);
-    $category = $roster->additionalProperties->get('a');
-
-    expect($category)->toBeInstanceOf(\PetstoreClient\Models\Category::class);
-    expect($category->id)->toBe(1);
-    expect($category->name)->toBe('x');
-    expect(fn () => ObjectSerializer::deserialize('{"a":{"id":"x"}}', \PetstoreClient\Models\Roster::class))
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
