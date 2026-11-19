@@ -52,7 +52,7 @@ fn init_containers() -> &'static TestContainers {
 }
 
 /// Returns the message a thread panicked with.
-fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
+pub fn panic_message(payload: &(dyn std::any::Any + Send)) -> String {
     payload
         .downcast_ref::<String>()
         .cloned()
@@ -122,7 +122,7 @@ impl Drop for LockGuard<'_> {
     }
 }
 
-fn with_lock_file<T>(lock_path: &std::path::Path, body: impl FnOnce() -> T) -> T {
+pub fn with_lock_file<T>(lock_path: &std::path::Path, body: impl FnOnce() -> T) -> T {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(300);
     loop {
         match std::fs::OpenOptions::new()
@@ -350,49 +350,4 @@ pub fn chasm_internal_https_url() -> &'static str {
 
 pub fn ca_cert_path() -> &'static str {
     &init_containers().ca_cert_path
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn lock_path_for(name: &str) -> PathBuf {
-        std::env::temp_dir().join(format!("openapi-generator-{}-{}.lock", name, std::process::id()))
-    }
-
-    #[test]
-    fn test_bhv_langrust_052_creation_lock_is_released_when_the_guarded_body_panics() {
-        let path = lock_path_for("panic");
-        let _ = std::fs::remove_file(&path);
-
-        let outcome = std::panic::catch_unwind(|| {
-            with_lock_file(&path, || panic!("docker is not reachable"))
-        });
-
-        assert!(outcome.is_err(), "the panic must propagate to the caller");
-        assert!(!path.exists(), "a panicking body must not leave the lock file behind");
-    }
-
-    #[test]
-    fn test_bhv_langrust_053_creation_lock_is_released_when_the_guarded_body_returns() {
-        let path = lock_path_for("return");
-        let _ = std::fs::remove_file(&path);
-
-        let value = with_lock_file(&path, || {
-            assert!(path.exists(), "the lock file must exist while the body runs");
-            7
-        });
-
-        assert_eq!(7, value);
-        assert!(!path.exists(), "the lock file must be removed after the body returns");
-    }
-
-    #[test]
-    fn test_bhv_langrust_054_panic_message_reports_str_and_string_payloads() {
-        let from_str = std::panic::catch_unwind(|| panic!("static reason")).unwrap_err();
-        assert_eq!("static reason", panic_message(from_str.as_ref()));
-
-        let from_string = std::panic::catch_unwind(|| panic!("{} reason", "formatted")).unwrap_err();
-        assert_eq!("formatted reason", panic_message(from_string.as_ref()));
-    }
 }
