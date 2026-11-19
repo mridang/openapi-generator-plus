@@ -1095,6 +1095,98 @@ void main() {
       }
     });
 
+    test('bhv misc 176 a required cookie parameter is sent in the Cookie header with its value', () async {
+      String? cookie;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        cookie = request.headers.value('cookie');
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('done')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetSummary(
+          7,
+          DateTime.utc(2024, 1, 5),
+          GetPetSummaryOptions(session: 'xyz'),
+        );
+
+        expect(cookie, equals('session=xyz'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 162 a date-only parameter is sent as a bare date in the path and in the query', () async {
+      String? target;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        target = request.uri.toString();
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.text
+          ..write('done')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetSummary(
+          1,
+          DateTime.utc(2024, 1, 15, 13, 45, 30),
+          GetPetSummaryOptions(
+            session: 'abc',
+            days: [DateTime.utc(2024, 1, 15, 10, 30)],
+          ),
+        );
+
+        expect(target, contains('/pet/1/summary/'));
+        expect(target, contains('2024-01-15'));
+        expect(target, isNot(contains('13')));
+        expect(target, contains('days=2024-01-15'));
+      } finally {
+        await server.close();
+      }
+    });
+
+    test('bhv operations 165 a path parameter is written using the serialization style the operation declares', () async {
+      String? path;
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        path = request.uri.path;
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+          ..close();
+      });
+
+      try {
+        final config = ConfigurationBuilder()
+            .baseUrl('http://localhost:${server.port}')
+            .build();
+        final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+        await api.getPetTag(5, 'cute', null);
+
+        expect(path, equals('/pet/;petId=5/tag/.cute'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv misc 008 a supplied required cookie is sent in the cookie header', () async {
       String? cookie;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

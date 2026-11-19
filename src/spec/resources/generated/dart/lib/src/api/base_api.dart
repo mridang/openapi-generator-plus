@@ -236,6 +236,10 @@ class BaseApi {
     /* Only the first attempt rides on that admission. A retry or a replay is
      * a new send, so it is refused once the client has been closed. */
     var first = true;
+    final client = apiClient;
+    final budgetMs =
+        timeout ?? (client is RetryingApiClient ? client.timeoutMillis : null);
+    final clock = Stopwatch()..start();
     /* One attempt: everything that depends on the credentials (query
      * parameters, headers, cookies) is built afresh, so a replay or a retry
      * is a new request that carries current authentication, never a copy of
@@ -334,6 +338,13 @@ class BaseApi {
         headers.removeWhere((name, _) => name.toLowerCase() == 'content-type');
       }
 
+      /* A deadline that passed while the credentials were being obtained is a
+       * timeout, and the request never reaches the transport. */
+      if (budgetMs != null && clock.elapsedMilliseconds >= budgetMs) {
+        throw NetworkTimeoutException(
+          message: 'Request timed out after $budgetMs ms',
+        );
+      }
       final send = first && admitting != null
           ? admitting.sendAdmittedRequest
           : apiClient.sendRequest;
@@ -346,14 +357,10 @@ class BaseApi {
       );
     }
 
-    final client = apiClient;
     final maxRetriesLeft =
         maxRetries ?? (client is RetryingApiClient ? client.maxRetries : 0);
-    final budgetMs =
-        timeout ?? (client is RetryingApiClient ? client.timeoutMillis : null);
     /* A multipart body is never sent twice. */
     final replayable = contentType != 'multipart/form-data';
-    final clock = Stopwatch()..start();
     var retries = 0;
     var reauthenticated = false;
     final Object? credential = effectiveAuth;
@@ -753,6 +760,17 @@ class BaseApi {
         } else if (returnType == 'String' &&
             _isTextContentType(responseContentType)) {
           data = response.body as T?;
+        } else if (returnType == 'String') {
+          /* A string result under a binary content type: the transport carries
+           * the bytes as base64 text, which is an internal carrier and never
+           * reaches the caller; return the decoded bytes as text. */
+          try {
+            data =
+                utf8.decode(base64Decode(response.body), allowMalformed: true)
+                    as T?;
+          } on FormatException {
+            data = response.body as T?;
+          }
         } else if (responseContentType.isEmpty ||
             _headerSelector.isJsonMime(responseContentType)) {
           /* A JSON body with no deserializer supplied leaves data null;

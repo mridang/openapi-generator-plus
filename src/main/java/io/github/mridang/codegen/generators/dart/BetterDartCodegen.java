@@ -583,6 +583,11 @@ public class BetterDartCodegen extends AbstractBetterCodegen implements BarrelFi
                             "client_test.dart"));
             supportingFiles.add(
                     new SupportingFile(
+                            "test/readme_test.mustache",
+                            "test",
+                            "readme_test.dart"));
+            supportingFiles.add(
+                    new SupportingFile(
                             "test/api_error_test.mustache",
                             "test",
                             "api_error_test.dart"));

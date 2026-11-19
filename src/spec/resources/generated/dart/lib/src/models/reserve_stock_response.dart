@@ -50,11 +50,17 @@ class ReserveStockResponse {
     return v is ReservationReceipt ? v : null;
   }
 
-  /// Converts this union type to a JSON value.
+  /// Converts this union type to a JSON value. A held value that is not one
+  /// of the variants fails with a [SerializationException] naming the union.
   Object? toJson() {
     final v = _value;
     if (v == null) return null;
     if (v is Map) return v;
+    if (!(v is Reservation || v is ReservationReceipt || false)) {
+      throw SerializationException(
+        'Cannot serialize ReserveStockResponse: ${v.runtimeType} is not a variant of ReserveStockResponse',
+      );
+    }
     try {
       return (v as dynamic).toJson();
     } catch (_) {
