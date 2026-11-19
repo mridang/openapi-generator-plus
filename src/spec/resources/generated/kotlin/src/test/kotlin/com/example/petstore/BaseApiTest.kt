@@ -482,7 +482,23 @@ class BaseApiTest {
     @DisplayName("bhvMisc177 a default Content-Type header given in any letter case is not sent when the request has no body")
     fun bhvMisc177DefaultContentTypeInAnyCaseIsNotSentWithoutABody() =
         runBlocking<Unit> {
-            val client = CapturingApiClient()
+            var sent: io.ktor.http.Headers? = null
+            val engine =
+                MockEngine { request ->
+                    sent = request.headers
+                    respond("{}", HttpStatusCode.OK, headersOf("Content-Type", "application/json"))
+                }
+            val wire = DefaultApiClient(HttpClient(engine) { followRedirects = false }, TransportOptions.builder().build())
+            val client =
+                object : CapturingApiClient() {
+                    override suspend fun sendRequest(
+                        method: String,
+                        url: String,
+                        headers: Map<String, String>,
+                        body: Any?,
+                        noRedirect: Boolean,
+                    ): ApiHttpResponse = wire.sendRequest(method, url, headers, body, noRedirect)
+                }
             val config =
                 Configuration
                     .builder()
@@ -490,7 +506,7 @@ class BaseApiTest {
                     .defaultHeader("content-type", "application/json")
                     .build()
             TestableApiWithConfig(client, config).call("GET", "/test/echo")
-            assertFalse(client.capturedHeaders.keys.any { it.equals("Content-Type", ignoreCase = true) })
+            assertFalse(sent!!.contains("Content-Type"))
         }
 
     @Test
@@ -993,7 +1009,7 @@ class BaseApiTest {
                 DefaultApiClient(
                     TransportOptions
                         .builder()
-                        .httpClient(HttpClient(engine))
+                        .httpClient(HttpClient(engine) { followRedirects = false })
                         .timeout(null)
                         .maxRetries(1)
                         .build(),
@@ -2025,6 +2041,21 @@ class BaseApiTest {
             }
             assertNotNull(client.capturedBody)
             assertEquals("hello world", client.capturedBody.toString())
+        }
+
+        @Test
+        @DisplayName("bhvSerialization122A form body repeats the key for each array element in order")
+        fun formBodyRepeatsTheKeyForEachArrayElementInOrder() {
+            val client = CapturingApiClient()
+            runBlocking {
+                TestableApiWithClient(client, "http://localhost").call(
+                    "POST",
+                    "/test/echo",
+                    body = linkedMapOf<String, Any?>("tags" to listOf("a", "b")),
+                    contentType = "application/x-www-form-urlencoded",
+                )
+            }
+            assertEquals("tags=a&tags=b", client.capturedBody)
         }
 
         @Test

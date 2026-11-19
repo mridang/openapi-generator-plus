@@ -41,8 +41,10 @@ open class BearerAuthenticator internal constructor(
     ) : this(host, token, tokenProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
 
     private val token: String? =
-        token ?: CredentialEnvironment.read(environmentVariable) ?: if (tokenProvider != null) {
+        token?.takeIf { it.isNotEmpty() } ?: CredentialEnvironment.read(environmentVariable) ?: if (tokenProvider != null) {
             null
+        } else if (token != null) {
+            throw IllegalArgumentException("Bearer token must not be empty")
         } else {
             throw IllegalArgumentException(
                 "A bearer token is required: pass one, pass a tokenProvider or set $environmentVariable",

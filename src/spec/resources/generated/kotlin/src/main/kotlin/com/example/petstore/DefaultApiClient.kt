@@ -326,6 +326,11 @@ class DefaultApiClient internal constructor(
         if (proxyAuthHeader != null) {
             mergedHeaders["Proxy-Authorization"] = proxyAuthHeader
         }
+        for ((key, value) in mergedHeaders) {
+            if (value.any { it == '\r' || it == '\n' || it == '\u0000' }) {
+                throw IllegalArgumentException("Header '$key' contains a line break or NUL byte; the value is not shown")
+            }
+        }
 
         // Each hop is sent with what is left of the end-to-end budget, and a hop
         // is never started once the budget is spent.
@@ -398,9 +403,10 @@ class DefaultApiClient internal constructor(
 
                 val redirectHeaders = currentHeaders.toMutableMap()
                 if (!sameOrigin) {
+                    val defaultNames = transportOptions.defaultHeaders.keys
                     val keysToRemove =
                         redirectHeaders.keys
-                            .filter { isSensitiveHeader(it) }
+                            .filter { name -> isSensitiveHeader(name) || defaultNames.any { it.equals(name, ignoreCase = true) } }
                     keysToRemove.forEach { redirectHeaders.remove(it) }
                     // The SDK's own proxy credentials authenticate to the proxy,
                     // which is the same for every hop, so they are re-applied
@@ -618,7 +624,7 @@ class DefaultApiClient internal constructor(
                         else -> appendFormField(parts, fieldName, value)
                     }
                 }
-                builder.setBody(parts.build())
+                builder.setBody(parts.build(declaredMultipartType(mergedHeaders["Content-Type"])))
             }
             body is ByteArray -> {
                 // A type:string format:binary request body (e.g. an upload
@@ -855,13 +861,27 @@ internal class MultipartWriter {
         out.write("\r\n".toByteArray(Charsets.UTF_8))
     }
 
-    /** Closes the body and returns it as request content. */
-    fun build(): io.ktor.http.content.OutgoingContent {
+    /** Closes the body and returns it as request content with the given multipart type. */
+    fun build(type: ContentType): io.ktor.http.content.OutgoingContent {
         out.write("--$boundary--\r\n".toByteArray(Charsets.UTF_8))
         return io.ktor.http.content.ByteArrayContent(
             out.toByteArray(),
-            ContentType.MultiPart.FormData.withParameter("boundary", boundary),
+            type.withParameter("boundary", boundary),
         )
+    }
+}
+
+/**
+ * The multipart type a form body is sent as: the caller's declared multipart type when it is a
+ * safe header value, otherwise `multipart/form-data`.
+ */
+internal fun declaredMultipartType(declared: String?): ContentType {
+    val safe = declared != null && declared.none { it == '"' || it == '\r' || it == '\n' || it == '\u0000' }
+    val parsed = if (safe) runCatching { ContentType.parse(declared!!) }.getOrNull() else null
+    return if (parsed != null && parsed.contentType.equals("multipart", ignoreCase = true)) {
+        ContentType(parsed.contentType, parsed.contentSubtype)
+    } else {
+        ContentType.MultiPart.FormData
     }
 }
 

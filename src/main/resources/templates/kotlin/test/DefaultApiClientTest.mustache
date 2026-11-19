@@ -318,7 +318,8 @@ class DefaultApiClientTest {
 
         @Test
         fun bhvMisc272AuthenticatingProxyAcceptsEmbeddedCredentialsEndToEnd() = runBlocking<Unit> {
-            val client = DefaultApiClient(TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build())
+            val proxy = "http://user:pass@" + SquidContainer.getAuthProxyUrl().removePrefix("http://")
+            val client = DefaultApiClient(TransportOptions.builder().proxy(proxy).build())
             val response = client.sendRequest("GET", "${ChasmContainer.getInternalHttpUrl()}/test/echo", emptyMap(), null)
             assertEquals(200, response.statusCode)
         }

@@ -300,7 +300,7 @@ class OpenIdConnectAuthenticatorTest {
         auth.setApiClient(client)
 
         runBlocking { auth.buildAuthorizationUrl() }
-        assertThrows(ApiException::class.java) {
+        assertThrows(com.example.petstore.errors.OAuth2ServerException::class.java) {
             runBlocking { auth.exchangeCode("my-auth-code") }
         }
         assertEquals(1, client.getCount)
