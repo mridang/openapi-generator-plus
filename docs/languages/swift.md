@@ -90,6 +90,7 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 ## Known limits
 
 - On Linux there is no proxy support and no CA pinning. Both throw a `ConfigurationError`. SOCKS proxies are rejected on every platform.
+- The redirect rules are the SDK's on every platform. On Linux, `URLSession` sends no body on a redirect it follows, so a 307 or 308 that keeps its method and has a body is sent again by the SDK itself.
 - `format: date` and `format: time` are plain strings, so they are not validated.
 - `int32` fields are `Int`, so a value above the 32-bit range is accepted.
 - `format: decimal` and `number` are `Double` and lose exactness.

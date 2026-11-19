@@ -7,13 +7,12 @@
 
 /* DefaultApiClientStubTests drives the client through a stub URLProtocol on
    every platform. DefaultApiClientAppleStubTests holds the tests that need a
-   stubbed redirect, a proxy, or a TLS trust option: swift-corelibs-foundation
-   traps on the first ("The URLSession swift-corelibs-foundation implementation
-   doesn't currently handle redirects directly"), has no connectionProxyDictionary
-   for the second and never surfaces a server-trust challenge for the third, and
-   URLSession there decodes only gzip and deflate, so those run on the Apple
-   platforms. DefaultApiClientTests at the end of this file sends real requests
-   to the shared mock server like the other eleven SDKs. */
+   proxy or a TLS trust option: swift-corelibs-foundation has no
+   connectionProxyDictionary for the first and never surfaces a server-trust
+   challenge for the second, so those run on the Apple platforms.
+   DefaultApiClientTests sends real requests to the shared mock server like
+   the other eleven SDKs, and DefaultApiClientRedirectTests puts every redirect
+   rule to real sockets on every platform. */
 import Foundation
 import Testing
 
@@ -731,28 +730,6 @@ import Testing
       ("http://user:pass@127.0.0.1:3128", "user", "pass"),
       ("http://us%40er:p%3Ass@127.0.0.1:3128", "us@er", "p:ss"),
     ])
-    func testBhvTransport020ProxyCredentialsGoToTheProxyOnly(
-      proxy: String, user: String, password: String
-    ) async throws {
-      let transport = try TransportOptionsBuilder().proxy(proxy).build()
-      var capturedRequest: URLRequest?
-      let client = makeClient(transport: transport) { req in
-        capturedRequest = req
-        return (self.jsonBody(), 200, [:])
-      }
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com", headers: [:], body: nil)
-      #expect(capturedRequest?.value(forHTTPHeaderField: "Proxy-Authorization") == nil)
-      #expect(client.proxyCredential?.user == user)
-      #expect(client.proxyCredential?.password == password)
-    }
-
-    @Test func testBhvTransport009ProxyWithoutUserinfoHasNoCredential() throws {
-      let transport = try TransportOptionsBuilder().proxy("http://127.0.0.1:3128").build()
-      let client = makeClient(transport: transport) { _ in (self.jsonBody(), 200, [:]) }
-      #expect(client.proxyCredential == nil)
-    }
-
     @Test func testBhvTransport016MakesHttpsRequestThroughProxyWithVerifySslFalse() async throws {
       let transport = try TransportOptionsBuilder()
         .proxy("http://proxy.example.com:8080")
@@ -766,799 +743,6 @@ import Testing
       #expect(resp.statusCode == 200)
     }
 
-    // Gap T3: 303 forces follow-up to GET and drops body per RFC 7231 §6.4.4.
-    // URLSession itself rewrites the method on 303; this test pins that
-    // behaviour from the perspective of DefaultApiClient.
-    @Test func testBhvRedirects005Redirect303SwitchesToGetAndDropsBody() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      var capturedFollowupMethod: String?
-      var capturedFollowupBody: Data?
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (
-            Data(),
-            303,
-            ["Location": "https://example.com/api/echo-method-body"]
-          )
-        }
-        capturedFollowupMethod = req.httpMethod
-        capturedFollowupBody = req.httpBody
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      let resp = try await client.sendRequest(
-        method: "POST",
-        url: "https://example.com/api/redirect-303",
-        headers: ["Content-Type": "application/json"],
-        body: "hello-body"
-      )
-      #expect(resp.statusCode == 200)
-      #expect(capturedFollowupMethod == "GET")
-      #expect(capturedFollowupBody == nil || capturedFollowupBody?.isEmpty == true)
-    }
-
-    // T-new-3: multipart bodies must be replayed across 307 redirects per
-    // RFC 7231 §6.4.7 / RFC 7538. Regression test: ensure the follow-up
-    // request after a 307 still carries the multipart form parts.
-    @Test func testBhvRetries012MultipartBodyReplayedOn307Redirect() async throws {
-      let transport = try TransportOptionsBuilder()
-        .followRedirects(true)
-        .maxRedirects(5)
-        .build()
-      let hopCount = HopCounter()
-      var capturedFollowupMethod: String?
-      var capturedFollowupBody: String?
-      var capturedFollowupContentType: String?
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (
-            Data(),
-            307,
-            ["Location": "https://example.com/api/echo-method-body"]
-          )
-        }
-        capturedFollowupMethod = req.httpMethod
-        capturedFollowupContentType = req.value(forHTTPHeaderField: "Content-Type")
-        if let body = req.httpBody {
-          capturedFollowupBody = String(data: body, encoding: .utf8)
-        }
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      let formFields: [String: Any] = [
-        "description": "hello",
-        "file": Data("file-content-bytes".utf8),
-      ]
-      _ = try await client.sendRequest(
-        method: "POST",
-        url: "https://example.com/api/redirect-307",
-        headers: [:],
-        body: formFields
-      )
-      #expect(capturedFollowupMethod == "POST")
-      #expect(capturedFollowupContentType?.hasPrefix("multipart/form-data") ?? false)
-      let echoed = capturedFollowupBody ?? ""
-      #expect(echoed.contains("Content-Disposition: form-data; name=\"description\""))
-      #expect(echoed.contains("Content-Disposition: form-data; name=\"file\""))
-      #expect(echoed.contains("file-content-bytes"))
-    }
-
-    @Test func testBhvTransport004DecompressesBrotliResponse() async throws {
-      let client = makeClient { _ in
-        return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-      }
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com",
-        headers: ["Accept-Encoding": "br"], body: nil)
-      #expect(resp.statusCode == 200)
-      #expect(resp.body.contains("userId"))
-    }
-
-    @Test func testBhvTransport006DecompressesZstdResponse() async throws {
-      let client = makeClient { _ in
-        return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-      }
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com",
-        headers: ["Accept-Encoding": "zstd"], body: nil)
-      #expect(resp.statusCode == 200)
-      #expect(resp.body.contains("userId"))
-    }
-
-    // MARK: - Credential stripping across redirects
-
-    private static let credentialHeaders = [
-      "Authorization": "Bearer secret-token",
-      "Cookie": "session=secret",
-      "Proxy-Authorization": "Basic c2VjcmV0",
-      "X-API-Key": "secret-key",
-      "X-Internal-Key": "secret-internal",
-    ]
-
-    /* Sends a request carrying every credential header and returns the
-     * headers of the request that arrived on the second hop. */
-    private func headersOnSecondHop(redirectingTo location: String) async throws -> [String: String]
-    {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      let hops = HopCounter()
-      var followUp: [String: String]?
-      let client = makeClient(transport: transport) { req in
-        if hops.increment() == 1 {
-          return (Data(), 302, ["Location": location])
-        }
-        followUp = req.allHTTPHeaderFields ?? [:]
-        return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-      }
-      var headers = DefaultApiClientStubTests.credentialHeaders
-      headers["X-Custom"] = "kept"
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: headers, body: nil)
-      #expect(resp.statusCode == 200)
-      return try #require(followUp)
-    }
-
-    /* A 302 to another origin must not carry any credential header to the new
-     * host, while ordinary headers still travel with the request. */
-    @Test func testBhvRedirects012CrossOriginRedirectStripsSensitiveHeaders() async throws {
-      let followUp = try await headersOnSecondHop(
-        redirectingTo: "https://other.example.org/landing")
-      for name in DefaultApiClientStubTests.credentialHeaders.keys {
-        #expect(
-          !followUp.keys.contains { $0.caseInsensitiveCompare(name) == .orderedSame },
-          "\(name) must not reach a different origin")
-      }
-      #expect(followUp["X-Custom"] == "kept")
-    }
-
-    /* A different port is a different origin, even on the same host. */
-    @Test func testBhvRedirects033RedirectToDifferentPortDropsCredentialHeaders() async throws {
-      let followUp = try await headersOnSecondHop(redirectingTo: "https://example.com:8443/landing")
-      #expect(followUp["X-API-Key"] == nil)
-      #expect(followUp["Cookie"] == nil)
-    }
-
-    /* The same origin keeps its credentials, whether the Location is relative
-     * or spells out the scheme's default port. */
-    @Test(arguments: ["/landing", "https://example.com/landing", "https://example.com:443/landing"])
-    func testBhvRedirects013SameOriginRedirectKeepsAuthorizationAndCookie(location: String)
-      async throws
-    {
-      let followUp = try await headersOnSecondHop(redirectingTo: location)
-      for (name, value) in DefaultApiClientStubTests.credentialHeaders {
-        #expect(
-          followUp[name] == value, "\(name) must survive a same-origin redirect to \(location)")
-      }
-    }
-
-    /* A 3xx whose Location is absent or cannot be parsed is the response, not
-     * an exception: there is nowhere to follow it to. */
-    @Test(arguments: [nil, "http://[bad"] as [String?])
-    func testBhvRedirects010RedirectWithAbsentOrUnparseableLocationIsReturnedAsThe302(
-      location: String?
-    ) async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      let client = makeClient(transport: transport) { _ in
-        (Data(), 302, location.map { ["Location": $0] } ?? [:])
-      }
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      #expect(resp.statusCode == 302)
-    }
-
-    /* The spec-declared API key header is dropped on a cross-origin hop, the same as Authorization. */
-    @Test func testBhvRedirects011ApiKeyHeaderIsStrippedOnACrossOriginRedirect() async throws {
-      let followUp = try await headersOnSecondHop(
-        redirectingTo: "https://other.example.org/landing")
-      #expect(followUp["X-API-Key"] == nil, "the API key header must not reach a different origin")
-    }
-
-    /* A default header that carries a credential is kept on a same-origin redirect. */
-    @Test func testBhvRedirects024SameOriginRedirectKeepsSensitiveDefaultHeaders() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true)
-        .defaultHeader(name: "X-Tenant-Token", value: "tenant-secret").build()
-      let hops = HopCounter()
-      var followUp: [String: String]?
-      let client = makeClient(transport: transport) { req in
-        if hops.increment() == 1 {
-          return (Data(), 302, ["Location": "/landing"])
-        }
-        followUp = req.allHTTPHeaderFields ?? [:]
-        return (self.jsonBody(), 200, ["Content-Type": "application/json"])
-      }
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      #expect(followUp?["X-Tenant-Token"] == "tenant-secret")
-    }
-
-    /* A final 3xx without a Location, reached when the redirect budget is used up, is returned. */
-    @Test func testBhvRedirects023ReturnsTheLastRedirectWithoutLocationWhenTheBudgetIsUsedUp()
-      async throws
-    {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(1).build()
-      let hops = HopCounter()
-      let client = makeClient(transport: transport) { _ in
-        if hops.increment() == 1 {
-          return (Data(), 302, ["Location": "/landing"])
-        }
-        return (Data(), 302, [:])
-      }
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      #expect(resp.statusCode == 302)
-    }
-
-    // MARK: - HTTPS -> HTTP body replay guard (Gap 3.3)
-
-    // MARK: - 303 Content-Length drop (Gap 3.4)
-
-    /// On 303, URLSession coerces the method to GET and clears
-    /// the body. The follow-up MUST NOT carry a stale
-    /// `Content-Length: N` from the original POST -- some servers
-    /// (NGINX, AWS ALB) either 411 or hang waiting for bytes that
-    /// will never come. `testRedirect303SwitchesToGetAndDropsBody`
-    /// covers method + body; this asserts the header itself is
-    /// either absent or zero on the follow-up.
-    // MARK: - Redirect refusals surface a typed ApiError (Gap T-D1/T-D2/T-D3)
-
-    // redirect-exhaustion-silent: exceeding maxRedirects must throw a typed
-    // ApiError ("too many redirects") rather than silently returning the last
-    // 3xx response.
-    @Test func testBhvRedirects018RaisesApiErrorWhenTheRedirectBudgetIsExhausted() async throws {
-      let transport = try TransportOptionsBuilder()
-        .followRedirects(true)
-        .maxRedirects(2)
-        .build()
-      RedirectStubURLProtocol.configure { req in
-        // Always redirect to a new location -> exhausts the cap.
-        let next =
-          req.url!.absoluteString.hasSuffix("/end")
-          ? "https://example.com/loop"
-          : "https://example.com/loop"
-        return .redirect(status: 302, location: next)
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-      let error = await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      }
-      #expect(error?.responseHeaders?["location"] != nil)
-      #expect(error?.message == DefaultApiClient.tooManyRedirectsMessage(limit: 2))
-    }
-
-    // redirect-scheme-refusal-silent: a Location pointing at a non-HTTP(S)
-    // scheme (file:, javascript:, data:) must throw a typed ApiError rather
-    // than silently returning the 3xx.
-    @Test func testBhvRedirects020RedirectToNonHttpSchemeThrowsApiError() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      RedirectStubURLProtocol.configure { _ in
-        return .redirect(status: 302, location: "file:///etc/passwd")
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-      let error = await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      }
-      #expect(error?.responseHeaders?["location"] != nil)
-      #expect(error?.message == DefaultApiClient.nonHttpRedirectMessage(next: "file:///etc/passwd"))
-    }
-
-    // downgrade-body-replay-silent: an HTTPS->HTTP redirect with a body in
-    // flight must throw a typed ApiError (TLS downgrade refusal) rather than
-    // silently returning the 3xx.
-    @Test func testBhvRetries011HttpsToHttpBodyReplayThrowsApiError() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      RedirectStubURLProtocol.configure { _ in
-        // 307 preserves method + body, so the POST body would be replayed.
-        return .redirect(status: 307, location: "http://example.com/downgrade")
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-      await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "POST", url: "https://example.com/start",
-          headers: ["Content-Type": "application/json"],
-          body: Data("payload".utf8))
-      }
-    }
-
-    // MARK: - HTTPS->HTTP redirect: 302 proceeds, 307/308 throw (Gap N1)
-
-    // redirect-302-https-to-http-proceeds (Gap N1): a 302 HTTPS->HTTP redirect
-    // carrying a request body MUST proceed — RFC 7231 §6.4.3 permits clients to
-    // change the method to GET and the body is dropped, so there is no cleartext
-    // body replay to refuse. The follow-up GET reaches the http target and a 200
-    // is surfaced. (Node wrongly guarded EVERY status and threw here; the
-    // canonical guards only 307/308.) The RedirectStubURLProtocol coerces
-    // 301/302/303 to a bodyless GET, mirroring URLSession.
-    @Test func testBhvRedirects001Redirect302HttpsToHttpWithBodyProceeds() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      RedirectStubURLProtocol.configure { req in
-        if req.url!.absoluteString.contains("/downgrade-target") {
-          return .ok(Data(#"{"ok":true}"#.utf8))
-        }
-        return .redirect(status: 302, location: "http://example.com/downgrade-target")
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-      let resp = try await client.sendRequest(
-        method: "POST", url: "https://example.com/start",
-        headers: ["Content-Type": "application/json"],
-        body: Data("payload".utf8))
-      #expect(resp.statusCode == 200)
-      #expect(resp.body.contains("ok"))
-    }
-
-    // redirect-308-https-to-http-with-body-throws (Gap N1): a 308 HTTPS->HTTP
-    // redirect preserves method AND body (RFC 7538), so the cleartext replay of
-    // the body across the TLS downgrade MUST be refused with a typed ApiError —
-    // the same as the 307 case. Pins both ends of the canonical: 302 proceeds
-    // (above), 307/308 throw.
-    @Test func testBhvRetries010Redirect308HttpsToHttpWithBodyThrowsApiError() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      RedirectStubURLProtocol.configure { _ in
-        return .redirect(status: 308, location: "http://example.com/downgrade")
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-      await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "POST", url: "https://example.com/start",
-          headers: ["Content-Type": "application/json"],
-          body: Data("payload".utf8))
-      }
-    }
-
-    @Test func testBhvRedirects041Redirect303DropsContentLengthOnFollowUp() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      var capturedContentLength: String?
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 303, ["Location": "https://example.com/api/echo-method-body"])
-        }
-        capturedContentLength = req.value(forHTTPHeaderField: "Content-Length")
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      _ = try await client.sendRequest(
-        method: "POST",
-        url: "https://example.com/api/redirect-303",
-        headers: ["Content-Type": "application/json"],
-        body: "non-empty-body".data(using: .utf8)!
-      )
-      /* Accept either no header or an explicit "0" -- both are
-       * safe; the failure mode is the stale length from the POST. */
-      if let cl = capturedContentLength, !cl.isEmpty {
-        #expect(
-          cl == "0",
-          "303 follow-up must not carry stale Content-Length, got: \(cl)")
-      }
-    }
-
-    // MARK: - Concurrent redirects: per-request scoping (Wave E)
-
-    // concurrent-redirects: redirect counting and the "too many redirects"
-    // refusal MUST be scoped to a single request/task, not shared on the
-    // delegate instance (which backs one URLSession shared by the whole
-    // client). This test fires several requests CONCURRENTLY through ONE shared
-    // client where each follows a DIFFERENT number of redirects:
-    //
-    //   * /loop/*  -> redirects forever, so with maxRedirects(2) it must hit
-    //                 the cap and throw "Exceeded maximum number of redirects".
-    //   * /one     -> redirects exactly once to /one/final, well under the cap,
-    //                 so it must SUCCEED with a 200.
-    //   * /none    -> no redirect at all, must SUCCEED with a 200.
-    //
-    // If redirect state were shared across requests (the bug), the /loop
-    // request's redirects would inflate the counter for /one (failing a request
-    // that legitimately redirects once) and/or the cap-exceeded refusal would
-    // surface on /one or /none. We assert each request gets its OWN correct,
-    // independent outcome. Run many rounds to make any cross-request bleed
-    // overwhelmingly likely to manifest rather than slip through by timing luck.
-    @Test func testBhvRedirects003ConcurrentRedirectsAreScopedPerRequest() async throws {
-      let transport = try TransportOptionsBuilder()
-        .followRedirects(true)
-        .maxRedirects(2)
-        .build()
-      RedirectStubURLProtocol.configure { req in
-        let path = req.url?.path ?? ""
-        if path.hasPrefix("/loop") {
-          /* Always redirect onward -> exhausts the cap of 2. */
-          return .redirect(status: 302, location: "https://example.com/loop/next")
-        }
-        if path == "/one" {
-          /* Exactly one redirect, comfortably under the cap. */
-          return .redirect(status: 302, location: "https://example.com/one/final")
-        }
-        /* /one/final and /none both terminate with a 200. */
-        return .ok(Data(#"{"ok":true}"#.utf8))
-      }
-      /* ONE client (one URLSession, one SessionDelegate) shared by every
-         concurrent request below. */
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-
-      for _ in 0..<25 {
-        async let loopResult: Void = {
-          /* The over-limit request MUST throw its own refusal and MUST
-             NOT be saved by a sibling, nor poison a sibling. */
-          await #expect(throws: ApiError.self) {
-            _ = try await client.sendRequest(
-              method: "GET", url: "https://example.com/loop/start",
-              headers: [:], body: nil)
-          }
-        }()
-        async let oneResult: ApiHttpResponse = client.sendRequest(
-          method: "GET", url: "https://example.com/one", headers: [:], body: nil)
-        async let noneResult: ApiHttpResponse = client.sendRequest(
-          method: "GET", url: "https://example.com/none", headers: [:], body: nil)
-
-        _ = await loopResult
-        let one = try await oneResult
-        let none = try await noneResult
-
-        /* A request that redirects ONCE must succeed -- it must not be
-           failed by the concurrent /loop request's redirects, and the
-           "too many redirects" refusal must not surface on it. */
-        #expect(
-          one.statusCode == 200,
-          "single-redirect request must not fail because of a concurrent over-limit one")
-        #expect(one.body.contains("ok"))
-        /* A request with no redirects must likewise be unaffected. */
-        #expect(
-          none.statusCode == 200,
-          "no-redirect request must not fail because of a concurrent over-limit one")
-        #expect(none.body.contains("ok"))
-      }
-    }
-
-    /* A redirect through a caller-supplied session is checked by the SDK's
-       own rules: a Location that is not http(s) is refused with the canonical
-       message, as it is on a session the SDK builds itself. */
-    @Test func testBhvRedirects055SuppliedSessionRefusesANonHttpRedirect() async throws {
-      RedirectStubURLProtocol.configure { _ in
-        return .redirect(status: 302, location: "file:///etc/passwd")
-      }
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [RedirectStubURLProtocol.self]
-      let transport = try TransportOptionsBuilder().session(URLSession(configuration: config))
-        .build()
-      let client = try DefaultApiClient(transportOptions: transport)
-      let error = await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      }
-      #expect(error?.message == DefaultApiClient.nonHttpRedirectMessage(next: "file:///etc/passwd"))
-    }
-    // MARK: - Behaviour catalogue: redirect methods, bodies and locations
-
-    /* A 307 redirect keeps the method, so the request is replayed as a POST with its Content-Type. */
-    @Test func testBhvRedirects038A307KeepsTheMethodAndContentType() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      var capturedMethod: String?
-      var capturedType: String?
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 307, ["Location": "https://example.com/api/echo-method-body"])
-        }
-        capturedMethod = req.httpMethod
-        capturedType = req.value(forHTTPHeaderField: "Content-Type")
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      let response = try await client.sendRequest(
-        method: "POST", url: "https://example.com/api/redirect-307",
-        headers: ["Content-Type": "application/json"], body: "payload".data(using: .utf8)!)
-      #expect(response.statusCode == 200)
-      #expect(capturedMethod == "POST")
-      #expect(capturedType == "application/json")
-    }
-
-    /* A bodyless request is followed from HTTPS to plain HTTP, because no body is sent in plaintext. */
-    @Test func testBhvRedirects039BodylessRequestIsFollowedToPlainHttp() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      let client = makeClient(transport: transport) { _ in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 307, ["Location": "http://example.com/plain"])
-        }
-        return (Data("{}".utf8), 200, [:])
-      }
-      let response = try await client.sendRequest(
-        method: "POST", url: "https://example.com/start", headers: [:], body: nil)
-      #expect(response.statusCode == 200)
-    }
-
-    /* A 302 from HTTPS to plain HTTP is refused for a POST that carries a body, so the body is never sent in cleartext. */
-    @Test func testBhvRedirects040A302FromHttpsToHttpWithABodyIsRefused() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      let client = makeClient(transport: transport) { _ in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 302, ["Location": "http://example.com/plain"])
-        }
-        return (Data("{}".utf8), 200, [:])
-      }
-      await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "POST", url: "https://example.com/start", headers: [:],
-          body: "payload".data(using: .utf8)!)
-      }
-    }
-
-    /* A 307 redirect of a bodyless POST keeps the request a POST. */
-    @Test func testBhvRedirects042A307OfABodylessPostStaysAPost() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      var capturedMethod: String?
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 307, ["Location": "https://example.com/api/next"])
-        }
-        capturedMethod = req.httpMethod
-        return (Data("{}".utf8), 200, [:])
-      }
-      _ = try await client.sendRequest(
-        method: "POST", url: "https://example.com/api/start", headers: [:], body: nil)
-      #expect(capturedMethod == "POST")
-    }
-
-    /* A relative Location is resolved against the URL of the request that received it, per RFC 3986. */
-    @Test func testBhvRedirects043RelativeLocationIsResolvedAgainstTheRequestUrl() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      var capturedURL: String?
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 302, ["Location": "../other/next"])
-        }
-        capturedURL = req.url?.absoluteString
-        return (Data("{}".utf8), 200, [:])
-      }
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/a/b/start", headers: [:], body: nil)
-      #expect(capturedURL == "https://example.com/a/other/next")
-    }
-
-    /* A cross-origin redirect removes the caller's own authorization header. */
-    @Test func testBhvRedirects044CrossOriginRedirectRemovesTheCallerAuthorization() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
-      let hopCount = HopCounter()
-      var capturedAuthorization: String? = "unset"
-      let client = makeClient(transport: transport) { req in
-        let hop = hopCount.increment()
-        if hop == 1 {
-          return (Data(), 302, ["Location": "https://other.example.org/next"])
-        }
-        capturedAuthorization = req.value(forHTTPHeaderField: "Authorization")
-        return (Data("{}".utf8), 200, [:])
-      }
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start",
-        headers: ["Authorization": "Bearer caller-token"], body: nil)
-      #expect(capturedAuthorization == nil)
-    }
-
-    /* A 303 that turns the follow-up into a GET drops the request body. */
-    @Test func testBhvMisc223ASeeOtherDropsTheBodyWhenTheFollowUpBecomesAGet() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      let hopCount = HopCounter()
-      var followUpMethod: String?
-      var followUpBody: Data?
-      let client = makeClient(transport: transport) { req in
-        if hopCount.increment() == 1 {
-          return (Data(), 303, ["Location": "https://example.com/api/echo-method-body"])
-        }
-        followUpMethod = req.httpMethod
-        followUpBody = req.httpBody
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      _ = try await client.sendRequest(
-        method: "POST", url: "https://example.com/api/redirect-303",
-        headers: ["Content-Type": "application/json"],
-        body: "non-empty-body".data(using: .utf8)!)
-      #expect(followUpMethod == "GET")
-      #expect(followUpBody == nil)
-    }
-
-    /* Transport default headers are not sent on a request that goes to another origin after a redirect. */
-    @Test func testBhvMisc224TransportDefaultHeadersAreNotSentAfterACrossOriginRedirect()
-      async throws
-    {
-      let transport = try TransportOptionsBuilder()
-        .followRedirects(true)
-        .defaultHeader(name: "X-Team", value: "sdk").build()
-      let hopCount = HopCounter()
-      var crossOriginTeam: String? = "unset"
-      let client = makeClient(transport: transport) { req in
-        if hopCount.increment() == 1 {
-          return (Data(), 302, ["Location": "https://other.example.org/landing"])
-        }
-        crossOriginTeam = req.value(forHTTPHeaderField: "X-Team")
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/api/start", headers: [:], body: nil)
-      #expect(crossOriginTeam == nil)
-    }
-
-    /* With redirect following enabled, a 302 response is followed to its target and the final 200 is returned. */
-    @Test func testBhvMisc226AFoundRedirectIsFollowedToItsFinalResponse() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      let hopCount = HopCounter()
-      let client = makeClient(transport: transport) { _ in
-        if hopCount.increment() == 1 {
-          return (Data(), 302, ["Location": "https://example.com/api/target"])
-        }
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      let response = try await client.sendRequest(
-        method: "GET", url: "https://example.com/api/redirect-302", headers: [:], body: nil)
-      #expect(response.statusCode == 200)
-    }
-
-    /* A network error before any response is received is retried, so a dropped connection produces a second request. */
-    @Test func testBhvMisc227AConnectionDroppedBeforeAnyResponseIsRetried() async throws {
-      let attempts = HopCounter()
-      RedirectStubURLProtocol.configure { _ in
-        if attempts.increment() == 1 {
-          return .dropped
-        }
-        return .ok(Data("{}".utf8))
-      }
-      let client = DefaultApiClient(
-        transportOptions: nil, protocolClasses: [RedirectStubURLProtocol.self])
-      let response = try await client.sendRequest(
-        method: "GET", url: "https://example.com/api/dropped", headers: [:], body: nil)
-      #expect(response.statusCode == 200)
-      #expect(attempts.increment() == 3)
-    }
-
-    /* A redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status, not as a network error. */
-    @Test func testBhvMisc265ANonHttpRedirectSurfacesAsAnApiErrorWithItsStatus() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      RedirectStubURLProtocol.configure { _ in
-        return .redirect(status: 302, location: "file:///etc/passwd")
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport, protocolClasses: [RedirectStubURLProtocol.self])
-      let error = await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "https://example.com/start", headers: [:], body: nil)
-      }
-      #expect(error?.statusCode == 302)
-    }
-
-    /* A network failure raised after the connection drops keeps the underlying transport error as its cause. */
-    @Test func testBhvMisc282ANetworkFailureAfterADroppedConnectionKeepsTheTransportError()
-      async throws
-    {
-      RedirectStubURLProtocol.configure { _ in .dropped }
-      let transport = try TransportOptionsBuilder().maxRetries(0).build()
-      let client = try DefaultApiClient(
-        transportOptions: transport, protocolClasses: [RedirectStubURLProtocol.self])
-      let error = await #expect(throws: NetworkError.self) {
-        _ = try await client.sendRequest(
-          method: "GET", url: "https://example.com/dropped", headers: [:], body: nil)
-      }
-      #expect(error?.underlyingError != nil)
-    }
-
-    /* A request body is resent unchanged when a 307 redirect keeps the same scheme. */
-    @Test func testBhvRetries046A307ResendsTheBodyUnchangedWhenTheSchemeIsKept() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      let hops = HopCounter()
-      var followupBody: String?
-      let client = makeClient(transport: transport) { req in
-        if hops.increment() == 1 {
-          return (Data(), 307, ["Location": "https://example.com/next"])
-        }
-        if let body = req.httpBody {
-          followupBody = String(data: body, encoding: .utf8)
-        }
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      _ = try await client.sendRequest(
-        method: "POST", url: "https://example.com/start",
-        headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
-
-      #expect(followupBody == "payload")
-    }
-
-    /* A request with a body is refused, and fails with status 307, when a redirect downgrades https to http rather than resending the body. */
-    @Test func testBhvRetries051ABodyIsRefusedWithStatus307OnAnHttpsToHttpDowngrade() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      RedirectStubURLProtocol.configure { _ in
-        return .redirect(status: 307, location: "http://example.com/downgrade")
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport,
-        protocolClasses: [RedirectStubURLProtocol.self])
-      do {
-        _ = try await client.sendRequest(
-          method: "POST", url: "https://example.com/start",
-          headers: ["Content-Type": "application/json"],
-          body: Data("payload".utf8))
-        Issue.record("the downgrading redirect with a body was not refused")
-      } catch let error as ApiError {
-        #expect(error.statusCode == 307)
-      }
-    }
-
-    /* A supplied session receives the request, with the SDK's own user agent
-       and timeout applied on top. */
-    @Test func testBhvTransport040InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied()
-      async throws
-    {
-      let seen = LockedRequests()
-      let session = StubURLProtocol.session { req in
-        seen.append(req)
-        return (Data("{}".utf8), 200, [:])
-      }
-      let transport = try TransportOptionsBuilder()
-        .session(session)
-        .userAgent("Custom/1.0")
-        .timeout(4000)
-        .build()
-      let client = try DefaultApiClient(transportOptions: transport)
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/x", headers: [:], body: nil)
-      #expect(resp.statusCode == 200)
-      let requests = seen.all
-      #expect(requests.count == 1)
-      #expect(requests.first?.url?.absoluteString == "https://example.com/x")
-      #expect(requests.first?.value(forHTTPHeaderField: "User-Agent") == "Custom/1.0")
-      #expect(requests.first?.timeoutInterval == 4.0)
-    }
-
-    /* A caller-supplied HTTP client's own default headers are sent on the wire with each request. */
-    @Test func testBhvMisc267ACallerSuppliedClientsDefaultHeadersAreSentOnTheWire() async throws {
-      let config = URLSessionConfiguration.ephemeral
-      config.protocolClasses = [StubURLProtocol.self]
-      config.httpAdditionalHeaders = ["X-Client-Default": "from-session"]
-      var seen: String?
-      StubURLProtocol.handler = { req in
-        seen = req.value(forHTTPHeaderField: "X-Client-Default")
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      let transport = try TransportOptionsBuilder()
-        .session(URLSession(configuration: config)).build()
-      let client = try DefaultApiClient(transportOptions: transport)
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/headers", headers: [:], body: nil)
-      #expect(seen == "from-session")
-    }
-
-    /* A response body that is validly gzip-encoded is decoded before it is returned. */
-    @Test func testBhvTransport088AValidGzipBodyIsDecodedBeforeItIsReturned() async throws {
-      let gzipped = Data([
-        0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0xAB, 0x56, 0xCA, 0xCF,
-        0x56, 0xB2, 0x2A, 0x29, 0x2A, 0x4D, 0xAD, 0x05, 0x00, 0x90, 0x5F, 0xD4, 0xA7, 0x0B,
-        0x00, 0x00, 0x00,
-      ])
-      let client = makeClient { _ in
-        return (gzipped, 200, ["Content-Encoding": "gzip"])
-      }
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com", headers: [:], body: nil)
-
-      #expect(resp.statusCode == 200)
-      #expect(resp.body == #"{"ok":true}"#)
-    }
   }
 #endif
 
@@ -1685,33 +869,6 @@ private final class StubURLProtocol: URLProtocol {
       client?.urlProtocolDidFinishLoading(self)
       return
     }
-    #if !os(Linux)
-      /* A custom protocol must perform redirects itself: hand the follow-up
-         request to the loading system (and so to the SDK's redirect
-         delegate) with the method and body a real HTTP loader would use —
-         307/308 keep both, 303 and a 301/302 after a non-GET switch to a
-         bodyless GET. */
-      if (300..<400).contains(statusCode),
-        let location = headers["Location"],
-        let target = URL(string: location, relativeTo: request.url)?.absoluteURL
-      {
-        var next = URLRequest(url: target)
-        next.allHTTPHeaderFields = request.allHTTPHeaderFields
-        let method = request.httpMethod ?? "GET"
-        if statusCode == 307 || statusCode == 308 {
-          next.httpMethod = method
-          next.httpBody = sent.httpBody
-        } else if statusCode == 303 || !(method == "GET" || method == "HEAD") {
-          next.httpMethod = "GET"
-        } else {
-          next.httpMethod = method
-        }
-        client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocolDidFinishLoading(self)
-        return
-      }
-    #endif
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     client?.urlProtocol(self, didLoad: data)
     client?.urlProtocolDidFinishLoading(self)
@@ -1719,75 +876,6 @@ private final class StubURLProtocol: URLProtocol {
 
   override func stopLoading() {}
 }
-
-#if !os(Linux)
-  /// Stub URLProtocol that can emit HTTP redirects (via
-  /// `urlProtocol(_:wasRedirectedTo:redirectResponse:)`) so that the real
-  /// `SessionDelegate.willPerformHTTPRedirection` runs — the plain
-  /// `StubURLProtocol` above has no delegate attached and so bypasses the
-  /// redirect-refusal path entirely.
-  private final class RedirectStubURLProtocol: URLProtocol {
-    enum Outcome {
-      case redirect(status: Int, location: String)
-      case ok(Data)
-      case dropped
-    }
-
-    nonisolated(unsafe) static var responder: ((URLRequest) -> Outcome)?
-
-    static func configure(_ responder: @escaping (URLRequest) -> Outcome) {
-      self.responder = responder
-    }
-
-    override class func canInit(with request: URLRequest) -> Bool { return true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { return request }
-
-    override func startLoading() {
-      let outcome = RedirectStubURLProtocol.responder?(request) ?? .ok(Data("{}".utf8))
-      switch outcome {
-      case .redirect(let status, let location):
-        let headers = ["Location": location]
-        guard let requestURL = request.url,
-          let response = HTTPURLResponse(
-            url: requestURL, statusCode: status,
-            httpVersion: "HTTP/1.1", headerFields: headers),
-          let redirectURL = URL(string: location)
-        else {
-          client?.urlProtocolDidFinishLoading(self)
-          return
-        }
-        var newRequest = URLRequest(url: redirectURL)
-        newRequest.httpMethod =
-          (status == 301 || status == 302 || status == 303)
-          ? "GET" : request.httpMethod
-        if status == 307 || status == 308 {
-          newRequest.httpBody = request.httpBody
-        }
-        client?.urlProtocol(self, wasRedirectedTo: newRequest, redirectResponse: response)
-        // Also finish so the task does not hang if the redirect is followed.
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocolDidFinishLoading(self)
-      case .dropped:
-        client?.urlProtocol(self, didFailWithError: URLError(.networkConnectionLost))
-      case .ok(let data):
-        guard let requestURL = request.url,
-          let response = HTTPURLResponse(
-            url: requestURL, statusCode: 200,
-            httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"])
-        else {
-          client?.urlProtocolDidFinishLoading(self)
-          return
-        }
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: data)
-        client?.urlProtocolDidFinishLoading(self)
-      }
-    }
-
-    override func stopLoading() {}
-  }
-#endif
 
 /* The transport against the shared mock server, on every platform. The names
    follow the DefaultApiClient tests of the other SDKs. */
@@ -1825,6 +913,72 @@ private final class StubURLProtocol: URLProtocol {
     #expect(error?.statusCode == 0)
     #expect(error?.underlyingError is URLError)
     #expect(error?.responseBody == nil)
+  }
+
+  /* A session the caller supplies receives the request with the SDK's own user agent applied, and a timeout that
+     the SDK puts on the request ends a call the server does not answer in time. */
+  @Test func testBhvTransport040InjectedHttpClientReceivesTheRequestWithSdkDefaultsApplied()
+    async throws
+  {
+    let server = try LoopbackServer { request, _ in
+      request.target == "/slow"
+        ? LoopbackResponse(status: 200, body: Data("{}".utf8), delay: 3) : .ok()
+    }
+    defer { server.stop() }
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let transport = try TransportOptionsBuilder()
+      .session(session).userAgent("Custom/1.0").timeout(500).maxRetries(0).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    _ = try await client.sendRequest(
+      method: "GET", url: server.origin + "/x", headers: [:], body: nil)
+    #expect(server.requests.first?.header("User-Agent") == "Custom/1.0")
+    await #expect(throws: NetworkTimeoutError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: server.origin + "/slow", headers: [:], body: nil)
+    }
+  }
+
+  /* A caller-supplied HTTP client's own default headers are sent on the wire with each request. */
+  @Test func testBhvMisc267ACallerSuppliedClientsDefaultHeadersAreSentOnTheWire() async throws {
+    let server = try LoopbackServer { _, _ in .ok() }
+    defer { server.stop() }
+    let config = URLSessionConfiguration.ephemeral
+    config.httpAdditionalHeaders = ["X-Client-Default": "from-session"]
+    let session = URLSession(configuration: config)
+    defer { session.invalidateAndCancel() }
+    let client = try DefaultApiClient(
+      transportOptions: TransportOptionsBuilder().session(session).build())
+    _ = try await client.sendRequest(
+      method: "GET", url: server.origin + "/headers", headers: [:], body: nil)
+    #expect(server.requests.first?.header("X-Client-Default") == "from-session")
+  }
+
+  /* With no CA certificate configured, a server certificate is checked against the platform's default trust
+     store; the mock server's fixture CA is not in it, so the connection is refused. */
+  @Test
+  func testBhvMisc038WithNoCaConfiguredServerCertificatesAreCheckedAgainstTheDefaultTrustStore()
+    async throws
+  {
+    let client = try DefaultApiClient(transportOptions: TransportOptionsBuilder().build())
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: chasmHttpsUrl + "/test/echo", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+    #expect(error?.underlyingError is URLError)
+  }
+
+  /* A text/plain response is returned as the raw text and never decoded, even when it looks like base64. */
+  @Test func testBhvOperations161ATextPlainResponseIsReturnedAsTheRawText() async throws {
+    let server = try LoopbackServer { _, _ in
+      LoopbackResponse(
+        status: 200, headers: ["Content-Type": "text/plain"], body: Data("aGVsbG8=".utf8))
+    }
+    defer { server.stop() }
+    let response = try await DefaultApiClient().sendRequest(
+      method: "GET", url: server.origin + "/text", headers: [:], body: nil)
+    #expect(response.body == "aGVsbG8=")
   }
 
   @Test func testBhvTransport024TimesOutOnSlowEndpoint() async throws {
@@ -2113,5 +1267,809 @@ private final class StubURLProtocol: URLProtocol {
       #expect(response.statusCode == 200)
       #expect(try echoedHeaders(response)["x-caller"] as? String == "1")
     }
+  }
+
+  // MARK: - Content-Encoding
+
+  /* Serves `bytes` under a Content-Encoding and returns what the client hands back. `acceptEncoding` is set when the
+     caller manages the coding itself. */
+  private func served(
+    _ coding: String, _ bytes: [UInt8], acceptEncoding: String? = nil
+  ) async throws -> ApiHttpResponse {
+    let server = try LoopbackServer { _, _ in
+      LoopbackResponse(
+        status: 200, headers: ["Content-Type": "application/json", "Content-Encoding": coding],
+        body: Data(bytes))
+    }
+    defer { server.stop() }
+    return try await DefaultApiClient().sendRequest(
+      method: "GET", url: server.origin + "/encoded",
+      headers: acceptEncoding.map { ["Accept-Encoding": $0] } ?? [:], body: nil)
+  }
+
+  /* A brotli-encoded response is decoded before it is returned. */
+  @Test func testBhvTransport004DecompressesBrotliResponse() async throws {
+    let response = try await DefaultApiClient().sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/compressed/br",
+      headers: ["Accept-Encoding": "br"], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(response.body.contains("userId"))
+  }
+
+  /* A zstd-encoded response is decoded before it is returned. */
+  @Test func testBhvTransport006DecompressesZstdResponse() async throws {
+    let response = try await DefaultApiClient().sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/compressed/zstd",
+      headers: ["Accept-Encoding": "zstd"], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(response.body.contains("userId"))
+  }
+
+  /* A response body that is validly gzip-encoded is decoded before it is returned. */
+  @Test func testBhvTransport088AValidGzipBodyIsDecodedBeforeItIsReturned() async throws {
+    let response = try await DefaultApiClient().sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/compressed/gzip", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(response.body.contains("userId"))
+  }
+
+  /* A zlib-wrapped deflate response is decompressed. */
+  @Test func testBhvTransport035DecompressesAZlibWrappedDeflateResponse() async throws {
+    let zlib: [UInt8] = [
+      0x78, 0x9C, 0xAB, 0x56, 0xCA, 0xCF, 0x56, 0xB2, 0x2A, 0x29, 0x2A, 0x4D, 0xAD, 0x05, 0x00,
+      0x16, 0xE3, 0x04, 0x11,
+    ]
+    let response = try await served("deflate", zlib)
+    #expect(response.statusCode == 200)
+    #expect(response.body == "{\"ok\":true}")
+  }
+
+  /* A well-formed gzip or deflate stream whose decoded content is an empty string or zero is that content. */
+  @Test func testBhvMisc039AGzipOrDeflateOfAnEmptyOrZeroValueIsNotCorrupt() async throws {
+    let gzipEmpty: [UInt8] = [
+      0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x03, 0x00, 0x00, 0x00, 0x00,
+      0x00,
+      0x00, 0x00, 0x00, 0x00,
+    ]
+    let gzipZero: [UInt8] = [
+      0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0x33, 0x00, 0x00, 0x21, 0xDF,
+      0xDB,
+      0xF4, 0x01, 0x00, 0x00, 0x00,
+    ]
+    let deflateEmpty: [UInt8] = [0x78, 0x9C, 0x03, 0x00, 0x00, 0x00, 0x00, 0x01]
+    let deflateZero: [UInt8] = [0x78, 0x9C, 0x33, 0x00, 0x00, 0x00, 0x31, 0x00, 0x31]
+    #expect(try await served("gzip", gzipEmpty).body == "")
+    #expect(try await served("gzip", gzipZero).body == "0")
+    #expect(try await served("deflate", deflateEmpty).body == "")
+    #expect(try await served("deflate", deflateZero).body == "0")
+  }
+
+  /* A zstd body whose frame declares no decoded size is decoded completely, whatever its expansion ratio. */
+  @Test func testBhvTransport075AZstdFrameWithNoDeclaredSizeIsDecodedCompletely() async throws {
+    /* One frame of 174 bytes that expands to five million letters a, written by a streaming encoder so the
+       frame header carries no content size. */
+    let frame: [UInt8] = [
+      0x28, 0xB5, 0x2F, 0xFD, 0x04, 0x68, 0x4C, 0x00, 0x00, 0x08, 0x61, 0x01,
+      0x00, 0xFC, 0xFF, 0x39, 0x10, 0x02, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00,
+      0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x02, 0x00, 0x10, 0x61, 0x03, 0x5A,
+      0x02, 0x61, 0x54, 0x11, 0x0E, 0x63,
+    ]
+    let response = try await served("zstd", frame, acceptEncoding: "zstd")
+    #expect(response.statusCode == 200)
+    #expect(response.body.utf8.count == 5_000_000)
+    #expect(response.body.hasPrefix("aaaa"))
+    #expect(response.body.hasSuffix("aaaa"))
+  }
+}
+
+/* Redirect handling as the SDK performs it on every platform. Each test below
+   sends a real request over loopback sockets to a LoopbackServer that answers
+   with the redirect under test (or to the shared mock server where it serves
+   one) and reads what the next hop received, so the SDK's own redirect
+   delegate decides exactly as it does in production. The loopback server
+   speaks plain HTTP only, so a redirect that moves between http and https is
+   put to the delegate directly, with the request URLSession would propose. */
+@Suite(.serialized) final class DefaultApiClientRedirectTests {
+
+  init() async throws {
+    if chasmUrl.isEmpty {
+      try await setUpContainers()
+    }
+  }
+
+  // MARK: - Helpers
+
+  private static let credentialHeaders = [
+    "Authorization": "Bearer secret-token",
+    "Cookie": "session=secret",
+    "Proxy-Authorization": "Basic c2VjcmV0",
+    "X-API-Key": "secret-key",
+    "X-Internal-Key": "secret-internal",
+  ]
+
+  private func follow() -> TransportOptionsBuilder {
+    return TransportOptionsBuilder().followRedirects(true)
+  }
+
+  private func client(_ builder: TransportOptionsBuilder? = nil) throws -> DefaultApiClient {
+    return try DefaultApiClient(transportOptions: (builder ?? follow()).build())
+  }
+
+  /* The mock server's /test/echo answers with the request it received. */
+  private func echo(_ response: ApiHttpResponse) throws -> [String: Any] {
+    let object = try JSONSerialization.jsonObject(with: Data(response.body.utf8))
+    return try #require(object as? [String: Any])
+  }
+
+  /* Holds the Location a loopback server redirects to, which is known only once the servers are up. */
+  private final class Route: @unchecked Sendable {
+    private let lock = NSLock()
+    private var target = ""
+    private var number = ""
+    var port: String {
+      get {
+        lock.lock()
+        defer { lock.unlock() }
+        return number
+      }
+      set {
+        lock.lock()
+        number = newValue
+        lock.unlock()
+      }
+    }
+    var location: String {
+      get {
+        lock.lock()
+        defer { lock.unlock() }
+        return target
+      }
+      set {
+        lock.lock()
+        target = newValue
+        lock.unlock()
+      }
+    }
+  }
+
+  /* Sends one request to a server that answers it with `status` and a Location, and returns the request that
+     reached the Location. `location` receives the redirecting server and a second, unrelated server. */
+  private func followUp(
+    status: Int = 302, method: String = "GET", path: String = "/start",
+    headers: [String: String] = [:], body: Any? = nil, builder: TransportOptionsBuilder? = nil,
+    location: (LoopbackServer, LoopbackServer) -> String
+  ) async throws -> LoopbackRequest {
+    let route = Route()
+    let other = try LoopbackServer { _, _ in .ok() }
+    let source = try LoopbackServer { _, position in
+      position == 1 ? .redirect(status, to: route.location) : .ok()
+    }
+    defer {
+      other.stop()
+      source.stop()
+    }
+    route.location = location(source, other)
+    _ = try await client(builder).sendRequest(
+      method: method, url: source.origin + path, headers: headers, body: body)
+    return try #require(source.requests.dropFirst().first ?? other.requests.first)
+  }
+
+  private func absent(_ name: String, from request: LoopbackRequest) -> Bool {
+    return request.header(name) == nil
+  }
+
+  /* What the redirect delegate decides for one hop, and the refusal it recorded. */
+  private struct Decision {
+    let followUp: URLRequest?
+    let refusal: ApiError?
+  }
+
+  /* Puts one proposed redirect to the SDK's redirect delegate: the request the hop was sent as, the response that
+     redirects it, and the follow-up URLSession would propose before the delegate rewrites it. */
+  private func decide(
+    status: Int, from: String, to: String, method: String = "GET",
+    headers: [String: String] = [:], body: Data? = nil, builder: TransportOptionsBuilder? = nil
+  ) throws -> Decision {
+    let (session, built) = try DefaultApiClient.buildSession((builder ?? follow()).build())
+    defer { session.invalidateAndCancel() }
+    let delegate = try #require(built)
+    let originalURL = try #require(URL(string: from))
+    var original = URLRequest(url: originalURL)
+    original.httpMethod = method
+    original.httpBody = body
+    for (name, value) in headers {
+      original.setValue(value, forHTTPHeaderField: name)
+    }
+    let task = session.dataTask(with: original)
+    let response = try #require(
+      HTTPURLResponse(
+        url: originalURL, statusCode: status, httpVersion: "HTTP/1.1",
+        headerFields: ["Location": to]))
+    var proposed = original
+    proposed.url = try #require(URL(string: to, relativeTo: originalURL)?.absoluteURL)
+    var followUp: URLRequest?
+    delegate.urlSession(
+      session, task: task, willPerformHTTPRedirection: response, newRequest: proposed
+    ) { followUp = $0 }
+    /* On Linux a redirect that keeps its method and body is left for the caller to send. */
+    return Decision(
+      followUp: followUp ?? delegate.takeFollowUp(for: task)?.request,
+      refusal: delegate.takeRedirectError(for: task))
+  }
+
+  // MARK: - Methods, bodies and Location handling
+
+  /* A 303 turns a POST into a GET and drops its body. */
+  @Test func testBhvRedirects005Redirect303SwitchesToGetAndDropsBody() async throws {
+    let response = try await client().sendRequest(
+      method: "POST", url: chasmHttpUrl + "/test/redirect/303",
+      headers: ["Content-Type": "application/json"], body: "hello-body")
+    #expect(response.statusCode == 200)
+    let echoed = try echo(response)
+    #expect(echoed["method"] as? String == "GET")
+    #expect(echoed["body"] as? String == "")
+  }
+
+  /* A 307 replays a multipart body to the redirected location. */
+  @Test func testBhvRetries012MultipartBodyReplayedOn307Redirect() async throws {
+    let formFields: [String: Any] = [
+      "description": "hello",
+      "file": Data("file-content-bytes".utf8),
+    ]
+    let response = try await client().sendRequest(
+      method: "POST", url: chasmHttpUrl + "/test/redirect/307-multipart", headers: [:],
+      body: formFields)
+    #expect(response.statusCode == 200)
+    let echoed = try echo(response)
+    #expect(echoed["method"] as? String == "POST")
+    let body = try #require(echoed["body"] as? String)
+    #expect(body.contains("Content-Disposition: form-data; name=\"description\""))
+    #expect(body.contains("file-content-bytes"))
+  }
+
+  /* A 3xx whose Location is absent or cannot be parsed is the response, not an exception. */
+  @Test(arguments: ["no-location", "malformed-location"])
+  func testBhvRedirects010RedirectWithAbsentOrUnparseableLocationIsReturnedAsThe302(
+    path: String
+  ) async throws {
+    let response = try await client().sendRequest(
+      method: "GET", url: chasmHttpUrl + "/test/redirect/" + path, headers: [:], body: nil)
+    #expect(response.statusCode == 302)
+  }
+
+  /* A final 3xx without a Location, reached when the redirect budget is used up, is returned. */
+  @Test func testBhvRedirects023ReturnsTheLastRedirectWithoutLocationWhenTheBudgetIsUsedUp()
+    async throws
+  {
+    let server = try LoopbackServer { _, position in
+      position == 1 ? .redirect(302, to: "/landing") : .redirect(302, to: nil)
+    }
+    defer { server.stop() }
+    let response = try await client(follow().maxRedirects(1)).sendRequest(
+      method: "GET", url: server.origin + "/start", headers: [:], body: nil)
+    #expect(response.statusCode == 302)
+    #expect(server.requests.count == 2)
+  }
+
+  /* A 307 or 308 that keeps the method sends the original body and Content-Type to the new location. */
+  @Test(arguments: [307, 308])
+  func testBhvRedirects038A307Or308KeepsTheMethodBodyAndContentType(status: Int) async throws {
+    let landed = try await followUp(
+      status: status, method: "POST", headers: ["Content-Type": "application/json"],
+      body: Data("payload".utf8)
+    ) { source, _ in source.origin + "/landing" }
+    #expect(landed.method == "POST")
+    #expect(landed.header("Content-Type") == "application/json")
+    #expect(String(data: landed.body, encoding: .utf8) == "payload")
+  }
+
+  /* A redirect that turns a POST into a GET sends no Content-Length or Content-Type with it. */
+  @Test(arguments: [301, 302, 303])
+  func testBhvRedirects041ARedirectToGetSendsNoContentLengthOrContentType(status: Int) async throws
+  {
+    let landed = try await followUp(
+      status: status, method: "POST", headers: ["Content-Type": "application/json"],
+      body: Data("non-empty-body".utf8)
+    ) { source, _ in source.origin + "/landing" }
+    #expect(landed.method == "GET")
+    #expect(absent("Content-Length", from: landed))
+    #expect(absent("Content-Type", from: landed))
+  }
+
+  /* A 307 redirect of a bodyless POST keeps the request a POST and sends Content-Length zero. */
+  @Test func testBhvRedirects042A307OfABodylessPostStaysAPost() async throws {
+    let landed = try await followUp(status: 307, method: "POST") { source, _ in
+      source.origin + "/landing"
+    }
+    #expect(landed.method == "POST")
+    #expect(landed.header("Content-Length") == "0")
+  }
+
+  /* A relative Location is resolved against the URL of the request that received it. */
+  @Test func testBhvRedirects043RelativeLocationIsResolvedAgainstTheRequestUrl() async throws {
+    let landed = try await followUp(path: "/a/b/start") { _, _ in "../other/next" }
+    #expect(landed.target == "/a/other/next")
+  }
+
+  /* A Location that holds only a query keeps the path of the redirected request and replaces its query. */
+  @Test func testBhvMisc127ALocationWithOnlyAQueryKeepsTheRedirectedPath() async throws {
+    let landed = try await followUp(path: "/v1/items/1?page=1") { _, _ in "?page=2" }
+    #expect(landed.target == "/v1/items/1?page=2")
+  }
+
+  /* A 303 drops the request body and its Content-Length; a 307 forwards the body unchanged. */
+  @Test func testBhvMisc223WhenTheFollowUpBecomesAGetTheBodyIsDroppedAndOtherwiseForwarded()
+    async throws
+  {
+    let dropped = try await followUp(
+      status: 303, method: "POST", headers: ["Content-Type": "application/json"],
+      body: Data("non-empty-body".utf8)
+    ) { source, _ in source.origin + "/landing" }
+    #expect(dropped.method == "GET")
+    #expect(dropped.body.isEmpty)
+    #expect(absent("Content-Length", from: dropped))
+
+    let forwarded = try await followUp(
+      status: 307, method: "POST", headers: ["Content-Type": "application/json"],
+      body: Data("non-empty-body".utf8)
+    ) { source, _ in source.origin + "/landing" }
+    #expect(String(data: forwarded.body, encoding: .utf8) == "non-empty-body")
+    #expect(forwarded.header("Content-Length") == "14")
+  }
+
+  /* A request body is replayed across a 307 redirect that stays on plain http. */
+  @Test func testBhvMisc165ABodyIsReplayedAcrossAHttpToHttpRedirect() async throws {
+    let landed = try await followUp(
+      status: 307, method: "POST", headers: ["Content-Type": "application/json"],
+      body: Data("{\"a\":1}".utf8)
+    ) { source, _ in source.origin + "/next" }
+    #expect(String(data: landed.body, encoding: .utf8) == "{\"a\":1}")
+  }
+
+  /* A 307 resends the request body unchanged when the redirect keeps the scheme. */
+  @Test func testBhvRetries046A307ResendsTheBodyUnchangedWhenTheSchemeIsKept() async throws {
+    let landed = try await followUp(
+      status: 307, method: "POST", headers: ["Content-Type": "application/json"],
+      body: Data("payload".utf8)
+    ) { source, _ in source.origin + "/next" }
+    #expect(String(data: landed.body, encoding: .utf8) == "payload")
+  }
+
+  /* A HEAD request that receives a 303 is followed as HEAD rather than converted to GET. */
+  @Test func testBhvMisc126AHeadRequestRedirectedBy303IsFollowedAsHead() async throws {
+    let landed = try await followUp(status: 303, method: "HEAD") { source, _ in
+      source.origin + "/elsewhere"
+    }
+    #expect(landed.method == "HEAD")
+  }
+
+  /* A 300 or 305 response is returned as it is, even when it carries a Location header. */
+  @Test(arguments: [300, 305])
+  func testBhvMisc133A300Or305IsReturnedUnfollowed(status: Int) async throws {
+    let server = try LoopbackServer { _, _ in .redirect(status, to: "/elsewhere") }
+    defer { server.stop() }
+    let response = try await client().sendRequest(
+      method: "GET", url: server.origin + "/start", headers: [:], body: nil)
+    #expect(response.statusCode == status)
+    #expect(server.requests.count == 1)
+  }
+
+  /* With redirect following enabled, a 302 is followed and the final 200 is returned. */
+  @Test func testBhvMisc226AFoundRedirectIsFollowedToItsFinalResponse() async throws {
+    let server = try LoopbackServer { _, position in
+      position == 1 ? .redirect(302, to: "/target") : .ok()
+    }
+    defer { server.stop() }
+    let response = try await client().sendRequest(
+      method: "GET", url: server.origin + "/redirect-302", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(server.requests.last?.target == "/target")
+  }
+
+  // MARK: - Credentials across origins
+
+  /* A 302 to another origin drops every credential header, while ordinary headers still travel. */
+  @Test func testBhvRedirects012CrossOriginRedirectStripsSensitiveHeaders() async throws {
+    var headers = Self.credentialHeaders
+    headers["X-Custom"] = "kept"
+    let landed = try await followUp(headers: headers) { _, other in
+      other.alternateOrigin + "/landing"
+    }
+    for name in Self.credentialHeaders.keys {
+      #expect(absent(name, from: landed), "\(name) must not reach a different origin")
+    }
+    #expect(landed.header("X-Custom") == "kept")
+  }
+
+  /* The spec-declared API key header is dropped on a cross-origin hop, the same as Authorization. */
+  @Test func testBhvRedirects011ApiKeyHeaderIsStrippedOnACrossOriginRedirect() async throws {
+    let landed = try await followUp(headers: Self.credentialHeaders) { _, other in
+      other.alternateOrigin + "/landing"
+    }
+    #expect(
+      absent("X-API-Key", from: landed), "the API key header must not reach a different origin")
+  }
+
+  /* A different port is a different origin, even on the same host. */
+  @Test func testBhvRedirects033RedirectToDifferentPortDropsCredentialHeaders() async throws {
+    let landed = try await followUp(headers: Self.credentialHeaders) { _, other in
+      other.origin + "/landing"
+    }
+    #expect(absent("X-API-Key", from: landed))
+    #expect(absent("Cookie", from: landed))
+  }
+
+  /* The same origin keeps its credentials, whether the Location is relative or absolute. */
+  @Test(arguments: [false, true])
+  func testBhvRedirects013SameOriginRedirectKeepsAuthorizationAndCookie(absolute: Bool) async throws
+  {
+    let landed = try await followUp(headers: Self.credentialHeaders) { source, _ in
+      absolute ? source.origin + "/landing" : "/landing"
+    }
+    for (name, value) in Self.credentialHeaders {
+      #expect(landed.header(name) == value, "\(name) must survive a same-origin redirect")
+    }
+  }
+
+  /* A default header that carries a credential is kept on a same-origin redirect. */
+  @Test func testBhvRedirects024SameOriginRedirectKeepsSensitiveDefaultHeaders() async throws {
+    let landed = try await followUp(
+      builder: follow().defaultHeader(name: "X-Tenant-Token", value: "tenant-secret")
+    ) { _, _ in "/landing" }
+    #expect(landed.header("X-Tenant-Token") == "tenant-secret")
+  }
+
+  /* A cross-origin redirect removes the caller's own authorization header. */
+  @Test func testBhvRedirects044CrossOriginRedirectRemovesTheCallerAuthorization() async throws {
+    let landed = try await followUp(headers: ["Authorization": "Bearer caller-token"]) { _, other in
+      other.origin + "/next"
+    }
+    #expect(absent("Authorization", from: landed))
+  }
+
+  /* Transport default headers are not sent on a request that goes to another origin after a redirect. */
+  @Test func testBhvMisc224TransportDefaultHeadersAreNotSentAfterACrossOriginRedirect() async throws
+  {
+    let landed = try await followUp(builder: follow().defaultHeader(name: "X-Team", value: "sdk")) {
+      _, other in
+      other.origin + "/landing"
+    }
+    #expect(absent("X-Team", from: landed))
+  }
+
+  /* A header set for one call that names a credential is removed when a redirect leaves the origin. */
+  @Test func testBhvMisc132APerCallCredentialHeaderIsRemovedOnACrossOriginRedirect() async throws {
+    let route = Route()
+    let other = try LoopbackServer { _, _ in .ok() }
+    let source = try LoopbackServer { _, position in
+      position == 1 ? .redirect(302, to: route.location) : .ok()
+    }
+    defer {
+      other.stop()
+      source.stop()
+    }
+    route.location = other.origin + "/end"
+    _ = try await client().sendRequest(
+      method: "GET", url: source.origin + "/start", headers: ["X-Call-Key": "abc"], body: nil)
+    #expect(source.requests.first?.header("X-Call-Key") == "abc")
+    #expect(other.requests.first.map { absent("X-Call-Key", from: $0) } == true)
+  }
+
+  /* A credential header is removed on a cross-origin hop whatever the case its name was written in. */
+  @Test(arguments: ["authorization", "AUTHORIZATION", "Authorization"])
+  func testBhvMisc182ACredentialHeaderIsRemovedOnACrossOriginHopWhateverItsCase(name: String)
+    async throws
+  {
+    let landed = try await followUp(headers: [name: "Bearer t"]) { _, other in other.origin + "/end"
+    }
+    #expect(absent("Authorization", from: landed))
+  }
+
+  /* A credential removed by a cross-origin hop is not restored when a later hop returns to the original origin. */
+  @Test func testBhvMisc130ACredentialRemovedByACrossOriginHopIsNotRestoredOnReturn() async throws {
+    let route = Route()
+    let server = try LoopbackServer { _, position in
+      switch position {
+      case 1: return .redirect(302, to: route.location + "/hop")
+      case 2: return .redirect(302, to: "http://127.0.0.1:" + route.port + "/back")
+      default: return .ok()
+      }
+    }
+    defer { server.stop() }
+    /* The first hop leaves for the same server under another host name, the second returns to the first name. */
+    route.location = server.alternateOrigin
+    route.port = String(server.port)
+    _ = try await client().sendRequest(
+      method: "GET", url: server.origin + "/start",
+      headers: ["Authorization": "Bearer secret"], body: nil)
+    let seen = server.requests
+    #expect(seen.count == 3)
+    #expect(seen[0].header("Authorization") == "Bearer secret")
+    #expect(absent("Authorization", from: seen[1]))
+    #expect(absent("Authorization", from: seen[2]))
+  }
+
+  /* A session the caller supplies still has the SDK's redirect rules applied to requests made through it. */
+  @Test func testBhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() async throws {
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let landed = try await followUp(
+      headers: ["Authorization": "Bearer secret"], builder: follow().session(session)
+    ) { _, other in other.origin + "/landing" }
+    #expect(absent("Authorization", from: landed))
+  }
+
+  // MARK: - Limits and refusals
+
+  /* A redirect past the limit raises a too-many-redirects error carrying the 3xx status and the canonical message. */
+  @Test func testBhvRedirects046ARedirectChainWithinTheLimitIsFollowedAndOnePastItIsRefused()
+    async throws
+  {
+    let server = try LoopbackServer { request, _ in
+      let hop = Int(request.target.dropFirst("/hop/".count)) ?? 0
+      return hop < 3 ? .redirect(302, to: "/hop/\(hop + 1)") : .ok()
+    }
+    defer { server.stop() }
+    let within = try await client(follow().maxRedirects(3)).sendRequest(
+      method: "GET", url: server.origin + "/hop/0", headers: [:], body: nil)
+    #expect(within.statusCode == 200)
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await client(follow().maxRedirects(2)).sendRequest(
+        method: "GET", url: server.origin + "/hop/0", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 302)
+    #expect(error?.message == DefaultApiClient.tooManyRedirectsMessage(limit: 2))
+  }
+
+  /* Exceeding maxRedirects raises a typed ApiError instead of returning the last 3xx. */
+  @Test func testBhvRedirects018RaisesApiErrorWhenTheRedirectBudgetIsExhausted() async throws {
+    let server = try LoopbackServer { _, _ in .redirect(302, to: "/loop") }
+    defer { server.stop() }
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await client(follow().maxRedirects(2)).sendRequest(
+        method: "GET", url: server.origin + "/start", headers: [:], body: nil)
+    }
+    #expect(error?.responseHeaders?["location"] != nil)
+    #expect(error?.message == DefaultApiClient.tooManyRedirectsMessage(limit: 2))
+  }
+
+  /* A Location that is not http or https is refused with a typed ApiError carrying the redirect status. */
+  @Test func testBhvRedirects020RedirectToNonHttpSchemeThrowsApiError() async throws {
+    let server = try LoopbackServer { _, _ in .redirect(302, to: "ftp://files.example.org/data") }
+    defer { server.stop() }
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await client().sendRequest(
+        method: "GET", url: server.origin + "/start", headers: [:], body: nil)
+    }
+    #expect(error?.responseHeaders?["location"] != nil)
+    #expect(
+      error?.message
+        == DefaultApiClient.nonHttpRedirectMessage(next: "ftp://files.example.org/data"))
+  }
+
+  @Test func testBhvRedirects055SuppliedSessionRefusesANonHttpRedirect() async throws {
+    let server = try LoopbackServer { _, _ in .redirect(302, to: "ftp://files.example.org/data") }
+    defer { server.stop() }
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await client(follow().session(session)).sendRequest(
+        method: "GET", url: server.origin + "/start", headers: [:], body: nil)
+    }
+    #expect(
+      error?.message
+        == DefaultApiClient.nonHttpRedirectMessage(next: "ftp://files.example.org/data"))
+  }
+
+  @Test func testBhvMisc265ANonHttpRedirectSurfacesAsAnApiErrorWithItsStatus() async throws {
+    let server = try LoopbackServer { _, _ in .redirect(302, to: "ftp://files.example.org/data") }
+    defer { server.stop() }
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await client().sendRequest(
+        method: "GET", url: server.origin + "/start", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 302)
+    #expect(!(error is NetworkError))
+  }
+
+  /* Redirect counting is scoped to one request: an over-limit request neither saves nor poisons the others. */
+  @Test func testBhvRedirects003ConcurrentRedirectsAreScopedPerRequest() async throws {
+    let server = try LoopbackServer { request, _ in
+      if request.target.hasPrefix("/loop") { return .redirect(302, to: "/loop/next") }
+      if request.target == "/one" { return .redirect(302, to: "/one/final") }
+      return .ok("{\"ok\":true}")
+    }
+    defer { server.stop() }
+    let shared = try client(follow().maxRedirects(2))
+    let origin = server.origin
+    for _ in 0..<10 {
+      async let loop: Void = {
+        await #expect(throws: ApiError.self) {
+          _ = try await shared.sendRequest(
+            method: "GET", url: origin + "/loop/start", headers: [:], body: nil)
+        }
+      }()
+      async let one = shared.sendRequest(
+        method: "GET", url: origin + "/one", headers: [:], body: nil)
+      async let none = shared.sendRequest(
+        method: "GET", url: origin + "/none", headers: [:], body: nil)
+      _ = await loop
+      let single = try await one
+      let direct = try await none
+      #expect(single.statusCode == 200)
+      #expect(direct.statusCode == 200)
+    }
+  }
+
+  /* One request's refusal, or its successful redirect, does not change the outcome of requests running with it. */
+  @Test func testBhvRedirects047ConcurrentRedirectOutcomesDoNotInfluenceEachOther() async throws {
+    let server = try LoopbackServer { request, _ in
+      if request.target.hasPrefix("/loop") { return .redirect(302, to: "/loop/next") }
+      if request.target == "/one" { return .redirect(302, to: "/one/final") }
+      return .ok("{\"ok\":true}")
+    }
+    defer { server.stop() }
+    let shared = try client(follow().maxRedirects(1))
+    let origin = server.origin
+    let outcomes = try await withThrowingTaskGroup(of: (String, Int).self) { group in
+      for index in 0..<8 {
+        let path = index % 2 == 0 ? "/loop/start" : "/one"
+        group.addTask {
+          do {
+            let response = try await shared.sendRequest(
+              method: "GET", url: origin + path, headers: [:], body: nil)
+            return (path, response.statusCode)
+          } catch is ApiError {
+            return (path, -1)
+          }
+        }
+      }
+      var all: [(String, Int)] = []
+      for try await outcome in group { all.append(outcome) }
+      return all
+    }
+    for (path, status) in outcomes {
+      #expect(status == (path == "/one" ? 200 : -1), "\(path) got \(status)")
+    }
+  }
+
+  // MARK: - Dropped connections
+
+  /* A network error before any response is received is retried, so a dropped connection produces a second request. */
+  @Test func testBhvMisc227AConnectionDroppedBeforeAnyResponseIsRetried() async throws {
+    let server = try LoopbackServer { _, position in position == 1 ? .dropped : .ok() }
+    defer { server.stop() }
+    let response = try await client().sendRequest(
+      method: "GET", url: server.origin + "/dropped", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    #expect(server.requests.count == 2)
+  }
+
+  /* A network failure raised after the connection drops keeps the underlying transport error as its cause. */
+  @Test func testBhvMisc282ANetworkFailureAfterADroppedConnectionKeepsTheTransportError()
+    async throws
+  {
+    let server = try LoopbackServer { _, _ in .dropped }
+    defer { server.stop() }
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client(TransportOptionsBuilder().maxRetries(0)).sendRequest(
+        method: "GET", url: server.origin + "/dropped", headers: [:], body: nil)
+    }
+    #expect(error?.underlyingError != nil)
+  }
+
+  // MARK: - Scheme changes, put to the redirect delegate
+
+  /* A 302 from HTTPS to plain HTTP is refused for a POST that carries a body, so the body is never sent in cleartext. */
+  @Test func testBhvRedirects001Redirect302HttpsToHttpWithBodyIsRefused() throws {
+    let decision = try decide(
+      status: 302, from: "https://example.com/start", to: "http://example.com/downgrade",
+      method: "POST", headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
+    #expect(decision.followUp == nil)
+    #expect(decision.refusal?.statusCode == 302)
+    #expect(
+      decision.refusal?.message
+        == DefaultApiClient.bodyReplayMessage(
+          current: "https://example.com/start", next: "http://example.com/downgrade"))
+  }
+
+  /* A body is not replayed across a 301 from HTTPS to plain HTTP: the call fails instead. */
+  @Test func testBhvMisc124ARequestBodyIsNotReplayedAcross301FromHttpsToHttp() throws {
+    let decision = try decide(
+      status: 301, from: "https://example.com/secure", to: "http://example.com/plain",
+      method: "POST", headers: ["Content-Type": "application/json"], body: Data("{\"a\":1}".utf8))
+    #expect(decision.followUp == nil)
+    #expect(decision.refusal?.statusCode == 301)
+  }
+
+  /* A 307 or 308 from HTTPS to plain HTTP with a body throws rather than replaying the body. */
+  @Test(arguments: [307, 308])
+  func testBhvRetries010AHttpsToHttpDowngradeWithABodyThrowsRatherThanReplayingIt(status: Int)
+    throws
+  {
+    let decision = try decide(
+      status: status, from: "https://example.com/start", to: "http://example.com/downgrade",
+      method: "POST", headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
+    #expect(decision.followUp == nil)
+    #expect(decision.refusal?.statusCode == status)
+  }
+
+  @Test func testBhvRetries011Redirect308HttpsToHttpWithBodyThrowsApiError() throws {
+    let decision = try decide(
+      status: 308, from: "https://example.com/start", to: "http://example.com/downgrade",
+      method: "POST", headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
+    #expect(decision.followUp == nil)
+    #expect(decision.refusal != nil)
+  }
+
+  /* A request with a body is refused, with status 307, on an HTTPS to HTTP downgrade. */
+  @Test func testBhvRetries051ABodyIsRefusedWithStatus307OnAnHttpsToHttpDowngrade() throws {
+    let decision = try decide(
+      status: 307, from: "https://example.com/start", to: "http://example.com/downgrade",
+      method: "POST", headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
+    #expect(decision.refusal?.statusCode == 307)
+  }
+
+  /* A request with no body is followed from HTTPS to plain HTTP, keeping its method. */
+  @Test func testBhvRedirects039BodylessRequestIsFollowedToPlainHttp() throws {
+    let decision = try decide(
+      status: 307, from: "https://example.com/start", to: "http://example.com/plain",
+      method: "POST")
+    #expect(decision.refusal == nil)
+    #expect(decision.followUp?.url?.absoluteString == "http://example.com/plain")
+    #expect(decision.followUp?.httpMethod == "POST")
+  }
+
+  /* A 303 from HTTPS to plain HTTP is followed, because that status sends the next request without a body. */
+  @Test func testBhvRedirects040A303FromHttpsToHttpIsFollowedWithoutTheBody() throws {
+    let decision = try decide(
+      status: 303, from: "https://example.com/start", to: "http://example.com/plain",
+      method: "POST", body: Data("payload".utf8))
+    #expect(decision.refusal == nil)
+    #expect(decision.followUp?.httpMethod == "GET")
+    #expect(decision.followUp?.httpBody == nil)
+  }
+
+  /* A 307 that upgrades HTTP to HTTPS is followed, and the request is repeated with its method and body. */
+  @Test func testBhvMisc125A307RedirectThatUpgradesToHttpsIsFollowed() throws {
+    let decision = try decide(
+      status: 307, from: "http://example.com/secure", to: "https://example.com/upgraded",
+      method: "POST", headers: ["Content-Type": "application/json"], body: Data("{\"a\":1}".utf8))
+    #expect(decision.refusal == nil)
+    #expect(decision.followUp?.httpMethod == "POST")
+    #expect(decision.followUp?.httpBody == Data("{\"a\":1}".utf8))
+  }
+
+  /* Authorization stays on a same-origin redirect and goes when the scheme changes, in either direction. */
+  @Test func testBhvRedirects053AuthorizationIsRemovedWhenTheSchemeChanges() throws {
+    let headers = ["Authorization": "Bearer secret"]
+    let same = try decide(
+      status: 302, from: "https://example.com/a", to: "https://example.com/b", headers: headers)
+    #expect(same.followUp?.value(forHTTPHeaderField: "Authorization") == "Bearer secret")
+    let downgrade = try decide(
+      status: 302, from: "https://example.com/a", to: "http://example.com/b", headers: headers)
+    #expect(downgrade.followUp?.value(forHTTPHeaderField: "Authorization") == nil)
+    let upgrade = try decide(
+      status: 302, from: "http://example.com/a", to: "https://example.com/b", headers: headers)
+    #expect(upgrade.followUp?.value(forHTTPHeaderField: "Authorization") == nil)
+  }
+
+  /* A redirect to the same origin spelled with its scheme's default port still keeps the Authorization header. */
+  @Test func testBhvRedirects037RedirectToExplicitDefaultPortKeepsAuthorization() throws {
+    let decision = try decide(
+      status: 302, from: "https://example.com/start", to: "https://example.com:443/landing",
+      headers: ["Authorization": "Bearer secret-token"])
+    #expect(decision.followUp?.value(forHTTPHeaderField: "Authorization") == "Bearer secret-token")
   }
 }

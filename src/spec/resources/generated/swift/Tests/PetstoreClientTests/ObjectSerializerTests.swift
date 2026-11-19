@@ -347,6 +347,14 @@ import Testing
       "absent greeting must default to the exact spec string")
   }
 
+  /* A string default from the schema is applied as the exact literal, quotes, backslashes, control characters
+     and template-like text included, both when a model is built and when an absent field is decoded. */
+  @Test func testBhvMisc122AStringDefaultFromTheSchemaIsAppliedAsTheExactLiteral() throws {
+    let literal = "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b"
+    #expect(Defaults().greeting == literal)
+    #expect(try ObjectSerializer.deserialize("{}", as: Defaults.self)?.greeting == literal)
+  }
+
   /* An absent field decodes to its declared schema default. */
   @Test func testBhvSerialization096AnAbsentFieldDecodesToItsDeclaredDefault() throws {
     let defaults = try ObjectSerializer.deserialize("{}", as: Defaults.self)

@@ -262,6 +262,19 @@ import Testing
     #expect(String(describing: Priority.number3) == "3")
   }
 
+  /* A model's string form shows the contents of its list, map and byte fields rather than their type names. */
+  @Test func testBhvMisc113AModelsStringFormShowsTheContentsOfItsListMapAndByteFields() {
+    let listed = String(describing: Pet(name: "Rex", photoUrls: ["https://x.example/a.png"]))
+    #expect(listed.contains("https://x.example/a.png"))
+    #expect(!listed.contains("Array<"))
+    let mapped = String(describing: Metadata(additionalProperties: ["colour": "tan"]))
+    #expect(mapped.contains("\"colour\": \"tan\""))
+    #expect(!mapped.contains("Dictionary<"))
+    let bytes = String(describing: PetPassport(thumbnail: Data([1, 2, 3])))
+    #expect(bytes.contains("3 bytes"))
+    #expect(!bytes.contains("Data<"))
+  }
+
   @Test func testBhvModels021IntegerEnumMembersAreLowerCamelCase() {
     #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
     #expect(Priority.number1.rawValue == 1)
@@ -292,6 +305,18 @@ import Testing
   ])
   func testBhvLangswift042ReadmeHasTheSection(heading: String) throws {
     #expect(try readme().contains("\n\(heading)\n"))
+  }
+
+  /* The README has a section "Testing your code" that names the group interface and the top-level interface and
+     shows a fake. */
+  @Test func testBhvMocking009TestingYourCodeNamesTheGroupInterfaceAndTheClientInterface() throws {
+    let text = try readme()
+    let start = try #require(text.range(of: "\n## Testing your code\n"))
+    let rest = text[start.upperBound...]
+    let section = rest.range(of: "\n## ").map { String(rest[..<$0.lowerBound]) } ?? String(rest)
+    #expect(section.contains("ApiProtocol"))
+    #expect(section.contains("ClientProtocol"))
+    #expect(section.contains("A fake conforms to the interface"))
   }
 
   @Test func testBhvLangswift043ReadmeNamesTheRequestContextOnErrors() throws {
