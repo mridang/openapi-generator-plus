@@ -10,6 +10,11 @@ lines at most, so callers never have to read raw test output.
 import re, sys, glob, collections
 import xml.etree.ElementTree as ET
 
+def load(path):
+    raw = open(path, "rb").read().decode("utf-8", "replace")
+    raw = re.sub("[\x00-\x08\x0b\x0c\x0e-\x1f\ufffe\uffff]", "?", raw)
+    return ET.fromstring(raw.encode("utf-8"))
+
 def norm(m):
     m = re.sub(r"0x[0-9a-f]+|\b\d+(\.\d+)?\b", "N", m)
     return re.sub(r"\s+", " ", m).strip()[:120]
@@ -25,7 +30,7 @@ def main():
     total = bad = skipped = 0
     groups = collections.OrderedDict()
     for f in files:
-        for tc in ET.parse(f).getroot().iter("testcase"):
+        for tc in load(f).iter("testcase"):
             total += 1
             name = f'{tc.get("classname", "")}.{tc.get("name", "")}'.strip(".")
             fail = tc.find("failure")

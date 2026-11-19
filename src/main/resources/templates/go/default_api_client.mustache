@@ -670,6 +670,9 @@ func newPolicyClient(opts *TransportOptions, transport http.RoundTripper) *http.
 					redactURL(via[len(via)-1].URL), redactURL(req.URL))
 			}
 			if !sameOrigin(origURL, req.URL) {
+				for name := range opts.DefaultHeaders() {
+					req.Header.Del(name)
+				}
 				for _, name := range sensitiveHeaderAllowlist {
 					req.Header.Del(name)
 				}

@@ -338,6 +338,7 @@ export class ValueSerializer {
    */
   static encodeQueryAllowingReserved(value: string): string {
     return encodeURIComponent(value)
+      .replace(/%25(?=[0-9A-Fa-f]{2})/g, "%")
       .replace(/%3A/g, ":")
       .replace(/%2F/g, "/")
       .replace(/%3F/g, "?")
