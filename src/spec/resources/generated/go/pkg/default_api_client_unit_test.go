@@ -4166,6 +4166,13 @@ func TestBhvMisc186_DefaultApiClientUnit_CACertBundleWithReadyMadeConnectionIsRe
 	}
 }
 
+// sendThroughBaseApi sends one GET request to the client's own host through the library's
+// base API, with the client's own transport, configuration and authenticator.
+func sendThroughBaseApi(client *Client) {
+	api := newBaseApi(client.apiClient, client.config, client.authenticator)
+	_, _ = api.invokeApi(invokeApiParams{method: http.MethodGet, path: "/items", ctx: context.Background()})
+}
+
 func TestBhvMisc187_DefaultApiClientUnit_ClientTakesHostAndTokenFromTheEnvironment(t *testing.T) {
 	var mu sync.Mutex
 	var got string
@@ -4183,7 +4190,7 @@ func TestBhvMisc187_DefaultApiClientUnit_ClientTakesHostAndTokenFromTheEnvironme
 	if err != nil {
 		t.Fatalf("expected the client to take its host and token from the environment, got %v", err)
 	}
-	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	sendThroughBaseApi(client)
 	mu.Lock()
 	defer mu.Unlock()
 	if got != "Bearer env-token" {
@@ -4240,7 +4247,7 @@ func TestBhvMisc206_DefaultApiClientUnit_ClientWithOnlyADefaultAuthenticatorTake
 	}
 	client := NewClientWithAuthenticator(authObj, nil)
 
-	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	sendThroughBaseApi(client)
 	if got := hits.Load(); got != 1 {
 		t.Errorf("expected the request to reach the authenticator's host, got %d hits", got)
 	}
@@ -4262,7 +4269,7 @@ func TestBhvMisc207_DefaultApiClientUnit_TokenNotPassedIsReadFromItsEnvironmentV
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	_, _ = client.Pet.GetPetById(context.Background(), int64(1), nil)
+	sendThroughBaseApi(client)
 	mu.Lock()
 	defer mu.Unlock()
 	if got != "Bearer env-token" {
