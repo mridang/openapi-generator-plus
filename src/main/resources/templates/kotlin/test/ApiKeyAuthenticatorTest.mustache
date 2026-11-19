@@ -523,4 +523,11 @@ class ApiKeyAuthenticatorTest {
             assertEquals(1, placed.size, location.toString())
         }
     }
+    @Test
+    @DisplayName("bhvMisc189 the API-key query wrapper sends its key as the api_key query parameter")
+    fun bhvMisc189ApiKeyQueryWrapperSendsTheKeyAsTheApiKeyParameter() {
+        val auth = ApiKeyAuthenticator("https://api.example.com", "api_key", "key-value", ApiKeyLocation.QUERY)
+        assertEquals("key-value", auth.getQueryParams()["api_key"])
+    }
+
 }

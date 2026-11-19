@@ -735,7 +735,7 @@ function newBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -1024,7 +1024,7 @@ function newRawBodyCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -1362,7 +1362,7 @@ function newHeaderCapturingPetApi(): array
     $hdrs = [];
     $captured->headers = $hdrs;
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -1402,7 +1402,7 @@ function newSchemeCapturingPetApi(array $schemes): array
     $captured = new \stdClass();
     $captured->headers = [];
 
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }
@@ -1433,7 +1433,7 @@ test('bhv operations 079 the credential of the scheme the operation requires is 
     /** @var array<string, string> $none */
     $none = [];
     $captured->headers = $none;
-    $client = new readonly class($captured) implements \PetstoreClient\ApiClient {
+    $client = new readonly class ($captured) implements \PetstoreClient\ApiClient {
         public function __construct(private \stdClass $captured)
         {
         }

@@ -2619,4 +2619,30 @@ private func classify(_ call: () async throws -> Void) async -> String {
     }
     #expect(error?.statusCode == status)
   }
+
+  /* Headers from a received response are copied onto the error raised for that response. */
+  @Test func testBhvMisc281HeadersFromTheResponseAreCopiedOntoTheRaisedError() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 404
+    mockClient.responseBody = "{}"
+    mockClient.responseHeaders = ["Content-Type": "application/json", "x-trace": "abc"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await api.getPetById(petId: 1)
+    }
+    #expect(error?.responseHeaders?["x-trace"] == "abc")
+  }
+
+  /* A generated call raises the typed error for each listed error status. */
+  @Test(arguments: [400, 403, 404, 409, 422, 429, 500, 502])
+  func testBhvMisc284AGeneratedCallRaisesTheTypedErrorForEachListedStatus(
+    status: Int
+  ) async throws {
+    let mockApi = petApiForMock(statusCode: status, body: "{}")
+    let error = await #expect(throws: ApiError.self) {
+      _ = try await mockApi.getPetById(petId: 1)
+    }
+    #expect(error?.statusCode == status)
+  }
 }

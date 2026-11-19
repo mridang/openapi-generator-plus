@@ -3882,6 +3882,136 @@ class ObjectSerializerTest {
             val back = serializer.deserialize<com.example.petstore.models.Metadata>(serializer.serialize(meta))
             assertEquals(meta!!.additionalProperties["nested"], back!!.additionalProperties["nested"])
         }
+
+    @Test
+    fun bhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeys() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"region\":\"emea\"}")
+            val wire =
+                kotlinx.serialization.json.Json
+                    .parseToJsonElement(serializer.serialize(meta))
+            assertEquals("emea", wire.jsonObject["region"]?.jsonPrimitive?.content)
+        }
+
+    @Test
+    fun bhvSerialization068BuildingAModelInCodeKeepsValuesAsGiven() =
+        runBlocking<Unit> {
+            assertEquals(
+                -5,
+                com.example.petstore.models
+                    .Order(quantity = -5)
+                    .quantity,
+            )
+            assertEquals(
+                "",
+                com.example.petstore.models
+                    .Pet(name = "", photoUrls = emptySet())
+                    .name,
+            )
+        }
+
+    @Test
+    fun bhvSerialization069SchemaConstraintsAreNotEnforcedOnBuild() =
+        runBlocking<Unit> {
+            assertEquals(
+                Int.MAX_VALUE,
+                com.example.petstore.models
+                    .Order(quantity = Int.MAX_VALUE)
+                    .quantity,
+            )
+            assertEquals(
+                "ZZZZZZZZZZ",
+                com.example.petstore.models
+                    .Pet(name = "x", photoUrls = emptySet(), nickname = "ZZZZZZZZZZ")
+                    .nickname,
+            )
+        }
+
+    @Test
+    fun bhvSerialization070JsonNullDecodesToNullForAnOptionalField() =
+        runBlocking<Unit> {
+            val holder = serializer.deserialize<MetadataHolder>("{\"label\":null,\"meta\":null}")
+            assertNull(holder!!.label)
+            assertNull(holder.meta)
+        }
+
+    @Test
+    fun bhvSerialization072UndeclaredKeysAreSkippedWithoutError() =
+        runBlocking<Unit> {
+            val result =
+                serializer.deserialize<com.example.petstore.models.Category>(
+                    "{\"id\":1,\"name\":\"Dogs\",\"unknownField\":\"x\",\"another\":{\"deep\":[1,2]}}",
+                )
+            assertEquals("Dogs", result!!.name)
+        }
+
+    @Test
+    fun bhvSerialization073MissingRequiredFieldFailsNamingTheField() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Pet>("{\"photoUrls\":[]}")
+                }
+            assertTrue(ex.message!!.contains("name"), ex.message)
+        }
+
+    @Test
+    fun bhvSerialization074NestedArraysKeepTheirShape() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"grid\":[[1,2],[3]]}")
+            val back = serializer.deserialize<com.example.petstore.models.Metadata>(serializer.serialize(meta))
+            assertEquals(meta!!.additionalProperties["grid"], back!!.additionalProperties["grid"])
+        }
+
+    @Test
+    fun bhvSerialization075EnumDecodesFromItsWireValueToTheMember() =
+        runBlocking<Unit> {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"delivered\"}")
+            assertEquals(com.example.petstore.models.Order.StatusEnum.DELIVERED, order!!.status)
+        }
+
+    @Test
+    fun bhvSerialization077DurationStringsCoverZeroNegativeSubSecondAndMultiDay() =
+        runBlocking<Unit> {
+            assertEquals("0s", serializer.stringify(java.time.Duration.ZERO))
+            assertEquals("-1.500s", serializer.stringify(java.time.Duration.ofMillis(-1500)))
+            assertEquals("0.250s", serializer.stringify(java.time.Duration.ofMillis(250)))
+            assertEquals("259200s", serializer.stringify(java.time.Duration.ofDays(3)))
+        }
+
+    @Test
+    fun bhvSerialization081ValueOfTheWrongJsonTypeIsRejected() =
+        runBlocking<Unit> {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<MetadataHolder>("{\"label\":5}")
+            }
+        }
+
+    @Test
+    fun bhvSerialization083ASerializationErrorIsTheLibraryErrorTypeWithAMessage() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrows(SerializationException::class.java) {
+                    serializer.deserialize<com.example.petstore.models.Category>("{bad json")
+                }
+            assertFalse(ex.message.isNullOrEmpty())
+        }
+
+    @Test
+    fun bhvSerialization078TimeOfDayIsZeroPaddedAndKeepsFractionOnlyWhenSubSecond() =
+        runBlocking<Unit> {
+            assertEquals("09:05:00", serializer.stringify(java.time.LocalTime.of(9, 5, 0)))
+            assertTrue(serializer.stringify(java.time.LocalTime.of(9, 5, 0, 500000000)).startsWith("09:05:00."))
+        }
+
+    @Test
+    fun bhvSerialization080ProtobufDurationAcceptsTheUpperBoundAndRejectsOnePastIt() =
+        runBlocking<Unit> {
+            assertEquals(java.time.Duration.ofSeconds(315576000000L), serializer.deserialize<java.time.Duration>("\"315576000000s\""))
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<java.time.Duration>("\"315576000001s\"")
+            }
+        }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.
