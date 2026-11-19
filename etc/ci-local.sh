@@ -47,6 +47,10 @@ run_step() {
   else
     echo "FAIL  $name  (see $out/$name.txt)"
     grep -aE '<<< FAIL|ERROR\]|Tests run:.*(Fail|Err)[a-z]*: [1-9]' "$out/$name.txt" | head -20 || true
+    for d in "$root"/target/test-reports/*/; do
+      [ -d "$d" ] && [ -n "$(find "$d" -name '*.xml' -mmin -90 | head -1)" ] \
+        && (cd "$root" && python3 etc/test-failures.py "$(basename "$d")" | head -24) || true
+    done
     exit 1
   fi
 }
