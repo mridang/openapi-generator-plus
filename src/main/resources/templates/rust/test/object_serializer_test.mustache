@@ -1715,3 +1715,12 @@ fn test_bhv_serialization_129_a_nanosecond_precision_duration_has_a_nine_digit_f
     use {{packageName}}::proto_duration;
     assert_eq!(proto_duration::format(&chrono::TimeDelta::nanoseconds(1)), "0.000000001s");
 }
+
+#[test]
+fn test_bhv_serialization_112_a_password_is_masked_in_the_debug_form_and_not_on_the_wire() {
+    use {{packageName}}::models::Account;
+    let account = Account::new("u".to_string()).with_password("p-secret-value".to_string());
+    assert!(!format!("{:?}", account).contains("p-secret-value"));
+    let text = serde_json::to_string(&account).unwrap();
+    assert!(text.contains(r#""password":"p-secret-value""#), "got: {}", text);
+}

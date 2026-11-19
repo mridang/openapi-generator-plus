@@ -1967,3 +1967,52 @@ fn test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises() {
     use petstore::models::OrderStatusEnum;
     assert!(serde_json::from_str::<OrderStatusEnum>("\"PLACED\"").is_err());
 }
+
+#[test]
+fn test_bhv_serialization_113_a_string_passes_through_without_normalising_its_form() {
+    use petstore::models::Category;
+    let name = "e\u{301}".to_string();
+    let text = serde_json::to_string(&Category::new().with_name(name.clone())).unwrap();
+    let back: Category = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.name, Some(name));
+}
+
+#[test]
+fn test_bhv_serialization_116_a_property_named_as_a_keyword_keeps_its_wire_key() {
+    use petstore::models::EdgeCases;
+    let model: EdgeCases = serde_json::from_str(r#"{"class":"x"}"#).unwrap();
+    assert_eq!(model.class, Some("x".to_string()));
+    let data = serde_json::to_value(&model).unwrap();
+    assert_eq!(data["class"], "x");
+}
+
+#[test]
+fn test_bhv_serialization_117_a_protobuf_duration_string_decodes_to_a_standalone_duration() {
+    use petstore::proto_duration;
+    assert_eq!(
+        proto_duration::parse("3600s").unwrap(),
+        chrono::TimeDelta::hours(1)
+    );
+}
+
+#[test]
+fn test_bhv_serialization_129_a_nanosecond_precision_duration_has_a_nine_digit_fraction() {
+    use petstore::proto_duration;
+    assert_eq!(
+        proto_duration::format(&chrono::TimeDelta::nanoseconds(1)),
+        "0.000000001s"
+    );
+}
+
+#[test]
+fn test_bhv_serialization_112_a_password_is_masked_in_the_debug_form_and_not_on_the_wire() {
+    use petstore::models::Account;
+    let account = Account::new("u".to_string()).with_password("p-secret-value".to_string());
+    assert!(!format!("{:?}", account).contains("p-secret-value"));
+    let text = serde_json::to_string(&account).unwrap();
+    assert!(
+        text.contains(r#""password":"p-secret-value""#),
+        "got: {}",
+        text
+    );
+}
