@@ -811,6 +811,34 @@ async fn test_bhv_retries_012_default_api_client_multipart_body_replayed_on_307_
     );
 }
 
+/// retries_046: a 307 that keeps the scheme resends the request body unchanged.
+#[tokio::test]
+async fn test_bhv_retries_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .max_redirects(Some(5))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = petstore::api_client::RequestBody::Bytes(br#"{"a":1}"#.to_vec());
+
+    let resp = client
+        .send_request(
+            "POST",
+            &format!("{}/test/redirect/307", chasm_url),
+            &HashMap::new(),
+            Some(&body),
+        )
+        .await
+        .expect("unexpected error");
+
+    assert_eq!(resp.status_code(), 200);
+    let json: serde_json::Value = serde_json::from_str(resp.body()).expect("invalid json");
+    assert_eq!(json["method"], "POST");
+    assert_eq!(json["body"], r#"{"a":1}"#);
+}
+
 #[tokio::test]
 async fn test_bhv_redirects_006_default_api_client_respects_max_redirects_limit() {
     let chasm_url = testcontainers_helper::chasm_http_url();

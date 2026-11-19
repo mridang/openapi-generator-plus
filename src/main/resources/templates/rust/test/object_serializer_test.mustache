@@ -1406,6 +1406,24 @@ fn test_bhv_misc_113_the_string_form_shows_the_contents_of_list_map_and_bytes() 
 }
 
 #[test]
+fn test_bhv_misc_111_a_set_is_written_in_sorted_order() {
+    use {{packageName}}::models::*;
+    let urls: std::collections::HashSet<String> = ["\u{1F600}", "\u{FFFD}", "z"].iter().map(|s| s.to_string()).collect();
+    let pet = Pet::new("rex".to_string(), urls);
+    let wire = serde_json::to_string(&pet).expect("serializes");
+    let (z, fffd, emoji) = (wire.find("\"z\"").unwrap(), wire.find('\u{FFFD}').unwrap(), wire.find('\u{1F600}').unwrap());
+    assert!(z < fffd && fffd < emoji, "code point order: {}", wire);
+}
+
+#[test]
+fn test_bhv_misc_215_an_input_object_with_no_fields_is_filled_with_every_declared_default() {
+    let restored: Defaults = serde_json::from_str("{}").expect("decodes");
+    assert_eq!(restored.retries, Some(3));
+    assert_eq!(restored.label.as_deref(), Some("untitled"));
+    assert_eq!(restored.scale, Some(0.25));
+}
+
+#[test]
 fn test_bhv_misc_115_a_bare_string_is_a_quoted_json_string() {
     assert_eq!(serde_json::to_string("hello").expect("serializes"), r#""hello""#);
 }
