@@ -4772,4 +4772,13 @@ class DefaultApiClientUnitTest {
                 runBlocking { apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null) }
             }
         }
+
+    @Test
+    @DisplayName("bhvMisc203 closing a client that is already closed does nothing and raises no error")
+    fun bhvMisc203SecondCloseRaisesNoError() {
+        val apiClient = DefaultApiClient(HttpClient(MockEngine { respond("", HttpStatusCode.OK) }) { followRedirects = false })
+        apiClient.close()
+        org.junit.jupiter.api.Assertions
+            .assertDoesNotThrow { apiClient.close() }
+    }
 }
