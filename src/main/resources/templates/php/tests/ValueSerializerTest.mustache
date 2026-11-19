@@ -11,6 +11,15 @@ use {{invokerPackage}}\ValueSerializer;
 
 // -- path location --
 
+test('bhv misc 211 a date time inside a json query parameter keeps its wire date time form', function (): void {
+    $json = '{"takenAt":"2024-01-02T03:04:05+00:00"}';
+    expect(rawurldecode(ValueSerializer::serialize($json, 'query', 'string')))->toBe($json);
+});
+
+test('bhv misc 213 an optional array query parameter is joined in its declared style with no bracket rendering', function (): void {
+    expect(ValueSerializer::serializeStyled('colors', ['blue', 'black'], 'query', 'array', null, 'pipeDelimited', false))->toBe('blue|black');
+});
+
 test('bhv serializationparam 004 an already percent-encoded path value is encoded again', function (): void {
     expect(ValueSerializer::serialize('a%20b', 'path', 'string'))->toBe('a%2520b');
     expect(ValueSerializer::serialize('50%', 'path', 'string'))->toBe('50%25');
