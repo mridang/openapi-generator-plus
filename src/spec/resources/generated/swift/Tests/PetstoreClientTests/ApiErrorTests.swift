@@ -281,32 +281,162 @@ import Testing
     }
   }
 
-  @Test func testBhvErrors006StatusCodesMapToTypedErrors() {
-    let notFound: any Error = ApiError.fromResponse(
-      statusCode: 404, headers: [:], body: "")
-    #expect(notFound is NotFoundError)
-    #expect(notFound is ClientError)
-    #expect(!(notFound is ServerError))
-    #expect(!(notFound is NetworkError))
-    #expect(notFound is OpenAPIError)
-    #expect((notFound as? ApiError)?.statusCode == 404)
+  @Test func testBhvErrors006StatusCodesMapToTypedErrorsAndDispatchEveryStatus() async {
+    do {
+      do {
+        do {
+          do {
+            do {
+              do {
+                do {
+                  do {
+                    let notFound: any Error = ApiError.fromResponse(
+                      statusCode: 404, headers: [:], body: "")
+                    #expect(notFound is NotFoundError)
+                    #expect(notFound is ClientError)
+                    #expect(!(notFound is ServerError))
+                    #expect(!(notFound is NetworkError))
+                    #expect(notFound is OpenAPIError)
+                    #expect((notFound as? ApiError)?.statusCode == 404)
 
-    let serverError: any Error = ApiError.fromResponse(
-      statusCode: 500, headers: [:], body: "")
-    #expect(serverError is InternalServerError)
-    #expect(serverError is ServerError)
-    #expect(!(serverError is ClientError))
-    #expect(serverError is OpenAPIError)
-    #expect((serverError as? ApiError)?.statusCode == 500)
+                    let serverError: any Error = ApiError.fromResponse(
+                      statusCode: 500, headers: [:], body: "")
+                    #expect(serverError is InternalServerError)
+                    #expect(serverError is ServerError)
+                    #expect(!(serverError is ClientError))
+                    #expect(serverError is OpenAPIError)
+                    #expect((serverError as? ApiError)?.statusCode == 500)
 
-    /* A status outside 400-599 is neither a ClientError nor a ServerError:
-     * the 5xx arm stops at 599, so 600 is a plain ApiError. */
-    let outOfRange: any Error = ApiError.fromResponse(
-      statusCode: 600, headers: [:], body: "")
-    #expect(!(outOfRange is ServerError))
-    #expect(!(outOfRange is ClientError))
-    #expect(outOfRange is ApiError)
-    #expect((outOfRange as? ApiError)?.statusCode == 600)
+                    /* A status outside 400-599 is neither a ClientError nor a ServerError:
+                     * the 5xx arm stops at 599, so 600 is a plain ApiError. */
+                    let outOfRange: any Error = ApiError.fromResponse(
+                      statusCode: 600, headers: [:], body: "")
+                    #expect(!(outOfRange is ServerError))
+                    #expect(!(outOfRange is ClientError))
+                    #expect(outOfRange is ApiError)
+                    #expect((outOfRange as? ApiError)?.statusCode == 600)
+                  }
+                  do {
+                    let mockClient = MockApiClient()
+                    mockClient.responseStatusCode = 400
+                    mockClient.responseBody = "{\"error\":\"bad request\"}"
+
+                    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                    let api = PetApi(apiClient: mockClient, config: config)
+
+                    do {
+                      _ = try await api.getPetById(petId: 1)
+                      Issue.record("Expected error for status 400")
+                    } catch let error as BadRequestError {
+                      #expect(error.statusCode == 400)
+                    }
+                  }
+                }
+                do {
+                  let mockClient = MockApiClient()
+                  mockClient.responseStatusCode = 403
+
+                  let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                  let api = PetApi(apiClient: mockClient, config: config)
+
+                  do {
+                    _ = try await api.getPetById(petId: 1)
+                    Issue.record("Expected error for status 403")
+                  } catch is ForbiddenError {
+                    // Expected
+                  }
+                }
+              }
+              do {
+                let mockClient = MockApiClient()
+                mockClient.responseStatusCode = 404
+
+                let config = ConfigurationBuilder().baseURL("https://example.com").build()
+                let api = PetApi(apiClient: mockClient, config: config)
+
+                do {
+                  _ = try await api.getPetById(petId: 1)
+                  Issue.record("Expected error for status 404")
+                } catch is NotFoundError {
+                  // Expected
+                }
+              }
+            }
+            do {
+              let mockClient = MockApiClient()
+              mockClient.responseStatusCode = 409
+
+              let config = ConfigurationBuilder().baseURL("https://example.com").build()
+              let api = PetApi(apiClient: mockClient, config: config)
+
+              do {
+                _ = try await api.getPetById(petId: 1)
+                Issue.record("Expected error for status 409")
+              } catch is ConflictError {
+                // Expected
+              }
+            }
+          }
+          do {
+            let mockClient = MockApiClient()
+            mockClient.responseStatusCode = 422
+
+            let config = ConfigurationBuilder().baseURL("https://example.com").build()
+            let api = PetApi(apiClient: mockClient, config: config)
+
+            do {
+              _ = try await api.getPetById(petId: 1)
+              Issue.record("Expected error for status 422")
+            } catch is UnprocessableEntityError {
+              // Expected
+            }
+          }
+        }
+        do {
+          let mockClient = MockApiClient()
+          mockClient.responseStatusCode = 429
+
+          let config = ConfigurationBuilder().baseURL("https://example.com").build()
+          let api = PetApi(apiClient: mockClient, config: config)
+
+          do {
+            _ = try await api.getPetById(petId: 1)
+            Issue.record("Expected error for status 429")
+          } catch let error as TooManyRequestsError {
+            #expect(error is ClientError)
+            #expect(error.statusCode == 429)
+          }
+        }
+      }
+      do {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 500
+
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+
+        do {
+          _ = try await api.getPetById(petId: 1)
+          Issue.record("Expected error for status 500")
+        } catch is InternalServerError {
+          // Expected
+        }
+      }
+    }
+    do {
+      let mockClient = MockApiClient()
+      mockClient.responseStatusCode = 502
+
+      let config = ConfigurationBuilder().baseURL("https://example.com").build()
+      let api = PetApi(apiClient: mockClient, config: config)
+
+      do {
+        _ = try await api.getPetById(petId: 1)
+        Issue.record("Expected error for status 502")
+      } catch is ServerError {
+        // Expected
+      }
+    }
   }
 
   /* A named error always reports its own status, whatever it is built
