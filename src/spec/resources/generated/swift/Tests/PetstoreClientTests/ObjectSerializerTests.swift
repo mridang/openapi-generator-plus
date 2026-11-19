@@ -347,6 +347,13 @@ import Testing
       "absent greeting must default to the exact spec string")
   }
 
+  /* An absent field decodes to its declared schema default. */
+  @Test func testBhvSerialization096AnAbsentFieldDecodesToItsDeclaredDefault() throws {
+    let defaults = try ObjectSerializer.deserialize("{}", as: Defaults.self)
+    #expect(defaults?.retries == 3, "an absent retries field must decode to its default of 3")
+    #expect(defaults?.label == "untitled", "an absent label field must decode to its default")
+  }
+
   @Test func testBhvSerialization095DefaultsExplicitNullPreservedNotDefaulted() throws {
     let json = "{\"label\":null,\"retries\":7}"
     let defaults = try ObjectSerializer.deserialize(json, as: Defaults.self)

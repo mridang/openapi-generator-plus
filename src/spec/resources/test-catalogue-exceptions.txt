@@ -750,6 +750,9 @@ kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: th
 kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
 kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
 kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
+rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
+rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
+
 rust | misc262 | The Rust client has no cancellation API: a pending request is cancelled by dropping its future, and no client operation cancels pending requests or reports a cancellation to the caller.
 rust | misc263 | The Rust client has no per-call timeout: the timeout is set on the transport options when the client is built and no call accepts its own value, so a per-call timeout longer than the client timeout cannot be expressed.
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
@@ -764,7 +767,6 @@ swift | misc272 | Proving an authenticating proxy accepts the credentials needs 
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
 kotlin | misc215 | Kotlin gives every declared default as a constructor default argument, so an input object with no fields is filled by the compiler when it is built and no runtime fill step exists to test
 kotlin | misc216 | Kotlin returns a binary body as its raw bytes without base64 decoding, pinned by bhv serialization wire 060, so the body is never decoded and the raw text is the value returned
-swift | misc285 | The Swift transport decodes only gzip, detected by its magic bytes; any other Content-Encoding is passed through unchanged, and no refusal with an unsupported-encoding message exists
 kotlin | transport083 | Kotlin has no client-level cancellation setting: a call is cancelled only through the coroutine that makes it, so there is no supplied cancellation to honour (see transport084)
 kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
@@ -787,3 +789,4 @@ rust | transport083 | The SDK has no client-level cancellation setting, so a cal
 rust | transport085 | The SDK has no cancellation token or signal parameter, so there is no unfired handle to hold while a timeout runs; the timeout itself is covered by transport086.
 rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
 rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.
+node | misc242 | Node keeps readOnly and writeOnly properties as the model holds them: a writeOnly password is decoded and kept on the wire (serializationobject017, operations098) and a readOnly id is decoded (serializationobject014), so no property is dropped from the wire by design.

@@ -4296,6 +4296,14 @@ async fn test_bhv_misc_181_a_header_value_is_sent_exactly_as_given_without_perce
 }
 
 #[test]
+fn test_bhv_misc_203_closing_an_already_closed_client_does_nothing() {
+    let client = DefaultApiClient::new(None);
+    client.close();
+    client.close();
+    assert!(client.is_closed());
+}
+
+#[test]
 fn test_bhv_misc_183_closing_a_client_with_nothing_to_release_succeeds() {
     let client = DefaultApiClient::new(None);
     client.close();
@@ -4709,6 +4717,57 @@ async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three
         started.elapsed()
     );
 }
+
+/* A transport failure while the request is running: close does not wait for it or cancel it. */
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_184_close_returns_without_waiting_for_a_running_request() {
+    let (listener, url) = bind_local_server();
+    let (accepted_tx, accepted_rx) = std::sync::mpsc::channel::<()>();
+    thread::spawn(move || {
+        let Ok((_stream, _)) = listener.accept() else {
+            return;
+        };
+        let _ = accepted_tx.send(());
+        thread::park();
+    });
+    let client = Arc::new(DefaultApiClient::new(None));
+    let request_url = format!("{}/x", url);
+    let running = {
+        let client = client.clone();
+        tokio::spawn(async move {
+            client
+                .send_request("GET", &request_url, &HashMap::new(), None)
+                .await
+                .is_ok()
+        })
+    };
+    accepted_rx
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("the request reached the server");
+    client.close();
+    assert!(
+        !running.is_finished(),
+        "close must not wait for or cancel the running request"
+    );
+    running.abort();
+}
+
+#[test]
+fn test_bhv_misc_186_a_ready_made_connection_combined_with_a_tls_setting_is_refused_when_built() {
+    let options = TransportOptions::builder()
+        .verify_ssl(false)
+        .build()
+        .expect("valid options");
+    let err = DefaultApiClient::with_client(reqwest::Client::new(), Some(options))
+        .err()
+        .expect("the conflict is refused");
+    assert!(
+        err.to_string().contains("verify_ssl(false)"),
+        "got: {}",
+        err
+    );
+}
+
 #[tokio::test]
 async fn test_bhv_misc_265_a_non_http_redirect_surfaces_as_an_api_error_with_the_redirect_status() {
     let base_url = start_fixed_response_server(

@@ -4977,6 +4977,32 @@ describe("automatic retries misc behaviours", () => {
       expect(headerValue(calls[1]!.headers, "authorization")).toBeUndefined();
     },
   );
+
+  it("bhv misc 227 a network error raised before any response is received is retried, so a dropped connection sends a second request", async () => {
+    const response = await send(
+      playing([new TypeError("other side closed"), reply(200)]),
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(2);
+  });
+
+  it("bhv misc 228 a Retry-After header that cannot be parsed is ignored and the retry uses the normal backoff delay", async () => {
+    jest.spyOn(Math, "random").mockReturnValue(0);
+    await send(playing([reply(503, { "Retry-After": "soon" }), reply(200)]));
+    expect(calls).toHaveLength(2);
+    expect(delays).toEqual([500]);
+  });
+
+  it("bhv misc 229 a per-call max retries value overrides the client setting, so a call can retry even when the client was built with no retries", async () => {
+    const response = await send(
+      playing([reply(503), reply(503), reply(503), reply(200)], (builder) =>
+        builder.maxRetries(0),
+      ),
+      { maxRetries: 3 },
+    );
+    expect(response.statusCode).toBe(200);
+    expect(calls).toHaveLength(4);
+  });
 });
 
 describe("DefaultApiClient lifecycle misc behaviours", () => {
@@ -5341,5 +5367,446 @@ describe("DefaultApiClient transport and multipart behaviours (bhv transport 084
     } finally {
       close();
     }
+  });
+});
+
+describe("DefaultApiClient redirect and body misc behaviours", () => {
+  const realFetch = global.fetch;
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("bhv misc 223 a POST turned into a GET by a 302 drops its body and Content-Length", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "https://example.invalid/landing" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    await client.sendRequest(
+      "POST",
+      "https://example.invalid/start",
+      {},
+      "payload",
+    );
+
+    expect(calls[1]!.init.method).toBe("GET");
+    expect(calls[1]!.init.body).toBeUndefined();
+    const names = Object.keys(
+      (calls[1]!.init.headers ?? {}) as Record<string, string>,
+    ).map((key) => key.toLowerCase());
+    expect(names).not.toContain("content-length");
+  });
+
+  it("bhv misc 224 transport default headers are not sent to another origin after a redirect", async () => {
+    const calls: Array<{ url: string; init: RequestInit }> = [];
+    global.fetch = (async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      calls.push({ url: String(input), init: init ?? {} });
+      if (calls.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "https://other.example.invalid/landing" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .followRedirects(true)
+        .defaultHeaders({ "X-Tenant-Token": "tenant-secret" })
+        .build(),
+    );
+
+    await client.sendRequest("GET", "https://example.invalid/start", {}, null);
+
+    const first = Object.keys(
+      (calls[0]!.init.headers ?? {}) as Record<string, string>,
+    ).map((key) => key.toLowerCase());
+    const second = Object.keys(
+      (calls[1]!.init.headers ?? {}) as Record<string, string>,
+    ).map((key) => key.toLowerCase());
+    expect(first).toContain("x-tenant-token");
+    expect(second).not.toContain("x-tenant-token");
+  });
+
+  it("bhv misc 225 a 3xx response without a Location header is returned to the caller as the final response", async () => {
+    const seen: number[] = [];
+    global.fetch = (async (): Promise<Response> => {
+      seen.push(1);
+      return new Response(null, { status: 301 });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    const response = await client.sendRequest(
+      "GET",
+      "https://secure.example/start",
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(301);
+    expect(seen).toHaveLength(1);
+  });
+
+  it("bhv misc 226 with redirect following enabled a 302 is followed to its target and the final 200 is returned", async () => {
+    const seen: string[] = [];
+    global.fetch = (async (
+      input: string | URL | Request,
+    ): Promise<Response> => {
+      seen.push(String(input));
+      if (seen.length === 1) {
+        return new Response(null, {
+          status: 302,
+          headers: { Location: "https://example.invalid/landing" },
+        });
+      }
+      return new Response('{"ok":true}', {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+
+    const response = await client.sendRequest(
+      "GET",
+      "https://example.invalid/start",
+      {},
+      null,
+    );
+
+    expect(seen).toEqual([
+      "https://example.invalid/start",
+      "https://example.invalid/landing",
+    ]);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("ok");
+  });
+
+  it("bhv misc 237 an ISO-8859-1 error response body decodes to UTF-8 text", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(new Uint8Array([0xe9]), {
+        status: 400,
+        headers: { "Content-Type": "text/plain; charset=ISO-8859-1" },
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+
+    const response = await client.sendRequest(
+      "GET",
+      "https://example.invalid/fail",
+      {},
+      null,
+    );
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body).toBe("é");
+  });
+});
+
+describe("DefaultApiClient multipart upload misc behaviours", () => {
+  it("bhv misc 240 a multipart form upload sends its file part with the file content echoed back in the request", async () => {
+    let received = Buffer.alloc(0);
+    const srv = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        received = Buffer.concat(chunks);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+    const client = new DefaultApiClient();
+    try {
+      const port = (srv.address() as { port: number }).port;
+      await client.sendRequest(
+        "POST",
+        `http://127.0.0.1:${port}/upload`,
+        {},
+        { "avatar.png": Buffer.from("PNGDATA") },
+      );
+      expect(received.toString("binary")).toContain("PNGDATA");
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
+  });
+});
+
+describe("DefaultApiClient transport misc behaviours", () => {
+  const realFetch = global.fetch;
+  const pick = (headers: Record<string, string>, name: string): string[] =>
+    Object.entries(headers)
+      .filter(([key]) => key.toLowerCase() === name)
+      .map(([, value]) => value);
+  const okJson = (): Response =>
+    new Response('{"ok":true}', {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  afterEach(() => {
+    global.fetch = realFetch;
+  });
+
+  it("bhv misc 262 cancelling a pending request surfaces the abort to the caller without wrapping it", async () => {
+    global.fetch = (async (
+      _input: unknown,
+      init?: RequestInit,
+    ): Promise<Response> =>
+      new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        signal?.addEventListener("abort", () => reject(signal!.reason));
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    const controller = new AbortController();
+    const pending = client.sendRequest(
+      "GET",
+      "https://example.invalid/slow",
+      {},
+      null,
+      { signal: controller.signal },
+    );
+    controller.abort();
+    const error = (await pending.catch((e: unknown) => e)) as Error;
+    expect(error.name).toBe("AbortError");
+    expect(error).not.toBeInstanceOf(NetworkError);
+  });
+
+  it("bhv misc 263 a per-call timeout longer than the client timeout lets a slow response complete", async () => {
+    global.fetch = (async (): Promise<Response> => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      return okJson();
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().timeout(50).maxRetries(0).build(),
+    );
+    const response = await client.sendRequest(
+      "GET",
+      "https://example.invalid/slow",
+      {},
+      null,
+      { timeout: 2000 },
+    );
+    expect(response.statusCode).toBe(200);
+  });
+
+  it("bhv misc 265 a redirect to a non-HTTP scheme surfaces as an API error carrying the redirect status, not a network error", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response(null, {
+        status: 302,
+        headers: { Location: "ftp://files.example/x" },
+      })) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).build(),
+    );
+    const error = await client
+      .sendRequest("GET", "https://api.example/start", {}, null)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error).not.toBeInstanceOf(NetworkError);
+    expect((error as ApiError).statusCode).toBe(302);
+  });
+
+  it("bhv misc 266 default headers supplied by the caller replace the SDK user agent and request id regardless of header name case", async () => {
+    const seen: Record<string, string>[] = [];
+    global.fetch = (async (
+      _input: unknown,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      seen.push({ ...((init?.headers ?? {}) as Record<string, string>) });
+      return okJson();
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .injectRequestId(true)
+        .defaultHeaders({
+          "user-agent": "caller-agent",
+          "X-REQUEST-ID": "caller-id",
+        })
+        .build(),
+    );
+    await client.sendRequest("GET", "https://example.invalid/items", {}, null);
+    expect(pick(seen[0]!, "user-agent")).toEqual(["caller-agent"]);
+    expect(pick(seen[0]!, "x-request-id")).toEqual(["caller-id"]);
+  });
+
+  it("bhv misc 267 a default header set on the transport is sent on the wire with each request", async () => {
+    const seen: Record<string, string>[] = [];
+    const injected = (async (
+      _input: unknown,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      seen.push({ ...((init?.headers ?? {}) as Record<string, string>) });
+      return okJson();
+    }) as typeof fetch;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .fetch(injected)
+        .defaultHeaders({ "X-Client-Default": "client-value" })
+        .build(),
+    );
+    await client.sendRequest("GET", "https://example.invalid/items", {}, null);
+    expect(pick(seen[0]!, "x-client-default")).toEqual(["client-value"]);
+  });
+
+  it("bhv misc 271 with no proxy configured the client connects directly even when a proxy environment variable is set", async () => {
+    const srv = http.createServer((_req, res) => {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"direct":true}');
+    });
+    await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+    const saved = process.env["HTTP_PROXY"];
+    process.env["HTTP_PROXY"] = "http://127.0.0.1:9";
+    const client = new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    );
+    try {
+      const port = (srv.address() as { port: number }).port;
+      const response = await client.sendRequest(
+        "GET",
+        `http://127.0.0.1:${port}/direct`,
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("direct");
+    } finally {
+      if (saved === undefined) delete process.env["HTTP_PROXY"];
+      else process.env["HTTP_PROXY"] = saved;
+      await client.close();
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
+  });
+
+  it("bhv misc 272 credentials embedded in the proxy URL are accepted by an authenticating proxy end to end", async () => {
+    const seen: Array<string | undefined> = [];
+    const proxy = http.createServer((req, res) => {
+      seen.push(req.headers["proxy-authorization"]);
+      const expected = "Basic " + Buffer.from("user:pass").toString("base64");
+      if (req.headers["proxy-authorization"] !== expected) {
+        res.writeHead(407, { "Proxy-Authenticate": 'Basic realm="proxy"' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end('{"via":"proxy"}');
+    });
+    await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
+    const port = (proxy.address() as { port: number }).port;
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .proxy(`http://user:pass@127.0.0.1:${port}`)
+        .maxRetries(0)
+        .build(),
+    );
+    try {
+      const response = await client.sendRequest(
+        "GET",
+        "http://target.example.invalid/x",
+        {},
+        null,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(response.body).toContain("proxy");
+      expect(seen[0]).toBe(
+        "Basic " + Buffer.from("user:pass").toString("base64"),
+      );
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) => proxy.close(() => resolve()));
+    }
+  });
+
+  it("bhv misc 273 the request-id header carries a UUID v4 when enabled and is omitted when disabled", async () => {
+    const seen: Record<string, string>[] = [];
+    global.fetch = (async (
+      _input: unknown,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      seen.push({ ...((init?.headers ?? {}) as Record<string, string>) });
+      return okJson();
+    }) as typeof fetch;
+    await new DefaultApiClient(
+      TransportOptions.builder().injectRequestId(true).build(),
+    ).sendRequest("GET", "https://example.invalid/a", {}, null);
+    await new DefaultApiClient(
+      TransportOptions.builder().injectRequestId(false).build(),
+    ).sendRequest("GET", "https://example.invalid/b", {}, null);
+    expect(pick(seen[0]!, "x-request-id")[0]).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(pick(seen[1]!, "x-request-id")).toEqual([]);
+  });
+
+  it("bhv misc 274 a non-2xx response is returned to the caller with its status code intact", async () => {
+    global.fetch = (async (): Promise<Response> =>
+      new Response('{"missing":true}', {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      })) as typeof fetch;
+    const response = await new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    ).sendRequest("GET", "https://example.invalid/none", {}, null);
+    expect(response.statusCode).toBe(404);
+  });
+
+  it("bhv misc 275 the request is sent with the intended HTTP method and the response is returned to the caller", async () => {
+    const methods: string[] = [];
+    global.fetch = (async (
+      _input: unknown,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      methods.push(String(init?.method));
+      return okJson();
+    }) as typeof fetch;
+    const response = await new DefaultApiClient(
+      TransportOptions.builder().maxRetries(0).build(),
+    ).sendRequest("PATCH", "https://example.invalid/items/1", {}, "{}");
+    expect(methods).toEqual(["PATCH"]);
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toContain("ok");
+  });
+});
+
+describe("DefaultApiClient CA certificate misc behaviours", () => {
+  it("bhv misc 270 a missing CA certificate file is rejected even when certificate verification is disabled, naming the certificate", () => {
+    const missing = path.join(os.tmpdir(), "no-such-ca-misc-270.pem");
+    expect(
+      () =>
+        new DefaultApiClient(
+          TransportOptions.builder()
+            .verifySsl(false)
+            .caCertPath(missing)
+            .build(),
+        ),
+    ).toThrow(missing);
   });
 });

@@ -899,11 +899,10 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                         string.Equals(currentUrl.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
                         && string.Equals(nextUrl.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
                     int redirectStatus = (int)response.StatusCode;
-                    bool preservesBody =
-                        redirectStatus == 307
-                        || redirectStatus == 308
-                        || ((redirectStatus == 301 || redirectStatus == 302)
-                            && !string.Equals(currentMethod, "POST", StringComparison.OrdinalIgnoreCase));
+                    /* Only 303 leaves the body behind (it coerces to GET). 301,
+                       302, 307 and 308 would carry the body to the HTTP target,
+                       so a body on any of them is refused. */
+                    bool preservesBody = redirectStatus != 303;
                     if (isDowngrade && preservesBody && currentBody != null)
                     {
                         /* T-D2: refuse to replay a body that was sent over TLS
