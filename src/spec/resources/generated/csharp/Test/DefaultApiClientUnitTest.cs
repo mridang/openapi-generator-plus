@@ -3460,6 +3460,16 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
+    public void BhvMisc135AClientLevelCancellationTokenGivenToTheBuilderIsStoredOnTheOptions()
+    {
+        using var source = new CancellationTokenSource();
+
+        var options = TransportOptions.Builder().CancellationToken(source.Token).Build();
+
+        Assert.Equal(source.Token, options.CancellationToken);
+    }
+
+    [Fact]
     public async Task BhvLifecycle023UseAfterCloseThrowsInvalidOperationException()
     {
         var client = new DefaultApiClient(CreateMockHttpClient(HttpStatusCode.OK, "{}"));
@@ -6554,6 +6564,36 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Empty(handler.Requests);
+    }
+
+    [Fact]
+    public async Task BhvSerialization123AQuoteInAFieldNameIsBackslashEscapedAndCrLfAreRejected()
+    {
+        string? wireText = null;
+        var handler = new CapturingHandler(async req =>
+        {
+            wireText = await req.Content!.ReadAsStringAsync();
+        });
+        var client = new DefaultApiClient(new HttpClient(handler));
+        await client.SendRequestAsync(
+            "POST",
+            new Uri("http://example.com/upload"),
+            new Dictionary<string, string>(),
+            new Dictionary<string, object> { { "a\"b", "v" } }
+        );
+        Assert.Contains("name=\"a\\\"b\"", wireText, StringComparison.Ordinal);
+
+        foreach (string bad in new[] { "a\rb", "a\nb" })
+        {
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                client.SendRequestAsync(
+                    "POST",
+                    new Uri("http://example.com/upload"),
+                    new Dictionary<string, string>(),
+                    new Dictionary<string, object> { { bad, "v" } }
+                )
+            );
+        }
     }
 
     [Fact]

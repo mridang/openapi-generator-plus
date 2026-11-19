@@ -9,6 +9,7 @@
 using PetstoreClient;
 using PetstoreClient.Api;
 using PetstoreClient.Api.Options;
+using PetstoreClient.Errors;
 using PetstoreClient.Models;
 using Xunit;
 
@@ -580,6 +581,42 @@ public class StoreApiTest
 
         await api.SearchStoreAsync(new SearchStoreOptions { At = new TimeOnly(10, 30, 0) });
         Assert.Equal("?at=10%3A30%3A00", client.Url!.Query);
+    }
+
+    [Fact]
+    public void BhvMisc011AnOptionsObjectForAnOperationWithNoParametersAcceptsTheCallSettings()
+    {
+        var built = new GetDefaultsOptions
+        {
+            Timeout = 5,
+            Headers = new Dictionary<string, string> { ["X-A"] = "1" },
+            MaxRetries = 0,
+        };
+
+        Assert.Equal(5, built.Timeout);
+        Assert.Equal(0, built.MaxRetries);
+        Assert.Null(new GetDefaultsOptions().Timeout);
+    }
+
+    [Fact]
+    public async Task BhvMisc054PerCallHeadersAreACopyThatLaterChangesToTheCallersMapDoNotReach()
+    {
+        var client = new ListCapturingApiClient();
+        var api = new StoreApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var headers = new Dictionary<string, string> { ["X-Trace"] = "abc" };
+        var options = new GetInventoryOptions { Headers = headers };
+        headers["X-Trace"] = "changed";
+
+        try
+        {
+            await api.GetInventoryAsync(options);
+        }
+        catch (OpenAPIException)
+        {
+            // Only the captured headers matter here.
+        }
+
+        Assert.Equal("abc", client.Headers["X-Trace"]);
     }
 
     [Fact]

@@ -95,6 +95,21 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public async Task BhvMisc188AClientIsClosedOnlyAfterCloseHasBeenCalled()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        var client = new Client(_authenticator, transport);
+
+        _ = await client.Store.GetInventoryAsync();
+        Assert.Equal(1, handler.Requests);
+
+        client.Dispose();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.Store.GetInventoryAsync());
+        Assert.Equal(1, handler.Requests);
+    }
+
+    [Fact]
     public void BhvLifecycle036ClosingTheClientTwiceRaisesNoErrorAndTheSecondCloseReleasesNothing()
     {
         using var handler = new RecordingHandler();
@@ -484,7 +499,7 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
-    public async Task BhvAuth022EnvironmentTokenIsUsedBeforeTheProvider()
+    public async Task BhvAuth022TheTokenProviderIsUsedBeforeTheEnvironmentToken()
     {
         using var handler = new RecordingHandler();
         var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
@@ -503,7 +518,7 @@ public sealed class ClientTest : IDisposable
             _ = await client!.Store.GetOrderByIdAsync(1);
         }
 
-        Assert.Equal("Bearer env-token", handler.Authorization);
+        Assert.Equal("Bearer provided-token", handler.Authorization);
     }
 
     [Fact]
@@ -1128,6 +1143,71 @@ public sealed class ClientTest : IDisposable
         _ = await client.Store.GetOrderByIdAsync(1);
 
         Assert.Equal("Bearer current-2", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvAuth007AGenericAuthenticatorBuiltWithoutCredentialsReadsNoVariableAndFails()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+            {
+                Assert.ThrowsAny<ArgumentException>(() =>
+                    new BearerAuthenticator("http://localhost", (string)null!)
+                );
+                Assert.ThrowsAny<ArgumentException>(() =>
+                    new BearerAuthenticator("http://localhost", "")
+                );
+            }
+        );
+    }
+
+    [Fact]
+    public async Task BhvAuth038ATokenProviderOutranksATokenInTheEnvironment()
+    {
+        using var handler = new RecordingHandler();
+        var transport = TransportOptions.Builder().HttpMessageHandler(handler).Build();
+        Client? client = null;
+        WithEnvironment(
+            "http://localhost",
+            "from-environment",
+            () =>
+                client = Client.FromEnvironment(
+                    tokenProvider: _ => Task.FromResult("from-provider"),
+                    transportOptions: transport
+                )
+        );
+        using (client)
+        {
+            _ = await client!.Store.GetOrderByIdAsync(1);
+        }
+
+        Assert.Equal("Bearer from-provider", handler.Authorization);
+    }
+
+    [Fact]
+    public void BhvAuth039ATokenTogetherWithATokenProviderIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Client.FromEnvironment(
+                host: "http://localhost",
+                token: "t",
+                tokenProvider: _ => Task.FromResult("p")
+            )
+        );
+    }
+
+    [Fact]
+    public void BhvAuthbearer026ABearerTokenAndAProviderTogetherAreRejected()
+    {
+        Assert.Throws<ArgumentException>(() =>
+            Client.FromEnvironment(
+                host: "http://localhost",
+                token: "t",
+                tokenProvider: _ => Task.FromResult("p")
+            )
+        );
     }
 
     [Fact]
