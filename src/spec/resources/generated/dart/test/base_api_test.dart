@@ -3945,6 +3945,20 @@ void main() {
     );
 
     test(
+      'bhv misc 030 a deadline that passed before the request is built is a timeout and never reaches the transport',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = _RecordingApi(client, authenticator: _SlowAuth());
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/api/x', timeout: 1),
+          throwsA(isA<NetworkTimeoutException>()),
+        );
+        expect(client.sentHeaders, isEmpty);
+      },
+    );
+
+    test(
       'bhv misc 081 a string result under a binary content type is the decoded body',
       () async {
         final client = _ScriptedApiClient([

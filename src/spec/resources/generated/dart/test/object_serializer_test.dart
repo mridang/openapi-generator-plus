@@ -117,6 +117,18 @@ void main() {
     );
 
     test(
+      'bhv misc 214 an unserializable query content value raises a serialization error',
+      () {
+        expect(
+          () => serialize(
+            PhotoMetadata(location: PhotoMetadataLocation(lat: double.nan)),
+          ),
+          throwsA(isA<SerializationException>()),
+        );
+      },
+    );
+
+    test(
       'bhv misc 104 a string field declared with the email format decodes to a plain string without validation',
       () {
         final decoded = PetWithOwner.fromJson({

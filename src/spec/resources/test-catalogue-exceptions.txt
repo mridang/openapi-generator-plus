@@ -450,7 +450,6 @@ rust | misc033 | the Rust suite has no TLS server or certificate chain fixture, 
 rust | misc035 | Rust has no abort signal on a call (S7): an already-cancelled call is a dropped future that never reaches the transport, and no abort error exists to assert
 rust | misc036 | Rust moves a caller's body into the call, so after a failed request the caller holds no part to read; readability after a failure does not arise
 rust | misc038 | the Rust suite has no TLS server, so a server presenting a self-signed certificate that the platform trust store rejects cannot be started in a test
-dart | misc030 | Dart has no per-call deadline: the only deadline is the client-wide timeout, which must be a positive number of milliseconds when built, so a deadline cannot already be past when a request starts
 dart | misc033 | the suite ships a single server certificate with no root and intermediate pair, so a root-only pinned CA file cannot be paired with a server that also sends the intermediate
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
 elixir | misc048 | The fixture has no operation whose declared response is a union, so no undeclared success status can decode as a union return type
@@ -635,7 +634,6 @@ java | misc176 | The Java petstore fixture declares no operation with a required
 java | misc178 | The Java SDK takes no declared multipart subtype and always sends a multipart body as multipart/form-data, so a declared non-form-data type cannot reach the transport
 php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
-dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
 kotlin | misc139 | Kotlin model data classes keep the List or Map the caller passed, the settled decision of kotlin | servers024: a frozen copy would turn each data class into a regular class with hand-written equals, hashCode, copy and componentN, a public API change (misc051 pins the typed arguments)
 node | retries045 | node has no streamed request body: sendRequest accepts only a string, Buffer, record or null, all held in memory, so a 401 replay never has a stream to consume
