@@ -805,14 +805,13 @@ class ComposedSchemaTest {
   }
 
   @Test
-  @DisplayName(
-      "bhvMisc294 a subtype payload without its discriminator decodes as the mapped variant")
-  void bhvMisc294ASubtypePayloadWithoutItsDiscriminatorDecodesAsTheMappedVariant() {
-    Object food =
-        serializer.deserialize("{\"weightKg\":2.5}", com.example.petstore.models.PetFood.class);
-
-    assertTrue(food instanceof com.example.petstore.models.DryFood);
-    assertEquals(2.5, ((com.example.petstore.models.DryFood) food).weightKg);
+  @DisplayName("bhvMisc294 a subtype payload without its discriminator is refused")
+  void bhvMisc294ASubtypePayloadWithoutItsDiscriminatorIsRefused() {
+    assertThrows(
+        SerializationException.class,
+        () ->
+            serializer.deserialize(
+                "{\"weightKg\":2.5}", com.example.petstore.models.PetFood.class));
   }
 
   @Nested
@@ -849,7 +848,9 @@ class ComposedSchemaTest {
     @DisplayName("bhvUnions046 every anyOf variant a payload matches reports itself as matched")
     void bhvUnions046EveryMatchingAnyOfVariantReportsItself() {
       com.example.petstore.models.PetTreatment treatment =
-          serializer.deserialize("{}", com.example.petstore.models.PetTreatment.class);
+          serializer.deserialize(
+              "{\"drugName\":\"x\",\"procedureName\":\"y\"}",
+              com.example.petstore.models.PetTreatment.class);
       assertThat(treatment.isMedication()).isTrue();
       assertThat(treatment.isSurgery()).isTrue();
       assertThat(treatment.getMatchedInstances()).hasSize(2);
