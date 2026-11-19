@@ -307,6 +307,12 @@ public class BaseApiTest
         }
     }
 
+    private TestableApi Api() =>
+        new(
+            new DefaultApiClient(TransportOptions.Builder().MaxRetries(0).Build()),
+            _fixture.BaseUrl
+        );
+
     private static HookedApi Hooked(
         IApiClient client,
         ICallHook? hook,
@@ -1505,6 +1511,53 @@ public class BaseApiTest
                 )
             );
         }
+    }
+
+    private sealed class TimeoutApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromException<ApiHttpResponse>(
+                new NetworkTimeoutException("request timed out")
+            );
+        }
+    }
+
+    private sealed class RefusedApiClient : IApiClient
+    {
+        public Task<ApiHttpResponse> SendRequestAsync(
+            string method,
+            Uri url,
+            Dictionary<string, string> headers,
+            object? body
+        )
+        {
+            return Task.FromException<ApiHttpResponse>(new NetworkException("connection refused"));
+        }
+    }
+
+    private static Task<object?> CallWithAuth(
+        StatusSequenceApiClient client,
+        IAuthenticator auth,
+        object? body = null,
+        string contentType = "application/json"
+    )
+    {
+        return new TestableApi(client, "http://localhost").CallAsync<object>(
+            "POST",
+            "/x",
+            new Dictionary<string, object?>(),
+            new Dictionary<string, string>(),
+            body,
+            ["application/json"],
+            contentType,
+            auth
+        );
     }
 
     private sealed class FailingRefreshAuthenticator : IInvalidatableAuthenticator
