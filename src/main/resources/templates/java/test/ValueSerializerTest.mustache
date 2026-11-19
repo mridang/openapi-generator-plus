@@ -1121,4 +1121,12 @@ class ValueSerializerTest {
     void bhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20() {
         assertEquals("a%20b", ValueSerializer.serialize("a b", "query", "string", null));
     }
+
+    @Test
+    void bhvMisc107AScalarFormQueryParameterIsEmittedUnderItsOwnNameAndValue() {
+        Object styled = ValueSerializer.serializeStyled("filter", "x", "query", "string", null, "form", true);
+        Map<String, Object> query = new java.util.LinkedHashMap<>();
+        ValueSerializer.putQuery(query, "filter", styled, false);
+        assertEquals(Map.of("filter", "x"), query);
+    }
 }

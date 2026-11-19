@@ -677,7 +677,7 @@ class StoreApiTest {
             Configuration.builder().baseUrl("http://127.0.0.1:1").build());
     assertThatThrownBy(() -> unreachable.getInventory())
         .isInstanceOf(com.example.petstore.errors.NetworkException.class)
-        .hasCauseNotNull();
+        .hasCauseInstanceOf(Throwable.class);
   }
 
   @Test
@@ -700,7 +700,7 @@ class StoreApiTest {
         .isInstanceOfAny(
             com.example.petstore.errors.NetworkException.class,
             com.example.petstore.errors.NetworkTimeoutException.class)
-        .hasCauseNotNull();
+        .hasCauseInstanceOf(Throwable.class);
   }
 
   @Test
