@@ -2723,28 +2723,6 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerializationparam105AddressParameterIsTheCanonicalText()
-        {
-            Assert.Equal(
-                "192.0.2.1",
-                ObjectSerializer.Stringify(System.Net.IPAddress.Parse("192.0.2.1"))
-            );
-            Assert.Equal(
-                "2001:db8::1",
-                ObjectSerializer.Stringify(System.Net.IPAddress.Parse("2001:0DB8::1"))
-            );
-        }
-
-        [Fact]
-        public void BhvSerializationparam106DecimalParameterIsPlainNotation()
-        {
-            Assert.Equal(
-                "12.345678901234567890123",
-                ObjectSerializer.Stringify(12.345678901234567890123m)
-            );
-        }
-
-        [Fact]
         public void BhvMisc214AnUnserializableQueryContentValueRaisesASerializationError()
         {
             var cyclic = new Dictionary<string, object>();

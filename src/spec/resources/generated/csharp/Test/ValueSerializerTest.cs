@@ -62,11 +62,19 @@ public class ValueSerializerTest
     }
 
     [Fact]
-    public void BhvSerializationparam105SerializeStyledFormScalar()
+    public void BhvSerializationparam105SerializeStyledFormScalarAndAddressIsCanonicalText()
     {
         Assert.Equal(
             "blue",
             ValueSerializer.SerializeStyled("color", "blue", "query", "string", null, "form", true)
+        );
+        Assert.Equal(
+            "192.0.2.1",
+            ObjectSerializer.Stringify(System.Net.IPAddress.Parse("192.0.2.1"))
+        );
+        Assert.Equal(
+            "2001:db8::1",
+            ObjectSerializer.Stringify(System.Net.IPAddress.Parse("2001:0DB8::1"))
         );
     }
 
@@ -93,11 +101,15 @@ public class ValueSerializerTest
     // -- path location --
 
     [Fact]
-    public void BhvSerializationparam106PathWithNullStyleBehavesLikeSimple()
+    public void BhvSerializationparam106PathWithNullStyleBehavesLikeSimpleAndDecimalIsPlainNotation()
     {
         Assert.Equal(
             "5",
             ValueSerializer.SerializeStyled("id", "5", "path", "string", null, null, false)
+        );
+        Assert.Equal(
+            "12.345678901234567890123",
+            ObjectSerializer.Stringify(12.345678901234567890123m)
         );
     }
 
