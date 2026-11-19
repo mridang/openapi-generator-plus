@@ -11,7 +11,7 @@ from enum import Enum
 from typing import Any, ClassVar, Optional, Type, TypeVar, Union, cast, overload
 
 from dateutil.parser import isoparse, parse
-from pydantic import BaseModel, SecretStr, StrictBool, StrictInt, StrictStr, TypeAdapter
+from pydantic import BaseModel, SecretStr, StrictBool, StrictInt, StrictStr, TypeAdapter, ValidationError
 
 # The protobuf-JSON duration helpers live in a tiny dependency-free module so
 # both this serializer and the generated pydantic models (via the
@@ -223,6 +223,15 @@ class ObjectSerializer:
                         separators=(',', ':'),
                     )
                 if hasattr(obj, 'actual_instance'):
+                    # A union built without validation can hold a value that is
+                    # none of its variants; refuse it, naming the union.
+                    if obj.actual_instance is not None:
+                        try:
+                            type(obj).model_validate({'actual_instance': obj.actual_instance})
+                        except ValidationError as error:
+                            raise SerializationException(
+                                f'{type(obj).__name__} holds a value that is not one of its variants'
+                            ) from error
                     return self._serialize_marked(obj.actual_instance)
                 # A model keeps the values it was built with, valid or not, so a
                 # value that does not fit its field goes out as it is, without
@@ -353,7 +362,7 @@ class ObjectSerializer:
         elif isinstance(obj, datetime.date):
             return obj.isoformat()
         elif isinstance(obj, decimal.Decimal):
-            return format(obj, 'f')
+            return float(obj)
         elif isinstance(obj, uuid.UUID):
             return str(obj)
         elif isinstance(obj, (list, tuple, set, frozenset, dict)) or hasattr(obj, '__dict__'):

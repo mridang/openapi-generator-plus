@@ -47,7 +47,8 @@ class TestConfigurationDefaults:
         )
 
         headers = config.default_headers
-        headers["X-New"] = "no"
+        with pytest.raises(TypeError):
+            headers["X-New"] = "no"  # type: ignore[index]
 
         assert "X-New" not in config.default_headers
 

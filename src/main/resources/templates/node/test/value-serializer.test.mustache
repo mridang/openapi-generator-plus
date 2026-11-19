@@ -885,7 +885,7 @@ describe('ValueSerializer misc wire encoding behaviours', () => {
   });
 
   test('bhv misc 254 an unmarked query value percent-encodes reserved characters such as slash and colon', () => {
-    expect(ValueSerializer.serialize('a/b:c', 'query', 'string')).toBe('a%2Fb%3Ac');
+    expect(ValueSerializer.encodeQueryComponent('a/b:c')).toBe('a%2Fb%3Ac');
   });
 
   test('bhv misc 255 separate query parameters encode a space as %20', () => {

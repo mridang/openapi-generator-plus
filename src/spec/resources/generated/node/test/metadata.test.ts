@@ -434,7 +434,7 @@ describe("Metadata", () => {
 describe("Metadata additional properties misc behaviours", () => {
   it("bhv misc 142 additional properties are returned unchanged by key and the map holds exactly the stored entries", () => {
     const meta = ObjectSerializer.deserialize(
-      '{"note":"x","owner":"ann"}',
+      JSON.parse('{"note":"x","owner":"ann"}'),
       Metadata,
     ) as Metadata;
     expect(meta.additionalProperties["note"]).toBe("x");

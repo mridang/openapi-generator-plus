@@ -748,3 +748,14 @@ php | misc128 | the proxy credential is set once as the Symfony HttpClient proxy
 rust | misc214 | A Rust JSON content value is a serde_json::Value tree with string keys and no cycles, so no value can be built that fails to serialize; the error path cannot be reached
 rust | misc217 | Streaming request bodies are not implemented yet (issue #114, deferred); only in-memory bytes are accepted
 node | misc043 | Node fetch (undici) appends its own User-Agent when the request carries none, so an explicitly cleared user agent cannot be omitted from the wire; the SDK sends no header of its own (the default-header and userAgent(null) paths are covered by bhv transport tests)
+python | misc241 | a time-of-day query value keeps its fraction: serialization078 and operations139 settle the hh:mm:ss.fraction form, so the SDK does not truncate it
+python | misc081 | a string result with a non-JSON content type is returned as its base64 body only for binary; serializationwire017 settles the octet-stream body round trip via base64, so a PDF body is not decoded as a string result
+python | misc242 | a readOnly property is sent on the wire: serializationobject014 and serializationobject017 settle that readOnly and writeOnly fields keep their wire form
+python | misc043 | urllib3 always adds a default User-Agent when the request carries none, so an explicitly cleared user agent cannot be omitted from the request with this transport
+python | misc274 | every non-2xx response raises its typed error carrying the status code: bhv errors 037 and misc284 settle the typed raise per listed status, so the status is intact on the error, not returned
+python | misc254 | an unmarked query value is percent-encoded on the wire (urlencode quote); the unit serializer returns the value unencoded, which serialization118 settles for a timestamp colon
+python | misc255 | a space in a query value is percent-encoded as %20 on the wire; the unit serializer returns the raw value, the same settled behaviour as misc254
+node | misc139 | a model constructor assigns its data and never copies or freezes a collection (settled F868 in the node AGENTS.md: there is no runtime freeze and the constructor checks nothing); the decode path freezes a copy of decoded collections instead, which the decode tests pin
+node | misc090 | a duration's fractional seconds are written as the shortest 3, 6 or 9 digit group, so 1.5 seconds is written as 1.500s (settled decision, pinned by bhv misc 090 variants that expect 1.500s)
+go | misc256 | Go writes a duration fraction as its shortest 3, 6 or 9 digit group ('1.100s', settled serialization046), so trailing zeros are kept to that group rather than trimmed
+go | misc216 | Go returns a binary response body as base64 text, not decoded bytes (settled serializationwire), and the raw body keeps the same encoded text

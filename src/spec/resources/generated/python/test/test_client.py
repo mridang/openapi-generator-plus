@@ -233,7 +233,7 @@ class TestClientCredentials:
         )
         monkeypatch.setenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN", "env-token")
 
-        client = Client()
+        client = Client.with_token()
 
         assert _host(client) == "https://env.example.com"
         assert _authorization(client) == "Bearer env-token"
@@ -426,13 +426,12 @@ class TestClientSchemeCredentials:
         self,
     ) -> None:
         with pytest.raises(TypeError):
-            Client(
-                **{
-                    "undeclaredScheme": BearerAuthenticator(
-                        "https://api.example.com", "tok"
-                    )
-                }
-            )
+            undeclared: Any = {
+                "undeclaredScheme": BearerAuthenticator(
+                    "https://api.example.com", "tok"
+                )
+            }
+            Client(**undeclared)
 
     def test_bhv_lang_python_049_the_call_hook_reaches_every_api_group(self) -> None:
         class _Hook:

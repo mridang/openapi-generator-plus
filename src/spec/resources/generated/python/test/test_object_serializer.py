@@ -2,7 +2,7 @@ import datetime
 import ipaddress
 import json
 import warnings
-from typing import Any
+from typing import Any, cast
 from decimal import Decimal
 import pytest
 from pydantic import SecretStr, ValidationError
@@ -691,7 +691,8 @@ class TestNativeValueFormats:
         from petstore_client._duration import _format_timedelta_protobuf
 
         assert (
-            _format_timedelta_protobuf(datetime.timedelta(milliseconds=1500)) == "1.5s"
+            _format_timedelta_protobuf(datetime.timedelta(milliseconds=1500))
+            == "1.500s"
         )
 
 
@@ -806,7 +807,7 @@ class TestDurationRoundTrip:
             _format_timedelta_protobuf(
                 datetime.timedelta(seconds=1, microseconds=500000)
             )
-            == "1.5s"
+            == "1.500s"
         )
 
     def test_bhv_serialization_080_a_protobuf_duration_spans_the_full_range_and_rejects_one_past(
@@ -1445,11 +1446,10 @@ class TestFixtureModelsOnTheWire:
     def test_bhv_misc_085_a_non_canonical_uuid_is_refused_when_the_model_is_built(
         self,
     ) -> None:
-        import uuid
         from petstore_client.models.order import Order
 
         with pytest.raises(ValidationError):
-            Order(trackingId=uuid.UUID("not-a-uuid"))
+            Order(trackingId="not-a-uuid")
 
     def test_bhv_serializationobject_048_a_malformed_uuid_is_rejected_on_decode(
         self,
@@ -1715,8 +1715,13 @@ class TestWireNamesMapsAndFreeForm:
         out = json.loads(
             ObjectSerializer().serialize(
                 Metadata(
-                    created_at=datetime.datetime(
-                        2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                    **cast(
+                        Any,
+                        {
+                            "created_at": datetime.datetime(
+                                2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                            )
+                        },
                     )
                 )
             )
@@ -4038,6 +4043,7 @@ class TestEnumMemberNames:
             values: Set[str]
 
         decoded = ObjectSerializer().deserialize('{"values":["a","a","b"]}', UniqueTags)
+        assert decoded is not None
         assert decoded.values == {"a", "b"}
 
     def test_bhv_misc_113_a_string_form_shows_the_contents_of_list_map_and_bytes(
@@ -4099,6 +4105,7 @@ class TestStringDefaultAndCollectionCopy:
         from petstore_client.models.defaults import Defaults
 
         filled = ObjectSerializer().deserialize("{}", Defaults)
+        assert filled is not None
         assert filled.greeting == 'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b'
 
     def test_bhv_misc_139_a_collection_passed_into_a_model_is_copied(self) -> None:
@@ -4115,7 +4122,7 @@ class TestModelRequiredCopyAndEquality:
         self,
     ) -> None:
         with pytest.raises(TypeError, match="'name'"):
-            Employee()
+            Employee()  # type: ignore[call-arg]
 
     def test_bhv_misc_141_a_model_built_without_a_defaulted_property_holds_the_default(
         self,
@@ -4128,6 +4135,7 @@ class TestModelRequiredCopyAndEquality:
         self,
     ) -> None:
         meta = ObjectSerializer().deserialize('{"note":"x","owner":"ann"}', Metadata)
+        assert meta is not None
         assert meta.additional_properties["note"] == "x"
         assert list(meta.additional_properties) == ["note", "owner"]
 

@@ -243,7 +243,7 @@ describe('OpenIdConnectAuthenticator', () => {
       await authenticator.buildAuthorizationUrl();
       expect(mockClient.callCount).toBe(2);
 
-      mockClient.responses = [tokenResponse('tok2')];
+      mockClient.responses[mockClient.callCount] = tokenResponse('tok2');
       await authenticator.exchangeCode('my-auth-code');
       expect(mockClient.callCount).toBe(3);
     });

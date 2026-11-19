@@ -236,7 +236,7 @@ class TestServerVariableOrderAndResolution:
             variables={'region': ServerVariable(default_value='eu')},
         )
         with pytest.raises(TypeError):
-            config.variables['region'] = ServerVariable(default_value='us')
+            config.variables['region'] = ServerVariable(default_value='us')  # type: ignore[index]
         assert config.get_url() == 'https://eu.example.com'
 
     def test_bhv_misc_155_an_unset_enum_variable_with_a_disallowed_default_is_refused_naming_it(self) -> None:
@@ -294,7 +294,7 @@ class TestServerVariableOrderAndResolution:
         )
 
         with pytest.raises(ValueError):
-            config.get_url({'env': None})
+            config.get_url({'env': None})  # type: ignore[dict-item]
 
     def test_bhv_misc_261_a_value_with_backslashes_is_inserted_without_escape_processing(self) -> None:
         config = ServerConfiguration(

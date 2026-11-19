@@ -757,8 +757,8 @@ describe('PetApi form-urlencoded body serialization', () => {
   test('bhv misc 210 a date-time form field is percent-escaped for its colons and plus sign', async () => {
     const { api, getCapture, close } = await captureFormBody();
     try {
-      await api.setPetPreferences(1, { nickname: 'good boy', renewalDate: '2024-01-01T13:45:30+02:00' });
-      expect(getCapture().body).toContain('renewalDate=2024-01-01T13%3A45%3A30%2B02%3A00');
+      await api.setPetPreferences(1, { nickname: 'good boy', reminder: '2024-01-01T13:45:30+02:00' });
+      expect(getCapture().body).toContain('reminder=2024-01-01T13%3A45%3A30%2B02%3A00');
     } finally {
       close();
     }

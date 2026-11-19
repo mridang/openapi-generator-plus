@@ -4228,12 +4228,12 @@ func TestBhvSerialization093_ObjectSerializer_ADateTimeKeepsItsOffsetDigitsAndSu
 // Strings in model fields are written verbatim, with HTML characters, ampersands and forward slashes unescaped.
 func TestBhvSerialization094_ObjectSerializer_StringsAreWrittenVerbatim(t *testing.T) {
 	t.Parallel()
-	note := `<a href="x">&amp;/</a>`
+	note := `<a href="x">&/</a>`
 	data, err := serialize(models.EdgeCases{PermissionsNote: &note})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(string(data), `<a href=\"x\">&amp;/</a>`) {
+	if !strings.Contains(string(data), `<a href=\"x\">&/</a>`) {
 		t.Errorf("expected the string verbatim, got %s", data)
 	}
 }

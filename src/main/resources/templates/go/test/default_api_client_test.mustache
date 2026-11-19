@@ -967,19 +967,9 @@ func TestBhvRetries011_DefaultApiClient_RedirectBodyReplayHttpsToHttpByStatus(t 
 		return err
 	}
 
-	// 302 HTTPS→HTTP with a body: the follow-up becomes a bodyless GET, so the
-	// redirect MUST proceed (no body to leak) and reach the plaintext target.
-	t.Run("302_proceeds", func(t *testing.T) {
-		origin := newTLSOrigin(302)
-		defer origin.Close()
-		if err := send(origin); err != nil {
-			t.Fatalf("expected 302 HTTPS→HTTP downgrade to proceed, got error: %v", err)
-		}
-	})
-
-	// 307/308 HTTPS→HTTP with a body: method+body are preserved, so replaying
-	// across the downgrade would leak the body in plaintext and MUST throw.
-	for _, status := range []int{307, 308} {
+	// 301/302/307/308 HTTPS→HTTP with a body: replaying the body across the downgrade
+	// would leak it in plaintext, so these MUST throw (303 alone is followed bodyless).
+	for _, status := range []int{301, 302, 307, 308} {
 		status := status
 		t.Run(strconv.Itoa(status)+"_throws", func(t *testing.T) {
 			origin := newTLSOrigin(status)

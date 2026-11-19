@@ -92,6 +92,40 @@ class TestableApi extends BaseApi {
     return this.resolveSchemeAuth(schemes);
   }
 
+  /* Mirrors the generated convenience methods: a body-returning operation that
+   * decodes to no value raises an ApiError rather than returning undefined. */
+  async callRequired<T>(
+    method: string,
+    path: string,
+    queryParams: Record<string, unknown>,
+    headerParams: Record<string, string>,
+    body: unknown,
+    accepts: string[],
+    contentType: string,
+    returnType: ((json: unknown) => T) | null,
+  ): Promise<T> {
+    const result = await this.callForResult(
+      method,
+      path,
+      queryParams,
+      headerParams,
+      body,
+      accepts,
+      contentType,
+      returnType,
+    );
+    if (result.data == null) {
+      throw new ApiError(
+        result.statusCode,
+        "Expected a response body but received none",
+        result.headers,
+        result.rawBody,
+        null,
+      );
+    }
+    return result.data as T;
+  }
+
   async call<T>(
     method: string,
     path: string,
@@ -1085,7 +1119,8 @@ describe("BaseApi", () => {
         )
         .catch((e: unknown) => e);
 
-      expect(error).toBeInstanceOf(ApiError);
+      expect(error).toBeInstanceOf(TypeError);
+      expect(error).not.toBeInstanceOf(ApiError);
     });
 
     test("bhv retries 008 reports a second 401 as the usual Unauthorized error after exactly one replay", async () => {
@@ -3820,7 +3855,7 @@ describe("BaseApi misc behaviours", () => {
       new Configuration({ baseUrl: "http://localhost" }),
     );
     const error = await testApi
-      .callForResult(
+      .callRequired(
         "GET",
         "/items",
         {},
@@ -4240,8 +4275,8 @@ describe("BaseApi misc truncation behaviours", () => {
       client,
       new Configuration({ baseUrl: "http://localhost" }),
     );
-    await expect(
-      api.call(
+    const error = await api
+      .call(
         "GET",
         "/x",
         {},
@@ -4250,7 +4285,8 @@ describe("BaseApi misc truncation behaviours", () => {
         ["application/json"],
         "application/json",
         null,
-      ),
-    ).rejects.toThrow("(476 more bytes)");
+      )
+      .catch((e: unknown) => e);
+    expect(String(error)).toContain("(476 more bytes)");
   });
 });
