@@ -433,7 +433,7 @@ impl BaseApi {
             let response = match sent {
                 Ok(response) => response,
                 Err(err) => {
-                    if attempt < max_retries && is_retryable_error(err.as_ref()) {
+                    if attempt < max_retries && is_retryable_error(err.as_ref()) && is_idempotent_method(params.method) {
                         let delay = retry_delay(attempt, None);
                         if fits_budget(deadline, delay)
                             && refresh_request_headers(effective_auth, &mut headers, trace, hooked).await
@@ -732,8 +732,9 @@ pub(crate) fn is_retryable_status(status: u16) -> bool {
 
 /// Whether a transport error happened before a response and may be retried: a
 /// [`NetworkError`](crate::errors::NetworkError) whose cause is not a failure
-/// to read a body that had already started to arrive. A timeout has used up
-/// the end-to-end budget and is never retried.
+/// to read a body that had already started to arrive, and not a TLS or
+/// certificate failure. A timeout has used up the end-to-end budget and is
+/// never retried.
 pub(crate) fn is_retryable_error(err: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
     if err.downcast_ref::<crate::errors::NetworkError>().is_none() {
         return false;
@@ -741,11 +742,36 @@ pub(crate) fn is_retryable_error(err: &(dyn std::error::Error + Send + Sync + 's
     let mut cause = err.source();
     while let Some(c) = cause {
         if let Some(e) = c.downcast_ref::<reqwest::Error>() {
-            return !(e.is_body() || e.is_decode());
+            return !(e.is_body() || e.is_decode() || is_tls_failure(e));
         }
         cause = c.source();
     }
     true
+}
+
+/// Whether a transport failure is a TLS or certificate failure, judged by the
+/// messages of the error and its source chain.
+fn is_tls_failure(err: &(dyn std::error::Error + 'static)) -> bool {
+    const TLS_MARKERS: [&str; 5] = ["certificate", "tls", "ssl", "handshake", "corrupt message"];
+    let mut cause: Option<&(dyn std::error::Error + 'static)> = Some(err);
+    while let Some(c) = cause {
+        let text = c.to_string().to_ascii_lowercase();
+        if TLS_MARKERS.iter().any(|marker| text.contains(marker)) {
+            return true;
+        }
+        cause = c.source();
+    }
+    false
+}
+
+/// Whether a request with this method may be sent again after the connection
+/// dropped before a response: the idempotent methods of RFC 9110 and QUERY.
+/// A POST or PATCH that may already have been applied is never repeated.
+pub(crate) fn is_idempotent_method(method: &str) -> bool {
+    matches!(
+        method.to_ascii_uppercase().as_str(),
+        "GET" | "HEAD" | "OPTIONS" | "TRACE" | "PUT" | "DELETE" | "QUERY"
+    )
 }
 
 /// Parses a `Retry-After` value: whole seconds or an HTTP date. A date in the

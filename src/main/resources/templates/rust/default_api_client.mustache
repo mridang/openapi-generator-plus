@@ -1331,6 +1331,13 @@ mod tests {
 
     /* RFC 9110 section 15.4: the method a redirect hop uses. */
     #[test]
+    fn test_bhv_misc_173_a_streamed_body_is_refused_across_an_https_to_http_redirect() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        assert!(is_https_to_http_body_replay(307, "POST", Some(&https), &http, true));
+    }
+
+    #[test]
     fn test_bhv_redirects_050_redirect_next_method_follows_rfc_9110() {
         for status in [307u16, 308] {
             for m in ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] {

@@ -511,3 +511,14 @@ async fn test_bhv_hooks_010_the_client_hands_the_call_hook_to_every_api_group() 
 
     assert_eq!(vec!["deletePet".to_string(), "deleteOrder".to_string()], *seen.lock().unwrap());
 }
+
+/* F826: a client built without a host or token takes both from the environment. */
+#[test]
+fn test_bhv_misc_187_a_client_built_without_host_or_token_takes_both_from_the_environment() {
+    std::env::set_var("{{envPrefix}}_BASE_URL", "https://env.example.com");
+    std::env::set_var("{{envPrefix}}_ACCESS_TOKEN", "env-token");
+    let built = {{clientClassName}}::with_token(None, None, None);
+    std::env::remove_var("{{envPrefix}}_BASE_URL");
+    std::env::remove_var("{{envPrefix}}_ACCESS_TOKEN");
+    built.expect("the environment supplies both the host and the token");
+}

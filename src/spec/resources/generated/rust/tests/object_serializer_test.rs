@@ -1844,3 +1844,37 @@ fn test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries() {
     assert_eq!(with("2"), with("2"));
     assert_ne!(with("2"), with("3"));
 }
+
+#[test]
+fn test_bhv_misc_235_a_duration_with_fractional_seconds_keeps_its_fraction_when_serialized() {
+    use chrono::TimeDelta as Duration;
+    use petstore::proto_duration;
+    assert_eq!(
+        "1.500s",
+        proto_duration::format(&Duration::milliseconds(1500))
+    );
+}
+
+#[test]
+fn test_bhv_misc_246_a_negative_whole_second_duration_string_parses_to_a_negative_duration() {
+    use chrono::TimeDelta as Duration;
+    use petstore::proto_duration;
+    assert_eq!(
+        Duration::seconds(-3),
+        proto_duration::parse("-3s").expect("valid duration")
+    );
+}
+
+#[test]
+fn test_bhv_misc_248_a_duration_with_days_is_formatted_as_a_duration_string() {
+    use chrono::TimeDelta as Duration;
+    use petstore::proto_duration;
+    assert_eq!("86400s", proto_duration::format(&Duration::days(1)));
+}
+
+#[test]
+fn test_bhv_misc_251_a_duration_string_with_a_day_designator_is_rejected() {
+    use chrono::TimeDelta as Duration;
+    use petstore::proto_duration;
+    assert!(proto_duration::parse("1d").is_err());
+}
