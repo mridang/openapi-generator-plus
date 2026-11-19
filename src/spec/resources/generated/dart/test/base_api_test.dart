@@ -17,7 +17,7 @@ import 'package:petstore_client/petstore_client.dart';
 import 'package:petstore_client/src/api/base_api.dart';
 import 'package:petstore_client/src/object_serializer.dart' show deserialize;
 import 'package:petstore_client/src/value_serializer.dart'
-    show maybeAllowReserved;
+    show AllowReservedValue, maybeAllowReserved;
 
 import 'testcontainers_helper.dart';
 
@@ -4724,16 +4724,16 @@ void main() {
         });
 
         try {
-          final client = DefaultApiClient(
-            transportOptions: TransportOptionsBuilder().maxRetries(2).build(),
+          final api = BaseApi(
+            apiClient: DefaultApiClient(
+              transportOptions: TransportOptionsBuilder().maxRetries(2).build(),
+            ),
+            config: ConfigurationBuilder()
+                .baseUrl('http://127.0.0.1:${server.port}')
+                .build(),
           );
           await expectLater(
-            client.sendRequest(
-              'GET',
-              'http://127.0.0.1:${server.port}/x',
-              {},
-              null,
-            ),
+            api.invokeApi(method: 'GET', path: '/x'),
             throwsA(isA<ServerException>()),
           );
           expect(requests, equals(3));
@@ -4762,17 +4762,19 @@ void main() {
           }
           request.response
             ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{}')
             ..close();
         });
 
         try {
-          final client = DefaultApiClient();
-          final response = await client.sendRequest(
-            'GET',
-            'http://127.0.0.1:${server.port}/x',
-            {},
-            null,
+          final api = BaseApi(
+            apiClient: DefaultApiClient(),
+            config: ConfigurationBuilder()
+                .baseUrl('http://127.0.0.1:${server.port}')
+                .build(),
           );
+          final response = await api.invokeApi(method: 'GET', path: '/x');
 
           expect(requests, equals(2));
           expect(response.statusCode, equals(200));

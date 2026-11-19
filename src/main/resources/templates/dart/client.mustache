@@ -191,7 +191,7 @@ class {{clientClassName}} implements {{clientClassName}}Interface {
     return {{clientClassName}}(
       authenticator: BearerAuthenticator(
         host: host,
-        token: accessToken,
+        token: accessToken == null || accessToken.isEmpty ? null : accessToken,
         tokenProvider: tokenProvider,
       ),
       transportOptions: transportOptions,

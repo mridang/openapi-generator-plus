@@ -1007,7 +1007,7 @@ defmodule PetstoreClient.ApiErrorTest do
       PetstoreClient.Errors.ApiError.from_response(404, %{}, "missing")
       |> PetstoreClient.Errors.ApiError.with_request(:get, "/items/7")
 
-    assert PetstoreClient.Errors.ApiError.message(err) =~ "Request: GET /items/7"
+    assert Exception.message(err) =~ "Request: GET /items/7"
   end
 
   test "bhv errors 093 an error body prefixed with a byte order mark is parsed into the error body" do

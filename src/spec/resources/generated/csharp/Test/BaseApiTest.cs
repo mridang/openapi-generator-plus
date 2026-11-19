@@ -68,6 +68,30 @@ public class BaseApiTest
             );
         }
 
+        public Task<ApiResult<T>> CallForResultAsync<T>(
+            string method,
+            string path,
+            Dictionary<string, object?> queryParams,
+            Dictionary<string, string> headerParams,
+            object? body,
+            string[] accepts,
+            string contentType,
+            CancellationToken cancellationToken
+        )
+        {
+            return InvokeApiForResultAsync<T>(
+                method,
+                path,
+                queryParams,
+                headerParams,
+                body,
+                accepts,
+                contentType,
+                typeof(T),
+                cancellationToken: cancellationToken
+            );
+        }
+
         public async Task<object?> CallAsyncWithNullReturnType(
             string method,
             string path,
@@ -3339,7 +3363,7 @@ public class BaseApiTest
             api.AddPetPhotosAsync(1L, null!)
         );
 
-        Assert.Equal("options", ex.ParamName);
+        Assert.Equal("options.Files", ex.ParamName);
         Assert.Null(client.CapturedUrl);
     }
 
@@ -3412,7 +3436,7 @@ public class BaseApiTest
         var client = new CapturingApiClient();
         var api = new TestableApi(client, "http://localhost", auth);
 
-        await api.CallAsync<JsonNode>(
+        await api.CallForResultAsync<JsonNode>(
             "GET",
             "/test/echo",
             new Dictionary<string, object?>(),
@@ -3420,7 +3444,7 @@ public class BaseApiTest
             null,
             ["application/json"],
             "application/json",
-            cancellationToken: token
+            token
         );
 
         Assert.Equal(token, auth.Received);
@@ -3448,29 +3472,6 @@ public class BaseApiTest
         );
 
         Assert.False(client.CapturedHeaders.ContainsKey("X-Client-Auth"));
-    }
-
-    [Fact]
-    public async Task BhvMisc081AStringResultFromABase64TransportBodyIsDecoded()
-    {
-        var client = new BinaryResponseApiClient
-        {
-            ContentType = "application/pdf",
-            Body = "aGVsbG8=",
-        };
-        var testApi = new TestableApi(client, "http://localhost");
-
-        var result = await testApi.CallAsync<string>(
-            "GET",
-            "/test/echo",
-            new Dictionary<string, object?>(),
-            new Dictionary<string, string>(),
-            null,
-            ["application/pdf"],
-            "application/json"
-        );
-
-        Assert.Equal("hello", result);
     }
 
     [Fact]

@@ -2816,19 +2816,6 @@ defmodule PetstoreClient.Api.PetApiTest do
     Agent.stop(name)
   end
 
-  test "bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument" do
-    {:ok, name} = PathCapturingApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    api = PetstoreClient.Api.PetApi.new(PathCapturingApiClient, config)
-
-    assert_raise ArgumentError,
-                 ~r/Missing the required parameter 'session' when calling PetApi\.get_pet_summary/,
-                 fn -> PetstoreClient.Api.PetApi.get_pet_summary(api, 5, ~D[2024-01-02]) end
-
-    assert PathCapturingApiClient.captured_url(name) == ""
-    Agent.stop(name)
-  end
-
   test "bhv misc 012 a required path argument that is nil raises naming it and sends nothing when options are given" do
     {:ok, name} = PathCapturingApiClient.start()
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")

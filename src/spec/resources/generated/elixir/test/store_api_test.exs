@@ -169,7 +169,9 @@ defmodule PetstoreClient.Api.StoreApiTest do
         ~s({"receiptCode":"r-1","expiresAt":"2030-01-01T00:00:00.000+00:00"})
       )
 
-    assert {:error, _} = PetstoreClient.Api.StoreApi.reserve_stock(existing)
+    assert_raise PetstoreClient.Errors.SerializationError, fn ->
+      PetstoreClient.Api.StoreApi.reserve_stock(existing)
+    end
   end
 
   test "bhv operations 129 a 200 response from reserve_stock decodes as the existing reservation" do

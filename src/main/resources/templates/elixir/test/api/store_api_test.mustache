@@ -144,7 +144,9 @@ defmodule {{moduleName}}.Api.StoreApiTest do
     existing =
       new_store_api_for_mock(200, "application/json", ~s({"receiptCode":"r-1","expiresAt":"2030-01-01T00:00:00.000+00:00"}))
 
-    assert {:error, _} = {{moduleName}}.Api.StoreApi.reserve_stock(existing)
+    assert_raise {{moduleName}}.Errors.SerializationError, fn ->
+      {{moduleName}}.Api.StoreApi.reserve_stock(existing)
+    end
   end
 
   test "bhv operations 129 a 200 response from reserve_stock decodes as the existing reservation" do

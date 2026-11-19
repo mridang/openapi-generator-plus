@@ -2063,6 +2063,7 @@ public class OAuth2TokenManagerTest
             ClientCredentialsGrant(),
             cancellationToken: TestContext.Current.CancellationToken
         );
+        manager.InvalidateAccessToken();
         var second = await manager.GetAccessTokenAsync(
             TokenUrl,
             ClientCredentialsGrant(),
