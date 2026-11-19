@@ -8,6 +8,7 @@
 package com.example.petstore
 
 import com.example.petstore.errors.OpenAPIException
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -310,12 +311,7 @@ class ServerConfigurationTest {
     fun bhvMisc156TheListOfAllServersKeepsTheDeclaredOrder() {
         val declared = mutableListOf<ServerConfiguration>()
         while (true) {
-            val getter =
-                try {
-                    Servers::class.java.getMethod("getSERVER_${declared.size}")
-                } catch (absent: NoSuchMethodException) {
-                    break
-                }
+            val getter = Servers::class.java.methods.firstOrNull { it.name == "getSERVER_${declared.size}" } ?: break
             declared.add(getter.invoke(Servers) as ServerConfiguration)
         }
         assertEquals(declared, Servers.ALL)

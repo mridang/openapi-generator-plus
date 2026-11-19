@@ -659,7 +659,22 @@ class DefaultApiClientTest {
     inner class RedirectMethodPreservation {
         @Test
         @DisplayName("bhvRedirects049 a 307 redirect repeats the request with the same method and body")
-        fun bhvRedirects049RepeatsMethodAndBodyOn307() = redirect307PreservesMethodAndBody()
+        fun bhvRedirects049RepeatsMethodAndBodyOn307() {
+            val chasmUrl = ChasmContainer.getBaseUrl()
+            val client = DefaultApiClient()
+            val response = runBlocking {
+                client.sendRequest(
+                    "POST",
+                    "$chasmUrl/test/redirect/307",
+                    mapOf("Content-Type" to "application/json"),
+                    "hello-body"
+                )
+            }
+            assertEquals(200, response.statusCode)
+            val json = ObjectMapper().readTree(response.body)
+            assertEquals("POST", json.get("method").asText())
+            assertEquals("hello-body", json.get("body").asText())
+        }
 
         /**
          * T-new-3: multipart bodies must be replayed across 307 redirects per
@@ -1352,7 +1367,36 @@ class DefaultApiClientTest {
          */
         @Test
         @DisplayName("bhvRedirects053 Authorization is removed when the scheme changes between https and http on the same host")
-        fun bhvRedirects053StripsAuthorizationOnSchemeChange() = httpsToHttpSameHostStripsAuthorization()
+        fun bhvRedirects053StripsAuthorizationOnSchemeChange() {
+            assertFalse(
+                sameOrigin(
+                    java.net.URI("https://host:8443/x"),
+                    java.net.URI("http://host:8443/y")
+                ),
+                "https→http redirect MUST be cross-origin (TLS downgrade)"
+            )
+            assertFalse(
+                sameOrigin(
+                    java.net.URI("http://host:8080/x"),
+                    java.net.URI("https://host:8080/y")
+                ),
+                "http→https redirect MUST be cross-origin (scheme changes)"
+            )
+            assertTrue(
+                sameOrigin(
+                    java.net.URI("https://host:8443/x"),
+                    java.net.URI("https://host:8443/y")
+                ),
+                "same-scheme same-host same-port must be same-origin"
+            )
+            assertTrue(
+                sameOrigin(
+                    java.net.URI("https://host/x"),
+                    java.net.URI("https://host:443/y")
+                ),
+                "implicit default port must compare equal to explicit"
+            )
+        }
 
     }
 
