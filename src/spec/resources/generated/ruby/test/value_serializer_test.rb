@@ -751,7 +751,7 @@ describe Petstore::Client::ValueSerializer do
         ['label', true] => '.breed=lab.min_age=3'
       }.each_case do |(style, explode), expected|
         result = Petstore::Client::ValueSerializer.serialize_styled(
-          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode # steep:ignore ArgumentTypeMismatch
+          'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode
         )
         _(result).must_equal(expected)
       end
