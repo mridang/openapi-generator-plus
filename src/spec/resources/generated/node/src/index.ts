@@ -18,12 +18,12 @@
  * Client entry point and per-group API classes (+ their Options, server, and
  * inline-enum types, re-exported transitively through the api barrel).
  */
-export { Client } from "./client.js";
-export type { ClientOptions, ClientInterface } from "./client.js";
-export * from "./api/index.js";
+export { Client } from './client.js';
+export type { ClientOptions, ClientInterface } from './client.js';
+export * from './api/index.js';
 
 /* Model types. */
-export * from "./models/index.js";
+export * from './models/index.js';
 
 /*
  * Transport-level DTOs and the pluggable HTTP client seam.
@@ -35,68 +35,56 @@ export * from "./models/index.js";
  * happens to be named `ApiResponse` (the model wins via the `./models` star
  * export).
  */
-export type {
-  ApiClient,
-  RequestOptions,
-  SendRequestOptions,
-} from "./api-client.js";
-export type { ApiResult } from "./api-result.js";
-export { DefaultApiClient } from "#transport";
+export type { ApiClient, RequestOptions, SendRequestOptions } from './api-client.js';
+export type { ApiResult } from './api-result.js';
+export { DefaultApiClient } from '#transport';
 
 /* The call hook around every operation call. The OpenTelemetry adapter built
  * on it is the separate `./opentelemetry` entry point of the package. */
-export type {
-  CallHook,
-  CallInfo,
-  CallObserver,
-  CallOutcome,
-} from "./call-hook.js";
-export { chain } from "./call-hook.js";
+export type { CallHook, CallInfo, CallObserver, CallOutcome } from './call-hook.js';
+export { chain } from './call-hook.js';
 
 /* Configuration and transport tuning. */
-export { Configuration, ConfigurationBuilder } from "./configuration.js";
-export {
-  TransportOptions,
-  TransportOptionsBuilder,
-} from "./transport-options.js";
-export { ServerConfiguration, ServerVariable } from "./server-configuration.js";
-export { Servers } from "./servers.js";
+export { Configuration, ConfigurationBuilder } from './configuration.js';
+export { TransportOptions, TransportOptionsBuilder } from './transport-options.js';
+export { ServerConfiguration, ServerVariable } from './server-configuration.js';
+export { Servers } from './servers.js';
 
 /* Branded scalar types and their constructors. */
-export { isUuid, uuid, URI, Email, Decimal } from "./brand.js";
-export type { UUID } from "./brand.js";
+export { isUuid, uuid, URI, Email, Decimal } from './brand.js';
+export type { UUID } from './brand.js';
 
 /* Error hierarchy: every error the SDK throws. */
-export * from "./errors/index.js";
+export * from './errors/index.js';
 
 /*
  * Authentication: the interface, the HTTP-aware extension, and every
  * concrete authenticator the spec's security schemes require.
  */
-export type { Authenticator } from "./auth/authenticator.js";
-export type { HttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
-export { isHttpAwareAuthenticator } from "./auth/http-aware-authenticator.js";
-export type { CredentialProvider } from "./auth/credentials.js";
-export { BasicAuthenticator } from "./auth/basic-authenticator.js";
-export { BearerAuthenticator } from "./auth/bearer-authenticator.js";
-export { ApiKeyAuthenticator } from "./auth/api-key-authenticator.js";
-export { ApiKeyLocation } from "./auth/api-key-location.js";
-export { OAuth2ClientCredentialsAuthenticator } from "./auth/oauth/oauth2-client-credentials-authenticator.js";
-export { OAuth2PasswordAuthenticator } from "./auth/oauth/oauth2-password-authenticator.js";
-export { OAuth2AuthorizationCodeAuthenticator } from "./auth/oauth/oauth2-authorization-code-authenticator.js";
-export { OAuth2ImplicitAuthenticator } from "./auth/oauth/oauth2-implicit-authenticator.js";
-export { OpenIdConnectAuthenticator } from "./auth/oauth/openid-connect-authenticator.js";
-export { PetStoreBasicAuthenticator } from "./auth/pet-store-basic-authenticator.js";
-export { AdminBasicAuthenticator } from "./auth/admin-basic-authenticator.js";
-export { PetStoreBearerAuthenticator } from "./auth/pet-store-bearer-authenticator.js";
-export { ServiceTokenAuthenticator } from "./auth/service-token-authenticator.js";
-export { ApiKeyHeaderAuthenticator } from "./auth/api-key-header-authenticator.js";
-export { InternalApiKeyAuthenticator } from "./auth/internal-api-key-authenticator.js";
-export { ApiKeyQueryAuthenticator } from "./auth/api-key-query-authenticator.js";
-export { SessionCookieAuthenticator } from "./auth/session-cookie-authenticator.js";
-export { MachineAuthClientCredentialsAuthenticator } from "./auth/oauth/machine-auth-client-credentials-authenticator.js";
-export { LegacyAuthPasswordAuthenticator } from "./auth/oauth/legacy-auth-password-authenticator.js";
-export { UserAuthAuthorizationCodeAuthenticator } from "./auth/oauth/user-auth-authorization-code-authenticator.js";
-export { BrowserAuthImplicitAuthenticator } from "./auth/oauth/browser-auth-implicit-authenticator.js";
-export { SsoAuthAuthenticator } from "./auth/oauth/sso-auth-authenticator.js";
-export { ClientAuthMethod } from "./auth/oauth/client-auth-method.js";
+export type { Authenticator } from './auth/authenticator.js';
+export type { HttpAwareAuthenticator } from './auth/http-aware-authenticator.js';
+export { isHttpAwareAuthenticator } from './auth/http-aware-authenticator.js';
+export type { CredentialProvider } from './auth/credentials.js';
+export { BasicAuthenticator } from './auth/basic-authenticator.js';
+export { BearerAuthenticator } from './auth/bearer-authenticator.js';
+export { ApiKeyAuthenticator } from './auth/api-key-authenticator.js';
+export { ApiKeyLocation } from './auth/api-key-location.js';
+export { OAuth2ClientCredentialsAuthenticator } from './auth/oauth/oauth2-client-credentials-authenticator.js';
+export { OAuth2PasswordAuthenticator } from './auth/oauth/oauth2-password-authenticator.js';
+export { OAuth2AuthorizationCodeAuthenticator } from './auth/oauth/oauth2-authorization-code-authenticator.js';
+export { OAuth2ImplicitAuthenticator } from './auth/oauth/oauth2-implicit-authenticator.js';
+export { OpenIdConnectAuthenticator } from './auth/oauth/openid-connect-authenticator.js';
+export { PetStoreBasicAuthenticator } from './auth/pet-store-basic-authenticator.js';
+export { AdminBasicAuthenticator } from './auth/admin-basic-authenticator.js';
+export { PetStoreBearerAuthenticator } from './auth/pet-store-bearer-authenticator.js';
+export { ServiceTokenAuthenticator } from './auth/service-token-authenticator.js';
+export { ApiKeyHeaderAuthenticator } from './auth/api-key-header-authenticator.js';
+export { InternalApiKeyAuthenticator } from './auth/internal-api-key-authenticator.js';
+export { ApiKeyQueryAuthenticator } from './auth/api-key-query-authenticator.js';
+export { SessionCookieAuthenticator } from './auth/session-cookie-authenticator.js';
+export { MachineAuthClientCredentialsAuthenticator } from './auth/oauth/machine-auth-client-credentials-authenticator.js';
+export { LegacyAuthPasswordAuthenticator } from './auth/oauth/legacy-auth-password-authenticator.js';
+export { UserAuthAuthorizationCodeAuthenticator } from './auth/oauth/user-auth-authorization-code-authenticator.js';
+export { BrowserAuthImplicitAuthenticator } from './auth/oauth/browser-auth-implicit-authenticator.js';
+export { SsoAuthAuthenticator } from './auth/oauth/sso-auth-authenticator.js';
+export { ClientAuthMethod } from './auth/oauth/client-auth-method.js';

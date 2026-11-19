@@ -36,9 +36,9 @@ npm install petstore-client
 ```
 
 ```typescript
-import { ApiError, Client } from "petstore-client";
+import { ApiError, Client } from 'petstore-client';
 
-const client = Client.withToken("https://api.example.com", "your-token");
+const client = Client.withToken('https://api.example.com', 'your-token');
 
 try {
   const result = await client.pet.addPet(new Pet());
@@ -128,11 +128,7 @@ of the same name, whatever its case, but never the authentication headers. A val
 is not valid throws a `TypeError` before anything is sent.
 
 ```typescript
-await client.pet.addPet(new Pet(), {
-  timeout: 2000,
-  maxRetries: 0,
-  headers: { "X-Trace-Id": "abc" },
-});
+await client.pet.addPet(new Pet(), { timeout: 2000, maxRetries: 0, headers: { 'X-Trace-Id': 'abc' } });
 ```
 
 ### Credentials
@@ -165,10 +161,7 @@ is built, never at the first call. `BearerAuthenticator` and `withToken` also ta
 of the token; it is called for every request, so a token that rotates is always current:
 
 ```typescript
-const client = Client.withToken(
-  "https://api.example.com",
-  async () => await readTokenFromVault(),
-);
+const client = Client.withToken('https://api.example.com', async () => await readTokenFromVault());
 ```
 
 ### Credentials per security scheme
@@ -197,7 +190,7 @@ nothing: the constructor accepts any value and never throws, so the types you wr
 check until the model is decoded (see "Unknown enum values and discriminators").
 
 ```typescript
-const renamed = original.with({ name: "new name" });
+const renamed = original.with({ name: 'new name' });
 ```
 
 ### Dates
@@ -241,12 +234,7 @@ those belong on the `fetch` you provide.
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
 ```typescript
-import type {
-  PetApiInterface,
-  ProblemsApiInterface,
-  StoreApiInterface,
-  ClientInterface,
-} from "petstore-client";
+import type { PetApiInterface, ProblemsApiInterface, StoreApiInterface, ClientInterface } from 'petstore-client';
 
 // Code under test takes the group interface, never the generated class.
 function use(api: PetApiInterface): void {}
@@ -261,7 +249,7 @@ const client: ClientInterface = {
   problems: fake as ProblemsApiInterface,
   store: fake as StoreApiInterface,
   close: async () => {
-    calls.push("close");
+    calls.push('close');
   },
 };
 void client;
@@ -274,19 +262,15 @@ A new operation in the API adds a member to the interface, so a fake typed as th
 A call hook is one small, optional object that runs around every operation call. Before the request is sent it can read and edit the request headers, and when the call ends it is told the status or the error. A client with no hook does nothing extra. The hook runs once per call, however many sends happen inside it (transport retries, the one replay after a 401), and also when you supply the transport.
 
 ```typescript
-import { Client, type CallHook } from "petstore-client";
+import { Client, type CallHook } from 'petstore-client';
 
 const timing: CallHook = {
   start(info, headers) {
-    headers["X-Caller"] = "billing";
+    headers['X-Caller'] = 'billing';
     const started = performance.now();
     return {
       finish(outcome) {
-        console.log(
-          info.operationId,
-          outcome.statusCode,
-          performance.now() - started,
-        );
+        console.log(info.operationId, outcome.statusCode, performance.now() - started);
       },
     };
   },
@@ -300,11 +284,9 @@ const client = new Client(authenticator, undefined, { callHook: timing });
 For OpenTelemetry, the `petstore-client/opentelemetry` entry point provides `createOpenTelemetryCallHook()`. It records one span named with the operation id (kind client), one `http.client.request.count` and one `http.client.request.duration` (seconds) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type` attributes, and writes `traceparent` itself. It is built on `@opentelemetry/api`, an optional peer dependency, and records nothing when no provider is registered. Pass `{ tracerProvider, meterProvider }` to use providers other than the global ones.
 
 ```typescript
-import { createOpenTelemetryCallHook } from "petstore-client/opentelemetry";
+import { createOpenTelemetryCallHook } from 'petstore-client/opentelemetry';
 
-const traced = new Client(authenticator, undefined, {
-  callHook: createOpenTelemetryCallHook(),
-});
+const traced = new Client(authenticator, undefined, { callHook: createOpenTelemetryCallHook() });
 ```
 
 ## Develop

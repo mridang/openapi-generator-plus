@@ -1,4 +1,4 @@
-import type { PetCriteria } from "../../models/index.js";
+import type { PetCriteria } from '../../models/index.js';
 
 /**
  * Options for the getPetTag operation.

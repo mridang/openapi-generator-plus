@@ -21,9 +21,9 @@ export type CredentialProvider = () => string | Promise<string>;
  * @returns the value, or `undefined` when the variable is unset or empty
  */
 export function readEnvCredential(name: string): string | undefined {
-  const env = typeof process !== "undefined" ? process.env : undefined;
+  const env = typeof process !== 'undefined' ? process.env : undefined;
   const value = env?.[name];
-  return value === undefined || value === "" ? undefined : value;
+  return value === undefined || value === '' ? undefined : value;
 }
 
 /**
@@ -35,16 +35,10 @@ export function readEnvCredential(name: string): string | undefined {
  * @returns the credential
  * @throws TypeError if neither the caller nor the environment supplies it
  */
-export function resolveCredential(
-  explicit: string | undefined,
-  name: string,
-  what: string,
-): string {
+export function resolveCredential(explicit: string | undefined, name: string, what: string): string {
   const resolved = explicit ?? readEnvCredential(name);
   if (resolved === undefined) {
-    throw new TypeError(
-      `${what} is required: pass it explicitly or set ${name}`,
-    );
+    throw new TypeError(`${what} is required: pass it explicitly or set ${name}`);
   }
   return resolved;
 }
@@ -60,11 +54,7 @@ export function resolveCredential(
  * @returns the credential
  * @throws TypeError if neither the caller nor the environment supplies it, or it has CR, LF or NUL
  */
-export function resolveOAuthCredential(
-  explicit: string | undefined,
-  name: string,
-  what: string,
-): string {
+export function resolveOAuthCredential(explicit: string | undefined, name: string, what: string): string {
   const resolved = resolveCredential(explicit, name, what);
   if (/[\r\n\0]/.test(resolved)) {
     throw new TypeError(`${what} must not contain CR, LF or NUL`);
