@@ -227,3 +227,21 @@ class RecordingCallObserver
     @hook.finished(outcome)
   end
 end
+
+# Runs one test over a table of cases and names the case that failed. A table
+# of cases is one test per behaviour, so the report carries each behaviour once
+# and a failure still says which row broke.
+module EachCase
+  def each_case
+    each do |*row|
+      yield(*row)
+    rescue Minitest::Assertion => e
+      raise e if e.is_a?(Minitest::Skip)
+
+      raise e.class, "case #{row.inspect}: #{e.message}", e.backtrace
+    end
+  end
+end
+
+Array.include(EachCase)
+Hash.include(EachCase)

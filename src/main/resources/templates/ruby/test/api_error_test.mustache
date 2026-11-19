@@ -374,31 +374,31 @@ describe {{moduleName}}::Errors::ApiError do
     end
   end
 
-  {
-    400 => {{moduleName}}::Errors::BadRequestError,
-    401 => {{moduleName}}::Errors::UnauthorizedError,
-    403 => {{moduleName}}::Errors::ForbiddenError,
-    404 => {{moduleName}}::Errors::NotFoundError,
-    409 => {{moduleName}}::Errors::ConflictError,
-    422 => {{moduleName}}::Errors::UnprocessableEntityError,
-    429 => {{moduleName}}::Errors::TooManyRequestsError,
-    402 => {{moduleName}}::Errors::PaymentRequiredError,
-    405 => {{moduleName}}::Errors::MethodNotAllowedError,
-    408 => {{moduleName}}::Errors::RequestTimeoutError,
-    410 => {{moduleName}}::Errors::GoneError,
-    413 => {{moduleName}}::Errors::PayloadTooLargeError,
-    415 => {{moduleName}}::Errors::UnsupportedMediaTypeError,
-    423 => {{moduleName}}::Errors::LockedError,
-    501 => {{moduleName}}::Errors::NotImplementedError,
-    502 => {{moduleName}}::Errors::BadGatewayError,
-    503 => {{moduleName}}::Errors::ServiceUnavailableError,
-    504 => {{moduleName}}::Errors::GatewayTimeoutError,
-    418 => {{moduleName}}::Errors::ClientError,
-    500 => {{moduleName}}::Errors::InternalServerError,
-    599 => {{moduleName}}::Errors::ServerError,
-    302 => {{moduleName}}::Errors::ApiError
-  }.each do |status, expected|
-    it "bhv_errors_006 from_response maps #{status} to #{expected.name.split('::').last}" do
+  it 'bhv_errors_006 from_response maps each status to its error class' do
+    {
+      400 => {{moduleName}}::Errors::BadRequestError,
+      401 => {{moduleName}}::Errors::UnauthorizedError,
+      403 => {{moduleName}}::Errors::ForbiddenError,
+      404 => {{moduleName}}::Errors::NotFoundError,
+      409 => {{moduleName}}::Errors::ConflictError,
+      422 => {{moduleName}}::Errors::UnprocessableEntityError,
+      429 => {{moduleName}}::Errors::TooManyRequestsError,
+      402 => {{moduleName}}::Errors::PaymentRequiredError,
+      405 => {{moduleName}}::Errors::MethodNotAllowedError,
+      408 => {{moduleName}}::Errors::RequestTimeoutError,
+      410 => {{moduleName}}::Errors::GoneError,
+      413 => {{moduleName}}::Errors::PayloadTooLargeError,
+      415 => {{moduleName}}::Errors::UnsupportedMediaTypeError,
+      423 => {{moduleName}}::Errors::LockedError,
+      501 => {{moduleName}}::Errors::NotImplementedError,
+      502 => {{moduleName}}::Errors::BadGatewayError,
+      503 => {{moduleName}}::Errors::ServiceUnavailableError,
+      504 => {{moduleName}}::Errors::GatewayTimeoutError,
+      418 => {{moduleName}}::Errors::ClientError,
+      500 => {{moduleName}}::Errors::InternalServerError,
+      599 => {{moduleName}}::Errors::ServerError,
+      302 => {{moduleName}}::Errors::ApiError
+    }.each_case do |status, expected|
       err = {{moduleName}}::Errors::ApiError.from_response(status, { 'x-request-id' => 'abc' }, '{"code":7}')
 
       _(err).must_be_instance_of(expected)

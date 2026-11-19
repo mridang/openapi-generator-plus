@@ -111,8 +111,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2ImplicitAuthenticator do
     _(url).must_include 'state=state~%2A%21%27%28%29'
   end
 
-  ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", "t\u00F6ken", "abc\u007Fdef"].each do |token|
-    it "bhv_authoauthtwoimplicit_013 rejects the access token #{token.inspect}" do
+  it 'bhv_authoauthtwoimplicit_013 rejects an access token holding a control, non-ASCII or non-printable character' do
+    ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", "t\u00F6ken", "abc\u007Fdef"].each_case do |token|
       err = assert_raises(ArgumentError) { auth.access_token = token }
       _(err.message).must_equal 'Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)'
       err = assert_raises(RuntimeError) { auth.auth_headers }

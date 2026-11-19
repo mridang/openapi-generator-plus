@@ -284,11 +284,11 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(err.message).must_equal 'Token response missing or empty access_token field'
   end
 
-  [
-    ['an empty string', { 'access_token' => '' }],
-    ['a non-string value', { 'access_token' => 42 }]
-  ].each do |label, payload|
-    it "bhv_langruby_046 an access_token that is #{label} is reported as missing or empty" do
+  it 'bhv_langruby_046 an access_token that is empty or not a string is reported as missing or empty' do
+    [
+      ['an empty string', { 'access_token' => '' }],
+      ['a non-string value', { 'access_token' => 42 }]
+    ].each_case do |label, payload|
       client = FakeTokenClient.new([{ status: 200, body: payload }])
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client
@@ -567,8 +567,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     _(client.call_count).must_equal 1
   end
 
-  [1e20, 10**30, '9' * 400].each do |raw|
-    it "bhv_authoauthtwotokenmgr_005 expires_in #{raw.to_s[0, 12]} is clamped to one year instead of overflowing" do
+  it 'bhv_authoauthtwotokenmgr_005 an expires_in too large to represent is clamped to one year instead of overflowing' do
+    [1e20, 10**30, '9' * 400].each_case do |raw|
       client = FakeTokenClient.new([
                                      { status: 200, body: { 'access_token' => 'huge', 'expires_in' => raw } }
                                    ])
@@ -669,8 +669,8 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
   # here, plus 301/303/308) rather than replaying the credential-bearing
   # POST to the redirect target. A 3xx is a non-2xx answer, so it raises
   # OAuth2ServerError carrying the status.
-  [301, 302, 303, 307, 308].each do |status|
-    it "bhv_authoauthtwotokenmgr_033 refuses #{status} redirect on token endpoint" do
+  it 'bhv_authoauthtwotokenmgr_033 refuses a 3xx redirect on the token endpoint' do
+    [301, 302, 303, 307, 308].each_case do |status|
       client = FakeTokenClient.new([{ status: status, body: '' }])
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client

@@ -88,8 +88,8 @@ describe {{moduleName}}::TransportOptions do
     _({{moduleName}}::TransportOptions.builder.max_retries(0).build.max_retries).must_equal 0
   end
 
-  [-1, 1.5, '2', nil].each do |bad|
-    it "bhv_options_027 rejects max_retries #{bad.inspect} through the builder" do
+  it 'bhv_options_027 rejects an invalid max_retries through the builder' do
+    [-1, 1.5, '2', nil].each_case do |bad|
       err = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.max_retries(bad) } # steep:ignore ArgumentTypeMismatch
       _(err.message).must_include 'Invalid max_retries'
     end
@@ -336,14 +336,14 @@ describe {{moduleName}}::TransportOptions do
     _(opts.proxy).must_equal 'http://proxy.example.com:8080'
   end
 
-  {
-    'socks5://proxy.example.com:1080' => 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080',
-    'ftp://proxy.example.com:21' => 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21',
-    'proxy.example.com:8080' => 'Invalid proxy URL (must use http or https scheme): proxy.example.com:8080',
-    '' => 'Invalid proxy URL (must use http or https scheme): ',
-    'http://' => 'Invalid proxy URL (missing host): http://'
-  }.each do |proxy, message|
-    it "bhv_options_031 rejects the proxy #{proxy.inspect} with its canonical message" do
+  it 'bhv_options_031 rejects an invalid proxy with its canonical message' do
+    {
+      'socks5://proxy.example.com:1080' => 'Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080',
+      'ftp://proxy.example.com:21' => 'Invalid proxy URL (must use http or https scheme): ftp://proxy.example.com:21',
+      'proxy.example.com:8080' => 'Invalid proxy URL (must use http or https scheme): proxy.example.com:8080',
+      '' => 'Invalid proxy URL (must use http or https scheme): ',
+      'http://' => 'Invalid proxy URL (missing host): http://'
+    }.each_case do |proxy, message|
       error = assert_raises(ArgumentError) { {{moduleName}}::TransportOptions.builder.proxy(proxy) }
       _(error.message).must_equal message
     end
