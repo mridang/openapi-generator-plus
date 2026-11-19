@@ -66,38 +66,41 @@ import Testing
     serverAddress: "example.com")
   private let outcome = CallOutcome(statusCode: 200, headers: [:], error: nil)
 
-  @Test func testBhvHooks020ChainStartsTheHooksInOrderAndFinishesTheirObserversInReverseOrder()
+  @Test
+  func
+    testBhvHooks020ChainStartsTheHooksInOrderFinishesTheirObserversInReverseOrderAndSkipsAHookWithNoObserver()
     throws
   {
-    let log = Log()
-    let hook = CallHooks.chain(
-      LoggingHook("a", log: log), LoggingHook("b", log: log), LoggingHook("c", log: log))
-    var headers: [String: String] = [:]
+    do {
+      let log = Log()
+      let hook = CallHooks.chain(
+        LoggingHook("a", log: log), LoggingHook("b", log: log), LoggingHook("c", log: log))
+      var headers: [String: String] = [:]
 
-    let observer = try #require(try hook.start(info: info, headers: &headers))
-    try observer.finish(outcome)
+      let observer = try #require(try hook.start(info: info, headers: &headers))
+      try observer.finish(outcome)
 
-    #expect(log.entries == ["a.start", "b.start", "c.start", "c.finish", "b.finish", "a.finish"])
-    #expect(headers["X-Order"] == "abc")
+      #expect(log.entries == ["a.start", "b.start", "c.start", "c.finish", "b.finish", "a.finish"])
+      #expect(headers["X-Order"] == "abc")
+    }
+    do {
+      let log = Log()
+      var headers: [String: String] = [:]
+
+      let some = CallHooks.chain([
+        LoggingHook("a", log: log), LoggingHook("quiet", log: log, observes: false),
+      ])
+      let observer = try #require(try some.start(info: info, headers: &headers))
+      try observer.finish(outcome)
+      #expect(log.entries == ["a.start", "quiet.start", "a.finish"])
+
+      let none = CallHooks.chain([LoggingHook("quiet", log: log, observes: false)])
+      #expect(try none.start(info: info, headers: &headers) == nil)
+      #expect(try CallHooks.chain([]).start(info: info, headers: &headers) == nil)
+    }
   }
 
-  @Test func testBhvHooks020ChainSkipsAHookThatReturnsNoObserverAndHasNoneWhenNoHookDoes() throws {
-    let log = Log()
-    var headers: [String: String] = [:]
-
-    let some = CallHooks.chain([
-      LoggingHook("a", log: log), LoggingHook("quiet", log: log, observes: false),
-    ])
-    let observer = try #require(try some.start(info: info, headers: &headers))
-    try observer.finish(outcome)
-    #expect(log.entries == ["a.start", "quiet.start", "a.finish"])
-
-    let none = CallHooks.chain([LoggingHook("quiet", log: log, observes: false)])
-    #expect(try none.start(info: info, headers: &headers) == nil)
-    #expect(try CallHooks.chain([]).start(info: info, headers: &headers) == nil)
-  }
-
-  @Test func testBhvHooks018AnErrorThrownByAHookInTheChainReachesTheCaller() throws {
+  @Test func testBhvLangswift079AChainStopsAtTheHookWhoseStartThrowsAndStartsNoLaterHook() throws {
     let log = Log()
     let refusing = LoggingHook("b", log: log)
     refusing.startError = Refusal.refused
@@ -111,7 +114,7 @@ import Testing
     #expect(log.entries == ["a.start", "b.start"])
   }
 
-  @Test func testBhvHooks019ChainFinishesEveryObserverEvenWhenOneThrowsAndThrowsTheFirstError()
+  @Test func testBhvLangswift080ChainFinishesEveryObserverEvenWhenOneThrowsAndThrowsTheFirstError()
     throws
   {
     let log = Log()
@@ -128,7 +131,7 @@ import Testing
     #expect(log.entries.suffix(3) == ["c.finish", "b.finish", "a.finish"])
   }
 
-  @Test func testBhvHooks021CallInfoDropsTheQueryStringAndTheFragmentFromTheUrl() {
+  @Test func testBhvLangswift081CallInfoDropsTheQueryStringAndTheFragmentFromTheUrl() {
     let built = CallInfo(
       operationId: "listItems", method: "get", urlTemplate: "/items/{id}",
       target: "https://Example.com:8443/items/7?key=secret#top")
@@ -146,7 +149,7 @@ import Testing
     ("http://user:pw@host.example:9/a", "host.example"),
     ("/relative/only", ""),
   ])
-  func testBhvHooks003ServerAddressIsTheLowerCaseHostWithoutPortUserinfoOrBrackets(
+  func testBhvLangswift082CallInfoServerAddressIsTheLowerCaseHostWithoutPortUserinfoOrBrackets(
     target: String, host: String
   ) {
     let built = CallInfo(operationId: "o", method: "GET", urlTemplate: "/t", target: target)

@@ -51,7 +51,7 @@ describe 'Metadata' do
     _(data['createdAt']).wont_be_nil
   end
 
-  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level' do
+  it 'bhv_models_026 undeclared keys in incoming JSON survive deserialization and are written back at the top level, and an additional property whose value type is a model decodes to that model' do
     json = '{"createdAt":"2024-01-01T00:00:00+00:00","customField":"hello","count":"3"}'
     metadata = Petstore::Client::ObjectSerializer.deserialize(json, 'Metadata')
 
@@ -63,6 +63,13 @@ describe 'Metadata' do
     _(data['customField']).must_equal('hello')
     _(data['count']).must_equal('3')
     _(data['createdAt']).wont_be_nil
+
+    roster = Petstore::Client::ObjectSerializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+
+    _(roster.additional_properties['a']).must_be_kind_of(Petstore::Client::Models::Category)
+    _(roster.additional_properties['a'].id).must_equal(1)
+    _(roster.additional_properties['a'].name).must_equal('x')
+    _ { Petstore::Client::ObjectSerializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise Petstore::Client::Errors::SerializationError
   end
 
   it 'bhv_models_001 captures and round-trips additionalProperties' do
@@ -105,20 +112,20 @@ describe 'Metadata', 'typed additional properties' do
     _(Petstore::Client::Models::Metadata::ADDITIONAL_PROPERTIES_TYPE).must_equal('String')
   end
 
-  it 'bhv_models_025 an additional property of the wrong JSON type fails the decode' do
+  it 'bhv_models_025 an additional property of the wrong JSON type fails the decode, and instances that differ only in extra properties are not equal' do
     ['{"a":2.5}', '{"a":"2"}'].each do |body|
       _ { serializer.deserialize(body, 'Counters') }.must_raise(failure)
     end
     _ { serializer.deserialize('{"a":3}', 'Metadata') }.must_raise(failure)
-  end
 
-  it 'bhv_models_026 an additional property whose value type is a model decodes to that model' do
-    roster = serializer.deserialize('{"label":"l","a":{"id":1,"name":"x"}}', 'Roster')
+    first = serializer.deserialize('{"customField":"a"}', 'Metadata')
+    same = serializer.deserialize('{"customField":"a"}', 'Metadata')
+    other = serializer.deserialize('{"customField":"b"}', 'Metadata')
 
-    _(roster.additional_properties['a']).must_be_kind_of(Petstore::Client::Models::Category)
-    _(roster.additional_properties['a'].id).must_equal(1)
-    _(roster.additional_properties['a'].name).must_equal('x')
-    _ { serializer.deserialize('{"a":{"id":"x"}}', 'Roster') }.must_raise(failure)
+    _(first).must_equal(same)
+    _(first.hash).must_equal(same.hash)
+    _(first).wont_equal(other)
+    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_027 a null additional property is rejected unless the value schema is nullable' do
@@ -188,17 +195,6 @@ describe 'Metadata', 'round-trip and constants' do
     data = JSON.parse(json)
 
     _(data['createdAt']).wont_be_nil
-  end
-
-  it 'bhv_models_025 two instances that differ only in undeclared extra properties are not equal' do
-    first = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
-    same = Petstore::Client::ObjectSerializer.deserialize('{"customField":"a"}', 'Metadata')
-    other = Petstore::Client::ObjectSerializer.deserialize('{"customField":"b"}', 'Metadata')
-
-    _(first).must_equal(same)
-    _(first.hash).must_equal(same.hash)
-    _(first).wont_equal(other)
-    _(first.eql?(other)).must_equal(false)
   end
 
   it 'bhv_models_005 equality includes the additional properties' do
@@ -380,6 +376,12 @@ describe 'Metadata', 'copies and equality' do
 
     _(item.additional_properties).must_equal('owner' => 'team-a')
     _ { item.additional_properties['owner'] = 'x' }.must_raise FrozenError
+
+    variables = { 'region' => Petstore::Client::ServerVariable.new(default_value: 'eu') }
+    config = Petstore::Client::ServerConfiguration.new(url_template: 'https://{region}.example.com', variables: variables)
+
+    _(-> { config.variables['zone'] = Petstore::Client::ServerVariable.new(default_value: 'us') }).must_raise FrozenError
+    _(variables).wont_be_same_as(config.variables)
   end
 
   it 'bhv_misc_143 a copy keeps the additional properties and compares equal to the original' do

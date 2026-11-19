@@ -353,6 +353,21 @@ describe 'scheme authenticators' do
       env[variable] = 'second'
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer first' }, name)
     end
+
+    basic_env = { 'ACCOUNT_USER' => 'carol', 'ACCOUNT_PASS' => 'first' }
+    basic = Petstore::Client::Auth::BasicAuthenticator.new(
+      'https://api.example.com', env: basic_env, username_env: 'ACCOUNT_USER', password_env: 'ACCOUNT_PASS'
+    )
+    basic_env['ACCOUNT_PASS'] = 'second'
+    _(basic.auth_headers['Authorization']).must_equal 'Basic Y2Fyb2w6Zmlyc3Q='
+
+    api_key_env = { 'OTHER_KEY' => 'first' }
+    api_key = Petstore::Client::Auth::ApiKeyAuthenticator.new(
+      'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
+      env: api_key_env, api_key_env: 'OTHER_KEY'
+    )
+    api_key_env['OTHER_KEY'] = 'second'
+    _(api_key.auth_headers).must_equal('X-Api-Key' => 'first')
   end
 
   it 'bhv_langruby_078 takes the token provider of a Bearer wrapper after the variable' do

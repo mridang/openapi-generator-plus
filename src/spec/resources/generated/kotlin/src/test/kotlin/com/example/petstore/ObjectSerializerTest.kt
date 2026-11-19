@@ -3439,22 +3439,34 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationparam104 a duration parameter is written in the protobuf form")
+        @DisplayName(
+            "bhvSerializationparam104 a duration parameter is written in the protobuf form and a cookie keeps only the unreserved set literal",
+        )
         fun durationParameter() {
             assertEquals("3600s", serializer.stringify(java.time.Duration.ofHours(1)))
+            assertEquals(
+                "%22a%20b~%2A%C3%A9%22",
+                ValueSerializer.serializeContent("p", "a b~*é", "cookie"),
+            )
+            assertEquals(
+                "%22%21%27%28%29%2C%2B%25-%2E_~%22",
+                ValueSerializer.serializeContent("p", "!'(),+%-._~", "cookie"),
+            )
         }
 
         @Test
-        @DisplayName("bhvSerializationparam105 an address parameter is its text unchanged")
+        @DisplayName("bhvSerializationparam105 an address parameter is its text unchanged and a form scalar is returned as it is")
         fun addressParameterIsUnchanged() {
             assertEquals("2001:db8::1", serializer.stringify("2001:db8::1"))
+            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", "", "form", true))
         }
 
         @Test
-        @DisplayName("bhvSerializationparam106 a decimal parameter is written in plain notation")
+        @DisplayName("bhvSerializationparam106 a decimal parameter is written in plain notation and a null path style behaves like simple")
         fun decimalParameterIsPlain() {
             assertEquals("12.345678901234567890123", serializer.stringify(java.math.BigDecimal("12.345678901234567890123")))
             assertEquals("1000", serializer.stringify(java.math.BigDecimal("1E+3")))
+            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
         }
     }
 

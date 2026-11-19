@@ -185,19 +185,26 @@ test('bhv serializationobject 104 models named Error and Result nest and round t
     expect($back->outcome?->ok)->toBeTrue();
 });
 
-test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values', function (\{{modelPackage}}\EdgeCasesPhaseEnum $case, string $wire): void {
-    $json = ObjectSerializer::serialize(new EdgeCases(phase: $case));
+test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values, and an unknown value inside a container is rejected', function (): void {
+    $cases = [
+        [\{{modelPackage}}\EdgeCasesPhaseEnum::IN_STOCK, 'In-Stock'],
+        [\{{modelPackage}}\EdgeCasesPhaseEnum::ON_HOLD, 'on-hold'],
+        [\{{modelPackage}}\EdgeCasesPhaseEnum::OUT_OF_STOCK, 'OUT_OF_STOCK'],
+    ];
 
-    expect($json)->toContain('"phase":"' . $wire . '"');
-    /** @var EdgeCases $back */
-    $back = ObjectSerializer::deserialize($json, EdgeCases::class);
-    \assert($back instanceof EdgeCases);
-    expect($back->phase)->toBe($case);
-})->with([
-    'hyphenated and capitalised' => [\{{modelPackage}}\EdgeCasesPhaseEnum::IN_STOCK, 'In-Stock'],
-    'hyphenated lower case' => [\{{modelPackage}}\EdgeCasesPhaseEnum::ON_HOLD, 'on-hold'],
-    'upper snake case' => [\{{modelPackage}}\EdgeCasesPhaseEnum::OUT_OF_STOCK, 'OUT_OF_STOCK'],
-]);
+    foreach ($cases as [$case, $wire]) {
+        $json = ObjectSerializer::serialize(new EdgeCases(phase: $case));
+
+        expect($json)->toContain('"phase":"' . $wire . '"');
+        /** @var EdgeCases $back */
+        $back = ObjectSerializer::deserialize($json, EdgeCases::class);
+        \assert($back instanceof EdgeCases);
+        expect($back->phase)->toBe($case);
+    }
+
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"a":"purple"}', 'Ds\Map<Swatch>'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
 
 test('bhv serializationobject 022 every member of the inline enum round trips its wire value', function (): void {
     foreach (\{{modelPackage}}\EdgeCasesPhaseEnum::cases() as $case) {
@@ -882,11 +889,6 @@ test('bhv serialization 025 enum leaves inside nested containers deserialize fro
     expect($result->get(0)->get('a'))->toBe(Swatch::RED);
     expect($result->get(1)->get('b'))->toBe(Swatch::BLUE);
     expect($result->get(1)->get('c'))->toBe(Swatch::GREEN);
-});
-
-test('bhv serializationobject 024 an unknown enum value inside a container is rejected', function (): void {
-    expect(fn (): mixed => ObjectSerializer::deserialize('{"a":"purple"}', 'Ds\Map<Swatch>'))
-        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
 });
 
 test('bhv serializationobject 121 a null model element in a container is rejected', function (string $json, string $class): void {
@@ -1778,16 +1780,14 @@ test('bhv serializationobject 026 byte list and map fields round-trip raw bytes 
     expect($back->labels?->toArray())->toBe(['a' => "\x04"]);
 });
 
-test('bhv misc 113 a model string form shows the contents of its list, map and byte fields', function (): void {
+test('bhv misc 113 a model string form shows the contents of its list, map and byte fields and masks a password property', function (): void {
     $vault = new BinaryVault(seal: 'abc', shards: new \Ds\Vector(['de', 'f']), labels: new \Ds\Map(['first' => 'gh']));
 
     $text = (string) $vault;
     expect($text)->toContain("seal='abc'");
     expect($text)->toContain("shards=['de', 'f']");
     expect($text)->toContain("labels={'first': 'gh'}");
-});
 
-test('bhv misc 113 a model string form masks a password property', function (): void {
     $text = (string) new Account(password: 'hunter2', username: 'ada');
 
     expect($text)->toContain('password=***');
@@ -2644,14 +2644,6 @@ test('bhv serializationobject 409 a hostname and an email are kept as given', fu
     expect(ObjectSerializer::serialize($values))->toBe($json);
 });
 
-test('bhv serializationparam 104 a duration parameter is written in the protobuf form', function (): void {
-    expect(ObjectSerializer::stringify(new \DateInterval('PT1H')))->toBe('3600s');
-});
-
-test('bhv serializationparam 105 an address parameter is its text unchanged', function (): void {
-    expect(ObjectSerializer::stringify('2001:db8::1'))->toBe('2001:db8::1');
-});
-
 // -- enum member names and descriptions --
 
 function enumModelSource(string $name): string
@@ -2784,10 +2776,6 @@ test('bhv misc 290 an undeclared key holding an object survives a full serialize
 
     expect($again?->additionalProperties->toArray())->toBe(['extra' => ['k' => ['n' => 1]]]);
 });
-test('bhv misc 085 a non canonical uuid text is refused as a type error when the model is built', function (): void {
-    expect(fn () => newUnchecked(\{{invokerPackage}}\Models\Order::class, ['trackingId' => 'not-a-uuid']))->toThrow(\TypeError::class);
-});
-
 test('bhv misc 087 a decimal in a loosely built body is written as a bare json number', function (): void {
     expect(ObjectSerializer::serialize(['amount' => 1.5]))->toBe('{"amount":1.5}');
 });

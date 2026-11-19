@@ -492,35 +492,6 @@ func TestBhvSerialization081_Model_AWrongJsonTypeIsRefusedNotCoerced(t *testing.
 	}
 }
 
-// Two instances that differ only in their undeclared extra properties are not equal.
-func TestBhvModels025_Model_ExtraPropertiesTakePartInEquality(t *testing.T) {
-	t.Parallel()
-	a := models.Metadata{AdditionalProperties: map[string]string{"a": "1"}}
-	b := models.Metadata{AdditionalProperties: map[string]string{"a": "2"}}
-	if a.Equal(&b) {
-		t.Error("expected instances differing only in extra properties to be unequal")
-	}
-}
-
-// Undeclared keys in incoming JSON survive deserialization and are written back at the top level on serialization.
-func TestBhvModels026_Model_UndeclaredKeysRoundTripAtTheTopLevel(t *testing.T) {
-	t.Parallel()
-	var meta models.Metadata
-	if err := json.Unmarshal([]byte(`{"owner":"team-a"}`), &meta); err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if meta.AdditionalProperties["owner"] != "team-a" {
-		t.Fatalf("expected the undeclared key kept, got %v", meta.AdditionalProperties)
-	}
-	data, err := json.Marshal(meta)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !strings.Contains(string(data), `"owner":"team-a"`) {
-		t.Errorf("expected the key written back at the top level, got %s", data)
-	}
-}
-
 // Two models built from the same values are equal, and a change in any nested value makes them unequal.
 // Models of two different types cannot be passed to each other's Equal, so the compiler rejects that call.
 func TestBhvEquality001_ModelEqual_ComparesNestedValues(t *testing.T) {

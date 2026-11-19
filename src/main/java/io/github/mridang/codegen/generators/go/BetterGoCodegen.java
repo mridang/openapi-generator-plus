@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
+import javax.annotation.Nullable;
 import org.openapitools.codegen.CliOption;
 import org.openapitools.codegen.CodegenConstants;
 import org.openapitools.codegen.CodegenOperation;
@@ -1265,7 +1266,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
             final boolean isBearer) {
         final Map<String, Object> entry = new HashMap<>();
         entry.put("className", spec.schemeClass() + spec.oauthSuffix() + "Authenticator");
-        entry.put("failsNamingId", FAILS_NAMING_IDS.getOrDefault((String) entry.get("className"), ""));
+        entry.put("failsNamingId", nullIfEmpty(FAILS_NAMING_IDS.getOrDefault((String) entry.get("className"), "")));
         entry.put("package", spec.isOAuth() ? "oauth" : "auth");
         final boolean isBasic = "BasicAuthenticator".equals(spec.baseClass());
         entry.put("isBasic", isBasic);
@@ -1305,8 +1306,15 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
          * OAuth2 flows, the second bearer and the second API-key scheme. */
         final long bearersBefore = schemeAuthTests.stream().filter(e -> Boolean.TRUE.equals(e.get("isBearer"))).count();
         final long apiKeysBefore = schemeAuthTests.stream().filter(e -> Boolean.TRUE.equals(e.get("isApiKey"))).count();
-        entry.put("failsId", failsNamingId(spec.baseClass(), isBearer && bearersBefore == 1, isApiKey && apiKeysBefore == 1));
+        entry.put(
+                "failsId",
+                nullIfEmpty(failsNamingId(spec.baseClass(), isBearer && bearersBefore == 1, isApiKey && apiKeysBefore == 1)));
         schemeAuthTests.add(entry);
+    }
+
+    /** Null for an absent id, so the template's section tests a real id and not an empty string. */
+    private static @Nullable String nullIfEmpty(final String id) {
+        return id.isEmpty() ? null : id;
     }
 
     /** The behaviour id that names a scheme's FailsNamingAVariableThatIsEmptyOrUnset test, or empty. */

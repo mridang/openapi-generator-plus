@@ -12,6 +12,7 @@ package petstore
 import (
 	"errors"
 	"fmt"
+	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
@@ -645,11 +646,17 @@ func TestBhvSerializationparam106_ValueSerializer_SerializeStyled_PathWithNullSt
 
 // ── SerializeStyled: form ──
 
-func TestBhvSerializationparam105_ValueSerializer_SerializeStyled_FormScalar(t *testing.T) {
+func TestBhvSerializationparam105_ValueSerializer_SerializeStyled_FormScalarAndIpAddressCanonicalText(t *testing.T) {
 	t.Parallel()
 	result := serializeStyled("color", "blue", "query", "string", "", "form", true)
 	if result != "blue" {
 		t.Errorf("expected 'blue', got %v", result)
+	}
+	if got := serializeStyled("ip", netip.MustParseAddr("192.0.2.1"), "query", "string", "", "form", true); got != "192.0.2.1" {
+		t.Errorf("expected 192.0.2.1, got %v", got)
+	}
+	if got := serializeStyled("ip", netip.MustParseAddr("2001:0DB8::1"), "query", "string", "", "form", true); got != "2001:db8::1" {
+		t.Errorf("expected 2001:db8::1, got %v", got)
 	}
 }
 

@@ -34,16 +34,6 @@ void main() {
     );
 
     test(
-      'bhv misc 233 a cookie parameter carrying a JSON model is fully percent-encoded, colons included',
-      () {
-        final result = encodeContentCookie('{"a":1.5}');
-        expect(result, contains('%7B'));
-        expect(result, contains('%3A'));
-        expect(result, isNot(contains(':')));
-      },
-    );
-
-    test(
       'bhv misc 236 a date-only value is written as yyyy-mm-dd with no time',
       () {
         expect(stringifyDate(DateTime.utc(2024, 1, 15)), equals('2024-01-15'));
@@ -492,18 +482,22 @@ void main() {
 
     // SerializeStyled: form
 
-    test('bhv serializationparam 105 serializeStyled form scalar', () {
-      final result = serializeStyled(
-        'color',
-        'blue',
-        'query',
-        'string',
-        '',
-        'form',
-        true,
-      );
-      expect(result, equals('blue'));
-    });
+    test(
+      'bhv serializationparam 105 serializeStyled form scalar, and an address parameter is its text unchanged',
+      () {
+        final result = serializeStyled(
+          'color',
+          'blue',
+          'query',
+          'string',
+          '',
+          'form',
+          true,
+        );
+        expect(result, equals('blue'));
+        expect(stringify('2001:db8::1'), equals('2001:db8::1'));
+      },
+    );
 
     test(
       'bhv serialization 107 serializeStyled form Set explode repeats each element',

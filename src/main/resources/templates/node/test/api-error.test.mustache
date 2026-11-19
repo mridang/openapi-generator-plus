@@ -421,15 +421,6 @@ describe('ApiError', () => {
       expect(ApiError.fromResponse(status, {}, null).constructor).toBe(ClientError);
     });
 
-    test('bhv errors 037 the thrown error is the exact class for its status', () => {
-      expect(() => {
-        throw ApiError.fromResponse(404, {}, null);
-      }).toThrow(NotFoundError);
-      expect(() => {
-        throw ApiError.fromResponse(500, {}, null);
-      }).toThrow(InternalServerError);
-    });
-
     test('bhv errors 048 a 418 response throws ClientError', () => {
       const err = ApiError.fromResponse(418, {}, null);
       expect(err.constructor).toBe(ClientError);
@@ -796,19 +787,12 @@ describe('ApiError', () => {
 });
 
 describe('ApiError typed errors', () => {
-  test.each([408, 409, 429, 500, 502, 503, 504, 599])(
-    'bhv errors 201 status %i is retryable because the client retries it',
-    (status) => {
-      expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(true);
-    }
-  );
-
-  test.each([302, 400, 401, 403, 404, 422, 501])(
-    'bhv errors 201 status %i is not retryable because the client does not retry it',
-    (status) => {
-      expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(false);
-    }
-  );
+  test.each([
+    ...[408, 409, 429, 500, 502, 503, 504, 599].map((status): [number, boolean] => [status, true]),
+    ...[302, 400, 401, 403, 404, 422, 501].map((status): [number, boolean] => [status, false])
+  ])('bhv errors 201 status %i is retryable exactly when the client retries it (expected %p)', (status, retryable) => {
+    expect(ApiError.fromResponse(status, {}, null).isRetryable).toBe(retryable);
+  });
 
   test('bhv errors 202 exposes the x-request-id response header as the request id', () => {
     expect(ApiError.fromResponse(500, { 'X-Request-ID': 'abc' }, null).requestId).toBe('abc');

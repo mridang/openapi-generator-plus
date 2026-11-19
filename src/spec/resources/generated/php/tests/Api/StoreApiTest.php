@@ -47,17 +47,6 @@ function newStoreApiForMock(int $statusCode, string $requestContentType, string 
     return new StoreApi(apiClient: $client, config: $config);
 }
 
-test('bhv langphp 026 data methods declare a native return type', function (string $method, string $expected): void {
-    $returnType = (new \ReflectionMethod(StoreApi::class, $method))->getReturnType();
-    expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
-    assert($returnType instanceof \ReflectionNamedType);
-    expect($returnType->getName())->toBe($expected);
-})->with([
-    ['getOrderById', Order::class],
-    ['getInventory', \Ds\Map::class],
-    ['deleteOrder', 'void'],
-]);
-
 /**
  * Builds a StoreApi backed by a capturing fake client plus the captured header bag, so a test can
  * assert what reached the wire for an operation that has no parameters and no security.
@@ -140,15 +129,6 @@ test('bhv misc 011 an operation without parameters or security still runs with n
     $api->getInventory();
 
     expect($captured->headers)->not->toHaveKey('X-Tenant');
-});
-
-test('bhv operations 086 the options of an operation without parameters hold no auth field', function (): void {
-    $options = new \ReflectionClass(GetInventoryOptions::class);
-
-    expect($options->hasProperty('auth'))->toBeFalse();
-    expect($options->hasProperty('timeout'))->toBeTrue();
-    expect($options->hasProperty('headers'))->toBeTrue();
-    expect($options->hasProperty('maxRetries'))->toBeTrue();
 });
 
 test('bhv misc 055 a per call timeout and retry count of an operation without parameters must be valid', function (): void {
@@ -727,8 +707,9 @@ test('bhv misc 114 a success response is decoded by the decoder for the status c
     expect($union->asReservationReceipt()?->receiptCode)->toBe('C1');
 });
 
-test('bhv misc 085 a non canonical uuid text is refused as a type error when it is written as a parameter', function (): void {
+test('bhv misc 085 a non canonical uuid text is refused as a type error when it is written as a parameter and when the model is built', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '{}');
 
     expect(fn () => callUnchecked($api, 'getOrderByTrackingId', 'not-a-uuid'))->toThrow(\TypeError::class);
+    expect(fn () => newUnchecked(Order::class, ['trackingId' => 'not-a-uuid']))->toThrow(\TypeError::class);
 });

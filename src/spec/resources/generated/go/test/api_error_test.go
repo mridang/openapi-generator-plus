@@ -1384,184 +1384,176 @@ func TestBhvErrors204_ApiError_ABodyThatDoesNotMatchItsDeclaredErrorSchemaLeaves
 	}
 }
 
-func TestBhvLanggo126_ApiError_UnexpectedFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
+func TestBhvLanggo126_ApiError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
 	t.Parallel()
-	got := apierrors.NewUnexpectedFailureErrorFromResponse("GET", "/x?q=1", 400, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.UnexpectedFailureError)
-	if !ok {
-		t.Fatalf("expected *UnexpectedFailureError, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != 400 || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.ApiError
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.OpenAPIError
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the OpenAPIError root")
-	}
-}
-
-func TestBhvLanggo126_ApiError_MemberNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
-	t.Parallel()
-	got := apierrors.NewMemberNotFoundErrorFromResponse("GET", "/x?q=1", 404, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.MemberNotFoundError)
-	if !ok {
-		t.Fatalf("expected *MemberNotFoundError, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != 404 || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.NotFoundError
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach NotFoundError")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.OpenAPIError
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the OpenAPIError root")
-	}
-}
-
-func TestBhvLanggo126_ApiError_ProjectNotFoundError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
-	t.Parallel()
-	got := apierrors.NewProjectNotFoundErrorFromResponse("GET", "/x?q=1", 404, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.ProjectNotFoundError)
-	if !ok {
-		t.Fatalf("expected *ProjectNotFoundError, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != 404 || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.NotFoundError
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach NotFoundError")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.OpenAPIError
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the OpenAPIError root")
-	}
-}
-
-func TestBhvLanggo126_ApiError_RejectedRequestError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
-	t.Parallel()
-	got := apierrors.NewRejectedRequestErrorFromResponse("GET", "/x?q=1", 400, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.RejectedRequestError)
-	if !ok {
-		t.Fatalf("expected *RejectedRequestError, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != 400 || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.ClientError
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach ClientError")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.OpenAPIError
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the OpenAPIError root")
-	}
-}
-
-func TestBhvLanggo126_ApiError_UpstreamFailureError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
-	t.Parallel()
-	got := apierrors.NewUpstreamFailureErrorFromResponse("GET", "/x?q=1", 500, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.UpstreamFailureError)
-	if !ok {
-		t.Fatalf("expected *UpstreamFailureError, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != 500 || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.ServerError
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach ServerError")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.OpenAPIError
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the OpenAPIError root")
-	}
-}
-
-func TestBhvLanggo126_ApiError_StateConflictError_IsTypedAndMatchesEveryLevelAboveIt(t *testing.T) {
-	t.Parallel()
-	got := apierrors.NewStateConflictErrorFromResponse("GET", "/x?q=1", 409, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
-	typed, ok := got.(*apierrors.StateConflictError)
-	if !ok {
-		t.Fatalf("expected *StateConflictError, got %T", got)
-	}
-	if typed.Body() == nil {
-		t.Error("expected the decoded body")
-	}
-	if typed.ErrorBody() == nil || typed.StatusCode() != 409 || typed.RequestID() != "r1" {
-		t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
-	}
-	if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
-		t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
-	}
-	var parent *apierrors.ClientError
-	if !errors.As(got, &parent) {
-		t.Error("expected errors.As to reach ClientError")
-	}
-	var apiErr *apierrors.ApiError
-	if !errors.As(got, &apiErr) {
-		t.Error("expected errors.As to reach ApiError")
-	}
-	var root apierrors.OpenAPIError
-	if !errors.As(got, &root) {
-		t.Error("expected errors.As to reach the OpenAPIError root")
-	}
+	t.Run("UnexpectedFailureError", func(t *testing.T) {
+		got := apierrors.NewUnexpectedFailureErrorFromResponse("GET", "/x?q=1", 400, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.UnexpectedFailureError)
+		if !ok {
+			t.Fatalf("expected *UnexpectedFailureError, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != 400 || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.ApiError
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the OpenAPIError root")
+		}
+	})
+	t.Run("MemberNotFoundError", func(t *testing.T) {
+		got := apierrors.NewMemberNotFoundErrorFromResponse("GET", "/x?q=1", 404, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.MemberNotFoundError)
+		if !ok {
+			t.Fatalf("expected *MemberNotFoundError, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != 404 || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.NotFoundError
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach NotFoundError")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the OpenAPIError root")
+		}
+	})
+	t.Run("ProjectNotFoundError", func(t *testing.T) {
+		got := apierrors.NewProjectNotFoundErrorFromResponse("GET", "/x?q=1", 404, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.ProjectNotFoundError)
+		if !ok {
+			t.Fatalf("expected *ProjectNotFoundError, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != 404 || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.NotFoundError
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach NotFoundError")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the OpenAPIError root")
+		}
+	})
+	t.Run("RejectedRequestError", func(t *testing.T) {
+		got := apierrors.NewRejectedRequestErrorFromResponse("GET", "/x?q=1", 400, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.RejectedRequestError)
+		if !ok {
+			t.Fatalf("expected *RejectedRequestError, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != 400 || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.ClientError
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach ClientError")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the OpenAPIError root")
+		}
+	})
+	t.Run("UpstreamFailureError", func(t *testing.T) {
+		got := apierrors.NewUpstreamFailureErrorFromResponse("GET", "/x?q=1", 500, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.UpstreamFailureError)
+		if !ok {
+			t.Fatalf("expected *UpstreamFailureError, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != 500 || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.ServerError
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach ServerError")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the OpenAPIError root")
+		}
+	})
+	t.Run("StateConflictError", func(t *testing.T) {
+		got := apierrors.NewStateConflictErrorFromResponse("GET", "/x?q=1", 409, map[string]string{"x-request-id": "r1"}, `{"code":7}`)
+		typed, ok := got.(*apierrors.StateConflictError)
+		if !ok {
+			t.Fatalf("expected *StateConflictError, got %T", got)
+		}
+		if typed.Body() == nil {
+			t.Error("expected the decoded body")
+		}
+		if typed.ErrorBody() == nil || typed.StatusCode() != 409 || typed.RequestID() != "r1" {
+			t.Errorf("expected the status, request id and error body to be kept, got %+v", typed)
+		}
+		if typed.RequestMethod() != "GET" || typed.RequestPath() != "/x" {
+			t.Errorf("expected the request without its query, got %s %s", typed.RequestMethod(), typed.RequestPath())
+		}
+		var parent *apierrors.ClientError
+		if !errors.As(got, &parent) {
+			t.Error("expected errors.As to reach ClientError")
+		}
+		var apiErr *apierrors.ApiError
+		if !errors.As(got, &apiErr) {
+			t.Error("expected errors.As to reach ApiError")
+		}
+		var root apierrors.OpenAPIError
+		if !errors.As(got, &root) {
+			t.Error("expected errors.As to reach the OpenAPIError root")
+		}
+	})
 }
 
 // A carriage return, line feed or other control character in a response body appears escaped in the rendered message.

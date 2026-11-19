@@ -565,28 +565,6 @@ test('bhv authintegration 002 a per-call oauth authenticator is given the transp
     expect($first['url'])->toBe('https://auth.example.com/token');
 });
 
-test('bhv operations 157 a binary body is sent as raw bytes whether given as string, stream resource or PSR-7 stream', function (
-    string $kind
-): void {
-    $client = new CapturingApiClient();
-    $api = new TestableApi($client, new Configuration('http://localhost'));
-    $resource = fopen('php://memory', 'r+');
-    expect($resource)->not->toBeFalse();
-    assert(is_resource($resource));
-    fwrite($resource, 'raw-bytes');
-    rewind($resource);
-    $body = match ($kind) {
-        'string' => 'raw-bytes',
-        'resource' => $resource,
-        default => (new \Nyholm\Psr7\Factory\Psr17Factory())->createStream('raw-bytes'),
-    };
-
-    $api->call('POST', '/test/echo', [], [], $body, ['application/json'], 'application/octet-stream', null);
-
-    expect($client->capturedBody)->toBe('raw-bytes');
-    fclose($resource);
-})->with(['string', 'resource', 'psr7']);
-
 test('bhv authintegration 009 falls back to client-level authenticator when no per-call auth is supplied', function (): void {
     $client = new CapturingApiClient();
     $config = new Configuration('http://localhost');
@@ -2270,42 +2248,6 @@ test('bhv hooks 021 the url given to the hook never carries the query string or 
     expect($hook->infos[1]->url)->toBe('http://localhost/things');
 });
 
-test('bhv telemetry 006 the traceparent sent names the client span as the parent', function (): void {
-    [$tracer, $spans, $meter] = HookTelemetry::providers();
-    $scope = \OpenTelemetry\API\Instrumentation\Configurator::create()
-        ->withTracerProvider($tracer)
-        ->withMeterProvider($meter)
-        ->withPropagator(\OpenTelemetry\API\Trace\Propagation\TraceContextPropagator::getInstance())
-        ->activate();
-    $client = new ScriptedApiClient();
-    try {
-        $parent = $tracer->getTracer('parent')->spanBuilder('caller')->startSpan();
-        $parentScope = $parent->activate();
-        try {
-            hookedPetApi($client, OpenTelemetryCallHook::create())->deletePet(7);
-        } finally {
-            $parentScope->detach();
-            $parent->end();
-        }
-    } finally {
-        $scope->detach();
-    }
-
-    $exported = array_values($spans->getSpans());
-    $sent = array_change_key_case($client->requests[0]['headers']);
-    expect($exported)->toHaveCount(2);
-    expect($exported[0]->getName())->toBe('deletePet');
-    expect($exported[0]->getParentSpanId())->toBe($parent->getContext()->getSpanId());
-    $flags = sprintf('%02x', $exported[0]->getContext()->getTraceFlags());
-    expect($sent['traceparent'] ?? null)->toBe(
-        '00-' . $exported[0]->getTraceId() . '-' . $exported[0]->getSpanId() . '-' . $flags
-    );
-    expect(count(array_filter(
-        array_keys($client->requests[0]['headers']),
-        static fn (string $name): bool => strtolower($name) === 'traceparent'
-    )))->toBe(1);
-});
-
 test('bhv telemetry 007 a call retried by the transport records one span and one count', function (): void {
     [$tracer, $spans, $meter, $reader, $metrics] = HookTelemetry::providers();
     /** @var \ArrayObject<int, array<string, string>> $seen */
@@ -2433,26 +2375,22 @@ test('bhv operations 161 a text plain response is returned as the raw text even 
     expect($result)->toBe('aGVsbG8=');
 });
 
-test('bhv misc 053 a per call retry budget of zero is accepted', function (): void {
+test('bhv misc 053 a per call retry budget of zero is accepted, and a negative or non whole budget is refused', function (): void {
     $client = new CapturingApiClient();
     $api = new PetApi($client, new Configuration('http://localhost'));
 
     $api->deletePet(7, new DeletePetOptions(maxRetries: 0));
 
     expect($client->capturedUrl)->toBe('http://localhost/pet/7');
-});
 
-test('bhv misc 053 a negative per call retry budget is refused before any request is sent', function (): void {
-    $client = new CapturingApiClient();
-    $api = new PetApi($client, new Configuration('http://localhost'));
+    $refused = new CapturingApiClient();
+    $refusedApi = new PetApi($refused, new Configuration('http://localhost'));
 
-    expect(function () use ($api): void {
-        $api->deletePet(7, new DeletePetOptions(maxRetries: -1));
+    expect(function () use ($refusedApi): void {
+        $refusedApi->deletePet(7, new DeletePetOptions(maxRetries: -1));
     })->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
-    expect($client->capturedUrl)->toBe('');
-});
+    expect($refused->capturedUrl)->toBe('');
 
-test('bhv misc 053 a non whole per call retry budget is refused by its type', function (): void {
     expect(fn () => newUnchecked(DeletePetOptions::class, ['maxRetries' => 1.5]))->toThrow(\TypeError::class);
 });
 

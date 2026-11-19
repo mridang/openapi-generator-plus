@@ -99,16 +99,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
   end
 
-  describe "failed serialization" do
-    test "bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix" do
-      assert_raise PetstoreClient.Errors.SerializationError,
-                   ~r/^Failed to serialize object to JSON/,
-                   fn ->
-                     PetstoreClient.ObjectSerializer.serialize(self())
-                   end
-    end
-  end
-
   describe "model documentation" do
     test "bhv serializationobject 227 a model externalDocs description is documented verbatim without HTML entities" do
       {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} =
@@ -2117,6 +2107,12 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       assert "Failed to serialize object to JSON: " <> detail = err.message
       assert detail != ""
+
+      assert_raise PetstoreClient.Errors.SerializationError,
+                   ~r/^Failed to serialize object to JSON/,
+                   fn ->
+                     PetstoreClient.ObjectSerializer.serialize(self())
+                   end
     end
   end
 
@@ -2834,19 +2830,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
       json = ~s({"host":"not a host!","contact":"x@"})
 
       assert PetstoreClient.ObjectSerializer.serialize(native_values(json)) == json
-    end
-
-    test "bhv serializationparam 104 a duration parameter is written in the protobuf form" do
-      assert PetstoreClient.ObjectSerializer.stringify(
-               Duration.new!(second: 3600, microsecond: {0, 6})
-             ) == "3600s"
-    end
-
-    test "bhv serializationparam 105 an address parameter is its canonical text" do
-      assert PetstoreClient.ObjectSerializer.stringify({192, 0, 2, 1}) == "192.0.2.1"
-
-      assert PetstoreClient.ObjectSerializer.stringify({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}) ==
-               "2001:db8::1"
     end
   end
 

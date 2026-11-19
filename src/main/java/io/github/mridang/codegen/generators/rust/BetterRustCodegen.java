@@ -1654,6 +1654,9 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         entry.put("isBasic", "BasicAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("basic"));
         entry.put("isApiKey", "ApiKeyAuthenticator".equals(baseClassName) && bhvIdsClaimed.add("apikey"));
         entry.put("bearerIdOnce", bearer && bhvIdsClaimed.add("bearer"));
+        /* The scheme-independent env tests (catalogue authbasic001, authbasic003, authscheme001 and
+         * authscheme002) are rendered by every scheme, so only the first scheme carries their ids. */
+        entry.put("commonBhvOnce", bhvIdsClaimed.add("common_env"));
         /* The explicit-wins test (authscheme 009) carries its catalogue id in one module only. */
         final boolean explicitWins = bhvIdsClaimed.add("explicit_wins");
         entry.put("explicitWinsOnce", explicitWins);

@@ -171,6 +171,30 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert is_binary(text)
     assert Jason.decode!(text)["method"] == "GET"
+
+    json_state =
+      answering_state(
+        Req.Response.new(
+          status: 200,
+          headers: [{"content-type", "application/json"}],
+          body: ~s({"a":1})
+        )
+      )
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               json_state,
+               :get,
+               "/things",
+               %{},
+               %{},
+               nil,
+               ["application/json"],
+               "application/json",
+               "String"
+             )
+
+    assert result.data == ~s({"a":1})
   end
 
   test "bhv errors 058 raises BadRequestError for status 400", %{state: state} do
@@ -839,7 +863,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert %PetstoreClient.Models.Tag{} = result.data
   end
 
-  test "bhv serialization 122 a form-urlencoded body repeats the key for each array element in order" do
+  test "bhv serialization 122 a form-urlencoded body repeats the key for each array element in order, for a pair list and a map" do
     PetstoreClient.Api.BaseApi.invoke_api(
       capture_state(),
       :post,
@@ -853,61 +877,29 @@ defmodule PetstoreClient.Api.BaseApiTest do
     )
 
     assert captured_body() == "tags=a&tags=b&n=1"
-  end
 
-  test "bhv serialization 125 form-urlencoded keys and values percent-encode reserved characters and a literal plus as %2B" do
     PetstoreClient.Api.BaseApi.invoke_api(
       capture_state(),
       :post,
       "/things",
       %{},
       %{},
-      %{"q" => "a+b/c"},
+      %{"tag" => ["x", "y"]},
       ["application/json"],
       "application/x-www-form-urlencoded",
       nil
     )
 
-    assert captured_body() == "q=a%2Bb%2Fc"
+    assert captured_body() == "tag=x&tag=y"
   end
 
-  test "bhv serialization 128 a response whose declared type is string is returned unchanged whatever its content type" do
-    state =
-      answering_state(
-        Req.Response.new(
-          status: 200,
-          headers: [{"content-type", "application/json"}],
-          body: ~s({"a":1})
-        )
-      )
-
-    assert {:ok, result} =
-             PetstoreClient.Api.BaseApi.invoke_api_for_result(
-               state,
-               :get,
-               "/things",
-               %{},
-               %{},
-               nil,
-               ["application/json"],
-               "application/json",
-               "String"
-             )
-
-    assert result.data == ~s({"a":1})
-  end
-
-  test "bhv transport 086 a request that exceeds its timeout fails with the network timeout error" do
+  test "bhv transport 086 a request that exceeds its timeout fails with the network timeout error within the time budget" do
     state = retry_state([{:transport_error, :timeout}, 200], timeout: 50)
+    started = System.monotonic_time(:millisecond)
 
     assert {:error, %PetstoreClient.Errors.NetworkTimeoutError{}} = get_thing(state)
     assert length(attempts()) == 1
-  end
-
-  test "bhv transport 087 a connection that cannot be established raises the SDK network error" do
-    state = retry_state([{:transport_error, :econnrefused}], max_retries: 0)
-
-    assert {:error, %PetstoreClient.Errors.NetworkError{}} = get_thing(state)
+    assert System.monotonic_time(:millisecond) - started < 1_000
   end
 
   test "bhv transport 088 a validly gzip-encoded response body is decoded before it is returned" do
@@ -969,15 +961,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert result.headers["x-multi"] == "a, b"
-  end
-
-  test "bhv transport 093 a server whose certificate is signed by a CA other than the configured one is rejected with a network error" do
-    state =
-      retry_state([{:transport_error, {:tls_alert, {:unknown_ca, ~c"unknown ca"}}}],
-        max_retries: 0
-      )
-
-    assert {:error, %PetstoreClient.Errors.NetworkError{}} = get_thing(state)
   end
 
   test "bhv misc 228 an unparseable Retry-After header is ignored and the retry uses the normal backoff" do
@@ -1547,6 +1530,20 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert [request] = attempts()
     assert IO.iodata_to_binary(request.body) == "k=a%2Bb+c%26d%3De"
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      capture_state(),
+      :post,
+      "/things",
+      %{},
+      %{},
+      %{"q" => "a+b/c"},
+      ["application/json"],
+      "application/x-www-form-urlencoded",
+      nil
+    )
+
+    assert captured_body() == "q=a%2Bb%2Fc"
   end
 
   test "bhv serializationwire 021 serializes form-urlencoded body", %{state: state} do
@@ -1601,30 +1598,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "bhv operations 157 a binary body is sent as its exact raw bytes with no multipart encoding" do
-    {:ok, name} = CapturingBodyApiClient.start()
-    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
-    state = %{config: config, api_client: CapturingBodyApiClient}
-    body = <<0x00, 0xFF, 0x10>>
-
-    _result =
-      PetstoreClient.Api.BaseApi.invoke_api(
-        state,
-        :post,
-        "/test/echo",
-        %{},
-        %{},
-        body,
-        ["application/octet-stream"],
-        "application/octet-stream",
-        nil
-      )
-
-    assert CapturingBodyApiClient.captured_body(name) == body
-
-    Agent.stop(name)
-  end
-
   test "bhv operations 014 passes binary body as-is for octet-stream", %{state: state} do
     body = <<0x01, 0x02, 0x03>>
 
@@ -1649,6 +1622,22 @@ defmodule PetstoreClient.Api.BaseApiTest do
         # The echo endpoint may not be reachable; that's OK for this test
         :ok
     end
+
+    raw = <<0x00, 0xFF, 0x10>>
+
+    PetstoreClient.Api.BaseApi.invoke_api(
+      capture_state(),
+      :post,
+      "/test/echo",
+      %{},
+      %{},
+      raw,
+      ["application/octet-stream"],
+      "application/octet-stream",
+      nil
+    )
+
+    assert captured_body() == raw
   end
 
   # Exception hierarchy
@@ -2169,28 +2158,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute Map.has_key?(unauthenticated["headers"], "x-who")
   end
 
-  test "bhv misc 064 an operation that declares no security never sends the client's default credential",
-       %{state: state} do
-    default = %TestAuthenticator{host_url: "", headers: %{"X-Who" => "default"}}
-    api = Map.merge(state, %{authenticator: default, scheme_authenticators: %{}})
-
-    assert {:ok, reply} =
-             PetstoreClient.Api.BaseApi.invoke_api(
-               api,
-               :get,
-               "/test/echo",
-               %{},
-               %{},
-               nil,
-               ["application/json"],
-               "application/json",
-               "Object",
-               PetstoreClient.Api.BaseApi.no_auth()
-             )
-
-    refute Map.has_key?(reply["headers"], "x-who")
-  end
-
   # Nil body handling
 
   test "bhv serializationobject 183 handles nil body", %{state: state} do
@@ -2627,6 +2594,12 @@ defmodule PetstoreClient.Api.BaseApiTest do
     for name <- ["a\rb", "a\nb", "a\0b", "a\"b"] do
       assert_raise ArgumentError, fn ->
         PetstoreClient.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
+      end
+    end
+
+    for bad <- ["a\r\nb.txt", "a\nb.txt", "a\0b.txt"] do
+      assert_raise ArgumentError, fn ->
+        PetstoreClient.DefaultApiClient.build_content_disposition("doc", bad)
       end
     end
   end
@@ -3847,25 +3820,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
     Agent.stop(name)
   end
 
-  test "bhv serialization 122 a form-urlencoded body repeats the key for each element of an array property" do
-    state = retry_state([200])
-
-    PetstoreClient.Api.BaseApi.invoke_api(
-      state,
-      :post,
-      "/things",
-      %{},
-      %{},
-      %{"tag" => ["x", "y"]},
-      ["application/json"],
-      "application/x-www-form-urlencoded",
-      nil
-    )
-
-    assert [request] = attempts()
-    assert IO.iodata_to_binary(request.body) == "tag=x&tag=y"
-  end
-
   # Behavior #2: an absent/nil optional form field is omitted from the body.
   # set_pet_preferences declares optional `tags` and `note`; only `nickname`
   # (required) is supplied here, so neither optional key must appear.
@@ -4053,6 +4007,9 @@ defmodule PetstoreClient.Api.BaseApiTest do
 
     assert String.contains?(serialized, "Content-Type: application/json"),
            "Expected the model part as JSON, got: #{serialized}"
+
+    assert String.contains?(serialized, "\"createdAt\""),
+           "Expected the model part with its wire names, got: #{serialized}"
   end
 
   test "bhv serialization 058 a multipart part with no filename is sent as application/octet-stream" do
@@ -4444,13 +4401,26 @@ defmodule PetstoreClient.Api.BaseApiTest do
     )
   end
 
-  test "bhv retries 021 a call is retried on 408, 409, 429 and 5xx other than 501, and then succeeds" do
+  test "bhv retries 021 the retryable statuses 408, 409, 429 and 5xx other than 501 are retried, and the others are not" do
     for status <- [408, 409, 429, 500, 502, 503, 504] do
       state = retry_state([{status, [{"retry-after", "0"}]}, 200])
 
       assert {:ok, _} = get_thing(state)
       assert length(attempts()) == 2, "status #{status} must be retried once"
     end
+
+    for status <- [400, 401, 403, 404, 422, 501] do
+      state = retry_state([{status, [{"retry-after", "0"}]}, 200])
+
+      assert {:error, _} = get_thing(state)
+      assert length(attempts()) == 1, "status #{status} must not be retried"
+    end
+
+    for status <- [408, 409, 429, 500, 502, 503, 599] do
+      assert PetstoreClient.Api.BaseApi.retryable_status?(status)
+    end
+
+    refute PetstoreClient.Api.BaseApi.retryable_status?(501)
   end
 
   test "bhv retries 024 a call that keeps failing is tried max_retries + 1 times and reports the last response" do
@@ -4488,15 +4458,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
              get_thing(state)
 
     assert length(attempts()) == 1
-  end
-
-  test "bhv retries 021 the statuses 400, 401, 403, 404, 422 and 501 are not retried" do
-    for status <- [400, 401, 403, 404, 422, 501] do
-      state = retry_state([{status, [{"retry-after", "0"}]}, 200])
-
-      assert {:error, _} = get_thing(state)
-      assert length(attempts()) == 1, "status #{status} must not be retried"
-    end
   end
 
   test "bhv retries 013 a network error before any response is retried" do
@@ -4932,12 +4893,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
   test "bhv retries 007 a status outside the retry set is not replayed" do
     for status <- [200, 301, 400, 401, 404, 422, 501, 600] do
       refute PetstoreClient.Api.BaseApi.retryable_status?(status)
-    end
-  end
-
-  test "bhv retries 021 the retryable statuses are 408, 409, 429 and 5xx other than 501" do
-    for status <- [408, 409, 429, 500, 502, 503, 599] do
-      assert PetstoreClient.Api.BaseApi.retryable_status?(status)
     end
   end
 

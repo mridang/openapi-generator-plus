@@ -11,6 +11,8 @@ import {
   ValueSerializer,
 } from "../src/value-serializer.js";
 import { SerializationError } from "../src/errors/serialization-error.js";
+import { ObjectSerializer } from "../src/object-serializer.js";
+import { Temporal } from "temporal-polyfill";
 
 describe("ValueSerializer", () => {
   describe("path location", () => {
@@ -537,7 +539,7 @@ describe("ValueSerializer", () => {
       ).toEqual(["blue", "black"]);
     });
 
-    test("bhv serializationparam 105 SerializeStyled form scalar", () => {
+    test("bhv serializationparam 105 SerializeStyled form scalar, and an address parameter is written as its text", () => {
       expect(
         ValueSerializer.serializeStyled(
           "color",
@@ -549,6 +551,7 @@ describe("ValueSerializer", () => {
           true,
         ),
       ).toBe("blue");
+      expect(ObjectSerializer.stringify("192.0.2.1")).toBe("192.0.2.1");
     });
 
     test("bhv serializationparam 041 scalar with explode true returns string not list", () => {
@@ -778,7 +781,7 @@ describe("ValueSerializer", () => {
   });
 
   describe("serializeStyled - null style falls back to location default", () => {
-    test("bhv serializationparam 106 path with null style behaves like simple", () => {
+    test("bhv serializationparam 106 path with null style behaves like simple, and a decimal parameter is written in plain notation", () => {
       expect(
         ValueSerializer.serializeStyled(
           "id",
@@ -790,6 +793,9 @@ describe("ValueSerializer", () => {
           false,
         ),
       ).toBe("5");
+      expect(ObjectSerializer.stringify("12.345678901234567890123")).toBe(
+        "12.345678901234567890123",
+      );
     });
 
     test("bhv serializationparam 109 an unknown style falls back to plain value serialization", () => {
@@ -1464,13 +1470,16 @@ describe("ValueSerializer", () => {
       );
     });
 
-    test("bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal", () => {
+    test("bhv serializationparam 104 the content cookie encoding keeps only the unreserved set literal, and a duration parameter is written in the protobuf form", () => {
       expect(ValueSerializer.encodeCookieComponent("AZaz09-_~")).toBe(
         "AZaz09-_~",
       );
       expect(ValueSerializer.encodeCookieComponent(".")).toBe("%2E");
       expect(ValueSerializer.encodeCookieComponent("!'()*,")).toBe(
         "%21%27%28%29%2A%2C",
+      );
+      expect(ObjectSerializer.stringify(Temporal.Duration.from("PT1H"))).toBe(
+        "3600s",
       );
     });
 

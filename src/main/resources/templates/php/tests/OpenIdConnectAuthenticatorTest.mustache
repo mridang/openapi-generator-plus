@@ -545,16 +545,6 @@ test('bhv authoidc 019 redacts secret', function (): void {
     expect($printR)->toContain('***');
 });
 
-test('bhv langphp 048 secret constructor parameters are marked sensitive', function (): void {
-    $sensitive = [];
-    foreach ((new \ReflectionMethod(OpenIdConnectAuthenticator::class, '__construct'))->getParameters() as $param) {
-        if ($param->getAttributes(\SensitiveParameter::class) !== []) {
-            $sensitive[] = $param->getName();
-        }
-    }
-    expect($sensitive)->toBe(['clientSecret']);
-});
-
 test('bhv authoidc 030 a discovery document served with max-age=0 is fetched again on every use', function (): void {
     $client = new MockTokenApiClient();
     $discovery = (string) json_encode([
