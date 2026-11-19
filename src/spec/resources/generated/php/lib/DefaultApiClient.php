@@ -193,13 +193,32 @@ class DefaultApiClient extends AbstractApiClient
      *
      * @param string|\Symfony\Component\Mime\Part\File $body the file or the raw bytes
      */
-    private function binaryFormPart(string|\Symfony\Component\Mime\Part\File $body, string $filename, string $mime): DataPart
-    {
-        return new class ($body, $filename, $mime) extends DataPart {
+    private function binaryFormPart(
+        string|\Symfony\Component\Mime\Part\File $body,
+        string $filename,
+        string $mime,
+        ?string $extendedFilename = null,
+    ): DataPart {
+        return new class ($body, $filename, $mime, $extendedFilename) extends DataPart {
+            public function __construct(
+                string|\Symfony\Component\Mime\Part\File $body,
+                string $filename,
+                string $mime,
+                private readonly ?string $extendedFilename,
+            ) {
+                parent::__construct($body, $filename, $mime);
+            }
+
             public function getPreparedHeaders(): Headers
             {
                 $headers = parent::getPreparedHeaders();
                 $headers->remove('Content-Transfer-Encoding');
+                /* The extended parameter is written on every prepared header set, since
+                 * the part builds its headers afresh each time they are read. */
+                $disposition = $headers->get('content-disposition');
+                if ($this->extendedFilename !== null && $disposition instanceof \Symfony\Component\Mime\Header\ParameterizedHeader) {
+                    $disposition->setParameter('filename*', $this->extendedFilename);
+                }
 
                 return $headers;
             }
@@ -279,7 +298,15 @@ class DefaultApiClient extends AbstractApiClient
         $mergedHeaders = $headers;
 
         if (is_array($body)) {
-            unset($mergedHeaders['Content-Type']);
+            /* A caller may declare another multipart subtype (multipart/related, say).
+             * Its subtype is kept and the boundary is added to it. */
+            $declaredType = null;
+            foreach (array_keys($mergedHeaders) as $headerName) {
+                if (strcasecmp((string) $headerName, 'Content-Type') === 0) {
+                    $declaredType = trim(explode(';', (string) $mergedHeaders[$headerName])[0]);
+                    unset($mergedHeaders[$headerName]);
+                }
+            }
             $formFields = [];
             foreach ($body as $name => $value) {
                 /* W-new-2: reject field-NAME CR/LF/NUL up-front to prevent
@@ -316,17 +343,7 @@ class DefaultApiClient extends AbstractApiClient
                         $effectiveFilename = $isAscii
                             ? $filename
                             : preg_replace('/[^\x20-\x7E]/u', '_', $filename) ?? $filename;
-                        $dataPart = $this->binaryFormPart(new \Symfony\Component\Mime\Part\File($path !== false ? $path : $v->getPathname()), $effectiveFilename, $mime);
-                        if (!$isAscii) {
-                            $cd = $dataPart->getHeaders()->get('content-disposition');
-                            if ($cd instanceof \Symfony\Component\Mime\Header\ParameterizedHeader) {
-                                $cd->setParameter(
-                                    'filename*',
-                                    "UTF-8''" . self::rfc5987EncodeValue($filename)
-                                );
-                            }
-                        }
-                        $parts[] = $dataPart;
+                        $parts[] = $this->binaryFormPart(new \Symfony\Component\Mime\Part\File($path !== false ? $path : $v->getPathname()), $effectiveFilename, $mime, $isAscii ? null : "UTF-8''" . self::rfc5987EncodeValue($filename));
                     } elseif (
                         is_resource($v)
                         || $v instanceof \Psr\Http\Message\StreamInterface
@@ -350,7 +367,11 @@ class DefaultApiClient extends AbstractApiClient
             $formData = new FormDataPart($formFields);
             $contentType = $formData->getPreparedHeaders()->get('Content-Type');
             if ($contentType instanceof \Symfony\Component\Mime\Header\HeaderInterface) {
-                $mergedHeaders['Content-Type'] = $contentType->getBodyAsString();
+                $headerLine = $contentType->getBodyAsString();
+                if ($declaredType !== null && preg_match('#^multipart/(?!form-data$)[A-Za-z0-9!\#$&^_.+-]+$#i', $declaredType) === 1) {
+                    $headerLine = preg_replace('#^multipart/form-data#', $declaredType, $headerLine, 1) ?? $headerLine;
+                }
+                $mergedHeaders['Content-Type'] = $headerLine;
             }
             $options = [
                 'headers' => $mergedHeaders,

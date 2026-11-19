@@ -874,6 +874,7 @@ test('bhv misc 070 a discovery document that is not a json object keeps no cause
     }
 
     expect($caught)->not->toBeNull();
+    assert($caught instanceof SerializationException);
     expect($caught->getMessage())->toBe('OIDC discovery document is not a JSON object');
     expect($caught->getPrevious())->toBeNull();
     expect($caught->getMessage())->not->toContain('leaked-body');
@@ -894,7 +895,9 @@ test('bhv misc 078 the authorization url carries an s256 challenge and no nonce'
     parse_str((string) parse_url($authenticator->buildAuthorizationUrl(), PHP_URL_QUERY), $params);
 
     expect($params['code_challenge_method'] ?? null)->toBe('S256');
-    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $params['code_challenge'] ?? ''))->toBe(1);
+    $challenge = $params['code_challenge'] ?? '';
+    assert(is_string($challenge));
+    expect(preg_match('/^[A-Za-z0-9_-]{43}$/', $challenge))->toBe(1);
     expect($params)->not->toHaveKey('nonce');
 });
 

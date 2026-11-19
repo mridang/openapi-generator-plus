@@ -769,3 +769,6 @@ java | serialization128 | The Java transport carries a binary response as the ba
 kotlin | serialization123 | Kotlin backslash-escapes a quote in a multipart field name rather than refusing it, so the part header stays well formed (D89 in the kotlin AGENTS.md settled decisions, which the promise contradicts)
 kotlin | misc242 | Kotlin sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect in any SDK), so no property is left off the wire; pinned by serializationobject014 and serializationobject017
 kotlin | misc145 | Kotlin declares additionalProperties as a MutableMap field, the model own map (as python and php do), so a read hands back the stored map; a copy on read would change the model type, so the promise is not met by design
+php | misc242 | settled decision D56: readOnly and writeOnly properties have no wire effect, so a read-only property is sent as any other; pinned by serializationobject014
+php | langphp019 | settled decision: a 302 with a body that downgrades https to http is refused, the body is never replayed in plain text (redirects001 pins it), so the call fails rather than proceeding as GET
+php | misc245 | PHP has no time-of-day type: a time of day is a DateTimeImmutable and serialises as a full date-time

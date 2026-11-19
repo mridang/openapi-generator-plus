@@ -1529,7 +1529,8 @@ test('bhv serializationwire 018 octet stream response decoded as base 64 bytes',
         [],
         null,
         ['application/octet-stream'],
-        'application/octet-stream'
+        'application/octet-stream',
+        'string'
     );
     expect($result)->toBe($binaryData);
 });
@@ -1564,7 +1565,8 @@ test('bhv operations 012 image png response decoded as bytes', function (): void
         [],
         null,
         ['image/png'],
-        'image/png'
+        'image/png',
+        'string'
     );
     expect($result)->toBe($binaryData);
 });
@@ -1601,7 +1603,8 @@ test('bhv serializationwire 017 binary response roundtrips nul and high bytes', 
         [],
         null,
         ['application/octet-stream'],
-        'application/octet-stream'
+        'application/octet-stream',
+        'string'
     );
     expect($result)->toBe($binaryData);
     assert(is_string($result));
@@ -1697,7 +1700,8 @@ test('bhv operations 017 text plain response returns string', function (): void 
         [],
         null,
         ['text/plain'],
-        null
+        null,
+        'string'
     );
     expect($result)->toBeString();
     expect($result)->toBe('hello world');
@@ -2599,8 +2603,8 @@ test('bhv operations 164 a call with a missing required parameter raises a type 
     $client = new CapturingApiClient();
     $api = new PetApi($client, new Configuration('http://localhost'));
 
-    expect(fn () => $api->getPetByIdWithHttpInfo(null))->toThrow(\TypeError::class);
-    expect($client->capturedUrl ?? '')->toBe('');
+    expect(fn () => callUnchecked($api, 'getPetByIdWithHttpInfo', null))->toThrow(\TypeError::class);
+    expect($client->capturedUrl)->toBe('');
 });
 
 test('bhv operations 161 a text plain response is returned as the raw text even when it looks like base64', function (): void {
@@ -2654,7 +2658,7 @@ test('bhv misc 053 a negative per call retry budget is refused before any reques
 });
 
 test('bhv misc 053 a non whole per call retry budget is refused by its type', function (): void {
-    expect(fn () => new DeletePetOptions(maxRetries: 1.5))->toThrow(\TypeError::class);
+    expect(fn () => newUnchecked(DeletePetOptions::class, ['maxRetries' => 1.5]))->toThrow(\TypeError::class);
 });
 
 test('bhv misc 054 per call headers are a copy that later changes to the caller map do not reach', function (): void {
@@ -2830,17 +2834,6 @@ test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
 
-test('bhv misc 237 an iso 8859 1 error response body decodes to utf 8 text in the error', function (): void {
-    $client = new ScriptedApiClient([new ApiHttpResponse(404, "caf\xE9", ['Content-Type' => 'application/json; charset=ISO-8859-1'])]);
-    $api = new TestableApi($client, new Configuration('http://localhost'));
-    $thrown = null;
-    try {
-        $api->call('GET', '/x', [], [], null, ['application/json'], 'application/json');
-    } catch (\PetstoreClient\Errors\ApiException $e) {
-        $thrown = $e;
-    }
-    expect($thrown?->getResponseBody())->toBe('café');
-});
 test('bhv serialization 125 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));

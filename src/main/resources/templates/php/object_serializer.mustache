@@ -62,6 +62,10 @@ class ObjectSerializer
     /** @var string */
     private const string DATE_TIME_FORMAT = \DateTime::RFC3339_EXTENDED;
 
+    private const int MAX_SANITIZE_DEPTH = 512;
+
+    private static int $sanitizeDepth = 0;
+
     private static ?Serializer $serializer = null;
 
     /**
@@ -223,9 +227,27 @@ class ObjectSerializer
      *
      * @param mixed $data the data to sanitize
      *
-     * @return scalar|array<array-key, mixed>|\ArrayObject<array-key, mixed>|null sanitized form of $data
+     * @return mixed sanitized form of $data
      */
     private static function sanitizeForSerialization(mixed $data): mixed
+    {
+        /* A self-referencing array (or model) would recurse until PHP's stack is exhausted, which
+         * segfaults instead of throwing. Nesting is counted here so a cycle raises the serialization
+         * error like every other unserializable value. */
+        if (self::$sanitizeDepth >= self::MAX_SANITIZE_DEPTH) {
+            throw new SerializationException(
+                'Value is nested more than ' . self::MAX_SANITIZE_DEPTH . ' levels deep or is cyclic'
+            );
+        }
+        self::$sanitizeDepth++;
+        try {
+            return self::sanitizeNode($data);
+        } finally {
+            self::$sanitizeDepth--;
+        }
+    }
+
+    private static function sanitizeNode(mixed $data): mixed
     {
         if (is_scalar($data) || $data === null) {
             return $data;
@@ -259,6 +281,18 @@ class ObjectSerializer
                 ksort($data, SORT_STRING);
             }
             return $data;
+        }
+
+        if ($data instanceof \Ds\Set) {
+            /* A unique collection is written in a defined order: code point order for
+             * strings (strcmp compares bytes, which is code point order in UTF-8) and
+             * numeric order for numbers, so equal sets always give identical output. */
+            $items = $data->toArray();
+            usort($items, static fn (mixed $a, mixed $b): int => is_string($a) && is_string($b)
+                ? strcmp($a, $b)
+                : $a <=> $b);
+
+            return self::sanitizeForSerialization($items);
         }
 
         if (is_object($data)) {
@@ -684,11 +718,13 @@ class ObjectSerializer
      * types off the public surface and gives cross-SDK parity with the other
      * language clients.
      *
+     * @template T of object
+     *
      * @param mixed                     $data        object or primitive to be deserialized
-     * @param string                    $class       class name is passed as a string
+     * @param class-string<T>|string    $class       class name is passed as a string
      * @param array<string, string>|null $httpHeaders HTTP headers
      *
-     * @return mixed a single deserialized instance, an array, or a primitive
+     * @return ($class is class-string<T> ? T|null : mixed) a single deserialized instance, an array, or a primitive
      *
      * @throws SerializationException when deserialization fails
      */

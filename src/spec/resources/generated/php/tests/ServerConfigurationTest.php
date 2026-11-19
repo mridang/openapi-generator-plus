@@ -286,7 +286,10 @@ test('bhv misc 258 when no override is supplied for a variable its default value
 });
 
 test('bhv misc 259 a placeholder in the template with no declared variable stays in the url as written', function (): void {
-    $server = new ServerConfiguration(urlTemplate: 'https://api.example.com/{unknown}/{env}');
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://api.example.com/{unknown}/{env}',
+        variables: ['env' => new ServerVariable(defaultValue: 'api')],
+    );
 
     expect($server->getUrl(['env' => 'v1']))->toBe('https://api.example.com/{unknown}/v1');
 });
@@ -297,7 +300,7 @@ test('bhv misc 260 passing null for an enum variable is rejected instead of bein
         variables: ['env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging'])],
     );
 
-    expect(fn () => $server->getUrl(['env' => null]))->toThrow(\InvalidArgumentException::class);
+    expect(fn () => callUnchecked($server, 'getUrl', ['env' => null]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('bhv misc 261 a value containing backslash sequences is inserted into the url exactly as given', function (): void {

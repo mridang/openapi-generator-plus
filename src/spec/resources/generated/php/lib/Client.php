@@ -266,6 +266,12 @@ class Client implements \PetstoreClient\ClientInterface
         }
     }
 
+    /** Whether close() has been called; a closed client refuses every later request. */
+    public function isClosed(): bool
+    {
+        return $this->lifecycle->isClosed();
+    }
+
     /**
      * Releases what the client owns when it is garbage collected.
      */

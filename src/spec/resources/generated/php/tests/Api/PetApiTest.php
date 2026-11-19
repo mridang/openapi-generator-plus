@@ -581,7 +581,7 @@ test('bhv operations 021 a digit-leading query parameter keeps its wire name', f
 test('bhv misc 007 a missing path parameter is named and no request is sent', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->getPetSummary(7, null, new GetPetSummaryOptions(session: 's')))
+    expect(fn (): mixed => callUnchecked($api, 'getPetSummary', 7, null, new GetPetSummaryOptions(session: 's')))
         ->toThrow(\TypeError::class, '$asOf');
     expect($captured->url)->toBe('');
 });
@@ -609,13 +609,13 @@ test('bhv misc 009 a call without options sends none of the per call headers', f
 });
 
 test('bhv misc 010 an operation whose options have required fields refuses a call without them', function (): void {
-    expect(fn (): mixed => $this->api->addPetPhotos(1))->toThrow(\ArgumentCountError::class);
+    expect(fn (): mixed => (new \ReflectionMethod($this->api, 'addPetPhotos'))->invoke($this->api, 1))->toThrow(\ArgumentCountError::class);
 });
 
 test('bhv misc 012 a nil required argument is named and nothing is sent', function (): void {
     [$api, $captured] = newBodyCapturingPetApi();
 
-    expect(fn (): mixed => $api->addPet(null))->toThrow(\TypeError::class, '$pet');
+    expect(fn (): mixed => callUnchecked($api, 'addPet', null))->toThrow(\TypeError::class, '$pet');
     expect($captured->url)->toBe('');
 });
 
@@ -1994,7 +1994,7 @@ test('bhv lifecycle 042 an api built on a caller supplied transport sends its re
         // Response deserialization may fail; we only care about the captured request
     }
 
-    expect($transport->capturedUrl ?? '')->toContain('/pet');
+    expect($transport->capturedUrl)->toContain('/pet');
 });
 
 test('bhv operations 158 a header supplied on an individual call is sent with that call', function (): void {
@@ -2020,7 +2020,7 @@ test('bhv operations 159 a call that returns a value raises a typed api error wh
 });
 
 test('bhv misc 004 an options object missing a required field raises an argument error naming that field', function (): void {
-    expect(fn () => new GetPetSummaryOptions(timeout: 1000))
+    expect(fn () => (new \ReflectionClass(GetPetSummaryOptions::class))->newInstanceArgs(['timeout' => 1000]))
         ->toThrow(\ArgumentCountError::class, '$session');
 });
 
@@ -2028,7 +2028,7 @@ test('bhv misc 005 a bare null body for a list operation raises an api error', f
     $api = newPetApiForMock(200, 'application/json', 'null');
 
     expect(fn () => $api->findPetsByStatus(new FindPetsByStatusOptions('available')))
-        ->toThrow(ApiException::class);
+        ->toThrow(SerializationException::class);
 });
 
 test('bhv misc 006 a bare null response read with http info gives no data and keeps the raw body', function (): void {

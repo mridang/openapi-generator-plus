@@ -319,7 +319,7 @@ test('bhv misc 138 converting an enum member to text yields its wire value', fun
 });
 
 test('bhv misc 140 building a model without one of its required properties fails naming that property', function (): void {
-    expect(fn (): Account => new Account(id: 1))
+    expect(fn (): mixed => (new \ReflectionClass(Account::class))->newInstanceArgs(['id' => 1]))
         ->toThrow(\ArgumentCountError::class, 'Argument #1 ($username) not passed');
 });
 
@@ -377,7 +377,8 @@ test('bhv misc 148 a copy serializes to the same wire form as the original with 
 });
 
 test('bhv misc 149 copying a model with an attribute it does not declare is refused and the error names the attribute', function (): void {
-    expect(fn (): mixed => (new Category(id: 1, name: 'Dogs'))->withName(name: 'Cats', unknownAttribute: 1))
+    /* The arguments go through call_user_func_array so the unknown name is not a literal argument that a formatter could drop. */
+    expect(fn (): mixed => callWithArray(new Category(id: 1, name: 'Dogs'), 'withName', ['name' => 'Cats', 'unknownAttribute' => 1]))
         ->toThrow(\Error::class, 'unknownAttribute');
 });
 

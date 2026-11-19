@@ -46,7 +46,9 @@ final class ServerConfiguration
     {
         $replacements = [];
         foreach ($this->variables as $varName => $variable) {
-            $value = $overrides[$varName] ?? $variable->defaultValue;
+            /* An override that is passed as null is a value, not an absent one: it is
+             * checked against the enum rather than replaced by the default. */
+            $value = array_key_exists($varName, $overrides) ? $overrides[$varName] : $variable->defaultValue;
 
             if ($variable->enumValues !== [] && !in_array($value, $variable->enumValues, true)) {
                 throw new \InvalidArgumentException(

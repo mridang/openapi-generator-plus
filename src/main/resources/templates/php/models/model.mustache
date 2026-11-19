@@ -870,12 +870,17 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
      */
     public function __toString(): string
     {
-        $masked = [{{#vars}}{{#isPassword}}'{{name}}', {{/isPassword}}{{/vars}}];
         $parts = [];
         foreach (get_object_vars($this) as $name => $value) {
-            $parts[] = $name . '=' . (in_array($name, $masked, true) && $value !== null
+{{#hasPasswordVars}}
+            $masked = in_array($name, [{{#vars}}{{#isPassword}}'{{name}}', {{/isPassword}}{{/vars}}], true);
+            $parts[] = $name . '=' . ($masked && $value !== null
                 ? '***'
                 : \{{invokerPackage}}\ObjectSerializer::describeValue($value));
+{{/hasPasswordVars}}
+{{^hasPasswordVars}}
+            $parts[] = $name . '=' . \{{invokerPackage}}\ObjectSerializer::describeValue($value);
+{{/hasPasswordVars}}
         }
 
         return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';

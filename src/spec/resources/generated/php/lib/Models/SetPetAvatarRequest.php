@@ -76,12 +76,9 @@ class SetPetAvatarRequest implements \Stringable
      */
     public function __toString(): string
     {
-        $masked = [];
         $parts = [];
         foreach (get_object_vars($this) as $name => $value) {
-            $parts[] = $name . '=' . (in_array($name, $masked, true) && $value !== null
-                ? '***'
-                : \PetstoreClient\ObjectSerializer::describeValue($value));
+            $parts[] = $name . '=' . \PetstoreClient\ObjectSerializer::describeValue($value);
         }
 
         return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';

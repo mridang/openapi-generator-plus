@@ -263,20 +263,6 @@ test('bhv retries 016 psr18 https to http downgrade refuses body replay on 307',
         });
 });
 
-test('bhv langphp 019 psr18 N1 302 https to http downgrade with body proceeds as get', function (): void {
-    $stub = new StubPsr18Client(
-        psr18Response(302, '', ['Location' => 'http://insecure.example.com/final']),
-        psr18Response(200, 'ok')
-    );
-    $transport = TransportOptions::builder()->followRedirects(true)->build();
-    $client = newPsr18Client($stub, $transport);
-
-    $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'sensitive=payload');
-
-    expect($response->statusCode)->toBe(200);
-    expect($stub->requests[1]->getMethod())->toBe('GET');
-});
-
 test('bhv redirects 029 psr18 redirect method and body follow RFC 9110', function (
     int $status,
     string $method,

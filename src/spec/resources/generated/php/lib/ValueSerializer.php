@@ -301,7 +301,9 @@ final class ValueSerializer
         if ($isList) {
             $items = array_map($stringifier, $value);
             if ($location === 'path') {
-                $items = array_map(self::encodePathSegment(...), $items);
+                /* An item is encoded in full, so a comma inside it is %2C and only the
+                 * structural separators that are added between items stay literal. */
+                $items = array_map(rawurlencode(...), $items);
             }
         } else {
             $scalar = $stringifier($value);
@@ -507,6 +509,8 @@ final class ValueSerializer
             $decoded = json_decode(ObjectSerializer::serialize($value), true);
             $value = is_array($decoded) ? $decoded : [];
         }
+        /* Entries are written in name order, so the same object always gives the same pairs. */
+        ksort($value);
 
         foreach ($value as $key => $val) {
             /* A null entry is an unset value and is left out, as an unset model property is. */

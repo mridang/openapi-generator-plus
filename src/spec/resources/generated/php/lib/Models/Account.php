@@ -104,10 +104,10 @@ class Account implements \Stringable
      */
     public function __toString(): string
     {
-        $masked = ['password', ];
         $parts = [];
         foreach (get_object_vars($this) as $name => $value) {
-            $parts[] = $name . '=' . (in_array($name, $masked, true) && $value !== null
+            $masked = $name === 'password';
+            $parts[] = $name . '=' . ($masked && $value !== null
                 ? '***'
                 : \PetstoreClient\ObjectSerializer::describeValue($value));
         }

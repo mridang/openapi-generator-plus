@@ -27,7 +27,7 @@ class TestableApi extends BaseApi
         ?Authenticator $auth = null,
         ?int $maxRetries = null
     ): mixed {
-        return $this->invokeApi(
+        return $this->invokeApiForResult(
             $method,
             $path,
             $queryParams,
@@ -38,7 +38,7 @@ class TestableApi extends BaseApi
             $returnType,
             $auth,
             maxRetries: $maxRetries
-        );
+        )->data;
     }
 
     /**

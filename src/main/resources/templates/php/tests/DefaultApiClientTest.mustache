@@ -855,8 +855,12 @@ test('bhv misc 050 per call headers override the options object and an unset hea
     $overridden = $client->sendRequest('GET', $chasmUrl . '/test/echo', ['Accept' => 'application/json'], null);
     $fallThrough = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
 
-    expect(json_decode($overridden->body, true)['headers']['accept'] ?? null)->toBe('application/json');
-    expect(json_decode($fallThrough->body, true)['headers']['accept'] ?? null)->toBe('text/plain');
+    /** @var array<string, array<string, string>> $overriddenJson */
+    $overriddenJson = json_decode($overridden->body, true);
+    expect($overriddenJson['headers']['accept'] ?? null)->toBe('application/json');
+    /** @var array<string, array<string, string>> $fallThroughJson */
+    $fallThroughJson = json_decode($fallThrough->body, true);
+    expect($fallThroughJson['headers']['accept'] ?? null)->toBe('text/plain');
 });
 
 test('bhv misc 226 a 302 is followed to its target and the final 200 is returned', function (): void {

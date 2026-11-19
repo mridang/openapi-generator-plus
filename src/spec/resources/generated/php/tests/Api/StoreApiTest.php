@@ -730,5 +730,5 @@ test('bhv misc 114 a success response is decoded by the decoder for the status c
 test('bhv misc 085 a non canonical uuid text is refused as a type error when it is written as a parameter', function (): void {
     $api = newStoreApiForMock(200, 'application/json', '{}');
 
-    expect(fn () => $api->getOrderByTrackingId('not-a-uuid'))->toThrow(\TypeError::class);
+    expect(fn () => callUnchecked($api, 'getOrderByTrackingId', 'not-a-uuid'))->toThrow(\TypeError::class);
 });

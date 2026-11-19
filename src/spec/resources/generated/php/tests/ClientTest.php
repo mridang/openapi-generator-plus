@@ -705,7 +705,7 @@ test('bhv misc 042 disabled verification on a supplied client is refused and the
 });
 
 test('bhv misc 186 a value that is not an http connection is refused as the connection', function (): void {
-    expect(fn () => new Client($this->authenticator, null, new \stdClass()))
+    expect(fn () => newUnchecked(Client::class, [$this->authenticator, null, new \stdClass()]))
         ->toThrow(\TypeError::class);
 });
 
@@ -733,11 +733,11 @@ test('bhv misc 203 closing a client that is already closed does nothing and rais
 });
 
 test('bhv misc 204 a bearer authenticator without a token fails immediately with a missing credential error', function (): void {
-    $name = '';
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
     $previous = getenv($name);
     putenv($name);
     try {
-        expect(fn () => new BearerAuthenticator('https://api.example.com'))
+        expect(fn () => new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com'))
             ->toThrow(\InvalidArgumentException::class);
     } finally {
         putenv($previous === false ? $name : $name . '=' . $previous);
@@ -745,11 +745,11 @@ test('bhv misc 204 a bearer authenticator without a token fails immediately with
 });
 
 test('bhv misc 205 a credential found nowhere makes the missing credential error name the variable', function (): void {
-    $name = '';
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
     $previous = getenv($name);
     putenv($name);
     try {
-        expect(fn () => new BearerAuthenticator('https://api.example.com'))
+        expect(fn () => new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com'))
             ->toThrow(\InvalidArgumentException::class, $name);
     } finally {
         putenv($previous === false ? $name : $name . '=' . $previous);
@@ -763,11 +763,11 @@ test('bhv misc 206 a client built with only a default authenticator takes its ho
 });
 
 test('bhv misc 207 a credential not passed to the constructor is read from the matching environment variable', function (): void {
-    $name = '';
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
     $previous = getenv($name);
     putenv($name . '=from-environment');
     try {
-        $authenticator = new BearerAuthenticator('https://api.example.com');
+        $authenticator = new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com');
         expect($authenticator->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
     } finally {
         putenv($previous === false ? $name : $name . '=' . $previous);
@@ -775,11 +775,11 @@ test('bhv misc 207 a credential not passed to the constructor is read from the m
 });
 
 test('bhv misc 208 an empty environment variable is treated the same as an unset one for the implicit credential', function (): void {
-    $name = '';
+    $name = 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN';
     $previous = getenv($name);
     putenv($name . '=');
     try {
-        expect(fn () => new BearerAuthenticator('https://api.example.com'))
+        expect(fn () => new \PetstoreClient\Auth\PetStoreBearerAuthenticator('https://api.example.com'))
             ->toThrow(\InvalidArgumentException::class);
     } finally {
         putenv($previous === false ? $name : $name . '=' . $previous);
@@ -810,7 +810,7 @@ test('bhv misc 072 every api group holds the default credential and the scheme c
     $schemes = $base->getProperty('schemeAuthenticators');
 
     expect($authenticator->getValue($client->pet))->toBe($default);
-    expect(array_values($schemes->getValue($client->pet)))->toBe([$scheme]);
+    expect(array_values((array) $schemes->getValue($client->pet)))->toBe([$scheme]);
 });
 
 test('bhv misc 073 a wrapper class exists for every security scheme the spec declares', function (): void {
@@ -832,7 +832,7 @@ test('bhv misc 073 a wrapper class exists for every security scheme the spec dec
 test('bhv misc 075 a credential keyed to an undeclared scheme is refused when the client is built', function (): void {
     $credential = new BearerAuthenticator('/api/v3', 'tok');
 
-    expect(fn () => new Client(undeclaredScheme: $credential))
+    expect(fn () => (new \ReflectionClass(Client::class))->newInstanceArgs(['undeclaredScheme' => $credential]))
         ->toThrow(\Error::class, 'undeclaredScheme');
 });
 

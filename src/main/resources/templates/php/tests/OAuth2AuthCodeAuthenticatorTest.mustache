@@ -942,7 +942,7 @@ test('bhv misc 028 a transport failure during the code exchange reaches the call
     $authenticator->setApiClient($client);
 
     expect(fn () => $authenticator->exchangeCode('the-code'))
-        ->toThrow(function (\Throwable $e) use ($cause): void {
+        ->toThrow(function (\Exception $e) use ($cause): void {
             expect($e)->toBe($cause);
         });
 });
@@ -1000,8 +1000,10 @@ test('bhv misc 077 a generated pkce verifier is 43 unreserved characters and dif
     $first->buildAuthorizationUrl();
     $second->buildAuthorizationUrl();
     $verifier = new \ReflectionProperty(OAuth2AuthorizationCodeAuthenticator::class, 'pkceVerifier');
-    $firstVerifier = (string) $verifier->getValue($first);
-    $secondVerifier = (string) $verifier->getValue($second);
+    $firstVerifier = $verifier->getValue($first);
+    assert(is_string($firstVerifier));
+    $secondVerifier = $verifier->getValue($second);
+    assert(is_string($secondVerifier));
 
     expect(preg_match('/^[A-Za-z0-9._~-]{43}$/', $firstVerifier))->toBe(1);
     expect($firstVerifier)->not->toBe($secondVerifier);

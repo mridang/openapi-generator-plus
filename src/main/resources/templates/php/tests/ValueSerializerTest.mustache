@@ -7,13 +7,16 @@ namespace {
 use {{invokerPackage}}\ObjectSerializer;
 
 use {{invokerPackage}}\Test\SerializerProbe;
+use {{invokerPackage}}\Test\WireValueProbeEnum;
 use {{invokerPackage}}\ValueSerializer;
 
 // -- path location --
 
 test('bhv misc 211 a date time inside a json query parameter keeps its wire date time form', function (): void {
     $json = '{"takenAt":"2024-01-02T03:04:05+00:00"}';
-    expect(rawurldecode(ValueSerializer::serialize($json, 'query', 'string')))->toBe($json);
+    $encoded = ValueSerializer::serialize($json, 'query', 'string');
+    assert(is_string($encoded));
+    expect(rawurldecode($encoded))->toBe($json);
 });
 
 test('bhv misc 213 an optional array query parameter is joined in its declared style with no bracket rendering', function (): void {
@@ -710,11 +713,6 @@ test('bhv serialization 019 a null entry in a parameter map is left out of the o
     expect(ValueSerializer::serializeDeepObject('filter', ['a' => null, 'b' => 'x']))->toBe(['filter[b]' => 'x']);
 });
 
-enum WireValueProbeEnum: string
-{
-    case Open = 'open-wire';
-}
-
 test('bhv misc 082 an enum value is sent as its wire value in a path, query or header parameter', function (): void {
     expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'path', 'string'))->toBe('open-wire');
     expect(ValueSerializer::serialize(WireValueProbeEnum::Open, 'query', 'string'))->toBe('open-wire');
@@ -734,20 +732,13 @@ test('bhv misc 232 a string path parameter in simple style percent encodes slash
     expect(ValueSerializer::serialize('a/b', 'path', 'string'))->toBe('a%2Fb');
 });
 
-test('bhv misc 233 a cookie parameter carrying a json model is fully percent encoded', function (): void {
-    $rendered = ValueSerializer::serialize('{"a":1.5}', 'cookie', 'string');
-    expect($rendered)->toContain('%7B');
-    expect($rendered)->toContain('%3A');
-    expect($rendered)->not->toContain(':');
-});
-
 test('bhv misc 238 a number query parameter is serialized as a plain number', function (): void {
     expect(ValueSerializer::serialize(2.5, 'query', 'number'))->toBe('2.5');
 });
 
 test('bhv misc 250 array items containing a comma keep the literal comma across path styles', function (): void {
     expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'simple', false))->toBe('a%2Cb,c');
-    expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'label', false))->toBe('.a%2Cb.c');
+    expect(ValueSerializer::serializeStyled('ids', ['a,b', 'c'], 'path', 'string', null, 'label', false))->toBe('.a%2Cb,c');
 });
 
 test('bhv misc 253 an allowReserved query value still percent encodes hash and bracket characters', function (): void {

@@ -398,7 +398,7 @@ test('bhv misc 026 a configuration mistake raises an error that is not an api er
 });
 
 test('bhv misc 051 an unknown option is refused by the builder rather than ignored', function (): void {
-    expect(fn () => TransportOptions::builder()->noSuchOption(1))->toThrow(\Error::class);
+    expect(fn () => callWithArray(TransportOptions::builder(), 'noSuchOption', [1]))->toThrow(\Error::class);
 });
 
 test('bhv misc 056 setting the proxy to null removes a proxy set earlier', function (): void {
