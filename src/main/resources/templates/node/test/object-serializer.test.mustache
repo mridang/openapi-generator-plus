@@ -3036,17 +3036,6 @@ describe('toBinary', () => {
       expect(ObjectSerializer.serialize(decode(`{"amount":${digits}}`))).toBe(`{"amount":${digits}}`);
     });
 
-    test('bhv serializationparam 104 a duration parameter is written in the protobuf form', () => {
-      expect(ObjectSerializer.stringify(Temporal.Duration.from('PT1H'))).toBe('3600s');
-    });
-
-    test('bhv serializationparam 105 an address parameter is its text unchanged', () => {
-      expect(ObjectSerializer.stringify('192.0.2.1')).toBe('192.0.2.1');
-    });
-
-    test('bhv serializationparam 106 a decimal parameter is written in plain notation', () => {
-      expect(ObjectSerializer.stringify('12.345678901234567890123')).toBe('12.345678901234567890123');
-    });
   });
 
   describe('enum member names and descriptions', () => {

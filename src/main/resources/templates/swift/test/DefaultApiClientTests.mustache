@@ -137,14 +137,25 @@ import FoundationNetworking
     /* The stub answers at once, so no deadline fires here; this only proves a
      * 1 ms timeout is accepted. The deadlines themselves are asserted on the
      * built session and on the timeout error mapping in ApiErrorTests. */
-    @Test func testBhvTransport082AcceptsTimeoutConfiguration() async throws {
-        let transport = try TransportOptionsBuilder().timeout(1).build()
-        let client = makeClient(transport: transport) { _ in
-            return (self.jsonBody(), 200, [:])
+    @Test func testBhvTransport082AcceptsTimeoutConfigurationAndAClientWithDefaultsCompletes() async throws {
+        do {
+            let transport = try TransportOptionsBuilder().timeout(1).build()
+            let client = makeClient(transport: transport) { _ in
+                return (self.jsonBody(), 200, [:])
+            }
+            let resp = try await client.sendRequest(
+                method: "GET", url: "https://example.com", headers: [:], body: nil)
+            #expect(resp.statusCode == 200)
         }
-        let resp = try await client.sendRequest(
-            method: "GET", url: "https://example.com", headers: [:], body: nil)
-        #expect(resp.statusCode == 200)
+        /* A client built with the default configuration, or with only a timeout, completes a request and returns its response. */
+        let defaults = try DefaultApiClient(transportOptions: nil)
+        let defaultsResponse = try await defaults.sendRequest(
+            method: "GET", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
+        #expect(defaultsResponse.statusCode == 200)
+        let timed = try DefaultApiClient(transportOptions: TransportOptionsBuilder().timeout(10000).build())
+        let timedResponse = try await timed.sendRequest(
+            method: "GET", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
+        #expect(timedResponse.statusCode == 200)
     }
 
     @Test func testBhvTransport003InjectsCustomUserAgentHeader() async throws {
@@ -777,25 +788,47 @@ import FoundationNetworking
 
     /* Cancelling the Swift task of an in-flight request aborts the underlying
        URLSession task and surfaces the platform's CancellationError. */
-    @Test func testBhvTransport060CancellingInFlightRequestAbortsSessionTask() async throws {
-        HangingURLProtocol.reset()
-        let client = DefaultApiClient(transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
-        let task = Task {
-            try await client.sendRequest(
-                method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+    @Test func testBhvTransport060CancellingAnInFlightCallAbortsTheSessionTaskAndReportsNoTimeout() async throws {
+        do {
+            HangingURLProtocol.reset()
+            let client = DefaultApiClient(transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+            let task = Task {
+                try await client.sendRequest(
+                    method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+            }
+            for _ in 0..<300 where !HangingURLProtocol.started {
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            #expect(HangingURLProtocol.started)
+            task.cancel()
+            await #expect(throws: CancellationError.self) {
+                _ = try await task.value
+            }
+            for _ in 0..<300 where !HangingURLProtocol.stopped {
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            #expect(HangingURLProtocol.stopped)
         }
-        for _ in 0..<300 where !HangingURLProtocol.started {
-            try await Task.sleep(nanoseconds: 10_000_000)
+        /* Cancelling the Swift task of an in-flight request aborts it with the platform's
+           CancellationError, not a timeout error. */
+        do {
+            let client = DefaultApiClient()
+            let task = Task {
+                try await client.sendRequest(
+                    method: "GET", url: chasmHttpUrl + "/test/slow", headers: [:], body: nil)
+            }
+            try await Task.sleep(nanoseconds: 300_000_000)
+            task.cancel()
+            let error: (any Error)?
+            do {
+                _ = try await task.value
+                error = nil
+            } catch let caught {
+                error = caught
+            }
+            #expect(error is CancellationError)
+            #expect(!(error is NetworkTimeoutError))
         }
-        #expect(HangingURLProtocol.started)
-        task.cancel()
-        await #expect(throws: CancellationError.self) {
-            _ = try await task.value
-        }
-        for _ in 0..<300 where !HangingURLProtocol.stopped {
-            try await Task.sleep(nanoseconds: 10_000_000)
-        }
-        #expect(HangingURLProtocol.stopped)
     }
 
     // MARK: - Caller-supplied session
@@ -963,20 +996,34 @@ import FoundationNetworking
 
     /* A caller-supplied session carries every request of the SDK, with the URL and caller headers unchanged. */
     @Test func testBhvTransport081SuppliedSessionCarriesEveryRequestUnchanged() async throws {
-        var seenURL = ""
-        var seenHeader: String?
-        let session = StubURLProtocol.session { req in
-            seenURL = req.url?.absoluteString ?? ""
-            seenHeader = req.value(forHTTPHeaderField: "X-Caller")
-            return (Data("ok".utf8), 200, [:])
+        do {
+            var seenURL = ""
+            var seenHeader: String?
+            let session = StubURLProtocol.session { req in
+                seenURL = req.url?.absoluteString ?? ""
+                seenHeader = req.value(forHTTPHeaderField: "X-Caller")
+                return (Data("ok".utf8), 200, [:])
+            }
+            let transport = try TransportOptionsBuilder().session(session).build()
+            let client = try DefaultApiClient(transportOptions: transport)
+            let response = try await client.sendRequest(
+                method: "GET", url: "https://example.com/caller", headers: ["X-Caller": "1"], body: nil)
+            #expect(response.statusCode == 200)
+            #expect(seenURL == "https://example.com/caller")
+            #expect(seenHeader == "1")
         }
-        let transport = try TransportOptionsBuilder().session(session).build()
-        let client = try DefaultApiClient(transportOptions: transport)
-        let response = try await client.sendRequest(
-            method: "GET", url: "https://example.com/caller", headers: ["X-Caller": "1"], body: nil)
-        #expect(response.statusCode == 200)
-        #expect(seenURL == "https://example.com/caller")
-        #expect(seenHeader == "1")
+        /* A caller-supplied session carries the request of the SDK, with the caller's headers unchanged. */
+        do {
+            let session = URLSession(configuration: .ephemeral)
+            defer { session.finishTasksAndInvalidate() }
+            let transport = try TransportOptionsBuilder().session(session).build()
+            let client = try DefaultApiClient(transportOptions: transport)
+            let response = try await client.sendRequest(
+                method: "GET", url: chasmHttpUrl + "/test/echo", headers: ["X-Caller": "1"],
+                body: nil)
+            #expect(response.statusCode == 200)
+            #expect(try echoedHeaders(response)["x-caller"] as? String == "1")
+        }
     }
 
 
@@ -1928,52 +1975,6 @@ private final class RedirectStubURLProtocol: URLProtocol {
         #expect(response.statusCode == 200)
         #expect(response.body.contains("userId"))
     }
-
-    /* A client built with the default configuration, or with only a timeout, completes a request
-       and returns its response. */
-    @Test(arguments: [false, true])
-    func testBhvTransport082AClientWithDefaultsOrOnlyATimeoutCompletes(withTimeout: Bool) async throws {
-        let client = try DefaultApiClient(
-            transportOptions: withTimeout ? TransportOptionsBuilder().timeout(10000).build() : nil)
-        let response = try await client.sendRequest(
-            method: "GET", url: chasmHttpUrl + "/test/echo", headers: [:], body: nil)
-        #expect(response.statusCode == 200)
-    }
-
-    /* Cancelling the Swift task of an in-flight request aborts it with the platform's
-       CancellationError, not a timeout error. */
-    @Test func testBhvTransport060CancellingAnInFlightCallAbortsItWithoutReportingATimeout() async throws {
-        let client = DefaultApiClient()
-        let task = Task {
-            try await client.sendRequest(
-                method: "GET", url: chasmHttpUrl + "/test/slow", headers: [:], body: nil)
-        }
-        try await Task.sleep(nanoseconds: 300_000_000)
-        task.cancel()
-        let error: (any Error)?
-        do {
-            _ = try await task.value
-            error = nil
-        } catch let caught {
-            error = caught
-        }
-        #expect(error is CancellationError)
-        #expect(!(error is NetworkTimeoutError))
-    }
-
-    /* A caller-supplied session carries the request of the SDK, with the caller's headers unchanged. */
-    @Test func testBhvTransport081ASuppliedSessionCarriesTheRequestUnchanged() async throws {
-        let session = URLSession(configuration: .ephemeral)
-        defer { session.finishTasksAndInvalidate() }
-        let transport = try TransportOptionsBuilder().session(session).build()
-        let client = try DefaultApiClient(transportOptions: transport)
-        let response = try await client.sendRequest(
-            method: "GET", url: chasmHttpUrl + "/test/echo", headers: ["X-Caller": "1"],
-            body: nil)
-        #expect(response.statusCode == 200)
-        #expect(try echoedHeaders(response)["x-caller"] as? String == "1")
-    }
-
 
     /* A transport failure names neither the host nor the query string it was sent to. */
     @Test func testBhvMisc019ATargetInAnErrorIsReducedToItsPath() async throws {

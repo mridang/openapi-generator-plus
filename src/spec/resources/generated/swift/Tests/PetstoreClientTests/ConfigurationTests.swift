@@ -271,7 +271,7 @@ import Testing
     }
   }
 
-  @Test func testBhvHooks001ADefaultConfigurationHasNoHook() {
+  @Test func testBhvLangswift076ADefaultConfigurationHasNoHook() {
     #expect(Configuration.default().callHook == nil)
   }
 

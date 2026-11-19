@@ -444,34 +444,46 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
+    @Test func testBhvAuthscheme001EverySchemeReadsItsCredentialsFromTheEnvironment() throws {
 {{#perSchemeAuthEntries}}
-    @Test func testBhvAuthscheme001{{className}}ReadsItsCredentialsFromTheEnvironment() throws {
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "env-value", {{/envVars}}])
+{{/perSchemeAuthEntries}}
     }
 
     /* An explicit credential needs no environment at all. */
-    @Test func testBhvAuthscheme002{{className}}PrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
+    @Test func testBhvAuthscheme002EverySchemePrefersExplicitCredentialsWhateverTheEnvironmentHolds() throws {
+{{#perSchemeAuthEntries}}
         _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: "explicit-value", {{/envVars}}environment: [:])
+{{/perSchemeAuthEntries}}
     }
 
     /* The credential keyword is optional: the public initializer takes the host alone. */
-    @Test func testBhvLifecycle015{{className}}CredentialKeywordCanBeOmitted() {
-        let hostAlone: (String) throws -> {{className}} = { try {{className}}(host: $0) }
-        _ = hostAlone
+    @Test func testBhvLifecycle015EverySchemeCredentialKeywordCanBeOmitted() {
+{{#perSchemeAuthEntries}}
+        do {
+            let hostAlone: (String) throws -> {{className}} = { try {{className}}(host: $0) }
+            _ = hostAlone
+        }
+{{/perSchemeAuthEntries}}
     }
 
-    @Test func testBhvLifecycle004{{className}}FailsWhenACredentialIsMissing() {
+    @Test func testBhvLifecycle004EverySchemeFailsWhenACredentialIsMissing() {
+{{#perSchemeAuthEntries}}
+        do {
 {{#envVars}}
 {{#-first}}
-        let missing = ConfigurationError.invalidArgument(
-            "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
+            let missing = ConfigurationError.invalidArgument(
+                "Missing the credential '{{field}}': pass it, or set the {{envName}} environment variable")
 {{/-first}}
 {{/envVars}}
-        #expect(throws: missing) {
-            _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [:])
+            #expect(throws: missing) {
+                _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [:])
+            }
         }
+{{/perSchemeAuthEntries}}
     }
 
+{{#perSchemeAuthEntries}}
     @Test func test{{emptyVariableBhv}}{{className}}TreatsAnEmptyVariableAsUnset() {
 {{#envVars}}
 {{#-first}}
@@ -483,7 +495,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
             _ = try {{className}}(host: "https://api.example.com", {{#envVars}}{{field}}: nil, {{/envVars}}environment: [{{#envVars}}"{{envName}}": "", {{/envVars}}])
         }
     }
-
 {{/perSchemeAuthEntries}}
     // MARK: - One credential per security scheme (F857)
 
@@ -691,7 +702,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     /* A hook given to the client reaches every API object and fires with the
        URLSession the caller supplied. */
-    @Test func testBhvHooks010AHookGivenToTheClientFiresWithASuppliedTransportAndReachesEveryApi() async throws {
+    @Test func testBhvLangswift078AHookGivenToTheClientFiresWithASuppliedTransportAndReachesEveryApi() async throws {
         let host = "https://hooked-client.example.com"
         let hook = ClientHook()
         let transport = try TransportOptionsBuilder().session(ClientStubProtocol.session()).build()
@@ -715,7 +726,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 {{/apiInfo}}
     }
 
-    @Test func testBhvHooks001AClientWithoutAHookHasNoneOnAnyApi() throws {
+    @Test func testBhvLangswift077AClientWithoutAHookHasNoneOnAnyApi() throws {
         let client = try {{clientClassName}}(authenticator: authenticator)
         defer { client.close() }
 {{#apiInfo}}

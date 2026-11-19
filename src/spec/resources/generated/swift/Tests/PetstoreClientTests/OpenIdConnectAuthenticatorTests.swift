@@ -627,9 +627,27 @@ private final class DiscoveryStubURLProtocol: URLProtocol {
     let auth = createAuthenticator()
     auth.setApiClient(client)
 
-    await #expect(throws: NotFoundError.self) {
+    let error = await #expect(throws: NotFoundError.self) {
       _ = try await auth.buildAuthorizationURL()
     }
+    #expect(error?.requestMethod == "GET")
+    #expect(error?.requestPath == "/.well-known/openid-configuration")
+
+    let tenantClient = MockApiClient()
+    tenantClient.responses.append(.success(makeResponse(body: "missing", statusCode: 404)))
+    let tenant = OpenIdConnectAuthenticator(
+      host: "https://api.example.com",
+      openIDConnectURL: "https://auth.example.com/tenant/.well-known/openid-configuration?x=1",
+      clientID: "my-client-id",
+      clientSecret: "my-client-secret",
+      redirectURI: "https://app.example.com/callback",
+      scopes: []
+    )
+    tenant.setApiClient(tenantClient)
+    let tenantError = await #expect(throws: NotFoundError.self) {
+      _ = try await tenant.buildAuthorizationURL(state: "my-state")
+    }
+    #expect(tenantError?.requestPath == "/tenant/.well-known/openid-configuration")
   }
 
   /* The discovery request goes to the identity provider, another origin, so the

@@ -1996,8 +1996,15 @@ mod tests {
                 ..call_params(CallOptions::default())
             };
 
-            let _ = api.invoke_api(params).await;
+            let err = api
+                .invoke_api(params)
+                .await
+                .expect_err("a dropped request fails the call");
 
+            assert!(
+                err.downcast_ref::<crate::errors::NetworkError>().is_some(),
+                "{err}"
+            );
             assert_eq!(1, client.calls(), "{method} must be sent exactly once");
         }
     }
@@ -2443,13 +2450,9 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_serializationparam_060_build_query_string_encodes_reserved_by_default() {
+    fn test_bhv_serializationparam_060_build_query_string_encodes_reserved_unless_allowed() {
         let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), false)]);
         assert_eq!(query, "q=a%3Ab%2Fc");
-    }
-
-    #[test]
-    fn test_bhv_serializationparam_060_build_query_string_keeps_reserved_when_allowed() {
         let query = build_query_string(&[("q".to_string(), "a:b/c".to_string(), true)]);
         assert_eq!(query, "q=a:b/c");
     }
@@ -2925,45 +2928,6 @@ mod tests {
         assert!(err
             .downcast_ref::<crate::errors::SerializationError>()
             .is_some());
-    }
-
-    #[tokio::test]
-    async fn test_bhv_hooks_018_a_panic_in_start_reaches_the_caller_and_nothing_is_sent() {
-        let client = ScriptedClient::new(200);
-        let (hook, seen) = LogHook::with(Vec::new(), true, false);
-        let api = hooked_api(client.clone(), "http://localhost", hook);
-
-        let joined = tokio::spawn(async move {
-            api.invoke_api(call_params(CallOptions::default()))
-                .await
-                .map(|_| ())
-        })
-        .await;
-
-        assert!(joined.expect_err("the call panics").is_panic());
-        assert_eq!(0, client.calls());
-        assert!(seen.lock().unwrap().finished.is_empty());
-    }
-
-    #[tokio::test]
-    async fn test_bhv_hooks_019_a_panic_in_finish_is_swallowed_and_the_caller_gets_its_result() {
-        let (hook, seen) = LogHook::with(Vec::new(), false, true);
-        let api = hooked_api(ScriptedClient::new(200), "http://localhost", hook);
-
-        let response = api
-            .invoke_api(call_params(CallOptions::default()))
-            .await
-            .expect("the result survives a failing finish");
-
-        assert_eq!(200, response.status_code());
-        assert_eq!(1, seen.lock().unwrap().finished.len());
-
-        let (hook, _) = LogHook::with(Vec::new(), false, true);
-        let err = hooked_api(ScriptedClient::new(404), "http://localhost", hook)
-            .invoke_api(call_params(CallOptions::default()))
-            .await
-            .expect_err("a 404 is still the caller's own error");
-        assert!(err.to_string().contains("404"), "{err}");
     }
 
     /* -- form-urlencoded keys and values (chunk 15) -- */

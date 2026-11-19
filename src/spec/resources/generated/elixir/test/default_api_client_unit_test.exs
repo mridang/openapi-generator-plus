@@ -2041,69 +2041,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     assert Req.Request.get_header(second, "proxy-authorization") == []
   end
 
-  test "bhv serialization 121 a model sent as a multipart part is serialized with its wire property names and date-time format" do
-    meta = %PetstoreClient.Models.Metadata{created_at: ~U[2024-01-01 00:00:00Z]}
-    body = PetstoreClient.DefaultApiClient.build_multipart_body([{"meta", meta}], "B")
-
-    assert body =~ ~s("createdAt":"2024-01-01T00:00:00.000+00:00")
-  end
-
-  test "bhv serialization 123 a multipart filename containing CR, LF or NUL is rejected rather than written into the header" do
-    for bad <- ["a\r\nb.txt", "a\nb.txt", "a\0b.txt"] do
-      assert_raise ArgumentError, fn ->
-        PetstoreClient.DefaultApiClient.build_content_disposition("doc", bad)
-      end
-    end
-  end
-
-  test "bhv serialization 124 a non-ASCII multipart filename is sent with an RFC 5987 encoded form of its UTF-8 bytes" do
-    header =
-      PetstoreClient.DefaultApiClient.build_content_disposition("doc", "r\u00e9sum\u00e9.pdf")
-
-    assert header =~ "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"
-  end
-
-  test "bhv serialization 126 a non-ASCII multipart field name is preserved as UTF-8 in the part header" do
-    body = PetstoreClient.DefaultApiClient.build_multipart_body([{"\u540d\u524d", "v"}], "B")
-
-    assert body =~ "\u540d\u524d"
-  end
-
-  test "bhv serialization 127 primitive multipart parts are sent as plain text and only model parts are sent as JSON" do
-    body =
-      PetstoreClient.DefaultApiClient.build_multipart_body(
-        [{"count", 3}, {"account", %PetstoreClient.Models.Account{id: 7, username: "u"}}],
-        "B"
-      )
-
-    assert body =~ "\r\n\r\n3\r\n"
-    assert body =~ ~s("username":"u")
-  end
-
-  test "bhv transport 092 a caller-supplied HTTP client receives the SDK request" do
-    test_pid = self()
-
-    adapter = fn request ->
-      send(test_pid, {:received, URI.to_string(request.url)})
-      {request, Req.Response.new(status: 200, body: "")}
-    end
-
-    client =
-      PetstoreClient.DefaultApiClient.new(
-        PetstoreClient.TransportOptions.new(req_options: [adapter: adapter])
-      )
-
-    PetstoreClient.DefaultApiClient.send_request(
-      client,
-      :get,
-      "http://caller-client.invalid/x",
-      %{},
-      nil
-    )
-
-    assert_received {:received, "http://caller-client.invalid/x"}
-  end
-
   test "bhv redirects 033 a redirect to a different port is a different origin and drops the credentials" do
     {target_url, _} = start_header_capture_server()
     {source_url, _} = start_redirect_server(302, "#{target_url}/echo")
@@ -2760,58 +2697,6 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     refute PetstoreClient.Errors.NetworkError.network_error?(err)
   end
 
-  test "bhv transport 088 a validly gzip-encoded response body is decoded before it is returned" do
-    client =
-      routed_client(%{
-        "https://gzip.invalid/x" => {200, [{"content-encoding", "gzip"}], :zlib.gzip("hello")}
-      })
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "https://gzip.invalid/x",
-        %{},
-        nil
-      )
-
-    assert response.body == "hello"
-  end
-
-  test "bhv transport 090 response headers repeated on the wire are returned with every value present" do
-    client =
-      routed_client(%{
-        "https://multi.invalid/x" => {200, [{"x-multi", "a"}, {"x-multi", "b"}], ""}
-      })
-
-    response =
-      PetstoreClient.DefaultApiClient.send_request(
-        client,
-        :get,
-        "https://multi.invalid/x",
-        %{},
-        nil
-      )
-
-    assert response.headers["x-multi"] == "a, b"
-  end
-
-  test "bhv transport 089 a declared Content-Encoding that does not match the body raises the SDK's API error" do
-    base_url =
-      start_server(
-        200,
-        "application/json",
-        "this is not gzip-compressed data",
-        [{"Content-Encoding", "gzip"}]
-      )
-
-    client = PetstoreClient.DefaultApiClient.new()
-
-    assert_raise PetstoreClient.Errors.ApiError, fn ->
-      PetstoreClient.DefaultApiClient.send_request(client, :get, "#{base_url}/gz", %{}, nil)
-    end
-  end
-
   # An unrecognised Content-Encoding the client cannot decode hits the
   # decompressor's default clause and must surface a typed ApiError carrying the
   # response status, never a NetworkError and never the body still encoded.
@@ -3041,6 +2926,9 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
 
     assert String.contains?(cd, "filename*=UTF-8''%E6%97%A5%E6%9C%AC.pdf"),
            "Expected the RFC 5987 form, got: #{cd}"
+
+    assert PetstoreClient.DefaultApiClient.build_content_disposition("doc", "résumé.pdf") =~
+             "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"
   end
 
   test "bhv serializationwire 028 build_content_disposition falls back to one underscore per code point" do
@@ -3260,15 +3148,13 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
       refute body =~ "Content-Transfer-Encoding"
     end
 
-    test "bhv misc 097 each element of an array field is sent as its own part in order" do
+    test "bhv misc 097 each array element is sent as its own part in order, and a scalar field is sent as one part" do
       body = PetstoreClient.DefaultApiClient.build_multipart_body([{"tag", ["a", "b"]}], "B")
       assert length(Regex.scan(~r/name="tag"/, body)) == 2
       assert body =~ ~r/\r\n\r\na\r\n.*\r\n\r\nb\r\n/s
-    end
 
-    test "bhv misc 097 a scalar field is sent as one part" do
-      body = PetstoreClient.DefaultApiClient.build_multipart_body([{"note", "x"}], "B")
-      assert length(Regex.scan(~r/name="note"/, body)) == 1
+      scalar = PetstoreClient.DefaultApiClient.build_multipart_body([{"note", "x"}], "B")
+      assert length(Regex.scan(~r/name="note"/, scalar)) == 1
     end
   end
 

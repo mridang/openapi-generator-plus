@@ -1240,7 +1240,7 @@ import Testing
   // MARK: - Per-call settings
 
   /* A per-call retry limit replaces the transport's, up and down. */
-  @Test func testBhvOptions027PerCallMaxRetriesReplacesTheTransportLimit() async throws {
+  @Test func testBhvLangswift083PerCallMaxRetriesReplacesTheTransportLimit() async throws {
     var calls = 0
     let client = try retryClient(maxRetries: 0) { _ in
       calls += 1
@@ -1392,25 +1392,6 @@ import Testing
   }
 
   /* A failed discovery names the request it made. */
-  @Test func testBhvErrors002OidcDiscoveryFailureNamesTheRequest() async throws {
-    let client = makeClient { _ in (Data(), 404, [:]) }
-    let auth = OpenIdConnectAuthenticator(
-      host: "https://api.example.com",
-      openIDConnectURL: "https://auth.example.com/tenant/.well-known/openid-configuration?x=1",
-      clientID: "my-client-id",
-      clientSecret: "my-client-secret",
-      redirectURI: "https://app.example.com/callback",
-      scopes: []
-    )
-    auth.setApiClient(client)
-
-    let error = await #expect(throws: NotFoundError.self) {
-      _ = try await auth.buildAuthorizationURL(state: "my-state")
-    }
-    #expect(error?.requestMethod == "GET")
-    #expect(error?.requestPath == "/tenant/.well-known/openid-configuration")
-  }
-
   @Test(arguments: [400, 401, 403, 404, 422, 501])
   func testBhvRetries007StatusesThatAreNotTransientAreNotRetried(status: Int) async throws {
     var calls = 0
@@ -1684,17 +1665,34 @@ import Testing
   // `Accept-Encoding` has opted to receive and decode the encoded bytes
   // itself, so a residual `Content-Encoding` header is expected and must NOT
   // be treated as an error — the encoded body is returned to that caller.
-  @Test func testBhvSerializationwire029CallerManagedAcceptEncodingDoesNotThrow() async throws {
-    let client = makeClient { _ in
-      (
-        Data("caller-decodes-these-bytes".utf8), 200,
-        ["Content-Type": "application/octet-stream", "Content-Encoding": "gzip"]
-      )
+  @Test
+  func
+    testBhvSerializationwire029CallerManagedAcceptEncodingDoesNotThrowAndTheDefaultAdvertisesOnlyTheCodingItDecodes()
+    async throws
+  {
+    do {
+      let client = makeClient { _ in
+        (
+          Data("caller-decodes-these-bytes".utf8), 200,
+          ["Content-Type": "application/octet-stream", "Content-Encoding": "gzip"]
+        )
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "http://localhost/caller-gzip",
+        headers: ["Accept-Encoding": "gzip"], body: nil)
+      #expect(resp.statusCode == 200)
     }
-    let resp = try await client.sendRequest(
-      method: "GET", url: "http://localhost/caller-gzip",
-      headers: ["Accept-Encoding": "gzip"], body: nil)
-    #expect(resp.statusCode == 200)
+    /* The client advertises the codings it decodes, gzip and deflate, never br or zstd. */
+    do {
+      var capturedEncoding: String?
+      let client = makeClient { req in
+        capturedEncoding = req.value(forHTTPHeaderField: "Accept-Encoding")
+        return (self.body(), 200, [:])
+      }
+      _ = try await client.sendRequest(
+        method: "GET", url: "http://localhost/test", headers: [:], body: nil)
+      #expect(capturedEncoding == "gzip, deflate")
+    }
   }
 
   // content-encoding-empty-gzip-passthrough (Gap AL): a zero-byte body that
@@ -1779,18 +1777,6 @@ import Testing
   #endif
 
   // MARK: - Accept-Encoding
-
-  /* The client advertises the codings it decodes, gzip and deflate, never br or zstd. */
-  @Test func testBhvSerializationwire029AdvertisesOnlyTheCodingItDecodes() async throws {
-    var capturedEncoding: String?
-    let client = makeClient { req in
-      capturedEncoding = req.value(forHTTPHeaderField: "Accept-Encoding")
-      return (self.body(), 200, [:])
-    }
-    _ = try await client.sendRequest(
-      method: "GET", url: "http://localhost/test", headers: [:], body: nil)
-    #expect(capturedEncoding == "gzip, deflate")
-  }
 
   // MARK: - Session configuration
 
@@ -2983,28 +2969,25 @@ import Testing
     }
   }
 
-  /* When the connection drops before any response arrives, a POST or PATCH is sent exactly once. */
-  @Test(arguments: ["POST", "PATCH"])
-  func testBhvMisc161ANonIdempotentRequestDroppedBeforeAResponseIsSentOnce(method: String)
+  /* When the connection drops before any response arrives, a POST or PATCH is sent exactly once, and QUERY is treated as an idempotent method. */
+  @Test func testBhvMisc161ADroppedConnectionSendsANonIdempotentRequestOnceAndAQueryAgain()
     async throws
   {
-    var calls = 0
-    let client = makeClient(
-      transport: try TransportOptionsBuilder().build(),
-      handler: { _ in
-        calls += 1
-        return (self.body(), 200, ["X-Stub-Fail-Before-Response": "cannotConnectToHost"])
-      })
-    _ = await #expect(throws: NetworkError.self) {
-      _ = try await client.sendRequest(
-        method: method, url: "https://example.com/write", headers: [:], body: nil, noRedirect: false
-      )
+    for method in ["POST", "PATCH"] {
+      var calls = 0
+      let client = makeClient(
+        transport: try TransportOptionsBuilder().build(),
+        handler: { _ in
+          calls += 1
+          return (self.body(), 200, ["X-Stub-Fail-Before-Response": "cannotConnectToHost"])
+        })
+      _ = await #expect(throws: NetworkError.self) {
+        _ = try await client.sendRequest(
+          method: method, url: "https://example.com/write", headers: [:], body: nil,
+          noRedirect: false)
+      }
+      #expect(calls == 1)
     }
-    #expect(calls == 1)
-  }
-
-  /* QUERY is an idempotent method, so a request dropped before any response is sent again. */
-  @Test func testBhvMisc161AQueryRequestDroppedBeforeAResponseIsSentAgain() async throws {
     var calls = 0
     let client = makeClient(
       transport: try TransportOptionsBuilder().build(),

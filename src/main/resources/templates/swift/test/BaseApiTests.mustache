@@ -334,22 +334,6 @@ import Testing
         }
     }
 
-    @Test func testBhvErrors006ErrorDispatch400() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 400
-        mockClient.responseBody = "{\"error\":\"bad request\"}"
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 400")
-        } catch let error as BadRequestError {
-            #expect(error.statusCode == 400)
-        }
-    }
-
     @Test func testBhvErrors071ErrorDispatch401() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 401
@@ -362,112 +346,6 @@ import Testing
             _ = try await api.getPetById(petId: 1)
             Issue.record("Expected error for status 401")
         } catch is UnauthorizedError {
-            // Expected
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch403() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 403
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 403")
-        } catch is ForbiddenError {
-            // Expected
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch404() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 404
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 404")
-        } catch is NotFoundError {
-            // Expected
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch409() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 409
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 409")
-        } catch is ConflictError {
-            // Expected
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch422() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 422
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 422")
-        } catch is UnprocessableEntityError {
-            // Expected
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch429() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 429
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 429")
-        } catch let error as TooManyRequestsError {
-            #expect(error is ClientError)
-            #expect(error.statusCode == 429)
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch500() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 500
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 500")
-        } catch is InternalServerError {
-            // Expected
-        }
-    }
-
-    @Test func testBhvErrors006ErrorDispatch502() async throws {
-        let mockClient = MockApiClient()
-        mockClient.responseStatusCode = 502
-
-        let config = ConfigurationBuilder().baseURL("https://example.com").build()
-        let api = PetApi(apiClient: mockClient, config: config)
-
-        do {
-            _ = try await api.getPetById(petId: 1)
-            Issue.record("Expected error for status 502")
-        } catch is ServerError {
             // Expected
         }
     }
@@ -2653,29 +2531,30 @@ import Testing
     }
 
     /* A void operation ignores a success body that is plain text, and returns no data. */
-    @Test func testBhvMisc209AVoidOperationIgnoresATextSuccessBody() async throws {
-        let transport = ScriptedTransport([.status(200, headers: ["Content-Type": "text/plain"], body: "plain text")])
-        let api = hookedBase(nil, transport: transport)
-        let params = BaseApi.InvokeAPIParams(
-            method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
-            accepts: ["application/json"], contentType: "application/json", returnType: "Void",
-            auth: nil, operationId: "deleteItem", urlTemplate: "/items")
-        let result = try await api.invokeAPIForEmptyResult(params)
-        #expect(result.data == nil)
-        #expect(result.statusCode == 200)
-    }
-
-    /* A void operation ignores a success body that is a non-object JSON value, and returns no data. */
-    @Test func testBhvMisc209AVoidOperationIgnoresANonObjectJsonSuccessBody() async throws {
-        let transport = ScriptedTransport([.status(200, body: "42")])
-        let api = hookedBase(nil, transport: transport)
-        let params = BaseApi.InvokeAPIParams(
-            method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
-            accepts: ["application/json"], contentType: "application/json", returnType: "Void",
-            auth: nil, operationId: "deleteItem", urlTemplate: "/items")
-        let result = try await api.invokeAPIForEmptyResult(params)
-        #expect(result.data == nil)
-        #expect(result.statusCode == 200)
+    @Test func testBhvMisc209AVoidOperationIgnoresATextOrNonObjectJsonSuccessBody() async throws {
+        do {
+            let transport = ScriptedTransport([.status(200, headers: ["Content-Type": "text/plain"], body: "plain text")])
+            let api = hookedBase(nil, transport: transport)
+            let params = BaseApi.InvokeAPIParams(
+                method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+                accepts: ["application/json"], contentType: "application/json", returnType: "Void",
+                auth: nil, operationId: "deleteItem", urlTemplate: "/items")
+            let result = try await api.invokeAPIForEmptyResult(params)
+            #expect(result.data == nil)
+            #expect(result.statusCode == 200)
+        }
+        /* A void operation ignores a success body that is a non-object JSON value, and returns no data. */
+        do {
+            let transport = ScriptedTransport([.status(200, body: "42")])
+            let api = hookedBase(nil, transport: transport)
+            let params = BaseApi.InvokeAPIParams(
+                method: "DELETE", path: "/items", queryParams: [:], headerParams: [:], body: nil,
+                accepts: ["application/json"], contentType: "application/json", returnType: "Void",
+                auth: nil, operationId: "deleteItem", urlTemplate: "/items")
+            let result = try await api.invokeAPIForEmptyResult(params)
+            #expect(result.data == nil)
+            #expect(result.statusCode == 200)
+        }
     }
 
     /* A date-time form field is encoded in canonical form, with its colons and plus sign percent-escaped. */

@@ -2017,6 +2017,16 @@ langswift072 | An empty proxy string clears a proxy set earlier
 langswift073 | Object fields are keyed by their wire names, sorted, and nulls are skipped
 langswift074 | Each documentation comment in the generated sources is one contiguous block above its attributes
 langswift075 | A redirect chain that finishes inside the timeout budget completes with its final response
+langswift076 | A default configuration has no call hook
+langswift077 | A client built without a hook has none on any API
+langswift078 | A hook given to the client fires with a supplied transport and reaches every API
+langswift079 | A call hook chain stops at the hook whose start throws and starts no later hook
+langswift080 | A call hook chain finishes every observer even when one throws and throws the first error
+langswift081 | CallInfo cuts the query string and the fragment from the url and reads the host
+langswift082 | CallInfo reads the lower-case host without port, userinfo or brackets as the server address
+langswift083 | A per-call max retries replaces the transport limit
+langswift084 | EncodeCookieValue keeps only the unreserved set literal
+langswift085 | An ipv4 or ipv6 address parameter is written as its text unchanged
 langkotlin001 | The generated scheme wrapper reads each of its credentials from its own environment variable
 langkotlin002 | A generated scheme wrapper with no credential of its own falls back to the authenticator it was built with
 langkotlin003 | An API key containing a line break or a NUL character is refused when the authenticator is built

@@ -582,7 +582,7 @@ defmodule PetstoreClient.ValueSerializerTest do
       assert result == "hello%20world"
     end
 
-    test "bhv serializationparam 105 SerializeStyled form scalar is the bare value, exploded or not" do
+    test "bhv serializationparam 105 a form scalar is the bare value, exploded or not, and an address is its canonical text" do
       for explode <- [true, false] do
         result =
           PetstoreClient.ValueSerializer.serialize_styled(
@@ -597,6 +597,11 @@ defmodule PetstoreClient.ValueSerializerTest do
 
         assert result == "blue"
       end
+
+      assert PetstoreClient.ObjectSerializer.stringify({192, 0, 2, 1}) == "192.0.2.1"
+
+      assert PetstoreClient.ObjectSerializer.stringify({0x2001, 0xDB8, 0, 0, 0, 0, 0, 1}) ==
+               "2001:db8::1"
     end
 
     test "bhv serializationparam 106 path with null style behaves like simple" do
@@ -1458,11 +1463,15 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "content cookie bytes" do
-    test "bhv serializationparam 104 JSON is percent-encoded keeping only the unreserved set literal" do
-      json = PetstoreClient.ObjectSerializer.serialize(%{"k" => "a b~*\u00E9"})
+    test "bhv serializationparam 104 JSON is percent-encoded keeping only the unreserved set literal, and a duration is written in the protobuf form" do
+      json = PetstoreClient.ObjectSerializer.serialize(%{"k" => "a b~*é"})
 
       assert PetstoreClient.ValueSerializer.encode_content_cookie(json) ==
                "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D"
+
+      assert PetstoreClient.ObjectSerializer.stringify(
+               Duration.new!(second: 3600, microsecond: {0, 6})
+             ) == "3600s"
     end
 
     test "bhv serializationparam 118 a content cookie value is encoded to the shared percent encoded bytes" do
@@ -1502,16 +1511,10 @@ defmodule PetstoreClient.ValueSerializerTest do
   end
 
   describe "bhv misc wire behaviours" do
-    test "bhv misc 082 an enum value in a path is sent as its wire value" do
-      assert PetstoreClient.ValueSerializer.serialize(:pending, :path, "string") == "pending"
-    end
-
-    test "bhv misc 082 an enum value in a query is sent as its wire value" do
-      assert PetstoreClient.ValueSerializer.serialize(:pending, :query, "string") == "pending"
-    end
-
-    test "bhv misc 082 an enum value in a header is sent as its wire value" do
-      assert PetstoreClient.ValueSerializer.serialize(:pending, :header, "string") == "pending"
+    test "bhv misc 082 an enum value is sent as its wire value in a path, a query and a header" do
+      for location <- [:path, :query, :header] do
+        assert PetstoreClient.ValueSerializer.serialize(:pending, location, "string") == "pending"
+      end
     end
 
     test "bhv misc 084 a set optional scalar is sent in every location" do
