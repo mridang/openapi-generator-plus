@@ -267,6 +267,12 @@ describe 'Client' do
     _(api_groups_of(without_default).map { |api| api.config.base_url }.uniq).must_equal ['http://127.0.0.1:1']
   end
 
+  it 'bhv_misc_206 a client built with only a default authenticator is constructed and takes its host from it' do
+    only_default = {{moduleName}}::Auth::BearerAuthenticator.new('https://only-default.example.com', 'tok')
+
+    _(-> { {{moduleName}}::{{clientClassName}}.new(only_default) }).must_be_silent
+  end
+
   it 'bhv_lifecycle_026 is refused when it gets no credential at all' do
     error = _ { {{moduleName}}::{{clientClassName}}.new }.must_raise ArgumentError
 

@@ -2155,4 +2155,17 @@ class PetApiTest {
         assertThatThrownBy(() -> petApi.deletePet(1L, new DeletePetOptions().apiKey("bad\u0001value")))
                 .isExactlyInstanceOf(IllegalArgumentException.class);
     }
+
+
+    @Test
+    void bhvMisc219AnOperationWithSeveralServersSendsItsRequestToTheChosenServer() throws Exception {
+        CapturingApiClient capturing = new CapturingApiClient();
+        PetApi petApi = new PetApi(capturing,
+                Configuration.builder().baseUrl("http://localhost").build());
+
+        petApi.getStagingPetInfo(1L, new PetApi.GetStagingPetInfoServer.StagingServer(
+                PetApi.GetStagingPetInfoServer.Environment.SANDBOX,
+                PetApi.GetStagingPetInfoServer.Version.V3), null);
+        assertThat(capturing.capturedUrl).startsWith("https://sandbox.example.com/api/v3/");
+    }
 }
