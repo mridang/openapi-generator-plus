@@ -46,7 +46,8 @@ public struct Reservation: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.reservationId = try container.decode(Int64.self, forKey: .reservationId)
-    self.quantity = try container.decode(Int.self, forKey: .quantity)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.quantity = try container.decodeInt32(forKey: .quantity)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

@@ -340,6 +340,22 @@ import Testing
         #expect(try ObjectSerializer.deserialize("{}", as: Defaults.self)?.greeting == literal)
     }
 
+    /* An int32 field accepts exactly the values from its minimum to its maximum and refuses overflow and fractional
+       values. */
+    @Test func testBhvMisc116AnInt32FieldAcceptsExactlyItsRangeAndRefusesOverflowAndFractions() throws {
+        #expect(try ObjectSerializer.deserialize("{\"retries\":2147483647}", as: Defaults.self)?.retries == 2_147_483_647)
+        #expect(try ObjectSerializer.deserialize("{\"retries\":-2147483648}", as: Defaults.self)?.retries == -2_147_483_648)
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"retries\":2147483648}", as: Defaults.self)
+        }
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"retries\":-2147483649}", as: Defaults.self)
+        }
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"retries\":1.5}", as: Defaults.self)
+        }
+    }
+
     /* An absent field decodes to its declared schema default. */
     @Test func testBhvSerialization096AnAbsentFieldDecodesToItsDeclaredDefault() throws {
         let defaults = try ObjectSerializer.deserialize("{}", as: Defaults.self)

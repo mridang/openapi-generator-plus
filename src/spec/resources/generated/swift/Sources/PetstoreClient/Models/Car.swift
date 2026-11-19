@@ -54,7 +54,8 @@ public struct Car: Codable, Sendable, Equatable, Hashable {
       ? try container.decode(String.self, forKey: .vehicleType)
       : "car"
     self.plate = try container.decode(String.self, forKey: .plate)
-    self.doorCount = try container.decode(Int.self, forKey: .doorCount)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.doorCount = try container.decodeInt32(forKey: .doorCount)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

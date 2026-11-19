@@ -50,7 +50,8 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.procedureName = try container.decode(String.self, forKey: .procedureName)
-    self.durationMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinutes)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.durationMinutes = try container.decodeInt32IfPresent(forKey: .durationMinutes)
     self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
   }
 

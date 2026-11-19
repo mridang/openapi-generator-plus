@@ -48,7 +48,8 @@ public struct WetFood: Codable, Sendable, Equatable, Hashable {
       container.contains(.foodType)
       ? try container.decode(String.self, forKey: .foodType)
       : "wet"
-    self.volumeMl = try container.decode(Int.self, forKey: .volumeMl)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.volumeMl = try container.decodeInt32(forKey: .volumeMl)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

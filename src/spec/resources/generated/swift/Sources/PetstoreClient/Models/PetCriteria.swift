@@ -43,7 +43,8 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.breed = try container.decodeIfPresent(String.self, forKey: .breed)
-    self.minAge = try container.decodeIfPresent(Int.self, forKey: .minAge)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.minAge = try container.decodeInt32IfPresent(forKey: .minAge)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.

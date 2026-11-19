@@ -761,3 +761,21 @@ internal enum ObjectSerializer {
         }
     }
 }
+
+/* An integer property is an `Int` in the API, but is read as 32 bits: Foundation's
+   decoder refuses a value outside the 32-bit range and a fractional number for
+   `Int32`, which is the rule the other SDKs apply to `int32` and unformatted
+   integers. */
+extension KeyedDecodingContainer {
+    func decodeInt32(forKey key: Key) throws -> Int {
+        return Int(try decode(Int32.self, forKey: key))
+    }
+
+    func decodeInt32Nullable(forKey key: Key) throws -> Int? {
+        return try decode(Int32?.self, forKey: key).map { Int($0) }
+    }
+
+    func decodeInt32IfPresent(forKey key: Key) throws -> Int? {
+        return try decodeIfPresent(Int32.self, forKey: key).map { Int($0) }
+    }
+}

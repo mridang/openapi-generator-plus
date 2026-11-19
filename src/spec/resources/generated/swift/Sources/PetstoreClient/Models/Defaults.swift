@@ -90,9 +90,10 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
     self.retries =
       container.contains(.retries)
-      ? try container.decodeIfPresent(Int.self, forKey: .retries)
+      ? try container.decodeInt32IfPresent(forKey: .retries)
       : 3
     self.mode =
       container.contains(.mode)

@@ -42,7 +42,8 @@ public struct RejectedRequest: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.code = try container.decodeIfPresent(Int.self, forKey: .code)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.code = try container.decodeInt32IfPresent(forKey: .code)
     self.message = try container.decodeIfPresent(String.self, forKey: .message)
   }
 

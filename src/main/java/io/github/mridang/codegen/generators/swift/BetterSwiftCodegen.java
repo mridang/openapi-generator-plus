@@ -518,6 +518,8 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        property.vendorExtensions.put(
+                "isNarrowInt", !property.isEnum && !property.isContainer && "Int".equals(property.dataType));
         /* UUID encodes itself in uppercase; arrays and maps of UUIDs are
          * flagged so the model template writes them lowercase. */
         org.openapitools.codegen.CodegenProperty uuidItems = property.items;

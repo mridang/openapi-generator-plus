@@ -151,6 +151,18 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isNarrowInt}}
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            : {{{.}}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+{{/defaultValue}}
+{{/vendorExtensions.isNarrowInt}}
+{{^vendorExtensions.isNarrowInt}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
 {{#isNullable}}
@@ -213,6 +225,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isNarrowInt}}
 {{/vars}}
 {{#vars}}
 {{#isUri}}
@@ -339,6 +352,18 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isNarrowInt}}
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            : {{{.}}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+{{/defaultValue}}
+{{/vendorExtensions.isNarrowInt}}
+{{^vendorExtensions.isNarrowInt}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
 {{#isNullable}}
@@ -401,6 +426,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isNarrowInt}}
 {{/vars}}
 
         /* Decode additional properties */

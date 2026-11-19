@@ -88,7 +88,8 @@ public struct Order: Codable, Sendable, Equatable, Hashable {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
     self.petId = try container.decodeIfPresent(Int64.self, forKey: .petId)
-    self.quantity = try container.decodeIfPresent(Int.self, forKey: .quantity)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.quantity = try container.decodeInt32IfPresent(forKey: .quantity)
     self.trackingId = try container.decodeIfPresent(UUID.self, forKey: .trackingId)
     self.shipDate = try container.decodeIfPresent(Date.self, forKey: .shipDate)
     self.status =
