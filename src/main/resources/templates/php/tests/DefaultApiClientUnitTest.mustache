@@ -3427,6 +3427,40 @@ test('bhv retries 046 a request body is resent unchanged on a 307 that keeps the
     expect($bodies)->toBe(['{"a":1}', '{"a":1}']);
 });
 
+test('bhv misc 225 a 3xx response without a location header is returned as the final response', function (): void {
+    $mockResponse = new MockResponse('{}', ['http_code' => 302]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+    $response = $client->sendRequest('GET', 'http://example.com/x', [], null);
+    expect($response->statusCode)->toBe(302);
+});
+
+test('bhv misc 227 a network error before any response is retried', function (): void {
+    $calls = 0;
+    $http = new MockHttpClient(function () use (&$calls): MockResponse {
+        $calls++;
+
+        return $calls === 1 ? new MockResponse('', ['error' => 'connection reset']) : new MockResponse('{}', ['http_code' => 200]);
+    });
+    $client = new StubbedDefaultApiClient($http, TransportOptions::builder()->maxRetries(1)->build());
+    $response = $client->sendRequest('GET', 'http://example.com/x', [], null);
+    expect($calls)->toBe(2);
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 228 an unparseable retry after header falls back to the normal backoff', function (): void {
+    $calls = 0;
+    $http = new MockHttpClient(function () use (&$calls): MockResponse {
+        $calls++;
+
+        return $calls === 1
+            ? new MockResponse('{}', ['http_code' => 503, 'response_headers' => ['Retry-After' => 'soon']])
+            : new MockResponse('{}', ['http_code' => 200]);
+    });
+    $client = new StubbedDefaultApiClient($http, TransportOptions::builder()->maxRetries(1)->build());
+    $client->sendRequest('GET', 'http://example.com/x', [], null);
+    expect($calls)->toBe(2);
+    expect($client->pauses)->toHaveCount(1);
+});
 test('bhv serialization 120 a multipart file with an unknown extension falls back to octet stream', function (): void {
     $client = new StubbedDefaultApiClient(new MockHttpClient());
     $guess = new \ReflectionMethod(DefaultApiClient::class, 'guessMimeType');

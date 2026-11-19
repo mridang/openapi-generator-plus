@@ -3390,3 +3390,22 @@ describe('ObjectSerializer misc model and duration behaviours', () => {
     expect(durationToProtoJson(Temporal.Duration.from({ milliseconds: 1500 }))).toBe('1.5s');
   });
 });
+
+describe('ObjectSerializer misc decoding and duration behaviours', () => {
+  test('bhv misc 243 an absent optional array field decodes to null, not to an empty list', () => {
+    const decoded = ObjectSerializer.deserialize({}, NativeValues)!;
+    expect(decoded.addresses ?? null).toBeNull();
+  });
+
+  test('bhv misc 246 a negative whole-second protobuf duration string parses to a negative duration', () => {
+    expect(Temporal.Duration.compare(durationFromProtoJson('-5s'), Temporal.Duration.from({ seconds: -5 }))).toBe(0);
+  });
+
+  test.each(['P1D', '1d'])('bhv misc 251 a duration string with a day designator (%s) is rejected', (value) => {
+    expect(() => durationFromProtoJson(value)).toThrow();
+  });
+
+  test('bhv misc 252 an enum wire value containing separators round-trips unchanged', () => {
+    expect(JSON.parse(ObjectSerializer.serialize('a,b;c d/e:f'))).toBe('a,b;c d/e:f');
+  });
+});

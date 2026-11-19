@@ -727,3 +727,22 @@ fn test_bhv_misc_290_dict_valued_wire_key_survives_full_round_trip() {
         restored.additional_properties.get("additional_properties")
     );
 }
+
+#[test]
+fn test_bhv_serialization_121_a_model_sent_as_a_multipart_part_uses_wire_names_and_the_sdk_date_time_format(
+) {
+    let metadata: Metadata = serde_json::from_str(r#"{"createdAt":"2024-01-02T03:04:05Z"}"#)
+        .expect("failed to deserialize Metadata");
+
+    let part = serde_json::to_string(&metadata).expect("failed to serialize the model part");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&part).expect("failed to parse the model part");
+    assert_eq!(
+        parsed["createdAt"], "2024-01-02T03:04:05.000+00:00",
+        "got: {part}"
+    );
+    assert!(
+        parsed.get("created_at").is_none(),
+        "snake_case key leaked into the part: {part}"
+    );
+}

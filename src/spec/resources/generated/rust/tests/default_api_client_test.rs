@@ -337,6 +337,37 @@ async fn test_bhv_transport_065_a_configured_ca_bundle_replaces_the_system_trust
     );
 }
 
+#[tokio::test]
+async fn test_bhv_transport_093_a_server_signed_by_another_ca_is_rejected_with_a_network_error() {
+    use std::net::ToSocketAddrs;
+    let reachable = "example.com:443"
+        .to_socket_addrs()
+        .ok()
+        .and_then(|mut addrs| addrs.next())
+        .map(|addr| {
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(3)).is_ok()
+        })
+        .unwrap_or(false);
+    assert!(
+        reachable,
+        "example.com:443 must be reachable: the replacement check needs a public CA chain"
+    );
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(testcontainers_helper::ca_cert_path())
+        .build()
+        .expect("valid transport options");
+    let result = DefaultApiClient::new(Some(transport))
+        .send_request("GET", "https://example.com/", &HashMap::new(), None)
+        .await;
+    let err = result.expect_err("a public CA must not be trusted next to a configured CA");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_some(),
+        "expected a NetworkError, got: {}",
+        err
+    );
+}
+
 // Gap AK (fleet-wide regression guard) — a proxy URL carrying inline userinfo
 // (`http://user:pass@127.0.0.1:3128`) must preserve those credentials end-to-end
 // so the proxy can authenticate the tunnel (otherwise it 407s). Java's

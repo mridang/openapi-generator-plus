@@ -3217,6 +3217,81 @@ async fn test_bhv_misc_192_an_auth_cookie_of_only_legal_octets_is_sent_exactly_a
 }
 
 #[tokio::test]
+async fn test_bhv_misc_159_a_401_is_replayed_once_even_with_retries_off() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(401, None), Scripted::Status(200, None)], 0, None);
+    retrying_api_with(&client, Arc::new(RenewableAuthenticator::new()))
+        .delete_pet(1, None)
+        .await
+        .expect("the replayed call succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_161_a_dropped_post_is_sent_once_and_its_error_is_returned() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 2, None);
+    let err = retrying_api(&client)
+        .add_pet(Pet::new("TestPet".to_string(), HashSet::new()), Some(&AddPetOptions::new()))
+        .await
+        .expect_err("a dropped POST fails the call");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+    assert_eq!(1, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_176_cookie_value_is_sent_in_the_cookie_header() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.delete_pet(1, Some(&DeletePetOptions::new().api_key("abc123".to_string()))).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(Some("api_key=abc123"), headers.get("Cookie").map(|s| s.as_str()));
+}
+
+#[tokio::test]
+async fn test_bhv_misc_189_the_query_wrapper_sends_the_key_as_the_api_key_query_parameter() {
+    use {{packageName}}::auth::api_key_authenticator::ApiKeyAuthenticator;
+    use {{packageName}}::auth::api_key_location::ApiKeyLocation;
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new().base_url("http://localhost").build();
+    let auth = ApiKeyAuthenticator::new("http://localhost", "api_key", "abc123", ApiKeyLocation::Query).unwrap();
+    let api = PetApi::new(client.clone(), config, Some(Arc::new(auth)));
+    let _ = api.delete_pet(1, None).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(url.contains("api_key=abc123"), "got: {}", url);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_212_a_404_or_500_response_raises_its_error_class_through_the_api_layer() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(404, None)], 0, None);
+    let err = retrying_api(&client).delete_pet(1, None).await.expect_err("a 404 fails the call");
+    assert!(err.downcast_ref::<NotFoundError>().is_some(), "got: {}", err);
+
+    let client = ScriptedApiClient::new(vec![Scripted::Status(500, None)], 0, None);
+    let err = retrying_api(&client).delete_pet(1, None).await.expect_err("a 500 fails the call");
+    assert!(err.downcast_ref::<InternalServerError>().is_some(), "got: {}", err);
+}
+
+#[tokio::test]
+async fn test_bhv_misc_227_a_connection_dropped_before_any_response_is_retried_for_an_idempotent_method() {
+    let client = ScriptedApiClient::new(vec![Scripted::Network, Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the dropped connection succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
+async fn test_bhv_misc_228_an_unparseable_retry_after_falls_back_to_the_normal_backoff() {
+    let client = ScriptedApiClient::new(vec![Scripted::Status(503, Some("soon")), Scripted::Status(200, None)], 1, None);
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the 503 succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
 async fn test_bhv_misc_264_each_listed_error_status_raises_its_typed_error() {
     let cases: [(u16, fn(&(dyn std::error::Error + Send + Sync + 'static)) -> bool); 3] = [
         (400, |e| e.downcast_ref::<BadRequestError>().is_some()),

@@ -170,7 +170,6 @@ csharp | transport065 | The pinned CA is applied inside a private ServerCertific
 dart | servers020 | the per-operation server variables are enum-typed constructor arguments (GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerVersion), so a value outside the enum does not compile and never reaches the URL template
 dart | transport060 | Dart has no cancellation handle: a Future cannot be cancelled and the SDK exposes no cancel token or abort trigger (the readme documents this), so a call is bounded only by its timeout, covered by bhv transport 024
 dart | transport061 | Dart uploads take a binary part as an in-memory Uint8List (abstract_api_client multipart), never a caller-owned stream or file handle, so the SDK holds no handle it could leave open
-elixir | serializationparam118 | Elixir has no content-cookie encoder: BaseApi writes the Cookie header from validated raw RFC 6265 octets with no percent-encoding (so base64 padding survives), and no public function percent-encodes a content cookie value, so the shared bytes have no SDK call to assert; the byte rule is only checked test-side by bhv serializationparam 104
 elixir | transport061 | Elixir has no caller-supplied stream in a request body: a multipart part is an in-memory binary that build_multipart_body/2 interpolates, and the SDK never opens or reads a file, so there is no handle for it to leave open
 elixir | transport064 | Req buffers each intermediate response in full (raw: true, redirect: false) before the SDK decides on a redirect, so the connection is back in the pool before the refusal is raised and no open response is left for a test to observe
 elixir | transport068 | Elixir has no cancellation handle on a call, so a call is cancelled only by its own process exiting (S7); there is no already-cancelled call to make, and the in-flight case is asserted by bhv transport 060
@@ -750,6 +749,9 @@ kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: th
 kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
 kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
 kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
+rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
+rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
+
 rust | misc262 | The Rust client has no cancellation API: a pending request is cancelled by dropping its future, and no client operation cancels pending requests or reports a cancellation to the caller.
 rust | misc263 | The Rust client has no per-call timeout: the timeout is set on the transport options when the client is built and no call accepts its own value, so a per-call timeout longer than the client timeout cannot be expressed.
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
@@ -775,9 +777,16 @@ php | transport083 | PHP SDK has no cancellation handle or signal API (its readm
 php | transport084 | PHP SDK has no cancellation handle or signal API (its readme states it has no cancellation API of its own), so a call cannot be stopped through a handle
 php | transport085 | PHP SDK has no cancellation token or signal API (its readme states it has no cancellation API of its own), so there is no token to supply or leave unfired
 swift | serialization096 | Swift decodes an absent optional field to nil; the schema default is applied only by the generated initializer, so decoding an absent field does not yield the declared default
+php | misc231 | PHP typed properties reject a wrong-typed value at construction, so a model built in code cannot hold one
 java | misc231 | Java builders and setters take the declared property type, so a wrong-typed value cannot be passed to a model built in code and the compiler refuses it; the wrong-type check runs only when decoding
 java | misc242 | Java sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect in any SDK; the model javadoc states it), so no property is left off the wire
 
 swift | transport083 | Swift has no client-level cancellation token: cancellation is the calling Task, per call, and transport084 covers cancelling a call through its handle
 swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
 swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists
+
+rust | transport083 | The SDK has no client-level cancellation setting, so a call is cancelled only by dropping its future (README Cancellation); there is nothing a client-level signal could abort.
+rust | transport085 | The SDK has no cancellation token or signal parameter, so there is no unfired handle to hold while a timeout runs; the timeout itself is covered by transport086.
+rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
+rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.
+node | misc242 | Node keeps readOnly and writeOnly properties as the model holds them: a writeOnly password is decoded and kept on the wire (serializationobject017, operations098) and a readOnly id is decoded (serializationobject014), so no property is dropped from the wire by design.
