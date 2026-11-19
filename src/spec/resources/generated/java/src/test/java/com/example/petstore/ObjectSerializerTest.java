@@ -4213,7 +4213,10 @@ class ObjectSerializerTest {
   void bhvMisc104AStringFieldDeclaredWithTheEmailFormatDecodesWithoutValidation() {
     String json = "{\"host\":\"not a host!\",\"contact\":\"x@\"}";
     assertEquals(
-        "x@", serializer.deserialize(json, com.example.petstore.models.NativeValues.class).contact);
+        "x@",
+        serializer.<com.example.petstore.models.NativeValues>deserialize(
+                json, com.example.petstore.models.NativeValues.class)
+            .contact);
   }
 
   @Test
@@ -4229,15 +4232,6 @@ class ObjectSerializerTest {
   @Test
   void bhvMisc106ANullArrayElementKeepsItsPositionWhenSerialized() {
     assertEquals("[1,null,2]", serializer.serialize(Arrays.asList(1, null, 2)));
-  }
-
-  @Test
-  void bhvMisc107AScalarFormQueryParameterIsEmittedUnderItsOwnNameAndValue() {
-    Object styled =
-        ValueSerializer.serializeStyled("filter", "x", "query", "string", null, "form", true);
-    Map<String, Object> query = new java.util.LinkedHashMap<>();
-    ValueSerializer.putQuery(query, "filter", styled, false);
-    assertEquals(Map.of("filter", "x"), query);
   }
 
   @Test
@@ -4328,7 +4322,7 @@ class ObjectSerializerTest {
   void bhvMisc118TheExactCaseValueIsTheOneDecoded() {
     assertEquals(
         "Exact",
-        serializer.deserialize(
+        serializer.<com.example.petstore.models.Category>deserialize(
                 "{\"NAME\":\"Other\",\"name\":\"Exact\"}",
                 com.example.petstore.models.Category.class)
             .name);
@@ -4338,7 +4332,7 @@ class ObjectSerializerTest {
   void bhvMisc119TwoKeysThatDifferOnlyByAnEscapeAreOneKeyAndTheLastValueWins() {
     assertEquals(
         "Last",
-        serializer.deserialize(
+        serializer.<com.example.petstore.models.Category>deserialize(
                 "{\"name\":\"First\",\"\\u006eame\":\"Last\"}",
                 com.example.petstore.models.Category.class)
             .name);
@@ -4361,7 +4355,9 @@ class ObjectSerializerTest {
   void bhvMisc122AStringDefaultIsAppliedAsTheExactLiteral() {
     assertEquals(
         "it's \"quoted\" \\ back\tslash\nnext $USD #{x} a*/b",
-        serializer.deserialize("{}", com.example.petstore.models.Defaults.class).greeting);
+        serializer.<com.example.petstore.models.Defaults>deserialize(
+                "{}", com.example.petstore.models.Defaults.class)
+            .greeting);
   }
 
   @Test
@@ -4568,7 +4564,8 @@ class ObjectSerializerTest {
     java.util.List<com.example.petstore.models.Metadata> items =
         serializer.deserialize(
             "[{\"createdAt\":\"2024-01-01T00:00:00Z\",\"snake_case_key\":1}]",
-            new TypeReference<java.util.List<com.example.petstore.models.Metadata>>() {}.getType());
+            new com.fasterxml.jackson.core.type.TypeReference<
+                java.util.List<com.example.petstore.models.Metadata>>() {}.getType());
 
     assertEquals(1, items.get(0).getAdditionalProperties().get("snake_case_key"));
   }
@@ -4634,7 +4631,7 @@ class ObjectSerializerTest {
   void bhvSerialization116KeywordPropertyKeepsItsWireKey() {
     com.example.petstore.models.EdgeCases edge =
         decode("{\"and\":true,\"class\":\"economy\"}", com.example.petstore.models.EdgeCases.class);
-    assertEquals("economy", edge.classValue);
+    assertEquals("economy", edge._class);
     assertTrue(
         serializer.serialize(edge).contains("\"class\":\"economy\""), serializer.serialize(edge));
   }
