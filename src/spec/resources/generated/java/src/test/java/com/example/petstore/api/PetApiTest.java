@@ -2407,4 +2407,34 @@ class PetApiTest {
         null);
     assertThat(capturing.capturedUrl).startsWith("https://sandbox.example.com/api/v3/");
   }
+
+  @Test
+  void bhvMisc236ADateOnlyValueIsSentWithNoTimeInTheQueryAndAHeader() throws Exception {
+    String[] capturedUrl = new String[1];
+    Map<String, String> capturedHeaders = new HashMap<>();
+    ApiClient recording =
+        (method, url, headers, body) -> {
+          capturedUrl[0] = url;
+          capturedHeaders.putAll(headers);
+          return new ApiHttpResponse(200, "[]", Map.of("Content-Type", "application/json"));
+        };
+    PetApi mockedApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    mockedApi.findPetsByStatus(
+        new FindPetsByStatusOptions()
+            .status("available")
+            .bornAfter(LocalDate.of(2024, 1, 1))
+            .reportDate(LocalDate.of(2024, 1, 1)));
+
+    assertThat(capturedUrl[0]).contains("bornAfter=2024-01-01");
+    assertThat(capturedUrl[0]).doesNotContain("bornAfter=2024-01-01T");
+    assertThat(
+            capturedHeaders.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase("Report-Date"))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(""))
+        .isEqualTo("2024-01-01");
+  }
 }

@@ -1308,4 +1308,25 @@ class ValueSerializerTest {
             true);
     assertTrue(String.valueOf(value).startsWith("2026-01-02T03:04:05"), String.valueOf(value));
   }
+
+  @Test
+  @DisplayName("bhvMisc232 a string path parameter in simple style percent-encodes slashes")
+  void bhvMisc232AStringPathParameterInSimpleStylePercentEncodesSlashes() {
+    assertEquals("a%2Fb", ValueSerializer.serialize("a/b", "path", "string", null));
+  }
+
+  @Test
+  @DisplayName("bhvMisc233 a cookie parameter carrying a JSON model is fully percent-encoded")
+  void bhvMisc233ACookieParameterCarryingAJsonModelIsFullyPercentEncoded() {
+    String rendered = (String) ValueSerializer.serialize("{\"a\":1.5}", "cookie", "string", null);
+    assertTrue(rendered.contains("%7B"), rendered);
+    assertTrue(rendered.contains("%3A"), rendered);
+    assertFalse(rendered.contains(":"), rendered);
+  }
+
+  @Test
+  @DisplayName("bhvMisc238 a number query parameter is sent as a plain number")
+  void bhvMisc238ANumberQueryParameterIsSentAsAPlainNumber() {
+    assertEquals("2.5", ValueSerializer.serialize(2.5, "query", "number", null));
+  }
 }
