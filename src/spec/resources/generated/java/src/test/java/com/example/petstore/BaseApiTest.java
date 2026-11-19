@@ -2551,7 +2551,7 @@ public class BaseApiTest {
             }
           };
       var testApi = new TestableApi(client, "http://localhost");
-      String resp =
+      byte[] decoded =
           testApi.call(
               "GET",
               "/api/binary",
@@ -2560,11 +2560,38 @@ public class BaseApiTest {
               null,
               new String[] {"application/octet-stream"},
               "application/json",
+              byte[].class,
+              null);
+      assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly");
+    }
+
+    @Test
+    @DisplayName("bhvMisc081 a string result under a binary content type is the decoded body")
+    void bhvMisc081AStringResultUnderABinaryContentTypeIsTheDecodedBody() throws ApiException {
+      String encoded =
+          java.util.Base64.getEncoder()
+              .encodeToString("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(200, encoded, Map.of("Content-Type", "application/pdf"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      String resp =
+          testApi.call(
+              "GET",
+              "/api/binary",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/pdf"},
+              "application/json",
               STRING_TYPE,
               null);
-      assertNotNull(resp);
-      byte[] decoded = java.util.Base64.getDecoder().decode(resp);
-      assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly");
+      assertEquals("hello", resp);
     }
 
     @Test
@@ -4048,12 +4075,13 @@ public class BaseApiTest {
   }
 
   @Test
-  @DisplayName("bhvMisc241 a time-of-day query value is sent as HH:mm:ss with milliseconds dropped")
-  void bhvMisc241ATimeOfDayQueryValueIsSentAsHhMmSs() throws ApiException {
+  @DisplayName(
+      "bhvMisc241 a time-of-day query value keeps non-zero milliseconds and drops finer precision")
+  void bhvMisc241ATimeOfDayQueryValueKeepsMilliseconds() throws ApiException {
     var client = new CapturingApiClient();
     var testApi = new TestableApi(client, "http://localhost");
     Map<String, Object> query = new HashMap<>();
-    query.put("t", java.time.LocalTime.of(10, 20, 30, 999_000_000));
+    query.put("t", java.time.LocalTime.of(10, 20, 30, 999_999_000));
     testApi.call(
         "GET",
         "/test/echo",
@@ -4064,7 +4092,7 @@ public class BaseApiTest {
         "application/json",
         null,
         null);
-    assertEquals("http://localhost/test/echo?t=10%3A20%3A30", client.capturedUrl);
+    assertEquals("http://localhost/test/echo?t=10%3A20%3A30.999", client.capturedUrl);
   }
 
   static Stream<Integer> misc264ListedErrorStatuses() {

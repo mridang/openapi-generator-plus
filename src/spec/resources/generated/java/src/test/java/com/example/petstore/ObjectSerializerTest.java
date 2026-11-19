@@ -1198,6 +1198,36 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("bhvMisc242 readOnly and writeOnly properties have no wire effect")
+    void bhvMisc242ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffect() {
+      com.example.petstore.models.Account account =
+          com.example.petstore.models.Account.builder().id(7L).username("u").password("p").build();
+      String json = serializer.serialize(account);
+      assertTrue(json.contains("\"id\":7"), json);
+      assertTrue(json.contains("\"password\":\"p\""), json);
+    }
+
+    @Test
+    @DisplayName("bhvMisc116 an int32 field accepts its bounds and refuses overflow and fractions")
+    void bhvMisc116AnInt32FieldAcceptsItsBoundsAndRefusesOverflowAndFractions() {
+      com.example.petstore.models.Order high =
+          serializer.deserialize(
+              "{\"quantity\":2147483647}", com.example.petstore.models.Order.class);
+      com.example.petstore.models.Order low =
+          serializer.deserialize(
+              "{\"quantity\":-2147483648}", com.example.petstore.models.Order.class);
+      assertEquals(Integer.MAX_VALUE, high.quantity);
+      assertEquals(Integer.MIN_VALUE, low.quantity);
+      for (String bad : new String[] {"2147483648", "-2147483649", "1.5"}) {
+        assertThrows(
+            SerializationException.class,
+            () ->
+                serializer.deserialize(
+                    "{\"quantity\":" + bad + "}", com.example.petstore.models.Order.class));
+      }
+    }
+
+    @Test
     @DisplayName("quoted-string for an integer field throws (no scalar coercion)")
     void bhvSerialization029QuotedScalarForIntFieldThrows() {
       // Parity regression: a wrong-typed primitive ("42" for a numeric
@@ -4732,8 +4762,8 @@ class ObjectSerializerTest {
   }
 
   @Test
-  @DisplayName("bhvMisc256 a fractional second keeps only the digits present")
-  void bhvMisc256AFractionalSecondKeepsOnlyTheDigitsPresent() {
+  @DisplayName("bhvMisc256 a fractional second is never trimmed below three digits")
+  void bhvMisc256AFractionalSecondIsNeverTrimmedBelowThreeDigits() {
     assertEquals(
         "1.500s", ObjectSerializer.formatDuration(java.time.Duration.ofSeconds(1, 500_000_000)));
   }
