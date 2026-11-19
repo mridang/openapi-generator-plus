@@ -79,8 +79,67 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Testing your code: `<Group>ApiInterface` in each group file and `ClientInterface` in `client.ts`, both exported from the entry point. The classes have protected members, so TypeScript treats them nominally and an object literal cannot stand in for them; the interface is what a fake satisfies.
 - A call hook runs around every operation call. `CallHook` has one method, `start(info, headers)`, that may edit the request headers and returns a `CallObserver` (one method, `finish(outcome)`) or nothing; `CallInfo` carries `operationId`, `method`, `urlTemplate`, `url` and `serverAddress`, and `CallOutcome` carries `statusCode`, `headers` and `error`. `chain(...hooks)` combines hooks. Set it with `Configuration.builder().callHook(hook)` or the `callHook` client option. It lives in `BaseApi`, above the transport, so it also runs with a supplied `fetch`. The OpenTelemetry adapter is the `./opentelemetry` subpath of the package: `createOpenTelemetryCallHook({ tracerProvider, meterProvider, propagator })`. It is the only file that imports `@opentelemetry/api` statically, and the package root never loads it. Its scope is the package name and version.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```typescript
+const timing: CallHook = {
+  start(info, headers) {
+    headers["X-Caller"] = "billing";
+    const started = performance.now();
+    return {
+      finish(outcome) {
+        console.log(info.operationId, outcome.statusCode, performance.now() - started);
+      },
+    };
+  },
+};
+
+const client = new Client(authenticator, undefined, { callHook: timing });
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```typescript
+const eu = new Client(new BearerAuthenticator("https://eu.api.example.com", "eu-token"));
+const us = new Client(new BearerAuthenticator("https://us.api.example.com", "us-token"));
+```
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `src/models/animal.ts`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```typescript
+const result = await client.pet.addPetWithHttpInfo(pet);
+const status = result.statusCode;
+const etag = result.headers["etag"];
+const raw = result.rawBody;
+
+try {
+  await client.pet.addPet(pet);
+} catch (e) {
+  if (e instanceof ApiError) {
+    console.log(e.statusCode, e.responseHeaders, e.responseBody);
+  }
+}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - `Decimal` decode is lossy until a reviver that reads the source text lands. int64 values beyond 2^53 are not preserved.
 - The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification.
 - Downloads are fully buffered into a `Buffer`; there is no streaming.

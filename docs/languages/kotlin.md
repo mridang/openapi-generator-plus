@@ -28,7 +28,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `String` | no dedicated type |
 | `integer`, `format: int32` | `Int` | |
 | `integer`, `format: int64` | `Long` | |
-| `integer`, no format | `Int` | 32 bits; see Under review |
+| `integer`, no format | `Int` | 32 bits; see Known limits |
 | `number`, `format: float` | `Float` | |
 | `number`, `format: double` | `Double` | binary floating point, so not for money |
 | `number`, no format, or `format: decimal` | `java.math.BigDecimal` | exact; serialized through a precision-preserving serializer |
@@ -95,8 +95,57 @@ The generated project also configures ktlint, detekt, Kover and Dokka, and tests
 - **Custom transport.** `TransportOptions.builder().httpClient(myKtorClient)` sends requests through your own Ktor `HttpClient`; combining it with `proxy`, `caCertPath` or `verifySsl(false)` fails at `build()`.
 - Testing your code: `<Group>ApiInterface` (`...Interface.kt` per group) and `ClientInterface : AutoCloseable` with `val` per group; `Client` keeps the concrete type through a covariant `override val`. The default values of the parameters live on the interface, so the class overrides drop `= null`, and the forms without the server live on the interface as methods with bodies, not on the class. The tests rely on Kotlin 2.2 compiling interface bodies as JVM default methods so a `Proxy` can run them.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```kotlin
+val hook = CallHook { info, headers ->
+    headers["X-Request-Source"] = "reports"
+    CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
+}
+val client = Client.withToken("https://api.example.com", "token", callHook = hook)
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```kotlin
+val eu = Client.withToken("https://eu.api.example.com", "eu-token")
+val us = Client.withToken("https://us.api.example.com", "us-token")
+```
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `models/Animal.kt`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```kotlin
+val result = client.pet.addPetWithHttpInfo(pet)
+val status = result.statusCode
+val etag = result.headers["etag"]
+val raw = result.rawBody
+
+try {
+    client.pet.addPet(pet)
+} catch (e: ApiException) {
+    println("${e.statusCode} ${e.responseHeaders} ${e.responseBody}")
+}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - Request and response bodies are held in memory; there is no streaming. To stream, inject your own Ktor `HttpClient`.
 - Date, time and decimal types are `java.time` and `java.math` types, so the generated code compiles only for the JVM target even though the project uses the Multiplatform plugin.
 - When no proxy is configured, the Ktor CIO engine asks the JVM's default `ProxySelector`, so `http.proxyHost` and the system proxy settings apply. Set your own `ProxySelector` to override this.
@@ -116,7 +165,6 @@ These are proposals from a review of the type mapping against current Kotlin. No
 - Decide between staying JVM-only and becoming multiplatform. Today `kotlinx-datetime` is declared but unused while the code uses `java.time`. Staying JVM-only would mean dropping the dependency; going multiplatform would mean `kotlinx.datetime` types, `kotlin.time.Instant` and `kotlin.time.Duration`.
 - Map `format: duration` to `kotlin.time.Duration`, keeping the protobuf-JSON string form.
 - Map free-form objects to `kotlinx.serialization.json.JsonElement` instead of `@Contextual Any?`.
-- Map `type: integer` with no format to `Long` instead of `Int`, as one decision shared with Java and C#.
 - Emit a sealed interface with data class variants for unions that have no discriminator, instead of the `actualInstance` wrapper.
 - Offer a streaming type (Ktor `ByteReadChannel` or a kotlinx-io `Source`) for binary bodies as an additional overload.
 - Raise the Kotlin floor from 2.2.0 to 2.4.0, which the review says would make `kotlin.uuid.Uuid` stable and remove the opt-in. This is not required, and it is the owner's decision.

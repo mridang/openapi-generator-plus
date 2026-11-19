@@ -80,8 +80,62 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - A property that is a `$ref` with a `default` written beside it (an OpenAPI 3.1 sibling keyword) starts at that default: a referenced enum becomes the matching constant, so `StockItem.new(priority: 1).availability` is `Availability::ON_HOLD`, and a decoded body that leaves the property out gets it too.
 - Testing your code: `interface _<Group>ApiInterface` in each group's `.rbs` and `interface _<Client>Interface` in `sig/infrastructure.rbs`; no runtime module (duck typing needs none, and Steep's `:test` target has core diagnostics off). The tests read the signature files and compare the interface members with `public_instance_methods(false)`.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `call_hook:` is the name to look for in this SDK.
+
+```ruby
+class TenantHook
+  def start(_info, headers)
+    headers['X-Tenant'] = 'a'
+    nil
+  end
+end
+
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TenantHook.new)
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```ruby
+eu = Petstore::Client::Petstore.with_token('https://eu.api.example.com', 'eu-token')
+us = Petstore::Client::Petstore.with_token('https://us.api.example.com', 'us-token')
+```
+
+Call `close` on each when you are done.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `models/animal.rb`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `..._with_http_info` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```ruby
+result = client.pet.add_pet_with_http_info(pet)
+status = result.status_code
+etag = result.headers['etag']
+raw = result.raw_body
+
+begin
+  client.pet.add_pet(pet)
+rescue Petstore::Client::Errors::ApiError => e
+  puts [e.status_code, e.response_headers, e.response_body].inspect
+end
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a Ruby `Integer`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - A model never validates when it is constructed: a value of the wrong type, or an inline enum string the spec does not list, is held as given (a required property still has to be present and not `nil`). Decoding is where the check happens: a wrong type or an unknown enum value fails the decode loudly with `SerializationError`. See the type mapping above.
 - A `BigDecimal` keeps no trailing zero, so a decimal read as `12.50` is written back as `12.5`.
 - An overflowing double literal such as `1e400` decodes to Infinity.
