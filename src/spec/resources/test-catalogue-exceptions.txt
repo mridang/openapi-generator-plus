@@ -714,6 +714,8 @@ python | misc186 | python transport options take no ready-made HTTP connection v
 kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or String values read in full before the call (transport061 pins the buffering), so no source can become unreadable during the send and a missing value fails when the caller builds the body
 kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
+kotlin | misc185 | Kotlin's OAuth2 token manager exposes no stop operation, so a second stop and a token request after stop cannot be made; the token manager has no lifecycle to end
+kotlin | misc187 | Kotlin's withToken takes the host as a required argument, so a missing host is refused at compile time and there is no environment fallback for it; the token fallback is pinned by bhv lifecycle 014
 kotlin | misc135 | Kotlin cancels a call through its coroutine, so there is no client-level cancellation handle to store on the configuration (transport069 pins coroutine cancellation)
 kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named arguments, so an undeclared attribute is a compile error and never reaches a runtime refusal (misc051 pins the typed arguments)
 ruby | misc256 | ruby writes a protobuf duration fraction at a fixed three-digit width, so 1.1s is written as 1.100s (see bhv_serializationobject_179) and trailing zeros are not trimmed
@@ -726,6 +728,11 @@ java | misc176 | The Java petstore fixture declares no operation with a required
 java | misc178 | The Java SDK takes no declared multipart subtype and always sends a multipart body as multipart/form-data, so a declared non-form-data type cannot reach the transport
 php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
+elixir | transport083 | Elixir has no client-level cancellation: a call is cancelled only by its own process exiting (S7), so no client setting can abort a request already in flight
+elixir | transport084 | Elixir has no cancellation handle on a call, so cancelling through a handle cannot exist here; dropping an in-flight call is asserted by bhv transport 060
+elixir | transport085 | Elixir has no cancellation token or signal argument (S7), so there is no unfired token to supply; the timeout error itself is asserted by bhv transport 086
+elixir | serialization129 | Elixir Duration holds microseconds only, so a nanosecond fraction cannot be held: the formatter writes at most six digits and the parser truncates digits past microseconds (bhv serializationobject 054)
+elixir | transport091 | Elixir has no caller-supplied stream: a file or upload part is an in-memory binary the SDK never opens, so there is no handle for it to leave open (the same reason as transport061)
 dart | misc214 | Dart query values are stringified by toString for any object that is not a known type, so no query value can fail to serialize and no serialization error is raised before a request
 kotlin | misc173 | Kotlin request bodies are never one-shot streams (retries032 pins them as String, ByteArray or a multipart map), so a streamed body cannot be built and the rule that refuses to replay it has no case to test
 kotlin | misc139 | Kotlin model data classes keep the List or Map the caller passed, the settled decision of kotlin | servers024: a frozen copy would turn each data class into a regular class with hand-written equals, hashCode, copy and componentN, a public API change (misc051 pins the typed arguments)
