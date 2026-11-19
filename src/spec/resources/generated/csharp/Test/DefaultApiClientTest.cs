@@ -1661,11 +1661,12 @@ public class DefaultApiClientTest
             System.IO.Path.GetTempPath(),
             $"unrelated-ca-{Guid.NewGuid():N}.pem"
         );
-        System.IO.File.WriteAllText(
+        await System.IO.File.WriteAllTextAsync(
             caPath,
             "-----BEGIN CERTIFICATE-----\n"
                 + Convert.ToBase64String(otherCa.RawData, Base64FormattingOptions.InsertLineBreaks)
-                + "\n-----END CERTIFICATE-----\n"
+                + "\n-----END CERTIFICATE-----\n",
+            TestContext.Current.CancellationToken
         );
 
         try

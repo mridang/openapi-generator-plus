@@ -9,7 +9,8 @@
         {
             using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.ParseValue(ref reader);
             string raw = doc.RootElement.GetRawText();
-            if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out System.Text.Json.JsonElement disc))
+            if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out System.Text.Json.JsonElement disc)
+                && disc.ValueKind != System.Text.Json.JsonValueKind.Null)
             {
                 if (disc.ValueKind != System.Text.Json.JsonValueKind.String && disc.ValueKind != System.Text.Json.JsonValueKind.Null)
                 {

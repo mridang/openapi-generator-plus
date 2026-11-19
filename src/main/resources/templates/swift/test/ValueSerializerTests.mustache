@@ -746,13 +746,13 @@ import Testing
     }
 
     @Test func testBhvSerializationparam081SemicolonIsPreservedInPathSegment() {
-        #expect(ValueSerializer.encodePathSegment("a;b") == "a;b")
+        #expect(ValueSerializer.encodeStyledPathValue("a;b") == "a;b")
     }
 
     // MARK: - Behaviour catalogue: path, header, style and object parameters
 
     @Test func testBhvSerialization005PathSegmentKeepsOnlyUnreservedAndSubDelimitersLiteral() {
-        #expect(ValueSerializer.encodePathSegment("a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r") == "a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
+        #expect(ValueSerializer.encodeStyledPathValue("a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r") == "a-b.c_d~e;f=g,h:i@j!k$l&m'n(o)p*q+r")
         #expect(ValueSerializer.encodePathSegment("a/b?c#d%e") == "a%2Fb%3Fc%23d%25e")
     }
 

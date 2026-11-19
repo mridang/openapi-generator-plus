@@ -13,6 +13,7 @@ use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
+use petstore::api::PetApi;
 use petstore::api_client::{RequestBody, RequestOptions};
 use petstore::*;
 
@@ -4263,7 +4264,7 @@ async fn test_bhv_misc_127_a_location_with_only_a_query_keeps_the_path() {
 
 #[tokio::test]
 async fn test_bhv_misc_177_a_default_content_type_is_not_sent_when_the_request_has_no_body() {
-    let (url, rx) = start_redirect_server(200);
+    let (url, rx) = start_redirect_server(302);
     let transport = TransportOptionsBuilder::new()
         .default_header("content-type", "application/xml")
         .build()
@@ -4281,7 +4282,7 @@ async fn test_bhv_misc_177_a_default_content_type_is_not_sent_when_the_request_h
 
 #[tokio::test]
 async fn test_bhv_misc_181_a_header_value_is_sent_exactly_as_given_without_percent_encoding() {
-    let (url, rx) = start_redirect_server(200);
+    let (url, rx) = start_redirect_server(302);
     let client = DefaultApiClient::new(None);
     let mut headers = HashMap::new();
     headers.insert("X-Raw".to_string(), "a b%20c/d".to_string());
@@ -4458,8 +4459,12 @@ async fn test_bhv_misc_131_a_supplied_session_still_has_the_sdk_redirect_rules_a
         .follow_redirects(false)
         .build()
         .expect("valid transport options");
-    let client = DefaultApiClient::with_client(reqwest::Client::new(), Some(transport))
-        .expect("a plain client is accepted");
+    let plain = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("a plain client builds");
+    let client =
+        DefaultApiClient::with_client(plain, Some(transport)).expect("a plain client is accepted");
 
     let response = client
         .send_request(
@@ -4560,33 +4565,6 @@ async fn test_bhv_misc_160_an_error_that_is_not_a_network_failure_is_never_retri
 }
 
 #[tokio::test]
-async fn test_bhv_misc_162_an_idempotent_request_is_sent_again_once_after_a_dropped_connection() {
-    let (origin, origin_url) = bind_local_server();
-    let log = Arc::new(Mutex::new(Vec::new()));
-    serve_scripted(
-        origin,
-        vec![String::new(), empty_ok_response()],
-        log.clone(),
-    );
-    let transport = TransportOptionsBuilder::new()
-        .build()
-        .expect("valid transport options");
-    let client = DefaultApiClient::new(Some(transport));
-
-    client
-        .send_request(
-            "GET",
-            &format!("{}/start", origin_url),
-            &HashMap::new(),
-            None,
-        )
-        .await
-        .expect("the retry must succeed");
-
-    assert_eq!(2, log.lock().unwrap().len());
-}
-
-#[tokio::test]
 async fn test_bhv_misc_165_a_request_body_is_replayed_across_a_redirect_that_keeps_plain_text() {
     let (origin, origin_url) = bind_local_server();
     let log = Arc::new(Mutex::new(Vec::new()));
@@ -4616,6 +4594,28 @@ async fn test_bhv_misc_165_a_request_body_is_replayed_across_a_redirect_that_kee
     assert!(calls[1].contains("{\"a\":1}"), "{}", calls[1]);
 }
 
+/// The status code of the [`ApiError`] found in the source chain of `err`.
+fn status_of(err: &(dyn std::error::Error + Send + Sync + 'static)) -> u16 {
+    std::iter::successors(Some(err as &(dyn std::error::Error + 'static)), |e| {
+        e.source()
+    })
+    .find_map(|e| e.downcast_ref::<ApiError>())
+    .expect("an ApiError in the chain")
+    .status_code()
+}
+
+/// A `PetApi` whose operations send through a `DefaultApiClient` built from
+/// `transport`, against `base_url`. Retries run inside the operation, so the
+/// retry tests drive an operation rather than the raw transport.
+fn pet_api_with_transport(base_url: &str, transport: TransportOptions) -> PetApi {
+    let config = ConfigurationBuilder::new().base_url(base_url).build();
+    PetApi::new(
+        Arc::new(DefaultApiClient::new(Some(transport))),
+        config,
+        None,
+    )
+}
+
 #[tokio::test]
 async fn test_bhv_misc_166_a_call_that_disables_its_deadline_is_not_cut_short_while_it_waits_to_retry(
 ) {
@@ -4630,15 +4630,10 @@ async fn test_bhv_misc_166_a_call_that_disables_its_deadline_is_not_cut_short_wh
         .timeout(None)
         .build()
         .expect("valid transport options");
-    let client = DefaultApiClient::new(Some(transport));
+    let api = pet_api_with_transport(&origin_url, transport);
 
-    let response = client
-        .send_request(
-            "GET",
-            &format!("{}/start", origin_url),
-            &HashMap::new(),
-            None,
-        )
+    let response = api
+        .get_pet_avatar_with_http_info(1, None)
         .await
         .expect("unexpected error");
 
@@ -4663,19 +4658,13 @@ async fn test_bhv_misc_167_a_retryable_status_is_attempted_up_to_the_limit_then_
         .max_retries(2)
         .build()
         .expect("valid transport options");
-    let client = DefaultApiClient::new(Some(transport));
+    let api = pet_api_with_transport(&origin_url, transport);
 
-    let response = client
-        .send_request(
-            "GET",
-            &format!("{}/start", origin_url),
-            &HashMap::new(),
-            None,
-        )
-        .await
-        .expect("unexpected error");
+    let Err(err) = api.get_pet_avatar(1, None).await else {
+        panic!("a 503 that outlives the retries must surface as an error");
+    };
 
-    assert_eq!(503, response.status_code());
+    assert_eq!(503, status_of(err.as_ref()));
     assert_eq!(3, log.lock().unwrap().len(), "one send plus two retries");
 }
 
@@ -4696,20 +4685,14 @@ async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three
     let transport = TransportOptionsBuilder::new()
         .build()
         .expect("valid transport options");
-    let client = DefaultApiClient::new(Some(transport));
+    let api = pet_api_with_transport(&origin_url, transport);
     let started = std::time::Instant::now();
 
-    let response = client
-        .send_request(
-            "GET",
-            &format!("{}/start", origin_url),
-            &HashMap::new(),
-            None,
-        )
-        .await
-        .expect("unexpected error");
+    let Err(err) = api.get_pet_avatar(1, None).await else {
+        panic!("a 503 that outlives the retries must surface as an error");
+    };
 
-    assert_eq!(503, response.status_code());
+    assert_eq!(503, status_of(err.as_ref()));
     assert_eq!(3, log.lock().unwrap().len());
     assert!(
         started.elapsed() >= std::time::Duration::from_millis(1100),

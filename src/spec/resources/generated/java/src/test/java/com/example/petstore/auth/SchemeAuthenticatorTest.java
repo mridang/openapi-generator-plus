@@ -317,12 +317,8 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
-    void bhvAuth042ExplicitEmptyTokenIsRejectedAndNotReplacedByTheEnvironment() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () ->
-              new PetStoreBearerAuthenticator(
-                  HOST, "", Map.of(TOKEN_VARIABLE, "from-environment")));
+    void bhvAuth042ExplicitEmptyTokenIsRejectedByTheBaseAuthenticator() {
+      assertThrows(IllegalArgumentException.class, () -> new BearerAuthenticator(HOST, ""));
     }
 
     @Test

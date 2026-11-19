@@ -1677,102 +1677,6 @@ final class PetApiTests {
         #expect(fake.calls.count == 1)
         #expect(fake.calls.first?.contains("options=set") != true)
     }
-}
-
-/// Test authenticator for integration tests.
-private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
-    override func host() -> String { return "" }
-    override func authHeaders() async -> [String: String] {
-        return ["Authorization": "Bearer test-token"]
-    }
-}
-
-/// Authenticator carrying a distinct credential for the per-scheme tests.
-private final class SchemeCredentialAuthenticator: BaseAuthenticator, @unchecked Sendable {
-    private let header: String
-    private let value: String
-
-    init(header: String = "Authorization", value: String = "Bearer scheme-token") {
-        self.header = header
-        self.value = value
-        super.init()
-    }
-
-    override func host() -> String { return "" }
-    override func authHeaders() async -> [String: String] {
-        return [header: value]
-    }
-}
-
-private final class MockApiClient: ApiClient, @unchecked Sendable {
-    var lastMethod: String = ""
-    var lastURL: String = ""
-    var lastHeaders: [String: String] = [:]
-    var lastBody: Data? = nil
-    var responseStatusCode: Int = 200
-    var responseBody: String = "{}"
-    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
-
-    /// Satisfies the ApiClient requirement that carries no request options.
-    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-        async throws -> ApiHttpResponse
-    {
-        try await sendRequest(
-            method: method, url: url, headers: headers, body: body, noRedirect: false)
-    }
-
-    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
-        async throws -> ApiHttpResponse
-    {
-        lastMethod = method
-        lastURL = url
-        lastHeaders = headers
-        lastBody = body as? Data
-        return ApiHttpResponse(
-            statusCode: responseStatusCode,
-            body: responseBody,
-            headers: responseHeaders
-        )
-    }
-}
-
-/// Points getExternalPetInfo's own server at the mock server, which serves
-/// every path in the spec.
-private struct MockExternalPetInfoServer: GetExternalPetInfoServer {
-    func getUrl() -> String { return chasmUrl }
-}
-
-/// The server a multi-server operation is pointed at in the chosen-server test.
-private struct MockChosenPetInfoServer: GetMultiServerPetInfoServer {
-    func getUrl() -> String { return "https://chosen.example.net" }
-}
-
-{{#apiInfo}}
-{{#apis}}
-{{#-first}}
-{{#operations}}
-{{>test/FakeGroup}}
-{{/operations}}
-{{/-first}}
-{{/apis}}
-{{/apiInfo}}
-
-/* Code under test: it takes the group protocol, never the generated class. */
-private func lookUp<A: PetApiProtocol>(_ group: A, petId: Int64) async throws -> Pet {
-    try await group.getPetById(petId: petId)
-}
-
-private func classify(_ call: () async throws -> Void) async -> String {
-    do {
-        try await call()
-        return "none"
-    } catch is NotFoundError {
-        return "not found"
-    } catch is ApiError {
-        return "api error"
-    } catch {
-        return "other"
-    }
 
 
     /* An operation whose parameters are all optional runs with no arguments and sends no omitted parameter. */
@@ -1888,7 +1792,7 @@ private func classify(_ call: () async throws -> Void) async -> String {
         let config = ConfigurationBuilder().baseURL("https://example.com").build()
         let api = PetApi(apiClient: mockClient, config: config)
         _ = try await api.getPetTag(petId: 5, tagName: "cute", options: GetPetTagOptions(colors: ["blue", "black"]))
-        #expect(mockClient.lastURL.contains("colors=blue&colors=black"))
+        #expect(mockClient.lastURL.contains("colors=blue%7Cblack"))
     }
 
     /* A binary response is returned as decoded bytes, while the raw body keeps the encoded text. */
@@ -2006,5 +1910,103 @@ private func classify(_ call: () async throws -> Void) async -> String {
             _ = try await mockApi.getPetById(petId: 1)
         }
         #expect(error?.statusCode == status)
+    }
+}
+
+
+
+/// Test authenticator for integration tests.
+private final class TestAuthenticator: BaseAuthenticator, @unchecked Sendable {
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+        return ["Authorization": "Bearer test-token"]
+    }
+}
+
+/// Authenticator carrying a distinct credential for the per-scheme tests.
+private final class SchemeCredentialAuthenticator: BaseAuthenticator, @unchecked Sendable {
+    private let header: String
+    private let value: String
+
+    init(header: String = "Authorization", value: String = "Bearer scheme-token") {
+        self.header = header
+        self.value = value
+        super.init()
+    }
+
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+        return [header: value]
+    }
+}
+
+private final class MockApiClient: ApiClient, @unchecked Sendable {
+    var lastMethod: String = ""
+    var lastURL: String = ""
+    var lastHeaders: [String: String] = [:]
+    var lastBody: Data? = nil
+    var responseStatusCode: Int = 200
+    var responseBody: String = "{}"
+    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+
+    /// Satisfies the ApiClient requirement that carries no request options.
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+        async throws -> ApiHttpResponse
+    {
+        try await sendRequest(
+            method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
+
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
+        async throws -> ApiHttpResponse
+    {
+        lastMethod = method
+        lastURL = url
+        lastHeaders = headers
+        lastBody = body as? Data
+        return ApiHttpResponse(
+            statusCode: responseStatusCode,
+            body: responseBody,
+            headers: responseHeaders
+        )
+    }
+}
+
+/// Points getExternalPetInfo's own server at the mock server, which serves
+/// every path in the spec.
+private struct MockExternalPetInfoServer: GetExternalPetInfoServer {
+    func getUrl() -> String { return chasmUrl }
+}
+
+/// The server a multi-server operation is pointed at in the chosen-server test.
+private struct MockChosenPetInfoServer: GetMultiServerPetInfoServer {
+    func getUrl() -> String { return "https://chosen.example.net" }
+}
+
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+{{>test/FakeGroup}}
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+
+/* Code under test: it takes the group protocol, never the generated class. */
+private func lookUp<A: PetApiProtocol>(_ group: A, petId: Int64) async throws -> Pet {
+    try await group.getPetById(petId: petId)
+}
+
+private func classify(_ call: () async throws -> Void) async -> String {
+    do {
+        try await call()
+        return "none"
+    } catch is NotFoundError {
+        return "not found"
+    } catch is ApiError {
+        return "api error"
+    } catch {
+        return "other"
     }
 }

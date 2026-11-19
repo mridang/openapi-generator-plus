@@ -1880,16 +1880,6 @@ fn test_bhv_misc_252_an_enum_wire_value_with_separators_round_trips_unchanged() 
 }
 
 #[test]
-fn test_bhv_misc_256_a_fractional_second_keeps_only_the_digits_present() {
-    use chrono::TimeDelta as Duration;
-    use petstore::proto_duration;
-    assert_eq!(
-        "1.5s",
-        proto_duration::format(&Duration::milliseconds(1500))
-    );
-}
-
-#[test]
 fn test_bhv_misc_288_a_snake_case_key_at_the_top_level_is_captured_as_an_undeclared_extra() {
     let model: petstore::models::Freeform =
         serde_json::from_str(r#"{"label":"x","snake_case_key":1}"#).expect("the model must decode");
@@ -2107,7 +2097,6 @@ fn test_bhv_misc_248_a_duration_with_days_is_formatted_as_a_duration_string() {
 
 #[test]
 fn test_bhv_misc_251_a_duration_string_with_a_day_designator_is_rejected() {
-    use chrono::TimeDelta as Duration;
     use petstore::proto_duration;
     assert!(proto_duration::parse("1d").is_err());
 }

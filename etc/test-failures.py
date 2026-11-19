@@ -48,8 +48,11 @@ def main():
                     print("\n".join(text.strip().splitlines()[:14]))
                     return
                 continue
-            first = (fail.get("message") or text.strip().splitlines()[0] if text.strip() else "").splitlines()
-            first = first[0] if first else ""
+            msg = fail.get("message") or ""
+            if not msg.strip() or "see stacktrace" in msg:
+                body = [l.strip() for l in (fail.text or "").splitlines() if l.strip()]
+                msg = next((l for l in body if "Expected" in l or "Exception" in l or "Error" in l), body[0] if body else msg)
+            first = (msg.splitlines() or [""])[0]
             groups.setdefault(norm(first), []).append((name, first))
     if detail is not None:
         sys.exit(f"no failing test matching {detail}")

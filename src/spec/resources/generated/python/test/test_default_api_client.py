@@ -5,6 +5,7 @@ import time
 
 import pytest
 import urllib3
+from urllib3._collections import HTTPHeaderDict
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -596,6 +597,8 @@ class TestRedirectSecurityGuards:
                 return None
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -631,6 +634,8 @@ class TestRedirectSecurityGuards:
                 return None
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -675,6 +680,8 @@ class TestRedirectSecurityGuards:
                 return None
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -718,6 +725,8 @@ class TestRedirectSecurityGuards:
         observed_proxy_headers_on_followup: dict[str, str] = {}
 
         class _FakePool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.proxy_headers: dict[str, str] = {
                     "Proxy-Authorization": "Basic dXNlcjpwYXNz"
@@ -770,6 +779,8 @@ class TestN1RedirectBodyReplayMatrix:
         outer = self
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -862,6 +873,8 @@ class TestN1RedirectBodyReplayMatrix:
         resp_cls = self._FakeResp
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls: list[Any] = []
 
@@ -986,6 +999,8 @@ class TestConcurrentRedirects:
             return None
 
     class _SharedChainPool:
+        headers = HTTPHeaderDict()
+
         """Thread-safe fake pool shared by every concurrent request.
 
         Two virtual endpoints:

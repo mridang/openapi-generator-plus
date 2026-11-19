@@ -441,9 +441,20 @@ abstract class AbstractApiClient
             );
           }
 
+          /* Transport default headers are for the configured origin only: a
+           * hop to another origin drops them, unless the call supplied a header
+           * of the same name. */
+          final callNames = headers.keys.map((k) => k.toLowerCase()).toSet();
+          final transportNames = noDefaultHeaders
+              ? const <String>{}
+              : _transportOptions.defaultHeaders.keys
+                    .map((k) => k.toLowerCase())
+                    .where((k) => !callNames.contains(k))
+                    .toSet();
           final redirectHeaders = <String, String>{};
           currentHeaders.forEach((k, v) {
             if (crossOrigin && _isCredentialHeader(k, sensitive)) return;
+            if (crossOrigin && transportNames.contains(k.toLowerCase())) return;
             if (nextBody == null &&
                 (k.toLowerCase() == 'content-type' ||
                     k.toLowerCase() == 'content-length')) {

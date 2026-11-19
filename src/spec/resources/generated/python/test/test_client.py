@@ -494,6 +494,8 @@ class _Reply:
 class _SlowPool:
     """A pool manager double whose request waits until the test lets it finish."""
 
+    headers = HTTPHeaderDict()
+
     def __init__(self) -> None:
         self.started = threading.Event()
         self.finish = threading.Event()
@@ -533,12 +535,12 @@ class TestClientClose:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-
-        assert pool.clears == 0
-        pool.finish.set()
+        try:
+            assert await asyncio.to_thread(pool.started.wait, 5)
+            client.close()
+            assert pool.clears == 0
+        finally:
+            pool.finish.set()
         assert (await request).status_code == 200
         assert pool.clears == 1
 
@@ -549,11 +551,15 @@ class TestClientClose:
         client = _owning(pool)
         first = asyncio.ensure_future(_send(client))
         second = asyncio.ensure_future(_send(client))
-        while pool.requests < 2:
-            await asyncio.sleep(0.01)
-
-        client.close()
-        pool.finish.set()
+        try:
+            for _ in range(500):
+                if pool.requests >= 2:
+                    break
+                await asyncio.sleep(0.01)
+            assert pool.requests == 2
+            client.close()
+        finally:
+            pool.finish.set()
         await asyncio.gather(first, second)
 
         assert pool.clears == 1
@@ -571,11 +577,12 @@ class TestClientClose:
         pool = _SlowPool()
         client = _owning(pool)
         request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-        client.close()
-        pool.finish.set()
+        try:
+            assert await asyncio.to_thread(pool.started.wait, 5)
+            client.close()
+            client.close()
+        finally:
+            pool.finish.set()
         await request
         client.close()
 
@@ -603,11 +610,12 @@ class TestClientClose:
         pool = _SlowPool()
         client = Client(BearerAuthenticator("/api/v3", "test-token"), pool_manager=pool)
         request = asyncio.ensure_future(_send(client))
-        await asyncio.to_thread(pool.started.wait, 5)
-
-        client.close()
-        client.close()
-        pool.finish.set()
+        try:
+            assert await asyncio.to_thread(pool.started.wait, 5)
+            client.close()
+            client.close()
+        finally:
+            pool.finish.set()
         await request
 
         assert pool.clears == 0

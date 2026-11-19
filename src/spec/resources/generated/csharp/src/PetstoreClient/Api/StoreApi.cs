@@ -1672,6 +1672,25 @@ public class StoreApi : BaseApi, IStoreApi
                         Reservation? variant = Serializer.Deserialize<Reservation>(body);
                         return variant is null ? null : new ReserveStockResponse(variant);
                     }
+                    if (status == 201)
+                    {
+                        ReservationReceipt? variant = Serializer.Deserialize<ReservationReceipt>(
+                            body
+                        );
+                        return variant is null ? null : new ReserveStockResponse(variant);
+                    }
+                    /* An undeclared 2xx status names no schema: it decodes as the
+                       first declared success type that accepts the body, in
+                       declaration order. The last type's failure is the one raised. */
+                    try
+                    {
+                        Reservation? tried = Serializer.Deserialize<Reservation>(body);
+                        if (tried is not null)
+                        {
+                            return new ReserveStockResponse(tried);
+                        }
+                    }
+                    catch (SerializationException) { }
                     ReservationReceipt? lastVariant = Serializer.Deserialize<ReservationReceipt>(
                         body
                     );

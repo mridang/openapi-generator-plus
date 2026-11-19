@@ -409,16 +409,6 @@ public final class DefaultApiClient implements ApiClient {
   }
 
   /**
-   * Sends a token-endpoint request: it never follows a redirect, sends no default headers, and is
-   * never retried, so the credentials in the body are sent once.
-   */
-  @Override
-  public ApiHttpResponse sendTokenRequest(
-      String method, String url, Map<String, String> headers, @Nullable Object body) {
-    return send(method, url, headers, body, true, true, null, 0);
-  }
-
-  /**
    * Extended {@code sendRequest} that lets the caller keep the transport's default headers off this
    * single request. OpenID Connect discovery goes to the identity provider, a different origin, so
    * it carries only the SDK's own headers and never the caller's default headers (which may hold
@@ -448,6 +438,16 @@ public final class DefaultApiClient implements ApiClient {
       @Nullable Integer timeoutMillis,
       @Nullable Integer maxRetries) {
     return send(method, url, headers, body, false, false, timeoutMillis, maxRetries);
+  }
+
+  /**
+   * Sends a token-endpoint request: it never follows a redirect, sends no default headers, and is
+   * never retried, so the credentials in the body are sent once.
+   */
+  @Override
+  public ApiHttpResponse sendTokenRequest(
+      String method, String url, Map<String, String> headers, @Nullable Object body) {
+    return send(method, url, headers, body, true, true, null, 0);
   }
 
   private ApiHttpResponse send(
@@ -996,12 +996,20 @@ public final class DefaultApiClient implements ApiClient {
 
   /**
    * Whether a failure is a TLS or certificate failure anywhere in its cause chain. Such a failure
-   * is never retried, because the same handshake would fail again.
+   * is never retried, because the same handshake would fail again. A plain {@link IOException}
+   * whose message names SSL or a handshake is treated the same way, since some JDK paths report a
+   * TLS drop without wrapping an {@code SSLException}.
    */
   static boolean isTlsFailure(Throwable failure) {
     for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
       if (cause instanceof javax.net.ssl.SSLException) {
         return true;
+      }
+      if (cause instanceof IOException && cause.getMessage() != null) {
+        String message = cause.getMessage().toLowerCase(java.util.Locale.ROOT);
+        if (message.contains("ssl") || message.contains("handshake")) {
+          return true;
+        }
       }
     }
     return false;

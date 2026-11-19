@@ -135,7 +135,9 @@ def proxy_network():
     import docker
 
     client = docker.from_env()
-    network = client.networks.create("proxy-test-network")
+    # A unique name: a run killed before teardown leaves its network behind, and
+    # a fixed name would make every later run fail with a 409 Conflict.
+    network = client.networks.create("proxy-test-network-" + os.urandom(4).hex())
     yield network
     network.remove()
 

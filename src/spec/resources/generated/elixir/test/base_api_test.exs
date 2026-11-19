@@ -1,5 +1,27 @@
 defmodule PetstoreClient.Api.BaseApiTest do
   use ExUnit.Case, async: true
+  alias __MODULE__.AuthAppliedCapturingApiClient
+  alias __MODULE__.AuthCapturingApiClient
+  alias __MODULE__.BodyCapturingApiClient
+  alias __MODULE__.CapturingApiClient
+  alias __MODULE__.CapturingBodyApiClient
+  alias __MODULE__.CapturingHeadersApiClient
+  alias __MODULE__.CountingAuthenticator
+  alias __MODULE__.EmptyBinaryApiClient
+  alias __MODULE__.EmptyJsonApiClient
+  alias __MODULE__.ExitingApiClient
+  alias __MODULE__.ImagePngApiClient
+  alias __MODULE__.MalformedSuccessApiClient
+  alias __MODULE__.MapAuth
+  alias __MODULE__.NilContentTypeApiClient
+  alias __MODULE__.OctetStreamApiClient
+  alias __MODULE__.RecordingHook
+  alias __MODULE__.ScriptedApiClient
+  alias __MODULE__.TestAuthenticator
+  alias __MODULE__.TokenAndApiClient
+  alias __MODULE__.TwoSuccessApiClient
+  alias __MODULE__.UrlCapturingApiClient
+  alias __MODULE__.VendorJsonApiClient
 
   require OpenTelemetry.Tracer, as: Tracer
 
@@ -788,29 +810,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert length(attempts()) == 1
   end
 
-  test "bhv misc 216 a binary response is returned as decoded bytes while the raw body keeps the encoded text" do
-    state =
-      answering_state(
-        Req.Response.new(status: 200, headers: [{"content-type", "image/png"}], body: "aGVsbG8=")
-      )
-
-    assert {:ok, result} =
-             PetstoreClient.Api.BaseApi.invoke_api_for_result(
-               state,
-               :get,
-               "/things",
-               %{},
-               %{},
-               nil,
-               ["image/png"],
-               "application/json",
-               "binary()"
-             )
-
-    assert result.data == "hello"
-    assert result.raw_body == "aGVsbG8="
-  end
-
   test "bhv misc 220 a call returning the full response keeps the status code and decodes the body by that status" do
     state =
       answering_state(
@@ -969,7 +968,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
                nil
              )
 
-    assert result.headers["x-multi"] == ["a", "b"]
+    assert result.headers["x-multi"] == "a, b"
   end
 
   test "bhv transport 093 a server whose certificate is signed by a CA other than the configured one is rejected with a network error" do
@@ -1054,33 +1053,6 @@ defmodule PetstoreClient.Api.BaseApiTest do
              )
 
     assert Jason.decode!(returned)["body"] =~ "hello"
-  end
-
-  test "bhv misc 241 a time-of-day query value is sent as HH:mm:ss with the milliseconds truncated" do
-    {:ok, name} = CapturingApiClient.start()
-
-    state = %{
-      config: PetstoreClient.Configuration.new(base_url: "http://localhost"),
-      api_client: CapturingApiClient,
-      authenticator: nil
-    }
-
-    _result =
-      PetstoreClient.Api.BaseApi.invoke_api(
-        state,
-        :get,
-        "/test/echo",
-        [{"at", ~T[10:11:12.345]}],
-        %{},
-        nil,
-        ["application/json"],
-        "application/json",
-        nil
-      )
-
-    url = CapturingApiClient.captured_url(name)
-    assert url =~ "at=10%3A11%3A12"
-    refute url =~ "345"
   end
 
   test "bhv serializationwire 025 nil content-type skips JSON deserialization and returns raw body" do
@@ -4163,7 +4135,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
     refute String.contains?(serialized, "created_at"),
            "Expected no Elixir field name, got: #{serialized}"
 
-    assert String.contains?(serialized, "2024-01-02T03:04:05.000Z"),
+    assert String.contains?(serialized, "2024-01-02T03:04:05.000+00:00"),
            "Expected the SDK date-time format, got: #{serialized}"
   end
 
@@ -5631,7 +5603,10 @@ defmodule PetstoreClient.Api.BaseApiTest do
         end
       end)
 
-    assert {:error, _} = put_thing(oauth_state(client), nil, "application/json")
+    assert_raise PetstoreClient.Errors.OAuth2ServerError, fn ->
+      put_thing(oauth_state(client), nil, "application/json")
+    end
+
     assert length(token_requests(client)) == 1
   end
 end

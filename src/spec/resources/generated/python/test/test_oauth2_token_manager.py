@@ -1224,6 +1224,8 @@ class TestTokenRequestDetails:
                 return None
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.sent: dict[str, str] = {}
 
@@ -1336,6 +1338,8 @@ class TestTokenRequestDetails:
                 return None
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls = 0
 

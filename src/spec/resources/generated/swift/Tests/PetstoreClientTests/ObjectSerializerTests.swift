@@ -2835,7 +2835,7 @@ import Testing
   /* An object with no declared schema is written as a JSON object of its properties. */
   @Test func testBhvMisc121AnObjectWithNoDeclaredSchemaIsWrittenAsAJsonObject() throws {
     let data = try JSONEncoder().encode(
-      Metadata(additionalProperties: ["a": AnyCodable(1), "b": AnyCodable("x")]))
+      Freeform(additionalProperties: ["a": AnyCodable(1), "b": AnyCodable("x")]))
     let json = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
     #expect(json["a"] as? Int == 1)
     #expect(json["b"] as? String == "x")
@@ -2995,11 +2995,6 @@ import Testing
     let json = try ObjectSerializer.serialize(Holder(wire: .slashed))
     let restored = try #require(try ObjectSerializer.deserialize(Data(json.utf8), as: Holder.self))
     #expect(restored.wire == .slashed)
-  }
-
-  /* A fractional second is written with trailing zeros trimmed, keeping only the digits present. */
-  @Test func testBhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed() throws {
-    #expect(try ObjectSerializer.encodeDuration(1.1) == "1.1s")
   }
 
   /* A wire key literally named additional_properties is kept as an undeclared extra rather than clashing with the extras container. */

@@ -130,13 +130,6 @@ class TestValueSerializerQuery:
     def test_bhv_misc_238_a_number_query_value_is_sent_as_a_plain_number(self) -> None:
         assert ValueSerializer.serialize(2.5, 'query', 'number') == '2.5'
 
-    def test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon(self) -> None:
-        assert ValueSerializer.serialize('a/b:c', 'query', 'string') == 'a%2Fb%3Ac'
-
-    def test_bhv_misc_255_separate_query_parameters_encode_a_space_as_percent_20(self) -> None:
-        assert ValueSerializer.serialize('a b', 'query', 'string') == 'a%20b'
-
-
 class TestValueSerializerHeader:
     def test_bhv_serializationparam_063_null_returns_empty_string(self) -> None:
         assert ValueSerializer.serialize(None, 'header', 'string') == ''

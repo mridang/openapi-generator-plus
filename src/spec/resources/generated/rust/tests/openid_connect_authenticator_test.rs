@@ -1143,7 +1143,7 @@ async fn test_bhv_authoidc_033_a_failed_discovery_request_names_its_method_and_p
         .downcast_ref::<InternalServerError>()
         .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
     assert_eq!(
-        "API returned status code 500 for GET https://auth.example.com/.well-known/openid-configuration",
+        "API returned status code 500 for GET /.well-known/openid-configuration",
         internal.server_error().api_error().message()
     );
 }
@@ -1349,7 +1349,7 @@ async fn test_bhv_misc_201_a_failed_oidc_discovery_request_reports_its_path_with
         .downcast_ref::<InternalServerError>()
         .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
     assert_eq!(
-        "API returned status code 500 for GET https://auth.example.com/.well-known/openid-configuration",
+        "API returned status code 500 for GET /.well-known/openid-configuration",
         internal.server_error().api_error().message()
     );
 }

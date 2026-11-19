@@ -205,10 +205,13 @@ pub fn serialize_styled(
      * does not panic on an empty path — it serializes gracefully and leaves
      * rejection to the call site (matching how go/swift validate up front). */
 
-    /* URL-encoding is applied at a higher level (the API call site) — pass the
-     * raw stringified value through here. */
+    /* A path value with no style behaves like `simple` and is percent-encoded
+     * here; other locations pass the raw stringified value through. */
     if style.is_empty() {
         return match value {
+            Some(val) if location == "path" => {
+                Some(SerializedValue::Single(encode_path_segment(val)))
+            }
             Some(val) => Some(SerializedValue::Single(val.to_string())),
             None => serialize_nil(location).map(SerializedValue::Single),
         };

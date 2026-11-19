@@ -885,6 +885,22 @@ class DefaultApiClient:
             # carrying that response's status -- never a NetworkException and
             # never a raw gzip.BadGzipFile / zlib.error / OSError.
             content_encoding = (response.headers.get("content-encoding") or "").lower()
+            # Refused before any decode, so an empty body with an unknown
+            # encoding is not passed through as if it were identity.
+            if content_encoding not in (
+                "",
+                "identity",
+                "gzip",
+                "x-gzip",
+                "deflate",
+                "br",
+                "zstd",
+            ):
+                raise ApiException(
+                    status_code=response.status,
+                    message=f"Unsupported Content-Encoding '{content_encoding}'",
+                    response_headers=_lower_headers(response.headers),
+                )
             try:
                 decompressed = self._decompress_body(raw_data, content_encoding)
             except ApiException:

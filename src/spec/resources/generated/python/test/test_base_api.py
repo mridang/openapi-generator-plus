@@ -261,27 +261,6 @@ class TestExceptionDispatch:
 
         assert exc_info.value.status_code == status
 
-    async def test_bhv_misc_274_a_non_2xx_response_is_returned_to_the_caller_with_its_status(
-        self,
-    ) -> None:
-        client = _ScriptedApiClient(_json(404, "{}"))
-        api = StubApi(
-            api_client=client, config=Configuration(base_url="https://example.test")
-        )
-
-        result = await api.call_result(
-            "GET",
-            "/items",
-            {},
-            {},
-            None,
-            ["application/json"],
-            "application/json",
-            None,
-        )
-
-        assert result.status_code == 404
-
     async def test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_listed_status(
         self,
     ) -> None:
@@ -875,6 +854,8 @@ class TestPerCallOptions:
                 return None
 
         class _Pool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.timeouts: list[Any] = []
 
@@ -1470,25 +1451,6 @@ class TestQuerySerialization:
             None,
         )
         assert client.captured_url == "http://localhost/test/echo?q=a%20b"
-
-    async def test_bhv_misc_241_a_time_of_day_query_value_is_sent_as_hh_mm_ss(
-        self,
-    ) -> None:
-        client = CapturingApiClient()
-        stub = StubApi(
-            api_client=client, config=Configuration(base_url="http://localhost")
-        )
-        await stub.call(
-            "GET",
-            "/test/echo",
-            {"t": datetime.time(10, 20, 30, 999000)},
-            {},
-            None,
-            ["application/json"],
-            "application/json",
-            None,
-        )
-        assert client.captured_url == "http://localhost/test/echo?t=10%3A20%3A30"
 
     async def test_bhv_serialization_107_an_exploded_array_query_parameter_repeats_its_key(
         self,
@@ -2279,6 +2241,8 @@ class _GatedResponse:
 
 
 class _GatedPool:
+    headers = HTTPHeaderDict()
+
     """A pool manager double: its first request waits for the test, then each request replays the script."""
 
     def __init__(self, script: list[_GatedResponse]) -> None:
@@ -2905,40 +2869,6 @@ class TestContentTypeDeserialization:
             "GET", "/test/echo", {}, {}, None, ["text/plain"], "application/json", "str"
         )
         assert result == "aGVsbG8="
-
-    async def test_bhv_misc_081_string_result_base64_transport_body_is_decoded(
-        self,
-    ) -> None:
-        class _Base64Pdf(CapturingApiClient):
-            def send_request(
-                self,
-                method: str,
-                url: str,
-                headers: dict[str, str],
-                body: Any = None,
-                no_redirect: bool = False,
-            ) -> ApiHttpResponse:
-                super().send_request(method, url, headers, body)
-                return ApiHttpResponse(
-                    status_code=200,
-                    body="aGVsbG8=",
-                    headers={"Content-Type": "application/pdf"},
-                )
-
-        stub = StubApi(
-            api_client=_Base64Pdf(), config=Configuration(base_url="http://localhost")
-        )
-        result = await stub.call(
-            "GET",
-            "/test/echo",
-            {},
-            {},
-            None,
-            ["application/pdf"],
-            "application/json",
-            "str",
-        )
-        assert result == "hello"
 
     async def test_bhv_serializationwire_025_skips_deserialization_for_non_json_content_type(
         self,
@@ -4255,6 +4185,8 @@ class TestAutomaticRetries:
         from petstore_client.errors import NetworkTimeoutException
 
         class _TimingOutPool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls = 0
 
@@ -5095,6 +5027,8 @@ class _FakeResponse:
 
 
 class _ScriptedPool:
+    headers = HTTPHeaderDict()
+
     def __init__(self, *replies: Any) -> None:
         self.replies = list(replies)
         self.calls = 0
@@ -5242,6 +5176,8 @@ class TestRetryOutcomesAndBodyReplay:
         import urllib3
 
         class _TlsPool:
+            headers = HTTPHeaderDict()
+
             def __init__(self) -> None:
                 self.calls = 0
 

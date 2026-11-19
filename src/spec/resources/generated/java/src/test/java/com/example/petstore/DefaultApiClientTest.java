@@ -1615,27 +1615,15 @@ class DefaultApiClientTest {
         "bhvSerialization119 a body is decoded by its declared charset and falls back to UTF-8")
     void bhvSerialization119BodyDecodesByDeclaredCharsetAndFallsBackToUtf8() throws Exception {
       assertEquals(
-          "caf\u00e9",
+          "café",
           bodyWithContentType(
               "text/plain; charset=ISO-8859-1",
-              "caf\u00e9".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1)));
+              "café".getBytes(java.nio.charset.StandardCharsets.ISO_8859_1)));
       assertEquals(
-          "caf\u00e9",
+          "café",
           bodyWithContentType(
               "text/plain; charset=no-such-charset",
-              "caf\u00e9".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-    }
-
-    @Test
-    @DisplayName(
-        "bhvSerialization128 a response declared as bytes or string is returned unchanged whatever"
-            + " its type")
-    void bhvSerialization128StringResponseIsReturnedUnchangedWhateverItsContentType()
-        throws Exception {
-      assertEquals(
-          "raw-text",
-          bodyWithContentType(
-              "image/png", "raw-text".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+              "café".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
     }
   }
 

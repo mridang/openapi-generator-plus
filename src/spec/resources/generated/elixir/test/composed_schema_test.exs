@@ -41,10 +41,11 @@ defmodule PetstoreClient.ComposedSchemaTest do
       assert PetstoreClient.Models.PetFood.from_dry_food(dry) == decoded
     end
 
-    test "bhv unions 046 when a payload matches several anyOf variants the first matching variant keeps its value" do
+    test "bhv unions 046 when a payload matches several anyOf variants each matching variant keeps its value" do
       candidates = [fn _ -> "first" end, fn _ -> "second" end, fn _ -> raise "no match" end]
 
-      assert {:ok, "first"} = PetstoreClient.ObjectSerializer.match_any_of(%{}, candidates)
+      assert {:ok, %PetstoreClient.AnyOfComposite{instances: ["first", "second"]}} =
+               PetstoreClient.ObjectSerializer.match_any_of(%{}, candidates)
     end
 
     test "bhv unions 047 a discriminator value that is empty raises an error instead of falling through to another variant" do
@@ -164,7 +165,7 @@ defmodule PetstoreClient.ComposedSchemaTest do
 
     test "bhv unions 044 each variant has a typed factory and a typed predicate that identify the variant it was built from" do
       dry = %PetstoreClient.Models.DryFood{weight_kg: 2.5, food_type: "dry"}
-      wet = %PetstoreClient.Models.WetFood{volume_ml: 400}
+      wet = %PetstoreClient.Models.WetFood{volume_ml: 400, food_type: "wet"}
 
       assert PetstoreClient.Models.PetFood.dry_food?(
                PetstoreClient.Models.PetFood.from_dry_food(dry)
