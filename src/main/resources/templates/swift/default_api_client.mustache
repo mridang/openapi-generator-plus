@@ -357,7 +357,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 response = received
                 delay = DefaultApiClient.retryDelay(
                     attempt: attempt, retryAfter: received.headers["retry-after"])
-            } catch let error where DefaultApiClient.isRetryableError(error) {
+            } catch let error where DefaultApiClient.isRetryableError(error, method: method) {
                 if attempt >= maxRetries { throw error }
                 failure = error
                 delay = DefaultApiClient.retryDelay(attempt: attempt, retryAfter: nil)
@@ -387,10 +387,32 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         return status == 408 || status == 409 || status == 429 || (status >= 500 && status <= 599 && status != 501)
     }
 
+    /// Methods that may be sent again after the connection drops before any
+    /// response (RFC 9110 section 9.2.2, and QUERY, which is idempotent).
+    static let idempotentMethods: Set<String> = ["GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY"]
+
+    /// Transport failures that come from the TLS handshake or the certificate
+    /// chain. They would fail the same way again, so they are never retried.
+    static let tlsFailureCodes: Set<URLError.Code> = [
+        .secureConnectionFailed, .serverCertificateHasBadDate, .serverCertificateUntrusted,
+        .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid,
+        .clientCertificateRejected, .clientCertificateRequired,
+    ]
+
     /// A network error that happened before any response. A timeout is the
-    /// end-to-end budget running out, so it is not retried.
-    static func isRetryableError(_ error: Error) -> Bool {
-        return error is NetworkError && !(error is NetworkTimeoutError)
+    /// end-to-end budget running out, so it is not retried. A TLS or certificate
+    /// failure is not retried. A request whose method is not idempotent is sent
+    /// once, because the server may already have acted on it.
+    static func isRetryableError(_ error: Error, method: String) -> Bool {
+        guard error is NetworkError, !(error is NetworkTimeoutError) else {
+            return false
+        }
+        if let urlError = (error as? ApiError)?.underlyingError as? URLError,
+            tlsFailureCodes.contains(urlError.code)
+        {
+            return false
+        }
+        return idempotentMethods.contains(method.uppercased())
     }
 
     /// Seconds to wait before retry number `attempt + 1`: the `Retry-After`
@@ -1512,6 +1534,13 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
             }
         }
 
+        /* Whether this hop sent a real body, read before the follow-up is
+         * rewritten below: a 301 or 302 POST-to-GET rewrite drops the body. */
+        let currentScheme = task.currentRequest?.url?.scheme?.lowercased()
+        let nextScheme = request.url?.scheme?.lowercased()
+        let originalBody = task.originalRequest?.httpBody
+        let bodySent = !(originalBody ?? Data()).isEmpty || redirectRequest.httpBodyStream != nil
+
         /* RFC 9110 15.4: set the follow-up method explicitly instead of
          * trusting the platform. A kept method gets its body back, because
          * the platform drops it on any rewrite it applies. */
@@ -1530,18 +1559,20 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
          * cleartext after the original was sent over TLS leaks
          * whatever the caller trusted to TLS to protect
          * (credentials, PII, signed tokens). Bodyless follow-ups
-         * (303 + 301/302 GET coercion) are unaffected because
-         * URLSession clears httpBody for those. */
+         * (303) are unaffected because URLSession clears httpBody for
+         * those. A 301 or 302 that would turn a sent POST into a GET is
+         * refused too, so the body is neither replayed nor silently dropped
+         * across the downgrade. */
         /* Anchor on the CURRENT request (the hop that just received the
          * redirect, whose body would be replayed), not the original request:
          * an http -> https -> http chain downgrades on the final hop even
          * though the first request was already http, which an originalRequest
          * anchor would miss. */
-        let currentScheme = task.currentRequest?.url?.scheme?.lowercased()
-        let nextScheme = request.url?.scheme?.lowercased()
-        if DefaultApiClient.refusesBodyReplay(
+        let downgrade = currentScheme == "https" && nextScheme == "http"
+        let legacyRewrite = response.statusCode == 301 || response.statusCode == 302
+        if (downgrade && legacyRewrite && bodySent) || DefaultApiClient.refusesBodyReplay(
             currentScheme: currentScheme, nextScheme: nextScheme,
-            request: redirectRequest, originalBody: task.originalRequest?.httpBody) {
+            request: redirectRequest, originalBody: originalBody) {
             /* Surface the downgrade refusal as a typed error rather than
                silently returning the 3xx response. */
             redirectErrors.set(ApiError(

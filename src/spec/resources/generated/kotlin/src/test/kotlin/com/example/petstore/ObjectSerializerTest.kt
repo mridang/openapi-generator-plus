@@ -4012,6 +4012,293 @@ class ObjectSerializerTest {
                 serializer.deserialize<java.time.Duration>("\"315576000001s\"")
             }
         }
+
+    @Test
+    fun bhvSerialization084FractionalSecondsOfADurationParseToTheExactNanos() =
+        runBlocking<Unit> {
+            assertEquals(java.time.Duration.ofMillis(1500), serializer.deserialize<java.time.Duration>("\"1.5s\""))
+            assertEquals(java.time.Duration.ofNanos(1), serializer.deserialize<java.time.Duration>("\"0.000000001s\""))
+        }
+
+    @Test
+    fun bhvSerialization085ADateTimeFieldDecodesFromItsIso8601String() =
+        runBlocking<Unit> {
+            val value = serializer.deserialize<java.time.OffsetDateTime>("\"2024-01-02T03:04:05Z\"")
+            assertEquals(java.time.OffsetDateTime.parse("2024-01-02T03:04:05Z"), value)
+        }
+
+    @Test
+    fun bhvSerialization086DurationIsWrittenAsAProtobufSecondsStringWithDaysFolded() =
+        runBlocking<Unit> {
+            assertEquals(
+                "259200.500s",
+                serializer.stringify(
+                    java.time.Duration
+                        .ofDays(3)
+                        .plusMillis(500),
+                ),
+            )
+            assertEquals("0s", serializer.stringify(java.time.Duration.ZERO))
+        }
+
+    @Test
+    fun bhvSerialization087VerySmallDurationIsFixedPointNeverScientific() =
+        runBlocking<Unit> {
+            assertEquals("0.000000001s", serializer.stringify(java.time.Duration.ofNanos(1)))
+        }
+
+    @Test
+    fun bhvSerialization089ABase64StringDecodesIntoAByteValue() =
+        runBlocking<Unit> {
+            assertTrue(serializer.deserialize<ByteArray>("\"AQID\"")!!.contentEquals(byteArrayOf(1, 2, 3)))
+        }
+
+    @Test
+    fun bhvSerialization090MalformedBase64IsRejected() =
+        runBlocking<Unit> {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<ByteArray>("\"AQI\"")
+            }
+        }
+
+    @Test
+    fun bhvSerialization091BytesWithTheHighBitSetRoundTrip() =
+        runBlocking<Unit> {
+            val bytes = byteArrayOf(-1, -128, 127)
+            val back = serializer.deserialize<ByteArray>(serializer.serialize(bytes))
+            assertTrue(back!!.contentEquals(bytes))
+        }
+
+    @Test
+    fun bhvSerialization092TimeOfDayRoundTripsThroughItsString() =
+        runBlocking<Unit> {
+            val time = java.time.LocalTime.of(9, 5)
+            assertEquals(time, serializer.deserialize<java.time.LocalTime>(serializer.serialize(time)))
+        }
+
+    @Test
+    fun bhvSerialization093DateTimeIsWrittenWithANumericOffsetNeverZ() =
+        runBlocking<Unit> {
+            val text = serializer.stringify(java.time.OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 600000000, java.time.ZoneOffset.UTC))
+            assertTrue(text.endsWith("+00:00"), text)
+            assertTrue(text.contains(".6"), text)
+        }
+
+    @Test
+    fun bhvSerialization094StringsAreWrittenVerbatimWithoutEscaping() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"html\":\"<a&b>/c\"}")
+            assertTrue(serializer.serialize(meta).contains("\"html\":\"<a&b>/c\""))
+        }
+
+    @Test
+    fun bhvSerialization095AnExplicitNullReplacesTheSchemaDefaultOnDecode() =
+        runBlocking<Unit> {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"status\":null}")
+            assertNull(order!!.status)
+        }
+
+    @Test
+    fun bhvSerialization096AnAbsentFieldDecodesToItsSchemaDefault() =
+        runBlocking<Unit> {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{}")
+            assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order!!.status)
+        }
+
+    @Test
+    fun bhvSerialization097AnEnumWithASchemaDefaultIsWrittenWithIt() =
+        runBlocking<Unit> {
+            assertTrue(
+                serializer
+                    .serialize(
+                        com.example.petstore.models
+                            .Order(),
+                    ).contains("\"status\":\"placed\""),
+            )
+        }
+
+    @Test
+    fun bhvSerialization099AStrictModelRejectsAnUndeclaredKey() =
+        runBlocking<Unit> {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.StrictTag>("{\"id\":1,\"name\":\"x\",\"unexpected\":true}")
+            }
+        }
+
+    @Test
+    fun bhvSerialization101AnIntegerBackedEnumIsWrittenAsANumber() =
+        runBlocking<Unit> {
+            val item =
+                com.example.petstore.models
+                    .StockItem(priority = com.example.petstore.models.Priority.NUMBER_1)
+            assertTrue(serializer.serialize(item).contains("\"priority\":1"))
+            assertEquals(
+                com.example.petstore.models.Priority.NUMBER_1,
+                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1}")!!.priority,
+            )
+        }
+
+    @Test
+    fun bhvSerialization102ADateTimeKeepsANonUtcOffsetOnTheWire() =
+        runBlocking<Unit> {
+            val value = serializer.deserialize<java.time.OffsetDateTime>("\"2024-01-02T03:04:05+02:00\"")
+            assertEquals(java.time.ZoneOffset.ofHours(2), value!!.offset)
+            assertTrue(serializer.stringify(value).endsWith("+02:00"))
+        }
+
+    @Test
+    fun bhvSerialization104AUuidIsWrittenLowercaseAndReadBackLowercase() =
+        runBlocking<Unit> {
+            val upper = serializer.deserialize<java.util.UUID>("\"ABCDEF01-2345-6789-ABCD-EF0123456789\"")
+            assertEquals("abcdef01-2345-6789-abcd-ef0123456789", upper.toString())
+            assertEquals("\"abcdef01-2345-6789-abcd-ef0123456789\"", serializer.stringify(upper))
+        }
+
+    @Test
+    fun bhvSerialization105AnEnumValueOutsideTheMembersRaisesAnError() =
+        runBlocking<Unit> {
+            assertThrows(SerializationException::class.java) {
+                serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"DELIVERED\"}")
+            }
+        }
+
+    @Test
+    fun bhvSerialization112APasswordPropertyIsMaskedInTextButNotOnTheWire() =
+        runBlocking<Unit> {
+            val user =
+                com.example.petstore.models
+                    .User(password = "hunter2")
+            assertFalse(user.toString().contains("hunter2"), user.toString())
+            assertTrue(serializer.serialize(user).contains("hunter2"))
+        }
+
+    @Test
+    fun bhvSerialization114NumericValuesKeepEveryDigit() =
+        runBlocking<Unit> {
+            assertEquals("1.2345678901234567890", serializer.serialize(java.math.BigDecimal("1.2345678901234567890")).trim('"'))
+            assertEquals("9223372036854775807", serializer.serialize(Long.MAX_VALUE))
+        }
+
+    @Test
+    fun bhvSerialization115AnIntegralNumberDecodedIntoAFloatBecomesAFloat() =
+        runBlocking<Unit> {
+            assertEquals(3.0, serializer.deserialize<Double>("3"))
+        }
+
+    @Test
+    fun bhvSerialization116AKeywordNamedKeyKeepsItsExactWireKey() =
+        runBlocking<Unit> {
+            val meta = serializer.deserialize<com.example.petstore.models.Metadata>("{\"class\":\"x\"}")
+            assertTrue(serializer.serialize(meta).contains("\"class\":\"x\""))
+        }
+
+    @Test
+    fun bhvSerialization117AProtobufDurationStringDecodesToADuration() =
+        runBlocking<Unit> {
+            assertEquals(java.time.Duration.ofMillis(2500), serializer.deserialize<java.time.Duration>("\"2.5s\""))
+        }
+
+    @Test
+    fun bhvSerialization129ANanosecondDurationIsWrittenWithANineDigitFraction() =
+        runBlocking<Unit> {
+            assertEquals("1.000000001s", serializer.stringify(java.time.Duration.ofNanos(1_000_000_001L)))
+        }
+
+    @Test
+    @DisplayName("bhvMisc230 a model with no extra properties writes exactly its declared keys with no nested data key")
+    fun bhvMisc230ModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys() {
+        val json = serializer.stringify(MetadataHolder(label = "x"))
+        assertFalse(json.contains("\"data\""), json)
+        assertFalse(json.contains("additionalProperties"), json)
+    }
+
+    @Test
+    @DisplayName("bhvMisc234 a model in a list keeps its undeclared extras through serialize and deserialize")
+    fun bhvMisc234ModelInAListKeepsItsExtrasThroughARoundTrip() {
+        val items = serializer.deserialize<List<com.example.petstore.models.Metadata>>("[{\"extra\":\"y\"}]")
+        val again = serializer.deserialize<List<com.example.petstore.models.Metadata>>(serializer.serialize(items))
+        assertEquals(mapOf<String, Any?>("extra" to "y"), again[0].additionalProperties)
+    }
+
+    @Test
+    @DisplayName("bhvMisc235 a duration with fractional seconds keeps its fraction when serialized")
+    fun bhvMisc235DurationWithFractionKeepsItsFraction() {
+        val json = serializer.serialize(mapOf("ttl" to java.time.Duration.ofMillis(1500)))
+        assertTrue(json.contains("\"ttl\":\"1.500s\""), json)
+    }
+
+    @Test
+    @DisplayName("bhvMisc242 a read-only property is not sent on the wire")
+    fun bhvMisc242ReadOnlyPropertyIsNotSentOnTheWire() {
+        val json =
+            serializer.serialize(
+                com.example.petstore.models
+                    .Account(id = 7, username = "u"),
+            )
+        assertFalse(json.contains("\"id\""), json)
+    }
+
+    @Test
+    @DisplayName("bhvMisc244 a body with a leading byte-order mark decodes into the model")
+    fun bhvMisc244BodyWithLeadingByteOrderMarkDecodes() {
+        val category = serializer.deserialize<com.example.petstore.models.Category>("﻿{\"id\":1,\"name\":\"Dogs\"}")
+        assertEquals("Dogs", category.name)
+    }
+
+    @Test
+    @DisplayName("bhvMisc245 a time of day in a plain object is serialized as a JSON string")
+    fun bhvMisc245TimeOfDayInAPlainObjectIsAJsonString() {
+        val json = serializer.serialize(mapOf("at" to java.time.LocalTime.of(10, 20, 30)))
+        assertEquals("{\"at\":\"10:20:30\"}", json)
+    }
+
+    @Test
+    @DisplayName("bhvMisc246 a negative whole-second protobuf duration string parses to a negative duration")
+    fun bhvMisc246NegativeWholeSecondDurationParses() {
+        assertEquals(java.time.Duration.ofSeconds(-3), serializer.deserialize<java.time.Duration>("\"-3s\""))
+    }
+
+    @Test
+    @DisplayName("bhvMisc247 a UUID string with the wrong segment lengths is rejected")
+    fun bhvMisc247UuidWithWrongSegmentLengthsIsRejected() {
+        assertThrowsExactly(SerializationException::class.java) {
+            serializer.deserialize<Uuid>("\"1234-5678-1234-5678-1234567890\"")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc248 a duration with days is formatted as a seconds string")
+    fun bhvMisc248DurationWithDaysIsASecondsString() {
+        assertEquals("86400s", serializer.stringify(java.time.Duration.ofDays(1)))
+    }
+
+    @Test
+    @DisplayName("bhvMisc249 a free-form object keeps its object and integer entries on a round trip")
+    fun bhvMisc249FreeFormObjectKeepsItsEntriesOnARoundTrip() {
+        val json = "{\"label\":\"x\",\"nested\":{\"a\":1},\"count\":2}"
+        assertEquals(json, serializer.serialize(serializer.deserialize<Map<String, Any?>>(json)))
+    }
+
+    @Test
+    @DisplayName("bhvMisc251 a duration string with a day designator is rejected")
+    fun bhvMisc251DurationWithDayDesignatorIsRejected() {
+        assertThrowsExactly(SerializationException::class.java) {
+            serializer.deserialize<java.time.Duration>("\"1d\"")
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc252 an enum wire value containing separators round-trips unchanged")
+    fun bhvMisc252EnumWireValueWithSeparatorsRoundTrips() {
+        val value = serializer.deserialize<WireSeparatorEnum>("\"@@\"")
+        assertEquals("\"@@\"", serializer.serialize(value))
+    }
+
+    @Test
+    @DisplayName("bhvMisc256 a fractional second keeps only the digits present, trailing zeros trimmed")
+    fun bhvMisc256FractionalSecondTrimsTrailingZeros() {
+        assertEquals("1.000001s", serializer.stringify(java.time.Duration.ofNanos(1_000_001_000L)))
+    }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.
@@ -4020,3 +4307,10 @@ private data class DigitLeadingName(
     @SerialName("2fa")
     val twoFa: String? = null,
 )
+
+// File-scoped fixture: an enum whose wire value contains separator characters.
+@Serializable
+private enum class WireSeparatorEnum {
+    @SerialName("@@")
+    AT_AT,
+}

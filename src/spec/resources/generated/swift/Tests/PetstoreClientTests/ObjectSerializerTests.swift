@@ -2954,6 +2954,12 @@ import Testing
     #expect(Set(fields.keys) == ["username", "password"])
   }
 
+  /* A date-time inside a JSON query parameter keeps its wire date-time form. */
+  @Test func testBhvMisc211ADateTimeInsideAJsonQueryParameterKeepsItsWireForm() throws {
+    let json = try ObjectSerializer.serialize(["at": Date(timeIntervalSince1970: 0)])
+    #expect(json == "{\"at\":\"1970-01-01T00:00:00.000+00:00\"}")
+  }
+
   /* A free-form object-valued field keeps its object and integer entries through a JSON round trip. */
   @Test func testBhvMisc249AFreeFormObjectKeepsItsObjectAndIntegerEntriesThroughARoundTrip() throws
   {
@@ -2987,5 +2993,244 @@ import Testing
   /* A fractional second is written with trailing zeros trimmed, keeping only the digits present. */
   @Test func testBhvMisc256AFractionalSecondIsWrittenWithTrailingZerosTrimmed() throws {
     #expect(try ObjectSerializer.encodeDuration(1.1) == "1.1s")
+  }
+
+  /* A wire key literally named additional_properties is kept as an undeclared extra rather than clashing with the extras container. */
+  @Test func testBhvMisc287AWireKeyNamedAdditionalPropertiesIsKeptAsAnExtra() throws {
+    let json = Data(#"{"label":"x","additional_properties":"kept"}"#.utf8)
+    let model = try JSONDecoder().decode(Freeform.self, from: json)
+
+    #expect(model.label == "x")
+    #expect(model.additionalProperties["additional_properties"] == AnyCodable("kept"))
+  }
+
+  /* A snake_case name used as an input key, at the top level of an object, is captured as an undeclared extra. */
+  @Test func testBhvMisc288ASnakeCaseKeyAtTheTopLevelIsCapturedAsAnUndeclaredExtra() throws {
+    let model = try JSONDecoder().decode(Freeform.self, from: Data(#"{"user_name":"ada"}"#.utf8))
+
+    #expect(model.additionalProperties["user_name"] == AnyCodable("ada"))
+  }
+
+  /* A snake_case name used as an input key inside a list element is captured as an undeclared extra. */
+  @Test func testBhvMisc289ASnakeCaseKeyInsideAListElementIsCapturedAsAnUndeclaredExtra() throws {
+    let items = try JSONDecoder().decode(
+      [Freeform].self, from: Data(#"[{"user_name":"ada"}]"#.utf8))
+
+    #expect(items.count == 1)
+    #expect(items[0].additionalProperties["user_name"] == AnyCodable("ada"))
+  }
+
+  /* An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip. */
+  @Test func testBhvMisc290AnUndeclaredKeyWithADictionaryValueSurvivesAFullRoundTrip() throws {
+    let original = Freeform(additionalProperties: ["meta": AnyCodable(["k": "v"])])
+    let data = try JSONEncoder().encode(original)
+    let decoded = try JSONDecoder().decode(Freeform.self, from: data)
+
+    #expect(decoded.additionalProperties["meta"] == AnyCodable(["k": "v"]))
+  }
+
+  /* Extra properties set on a model are written as top-level keys beside its declared fields. */
+  @Test func testBhvSerialization067ExtraPropertiesAreWrittenAsTopLevelKeysBesideTheFields() throws
+  {
+    let model = Freeform(label: "x", additionalProperties: ["extra": AnyCodable("y")])
+    let object =
+      try JSONSerialization.jsonObject(with: JSONEncoder().encode(model)) as? [String: Any]
+
+    #expect(object?["label"] as? String == "x")
+    #expect(object?["extra"] as? String == "y")
+    #expect(object?["additionalProperties"] == nil)
+  }
+
+  /* Schema constraint keywords such as maximum are not enforced, so an out-of-bound value decodes and is accepted. */
+  @Test func testBhvSerialization069ASchemaMaximumIsNotEnforcedOnDecode() throws {
+    let order = try JSONDecoder().decode(Order.self, from: Data(#"{"quantity":1000}"#.utf8))
+
+    #expect(order.quantity == 1000)
+  }
+
+  /* JSON nested deeper than the allowed depth is refused with a fixed error before parsing begins. */
+  @Test func testBhvSerialization071JsonNestedBeyondTheDepthLimitIsRefusedBeforeParsing() {
+    let depth = ObjectSerializer.maxJsonDepth + 1
+    let json = Data(
+      (String(repeating: "[", count: depth) + String(repeating: "]", count: depth)).utf8)
+
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize(json, as: Order.self)
+    }
+    #expect(error?.message.hasPrefix("JSON nesting depth") == true)
+  }
+
+  /* Decoding a union value that matches none of its candidates raises a serialization error. */
+  @Test func testBhvSerialization076AUnionValueMatchingNoCandidateRaisesASerializationError() {
+    let candidates: [(Any) throws -> String] = [
+      { _ in throw SerializationError(message: "not a string") },
+      { _ in throw SerializationError(message: "not a number") },
+    ]
+
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.resolveOneOf(true as Any, candidates: candidates)
+    }
+  }
+
+  /* A duration is written as a protobuf seconds string: total seconds with days folded in, and a fraction only when it is non-zero. */
+  @Test func testBhvSerialization086ADurationIsWrittenAsProtobufSeconds() throws {
+    #expect(try ObjectSerializer.encodeDuration(3600) == "3600s")
+    #expect(try ObjectSerializer.encodeDuration(2 * 86400 + 60) == "172860s")
+    #expect(try ObjectSerializer.encodeDuration(1.5) == "1.500s")
+  }
+
+  /* A very small or very precise duration is written as fixed-point decimal digits, never in scientific notation. */
+  @Test func testBhvSerialization087AVerySmallDurationIsWrittenAsFixedPointDigits() throws {
+    let tiny = try ObjectSerializer.encodeDuration(0.000000001)
+
+    #expect(tiny == "0.000000001s")
+    #expect(!tiny.contains("e"))
+  }
+
+  /* Byte values are written as base64 strings, including each element of a list of bytes. */
+  @Test func testBhvSerialization088ByteValuesAreWrittenAsBase64IncludingEachListElement() throws {
+    let bytes = Data("hi".utf8)
+
+    #expect(try ObjectSerializer.serialize(bytes) == "\"aGk=\"")
+    #expect(try ObjectSerializer.serialize([bytes]).contains("\"aGk=\""))
+  }
+
+  /* A base64 string on the wire decodes into a byte value. */
+  @Test func testBhvSerialization089ABase64StringDecodesIntoAByteValue() throws {
+    let decoded = try ObjectSerializer.deserialize(Data("\"aGk=\"".utf8), as: Data.self)
+
+    #expect(decoded == Data("hi".utf8))
+  }
+
+  /* Base64 byte values decode only when they are strict RFC 4648 text, so malformed or non-strict input is rejected. */
+  @Test(arguments: ["\"aGk\"", "\"aG!k=\"", "\"a G k=\""])
+  func testBhvSerialization090NonStrictBase64IsRejected(json: String) {
+    #expect(throws: Error.self) {
+      _ = try ObjectSerializer.deserialize(Data(json.utf8), as: Data.self)
+    }
+  }
+
+  /* Base64 byte values are rejected inside arrays and maps as well when they are not strict RFC 4648 text. */
+  @Test func testBhvSerialization090NonStrictBase64IsRejectedInsideArraysAndMaps() {
+    #expect(throws: Error.self) {
+      _ = try ObjectSerializer.deserialize(Data("[\"aGk\"]".utf8), as: [Data].self)
+    }
+    #expect(throws: Error.self) {
+      _ = try ObjectSerializer.deserialize(Data("{\"k\":\"aG!k=\"}".utf8), as: [String: Data].self)
+    }
+  }
+
+  /* Byte values, including bytes with the high bit set, survive an encode and decode round trip. */
+  @Test func testBhvSerialization091ByteValuesWithTheHighBitSetSurviveARoundTrip() throws {
+    let bytes = Data([0x00, 0xFF, 0x80, 0x7F])
+    let json = try ObjectSerializer.serialize(bytes)
+
+    #expect(try ObjectSerializer.deserialize(Data(json.utf8), as: Data.self) == bytes)
+  }
+
+  /* A time of day is carried as its string form and round-trips through that string unchanged. */
+  @Test func testBhvSerialization092ATimeOfDayRoundTripsThroughItsStringForm() throws {
+    let json = try ObjectSerializer.serialize("13:45:30")
+
+    #expect(try ObjectSerializer.deserialize(Data(json.utf8), as: String.self) == "13:45:30")
+  }
+
+  /* A date-time is written as ISO-8601 with a numeric UTC offset, never Z, and keeps its sub-second digits. */
+  @Test func testBhvSerialization093ADateTimeIsWrittenWithANumericOffsetAndItsSubSecondDigits() {
+    let text = ObjectSerializer.formatDateTime(Date(timeIntervalSince1970: 1_700_000_000.123))
+
+    #expect(!text.hasSuffix("Z"))
+    #expect(text.range(of: #"[+-]\d{2}:?\d{2}$"#, options: .regularExpression) != nil)
+    #expect(text.contains(".123"))
+  }
+
+  /* Strings in model fields and additional properties are written verbatim, with HTML characters, ampersands and forward slashes left unescaped. */
+  @Test func testBhvSerialization094StringsAreWrittenVerbatimWithoutHtmlOrSlashEscaping() throws {
+    let model = Freeform(label: "<a>&/", additionalProperties: ["html": AnyCodable("<b>/")])
+    let json = try ObjectSerializer.serialize(model)
+
+    #expect(json.contains("<a>&/"))
+    #expect(json.contains("<b>/"))
+  }
+
+  /* An enum field with a schema default is written with that default value when it is serialized. */
+  @Test func testBhvSerialization097AnEnumDefaultIsWrittenWhenSerialized() throws {
+    let json = try ObjectSerializer.serialize(Defaults())
+    let object = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+
+    #expect(object?["mode"] as? String == "medium")
+  }
+
+  /* An integer-backed enum is written as a JSON number, and a JSON number decodes back to its member. */
+  @Test func testBhvSerialization101AnIntegerEnumIsWrittenAsANumberAndDecodesBack() throws {
+    #expect(try ObjectSerializer.serialize(Priority.number2) == "2")
+    #expect(try ObjectSerializer.deserialize("3", as: Priority.self) == .number3)
+  }
+
+  /* A date-time with a non-UTC offset and the same instant written with Z decode to the same point in time. */
+  @Test func testBhvSerialization102ANonUtcOffsetAndAZuluTimestampAreTheSameInstant() {
+    let offset = ObjectSerializer.parseDate("2024-05-01T10:00:00+02:00")
+    let zulu = ObjectSerializer.parseDate("2024-05-01T08:00:00Z")
+
+    #expect(offset != nil)
+    #expect(offset == zulu)
+  }
+
+  /* An enum value outside the declared members, including a wrong-case match of a declared member, raises a serialization error. */
+  @Test(arguments: ["\"purple\"", "\"RED\""])
+  func testBhvSerialization105AnUndeclaredOrWrongCaseEnumValueRaises(json: String) {
+    #expect(throws: Error.self) {
+      _ = try ObjectSerializer.deserialize(Data(json.utf8), as: Swatch.self)
+    }
+  }
+
+  /* Numeric values keep every digit when serialized, including full 64-bit integers. */
+  @Test func testBhvSerialization114NumericValuesKeepEveryDigit() throws {
+    #expect(try ObjectSerializer.serialize(Int64.max) == "9223372036854775807")
+    #expect(try ObjectSerializer.serialize(Defaults(ceiling: 9_000_000_000)).contains("9000000000"))
+  }
+
+  /* An integral JSON number decoded into a floating-point field becomes a float. */
+  @Test func testBhvSerialization115AnIntegralNumberDecodesIntoAFloatingPointField() throws {
+    let defaults = try ObjectSerializer.deserialize(Data(#"{"ratio":2}"#.utf8), as: Defaults.self)
+
+    #expect(defaults?.ratio == 2.0)
+  }
+
+  /* A protobuf duration string decodes into a duration value as a standalone value. */
+  @Test func testBhvSerialization117AProtobufDurationStringDecodesToADuration() throws {
+    #expect(try ObjectSerializer.decodeDuration("1.5s") == 1.5)
+    #expect(try ObjectSerializer.decodeDuration("90s") == 90)
+  }
+
+  /* A date-time query parameter keeps its full ISO-8601 time and offset rather than being cut to the date. */
+  @Test func testBhvSerialization118ADateTimeQueryValueKeepsItsTimePart() {
+    let date = Date(timeIntervalSince1970: 1_700_000_000)
+    let value = ObjectSerializer.toQueryValue(date) as? String
+
+    #expect(value?.contains("T") == true)
+    #expect((value?.count ?? 0) > 10)
+  }
+
+  /* A nanosecond-precision duration is written with a nine-digit fraction. */
+  @Test func testBhvSerialization129ANanosecondDurationIsWrittenWithANineDigitFraction() throws {
+    #expect(try ObjectSerializer.encodeDuration(1.000000001) == "1.000000001s")
+  }
+
+  /* A failed serialize reports its detail under the canonical serialize message prefix. */
+  @Test func testBhvSerialization130AFailedSerializeReportsUnderTheCanonicalPrefix() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.serialize(Double.nan)
+    }
+    #expect(error?.message == "Failed to serialize object to JSON")
+    #expect(error?.errorDescription?.hasPrefix("Failed to serialize object to JSON: ") == true)
+  }
+
+  /* A string value passes through unchanged, without normalising its form. */
+  @Test func testBhvSerialization113AStringPassesThroughWithoutNormalising() {
+    let decomposed = "e\u{301}"
+
+    #expect(ObjectSerializer.stringify(decomposed) == decomposed)
+    #expect(ObjectSerializer.stringify(decomposed).unicodeScalars.count == 2)
   }
 }

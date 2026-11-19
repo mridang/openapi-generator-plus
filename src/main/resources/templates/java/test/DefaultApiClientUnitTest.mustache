@@ -20,6 +20,8 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -4503,5 +4505,182 @@ class DefaultApiClientUnitTest {
     assertThrowsExactly(
         IllegalStateException.class,
         () -> client.sendRequest("GET", "http://example.test/ping", Map.of(), null));
+  }
+
+
+  @Test
+  void bhvMisc218APerCallHeaderTakesPrecedenceOverAConfiguredOneWithoutADuplicate()
+      throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(200, null);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .httpClient(transport)
+                .defaultHeader("X-Trace", "configured")
+                .build());
+    client.sendRequest("GET", "http://localhost/start", Map.of("X-Trace", "per-call"), null);
+    assertEquals(
+        List.of("per-call"), transport.requests.get(0).headers().allValues("X-Trace"));
+  }
+
+  @Test
+  void bhvMisc223ASeeOtherRedirectDropsTheBodyOfTheFollowUp() throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(303, "/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("POST", "http://localhost/start", Map.of(), "{\"a\":1}");
+    assertEquals(2, transport.requests.size());
+    assertEquals("GET", transport.requests.get(1).method());
+    assertTrue(transport.requests.get(1).bodyPublisher().isEmpty());
+  }
+
+  @Test
+  void bhvMisc224TransportDefaultHeadersAreNotSentToAnotherOriginAfterARedirect()
+      throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(302, "https://other.example.test/");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .httpClient(transport)
+                .followRedirects(true)
+                .maxRetries(0)
+                .defaultHeader("X-Api-Key", "secret")
+                .build());
+    client.sendRequest("GET", "http://localhost/start", Map.of(), null);
+    assertEquals(2, transport.requests.size());
+    assertTrue(transport.requests.get(1).headers().firstValue("X-Api-Key").isEmpty());
+  }
+
+  @Test
+  void bhvMisc225A3xxWithoutALocationIsReturnedAsTheFinalResponse() throws Exception {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(302, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    assertEquals(302, client.sendRequest("GET", "http://localhost/x", Map.of(), null).statusCode());
+  }
+
+  @Test
+  void bhvMisc226A302IsFollowedToItsTargetAndTheFinal200IsReturned() throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(302, "/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiHttpResponse response = client.sendRequest("GET", "http://localhost/start", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals(2, transport.requests.size());
+  }
+
+  @Test
+  void bhvMisc227ANetworkErrorBeforeAnyResponseIsRetried() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/read";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(1).build());
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkException.class,
+          () -> client.sendRequest("GET", url, Map.of(), null));
+      assertTrue(accepted.get() >= 2, "the dropped connection was retried, saw " + accepted.get());
+    }
+  }
+
+  @Test
+  void bhvMisc228AnUnparseableRetryAfterFallsBackToTheNormalBackoff() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "soon") : new Reply(200, ""), hits);
+    try {
+      long startedNanos = System.nanoTime();
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get(), "the unreadable Retry-After is retried once");
+      assertTrue(elapsedMillis >= 375, "waited the normal backoff, took " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc229APerCallMaxRetriesOverridesAClientWithNoRetries() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n <= 2 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertEquals(
+          200, client.sendRequest("GET", urlOf(scripted), Map.of(), null, null, 2).statusCode());
+      assertEquals(3, hits.get(), "the call allowed two retries");
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  @DisplayName("bhvSerialization120 a file part takes its type from its extension and falls back to octet-stream")
+  void bhvSerialization120FilePartTypeFollowsItsExtension() throws Exception {
+    assertTrue(renderMultipartPart("picture.png", new byte[] {1}).contains("Content-Type: image/png"));
+    assertTrue(renderMultipartPart("noextension", new byte[] {1}).contains("Content-Type: application/octet-stream"));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization121 a model part uses wire property names and the SDK date-time format")
+  void bhvSerialization121ModelPartUsesWireNamesAndDateTimeFormat() throws Exception {
+    MultipartModelPart metadata = new MultipartModelPart();
+    metadata.recordedAt = OffsetDateTime.of(2026, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+    String part = renderMultipartPart("metadata", metadata);
+    assertTrue(part.contains("\"recordedAt\":\"2026-01-02T03:04:05"), part);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization123 a field name or filename with CR, LF or NUL is rejected")
+  void bhvSerialization123UnsafeMultipartNamesAreRejected() {
+    for (String name : List.of("a\r\nb", "a\nb", "a\0b")) {
+      assertThrows(IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFieldName(name));
+      assertThrows(IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename(name));
+    }
+  }
+
+  @Test
+  @DisplayName("bhvSerialization124 a non-ASCII filename keeps an RFC 5987 encoded form")
+  void bhvSerialization124NonAsciiFilenameKeepsAnRfc5987Form() throws Exception {
+    String part = renderMultipartPart("naïve.txt", new byte[] {1});
+    assertTrue(part.contains("filename*=UTF-8''na%C3%AFve.txt"), part);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization126 a non-ASCII multipart field name is preserved as UTF-8 in the header")
+  void bhvSerialization126NonAsciiFieldNameIsPreservedAsUtf8() throws Exception {
+    assertTrue(renderMultipartPart("nom-é", "x").contains("name=\"nom-é\""));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization127 a primitive part is plain text and only a model part is JSON")
+  void bhvSerialization127PrimitivePartIsPlainTextAndModelPartIsJson() throws Exception {
+    String primitive = renderMultipartPart("n", 5);
+    assertTrue(primitive.contains("name=\"n\"\r\n\r\n5\r\n"), primitive);
+    assertFalse(primitive.contains("Content-Type: application/json"), primitive);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization091 a caller-supplied upload stream is left open after sending")
+  void bhvSerialization091CallerSuppliedUploadStreamIsLeftOpen() throws Exception {
+    java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+    java.io.InputStream stream =
+        new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}) {
+          @Override
+          public void close() throws java.io.IOException {
+            closed.set(true);
+            super.close();
+          }
+        };
+    String part = renderMultipartPart("blob", stream);
+    assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
+    assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
   }
 }

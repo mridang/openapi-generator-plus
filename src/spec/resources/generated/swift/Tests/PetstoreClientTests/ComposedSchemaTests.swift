@@ -667,4 +667,57 @@ import Testing
       try ObjectSerializer.deserialize(Data("{\"email\":\"not-an-email\"}".utf8), as: Contact.self))
     #expect(contact.email == "not-an-email")
   }
+
+  /* When a payload matches several variants of a union, decoding resolves it to the first variant declared in the schema. */
+  @Test func testBhvMisc291AUnionMatchingSeveralVariantsDecodesToTheFirstDeclaredVariant() throws {
+    let jsonData = Data(
+      "{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\",\"procedureName\":\"Spay\",\"durationMinutes\":45}"
+        .utf8
+    )
+
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+
+    #expect(treatment.matchedInstances().first is Medication)
+    #expect(treatment.asMedication?.drugName == "Amoxicillin")
+  }
+
+  /* Serializing a union wrapper emits the bare variant payload on the wire with no wrapper envelope, and reading it back restores the same value. */
+  @Test func testBhvMisc292SerializingAUnionWrapperEmitsTheBareVariantPayloadOnly() throws {
+    let jsonData = Data("{\"drugName\":\"Amoxicillin\",\"dosage\":\"250mg\"}".utf8)
+    let treatment = try JSONDecoder().decode(PetTreatment.self, from: jsonData)
+
+    let encoded = try JSONEncoder().encode(treatment)
+    let object = try JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+    let restored = try JSONDecoder().decode(PetTreatment.self, from: encoded)
+
+    #expect(object?["drugName"] as? String == "Amoxicillin")
+    #expect(object?["asMedication"] == nil)
+    #expect(restored.matchedInstances().count == 1)
+    #expect(restored.asMedication?.drugName == "Amoxicillin")
+  }
+
+  /* Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor. */
+  @Test func testBhvUnions045TwoUnionValuesBuiltFromTheSameDataCompareEqual() throws {
+    let json = Data("{\"drugName\":\"Amoxicillin\"}".utf8)
+    let decoded = try JSONDecoder().decode(PetTreatment.self, from: json)
+    let decodedAgain = try JSONDecoder().decode(PetTreatment.self, from: json)
+    let built = try #require(PetTreatment([Medication(drugName: "Amoxicillin")]))
+
+    #expect(decoded == decodedAgain)
+    #expect(decoded == built)
+  }
+
+  /* When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report nil. */
+  @Test func testBhvUnions046EveryMatchingVariantReportsItself() throws {
+    let both = try JSONDecoder().decode(
+      PetTreatment.self,
+      from: Data("{\"drugName\":\"Amoxicillin\",\"procedureName\":\"Spay\"}".utf8))
+    #expect(both.asMedication?.drugName == "Amoxicillin")
+    #expect(both.asSurgery?.procedureName == "Spay")
+
+    let medicationOnly = try JSONDecoder().decode(
+      PetTreatment.self, from: Data("{\"drugName\":\"Amoxicillin\"}".utf8))
+    #expect(medicationOnly.asMedication != nil)
+    #expect(medicationOnly.asSurgery == nil)
+  }
 }

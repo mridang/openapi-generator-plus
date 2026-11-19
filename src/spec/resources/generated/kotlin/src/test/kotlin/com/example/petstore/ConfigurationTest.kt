@@ -442,4 +442,17 @@ class ConfigurationTest {
             }
             assertEquals("alpha", config.defaultHeaders["X-Team"])
         }
+
+    @Test
+    @DisplayName("bhvMisc180 the inspect form shows the values of default headers whose names are not sensitive")
+    fun bhvMisc180ToStringShowsNonSensitiveDefaultHeaderValues() {
+        val config =
+            Configuration
+                .builder()
+                .baseUrl("http://localhost")
+                .defaultHeader("X-Visible", "shown-value")
+                .defaultHeader("Authorization", "Bearer hidden-secret")
+                .build()
+        assertTrue(config.toString().contains("shown-value"), config.toString())
+    }
 }

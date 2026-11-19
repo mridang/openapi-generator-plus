@@ -756,6 +756,36 @@ test('bhv misc 205 a credential found nowhere makes the missing credential error
     }
 });
 
+test('bhv misc 206 a client built with only a default authenticator takes its host from that authenticator', function (): void {
+    $client = new Client(new BearerAuthenticator('https://only-default.example.com', 'tok'));
+    $property = (new \ReflectionClass(\PetstoreClient\Api\BaseApi::class))->getProperty('config');
+    expect($property->getValue($client->pet))->toHaveProperty('baseUrl', 'https://only-default.example.com');
+});
+
+test('bhv misc 207 a credential not passed to the constructor is read from the matching environment variable', function (): void {
+    $name = '';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        $authenticator = new BearerAuthenticator('https://api.example.com');
+        expect($authenticator->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 208 an empty environment variable is treated the same as an unset one for the implicit credential', function (): void {
+    $name = '';
+    $previous = getenv($name);
+    putenv($name . '=');
+    try {
+        expect(fn () => new BearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
 test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
     $credential = new class ('/api/v3', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
         public ?ApiClient $received = null;
@@ -804,4 +834,34 @@ test('bhv misc 075 a credential keyed to an undeclared scheme is refused when th
 
     expect(fn () => new Client(undeclaredScheme: $credential))
         ->toThrow(\Error::class, 'undeclaredScheme');
+});
+
+test('bhv transport 092 a supplied psr18 client receives the request from every api group', function (): void {
+    $factory = new Psr17Factory();
+    $responses = [];
+    for ($i = 0; $i < 50; $i++) {
+        $responses[] = $factory->createResponse(200)->withBody($factory->createStream('{}'));
+    }
+    $stub = new StubPsr18Client(...$responses);
+
+    $client = Client::withHttpClient($this->authenticator, $stub, $factory, $factory);
+
+    $clients = [];
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\PetApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->pet);
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\ProblemsApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->problems);
+    $clients[] = (new \ReflectionClass(\PetstoreClient\Api\StoreApi::class))
+        ->getProperty('apiClient')
+        ->getValue($client->store);
+
+    foreach ($clients as $apiClient) {
+        expect($apiClient)->toBeInstanceOf(Psr18ApiClient::class);
+        if ($apiClient instanceof Psr18ApiClient) {
+            $apiClient->sendRequest('GET', 'http://example.com/ping', [], null);
+        }
+    }
+    expect($stub->requests)->toHaveCount(count($clients));
 });

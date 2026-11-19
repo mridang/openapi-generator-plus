@@ -352,4 +352,27 @@ class ServerConfigurationTest {
 
         assertEquals("https://prod.us.example.com/v3", config.getUrl(Map.of("region", "us")));
     }
+
+
+    @Test
+    @DisplayName("bhvServers029 a placeholder introduced by a substituted default stays literal")
+    void bhvServers029PlaceholderFromASubstitutedDefaultStaysLiteral() {
+        ServerConfiguration config = new ServerConfiguration(
+                "https://{env}.api.example.com/{version}",
+                null,
+                Map.of("env", new ServerVariable("{version}"), "version", new ServerVariable("v2")));
+
+        assertEquals("https://{version}.api.example.com/v2", config.getUrl());
+    }
+
+    @Test
+    @DisplayName("bhvServers030 a value outside a server variable's enum is rejected with an error")
+    void bhvServers030ValueOutsideTheDeclaredEnumIsRejected() {
+        ServerConfiguration config = new ServerConfiguration(
+                "https://api.example.com/{env}",
+                null,
+                Map.of("env", new ServerVariable("api", null, List.of("api", "staging"))));
+
+        assertThrowsExactly(IllegalArgumentException.class, () -> config.getUrl(Map.of("env", "bogus")));
+    }
 }

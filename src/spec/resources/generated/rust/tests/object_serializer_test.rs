@@ -1887,3 +1887,126 @@ fn test_bhv_misc_289_a_snake_case_key_inside_a_list_element_is_captured_as_an_un
         .additional_properties
         .contains_key("snake_case_key"));
 }
+
+// -- wire decoding and encoding of models and values (chunk 14) --
+
+#[test]
+fn test_bhv_serialization_089_a_base64_wire_string_decodes_into_bytes() {
+    use petstore::models::BinaryVault;
+    let vault: BinaryVault = serde_json::from_str(r#"{"seal":"aGk="}"#).expect("valid base64");
+    assert_eq!(vault.seal, Some(b"hi".to_vec()));
+}
+
+#[test]
+fn test_bhv_serialization_090_malformed_base64_is_rejected_not_repaired() {
+    use petstore::models::BinaryVault;
+    assert!(serde_json::from_str::<BinaryVault>(r#"{"seal":"aGk"}"#).is_err());
+    assert!(serde_json::from_str::<BinaryVault>(r#"{"shards":["aGk"]}"#).is_err());
+}
+
+#[test]
+fn test_bhv_serialization_091_bytes_with_the_high_bit_set_survive_a_round_trip() {
+    use petstore::models::BinaryVault;
+    let data = vec![0xff_u8, 0x80, 0x00];
+    let text = serde_json::to_string(&BinaryVault::new().with_seal(data.clone())).unwrap();
+    let back: BinaryVault = serde_json::from_str(&text).unwrap();
+    assert_eq!(back.seal, Some(data));
+}
+
+#[test]
+fn test_bhv_serialization_092_a_time_of_day_round_trips_through_its_string_form() {
+    let original = chrono::NaiveTime::from_hms_opt(23, 59, 59).unwrap();
+    let text = serde_json::to_string(&original).unwrap();
+    assert_eq!(text, "\"23:59:59\"");
+    let back: chrono::NaiveTime = serde_json::from_str(&text).unwrap();
+    assert_eq!(back, original);
+}
+
+#[test]
+fn test_bhv_serialization_094_strings_in_model_fields_are_written_verbatim() {
+    use petstore::models::Category;
+    let text = serde_json::to_string(&Category::new().with_name("<a>&/b".to_string())).unwrap();
+    assert!(text.contains(r#""name":"<a>&/b""#), "got: {}", text);
+    assert!(
+        !text.contains("\\u003c") && !text.contains("\\u0026"),
+        "got: {}",
+        text
+    );
+}
+
+#[test]
+fn test_bhv_serialization_095_an_explicit_null_on_the_wire_replaces_the_default() {
+    use petstore::models::Defaults;
+    let decoded: Defaults = serde_json::from_str(r#"{"label":null}"#).unwrap();
+    assert!(decoded.label.is_none());
+}
+
+#[test]
+fn test_bhv_serialization_096_an_absent_field_decodes_to_its_declared_default() {
+    use petstore::models::Defaults;
+    let decoded: Defaults = serde_json::from_str("{}").unwrap();
+    assert_eq!(decoded.retries, Some(3));
+}
+
+#[test]
+fn test_bhv_serialization_098_an_unset_optional_field_is_omitted_at_depth() {
+    use petstore::models::{Category, Pet};
+    let pet = Pet::new("Fido".to_string(), std::collections::HashSet::new())
+        .with_category(Category::new().with_name("Dogs".to_string()));
+    let data = serde_json::to_value(&pet).unwrap();
+    assert!(data["category"].get("id").is_none(), "got: {}", data);
+    assert_eq!(data["category"]["name"], "Dogs");
+}
+
+#[test]
+fn test_bhv_serialization_099_a_strict_model_rejects_an_undeclared_key_and_a_plain_model_drops_it()
+{
+    use petstore::models::{Category, StrictTag};
+    let json = r#"{"id":1,"name":"x","unexpected":true}"#;
+    assert!(serde_json::from_str::<StrictTag>(json).is_err());
+    assert_eq!(serde_json::from_str::<Category>(json).unwrap().id, Some(1));
+}
+
+#[test]
+fn test_bhv_serialization_100_every_declared_field_of_a_valid_payload_decodes() {
+    use petstore::models::Pet;
+    let pet: Pet = serde_json::from_str(
+        r#"{"id":1,"name":"Fido","photoUrls":["x"],"category":{"id":2,"name":"Dogs"}}"#,
+    )
+    .unwrap();
+    assert_eq!(pet.id, Some(1));
+    assert_eq!(pet.name, "Fido");
+    assert_eq!(pet.category.unwrap().name, Some("Dogs".to_string()));
+}
+
+#[test]
+fn test_bhv_serialization_101_an_integer_enum_decodes_from_a_json_number_to_its_member() {
+    use petstore::models::Priority;
+    let decoded: Priority = serde_json::from_str("2").unwrap();
+    assert_eq!(decoded, Priority::Number2);
+    assert_eq!(serde_json::to_string(&Priority::Number2).unwrap(), "2");
+}
+
+#[test]
+fn test_bhv_serialization_103_a_malformed_document_error_describes_it() {
+    use petstore::models::Category;
+    let err = serde_json::from_str::<Category>(r#"{"a":"#).unwrap_err();
+    assert!(!err.to_string().is_empty());
+}
+
+#[test]
+fn test_bhv_serialization_104_an_upper_case_uuid_decodes_and_comes_back_lowercase() {
+    use petstore::models::Order;
+    let order: Order =
+        serde_json::from_str(r#"{"trackingId":"3F2504E0-4F89-11D3-9A0C-0305E82C3301"}"#).unwrap();
+    assert_eq!(
+        order.tracking_id.unwrap().to_string(),
+        "3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+    );
+}
+
+#[test]
+fn test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises() {
+    use petstore::models::OrderStatusEnum;
+    assert!(serde_json::from_str::<OrderStatusEnum>("\"PLACED\"").is_err());
+}

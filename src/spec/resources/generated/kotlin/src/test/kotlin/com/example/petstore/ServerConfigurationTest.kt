@@ -353,4 +353,78 @@ class ServerConfigurationTest {
                 )
             assertEquals("https://x.example.com/y/z", server.getUrl(mapOf("a" to "x", "b" to "y", "c" to "z")))
         }
+
+    @Test
+    fun bhvServers029APlaceholderIntroducedBySubstitutionStaysLiteral() =
+        runBlocking<Unit> {
+            val server =
+                ServerConfiguration(
+                    "https://{env}.example.com",
+                    null,
+                    mapOf("env" to ServerVariable("api", null, emptyList())),
+                )
+            assertEquals("https://{env}.example.com", server.getUrl(mapOf("env" to "{env}")))
+        }
+
+    @Test
+    fun bhvServers030AValueOutsideTheEnumIsRejected() =
+        runBlocking<Unit> {
+            val server =
+                ServerConfiguration(
+                    "https://{env}.example.com",
+                    null,
+                    mapOf("env" to ServerVariable("api", null, listOf("api", "staging"))),
+                )
+            assertThrows(IllegalArgumentException::class.java) {
+                server.getUrl(mapOf("env" to "prod"))
+            }
+        }
+
+    @Test
+    @DisplayName("bhvMisc257 a variable declared with an empty enum accepts any value and the URL is built from it")
+    fun bhvMisc257EmptyEnumVariableAcceptsAnyValue() {
+        val server =
+            ServerConfiguration(
+                "https://{env}.example.com",
+                null,
+                mapOf("env" to ServerVariable("api", null, emptyList())),
+            )
+        assertEquals("https://anything.example.com", server.getUrl(mapOf("env" to "anything")))
+    }
+
+    @Test
+    @DisplayName("bhvMisc258 a variable with no override supplied uses its default value in the URL")
+    fun bhvMisc258VariableWithoutOverrideUsesItsDefault() {
+        val server =
+            ServerConfiguration(
+                "https://{env}.example.com",
+                null,
+                mapOf("env" to ServerVariable("api", null, listOf("api", "staging"))),
+            )
+        assertEquals("https://api.example.com", server.getUrl())
+    }
+
+    @Test
+    @DisplayName("bhvMisc259 a placeholder with no declared variable stays in the URL exactly as written")
+    fun bhvMisc259UndeclaredPlaceholderStaysAsWritten() {
+        val server =
+            ServerConfiguration(
+                "https://{env}.{region}.example.com",
+                null,
+                mapOf("env" to ServerVariable("api", null, listOf("api"))),
+            )
+        assertEquals("https://api.{region}.example.com", server.getUrl())
+    }
+
+    @Test
+    @DisplayName("bhvMisc261 a value containing backslash sequences is inserted into the URL exactly as given")
+    fun bhvMisc261BackslashSequencesAreInsertedLiterally() {
+        val server =
+            ServerConfiguration(
+                "https://{env}.example.com",
+                null,
+                mapOf("env" to ServerVariable("a", null, listOf("a", "\\1\\n"))),
+            )
+        assertEquals("https://\\1\\n.example.com", server.getUrl(mapOf("env" to "\\1\\n")))
+    }
 }

@@ -399,7 +399,8 @@ impl BaseApi {
         }
 
         /* Send the request. A failed call is sent again up to `max_retries`
-         * times (network failure before a response; 408, 409, 429, 500-599
+         * times (a network failure before a response, for an idempotent method
+         * only; 408, 409, 429, 500-599
          * except 501), each time as a fresh request with its authentication
          * headers applied again. The retries share the transport's end-to-end
          * timeout, so a retry that would not fit in what is left is not made,
@@ -433,7 +434,7 @@ impl BaseApi {
             let response = match sent {
                 Ok(response) => response,
                 Err(err) => {
-                    if attempt < max_retries && is_retryable_error(err.as_ref()) {
+                    if attempt < max_retries && is_idempotent_method(params.method) && is_retryable_error(err.as_ref()) {
                         let delay = retry_delay(attempt, None);
                         if fits_budget(deadline, delay)
                             && refresh_request_headers(effective_auth, &mut headers, trace, hooked).await
@@ -740,12 +741,35 @@ pub(crate) fn is_retryable_error(err: &(dyn std::error::Error + Send + Sync + 's
     }
     let mut cause = err.source();
     while let Some(c) = cause {
+        if is_tls_failure_message(&c.to_string()) {
+            return false;
+        }
         if let Some(e) = c.downcast_ref::<reqwest::Error>() {
-            return !(e.is_body() || e.is_decode());
+            if e.is_body() || e.is_decode() {
+                return false;
+            }
         }
         cause = c.source();
     }
     true
+}
+
+/// Whether an error message names a TLS or certificate failure. Such a failure
+/// is about the peer's identity, so it is reported at once and never retried.
+fn is_tls_failure_message(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    ["certificate", "tls", "ssl", "rustls", "native-tls", "native_tls"]
+        .iter()
+        .any(|needle| lower.contains(needle))
+}
+
+/// Whether a method is idempotent (RFC 9110 section 9.2.2, plus QUERY), so a
+/// request that never got a response can be sent again without repeating a change.
+pub(crate) fn is_idempotent_method(method: &str) -> bool {
+    matches!(
+        method.to_ascii_uppercase().as_str(),
+        "GET" | "HEAD" | "OPTIONS" | "TRACE" | "PUT" | "DELETE" | "QUERY"
+    )
 }
 
 /// Parses a `Retry-After` value: whole seconds or an HTTP date. A date in the
@@ -1733,6 +1757,61 @@ mod tests {
 
         assert!(err.downcast_ref::<crate::errors::NetworkError>().is_some(), "{err}");
         assert_eq!(3, client.calls());
+    }
+
+    #[derive(Debug)]
+    struct TlsCause;
+
+    impl std::fmt::Display for TlsCause {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "invalid peer certificate: UnknownIssuer")
+        }
+    }
+
+    impl std::error::Error for TlsCause {}
+
+    /* misc161: a request that never got a response is sent again only for an idempotent method. */
+    #[tokio::test]
+    async fn test_bhv_misc_161_a_dropped_connection_is_retried_only_for_idempotent_methods() {
+        for method in ["GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY"] {
+            let client = ScriptedClient::custom(200, true, 2);
+            let api = api_for(client.clone());
+            let params = InvokeApiParams { method, ..call_params(CallOptions::default()) };
+
+            let _ = api.invoke_api(params).await;
+
+            assert_eq!(3, client.calls(), "{method} is idempotent and must be retried");
+        }
+        for method in ["POST", "PATCH"] {
+            let client = ScriptedClient::custom(200, true, 2);
+            let api = api_for(client.clone());
+            let params = InvokeApiParams { method, ..call_params(CallOptions::default()) };
+
+            let _ = api.invoke_api(params).await;
+
+            assert_eq!(1, client.calls(), "{method} must be sent exactly once");
+        }
+    }
+
+    /* misc170: a TLS or certificate failure is a network error that is never retried. */
+    #[test]
+    fn test_bhv_misc_170_a_tls_failure_is_never_retried() {
+        let tls = crate::errors::NetworkError::try_from(crate::errors::ApiError::transport(
+            crate::errors::api_error::TransportFailure::Network,
+            "error sending request".to_string(),
+            Arc::new(TlsCause),
+        ))
+        .expect("status 0");
+        let refused = crate::errors::NetworkError::try_from(crate::errors::ApiError::new(
+            0,
+            "refused".to_string(),
+            None,
+            None,
+        ))
+        .expect("status 0");
+
+        assert!(!is_retryable_error(&tls));
+        assert!(is_retryable_error(&refused));
     }
 
     /// Answers 503 with `Retry-After: 0` twice, then 200, and records the body of every request.

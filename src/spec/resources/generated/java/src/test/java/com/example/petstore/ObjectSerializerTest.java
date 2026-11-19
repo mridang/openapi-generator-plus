@@ -4520,6 +4520,25 @@ class ObjectSerializerTest {
   }
 
   @Test
+  @DisplayName("bhvMisc214 an unserializable query content value raises a serialization error")
+  void bhvMisc214AnUnserializableQueryContentValueRaisesASerializationError() {
+    Map<String, Object> cyclic = new java.util.HashMap<>();
+    cyclic.put("self", cyclic);
+    assertThrows(SerializationException.class, () -> serializer.serialize(cyclic));
+  }
+
+  @Test
+  @DisplayName("bhvMisc215 an input object with no fields is filled with its declared defaults")
+  void bhvMisc215AnEmptyObjectIsFilledWithItsDeclaredDefaults() {
+    com.example.petstore.models.Order order =
+        serializer.deserialize(
+            "{}",
+            new com.fasterxml.jackson.core.type.TypeReference<
+                com.example.petstore.models.Order>() {}.getType());
+    assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order.status);
+  }
+
+  @Test
   @DisplayName("bhvMisc287 a wire key named additional_properties is kept as an undeclared extra")
   void bhvMisc287AWireKeyNamedAdditionalPropertiesIsKeptAsAnUndeclaredExtra() {
     com.example.petstore.models.Metadata metadata =
@@ -4594,5 +4613,49 @@ class ObjectSerializerTest {
     Duration decoded = serializer.deserialize("\"3600s\"", Duration.class);
 
     assertEquals(Duration.ofHours(1), decoded);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization112 a password is masked in printed forms but not on the wire")
+  void bhvSerialization112PasswordIsMaskedOnlyInPrintedForms() {
+    com.example.petstore.models.Account account =
+        new com.example.petstore.models.Account("user")
+            .toBuilder().password("p@ss-word-value").build();
+    assertFalse(account.toString().contains("p@ss-word-value"), account.toString());
+    assertFalse(
+        List.of(account).toString().contains("p@ss-word-value"), List.of(account).toString());
+    assertTrue(
+        serializer.serialize(account).contains("\"password\":\"p@ss-word-value\""),
+        serializer.serialize(account));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization116 a keyword property keeps its exact wire key on both sides")
+  void bhvSerialization116KeywordPropertyKeepsItsWireKey() {
+    com.example.petstore.models.EdgeCases edge =
+        decode("{\"and\":true,\"class\":\"economy\"}", com.example.petstore.models.EdgeCases.class);
+    assertEquals("economy", edge.classValue);
+    assertTrue(
+        serializer.serialize(edge).contains("\"class\":\"economy\""), serializer.serialize(edge));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization129 a nanosecond duration is written with a nine-digit fraction")
+  void bhvSerialization129NanosecondDurationHasNineDigitFraction() {
+    com.example.petstore.models.EdgeCases edge =
+        com.example.petstore.models.EdgeCases.builder()
+            .retryAfter(Duration.ofNanos(123456789L))
+            .build();
+    assertTrue(
+        serializer.serialize(edge).contains("\"retryAfter\":\"0.123456789s\""),
+        serializer.serialize(edge));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization130 a failed serialize reports under the canonical prefix")
+  void bhvSerialization130FailedSerializeUsesTheCanonicalPrefix() {
+    SerializationException ex =
+        assertThrows(SerializationException.class, () -> serializer.serialize(new Object()));
+    assertTrue(ex.getMessage().startsWith("Failed to serialize object to JSON: "), ex.getMessage());
   }
 }

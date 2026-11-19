@@ -1655,4 +1655,67 @@ mod tests {
             "a/b%23c%5Bd%5D"
         );
     }
+    /* -- wire-form parity for query arrays and path values (chunk 14) -- */
+
+    #[test]
+    fn test_bhv_serialization_106_a_non_exploded_array_query_value_joins_with_commas() {
+        let items: Vec<String> = vec!["a".into(), "b".into()];
+        let result = super::serialize_styled(
+            "tags",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "form",
+            false,
+        );
+        assert_eq!(unwrap_single(result), "a,b");
+    }
+
+    #[test]
+    fn test_bhv_serialization_107_an_exploded_array_query_parameter_repeats_its_key() {
+        let items: Vec<String> = vec!["a".into(), "b".into()];
+        let result = super::serialize_styled(
+            "tags",
+            None,
+            Some(&items),
+            "query",
+            "array",
+            "",
+            "form",
+            true,
+        );
+        assert_eq!(unwrap_multi(result), vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn test_bhv_serialization_108_a_path_value_without_a_style_matches_the_simple_style() {
+        let result = super::serialize_styled(
+            "id",
+            Some("hello world"),
+            None,
+            "path",
+            "string",
+            "",
+            "",
+            false,
+        );
+        assert_eq!(unwrap_single(result), "hello%20world");
+    }
+
+    #[test]
+    fn test_bhv_serialization_109_a_path_value_is_percent_encoded_exactly_once() {
+        let result = super::serialize_styled(
+            "id",
+            Some("a%b"),
+            None,
+            "path",
+            "string",
+            "",
+            "simple",
+            false,
+        );
+        assert_eq!(unwrap_single(result), "a%25b");
+    }
 }
