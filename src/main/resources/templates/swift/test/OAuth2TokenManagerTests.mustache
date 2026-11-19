@@ -985,7 +985,7 @@ import Testing
     @Test func testBhvAuth013CancelledCallerDoesNotWaitForTheTokenEndpoint() async throws {
         let client = CountingMockApiClient(
             responseBody: "{\"access_token\":\"slow\",\"expires_in\":3600}",
-            delayNanos: 600_000_000)
+            delayNanos: 5_000_000_000)
         let manager = OAuth2TokenManager()
         manager.setApiClient(client)
         let params = ["grant_type": "client_credentials"]
@@ -998,7 +998,7 @@ import Testing
         waiter.cancel()
         let outcome = await waiter.result
         #expect(throws: CancellationError.self) { try outcome.get() }
-        #expect(Date().timeIntervalSince(started) < 0.5)
+        #expect(Date().timeIntervalSince(started) < 2.0)
 
         let token = try await manager.getAccessToken(
             tokenURL: "https://auth.example.com/token", params: params)

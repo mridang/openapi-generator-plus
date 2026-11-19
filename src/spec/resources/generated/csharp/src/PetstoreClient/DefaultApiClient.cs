@@ -225,6 +225,20 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
         if (transportOptions.CaCertPath != null)
         {
             X509Certificate2Collection caCerts = [];
+            if (!System.IO.File.Exists(transportOptions.CaCertPath))
+            {
+                /* A missing file (or missing directory) is reported as a file-not-found
+                 * cause naming the path, not as the platform's DirectoryNotFoundException. */
+                System.IO.FileNotFoundException notFound = new(
+                    $"Could not find CA certificate file \"{transportOptions.CaCertPath}\".",
+                    transportOptions.CaCertPath
+                );
+                throw new ArgumentException(
+                    $"failed to read CA certificate from \"{transportOptions.CaCertPath}\": {notFound.Message}",
+                    nameof(transportOptions),
+                    notFound
+                );
+            }
             try
             {
                 /* Read the bundle as text and normalise CRLF to LF before parsing:
@@ -925,6 +939,12 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                    dropped on a cross-origin hop stays dropped for every later
                    hop, even one that returns to the original origin. */
                 Dictionary<string, string> currentHeaders = mergedHeaders;
+                /* Transport default headers are configured for the API origin only,
+                   so they are withheld from any hop that leaves that origin. */
+                HashSet<string> transportHeaderNames = new(
+                    _transportOptions.DefaultHeaders.Keys,
+                    StringComparer.OrdinalIgnoreCase
+                );
                 int hops = 0;
                 string currentMethod = method;
                 object? currentBody = body;
@@ -1030,7 +1050,13 @@ public sealed class DefaultApiClient : IApiClient, IDisposable
                     );
                     foreach (KeyValuePair<string, string> header in currentHeaders)
                     {
-                        if (crossOrigin && IsCredentialHeader(header.Key))
+                        if (
+                            crossOrigin
+                            && (
+                                IsCredentialHeader(header.Key)
+                                || transportHeaderNames.Contains(header.Key)
+                            )
+                        )
                         {
                             continue;
                         }

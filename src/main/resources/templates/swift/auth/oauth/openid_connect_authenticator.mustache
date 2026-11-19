@@ -191,7 +191,7 @@ public class OpenIdConnectAuthenticator: BaseAuthenticator, HttpAwareAuthenticat
         do {
             discovery = try JSONDecoder().decode(DiscoveryDocument.self, from: data)
         } catch {
-            throw SerializationError(message: "OIDC discovery document is not a JSON object", cause: error)
+            throw SerializationError(message: "OIDC discovery document is not a JSON object", cause: nil)
         }
         /* A document naming an empty endpoint is as incomplete as one that
          * omits it. */

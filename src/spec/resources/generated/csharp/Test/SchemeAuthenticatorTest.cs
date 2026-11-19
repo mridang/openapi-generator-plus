@@ -853,7 +853,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196APetStoreBasicAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in PetStoreBasicAuthenticatorVariables)
         {
@@ -983,7 +983,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AAdminBasicAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in AdminBasicAuthenticatorVariables)
         {
@@ -1108,7 +1108,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196APetStoreBearerAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in PetStoreBearerAuthenticatorVariables)
         {
@@ -1299,7 +1299,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AServiceTokenAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in ServiceTokenAuthenticatorVariables)
         {
@@ -1506,7 +1506,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AApiKeyHeaderAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in ApiKeyHeaderAuthenticatorVariables)
         {
@@ -1623,7 +1623,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AInternalApiKeyAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in InternalApiKeyAuthenticatorVariables)
         {
@@ -1763,7 +1763,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AApiKeyQueryAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in ApiKeyQueryAuthenticatorVariables)
         {
@@ -1903,7 +1903,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196ASessionCookieAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in SessionCookieAuthenticatorVariables)
         {
@@ -2044,7 +2044,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AMachineAuthClientCredentialsAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in MachineAuthClientCredentialsAuthenticatorVariables)
         {
@@ -2204,7 +2204,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196ALegacyAuthPasswordAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in LegacyAuthPasswordAuthenticatorVariables)
         {
@@ -2361,7 +2361,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196AUserAuthAuthorizationCodeAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in UserAuthAuthorizationCodeAuthenticatorVariables)
         {
@@ -2500,7 +2500,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196ABrowserAuthImplicitAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in BrowserAuthImplicitAuthenticatorVariables)
         {
@@ -2635,7 +2635,7 @@ public sealed class SchemeAuthenticatorTest
     }
 
     [Fact]
-    public void BhvMisc196ASchemeWrapperWithNoTokenFromArgumentOrEnvironmentFails()
+    public void BhvMisc196ASsoAuthAuthenticatorWithNoTokenFromArgumentOrEnvironmentFails()
     {
         foreach (string variable in SsoAuthAuthenticatorVariables)
         {

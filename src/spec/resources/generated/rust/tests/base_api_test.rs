@@ -4204,6 +4204,20 @@ async fn test_bhv_misc_227_a_connection_dropped_before_any_response_is_retried_f
 }
 
 #[tokio::test]
+async fn test_bhv_misc_162_an_idempotent_request_is_sent_again_once_after_a_dropped_connection() {
+    let client = ScriptedApiClient::new(
+        vec![Scripted::Network, Scripted::Status(200, None)],
+        1,
+        None,
+    );
+    retrying_api(&client)
+        .delete_pet(1, None)
+        .await
+        .expect("the retry after the dropped connection succeeds");
+    assert_eq!(2, client.calls());
+}
+
+#[tokio::test]
 async fn test_bhv_misc_228_an_unparseable_retry_after_falls_back_to_the_normal_backoff() {
     let client = ScriptedApiClient::new(
         vec![

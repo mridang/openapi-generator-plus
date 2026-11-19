@@ -217,7 +217,7 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
 {{#pathParams}}
         path = path.replacingOccurrences(
             of: "{" + "{{baseName}}" + "}",
-            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodePathSegment(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
+            with: {{#vendorExtensions.swiftContent}}ValueSerializer.encodeStyledPathValue(try ObjectSerializer.serialize({{paramName}})){{/vendorExtensions.swiftContent}}{{^vendorExtensions.swiftContent}}"\(ValueSerializer.serializeStyled("{{baseName}}", value: {{paramName}}, location: "path", schemaType: "{{#isDate}}date{{/isDate}}{{^isDate}}{{{dataType}}}{{/isDate}}", collectionFormat: "{{#collectionFormat}}{{collectionFormat}}{{/collectionFormat}}", style: "{{style}}", explode: {{isExplode}}) ?? "")"{{/vendorExtensions.swiftContent}})
 {{/pathParams}}
 {{#servers.0}}
         if let server = server {
@@ -521,15 +521,25 @@ public final class {{classname}}: BaseApi, {{classname}}Protocol, @unchecked Sen
         return try await invokeAPIForResult(params) { (response: ApiHttpResponse) -> {{{vendorExtensions.op.successUnionType}}}? in
             switch response.statusCode {
 {{#vendorExtensions.op.successResponses}}
-{{^isLast}}
             case {{statusCode}}:
-{{/isLast}}
-{{#isLast}}
-            default:
-{{/isLast}}
                 return try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self)
                     .map { {{{vendorExtensions.op.successUnionType}}}($0) }
 {{/vendorExtensions.op.successResponses}}
+            default:
+                /* An undeclared success status takes the first success schema that
+                 * decodes the body, in declaration order. */
+                var lastError: Error?
+{{#vendorExtensions.op.successResponses}}
+                do {
+                    if let value = try ObjectSerializer.deserialize(response.body, as: {{{returnType}}}.self) {
+                        return {{{vendorExtensions.op.successUnionType}}}(value)
+                    }
+                } catch {
+                    lastError = error
+                }
+{{/vendorExtensions.op.successResponses}}
+                if let lastError { throw lastError }
+                return nil
             }
         }
 {{/vendorExtensions.op.hasMultiple2xx}}

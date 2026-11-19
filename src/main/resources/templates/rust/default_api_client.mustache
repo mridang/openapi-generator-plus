@@ -352,7 +352,7 @@ impl ApiClient for DefaultApiClient {
                 }
             }
 
-            let mut response = request_builder.send().await.map_err(transport_error)?;
+            let mut response = request_builder.send().await.map_err(|e| transport_error_before(e, deadline))?;
 
             /* Manual redirect loop with cross-origin header strip.
              * Options.no_redirect (the OAuth2 token POST) means "do
@@ -469,16 +469,18 @@ impl ApiClient for DefaultApiClient {
                                 && (lk != "content-length" || (keeps_method && v.trim() == "0"))
                         });
                     }
+                    if cross_origin {
+                        /* A credential stripped on a cross-origin hop stays stripped:
+                         * a later hop back to the original origin must not restore it. */
+                        redirect_headers.retain(|k, _| !is_credential_header(k));
+                    }
                     for (k, v) in &redirect_headers {
-                        if cross_origin && is_credential_header(k) {
-                            continue;
-                        }
                         redirect_builder = redirect_builder.header(k.as_str(), v.as_str());
                     }
                     if let Some(b) = &next_body {
                         redirect_builder = redirect_builder.body(b.clone());
                     }
-                    response = redirect_builder.send().await.map_err(transport_error)?;
+                    response = redirect_builder.send().await.map_err(|e| transport_error_before(e, deadline))?;
                     current_url = Some(next_url);
                     current_method = next_method;
                     current_body = next_body;
@@ -529,7 +531,7 @@ impl ApiClient for DefaultApiClient {
              * deadline that `timeout` arms produces NetworkTimeoutError here
              * too and everything else produces NetworkError. Both carry
              * status 0. */
-            let raw_bytes = response.bytes().await.map_err(transport_error)?;
+            let raw_bytes = response.bytes().await.map_err(|e| transport_error_before(e, deadline))?;
             /* A body that arrived but cannot be decompressed is not a network
              * failure: the server answered, so it is an ApiError carrying the
              * real status code. */
@@ -620,11 +622,27 @@ fn remaining_budget(deadline: std::time::Instant) -> Duration {
 /// reset) [`NetworkError`]. Both carry status 0 and keep the reqwest error as
 /// their source.
 fn transport_error(e: reqwest::Error) -> Box<dyn std::error::Error + Send + Sync> {
+    transport_error_before(e, None)
+}
+
+/// [`transport_error`] for a failure on a call with an end-to-end `deadline`.
+/// A failure that arrives once the deadline has passed is a timeout whatever
+/// reqwest reports for it, because a hop of a redirect chain can be cut off
+/// by the shared budget without reqwest flagging it as a timeout.
+fn transport_error_before(
+    e: reqwest::Error,
+    deadline: Option<std::time::Instant>,
+) -> Box<dyn std::error::Error + Send + Sync> {
+    let timed_out = e.is_timeout() || deadline.is_some_and(|d| std::time::Instant::now() >= d);
     /* The URL is dropped from the error: a query-parameter API key sits in it
      * and the message and the source chain end up in logs and error trackers. */
     let e = e.without_url();
-    let message = e.to_string();
-    if e.is_timeout() {
+    let message = if timed_out {
+        "request timed out".to_string()
+    } else {
+        e.to_string()
+    };
+    if timed_out {
         let api_error = ApiError::transport(TransportFailure::Timeout, message, Arc::new(e));
         match NetworkError::try_from(api_error) {
             Ok(network) => Box::new(NetworkTimeoutError::from(network)),

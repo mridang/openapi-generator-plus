@@ -225,22 +225,48 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     /// ``NetworkTimeoutError``; any other failure with no HTTP response
     /// (connection refused, DNS, TLS, reset) becomes ``NetworkError``. Both
     /// carry status 0 and keep the `URLError` as ``ApiError/underlyingError``.
-    static func transportError(_ urlError: URLError) -> Error {
+    /// The request target in the message is reduced to its path (see
+    /// ``transportMessage(_:requestURL:)``).
+    static func transportError(_ urlError: URLError, requestURL: URL? = nil) -> Error {
         if urlError.code == .cancelled && Task.isCancelled {
             return CancellationError()
         }
+        let message = transportMessage(urlError, requestURL: requestURL)
         if urlError.code == .timedOut {
             return NetworkTimeoutError(
                 statusCode: 0,
-                message: urlError.localizedDescription,
+                message: message,
                 underlyingError: urlError
             )
         }
         return NetworkError(
             statusCode: 0,
-            message: urlError.localizedDescription,
+            message: message,
             underlyingError: urlError
         )
+    }
+
+    /// The localized description of a transport failure with the request target
+    /// reduced to its path: the scheme, host, port, query and fragment are
+    /// replaced by the path, so an error never names where the call was sent.
+    static func transportMessage(_ urlError: URLError, requestURL: URL?) -> String {
+        let message = urlError.localizedDescription
+        guard let url = requestURL ?? urlError.failingURL else {
+            return message
+        }
+        let path = url.path.isEmpty ? "/" : url.path
+        var needles: [String] = [url.absoluteString]
+        if let host = url.host {
+            if let port = url.port {
+                needles.append("\(host):\(port)")
+            }
+            needles.append(host)
+        }
+        var reduced = message
+        for needle in needles.sorted(by: { $0.count > $1.count }) where !needle.isEmpty {
+            reduced = reduced.replacingOccurrences(of: needle, with: path)
+        }
+        return reduced
     }
 
     /// Builds the credential that answers the proxy's authentication challenge
@@ -467,16 +493,17 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         if !hasHeader("X-Request-ID") && transportOptions.injectRequestID {
             merged["X-Request-ID"] = UUID().uuidString.lowercased()
         }
-        /*
-         * Intentionally do NOT set a default Accept-Encoding. URLSession
-         * transparently negotiates and decompresses content encodings
-         * (gzip/deflate on Apple, via libcurl on Linux) only when the
-         * app leaves the header unset; setting it manually disables that
-         * transparent decompression, and this client has no manual
-         * decompressor, so advertising gzip/deflate/br would hand the
-         * caller undecoded bytes. A caller who sets Accept-Encoding
-         * explicitly (and handles decompression) is still respected.
-         */
+        /* Advertise only the codings this client can decode: gzip and deflate.
+         * An explicit Accept-Encoding stops URLSession from negotiating on its
+         * own, which also stops it adding br (and zstd) that the client cannot
+         * decode. Gzip bodies still carrying their magic bytes are inflated
+         * with zlib on Apple, and libcurl decodes the rest on Linux. A caller's
+         * own Accept-Encoding, in any case, is kept and the caller decodes. */
+        let advertisedEncoding = "gzip, deflate"
+        let callerManagedEncoding = hasHeader("Accept-Encoding")
+        if !callerManagedEncoding {
+            merged["Accept-Encoding"] = advertisedEncoding
+        }
 
         var request = URLRequest(url: requestURL)
         request.httpMethod = method
@@ -576,7 +603,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 underlyingError: undecodable.urlError
             )
         } catch let urlError as URLError {
-            throw DefaultApiClient.transportError(urlError)
+            throw DefaultApiClient.transportError(urlError, requestURL: request.url)
         } catch let cancellation as CancellationError {
             throw cancellation
         } catch {
@@ -646,7 +673,6 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             .split(separator: ",")
             .last
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
-        let callerManagedEncoding = merged.keys.contains { $0.lowercased() == "accept-encoding" }
         /* Refuse any coding the SDK cannot decode rather than handing the caller
            bytes still in that encoding. Every token of a comma list must be one
            the SDK decodes or the identity coding. A caller-managed encoding is

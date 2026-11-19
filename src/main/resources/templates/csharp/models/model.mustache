@@ -117,7 +117,12 @@ public abstract record {{classname}}
             string raw = doc.RootElement.GetRawText();
             if (doc.RootElement.TryGetProperty("{{discriminator.propertyBaseName}}", out JsonElement disc))
             {
-                if (disc.ValueKind != JsonValueKind.String && disc.ValueKind != JsonValueKind.Null)
+                if (disc.ValueKind == JsonValueKind.Null)
+                {
+                    throw new JsonException(
+                        "Missing discriminator property '{{discriminator.propertyBaseName}}'");
+                }
+                if (disc.ValueKind != JsonValueKind.String)
                 {
                     throw new JsonException(
                         $"Discriminator property '{{discriminator.propertyBaseName}}' of {{classname}} must be a string, got {disc.ValueKind}");

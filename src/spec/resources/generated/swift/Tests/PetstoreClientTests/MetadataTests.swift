@@ -438,9 +438,9 @@ import Testing
 
   /* A collection passed into a model is copied, so a later change to the source does not reach the model. */
   @Test func testBhvMisc139ACollectionPassedIntoAModelIsCopied() {
-    var source: [String: AnyCodable] = ["a": AnyCodable(1)]
+    var source: [String: String] = ["a": "1"]
     let model = Metadata(additionalProperties: source)
-    source["b"] = AnyCodable(2)
+    source["b"] = "2"
     #expect(model.additionalProperties.count == 1)
   }
 
@@ -451,13 +451,13 @@ import Testing
 
   /* A value stored in the additional properties map is returned unchanged when read back by key. */
   @Test func testBhvMisc142AStoredAdditionalPropertyIsReturnedUnchangedByKey() {
-    let model = Metadata(additionalProperties: ["k": AnyCodable("v")])
-    #expect(model.additionalProperties["k"]?.value as? String == "v")
+    let model = Metadata(additionalProperties: ["k": "v"])
+    #expect(model.additionalProperties["k"] == "v")
   }
 
   /* A model built with an additional-properties map has a copy that keeps those entries and compares equal. */
   @Test func testBhvMisc143AModelWithAdditionalPropertiesHasAnEqualCopy() {
-    let model = Metadata(additionalProperties: ["k": AnyCodable("v")])
+    let model = Metadata(additionalProperties: ["k": "v"])
     let copy = Metadata(additionalProperties: model.additionalProperties)
     #expect(copy == model)
     #expect(copy.additionalProperties.count == 1)
@@ -472,9 +472,9 @@ import Testing
 
   /* Reading the undeclared keys returns a copy, so changing it leaves the model unchanged. */
   @Test func testBhvMisc145ReadingTheUndeclaredKeysReturnsACopy() {
-    let model = Metadata(additionalProperties: ["k": AnyCodable("v")])
+    let model = Metadata(additionalProperties: ["k": "v"])
     var keys = model.additionalProperties
-    keys["extra"] = AnyCodable(1)
+    keys["extra"] = "1"
     #expect(model.additionalProperties["extra"] == nil)
   }
 
@@ -500,8 +500,8 @@ import Testing
 
   /* A model holding a map compares equal to another with the same entries, and unequal when an entry differs. */
   @Test func testBhvMisc151AModelHoldingAMapComparesByItsEntries() {
-    let model = Metadata(additionalProperties: ["k": AnyCodable("v")])
-    #expect(model == Metadata(additionalProperties: ["k": AnyCodable("v")]))
-    #expect(model != Metadata(additionalProperties: ["k": AnyCodable("w")]))
+    let model = Metadata(additionalProperties: ["k": "v"])
+    #expect(model == Metadata(additionalProperties: ["k": "v"]))
+    #expect(model != Metadata(additionalProperties: ["k": "w"]))
   }
 }

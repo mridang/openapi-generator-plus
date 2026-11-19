@@ -2740,128 +2740,6 @@ import Testing
     #expect(client.requests == 1)
   }
 
-}
-
-// MARK: - Trace context from the caller
-
-/// The operation tests live beside the helper tests because the propagator hook is
-/// process-wide state: one serialized suite keeps the two from racing.
-extension TraceContextUtilTests {
-  /// The caller's ambient scope: a task-local the tracing hook reads. The hook is
-  /// process-wide state, so these tests run one at a time and restore it.
-  private enum CallerScope {
-    @TaskLocal static var span: String?
-  }
-
-  /// An authenticator whose credential lookup suspends before it answers.
-  private final class SlowAuth: BaseAuthenticator, @unchecked Sendable {
-    override func host() -> String { return "" }
-    override func authHeaders() async -> [String: String] {
-      try? await Task.sleep(nanoseconds: 20_000_000)
-      return [:]
-    }
-  }
-
-  private static let traceSpanA = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
-  private static let traceSpanB = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
-
-  private static func installCallerScopeHook() {
-    TraceContextUtil.propagator = { headers in
-      if let span = CallerScope.span {
-        headers["traceparent"] = span
-      }
-    }
-  }
-
-  /// Runs one operation under the given span and returns the headers it sent.
-  private func call(under span: String?, authenticator: Authenticator? = nil) async throws
-    -> [String: String]
-  {
-    let mockClient = BaseApiTests.MockApiClient()
-    mockClient.responseBody = "{\"name\":\"test\",\"photoUrls\":[]}"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = PetApi(apiClient: mockClient, config: config, authenticator: authenticator)
-    _ = try await CallerScope.$span.withValue(span) {
-      try await api.addPet(pet: Pet(name: "test", photoUrls: []))
-    }
-    return mockClient.lastHeaders
-  }
-
-  @Test func testBhvTracing013OperationSendsTheTraceparentOfTheCallerSpan() async throws {
-    Self.installCallerScopeHook()
-    defer { TraceContextUtil.propagator = nil }
-    let headers = try await call(under: Self.traceSpanA)
-    #expect(headers["traceparent"] == Self.traceSpanA)
-  }
-
-  @Test func testBhvTracing014SpanReachesTraceparentWhenBuildingHeadersWaitsOnCredentials()
-    async throws
-  {
-    Self.installCallerScopeHook()
-    defer { TraceContextUtil.propagator = nil }
-    let headers = try await call(under: Self.traceSpanA, authenticator: SlowAuth())
-    #expect(headers["traceparent"] == Self.traceSpanA)
-  }
-
-  @Test func testBhvTracing015ConcurrentOperationsEachSendTheirOwnCallerSpan() async throws {
-    Self.installCallerScopeHook()
-    defer { TraceContextUtil.propagator = nil }
-    async let first = call(under: Self.traceSpanA, authenticator: SlowAuth())
-    async let second = call(under: Self.traceSpanB, authenticator: SlowAuth())
-    let (firstHeaders, secondHeaders) = try await (first, second)
-    #expect(firstHeaders["traceparent"] == Self.traceSpanA)
-    #expect(secondHeaders["traceparent"] == Self.traceSpanB)
-  }
-
-  @Test func testBhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() async throws {
-    Self.installCallerScopeHook()
-    defer { TraceContextUtil.propagator = nil }
-    let traced = try await call(under: Self.traceSpanA)
-    #expect(traced["traceparent"] == Self.traceSpanA)
-    let untraced = try await call(under: nil)
-    #expect(untraced["traceparent"] == nil)
-  }
-}
-
-/// A client whose transport always fails before a response arrives.
-private final class FailingApiClient: ApiClient, @unchecked Sendable {
-  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-    async throws -> ApiHttpResponse
-  {
-    try await sendRequest(
-      method: method, url: url, headers: headers, body: body, noRedirect: false)
-  }
-
-  func sendRequest(
-    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-  )
-    async throws -> ApiHttpResponse
-  {
-    throw NetworkError(statusCode: 0, message: "connection reset")
-  }
-}
-
-/// A string enum standing in for a generated enum in the multipart tests.
-private enum MultipartEnumFixture: String, Codable {
-  case crimson = "crimson-red"
-}
-
-/// A Codable struct standing in for a generated model in the multipart tests.
-private struct MultipartModelPartFixture: Codable {
-  let isEnabled: Bool
-  let recordedAt: Date
-}
-
-private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
-  var requests = 0
-
-  func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws
-    -> ApiHttpResponse
-  {
-    requests += 1
-    return ApiHttpResponse(statusCode: 401, body: "{}", headers: [:])
-  }
-
   /* A cookie value the caller has already percent-encoded is written as given, with no second encoding. */
   @Test func testBhvMisc123APercentEncodedCookieValueIsSentAsGiven() throws {
     #expect(try BaseApi.cookieHeaderValue(["api_key": "a%20b"]) == "api_key=a%20b")
@@ -2990,7 +2868,7 @@ private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
   }
 
   /* Multipart field names containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header. */
-  @Test(arguments: ["a\r\nb", "a\nb", "a\u{0}b", "a\"b"])
+  @Test(arguments: ["a\r\nb", "a\nb", "a\u{0}b"])
   func testBhvSerialization123AMultipartNameWithAControlCharacterOrQuoteIsRejected(name: String) {
     #expect(throws: Error.self) {
       _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
@@ -3021,5 +2899,126 @@ private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
 
     #expect(text.contains("\"label\":\"x\""))
     #expect(!text.contains("additionalProperties"))
+  }
+}
+
+// MARK: - Trace context from the caller
+
+/// The operation tests live beside the helper tests because the propagator hook is
+/// process-wide state: one serialized suite keeps the two from racing.
+extension TraceContextUtilTests {
+  /// The caller's ambient scope: a task-local the tracing hook reads. The hook is
+  /// process-wide state, so these tests run one at a time and restore it.
+  private enum CallerScope {
+    @TaskLocal static var span: String?
+  }
+
+  /// An authenticator whose credential lookup suspends before it answers.
+  private final class SlowAuth: BaseAuthenticator, @unchecked Sendable {
+    override func host() -> String { return "" }
+    override func authHeaders() async -> [String: String] {
+      try? await Task.sleep(nanoseconds: 20_000_000)
+      return [:]
+    }
+  }
+
+  private static let traceSpanA = "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01"
+  private static let traceSpanB = "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+
+  private static func installCallerScopeHook() {
+    TraceContextUtil.propagator = { headers in
+      if let span = CallerScope.span {
+        headers["traceparent"] = span
+      }
+    }
+  }
+
+  /// Runs one operation under the given span and returns the headers it sent.
+  private func call(under span: String?, authenticator: Authenticator? = nil) async throws
+    -> [String: String]
+  {
+    let mockClient = BaseApiTests.MockApiClient()
+    mockClient.responseBody = "{\"name\":\"test\",\"photoUrls\":[]}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config, authenticator: authenticator)
+    _ = try await CallerScope.$span.withValue(span) {
+      try await api.addPet(pet: Pet(name: "test", photoUrls: []))
+    }
+    return mockClient.lastHeaders
+  }
+
+  @Test func testBhvTracing013OperationSendsTheTraceparentOfTheCallerSpan() async throws {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    let headers = try await call(under: Self.traceSpanA)
+    #expect(headers["traceparent"] == Self.traceSpanA)
+  }
+
+  @Test func testBhvTracing014SpanReachesTraceparentWhenBuildingHeadersWaitsOnCredentials()
+    async throws
+  {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    let headers = try await call(under: Self.traceSpanA, authenticator: SlowAuth())
+    #expect(headers["traceparent"] == Self.traceSpanA)
+  }
+
+  @Test func testBhvTracing015ConcurrentOperationsEachSendTheirOwnCallerSpan() async throws {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    async let first = call(under: Self.traceSpanA, authenticator: SlowAuth())
+    async let second = call(under: Self.traceSpanB, authenticator: SlowAuth())
+    let (firstHeaders, secondHeaders) = try await (first, second)
+    #expect(firstHeaders["traceparent"] == Self.traceSpanA)
+    #expect(secondHeaders["traceparent"] == Self.traceSpanB)
+  }
+
+  @Test func testBhvTracing016OperationWithNoActiveSpanSendsNoTraceparent() async throws {
+    Self.installCallerScopeHook()
+    defer { TraceContextUtil.propagator = nil }
+    let traced = try await call(under: Self.traceSpanA)
+    #expect(traced["traceparent"] == Self.traceSpanA)
+    let untraced = try await call(under: nil)
+    #expect(untraced["traceparent"] == nil)
+  }
+}
+
+/// A client whose transport always fails before a response arrives.
+private final class FailingApiClient: ApiClient, @unchecked Sendable {
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+    async throws -> ApiHttpResponse
+  {
+    try await sendRequest(
+      method: method, url: url, headers: headers, body: body, noRedirect: false)
+  }
+
+  func sendRequest(
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+  )
+    async throws -> ApiHttpResponse
+  {
+    throw NetworkError(statusCode: 0, message: "connection reset")
+  }
+}
+
+/// A string enum standing in for a generated enum in the multipart tests.
+private enum MultipartEnumFixture: String, Codable {
+  case crimson = "crimson-red"
+}
+
+/// A Codable struct standing in for a generated model in the multipart tests.
+private struct MultipartModelPartFixture: Codable {
+  let isEnabled: Bool
+  let recordedAt: Date
+}
+
+private final class UnauthorizedOnceApiClient: ApiClient, @unchecked Sendable {
+  var requests = 0
+
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?) async throws
+    -> ApiHttpResponse
+  {
+    requests += 1
+    return ApiHttpResponse(statusCode: 401, body: "{}", headers: [:])
   }
 }

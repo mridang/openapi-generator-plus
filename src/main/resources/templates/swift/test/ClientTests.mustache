@@ -221,28 +221,6 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         }
     }
 
-    private func firstApiAuthenticator(of client: {{clientClassName}}) -> Authenticator? {
-{{#apiInfo}}
-{{#apis}}
-{{#-first}}
-{{#operations}}
-        return client.{{clientPropertyName}}.authenticator
-{{/operations}}
-{{/-first}}
-{{/apis}}
-{{/apiInfo}}
-    }
-
-    private func environmentClient(
-        host: String? = nil, token: String? = nil,
-        tokenProvider: (@Sendable () async throws -> String)? = nil,
-        environment: [String: String]
-    ) throws -> {{clientClassName}} {
-        return try {{clientClassName}}.fromEnvironment(
-            host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
-            environment: environment)
-    }
-
     @Test func testBhvLifecycle014FromEnvironmentReadsTheHostAndTheToken() async throws {
         let client = try environmentClient(environment: [
             "{{envVarPrefix}}_HOST": "https://env.example.com",
@@ -269,14 +247,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(throws: ConfigurationError.invalidArgument(
             "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         ) {
-            _ = try self.environmentClient(environment: [
+            _ = try environmentClient(environment: [
                 "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
             ])
         }
         #expect(throws: ConfigurationError.invalidArgument(
             "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
         ) {
-            _ = try self.environmentClient(environment: [
+            _ = try environmentClient(environment: [
                 "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
             ])
         }
@@ -295,7 +273,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     @Test func testBhvLifecycle026AClientBuiltWithNoCredentialAtAllIsRefused() {
         let error = #expect(throws: ConfigurationError.self) {
-            _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+            _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
         }
         #expect(error == ConfigurationError.invalidArgument(
             "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable"))
@@ -304,7 +282,7 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     /* An authenticator with no token, no environment value and a nil provider is refused at construction. */
     @Test func testBhvAuth004NoTokenNoEnvironmentAndANilProviderIsRefused() {
         let error = #expect(throws: ConfigurationError.self) {
-            _ = try self.environmentClient(
+            _ = try environmentClient(
                 host: "https://explicit.example.com", token: nil, tokenProvider: nil, environment: [:])
         }
         #expect(error == ConfigurationError.invalidArgument(
@@ -315,14 +293,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
         #expect(throws: ConfigurationError.invalidArgument(
             "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         ) {
-            _ = try self.environmentClient(environment: [
+            _ = try environmentClient(environment: [
                 "{{envVarPrefix}}_HOST": "", "{{envVarPrefix}}_TOKEN": "env-token",
             ])
         }
         #expect(throws: ConfigurationError.invalidArgument(
             "No credential: pass token or tokenProvider, or set the {{envVarPrefix}}_TOKEN environment variable")
         ) {
-            _ = try self.environmentClient(environment: [
+            _ = try environmentClient(environment: [
                 "{{envVarPrefix}}_HOST": "https://env.example.com", "{{envVarPrefix}}_TOKEN": "",
             ])
         }
@@ -330,10 +308,10 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
 
     @Test func testBhvLifecycle013AMissingHostOrCredentialFailsWhenTheClientIsBuilt() {
         #expect(throws: ConfigurationError.self) {
-            _ = try self.environmentClient(environment: [:])
+            _ = try environmentClient(environment: [:])
         }
         #expect(throws: ConfigurationError.self) {
-            _ = try self.environmentClient(host: "https://explicit.example.com", environment: [:])
+            _ = try environmentClient(host: "https://explicit.example.com", environment: [:])
         }
         #expect(throws: ConfigurationError.self) {
             _ = try {{clientClassName}}.fromEnvironment(host: "https://explicit.example.com")
@@ -927,6 +905,28 @@ private func operationNames(file: String, from start: String, to end: String?, p
         guard trimmed.hasPrefix(prefix) else { return nil }
         return trimmed.dropFirst(prefix.count).split(separator: "(").first.map(String.init)
     }
+}
+
+private func firstApiAuthenticator(of client: {{clientClassName}}) -> Authenticator? {
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+    return client.{{clientPropertyName}}.authenticator
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+}
+
+private func environmentClient(
+    host: String? = nil, token: String? = nil,
+    tokenProvider: (@Sendable () async throws -> String)? = nil,
+    environment: [String: String]
+) throws -> {{clientClassName}} {
+    return try {{clientClassName}}.fromEnvironment(
+        host: host, token: token, tokenProvider: tokenProvider, transportOptions: nil,
+        environment: environment)
 }
 
 @Suite struct MockingTests {

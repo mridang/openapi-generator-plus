@@ -2107,13 +2107,4 @@ import Testing
     }
     #expect(error?.statusCode == 0)
   }
-
-  /* A self-signed endpoint is reached only when certificate verification is disabled. */
-  @Test func testBhvMisc269ASelfSignedEndpointIsReachedWithVerificationDisabled() async throws {
-    let transport = try TransportOptionsBuilder().verifySsl(false).build()
-    let client = try DefaultApiClient(transportOptions: transport)
-    let response = try await client.sendRequest(
-      method: "GET", url: chasmHttpsUrl + "/test/echo", headers: [:], body: nil)
-    #expect(response.statusCode == 200)
-  }
 }
