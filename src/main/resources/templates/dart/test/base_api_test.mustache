@@ -3789,6 +3789,23 @@ void main() {
       expect(client.sentHeaders, hasLength(2));
     });
 
+    test('bhv misc 170 a TLS or certificate failure is sent once and never retried', () async {
+      for (final message in [
+        'HandshakeException: Handshake error in client (OS Error: CERTIFICATE_VERIFY_FAILED)',
+        'TlsException: certificate has expired',
+      ]) {
+        final client = _ScriptedApiClient([
+          NetworkException(message: message),
+          _reply(200),
+        ]);
+        await expectLater(
+          _RecordingApi(client).invokeApi(method: 'GET', path: '/x'),
+          throwsA(isA<NetworkException>()),
+        );
+        expect(client.sentHeaders, hasLength(1), reason: message);
+      }
+    });
+
     test('bhv misc 163 a request body that can be replayed is sent again unchanged after a dropped connection', () async {
       for (final body in <Object?>['text', Uint8List.fromList([1, 2]), null]) {
         final client = _ScriptedApiClient([
