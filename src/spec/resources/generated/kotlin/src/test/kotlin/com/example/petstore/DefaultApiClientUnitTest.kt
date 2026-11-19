@@ -5014,4 +5014,68 @@ class DefaultApiClientUnitTest {
             assertEquals(200, response.statusCode)
             assertEquals(2, seen.size)
         }
+
+    @Test
+    @DisplayName("bhvMisc237 an ISO-8859-1 error response body decodes to UTF-8 text in the error")
+    fun bhvMisc237Iso88591ErrorBodyDecodesToUtf8() {
+        val bytes = "café".toByteArray(Charsets.ISO_8859_1)
+        val client =
+            HttpClient(
+                MockEngine {
+                    respond(
+                        content = bytes,
+                        status = HttpStatusCode.BadRequest,
+                        headers = headersOf("Content-Type", "text/plain; charset=ISO-8859-1"),
+                    )
+                },
+            ) { followRedirects = false }
+        val ex =
+            assertThrows(ApiException::class.java) {
+                runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+            }
+        assertEquals("café", ex.responseBody)
+    }
+
+    @Test
+    @DisplayName("bhvMisc240 a multipart file part is sent with its content")
+    fun bhvMisc240MultipartFilePartIsSentWithItsContent() {
+        var bodyBytes: ByteArray? = null
+        val client =
+            mockClient(requestCapture = { request ->
+                bodyBytes = runBlocking { request.body.toByteArray() }
+            })
+        val form: Map<String, Any?> = mapOf("file" to "file-content".toByteArray())
+        runBlocking {
+            DefaultApiClient(client).sendRequest("POST", "http://localhost/upload", mapOf("Content-Type" to "multipart/form-data"), form)
+        }
+        assertTrue(String(bodyBytes!!, Charsets.ISO_8859_1).contains("file-content"))
+    }
+
+    @Test
+    @DisplayName("bhvMisc266 default headers supplied by the caller replace the SDK user agent regardless of header name case")
+    fun bhvMisc266CallerDefaultHeadersReplaceTheUserAgentInAnyCase() {
+        var userAgent: String? = null
+        val client = mockClient(requestCapture = { request -> userAgent = request.headers["User-Agent"] })
+        val transport = TransportOptions.builder().defaultHeaders(mapOf("USER-AGENT" to "MyApp")).build()
+        runBlocking { DefaultApiClient(client, transport).sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+        assertEquals("MyApp", userAgent)
+    }
+
+    @Test
+    @DisplayName("bhvMisc267 a caller-supplied HTTP client's own default headers are sent on the wire with each request")
+    fun bhvMisc267CallerHttpClientDefaultHeadersAreSentOnTheWire() {
+        var seen: String? = null
+        val engine =
+            MockEngine { request ->
+                seen = request.headers["X-Client-Default"]
+                respond(content = "{}", status = HttpStatusCode.OK, headers = headersOf("Content-Type", "application/json"))
+            }
+        val client =
+            HttpClient(engine) {
+                io.ktor.client.plugins
+                    .defaultRequest { headers.append("X-Client-Default", "kept") }
+            }
+        runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/test", emptyMap(), null) }
+        assertEquals("kept", seen)
+    }
 }
