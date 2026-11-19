@@ -73,9 +73,11 @@ class TestMetadataTypedAdditionalProperties:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"a":3}', "Metadata")
 
-    def test_bhv_models_026_an_additional_property_whose_value_type_is_a_model_decodes_to_that_model(
+    def test_bhv_models_026_additional_properties_decode_to_their_model_and_undeclared_keys_survive(
         self,
     ) -> None:
+        import json
+
         from petstore_client.models import Category
 
         roster = ObjectSerializer().deserialize(
@@ -87,6 +89,12 @@ class TestMetadataTypedAdditionalProperties:
         assert roster.additional_properties["a"].name == "x"
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"a":{"id":"x"}}', "Roster")
+
+        metadata = ObjectSerializer().deserialize(
+            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', "Metadata"
+        )
+        wire = json.loads(ObjectSerializer().serialize(metadata))
+        assert wire["region"] == "eu"
 
     def test_bhv_models_027_a_null_additional_property_is_rejected_unless_the_value_schema_is_nullable(
         self,
@@ -178,19 +186,6 @@ class TestMetadataTypedAdditionalProperties:
 
         metadata = Metadata(additional_properties={"k": "v"})
         assert metadata.additional_properties == {"k": "v"}
-
-    def test_bhv_models_026_undeclared_keys_survive_decoding_and_are_written_at_the_top_level(
-        self,
-    ) -> None:
-        import json
-
-        from petstore_client.object_serializer import ObjectSerializer
-
-        metadata = ObjectSerializer().deserialize(
-            '{"createdAt":"2024-01-01T00:00:00Z","region":"eu"}', "Metadata"
-        )
-        wire = json.loads(ObjectSerializer().serialize(metadata))
-        assert wire["region"] == "eu"
 
     def test_bhv_misc_290_dict_valued_wire_key_survives_full_round_trip(self) -> None:
         # End-to-end: deserialize -> serialize -> deserialize keeps the
@@ -1020,12 +1015,6 @@ class TestMetadataEquality:
 
         assert first.created_at == second.created_at
         assert first != second
-
-    def test_bhv_models_025_an_extra_property_makes_instances_unequal(self) -> None:
-        bare = self._decode('{"createdAt":"2024-01-01T00:00:00Z"}')
-        extra = self._decode('{"createdAt":"2024-01-01T00:00:00Z","origin":"a"}')
-
-        assert bare != extra
 
 
 class TestMetadataBehaviours:

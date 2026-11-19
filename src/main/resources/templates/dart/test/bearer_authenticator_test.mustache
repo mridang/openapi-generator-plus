@@ -349,64 +349,78 @@ void main() {
 
 {{#hasCredentialEnvVars}}
   group('per-scheme authenticators', () {
+    test('bhv authbearer 010 reads its own variables from the environment', () {
 {{#credentialSchemes}}
-    group('{{className}}', () {
-      test('bhv authbearer 010 reads its own variables from the environment', () {
-        expect(
-          () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
-          returnsNormally,
-        );
-      });
-
-      test('bhv authscheme 001 {{className}} reads only its own variable from the environment', () {
-        expect(
-          () => {{className}}(
-            host: '{{{basePath}}}',
-            environment: const {'UNRELATED_CREDENTIAL': 'x'},
-          ),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{firstVariable}}'))),
-        );
-      });
-
-      test('bhv langdart 023 fails to build naming the variable when none is set', () {
-        expect(
-          () => {{className}}(host: '{{{basePath}}}', environment: const {}),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{firstVariable}}'))),
-        );
-      });
-
-      test('bhv authscheme 003 {{className}} fails at construction naming the variable when its environment variable is empty', () {
-        expect(
-          () => {{className}}(
-            host: '{{{basePath}}}',
-            environment: {'{{firstVariable}}': ''},
-          ),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{firstVariable}}'))),
-        );
-      });
-
-{{#hasAuthSchemeTest}}
-      test('{{{authSchemeTestName}}}', () {
-        expect(
-          () => {{className}}(
-            host: '{{{basePath}}}',
-            environment: {{{emptyEnvironment}}},
-          ),
-          throwsA(isA<ArgumentError>().having(
-              (e) => e.message, 'message', contains('{{emptyVariable}}'))),
-        );
-      });
-{{/hasAuthSchemeTest}}
-      test('bhv langdart 024 the scheme name in this test identifies the scheme under test', () {
-        expect(
-          {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}).toString(),
-          startsWith('{{className}}('),
-        );
-      });
+      expect(
+        () => {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}),
+        returnsNormally,
+        reason: '{{className}}',
+      );
+{{/credentialSchemes}}
     });
+
+    test('bhv authscheme 001 each credential scheme reads only its own variable from the environment', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: const {'UNRELATED_CREDENTIAL': 'x'},
+        ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv langdart 023 fails to build naming the variable when none is set', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(host: '{{{basePath}}}', environment: const {}),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv authscheme 003 each credential scheme fails at construction naming the variable when its environment variable is empty', () {
+{{#credentialSchemes}}
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: {'{{firstVariable}}': ''},
+        ),
+          throwsA(isA<ArgumentError>().having(
+              (e) => e.message, 'message', contains('{{firstVariable}}'))),
+          reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+    test('bhv langdart 024 the scheme name in each generated bearer authenticator test identifies the scheme under test', () {
+{{#credentialSchemes}}
+      expect(
+        {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}).toString(),
+        startsWith('{{className}}('),
+        reason: '{{className}}',
+      );
+{{/credentialSchemes}}
+    });
+
+{{#credentialSchemes}}
+{{#hasAuthSchemeTest}}
+    test('{{{authSchemeTestName}}}', () {
+      expect(
+        () => {{className}}(
+          host: '{{{basePath}}}',
+          environment: {{{emptyEnvironment}}},
+        ),
+        throwsA(isA<ArgumentError>().having(
+            (e) => e.message, 'message', contains('{{emptyVariable}}'))),
+      );
+    });
+{{/hasAuthSchemeTest}}
 {{/credentialSchemes}}
   });
 {{/hasCredentialEnvVars}}
