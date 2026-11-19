@@ -1856,3 +1856,21 @@ async fn test_bhv_misc_069_an_unusable_token_response_is_refused_naming_the_prob
         assert!(err.to_string().contains(problem), "{}", err);
     }
 }
+
+/// A token request is sent once, even when the token endpoint answers 503.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_172_a_token_request_is_sent_once_even_when_the_server_answers_503() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"error":"temporarily_unavailable"}"#, 503);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a 503 from the token endpoint fails the request");
+
+    assert_eq!(1, client.requests().len());
+}
