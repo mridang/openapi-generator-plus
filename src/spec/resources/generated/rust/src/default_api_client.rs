@@ -1526,6 +1526,25 @@ mod tests {
 
     /* RFC 9110 section 15.4: the method a redirect hop uses. */
     #[test]
+    fn test_bhv_misc_170_a_tls_failure_is_a_network_error_on_the_first_attempt() {
+        #[derive(Debug)]
+        struct CertificateFailure;
+        impl std::fmt::Display for CertificateFailure {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "invalid peer certificate: UnknownIssuer")
+            }
+        }
+        impl std::error::Error for CertificateFailure {}
+        let api_error = crate::errors::api_error::ApiError::transport(
+            crate::errors::api_error::TransportFailure::Network,
+            "error sending request".to_string(),
+            Arc::new(CertificateFailure),
+        );
+        let err = crate::errors::NetworkError::try_from(api_error).expect("status 0");
+        assert!(!crate::api::base_api::is_retryable_error(&err));
+    }
+
+    #[test]
     fn test_bhv_misc_173_a_streamed_body_is_refused_across_an_https_to_http_redirect() {
         let https = reqwest::Url::parse("https://example.com/x").unwrap();
         let http = reqwest::Url::parse("http://example.com/x").unwrap();

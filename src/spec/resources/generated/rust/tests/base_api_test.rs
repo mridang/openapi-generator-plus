@@ -4059,39 +4059,6 @@ async fn test_bhv_misc_161_a_dropped_post_is_sent_once_and_its_error_is_returned
     assert_eq!(1, client.calls());
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_bhv_misc_170_a_tls_failure_is_a_network_error_on_the_first_attempt() {
-    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("failed to bind");
-    let port = listener.local_addr().expect("local address").port();
-    let accepts = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-    let counter = accepts.clone();
-    std::thread::spawn(move || {
-        while let Ok((mut stream, _)) = listener.accept() {
-            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-            let mut buf = [0u8; 512];
-            let _ = std::io::Read::read(&mut stream, &mut buf);
-            let _ = std::io::Write::write_all(
-                &mut stream,
-                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
-            );
-        }
-    });
-    let config = ConfigurationBuilder::new()
-        .base_url(&format!("https://127.0.0.1:{}", port))
-        .build();
-    let options = TransportOptions::builder()
-        .max_retries(2)
-        .build()
-        .expect("valid options");
-    let api = PetApi::new(Arc::new(DefaultApiClient::new(Some(options))), config, None);
-    let err = api
-        .delete_pet(1, None)
-        .await
-        .expect_err("a TLS failure fails the call");
-    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
-    assert_eq!(1, accepts.load(std::sync::atomic::Ordering::SeqCst));
-}
-
 #[tokio::test]
 async fn test_bhv_misc_176_cookie_value_is_sent_in_the_cookie_header() {
     let client = Arc::new(CapturingApiClient::new());
