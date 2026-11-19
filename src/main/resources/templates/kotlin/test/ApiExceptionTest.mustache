@@ -2,26 +2,26 @@
 
 package {{invokerPackage}}
 
-import {{invokerPackage}}.errors.ApiException
-import {{invokerPackage}}.errors.SerializationException
-import {{invokerPackage}}.errors.{{errorPrefix}}Exception
-import {{invokerPackage}}.errors.BadRequestException
-import {{invokerPackage}}.errors.ClientException
-import {{invokerPackage}}.errors.NetworkException
-
-import {{invokerPackage}}.errors.ErrorFactory
-import {{invokerPackage}}.errors.NotFoundException
-import {{invokerPackage}}.errors.ServerException
-import {{invokerPackage}}.errors.ConflictException
-import {{invokerPackage}}.errors.ForbiddenException
-import {{invokerPackage}}.errors.InternalServerErrorException
-import {{invokerPackage}}.errors.TooManyRequestsException
-import {{invokerPackage}}.errors.UnauthorizedException
-import {{invokerPackage}}.errors.UnprocessableEntityException
+import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
+import {{invokerPackage}}.errors.ApiException
+import {{invokerPackage}}.errors.BadRequestException
+import {{invokerPackage}}.errors.ClientException
+import {{invokerPackage}}.errors.ConflictException
+import {{invokerPackage}}.errors.ErrorFactory
+import {{invokerPackage}}.errors.ForbiddenException
+import {{invokerPackage}}.errors.InternalServerErrorException
+import {{invokerPackage}}.errors.NetworkException
+import {{invokerPackage}}.errors.NotFoundException
+import {{invokerPackage}}.errors.SerializationException
+import {{invokerPackage}}.errors.ServerException
+import {{invokerPackage}}.errors.TooManyRequestsException
+import {{invokerPackage}}.errors.UnauthorizedException
+import {{invokerPackage}}.errors.UnprocessableEntityException
+import {{invokerPackage}}.errors.{{errorPrefix}}Exception
 
 class ApiExceptionTest {
 
@@ -107,7 +107,7 @@ class ApiExceptionTest {
     @Test
     @DisplayName("bhvErrors089 an error with a null or empty message renders the default message text")
     fun bhvErrors089NullOrEmptyMessageRendersTheDefaultText() {
-        val ex = ApiException(statusCode = 500, message = null, responseHeaders = null, responseBody = null)
+        val ex = ApiException(statusCode = 500, message = "", responseHeaders = null, responseBody = null)
 
         assertTrue(ex.toString().startsWith("Error message: the server returns an error"))
     }

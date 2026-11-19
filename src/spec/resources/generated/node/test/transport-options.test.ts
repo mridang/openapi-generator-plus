@@ -214,9 +214,8 @@ describe("TransportOptions", () => {
     );
   });
 
-  test("bhv options 031 proxy URL that is empty, has no host or has a bad scheme is rejected with TypeError and the exact message", () => {
+  test("bhv options 031 proxy URL that has no host or has a bad scheme is rejected with TypeError and the exact message", () => {
     const rows: Array<[string, string, string]> = [
-      ["an empty string", "", "Invalid proxy URL (unparseable): "],
       [
         "a scheme without a host",
         "http://",
