@@ -5102,22 +5102,23 @@ func TestBhvMisc247_ObjectSerializer_UuidWithWrongSegmentLengthsIsRejected(t *te
 	}
 }
 
-// A read-only property is decoded and a write-only property is written, and neither is sent in the wrong direction.
-func TestBhvMisc242_ObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffectInTheOtherDirection(t *testing.T) {
+// A readOnly or writeOnly property has no wire effect: it is written and decoded like any other.
+func TestBhvMisc242_ObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffect(t *testing.T) {
 	t.Parallel()
 	var decoded models.Account
 	if err := json.Unmarshal([]byte(`{"id":7,"username":"u","password":"p"}`), &decoded); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if decoded.Id == nil || *decoded.Id != 7 {
-		t.Errorf("expected the read-only id 7 to be decoded, got %v", decoded.Id)
+	if decoded.Id == nil || *decoded.Id != 7 || decoded.Password == nil || *decoded.Password != "p" {
+		t.Errorf("expected the readOnly id and the writeOnly password to be decoded, got %+v", decoded)
 	}
+	id := int64(7)
 	password := "p"
-	data, err := json.Marshal(models.Account{Username: "u", Password: &password})
+	data, err := json.Marshal(models.Account{Id: &id, Username: "u", Password: &password})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if want := `{"username":"u","password":"p"}`; string(data) != want {
+	if want := `{"id":7,"username":"u","password":"p"}`; string(data) != want {
 		t.Errorf("expected %s, got %s", want, data)
 	}
 }
