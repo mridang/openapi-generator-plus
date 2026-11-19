@@ -1146,6 +1146,24 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvAuth007AGenericAuthenticatorBuiltWithoutCredentialsReadsNoVariableAndFails()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+            {
+                Assert.ThrowsAny<ArgumentException>(() =>
+                    new BearerAuthenticator("http://localhost", (string)null!)
+                );
+                Assert.ThrowsAny<ArgumentException>(() =>
+                    new BearerAuthenticator("http://localhost", "")
+                );
+            }
+        );
+    }
+
+    [Fact]
     public async Task BhvAuth038ATokenProviderOutranksATokenInTheEnvironment()
     {
         using var handler = new RecordingHandler();

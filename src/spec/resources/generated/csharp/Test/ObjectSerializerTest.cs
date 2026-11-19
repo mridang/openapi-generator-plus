@@ -4294,6 +4294,26 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerializationobject015AUniqueItemsArrayOfStringsIsWrittenInSortedOrder()
+        {
+            string json = _serializer.Serialize(
+                new Pet("x", new HashSet<string> { "c", "a", "b" })
+            );
+
+            Assert.Contains("\"photoUrls\":[\"a\",\"b\",\"c\"]", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc085ANonCanonicalUuidIsRefusedWhenADocumentIsDecoded()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>(
+                    "{\"trackingId\":\"{550e8400-e29b-41d4-a716-446655440000}\"}"
+                )
+            );
+        }
+
+        [Fact]
         public void BhvMisc112ARepeatedElementOfAUniqueArrayKeepsOneCopy()
         {
             var set = _serializer.Deserialize<HashSet<string>>("[\"a\",\"a\",\"b\"]");

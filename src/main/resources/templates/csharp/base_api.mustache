@@ -466,7 +466,12 @@ public abstract class BaseApi
             }
         }
 
-        Uri requestUri = new(url);
+        if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? requestUri))
+        {
+            /* A malformed base URL or path is a caller mistake: the built-in argument error,
+               never the native UriFormatException. */
+            throw new ArgumentException("The request URL is not a valid absolute URL", nameof(path));
+        }
         if (timeout.HasValue)
         {
             /* One end-to-end budget: time spent obtaining credentials counts against it, and a

@@ -956,6 +956,27 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvErrors040AMalformedRequestUrlRaisesAnArgumentExceptionAndSendsNothing()
+    {
+        var client = new CapturingApiClient();
+        var api = new TestableApi(client, "http://exa mple.invalid");
+
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            api.CallAsync<JsonNode>(
+                "GET",
+                "/x",
+                new Dictionary<string, object?>(),
+                new Dictionary<string, string>(),
+                null,
+                ["application/json"],
+                "application/json"
+            )
+        );
+
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
     public async Task BhvMisc030ACallPastItsDeadlineAfterObtainingCredentialsNeverReachesTheTransport()
     {
         var client = new CapturingApiClient();

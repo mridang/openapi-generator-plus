@@ -45,9 +45,7 @@ swift | operations111 | the typed trackingId is a Foundation UUID, so a malforme
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
 swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert
-csharp | serializationobject015 | S6 leaves uniqueItems order to the natural collection, and a HashSet promises no insertion order
 csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject
-csharp | errors040 | SendRequestAsync takes a System.Uri, so a malformed request URL fails in the caller new Uri(...) with UriFormatException before the SDK runs and no SDK path receives one
 java | operations111 | The uuid parameter is typed java.util.UUID, so a malformed value cannot reach the method; UUID.fromString rejects it before the call
 kotlin | operations111 | Kotlin types the tracking id as kotlin.uuid.Uuid, so a malformed value cannot be built; Uuid.parse refuses it in the caller before any call is made, and Java (typed UUID) has the same gap
 php | serializationobject008 | format: uri is a plain string in php and schema constraints are not enforced client-side (S3, D55), so a relative reference is accepted (bhv serializationobject 173)
@@ -221,7 +219,6 @@ swift | serialization041 | Swift maps format time to String with no time-of-day 
 swift | serialization043 | Swift maps format time to String with no time-of-day type in Foundation, so a time of day is kept as its wire string and never written from a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
 swift | transport076 | Swift on Linux refuses any proxy setting because URLSession applies no proxy there, so proxy credentials never reach a request on this platform and cannot be checked
-csharp | auth007 | the generic csharp authenticators take their credential as a required constructor argument, so an authenticator built without credentials does not compile; environment reading exists only in the per-scheme wrappers and FromEnvironment, which the authscheme and lifecycle rows cover
 csharp | auth015 | csharp's synchronous GetAuthHeaders raises for every OAuth2 token flow (D12, forced by the interface), so no sync header call can return headers without an Authorization entry after a failed token request
 csharp | serialization044 | C# types a date-format parameter as DateOnly, so a date-time cannot reach the date writer at all; the calendar-date writer itself is covered by BhvSerializationparam028
 dart | redirects045 | The http.Client interface exposes no redirect policy to inspect, and the SDK sets followRedirects to false on every request it sends, which package:http IOClient honours, so a supplied client cannot be refused for redirecting; the per-request redirect behaviour is covered by bhv redirects 038 and 036
@@ -512,7 +509,6 @@ csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed st
 kotlin | misc074 | The petstore fixture names one scheme per security alternative, so no operation sends the credentials of two schemes at once
 kotlin | misc075 | The scheme constructor takes one optional parameter per declared scheme, so a credential cannot be keyed to an undeclared scheme; the compiler refuses it
 go | misc185 | the Go OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
-csharp | misc085 | uuid fields and parameters are typed System.Guid, so text that is not in canonical form cannot be passed to the call or built into a model
 csharp | misc100 | The C# SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
 java | misc100 | The Java SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back
 python | misc145 | python exposes additional_properties as the model's own dict field, so reading it hands back the stored dict rather than a copy
