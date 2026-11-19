@@ -58,10 +58,28 @@ public abstract class AbstractClientSpec extends AbstractIntegrationSpec {
        * that runs after every client spec can compare the suites without running
        * them again, and sees a run that wrote no report as zero tests. */
       parityStore.write(ParityReportParser.parse(language, reportsDir, System.currentTimeMillis()));
+      keepReports(reportsDir, language);
     }
 
     assertThat(result.isSuccess())
         .withFailMessage("Client tests failed:\n%s", result.output())
         .isTrue();
+  }
+
+  /**
+   * Copies the language's JUnit XML reports to {@code target/test-reports/<language>} so a failed
+   * run can be read with {@code etc/test-failures.py} after the temporary output folder is gone.
+   */
+  private static void keepReports(Path reportsDir, String language) throws IOException {
+    if (!Files.isDirectory(reportsDir)) {
+      return;
+    }
+    Path kept = Path.of("target/test-reports", language).toAbsolutePath();
+    Files.createDirectories(kept);
+    try (Stream<Path> reports = Files.list(reportsDir)) {
+      for (Path report : reports.filter(p -> p.toString().endsWith(".xml")).collect(Collectors.toList())) {
+        Files.copy(report, kept.resolve(report.getFileName()), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      }
+    }
   }
 }
