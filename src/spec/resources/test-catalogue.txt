@@ -1497,7 +1497,7 @@ auth034 | An API-key authenticator rejects an empty or blank key when it is cons
 auth035 | A credential or header value containing a control, NUL or non-ASCII character is rejected with an error.
 auth036 | A Basic authenticator rejects a username containing a colon with an error.
 auth037 | A token or credentials provider is asked again for each request and its current value is sent.
-auth038 | A token provider takes precedence over the same token read from the environment.
+auth038 | A token provider passed to an authenticator is used even when the environment variable holds a token; the environment only fills a credential that was not passed.
 auth039 | Passing both a token and a token provider is rejected with an error.
 auth040 | An environment variable that is set but empty is treated as unset.
 auth041 | A value passed explicitly to a constructor takes precedence over the same environment variable.
@@ -1625,7 +1625,6 @@ misc087 | A decimal field in a loosely built request body is written as a bare J
 misc088 | A decimal decoded from text keeps the number of decimal places it was written with.
 misc089 | A date-time is written in its canonical form whether it sits directly in a field or inside an optional, list, set or map.
 misc090 | A duration field of a record writes its fractional seconds in the wire form.
-misc091 | Decoding refuses a value that breaks a constraint or pattern the schema declares.
 misc092 | Properties are read and matched only by their wire name, never by the SDK's own attribute name.
 misc093 | Additional properties with numeric names are written as members of a JSON object, alone or beside named fields.
 misc094 | A free-form JSON object is written with its members and their values unchanged.
@@ -2403,7 +2402,6 @@ langphp015 | A JSON body is sent with a POST request through the PSR-18 client w
 langphp016 | Response header names are returned lowercased whatever case the server sent them in.
 langphp017 | No request-id header is sent when request ids are disabled.
 langphp018 | A relative redirect Location is resolved against the request URL per RFC 3986.
-langphp019 | A 302 redirect that downgrades https to http with a body is followed as a GET.
 langphp020 | A PUT with a body that a 301 downgrades from https to http is refused rather than replayed.
 langphp021 | A transport failure raises the SDK network error type.
 langphp022 | A stream part is sent as a file part carrying the bytes of the stream.
