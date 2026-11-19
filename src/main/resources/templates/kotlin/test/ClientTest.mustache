@@ -661,4 +661,62 @@ class ClientTest {
         assertEquals(2, starts.size)
         custom.close()
     }
+    @Test
+    @DisplayName("bhvMisc204 constructing a client without a required host or token fails at once with a missing-credential error")
+    fun bhvMisc204ClientWithoutHostOrTokenFailsAtOnce() {
+        assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(emptyMap()) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+    }
+
+    @Test
+    @DisplayName("bhvMisc205 the missing-credential error names the environment variable that should have supplied the token")
+    fun bhvMisc205MissingCredentialErrorNamesTheVariable() {
+        val ex = assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(emptyMap()) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+        assertTrue(ex.message!!.contains("{{envVarPrefix}}_TOKEN"), ex.message)
+    }
+
+    @Test
+    @DisplayName("bhvMisc206 a client built with only a default authenticator is constructed and takes its host from it")
+    fun bhvMisc206ClientWithOnlyAnAuthenticatorTakesItsHost() {
+        var host = ""
+        val engine = MockEngine { request ->
+            host = request.url.host
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val authenticator = BearerAuthenticator("https://api.example.com", "token")
+        val client = {{clientClassName}}(authenticator, TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build())
+        assertThrows(ApiException::class.java) { runBlocking { client.pet.getPetById(1L) } }
+        assertEquals("api.example.com", host)
+    }
+
+    @Test
+    @DisplayName("bhvMisc207 a token not passed to the constructor is read from its environment variable")
+    fun bhvMisc207TokenNotPassedIsReadFromItsEnvironmentVariable() {
+        var authorization: String? = null
+        val engine = MockEngine { request ->
+            authorization = request.headers[HttpHeaders.Authorization]
+            respond("", HttpStatusCode.BadRequest)
+        }
+        val client = withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "env-token")) {
+            {{clientClassName}}.withToken(
+                "https://api.example.com",
+                null,
+                TransportOptions.builder().httpClient(HttpClient(engine) { followRedirects = false }).build(),
+            )
+        }
+        assertThrows(ApiException::class.java) { runBlocking { client.pet.getPetById(1L) } }
+        assertEquals("Bearer env-token", authorization)
+    }
+
+    @Test
+    @DisplayName("bhvMisc208 an empty environment variable for the token counts as unset")
+    fun bhvMisc208EmptyTokenVariableCountsAsUnset() {
+        assertThrows(IllegalArgumentException::class.java) {
+            withEnvironment(mapOf("{{envVarPrefix}}_TOKEN" to "")) { {{clientClassName}}.withToken("https://api.example.com") }
+        }
+    }
+
 }

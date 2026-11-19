@@ -1048,6 +1048,23 @@ export abstract class AbstractApiClient implements ApiClient {
     if (contentEncoding === "" || contentEncoding === "identity") {
       return buf;
     }
+    /* Refuse any coding the SDK cannot decode rather than handing the caller
+     * bytes still in that encoding. Every token of a comma list must be one of
+     * the codings the SDK advertises or the identity coding. */
+    const supportedCodings = ["identity", "gzip", "x-gzip", "deflate", "br"];
+    const unsupported = contentEncoding
+      .split(",")
+      .map((token) => token.trim())
+      .some((token) => token !== "" && !supportedCodings.includes(token));
+    if (unsupported) {
+      throw new ApiError(
+        statusCode,
+        `Unsupported Content-Encoding '${contentEncoding}'`,
+        responseHeaders,
+        null,
+        null,
+      );
+    }
     /* Only the first declared coding can still be on the wire; a comma list
      * (e.g. "gzip, br") is decoded outer-first by the fetch layer, so inspect
      * the last (outermost) token that remains. We only act when the bytes still
