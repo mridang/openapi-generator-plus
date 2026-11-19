@@ -422,4 +422,44 @@ import Testing
         nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
     }
   }
+
+  /* A bearer scheme wrapper sends the same header as its base authenticator and refuses invalid input the same way. */
+  @Test(arguments: ["PetStoreBearer", "ServiceToken"])
+  func testBhvMisc193ABearerSchemeWrapperMatchesItsBaseAuthenticator(scheme: String) async throws {
+    let base = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
+    let expected = try await base.authHeaders()
+    let wrapper = try Self.schemeWrapper(scheme, token: "xyz")
+    #expect(try await wrapper.authHeaders() == expected)
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
+    ) {
+      _ = try Self.schemeWrapper(scheme, token: "abc\r\nX-Forwarded: yes")
+    }
+  }
+
+  /* A token returned by a token provider is sent under the same Bearer prefix rule as a static token. */
+  @Test func testBhvMisc194AProviderTokenIsNotDoublePrefixed() async throws {
+    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "Bearer xyz" })
+    #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
+  }
+
+  /* A whitespace-only token returned by a token provider is rejected when the request is made. */
+  @Test func testBhvMisc195AWhitespaceOnlyProviderTokenIsRejectedWhenTheRequestIsMade() async throws
+  {
+    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "   " })
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await auth.authHeaders()
+    }
+    #expect(error == ConfigurationError.invalidArgument("Bearer token must not be empty"))
+  }
+
+  /* A scheme wrapper with no token from its argument or environment fails with an error. */
+  @Test func testBhvMisc196ASchemeWrapperWithNoTokenFromItsEnvironmentFails() {
+    #expect(throws: ConfigurationError.self) {
+      _ = try PetStoreBearerAuthenticator(
+        host: "https://api.example.com", token: nil, environment: [:])
+    }
+  }
+
 }

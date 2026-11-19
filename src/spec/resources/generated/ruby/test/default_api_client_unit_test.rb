@@ -2944,6 +2944,19 @@ describe 'DefaultApiClientUnit' do
     _(client.instance_variable_get(:@closed)).must_equal true
   end
 
+  it 'bhv_misc_202 a text body sent without a declared content type goes out with the JSON media type and no parameters' do
+    _outcome, envs, = run_retry_probe(verb: :post, body: 'hello') { [200, {}, '{}'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/json'
+  end
+
+  it 'bhv_misc_203 closing a client that is already closed does nothing and raises no error' do
+    client = Petstore::Client::DefaultApiClient.new
+    client.close
+
+    _(-> { client.close }).must_be_silent
+  end
+
   it 'bhv_retries_038 sends the request again after a 503 and returns the later success' do
     outcome, envs, delays = run_retry_probe(&ok_after(2, [503, {}, 'busy']))
 

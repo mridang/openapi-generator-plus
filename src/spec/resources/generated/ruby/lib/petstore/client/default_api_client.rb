@@ -334,6 +334,7 @@ module Petstore::Client
         end
       else
         serialized_body = body
+        merged['Content-Type'] = 'application/json' unless header?(merged, 'Content-Type')
       end
 
       # Field names are case-insensitive: a caller's accept-encoding in any casing

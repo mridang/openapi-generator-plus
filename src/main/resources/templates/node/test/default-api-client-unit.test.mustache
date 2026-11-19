@@ -2583,6 +2583,15 @@ describe('Content-Encoding lie surfaces ApiError (canonical AL)', () => {
     ).rejects.toThrow(ApiError);
   });
 
+  it('bhvMisc285 a response with a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message', async () => {
+    await expect(
+      DefaultApiClient.ensureDecoded(Buffer.from('payload', 'utf-8'), 'compress', 200)
+    ).rejects.toMatchObject({
+      name: 'ApiError',
+      message: "Unsupported Content-Encoding 'compress'",
+    });
+  });
+
   it('bhv transport 035 decompresses a zlib-wrapped deflate response', async () => {
     const body = zlib.deflateSync(Buffer.from('{"userId":1}', 'utf-8'));
     const srv = http.createServer((_req, res) => {
