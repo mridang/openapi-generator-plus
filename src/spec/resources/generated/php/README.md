@@ -156,7 +156,7 @@ use PetstoreClient\Client;
 
 final class TimingHook implements CallHook
 {
-    public function start(CallInfo $info, array &$headers): ?CallObserver
+    public function start(CallInfo $info, array &$headers): CallObserver
     {
         $headers['X-Caller'] = 'billing';
         $started = hrtime(true);
@@ -258,17 +258,22 @@ function useGroup(PetApiInterface $api): void
 
 // A fake is any class that implements the interface; this one is generated once for every
 // group and records each call it receives.
+/**
+ * @template T of object
+ * @param class-string<T> $interface
+ * @return T
+ */
 function fake(string $interface): object
 {
     $methods = '';
-    foreach ((new ReflectionClass($interface))->getMethods() as $method) {
+    foreach ((new \ReflectionClass($interface))->getMethods() as $method) {
         $params = [];
         foreach ($method->getParameters() as $param) {
             $default = $param->isDefaultValueAvailable() ? ' = ' . var_export($param->getDefaultValue(), true) : '';
             $params[] = ($param->getType() === null ? '' : $param->getType() . ' ') . '$' . $param->getName() . $default;
         }
         $returnType = $method->hasReturnType() ? ': ' . $method->getReturnType() : '';
-        $body = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new LogicException();';
+        $body = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new \\LogicException();';
         $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')' . $returnType . ' { ' . $body . ' }';
     }
 
