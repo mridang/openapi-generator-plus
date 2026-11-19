@@ -1774,6 +1774,22 @@ test('bhv operations 043 date only path param serialises as a date only path seg
     expect($captured->url)->toEndWith('/pet/born-on/2024-01-01');
 });
 
+test('bhv misc 219 an operation with several servers sends its request to the server chosen for that operation', function (): void {
+    [$api, $captured] = newBodyCapturingPetApi();
+    $server = new \PetstoreClient\Api\GetStagingPetInfoServerStagingServer(
+        \PetstoreClient\Api\GetStagingPetInfoServerEnvironment::from('sandbox'),
+        \PetstoreClient\Api\GetStagingPetInfoServerVersion::from('v3'),
+    );
+
+    try {
+        $api->getStagingPetInfo(7, $server);
+    } catch (\Throwable) {
+        /* The URL is captured during sendRequest, before deserialization. */
+    }
+
+    expect($captured->url)->toBe('https://sandbox.example.com/api/v3/pet/7/staging');
+});
+
 test('bhv operations 083 staging server variants resolve every enum combination into the request url', function (string $environment, string $version): void {
     [$api, $captured] = newBodyCapturingPetApi();
     $server = new \PetstoreClient\Api\GetStagingPetInfoServerStagingServer(
