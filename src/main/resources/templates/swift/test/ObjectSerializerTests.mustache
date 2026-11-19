@@ -1199,16 +1199,17 @@ import Testing
 
     /* JSONDecoder keeps the first of two duplicate keys; the other SDKs keep
        the last, so the serializer drops the earlier occurrences first. */
-    @Test func testBhvSerializationobject006DuplicateKeyKeepsTheLastValue() throws {
-        let order = try ObjectSerializer.deserialize("{\"id\":1,\"quantity\":3,\"id\":2}", as: Order.self)
-        #expect(order?.id == 2)
-        #expect(order?.quantity == 3)
-    }
-
-    @Test func testBhvSerializationobject006DuplicateKeyInNestedObjectKeepsTheLastValue() throws {
-        let values = try ObjectSerializer.deserialize(
-            "{\"outer\":{\"k\":\"first\",\"k\":\"last\"}}", as: [String: [String: String]].self)
-        #expect(values == ["outer": ["k": "last"]])
+    @Test func testBhvSerializationobject006DuplicateKeyKeepsTheLastValueAtEveryDepth() throws {
+        do {
+            let order = try ObjectSerializer.deserialize("{\"id\":1,\"quantity\":3,\"id\":2}", as: Order.self)
+            #expect(order?.id == 2)
+            #expect(order?.quantity == 3)
+        }
+        do {
+            let values = try ObjectSerializer.deserialize(
+                "{\"outer\":{\"k\":\"first\",\"k\":\"last\"}}", as: [String: [String: String]].self)
+            #expect(values == ["outer": ["k": "last"]])
+        }
     }
 
     @Test func testBhvMisc119EscapedDuplicateKeyCountsAsTheSameKey() throws {
@@ -2508,7 +2509,7 @@ import Testing
         #expect(try ObjectSerializer.encodeDuration(3600) == "3600s")
     }
 
-    @Test func testBhvSerializationparam105AddressParameterIsTheTextUnchanged() {
+    @Test func testBhvLangswift085AddressParameterIsTheTextUnchanged() {
         #expect(ObjectSerializer.stringify("2001:db8::1") == "2001:db8::1")
     }
 
@@ -2942,15 +2943,13 @@ import Testing
     }
 
     /* Base64 byte values decode only when they are strict RFC 4648 text, so malformed or non-strict input is rejected. */
-    @Test(arguments: ["\"aGk\"", "\"aG!k=\"", "\"a G k=\""])
-    func testBhvSerialization090NonStrictBase64IsRejected(json: String) {
-        #expect(throws: Error.self) {
-            _ = try ObjectSerializer.deserialize(Data(json.utf8), as: Data.self)
+    /* Base64 byte values decode only when they are strict RFC 4648 text, so malformed or non-strict input is rejected, including inside arrays and maps. */
+    @Test func testBhvSerialization090NonStrictBase64IsRejectedIncludingInsideArraysAndMaps() {
+        for json in ["\"aGk\"", "\"aG!k=\"", "\"a G k=\""] {
+            #expect(throws: Error.self) {
+                _ = try ObjectSerializer.deserialize(Data(json.utf8), as: Data.self)
+            }
         }
-    }
-
-    /* Base64 byte values are rejected inside arrays and maps as well when they are not strict RFC 4648 text. */
-    @Test func testBhvSerialization090NonStrictBase64IsRejectedInsideArraysAndMaps() {
         #expect(throws: Error.self) {
             _ = try ObjectSerializer.deserialize(Data("[\"aGk\"]".utf8), as: [Data].self)
         }

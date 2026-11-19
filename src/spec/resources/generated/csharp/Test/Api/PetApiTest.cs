@@ -1295,6 +1295,20 @@ public class PetApiTest
             mockApi.GetPetByIdAsync(1L)
         );
         Assert.Equal(200, ex.StatusCode);
+
+        var client = new DateWireCapturingApiClient
+        {
+            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
+        };
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = "a b", Rank = 3 });
+
+        Assert.EndsWith(
+            "?note=a%20b&rank=3",
+            client.CapturedUrl!.AbsoluteUri,
+            StringComparison.Ordinal
+        );
     }
 
     [Fact]
@@ -1620,36 +1634,21 @@ public class PetApiTest
         await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = 3 });
 
         Assert.EndsWith("?note=&rank=3", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
-    }
 
-    [Fact]
-    public async Task BhvOperations158GetPetByNoteSendsEveryNullRequiredNullableQueryParameterInDeclarationOrder()
-    {
-        var client = new DateWireCapturingApiClient
+        var bothNull = new DateWireCapturingApiClient
         {
             ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
         };
-        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+        var bothNullApi = new PetApi(
+            bothNull,
+            Configuration.Builder().BaseUrl("http://localhost").Build()
+        );
 
-        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = null });
-
-        Assert.EndsWith("?note=&rank=", client.CapturedUrl!.AbsoluteUri, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task BhvOperations159GetPetByNoteSendsANonNullRequiredNullableQueryParameterWithItsValue()
-    {
-        var client = new DateWireCapturingApiClient
-        {
-            ResponseBody = "{\"name\":\"x\",\"photoUrls\":[]}",
-        };
-        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
-
-        await api.GetPetByNoteAsync(new GetPetByNoteOptions { Note = "a b", Rank = 3 });
+        await bothNullApi.GetPetByNoteAsync(new GetPetByNoteOptions { Note = null, Rank = null });
 
         Assert.EndsWith(
-            "?note=a%20b&rank=3",
-            client.CapturedUrl!.AbsoluteUri,
+            "?note=&rank=",
+            bothNull.CapturedUrl!.AbsoluteUri,
             StringComparison.Ordinal
         );
     }

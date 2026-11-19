@@ -722,7 +722,7 @@ import Testing
         #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b%2E_~9")
     }
 
-    @Test func testBhvSerializationparam104EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
+    @Test func testBhvLangswift084EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
         #expect(
             ValueSerializer.encodeCookieValue("{\"k\":\"a b~*\u{00E9}\"}")
                 == "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D")

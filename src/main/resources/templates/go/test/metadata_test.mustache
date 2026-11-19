@@ -194,35 +194,60 @@ func TestBhvModels009_Metadata_AdditionalPropertiesAreAMapOfTheValueType(t *test
 	}
 }
 
-// A value of the wrong JSON type fails the decode.
-func TestBhvModels025_Counters_AdditionalPropertyOfTheWrongJsonTypeFailsTheDecode(t *testing.T) {
+func TestBhvModels025_AdditionalPropertiesFailTheWrongTypeAndTakePartInEquality(t *testing.T) {
 	t.Parallel()
-	for _, body := range []string{`{"a":2.5}`, `{"a":"2"}`, `{"a":3000000000}`} {
-		var counters models.Counters
-		if err := json.Unmarshal([]byte(body), &counters); err == nil {
-			t.Errorf("expected %s to fail the decode", body)
+	t.Run("wrongJsonTypeFailsTheDecode", func(t *testing.T) {
+		for _, body := range []string{`{"a":2.5}`, `{"a":"2"}`, `{"a":3000000000}`} {
+			var counters models.Counters
+			if err := json.Unmarshal([]byte(body), &counters); err == nil {
+				t.Errorf("expected %s to fail the decode", body)
+			}
 		}
-	}
-	var metadata models.Metadata
-	if err := json.Unmarshal([]byte(`{"a":3}`), &metadata); err == nil {
-		t.Error("expected a number for a string-valued extra to fail the decode")
-	}
+		var metadata models.Metadata
+		if err := json.Unmarshal([]byte(`{"a":3}`), &metadata); err == nil {
+			t.Error("expected a number for a string-valued extra to fail the decode")
+		}
+	})
+	t.Run("extraPropertiesTakePartInEquality", func(t *testing.T) {
+		a := models.Metadata{AdditionalProperties: map[string]string{"a": "1"}}
+		b := models.Metadata{AdditionalProperties: map[string]string{"a": "2"}}
+		if a.Equal(&b) {
+			t.Error("expected instances differing only in extra properties to be unequal")
+		}
+	})
 }
 
-// A value whose type is a model decodes to that model.
-func TestBhvModels026_Roster_ModelValuedAdditionalPropertyDecodesToTheModel(t *testing.T) {
+func TestBhvModels026_AdditionalPropertiesDecodeToTheirModelAndRoundTrip(t *testing.T) {
 	t.Parallel()
-	var roster models.Roster
-	if err := json.Unmarshal([]byte(`{"label":"l","a":{"id":1,"name":"x"}}`), &roster); err != nil {
-		t.Fatalf("failed to deserialize Roster: %v", err)
-	}
-	var category models.Category = roster.AdditionalProperties["a"]
-	if category.Id == nil || *category.Id != 1 || category.Name == nil || *category.Name != "x" {
-		t.Errorf("unexpected category %+v", category)
-	}
-	if err := json.Unmarshal([]byte(`{"a":{"id":"x"}}`), &roster); err == nil {
-		t.Error("expected a wrong inner type to fail the decode")
-	}
+	t.Run("modelValuedAdditionalPropertyDecodesToTheModel", func(t *testing.T) {
+		var roster models.Roster
+		if err := json.Unmarshal([]byte(`{"label":"l","a":{"id":1,"name":"x"}}`), &roster); err != nil {
+			t.Fatalf("failed to deserialize Roster: %v", err)
+		}
+		var category models.Category = roster.AdditionalProperties["a"]
+		if category.Id == nil || *category.Id != 1 || category.Name == nil || *category.Name != "x" {
+			t.Errorf("unexpected category %+v", category)
+		}
+		if err := json.Unmarshal([]byte(`{"a":{"id":"x"}}`), &roster); err == nil {
+			t.Error("expected a wrong inner type to fail the decode")
+		}
+	})
+	t.Run("undeclaredKeysRoundTripAtTheTopLevel", func(t *testing.T) {
+		var meta models.Metadata
+		if err := json.Unmarshal([]byte(`{"owner":"team-a"}`), &meta); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if meta.AdditionalProperties["owner"] != "team-a" {
+			t.Fatalf("expected the undeclared key kept, got %v", meta.AdditionalProperties)
+		}
+		data, err := json.Marshal(meta)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !strings.Contains(string(data), `"owner":"team-a"`) {
+			t.Errorf("expected the key written back at the top level, got %s", data)
+		}
+	})
 }
 
 // A null extra is rejected unless the value schema is nullable.
