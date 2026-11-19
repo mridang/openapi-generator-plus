@@ -233,6 +233,7 @@ abstract class BaseApi {
         require(callMaxRetries == null || callMaxRetries >= 0) {
             "Invalid maxRetries: must not be negative (got $callMaxRetries)"
         }
+        val callStartedAt = System.nanoTime()
         var url = resolveUrl(path)
 
         /* Three-state auth resolution:
@@ -268,6 +269,14 @@ abstract class BaseApi {
             for ((key, value) in effectiveAuth.getQueryParams()) {
                 queryParams[key] = value
             }
+        }
+        /* A deadline that the credential lookup already used up ends the call here, before the
+         * transport is touched. */
+        if (callTimeout != null && (System.nanoTime() - callStartedAt) / 1_000_000L >= callTimeout) {
+            throw com.example.petstore.errors.NetworkTimeoutException(
+                "Request timed out: the $callTimeout ms end-to-end timeout was spent before the request was sent",
+                java.net.SocketTimeoutException("end-to-end timeout of $callTimeout ms exhausted"),
+            )
         }
 
         val query = buildQueryString(queryParams)
@@ -650,6 +659,22 @@ abstract class BaseApi {
                             // an unchecked cast.
                             if (T::class == String::class && isTextResponseContentType(responseContentType)) {
                                 response.body as T
+                            } else if (T::class == String::class) {
+                                // A binary content type reaches us as the transport's base64
+                                // carrier text; the caller gets the decoded body (D107).
+                                try {
+                                    String(
+                                        java.util.Base64
+                                            .getDecoder()
+                                            .decode(response.body),
+                                        Charsets.UTF_8,
+                                    ) as T
+                                } catch (e: IllegalArgumentException) {
+                                    throw com.example.petstore.errors.SerializationException(
+                                        "Invalid base64 body for a binary response",
+                                        e,
+                                    )
+                                }
                             } else {
                                 throw com.example.petstore.errors.SerializationException(
                                     "Unexpected response Content-Type '" +
