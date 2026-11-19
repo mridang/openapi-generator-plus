@@ -193,6 +193,19 @@ defmodule PetstoreClient.ValueSerializer do
   end
 
   @doc """
+  Percent-encodes the serialised JSON of a `content:` cookie parameter.
+
+  Only ASCII letters, digits, `-`, `_` and `~` stay literal. Every other byte,
+  including the dot, the colon, `* ! ' ( )` and each UTF-8 byte of a non-ASCII
+  character, becomes `%XX`, so a JSON model is fully encoded and always satisfies
+  the RFC 6265 cookie-octet check.
+  """
+  @spec encode_content_cookie(String.t()) :: String.t()
+  def encode_content_cookie(json) do
+    URI.encode(json, fn c -> c in ?A..?Z or c in ?a..?z or c in ?0..?9 or c in ~c"-_~" end)
+  end
+
+  @doc """
   Wrap a query value so the query-string builder preserves RFC 3986 reserved
   characters (OAS `allowReserved: true`) instead of percent-encoding them.
 
