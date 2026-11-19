@@ -80,6 +80,51 @@ func TestBhvModels012_Metadata_JsonFormDumpsTheAdditionalProperties(t *testing.T
 }
 
 // Keys the schema does not declare are captured into AdditionalProperties.
+func TestBhvMisc288_Metadata_TopLevelSnakeCaseKeyIsCapturedAsAnExtra(t *testing.T) {
+	t.Parallel()
+	var metadata models.Metadata
+	if err := json.Unmarshal([]byte(`{"region_code":"emea"}`), &metadata); err != nil {
+		t.Fatalf("failed to deserialize Metadata: %v", err)
+	}
+	if got := metadata.AdditionalProperties["region_code"]; got != "emea" {
+		t.Errorf("expected region_code in AdditionalProperties, got %v", got)
+	}
+}
+
+func TestBhvMisc289_Metadata_SnakeCaseKeyInsideAListElementIsCapturedAsAnExtra(t *testing.T) {
+	t.Parallel()
+	var items []models.Metadata
+	if err := json.Unmarshal([]byte(`[{"region_code":"emea"}]`), &items); err != nil {
+		t.Fatalf("failed to deserialize []Metadata: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("expected one element, got %d", len(items))
+	}
+	if got := items[0].AdditionalProperties["region_code"]; got != "emea" {
+		t.Errorf("expected region_code in AdditionalProperties, got %v", got)
+	}
+}
+
+func TestBhvMisc290_Freeform_DictionaryValuedExtraSurvivesARoundTrip(t *testing.T) {
+	t.Parallel()
+	var first models.Freeform
+	if err := json.Unmarshal([]byte(`{"labels":{"a":"b"}}`), &first); err != nil {
+		t.Fatalf("failed to deserialize Freeform: %v", err)
+	}
+	data, err := json.Marshal(first)
+	if err != nil {
+		t.Fatalf("failed to serialize Freeform: %v", err)
+	}
+	var second models.Freeform
+	if err := json.Unmarshal(data, &second); err != nil {
+		t.Fatalf("failed to deserialize round-tripped Freeform: %v", err)
+	}
+	labels, ok := second.AdditionalProperties["labels"].(map[string]any)
+	if !ok || labels["a"] != "b" {
+		t.Errorf("expected labels {a: b} to survive the round trip, got %v", second.AdditionalProperties["labels"])
+	}
+}
+
 func TestBhvModels001_Metadata_CapturesUndeclaredKeysIntoAdditionalProperties(t *testing.T) {
 	t.Parallel()
 	var metadata models.Metadata
