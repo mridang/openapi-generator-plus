@@ -4504,4 +4504,118 @@ class DefaultApiClientUnitTest {
         IllegalStateException.class,
         () -> client.sendRequest("GET", "http://example.test/ping", Map.of(), null));
   }
+
+
+  @Test
+  void bhvMisc218APerCallHeaderTakesPrecedenceOverAConfiguredOneWithoutADuplicate()
+      throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(200, null);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .httpClient(transport)
+                .defaultHeader("X-Trace", "configured")
+                .build());
+    client.sendRequest("GET", "http://localhost/start", Map.of("X-Trace", "per-call"), null);
+    assertEquals(
+        List.of("per-call"), transport.requests.get(0).headers().allValues("X-Trace"));
+  }
+
+  @Test
+  void bhvMisc223ASeeOtherRedirectDropsTheBodyOfTheFollowUp() throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(303, "/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    client.sendRequest("POST", "http://localhost/start", Map.of(), "{\"a\":1}");
+    assertEquals(2, transport.requests.size());
+    assertEquals("GET", transport.requests.get(1).method());
+    assertTrue(transport.requests.get(1).bodyPublisher().isEmpty());
+  }
+
+  @Test
+  void bhvMisc224TransportDefaultHeadersAreNotSentToAnotherOriginAfterARedirect()
+      throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(302, "https://other.example.test/");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder()
+                .httpClient(transport)
+                .followRedirects(true)
+                .maxRetries(0)
+                .defaultHeader("X-Api-Key", "secret")
+                .build());
+    client.sendRequest("GET", "http://localhost/start", Map.of(), null);
+    assertEquals(2, transport.requests.size());
+    assertTrue(transport.requests.get(1).headers().firstValue("X-Api-Key").isEmpty());
+  }
+
+  @Test
+  void bhvMisc225A3xxWithoutALocationIsReturnedAsTheFinalResponse() throws Exception {
+    RecordingHttpClient transport = new RecordingHttpClient();
+    transport.responder = request -> RecordingHttpClient.redirect(302, null, request);
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    assertEquals(302, client.sendRequest("GET", "http://localhost/x", Map.of(), null).statusCode());
+  }
+
+  @Test
+  void bhvMisc226A302IsFollowedToItsTargetAndTheFinal200IsReturned() throws Exception {
+    RecordingHttpClient transport = redirectingOnceTo(302, "/landed");
+    DefaultApiClient client =
+        new DefaultApiClient(
+            TransportOptions.builder().httpClient(transport).followRedirects(true).build());
+    ApiHttpResponse response = client.sendRequest("GET", "http://localhost/start", Map.of(), null);
+    assertEquals(200, response.statusCode());
+    assertEquals(2, transport.requests.size());
+  }
+
+  @Test
+  void bhvMisc227ANetworkErrorBeforeAnyResponseIsRetried() throws Exception {
+    try (java.net.ServerSocket silent = new java.net.ServerSocket(0)) {
+      java.util.concurrent.atomic.AtomicInteger accepted = dropConnections(silent);
+      String url = "http://127.0.0.1:" + silent.getLocalPort() + "/read";
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(1).build());
+      assertThrowsExactly(
+          {{invokerPackage}}.errors.NetworkException.class,
+          () -> client.sendRequest("GET", url, Map.of(), null));
+      assertTrue(accepted.get() >= 2, "the dropped connection was retried, saw " + accepted.get());
+    }
+  }
+
+  @Test
+  void bhvMisc228AnUnparseableRetryAfterFallsBackToTheNormalBackoff() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n == 1 ? new Reply(503, "soon") : new Reply(200, ""), hits);
+    try {
+      long startedNanos = System.nanoTime();
+      ApiHttpResponse response =
+          new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);
+      long elapsedMillis = (System.nanoTime() - startedNanos) / 1_000_000L;
+      assertEquals(200, response.statusCode());
+      assertEquals(2, hits.get(), "the unreadable Retry-After is retried once");
+      assertTrue(elapsedMillis >= 375, "waited the normal backoff, took " + elapsedMillis);
+    } finally {
+      scripted.stop(0);
+    }
+  }
+
+  @Test
+  void bhvMisc229APerCallMaxRetriesOverridesAClientWithNoRetries() throws Exception {
+    var hits = new java.util.concurrent.atomic.AtomicInteger();
+    HttpServer scripted =
+        scriptedServer(n -> n <= 2 ? new Reply(503, "0") : new Reply(200, ""), hits);
+    try {
+      DefaultApiClient client =
+          new DefaultApiClient(TransportOptions.builder().maxRetries(0).build());
+      assertEquals(
+          200, client.sendRequest("GET", urlOf(scripted), Map.of(), null, null, 2).statusCode());
+      assertEquals(3, hits.get(), "the call allowed two retries");
+    } finally {
+      scripted.stop(0);
+    }
+  }
 }
