@@ -109,6 +109,12 @@ public class ValueSerializerTest
     }
 
     [Fact]
+    public void BhvMisc232AStringPathParameterInSimpleStylePercentEncodesSlashes()
+    {
+        Assert.Equal("a%2Fb", ValueSerializer.SerializeStyled("id", "a/b", "path", "string", null, null, false));
+    }
+
+    [Fact]
     public void BhvSerializationparam044PathIntegerReturnsString()
     {
         Assert.Equal("42", ValueSerializer.Serialize(42, "path", "integer"));
