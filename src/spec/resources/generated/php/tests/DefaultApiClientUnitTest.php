@@ -1361,6 +1361,26 @@ test('bhv misc 132 a per call header whose name holds a credential word is dropp
     expect($last)->not->toContain('x-call-token');
 });
 
+test('bhv misc 129 a proxy credential header is not resent when a redirect moves an https request to another origin', function (): void {
+    $hopHeaders = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$hopHeaders): MockResponse {
+            $hopHeaders[] = $options['headers'] ?? [];
+            if ($url === 'https://api.example.com/start') {
+                return new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => 'https://other.example.com/final']]);
+            }
+            return new MockResponse('ok', ['http_code' => 200]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', ['Proxy-Authorization' => 'Basic dXNlcjpwYXNz'], null);
+
+    $last = array_map(static fn (string $line): string => strtolower(explode(':', $line, 2)[0]), end($hopHeaders));
+    expect($last)->not->toContain('proxy-authorization');
+});
+
 test('bhv retries 011 N1: 308 https to http downgrade with body throws', function (): void {
     $downgrade = new MockResponse('', [
         'http_code' => 308,

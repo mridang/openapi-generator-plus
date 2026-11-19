@@ -18,7 +18,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 /**
  * A pet record extended with owner information
  */
-class PetWithOwner
+class PetWithOwner implements \Stringable
 {
     /** @example 10 */
     #[SerializedName('id')]
@@ -451,6 +451,24 @@ class PetWithOwner
             weightKg: $this->weightKg,
             nickname: $this->nickname,
         );
+    }
+
+    /**
+     * The string form names the class and lists each property with its contents (lists, maps and
+     * byte fields included), so interpolating a model shows what it holds. A password property is
+     * shown as *** and never printed, matching __debugInfo().
+     */
+    public function __toString(): string
+    {
+        $masked = [];
+        $parts = [];
+        foreach (get_object_vars($this) as $name => $value) {
+            $parts[] = $name . '=' . (in_array($name, $masked, true) && $value !== null
+                ? '***'
+                : \PetstoreClient\ObjectSerializer::describeValue($value));
+        }
+
+        return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';
     }
 
     /**

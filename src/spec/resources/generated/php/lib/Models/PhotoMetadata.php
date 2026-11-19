@@ -15,7 +15,7 @@ namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class PhotoMetadata
+class PhotoMetadata implements \Stringable
 {
     #[SerializedName('caption')]
     public readonly ?string $caption;
@@ -93,6 +93,24 @@ class PhotoMetadata
             takenAt: $this->takenAt,
             location: $location,
         );
+    }
+
+    /**
+     * The string form names the class and lists each property with its contents (lists, maps and
+     * byte fields included), so interpolating a model shows what it holds. A password property is
+     * shown as *** and never printed, matching __debugInfo().
+     */
+    public function __toString(): string
+    {
+        $masked = [];
+        $parts = [];
+        foreach (get_object_vars($this) as $name => $value) {
+            $parts[] = $name . '=' . (in_array($name, $masked, true) && $value !== null
+                ? '***'
+                : \PetstoreClient\ObjectSerializer::describeValue($value));
+        }
+
+        return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';
     }
 
     /**

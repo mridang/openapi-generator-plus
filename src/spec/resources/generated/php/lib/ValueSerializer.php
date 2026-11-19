@@ -358,9 +358,12 @@ final class ValueSerializer
      */
     private static function isObjectValue(object $value): bool
     {
+        /* A generated model is Stringable through its string form, so it is recognised by its namespace. */
+        $isModel = str_starts_with($value::class, 'PetstoreClient\\Models\\');
+
         return !$value instanceof \UnitEnum
             && !$value instanceof \DateTimeInterface
-            && !$value instanceof \Stringable
+            && ($isModel || !$value instanceof \Stringable)
             && !$value instanceof \Ds\Collection;
     }
 

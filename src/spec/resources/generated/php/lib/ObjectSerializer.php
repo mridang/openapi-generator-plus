@@ -1927,6 +1927,64 @@ class ObjectSerializer
     }
 
     /**
+     * Renders a decoded value for a model's string form: strings quoted with their contents, lists
+     * in brackets, maps with their keys, models through their own string form, and null, booleans
+     * and numbers as written. Nothing here throws.
+     */
+    public static function describeValue(mixed $value): string
+    {
+        if ($value === null) {
+            return 'null';
+        }
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        }
+        if (is_int($value) || is_float($value)) {
+            return (string) $value;
+        }
+        if (is_string($value)) {
+            return "'" . addcslashes($value, "'\\") . "'";
+        }
+        if ($value instanceof \DateTimeInterface) {
+            return "'" . $value->format(\DateTimeInterface::RFC3339_EXTENDED) . "'";
+        }
+        if ($value instanceof \BackedEnum) {
+            return self::describeValue($value->value);
+        }
+        if ($value instanceof \Ds\Map) {
+            return self::describePairs($value->toArray());
+        }
+        if ($value instanceof \Ds\Collection) {
+            return '[' . implode(', ', array_map(self::describeValue(...), $value->toArray())) . ']';
+        }
+        if (is_array($value)) {
+            return array_is_list($value)
+                ? '[' . implode(', ', array_map(self::describeValue(...), $value)) . ']'
+                : self::describePairs($value);
+        }
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return '<' . get_debug_type($value) . '>';
+    }
+
+    /**
+     * Renders an associative array as {key: value} pairs for describeValue().
+     *
+     * @param array<array-key, mixed> $pairs
+     */
+    private static function describePairs(array $pairs): string
+    {
+        $parts = [];
+        foreach ($pairs as $key => $item) {
+            $parts[] = self::describeValue((string) $key) . ': ' . self::describeValue($item);
+        }
+
+        return '{' . implode(', ', $parts) . '}';
+    }
+
+    /**
      * Structural equality of two decoded values, used by every generated equals() method.
      *
      * Scalars and null compare by value, arrays entry by entry under the same key, date-times by

@@ -1778,6 +1778,22 @@ test('bhv serializationobject 026 byte list and map fields round-trip raw bytes 
     expect($back->labels?->toArray())->toBe(['a' => "\x04"]);
 });
 
+test('bhv misc 113 a model string form shows the contents of its list, map and byte fields', function (): void {
+    $vault = new BinaryVault(seal: 'abc', shards: new \Ds\Vector(['de', 'f']), labels: new \Ds\Map(['first' => 'gh']));
+
+    $text = (string) $vault;
+    expect($text)->toContain("seal='abc'");
+    expect($text)->toContain("shards=['de', 'f']");
+    expect($text)->toContain("labels={'first': 'gh'}");
+});
+
+test('bhv misc 113 a model string form masks a password property', function (): void {
+    $text = (string) new Account(password: 'hunter2', username: 'ada');
+
+    expect($text)->toContain('password=***');
+    expect($text)->not->toContain('hunter2');
+});
+
 test('bhv serializationobject 075 byte array fields of two vaults built apart compare by content', function (): void {
     $build = static fn (string $seal, string $shard, string $label): BinaryVault => new BinaryVault(
         seal: $seal,

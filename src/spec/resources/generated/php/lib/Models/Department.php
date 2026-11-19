@@ -15,7 +15,7 @@ namespace PetstoreClient\Models;
 
 use Symfony\Component\Serializer\Attribute\SerializedName;
 
-class Department
+class Department implements \Stringable
 {
     #[SerializedName('name')]
     public readonly string $name;
@@ -53,6 +53,24 @@ class Department
             name: $this->name,
             lead: $lead,
         );
+    }
+
+    /**
+     * The string form names the class and lists each property with its contents (lists, maps and
+     * byte fields included), so interpolating a model shows what it holds. A password property is
+     * shown as *** and never printed, matching __debugInfo().
+     */
+    public function __toString(): string
+    {
+        $masked = [];
+        $parts = [];
+        foreach (get_object_vars($this) as $name => $value) {
+            $parts[] = $name . '=' . (in_array($name, $masked, true) && $value !== null
+                ? '***'
+                : \PetstoreClient\ObjectSerializer::describeValue($value));
+        }
+
+        return (new \ReflectionClass($this))->getShortName() . '(' . implode(', ', $parts) . ')';
     }
 
     /**
