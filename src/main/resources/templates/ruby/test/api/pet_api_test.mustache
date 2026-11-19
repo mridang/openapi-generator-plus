@@ -861,8 +861,8 @@ describe {{moduleName}}::Api::PetApi do
       _(client.headers['Cookie']).must_equal('session=abc')
     end
 
-    [nil, ''].each do |session|
-      it "bhv_operations_056 refuses the required session cookie #{session.inspect} before sending" do
+    it 'bhv_operations_056 refuses a nil or empty required session cookie before sending' do
+      [nil, ''].each_case do |session|
         client = RecordingPetClient.new
         # @type var missing: untyped
         missing = session
@@ -876,8 +876,8 @@ describe {{moduleName}}::Api::PetApi do
   end
 
   describe '#get_pet_by_name required header' do
-    [nil, ''].each do |value|
-      it "bhv_operations_050 refuses the required X-Correlation-Id header #{value.inspect} before sending" do
+    it 'bhv_operations_050 refuses a nil or empty required X-Correlation-Id header before sending' do
+      [nil, ''].each_case do |value|
         client = RecordingPetClient.new
         config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = {{moduleName}}::Api::PetApi.new(client, config)
@@ -1040,8 +1040,8 @@ describe {{moduleName}}::Api::PetApi do
       _(err.message).must_include 'name'
     end
 
-    ['.', '..'].each do |segment|
-      it "bhv_operations_051 rejects the dot segment #{segment.inspect} as the path param name before dispatch" do
+    it 'bhv_operations_051 rejects the dot segments as the path param name before dispatch' do
+      ['.', '..'].each_case do |segment|
         client = RecordingPetClient.new
         config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = {{moduleName}}::Api::PetApi.new(client, config)
@@ -1824,8 +1824,8 @@ describe {{moduleName}}::Api::PetApi do
     # F840: a value that holds a character outside RFC 6265's cookie-octet set
     # (space, double quote, comma, semicolon, backslash, a control character or
     # anything non-ASCII) fails before a request is sent; the caller encodes it.
-    ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", 'a b', 'a"b', 'a,b', 'a;b', 'a\\b', "caf\u00e9"].each do |value|
-      it "bhv_operations_029 fails closed for #{value.inspect} without sending a request" do
+    it 'bhv_operations_029 fails closed for a cookie value outside the cookie-octet set without sending a request' do
+      ["abc\r\nInjected: yes", "abc\ndef", "abc\0def", 'a b', 'a"b', 'a,b', 'a;b', 'a\\b', "caf\u00e9"].each_case do |value|
         client = RecordingPetClient.new
         config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = {{moduleName}}::Api::PetApi.new(client, config)
@@ -1849,8 +1849,8 @@ describe {{moduleName}}::Api::PetApi do
 
     # Every character of these is a legal cookie-octet, so the value goes out
     # exactly as given: nothing is percent-encoded or decoded.
-    ['a=b==', 'a%20b', 'a/b+c', 'a.b~c_d-e', 'a:b@c!d'].each do |value|
-      it "bhv_operations_030 sends #{value.inspect} raw" do
+    it 'bhv_operations_030 sends a cookie value made only of legal cookie-octets raw' do
+      ['a=b==', 'a%20b', 'a/b+c', 'a.b~c_d-e', 'a:b@c!d'].each_case do |value|
         client = RecordingPetClient.new
         config = {{moduleName}}::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
         api = {{moduleName}}::Api::PetApi.new(client, config)
@@ -1925,11 +1925,11 @@ describe {{moduleName}}::Api::PetApi do
 
     # The Mirror variant has two variables, and its channel values hold
     # characters that are special in a URL and in a string literal.
-    {
-      'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
-      "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
-    }.each do |channel, expected|
-      it "bhv_operations_084 resolves the Mirror variant for the channel #{channel.inspect}" do
+    it 'bhv_operations_084 resolves the Mirror variant for channels that are special in a URL and a string literal' do
+      {
+        'a&b' => 'https://eu.mirror.example.com/a&b/v1/pet/7/multi',
+        "it's" => "https://eu.mirror.example.com/it's/v1/pet/7/multi"
+      }.each_case do |channel, expected|
         server = {{moduleName}}::Api::GetMultiServerPetInfoServerMirror.new(
           region: {{moduleName}}::Api::GetMultiServerPetInfoServerMirrorRegion::EU, channel: channel
         )

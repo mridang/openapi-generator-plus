@@ -184,19 +184,19 @@ describe Petstore::Client::Api::BaseApi do
 
   # ── Exception dispatch ──
 
-  {
-    400 => Petstore::Client::Errors::BadRequestError,
-    401 => Petstore::Client::Errors::UnauthorizedError,
-    403 => Petstore::Client::Errors::ForbiddenError,
-    404 => Petstore::Client::Errors::NotFoundError,
-    409 => Petstore::Client::Errors::ConflictError,
-    422 => Petstore::Client::Errors::UnprocessableEntityError,
-    429 => Petstore::Client::Errors::TooManyRequestsError,
-    418 => Petstore::Client::Errors::ClientError,
-    500 => Petstore::Client::Errors::InternalServerError,
-    502 => Petstore::Client::Errors::BadGatewayError
-  }.each do |status, error_class|
-    it "bhv_errors_037 raises #{error_class} for status #{status}" do
+  it 'bhv_errors_037 raises the error class of each failing status' do
+    {
+      400 => Petstore::Client::Errors::BadRequestError,
+      401 => Petstore::Client::Errors::UnauthorizedError,
+      403 => Petstore::Client::Errors::ForbiddenError,
+      404 => Petstore::Client::Errors::NotFoundError,
+      409 => Petstore::Client::Errors::ConflictError,
+      422 => Petstore::Client::Errors::UnprocessableEntityError,
+      429 => Petstore::Client::Errors::TooManyRequestsError,
+      418 => Petstore::Client::Errors::ClientError,
+      500 => Petstore::Client::Errors::InternalServerError,
+      502 => Petstore::Client::Errors::BadGatewayError
+    }.each_case do |status, error_class|
       err = assert_raises(error_class) do
         api.call('GET', "/test/status/#{status}", {}, {}, nil,
                  ['application/json'], 'application/json', nil)
@@ -212,22 +212,22 @@ describe Petstore::Client::Api::BaseApi do
 
   # The typed status routes answer on the path of a real operation, so the
   # error type is chosen from the status alone, whatever the route.
-  {
-    '/test/status/400/pet/1' => Petstore::Client::Errors::BadRequestError,
-    '/test/status/401/pet/1' => Petstore::Client::Errors::UnauthorizedError,
-    '/test/status/403/pet/1' => Petstore::Client::Errors::ForbiddenError,
-    '/test/status/404/pet/1' => Petstore::Client::Errors::NotFoundError,
-    '/test/status/409/pet/1' => Petstore::Client::Errors::ConflictError,
-    '/test/status/418/pet/1' => Petstore::Client::Errors::ClientError,
-    '/test/status/422/pet/1' => Petstore::Client::Errors::UnprocessableEntityError,
-    '/test/status/500/pet/1' => Petstore::Client::Errors::InternalServerError,
-    '/test/status/502/pet/1' => Petstore::Client::Errors::BadGatewayError,
-    '/test/status/404/store/order/1' => Petstore::Client::Errors::NotFoundError,
-    '/test/status/422/store/order/1' => Petstore::Client::Errors::UnprocessableEntityError,
-    '/test/status/500/store/order/1' => Petstore::Client::Errors::InternalServerError,
-    '/test/status/502/store/order/1' => Petstore::Client::Errors::BadGatewayError
-  }.each do |path, error_class|
-    it "bhv_errors_027 maps #{path} to #{error_class}" do
+  it 'bhv_errors_027 maps a failing status of each operation path to its error class' do
+    {
+      '/test/status/400/pet/1' => Petstore::Client::Errors::BadRequestError,
+      '/test/status/401/pet/1' => Petstore::Client::Errors::UnauthorizedError,
+      '/test/status/403/pet/1' => Petstore::Client::Errors::ForbiddenError,
+      '/test/status/404/pet/1' => Petstore::Client::Errors::NotFoundError,
+      '/test/status/409/pet/1' => Petstore::Client::Errors::ConflictError,
+      '/test/status/418/pet/1' => Petstore::Client::Errors::ClientError,
+      '/test/status/422/pet/1' => Petstore::Client::Errors::UnprocessableEntityError,
+      '/test/status/500/pet/1' => Petstore::Client::Errors::InternalServerError,
+      '/test/status/502/pet/1' => Petstore::Client::Errors::BadGatewayError,
+      '/test/status/404/store/order/1' => Petstore::Client::Errors::NotFoundError,
+      '/test/status/422/store/order/1' => Petstore::Client::Errors::UnprocessableEntityError,
+      '/test/status/500/store/order/1' => Petstore::Client::Errors::InternalServerError,
+      '/test/status/502/store/order/1' => Petstore::Client::Errors::BadGatewayError
+    }.each_case do |path, error_class|
       err = assert_raises(error_class) do
         api.call('GET', path, {}, {}, nil, ['application/json'], 'application/json', nil)
       end
@@ -1681,8 +1681,8 @@ describe Petstore::Client::Api::BaseApi do
     _(result).must_include '2024-01-15T10:30:00'
   end
 
-  [404, 500].each do |status|
-    it "bhv_misc_212 a #{status} response from a call raises the matching error through the API layer" do
+  it 'bhv_misc_212 a 404 or 500 response from a call raises the matching error through the API layer' do
+    [404, 500].each_case do |status|
       error_class = status == 404 ? Petstore::Client::Errors::NotFoundError : Petstore::Client::Errors::InternalServerError
       api = replay_api(ReplayApiClient.new([status]), client_credentials_auth)
 
@@ -2106,12 +2106,12 @@ describe Petstore::Client::Api::BaseApi do
     _(info.url).must_equal 'https://api.example.com/items/7'
   end
 
-  {
-    'https://API.Example.COM:8443/x' => 'api.example.com',
-    'http://[::1]:8080/x' => '::1',
-    'http://user@example.org/x' => 'example.org'
-  }.each do |base_url, host|
-    it "bhv_hooks_003 gives the host without port and brackets for #{base_url}" do
+  it 'bhv_hooks_003 gives the host without port and brackets' do
+    {
+      'https://API.Example.COM:8443/x' => 'api.example.com',
+      'http://[::1]:8080/x' => '::1',
+      'http://user@example.org/x' => 'example.org'
+    }.each_case do |base_url, host|
       hook = RecordingCallHook.new
 
       hooked_call(hooked_api(hook, base_url: base_url), path: '/x')

@@ -123,13 +123,13 @@ describe {{moduleName}}::ValueSerializer do
 
     # A null element keeps its slot: it is neither skipped nor spelled out as
     # the language's null text.
-    {
-      csv: '1,,3',
-      ssv: '1  3',
-      tsv: "1\t\t3",
-      pipes: '1||3'
-    }.each do |format, expected|
-      it "bhv_serializationparam_001 array keeps an empty slot for a null element with #{format}" do
+    it 'bhv_serializationparam_001 array keeps an empty slot for a null element with each collection format' do
+      {
+        csv: '1,,3',
+        ssv: '1  3',
+        tsv: "1\t\t3",
+        pipes: '1||3'
+      }.each_case do |format, expected|
         result = {{moduleName}}::ValueSerializer.serialize(['1', nil, '3'], :query, 'array', collection_format: format)
         _(result).must_equal(expected)
       end
@@ -473,14 +473,14 @@ describe {{moduleName}}::ValueSerializer do
 
     # The OAS path sub-delimiters and the unreserved ~ stay literal, one
     # character per row so a dropped one names itself.
-    [';', '=', '~', '@', '!', '$', '&', "'", '(', ')', '*', '+'].each do |char|
-      it "bhv_serializationparam_071 #{char.inspect} preserved in a path segment" do
+    it 'bhv_serializationparam_071 path sub-delimiters and the unreserved tilde are preserved in a path segment' do
+      [';', '=', '~', '@', '!', '$', '&', "'", '(', ')', '*', '+'].each_case do |char|
         _({{moduleName}}::ValueSerializer.serialize("a#{char}b", :path, 'string')).must_equal("a#{char}b")
       end
     end
 
-    ['%', '[', ']', '{', '}', '|', '"', '<', '>', '^', '`', '\\'].each do |char|
-      it "bhv_serializationparam_002 #{char.inspect} encoded in a path segment" do
+    it 'bhv_serializationparam_002 special characters are encoded in a path segment' do
+      ['%', '[', ']', '{', '}', '|', '"', '<', '>', '^', '`', '\\'].each_case do |char|
         encoded = char.bytes.map { |byte| format('%%%02X', byte) }.join
         _({{moduleName}}::ValueSerializer.serialize("a#{char}b", :path, 'string')).must_equal("a#{encoded}b")
       end
@@ -554,8 +554,8 @@ describe {{moduleName}}::ValueSerializer do
       }).must_raise ArgumentError
     end
 
-    ['.', '..'].each do |segment|
-      it "bhv_serializationparam_029 rejects the dot segment #{segment.inspect} as a simple path value" do
+    it 'bhv_serializationparam_029 rejects the dot segments as a simple path value' do
+      ['.', '..'].each_case do |segment|
         err = _(-> {
           {{moduleName}}::ValueSerializer.serialize_styled('id', segment, :path, 'string', nil, 'simple', false)
         }).must_raise ArgumentError
@@ -741,15 +741,15 @@ describe {{moduleName}}::ValueSerializer do
       _(result['breed'].value).must_equal('a/b')
     end
 
-    {
-      ['simple', false] => 'breed,lab,min_age,3',
-      ['simple', true] => 'breed=lab,min_age=3',
-      ['matrix', false] => ';criteria=breed,lab,min_age,3',
-      ['matrix', true] => ';breed=lab;min_age=3',
-      ['label', false] => '.breed,lab,min_age,3',
-      ['label', true] => '.breed=lab.min_age=3'
-    }.each do |(style, explode), expected|
-      it "bhv_serialization_015 renders an object in a path by #{style} explode=#{explode}" do
+    it 'bhv_serialization_015 renders an object in a path by each style and explode' do
+      {
+        ['simple', false] => 'breed,lab,min_age,3',
+        ['simple', true] => 'breed=lab,min_age=3',
+        ['matrix', false] => ';criteria=breed,lab,min_age,3',
+        ['matrix', true] => ';breed=lab;min_age=3',
+        ['label', false] => '.breed,lab,min_age,3',
+        ['label', true] => '.breed=lab.min_age=3'
+      }.each_case do |(style, explode), expected|
         result = {{moduleName}}::ValueSerializer.serialize_styled(
           'criteria', { 'breed' => 'lab', 'min_age' => 3 }, :path, 'Criteria', nil, style, explode # steep:ignore ArgumentTypeMismatch
         )

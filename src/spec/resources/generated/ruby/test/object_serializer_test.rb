@@ -222,8 +222,8 @@ describe Petstore::Client::ObjectSerializer do
       _(err.message).must_include 'exceeds limit'
     end
 
-    ['2024-01-01T10:00:00', '01/02/2024 10:00', 'tomorrow', '10:00', '1700000000', '2024-01-01'].each do |text|
-      it "bhv_serializationobject_011 rejects the non-RFC 3339 date-time #{text.inspect}" do
+    it 'bhv_serializationobject_011 rejects a non-RFC 3339 date-time' do
+      ['2024-01-01T10:00:00', '01/02/2024 10:00', 'tomorrow', '10:00', '1700000000', '2024-01-01'].each_case do |text|
         _ { Petstore::Client::ObjectSerializer.deserialize(JSON.generate(text), 'Time') }
           .must_raise(Petstore::Client::Errors::SerializationError)
       end
@@ -310,8 +310,8 @@ describe Petstore::Client::ObjectSerializer do
       Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
     end
 
-    ['urn:isbn:0451450523', 'mailto:a@b.com', 'ftp://x.org/f', 'https://example.com/items/1'].each do |text|
-      it "bhv_serializationobject_021 accepts and re-emits the absolute URI #{text.inspect}" do
+    it 'bhv_serializationobject_021 accepts and re-emits an absolute URI' do
+      ['urn:isbn:0451450523', 'mailto:a@b.com', 'ftp://x.org/f', 'https://example.com/items/1'].each_case do |text|
         decoded = decode_uri(text)
         _(decoded.homepage_url).must_equal(text)
         _(decoded.thumbnail_ref).must_equal('/assets/thumb.png')
@@ -325,8 +325,8 @@ describe Petstore::Client::ObjectSerializer do
       _(decoded.thumbnail_ref).must_equal('thumb.png')
     end
 
-    ['/relative', 'not a uri', ''].each do |text|
-      it "bhv_serializationobject_008 rejects #{text.inspect} as a format: uri value" do
+    it 'bhv_serializationobject_008 rejects a value that is not a URI as a format: uri value' do
+      ['/relative', 'not a uri', ''].each_case do |text|
         _ { decode_uri(text) }.must_raise(Petstore::Client::Errors::SerializationError)
       end
     end
@@ -353,15 +353,15 @@ describe Petstore::Client::ObjectSerializer do
     # The error contract: every wire-shape failure raises exactly
     # SerializationError (no subclass, no library error), and that is an
     # instance of the SDK root so one rescue catches it.
-    {
-      'malformed JSON' => ['{', 'Category'],
-      'wrong primitive type' => ['{"id":"abc","name":"doggie","photoUrls":[]}', 'Pet'],
-      'unknown enum value' => ['{"name":"doggie","photoUrls":[],"status":"banana"}', 'Pet'],
-      'missing required field' => ['{"photoUrls":[]}', 'Pet'],
-      'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
-      'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
-    }.each do |failure, args|
-      it "bhv_serializationobject_077 raises exactly SerializationError, a root error, for #{failure}" do
+    it 'bhv_serializationobject_077 raises exactly SerializationError, a root error, for malformed input' do
+      {
+        'malformed JSON' => ['{', 'Category'],
+        'wrong primitive type' => ['{"id":"abc","name":"doggie","photoUrls":[]}', 'Pet'],
+        'unknown enum value' => ['{"name":"doggie","photoUrls":[],"status":"banana"}', 'Pet'],
+        'missing required field' => ['{"photoUrls":[]}', 'Pet'],
+        'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
+        'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
+      }.each_case do |failure, args|
         json = args.fetch(0)
         type = args.fetch(1)
         err = _(proc {
@@ -1564,8 +1564,8 @@ describe Petstore::Client::ObjectSerializer do
 
     # Separator values sanitise to colliding or empty constant names; the wire
     # value is what round trips.
-    [' ', '@@', 'a-b', 'a_b'].each do |value|
-      it "bhv_serializationobject_161 round trips the Separator value #{value.inspect}" do
+    it 'bhv_serializationobject_161 round trips each Separator value' do
+      [' ', '@@', 'a-b', 'a_b'].each_case do |value|
         edge = Petstore::Client::ObjectSerializer.deserialize(JSON.generate({ 'separator' => value }), 'EdgeCases')
         _(edge.separator).must_equal(value)
         _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(edge))['separator']).must_equal(value)
@@ -1659,8 +1659,8 @@ describe Petstore::Client::ObjectSerializer do
   # D46: Availability members that are special inside a string literal keep
   # their exact wire value through decode and encode.
   describe 'Availability members with literal-special characters' do
-    ["o'clock", 'a\\b', '$eq', '#{x}'].each do |value|
-      it "bhv_serializationobject_073 round trips #{value.inspect}" do
+    it 'bhv_serializationobject_073 round trips the Availability members that are special in a string literal' do
+      ["o'clock", 'a\\b', '$eq', '#{x}'].each_case do |value|
         _(Petstore::Client::Models::Availability::VALUES).must_include(value)
         json = JSON.generate({ 'priority' => 1, 'availability' => value })
         item = Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')

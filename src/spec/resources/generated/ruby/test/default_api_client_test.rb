@@ -1071,15 +1071,15 @@ describe Petstore::Client::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    {
-      301 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
-      302 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
-      303 => { 'POST' => 'GET', 'PUT' => 'GET', 'PATCH' => 'GET', 'DELETE' => 'GET', 'HEAD' => 'HEAD' },
-      307 => { 'POST' => 'POST', 'PUT' => 'PUT', 'DELETE' => 'DELETE' },
-      308 => { 'POST' => 'POST', 'PATCH' => 'PATCH' }
-    }.each do |status, expectations|
-      expectations.each do |verb, expected|
-        it "bhv_redirects_050 a #{status} redirect sends #{verb} on as #{expected}" do
+    it 'bhv_redirects_050 a redirect status sends the method on as the status prescribes' do
+      {
+        301 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
+        302 => { 'POST' => 'GET', 'PUT' => 'PUT', 'PATCH' => 'PATCH', 'DELETE' => 'DELETE' },
+        303 => { 'POST' => 'GET', 'PUT' => 'GET', 'PATCH' => 'GET', 'DELETE' => 'GET', 'HEAD' => 'HEAD' },
+        307 => { 'POST' => 'POST', 'PUT' => 'PUT', 'DELETE' => 'DELETE' },
+        308 => { 'POST' => 'POST', 'PATCH' => 'PATCH' }
+      }.each_case do |status, expectations|
+        expectations.each_case do |verb, expected|
           seen = [] # : Array[Array[String]]
           transport = Petstore::Client::TransportOptions.builder
                                                       .connection(redirect_connection(status, seen))

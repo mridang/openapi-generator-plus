@@ -143,12 +143,12 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # D05: OpenID Connect Core 3.1.2.1 requires the openid scope, so the
   # authenticator always requests it, first and exactly once.
-  {
-    [] => 'scope=openid',
-    %w[profile] => 'scope=openid%20profile',
-    %w[profile openid email] => 'scope=openid%20profile%20email'
-  }.each do |scopes, expected|
-    it "bhv_authoidc_022 always requests the openid scope for #{scopes.inspect}" do
+  it 'bhv_authoidc_022 always requests the openid scope, first and exactly once' do
+    {
+      [] => 'scope=openid',
+      %w[profile] => 'scope=openid%20profile',
+      %w[profile openid email] => 'scope=openid%20profile%20email'
+    }.each_case do |scopes, expected|
       client = FakeOidcClient.new([discovery_response])
       auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',
@@ -409,8 +409,8 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
 
   # Discovery is an HTTP call like any other: a non-2xx answer raises the
   # same status-specific error an API call would.
-  { 404 => Petstore::Client::Errors::NotFoundError, 500 => Petstore::Client::Errors::InternalServerError }.each do |status, error_class|
-    it "bhv_langruby_067 raises #{error_class} when discovery answers #{status}" do
+  it 'bhv_langruby_067 raises the status-specific error when discovery answers a non-2xx status' do
+    { 404 => Petstore::Client::Errors::NotFoundError, 500 => Petstore::Client::Errors::InternalServerError }.each_case do |status, error_class|
       client = FakeOidcClient.new([{ status: status, body: '{}' }])
       auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
         'https://api.example.com',

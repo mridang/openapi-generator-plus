@@ -751,13 +751,13 @@ describe 'DefaultApiClientUnit' do
   # The filename directive: an ASCII name is quoted and escaped; any other name
   # gets a per-character '_' fallback plus a filename* that keeps only the
   # RFC 3986 unreserved characters.
-  {
-    'résumé*(1).pdf' => %(filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf),
-    'a"b\\c.txt' => %(filename="a\\"b\\\\c.txt"),
-    "\u{1F600}.png" => %(filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png),
-    'plain.txt' => %(filename="plain.txt")
-  }.each do |input, directive|
-    it "bhv_misc_099 builds the filename directive for #{input.inspect}" do
+  it 'bhv_misc_099 builds the filename directive for each filename' do
+    {
+      'résumé*(1).pdf' => %(filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf),
+      'a"b\\c.txt' => %(filename="a\\"b\\\\c.txt"),
+      "\u{1F600}.png" => %(filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png),
+      'plain.txt' => %(filename="plain.txt")
+    }.each_case do |input, directive|
       client = {{moduleName}}::DefaultApiClient.new
       _(client.send(:build_content_disposition, 'file', input))
         .must_equal(%(Content-Disposition: form-data; name="file"; #{directive}))
@@ -1002,13 +1002,13 @@ describe 'DefaultApiClientUnit' do
     stubs.verify_stubbed_calls
   end
 
-  {
-    'photo.jpg' => 'image/jpeg',
-    'photo.jpeg' => 'image/jpeg',
-    'anim.gif' => 'image/gif',
-    'data.json' => 'application/json'
-  }.each do |filename, mime|
-    it "bhv_langruby_037 sets #{mime} for a #{File.extname(filename)} upload" do
+  it 'bhv_langruby_037 sets the content type from the file extension of an upload' do
+    {
+      'photo.jpg' => 'image/jpeg',
+      'photo.jpeg' => 'image/jpeg',
+      'anim.gif' => 'image/gif',
+      'data.json' => 'application/json'
+    }.each_case do |filename, mime|
       captured_body = nil
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/upload') do |env|
@@ -2465,16 +2465,16 @@ describe 'DefaultApiClientUnit' do
     captured&.transform_keys(&:downcase)
   end
 
-  [
-    ['http://origin.test/start', 'http://origin.test/landing'],
-    ['http://origin.test/start', '/landing'],
-    ['http://origin.test/start', 'http://origin.test:80/landing'],
-    ['http://origin.test:80/start', 'http://origin.test/landing'],
-    ['https://origin.test/start', 'https://origin.test:443/landing'],
-    ['https://origin.test:443/start', 'https://origin.test/landing'],
-    ['http://origin.test:8080/start', 'http://origin.test:8080/landing']
-  ].each do |start_url, location|
-    it "bhv_redirects_024 keeps Authorization and Cookie on a redirect from #{start_url} to #{location}" do
+  it 'bhv_redirects_024 keeps Authorization and Cookie on a redirect to the same origin' do
+    [
+      ['http://origin.test/start', 'http://origin.test/landing'],
+      ['http://origin.test/start', '/landing'],
+      ['http://origin.test/start', 'http://origin.test:80/landing'],
+      ['http://origin.test:80/start', 'http://origin.test/landing'],
+      ['https://origin.test/start', 'https://origin.test:443/landing'],
+      ['https://origin.test:443/start', 'https://origin.test/landing'],
+      ['http://origin.test:8080/start', 'http://origin.test:8080/landing']
+    ].each_case do |start_url, location|
       followed = headers_followed_to(start_url, location)
       _(followed).wont_be_nil
       _(followed['authorization']).must_equal 'Bearer secret'
@@ -2489,14 +2489,14 @@ describe 'DefaultApiClientUnit' do
     _(followed['authorization']).must_equal 'Bearer secret'
   end
 
-  [
-    ['http://origin.test/start', 'http://origin.test:8080/landing'],
-    ['http://origin.test/start', 'https://origin.test/landing'],
-    ['https://origin.test/start', 'https://origin.test:8443/landing'],
-    ['http://origin.test/start', 'http://other.test/landing'],
-    ['http://origin.test/start', 'http://sub.origin.test/landing']
-  ].each do |start_url, location|
-    it "bhv_redirects_013 strips Authorization and Cookie on a redirect from #{start_url} to #{location}" do
+  it 'bhv_redirects_013 strips Authorization and Cookie on a redirect to another origin' do
+    [
+      ['http://origin.test/start', 'http://origin.test:8080/landing'],
+      ['http://origin.test/start', 'https://origin.test/landing'],
+      ['https://origin.test/start', 'https://origin.test:8443/landing'],
+      ['http://origin.test/start', 'http://other.test/landing'],
+      ['http://origin.test/start', 'http://sub.origin.test/landing']
+    ].each_case do |start_url, location|
       followed = headers_followed_to(start_url, location)
       _(followed).wont_be_nil
       _(followed.key?('authorization')).must_equal false
@@ -3133,8 +3133,8 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  [408, 409, 429, 500, 502, 503, 504, 599].each do |status|
-    it "bhv_langruby_040 retries a #{status} response and returns it once the retries are spent" do
+  it 'bhv_langruby_040 retries a retryable status and returns the response once the retries are spent' do
+    [408, 409, 429, 500, 502, 503, 504, 599].each_case do |status|
       outcome, envs, = run_retry_probe { [status, {}, 'no'] }
 
       _(outcome.status_code).must_equal status
@@ -3142,8 +3142,8 @@ describe 'DefaultApiClientUnit' do
     end
   end
 
-  [400, 401, 403, 404, 422, 501].each do |status|
-    it "bhv_langruby_041 does not retry a #{status} response" do
+  it 'bhv_langruby_041 does not retry a status that is not retryable' do
+    [400, 401, 403, 404, 422, 501].each_case do |status|
       outcome, envs, delays = run_retry_probe { [status, {}, 'no'] }
 
       _(outcome.status_code).must_equal status
