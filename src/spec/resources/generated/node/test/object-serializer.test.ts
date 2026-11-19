@@ -1159,53 +1159,50 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test.each([
-      ["a string", "oops", "string"],
-      ["a number", 5, "number"],
-      ["an array", [1, 2], "array"],
-    ])(
-      "bhv serialization 028 rejects %s where a nested model is expected",
-      (_label, value, received) => {
+    test("bhv serialization 028 rejects a number, a string or an array where a nested model is expected", () => {
+      for (const [_label, value, received] of [
+        ["a string", "oops", "string"],
+        ["a number", 5, "number"],
+        ["an array", [1, 2], "array"],
+      ]) {
         const json = { name: "x", photoUrls: [], category: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
             `^Failed to deserialize JSON: category must be an object, got ${received}$`,
           ),
         );
-      },
-    );
+      }
+    });
 
-    test.each([
-      ["a string", "abc", "string"],
-      ["a number", 5, "number"],
-      ["an object", { id: 1 }, "object"],
-    ])(
-      "bhv langnode 152 rejects %s where an array of models is expected",
-      (_label, value, received) => {
+    test("bhv langnode 152 rejects a number, a string or an object where an array of models is expected", () => {
+      for (const [_label, value, received] of [
+        ["a string", "abc", "string"],
+        ["a number", 5, "number"],
+        ["an object", { id: 1 }, "object"],
+      ]) {
         const json = { name: "x", photoUrls: [], tags: value };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
             `^Failed to deserialize JSON: tags must be an array, got ${received}$`,
           ),
         );
-      },
-    );
+      }
+    });
 
-    test.each([
-      ["a number", 5, "number"],
-      ["a string", "abc", "string"],
-      ["an array", [1], "array"],
-    ])(
-      "bhv langnode 153 rejects %s as an element of an array of models",
-      (_label, element, received) => {
+    test("bhv langnode 153 rejects a number, a string or an array as an element of an array of models", () => {
+      for (const [_label, element, received] of [
+        ["a number", 5, "number"],
+        ["a string", "abc", "string"],
+        ["an array", [1], "array"],
+      ]) {
         const json = { name: "x", photoUrls: [], tags: [{ id: 1 }, element] };
         expect(() => ObjectSerializer.deserialize(json, Pet)).toThrow(
           new RegExp(
             `^Failed to deserialize JSON: tags elements must be objects, got ${received}$`,
           ),
         );
-      },
-    );
+      }
+    });
 
     test("bhv langnode 114 rejects a non-string element of a string set", () => {
       const json = { name: "x", photoUrls: ["a", 1] };
@@ -1388,18 +1385,20 @@ describe("ObjectSerializer", () => {
       ).toBe(100);
     });
 
-    test.each([
-      ["an int32 above the range", { quantity: 3000000000 }],
-      ["an int32 below the range", { quantity: -2147483649 }],
-      ["a fractional int32", { quantity: 1.5 }],
-      ["a quoted int32", { quantity: "5" }],
-      ["a boolean int32", { quantity: true }],
-      ["a fractional int64", { id: 1.5 }],
-      ["a quoted int64", { id: "5" }],
-    ])("bhv langnode 154 rejects %s", (_label, json) => {
-      expect(() => ObjectSerializer.deserialize(json, Order)).toThrow(
-        SerializationError,
-      );
+    test("bhv langnode 154 rejects every listed non-integer value for an int32", () => {
+      for (const [_label, json] of [
+        ["an int32 above the range", { quantity: 3000000000 }],
+        ["an int32 below the range", { quantity: -2147483649 }],
+        ["a fractional int32", { quantity: 1.5 }],
+        ["a quoted int32", { quantity: "5" }],
+        ["a boolean int32", { quantity: true }],
+        ["a fractional int64", { id: 1.5 }],
+        ["a quoted int64", { id: "5" }],
+      ]) {
+        expect(() => ObjectSerializer.deserialize(json, Order)).toThrow(
+          SerializationError,
+        );
+      }
     });
 
     test("bhv serialization 031 decodes the int32 and int64 limits", () => {
@@ -1424,14 +1423,16 @@ describe("ObjectSerializer", () => {
     const int32Leaf = (x: unknown) =>
       ObjectSerializer.deserializeLeaf<number>(x, "int32");
 
-    test.each([
-      ["a quoted element", { a: "5" }],
-      ["an out-of-range element", { a: 3000000000 }],
-      ["a fractional element", { a: 1.5 }],
-    ])("bhv langnode 155 rejects %s of a map of int32", (_label, json) => {
-      expect(() => ObjectSerializer.deserializeMap(json, int32Leaf)).toThrow(
-        SerializationError,
-      );
+    test("bhv langnode 155 rejects every listed non-integer value of a map of int32", () => {
+      for (const [_label, json] of [
+        ["a quoted element", { a: "5" }],
+        ["an out-of-range element", { a: 3000000000 }],
+        ["a fractional element", { a: 1.5 }],
+      ]) {
+        expect(() => ObjectSerializer.deserializeMap(json, int32Leaf)).toThrow(
+          SerializationError,
+        );
+      }
     });
 
     test("bhv serialization 033 rejects a fractional element of a nested array of int32", () => {
@@ -1451,20 +1452,19 @@ describe("ObjectSerializer", () => {
       expect(decoded.flat().every((leaf) => Number.isInteger(leaf))).toBe(true);
     });
 
-    test.each([
-      ["a number", 1700000000],
-      ["a boolean", true],
-      ["an array", [2024]],
-    ])(
-      "bhv serialization 030 rejects %s for a date-time field",
-      (_label, value) => {
+    test("bhv serialization 030 rejects every listed non-string value for a date-time field", () => {
+      for (const [_label, value] of [
+        ["a number", 1700000000],
+        ["a boolean", true],
+        ["an array", [2024]],
+      ]) {
         expect(() =>
           ObjectSerializer.deserialize({ shipDate: value }, Order),
         ).toThrow(
           `Failed to deserialize JSON: shipDate must be a valid Date, got ${String(value)}`,
         );
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 151 still decodes an ISO date-time string and an absent date-time", () => {
       const order = ObjectSerializer.deserialize(
@@ -1489,48 +1489,48 @@ describe("ObjectSerializer", () => {
   });
 
   describe("deserializeLeaf", () => {
-    test.each([
-      ["int32", 5],
-      ["int32", 2147483647],
-      ["int32", -2147483648],
-      ["int64", 3000000000],
-      ["boolean", false],
-    ] as const)("bhv langnode 156 passes a valid %s through", (kind, value) => {
-      expect(ObjectSerializer.deserializeLeaf(value, kind)).toBe(value);
+    test("bhv langnode 156 passes a valid value of every leaf kind through", () => {
+      for (const [kind, value] of [
+        ["int32", 5],
+        ["int32", 2147483647],
+        ["int32", -2147483648],
+        ["int64", 3000000000],
+        ["boolean", false],
+      ] as const) {
+        expect(ObjectSerializer.deserializeLeaf(value, kind)).toBe(value);
+      }
     });
 
-    test.each([
-      ["int32", "5", "string"],
-      ["int32", 7.5, "number"],
-      ["int32", true, "boolean"],
-      ["int32", 3000000000, "number"],
-      ["int32", -2147483649, "number"],
-      ["int64", "5", "string"],
-      ["int64", 1.5, "number"],
-      ["boolean", 1, "number"],
-      ["date", 1700000000, "number"],
-      ["date", "garbage", "string"],
-      ["date", "2024-01-01T10:00:00", "string"],
-      ["date", "Jan 1 2024", "string"],
-      ["date", "10:00", "string"],
-    ] as const)(
-      "bhv langnode 157 rejects a %s leaf given %p",
-      (kind, value, received) => {
+    test("bhv langnode 157 rejects every leaf kind given a value of the wrong type", () => {
+      for (const [kind, value, received] of [
+        ["int32", "5", "string"],
+        ["int32", 7.5, "number"],
+        ["int32", true, "boolean"],
+        ["int32", 3000000000, "number"],
+        ["int32", -2147483649, "number"],
+        ["int64", "5", "string"],
+        ["int64", 1.5, "number"],
+        ["boolean", 1, "number"],
+        ["date", 1700000000, "number"],
+        ["date", "garbage", "string"],
+        ["date", "2024-01-01T10:00:00", "string"],
+        ["date", "Jan 1 2024", "string"],
+        ["date", "10:00", "string"],
+      ] as const) {
         expect(() => ObjectSerializer.deserializeLeaf(value, kind)).toThrow(
           new SerializationError(`Expected ${kind} but received: ${received}`),
         );
-      },
-    );
+      }
+    });
 
-    test.each(["int32", "int64", "boolean"] as const)(
-      "bhv langnode 158 rejects a null %s leaf unless the element is nullable",
-      (kind) => {
+    test("bhv langnode 158 rejects a null leaf of every kind unless the element is nullable", () => {
+      for (const kind of ["int32", "int64", "boolean"] as const) {
         expect(() => ObjectSerializer.deserializeLeaf(null, kind)).toThrow(
           new SerializationError(`Expected ${kind} but received: null`),
         );
         expect(ObjectSerializer.deserializeLeaf(null, kind, true)).toBeNull();
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 122 rejects a null element of a map of int32 and of a nested array of int32", () => {
       const int32Leaf = (x: unknown) =>
@@ -1597,14 +1597,19 @@ describe("ObjectSerializer", () => {
       ).toThrow();
     });
 
-    test.each(["dGVzdA", "dGVz dA==", "dGVz\ndA==", "-_8=", "!!!!"])(
-      "bhv serialization 090 deserialize: non-canonical base64 %p is rejected with SerializationError",
-      (thumbnail) => {
+    test("bhv serialization 090 deserialize: every non-canonical base64 value is rejected with SerializationError", () => {
+      for (const thumbnail of [
+        "dGVzdA",
+        "dGVz dA==",
+        "dGVz\ndA==",
+        "-_8=",
+        "!!!!",
+      ]) {
         expect(() =>
           ObjectSerializer.deserialize({ thumbnail }, PetPassport),
         ).toThrow(SerializationError);
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 207 a non-standard base64 value is rejected on decode", () => {
       for (const thumbnail of [
@@ -1856,16 +1861,15 @@ describe("ObjectSerializer", () => {
       }
     });
 
-    test.each([
-      ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
-      ["2024-01-01T10:00:00.123456789+05:30", "2024-01-01T04:30:00.123Z"],
-    ])(
-      "bhv serialization 085 accepts the RFC 3339 date-time %p",
-      (shipDate, instant) => {
+    test("bhv serialization 085 accepts every listed RFC 3339 date-time", () => {
+      for (const [shipDate, instant] of [
+        ["2024-01-01T10:00:00Z", "2024-01-01T10:00:00.000Z"],
+        ["2024-01-01T10:00:00.123456789+05:30", "2024-01-01T04:30:00.123Z"],
+      ]) {
         const order = ObjectSerializer.deserialize({ shipDate }, Order);
         expect(order!.shipDate!.toISOString()).toBe(instant);
-      },
-    );
+      }
+    });
   });
 
   describe("format: uri decode", () => {
@@ -2059,19 +2063,18 @@ describe("ObjectSerializer", () => {
         expect(ObjectSerializer.stringify(t)).toBe("09:15:30.250");
       });
 
-      test.each([
-        ["10:30:00", "10:30:00"],
-        ["10:30:00.123456789", "10:30:00.123"],
-        ["10:30:00.9996", "10:30:00.999"],
-        ["10:30:00.000999", "10:30:00"],
-      ])(
-        "bhv langnode 159 stringify: %s is written as %s",
-        (input, expected) => {
+      test("bhv langnode 159 stringify: every listed plain time is written as itself", () => {
+        for (const [input, expected] of [
+          ["10:30:00", "10:30:00"],
+          ["10:30:00.123456789", "10:30:00.123"],
+          ["10:30:00.9996", "10:30:00.999"],
+          ["10:30:00.000999", "10:30:00"],
+        ]) {
           expect(
             ObjectSerializer.stringify(Temporal.PlainTime.from(input)),
           ).toBe(expected);
-        },
-      );
+        }
+      });
 
       test("bhv serializationobject 219 a time value keeps its milliseconds when it is written", () => {
         const json = ObjectSerializer.serialize(
@@ -2858,14 +2861,13 @@ describe("ObjectSerializer", () => {
       );
     });
 
-    test.each([Infinity, -Infinity, Number.NaN])(
-      "bhv langnode 160 a hand-built model keeps %p",
-      (value) => {
+    test("bhv langnode 160 a hand-built model keeps Infinity, -Infinity and NaN", () => {
+      for (const value of [Infinity, -Infinity, Number.NaN]) {
         expect(new PhotoMetadataLocation({ lat: value, lng: 0 }).lat).toBe(
           value,
         );
-      },
-    );
+      }
+    });
   });
 
   describe("Canonical #5 — additionalProperties re-serialize at the TOP level", () => {
@@ -3068,20 +3070,19 @@ describe("validation happens at decode, never at construction (F316)", () => {
     ).not.toThrow();
   });
 
-  test.each([
-    ["a wrong-typed integer", Order, { quantity: "many" }],
-    ["a missing required field", Pet, { photoUrls: [] }],
-    ["a wrong-typed required field", Pet, { name: 42, photoUrls: [] }],
-    ["an unknown inline enum string", Order, { status: "teleported" }],
-    ["an unknown referenced enum string", StockItem, { priority: "urgent" }],
-  ])(
-    "bhv langnode 161 decoding %s fails with a SerializationError",
-    (_label, model, json) => {
+  test("bhv langnode 161 decoding a missing or null required field fails with a SerializationError", () => {
+    for (const [_label, model, json] of [
+      ["a wrong-typed integer", Order, { quantity: "many" }],
+      ["a missing required field", Pet, { photoUrls: [] }],
+      ["a wrong-typed required field", Pet, { name: 42, photoUrls: [] }],
+      ["an unknown inline enum string", Order, { status: "teleported" }],
+      ["an unknown referenced enum string", StockItem, { priority: "urgent" }],
+    ]) {
       expect(() =>
         ObjectSerializer.deserialize(json, model as ClassConstructor<unknown>),
       ).toThrow(SerializationError);
-    },
-  );
+    }
+  });
 
   test("bhv serializationobject 192 an unknown enum string fails loudly at decode and names the value and the allowed ones", () => {
     expect(() =>
@@ -3183,35 +3184,39 @@ describe("model with (copy)", () => {
 });
 
 describe("format: date", () => {
-  test.each([
-    "2024-01-15",
-    "2024-02-29",
-    "0001-01-01",
-    "9999-12-31",
-    "2000-02-29",
-  ])("bhv langnode 162 %p is a plain date", (value) => {
-    expect(isPlainDate(value)).toBe(true);
-    expect(plainDate(value)).toBe(value);
+  test("bhv langnode 162 every valid calendar date string is a plain date", () => {
+    for (const value of [
+      "2024-01-15",
+      "2024-02-29",
+      "0001-01-01",
+      "9999-12-31",
+      "2000-02-29",
+    ]) {
+      expect(isPlainDate(value)).toBe(true);
+      expect(plainDate(value)).toBe(value);
+    }
   });
 
-  test.each([
-    "2023-02-29",
-    "1900-02-29",
-    "2024-04-31",
-    "2024-13-01",
-    "2024-00-01",
-    "2024-01-00",
-    "2024-01-32",
-    "2024-1-5",
-    "2024-01-15T00:00:00Z",
-    "2024-01-15T00:00:00",
-    "20240115",
-    " 2024-01-15",
-    "2024-01-15\n",
-    "",
-  ])("bhv langnode 163 %p is not a plain date", (value) => {
-    expect(isPlainDate(value)).toBe(false);
-    expect(() => plainDate(value)).toThrow(TypeError);
+  test("bhv langnode 163 every malformed or impossible calendar date string is not a plain date", () => {
+    for (const value of [
+      "2023-02-29",
+      "1900-02-29",
+      "2024-04-31",
+      "2024-13-01",
+      "2024-00-01",
+      "2024-01-00",
+      "2024-01-32",
+      "2024-1-5",
+      "2024-01-15T00:00:00Z",
+      "2024-01-15T00:00:00",
+      "20240115",
+      " 2024-01-15",
+      "2024-01-15\n",
+      "",
+    ]) {
+      expect(isPlainDate(value)).toBe(false);
+      expect(() => plainDate(value)).toThrow(TypeError);
+    }
   });
 
   test("bhv langnode 144 a string is returned exactly as given", () => {
@@ -3229,15 +3234,17 @@ describe("format: date", () => {
     expect(plainDate(new Date("0005-01-01T00:00:00Z"))).toBe("0005-01-01");
   });
 
-  test.each([
-    [null],
-    [undefined],
-    [20240115],
-    [true],
-    [{}],
-    [new Date(Number.NaN)],
-  ])("bhv langnode 164 %p is refused", (value) => {
-    expect(() => plainDate(value)).toThrow(TypeError);
+  test("bhv langnode 164 every non-string date value is refused", () => {
+    for (const [value] of [
+      [null],
+      [undefined],
+      [20240115],
+      [true],
+      [{}],
+      [new Date(Number.NaN)],
+    ]) {
+      expect(() => plainDate(value)).toThrow(TypeError);
+    }
   });
 
   test("bhv langnode 145 the error names the value", () => {
@@ -3258,14 +3265,19 @@ describe("format: date", () => {
     ).toBeNull();
   });
 
-  test.each(["2024-01-15T00:00:00Z", "2024-02-30", "tomorrow", 20240115, true])(
-    "bhv langnode 165 a date leaf refuses %p",
-    (value) => {
+  test("bhv langnode 165 a date leaf refuses every listed non-date value", () => {
+    for (const value of [
+      "2024-01-15T00:00:00Z",
+      "2024-02-30",
+      "tomorrow",
+      20240115,
+      true,
+    ]) {
       expect(() =>
         ObjectSerializer.deserializeLeaf(value, "plainDate"),
       ).toThrow(SerializationError);
-    },
-  );
+    }
+  });
 });
 
 describe("format: double decode", () => {
@@ -3731,9 +3743,8 @@ describe("toBinary", () => {
       ).toThrow(SerializationError);
     });
 
-    test.each([["o'clock"], ["a\\b"], ["$eq"], ["#{x}"]])(
-      "bhv langnode 166 the availability value %s round-trips through its member",
-      (wire) => {
+    test("bhv langnode 166 every availability value round-trips through its member", () => {
+      for (const [wire] of [["o'clock"], ["a\\b"], ["$eq"], ["#{x}"]]) {
         const member = Object.values(Availability).find(
           (value) => value === wire,
         );
@@ -3747,8 +3758,8 @@ describe("toBinary", () => {
         expect(
           JSON.parse(ObjectSerializer.serialize(decoded)).availability,
         ).toBe(wire);
-      },
-    );
+      }
+    });
 
     test("bhv serialization 004 a generated enum lists its members and refuses a value outside them", () => {
       expect(Object.values(Availability)).toEqual(
@@ -3778,9 +3789,8 @@ describe("toBinary", () => {
       );
     });
 
-    test.each([[" "], ["@@"], ["a-b"], ["a_b"]])(
-      "bhv langnode 167 the enum wire value %j decodes to a member and re-encodes",
-      (wire) => {
+    test("bhv langnode 167 every enum wire value decodes to a member and re-encodes", () => {
+      for (const [wire] of [[" "], ["@@"], ["a-b"], ["a_b"]]) {
         const member = ObjectSerializer.deserializeEnum<Separator>(
           wire,
           Separator as unknown as Record<string, unknown>,
@@ -3788,8 +3798,8 @@ describe("toBinary", () => {
 
         expect(member).toBe(wire);
         expect(ObjectSerializer.serialize(member)).toBe(JSON.stringify(wire));
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 161 the four separator wire values decode to four distinct members", () => {
       const members = [" ", "@@", "a-b", "a_b"].map((wire) =>
@@ -3957,32 +3967,30 @@ describe("toBinary", () => {
       ).toBe('{"address4":"192.0.2.1"}');
     });
 
-    test.each(["2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1"])(
-      "bhv serializationobject 406 an ipv6 field keeps the text %p unchanged",
-      (text) => {
+    test("bhv serializationobject 406 an ipv6 field keeps every listed text unchanged", () => {
+      for (const text of ["2001:0DB8:0:0:0:0:0:1", "2001:db8::1", "::1"]) {
         expect(
           ObjectSerializer.serialize(decode(`{"address6":"${text}"}`)),
         ).toBe(`{"address6":"${text}"}`);
-      },
-    );
+      }
+    });
 
-    test.each([
-      "https://example.com",
-      "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
-      "mailto:a@b.c",
-      "urn:isbn:0451450523",
-      "https://example.com/[x]?q='a'",
-      "https://example.com?",
-      "https://example.com/%7euser",
-      "https://[2001:db8::1]:8443/",
-    ])(
-      "bhv serializationobject 408 the absolute URI %p round-trips byte for byte",
-      (text) => {
+    test("bhv serializationobject 408 every listed absolute URI round-trips byte for byte", () => {
+      for (const text of [
+        "https://example.com",
+        "HTTP://EXAMPLE.com:80/a%2fb?x=1&x=2#frag",
+        "mailto:a@b.c",
+        "urn:isbn:0451450523",
+        "https://example.com/[x]?q='a'",
+        "https://example.com?",
+        "https://example.com/%7euser",
+        "https://[2001:db8::1]:8443/",
+      ]) {
         const json = JSON.stringify({ homepage: text });
 
         expect(ObjectSerializer.serialize(decode(json))).toBe(json);
-      },
-    );
+      }
+    });
 
     test("bhv serializationobject 409 a hostname and an email are kept as given", () => {
       const json = '{"host":"not a host!","contact":"x@"}';
@@ -4414,7 +4422,7 @@ describe("ObjectSerializer wire behaviours (chunk 11)", () => {
   });
 });
 
-describe("ObjectSerializer serialization behaviours (bhv serialization 112 to 130)", () => {
+describe("ObjectSerializer serialization behaviours", () => {
   test("bhv serialization 112 a password property is masked in the string and debug forms of a model, while the wire value is unaffected", () => {
     const password = "p@ss-word-value";
     const account = new Account({ username: "user", password });
@@ -4509,12 +4517,11 @@ describe("ObjectSerializer misc decoding and duration behaviours", () => {
     ).toBe(0);
   });
 
-  test.each(["P1D", "1d"])(
-    "bhv misc 251 a duration string with a day designator (%s) is rejected",
-    (value) => {
+  test("bhv misc 251 a duration string with a day designator is rejected", () => {
+    for (const value of ["P1D", "1d"]) {
       expect(() => durationFromProtoJson(value)).toThrow();
-    },
-  );
+    }
+  });
 
   test("bhv misc 252 an enum wire value containing separators round-trips unchanged", () => {
     expect(JSON.parse(ObjectSerializer.serialize("a,b;c d/e:f"))).toBe(

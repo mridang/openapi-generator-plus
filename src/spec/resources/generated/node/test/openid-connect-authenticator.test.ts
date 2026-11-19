@@ -374,14 +374,14 @@ describe("OpenIdConnectAuthenticator", () => {
     });
   });
 
-  test.each([
-    [[], "openid"],
-    [["profile"], "openid profile"],
-    [["openid"], "openid"],
-    [["OpenID"], "openid OpenID"],
-  ] as Array<[string[], string]>)(
-    "bhv langnode 095 the openid scope is always requested for scopes %j",
-    async (scopes, expected) => {
+  test("bhv langnode 095 the openid scope is always requested whatever the configured scopes", async () => {
+    for (const [scopes, expected] of [
+      [[], "openid"],
+      [["profile"], "openid profile"],
+      [["openid"], "openid"],
+      [["OpenID"], "openid OpenID"],
+    ] as Array<[string[], string]>) {
+      mockClient.callCount = 0;
       const oidc = new OpenIdConnectAuthenticator(
         "https://api.example.com",
         "https://auth.example.com/.well-known/openid-configuration",
@@ -405,8 +405,8 @@ describe("OpenIdConnectAuthenticator", () => {
       const url = await oidc.buildAuthorizationUrl();
 
       expect(new URL(url).searchParams.get("scope")).toBe(expected);
-    },
-  );
+    }
+  });
 
   test("bhv authoidc 010 fetches discovery document", async () => {
     mockClient.responses = [
@@ -484,12 +484,12 @@ describe("OpenIdConnectAuthenticator", () => {
     expect(headers["Authorization"]).toBe("Bearer oidc-tok");
   });
 
-  test.each([
-    [404, NotFoundError],
-    [500, InternalServerError],
-  ])(
-    "bhv langnode 096 throws on a non-2xx (%i) discovery response instead of mis-parsing it",
-    async (status, errorClass) => {
+  test("bhv langnode 096 throws on a non-2xx discovery response instead of mis-parsing it", async () => {
+    for (const [status, errorClass] of [
+      [404, NotFoundError],
+      [500, InternalServerError],
+    ]) {
+      mockClient.callCount = 0;
       // oauth-oidc-discovery-no-status-check: a non-2xx answer (e.g. a 500
       // HTML error page) must surface as the same status-specific error an
       // API call would throw, not a downstream "invalid JSON".
@@ -506,8 +506,8 @@ describe("OpenIdConnectAuthenticator", () => {
         .catch((e: unknown) => e);
       expect((error as Error).constructor).toBe(errorClass);
       expect((error as NotFoundError).statusCode).toBe(status);
-    },
-  );
+    }
+  });
 
   test("bhv authoidc 016 throws SerializationError when the discovery document is not JSON", async () => {
     mockClient.responses = [
@@ -745,19 +745,18 @@ describe("OpenIdConnectAuthenticator", () => {
       expect(mockClient.lastUrl).toBe("https://auth.example.com/token-2");
     });
 
-    test.each([
-      ["public", 86399, 1],
-      ["max-age=abc", 86399, 1],
-      [undefined, 86399, 1],
-      [undefined, 86401, 2],
-    ])(
-      "bhv auth 011 a document with no usable max-age (Cache-Control %p) is cached for a day (%i seconds later: %i fetches)",
-      async (cacheControl, seconds, fetches) => {
+    test("bhv auth 011 a document with no usable max-age is cached for a day", async () => {
+      for (const [cacheControl, seconds, fetches] of [
+        ["public", 86399, 1],
+        ["max-age=abc", 86399, 1],
+        [undefined, 86399, 1],
+        [undefined, 86401, 2],
+      ]) {
         await urlsAfter(seconds, cacheControl);
 
         expect(mockClient.callCount).toBe(fetches);
-      },
-    );
+      }
+    });
   });
 
   // oauth-oidc-missing-endpoint-guard: a discovery document missing the
@@ -817,9 +816,12 @@ describe("OpenIdConnectAuthenticator", () => {
     },
   ];
 
-  test.each(["https://other.example.com", "https://auth.example.com/tenant"])(
-    "bhv misc 200 discovery rejects an issuer %s that is not the discovery URL prefix",
-    async (issuer) => {
+  test("bhv misc 200 discovery rejects an issuer that is not the discovery URL prefix", async () => {
+    for (const issuer of [
+      "https://other.example.com",
+      "https://auth.example.com/tenant",
+    ]) {
+      mockClient.callCount = 0;
       mockClient.responses = discoveryDocument({
         issuer,
         authorization_endpoint: "https://auth.example.com/authorize",
@@ -833,22 +835,34 @@ describe("OpenIdConnectAuthenticator", () => {
       expect((error as Error).message).toBe(
         "OIDC discovery document issuer does not match the discovery URL",
       );
-    },
-  );
+    }
+  });
 
-  test.each(["https://auth.example.com", "https://auth.example.com/"])(
-    "bhv langnode 097 discovery accepts the issuer %s, ignoring a trailing slash",
-    async (issuer) => {
+  test("bhv langnode 097 discovery accepts the issuer, ignoring a trailing slash", async () => {
+    for (const issuer of [
+      "https://auth.example.com",
+      "https://auth.example.com/",
+    ]) {
+      const fresh = new OpenIdConnectAuthenticator(
+        "https://api.example.com",
+        "https://auth.example.com/.well-known/openid-configuration",
+        "my-client-id",
+        "my-client-secret",
+        "https://myapp.example.com/callback",
+        [],
+      );
+      fresh.setApiClient(mockClient);
+      mockClient.callCount = 0;
       mockClient.responses = discoveryDocument({
         issuer,
         authorization_endpoint: "https://auth.example.com/authorize",
         token_endpoint: "https://auth.example.com/token",
       });
 
-      const url = await authenticator.buildAuthorizationUrl();
+      const url = await fresh.buildAuthorizationUrl();
       expect(url.startsWith("https://auth.example.com/authorize?")).toBe(true);
-    },
-  );
+    }
+  });
 
   test("bhv authoidc 005 discovery rejects a clear text endpoint unless it is loopback", async () => {
     const rows: Array<[string, string, string]> = [
@@ -890,22 +904,31 @@ describe("OpenIdConnectAuthenticator", () => {
     }
   });
 
-  test.each([
-    "http://localhost:9000",
-    "http://127.0.0.1:9000",
-    "http://[::1]:9000",
-  ])(
-    "bhv langnode 098 discovery accepts the loopback endpoints on %s",
-    async (origin) => {
+  test("bhv langnode 098 discovery accepts the loopback endpoints on every loopback host", async () => {
+    for (const origin of [
+      "http://localhost:9000",
+      "http://127.0.0.1:9000",
+      "http://[::1]:9000",
+    ]) {
+      const fresh = new OpenIdConnectAuthenticator(
+        "https://api.example.com",
+        "https://auth.example.com/.well-known/openid-configuration",
+        "my-client-id",
+        "my-client-secret",
+        "https://myapp.example.com/callback",
+        [],
+      );
+      fresh.setApiClient(mockClient);
+      mockClient.callCount = 0;
       mockClient.responses = discoveryDocument({
         authorization_endpoint: `${origin}/authorize`,
         token_endpoint: `${origin}/token`,
       });
 
-      const url = await authenticator.buildAuthorizationUrl();
+      const url = await fresh.buildAuthorizationUrl();
       expect(url.startsWith(`${origin}/authorize?`)).toBe(true);
-    },
-  );
+    }
+  });
 
   test("bhv langnode 094 a discovery URL that is not https is refused before any request is sent", async () => {
     const insecure = new OpenIdConnectAuthenticator(

@@ -272,9 +272,8 @@ describe("BaseApi", () => {
     [502, BadGatewayError],
   ];
 
-  test.each(cases)(
-    "bhv errors 037 status %i throws correct exception",
-    async (status, ErrorClass) => {
+  test("bhv errors 037 every listed status throws the correct exception", async () => {
+    for (const [status, ErrorClass] of cases) {
       try {
         await api().call(
           "GET",
@@ -293,8 +292,8 @@ describe("BaseApi", () => {
         expect((e as ApiError).statusCode).toBe(status);
         expect((e as ApiError).responseBody).toBeTruthy();
       }
-    },
-  );
+    }
+  });
 
   test("bhv errors 071 a 401 response surfaces as an UnauthorizedError", async () => {
     const error = await api()
@@ -1263,24 +1262,23 @@ describe("BaseApi", () => {
       expect((error as Error).constructor).toBe(UnauthorizedError);
     });
 
-    test.each([
-      [
-        "bearer",
-        () => new BearerAuthenticator("https://api.example.com", "fixed"),
-      ],
-      [
-        "api key",
-        () =>
-          new ApiKeyAuthenticator(
-            "https://api.example.com",
-            "X-Key",
-            "fixed",
-            ApiKeyLocation.HEADER,
-          ),
-      ],
-    ])(
-      "bhv langnode 027 is never replayed for a %s authenticator",
-      async (_name, make) => {
+    test("bhv langnode 027 is never replayed for an api key or bearer authenticator", async () => {
+      for (const [_name, make] of [
+        [
+          "bearer",
+          () => new BearerAuthenticator("https://api.example.com", "fixed"),
+        ],
+        [
+          "api key",
+          () =>
+            new ApiKeyAuthenticator(
+              "https://api.example.com",
+              "X-Key",
+              "fixed",
+              ApiKeyLocation.HEADER,
+            ),
+        ],
+      ]) {
         let calls = 0;
         const stub: ApiClient = {
           async sendRequest() {
@@ -1313,8 +1311,8 @@ describe("BaseApi", () => {
 
         expect((error as Error).constructor).toBe(UnauthorizedError);
         expect(calls).toBe(1);
-      },
-    );
+      }
+    });
   });
 
   /*
@@ -1590,13 +1588,12 @@ describe("BaseApi", () => {
     expect(client.capturedBody).toBe("nickname=a~b%2Ac%21d%27e%28f%29g");
   });
 
-  test.each([
-    ["a value", { name: "a\uD800b" }],
-    ["a key", { "k\uDC00": "v" }],
-    ["an array item", { names: ["ok", "a\uD800"] }],
-  ])(
-    "bhv langnode 028 form-urlencoded body rejects a lone surrogate in %s with URIError",
-    async (_label, body) => {
+  test("bhv langnode 028 form-urlencoded body rejects a lone surrogate in a key or a value with URIError", async () => {
+    for (const [_label, body] of [
+      ["a value", { name: "a\uD800b" }],
+      ["a key", { "k\uDC00": "v" }],
+      ["an array item", { names: ["ok", "a\uD800"] }],
+    ]) {
       const client = new CapturingApiClient();
       const config = new Configuration({ baseUrl: "http://localhost" });
       const testApi = new TestableApi(client, config);
@@ -1613,8 +1610,8 @@ describe("BaseApi", () => {
         ),
       ).rejects.toThrow(new URIError("URI malformed"));
       expect(client.capturedBody).toBeNull();
-    },
-  );
+    }
+  });
 
   test("bhv serializationwire 014 form-urlencoded body rejects a nested object field with SerializationError", async () => {
     const bodies: Array<[string, unknown]> = [
@@ -2366,14 +2363,18 @@ describe("BaseApi scheme credentials", () => {
     expect(new TestableApi().resolve(["bearer"])).toBeUndefined();
   });
 
-  test.each(["constructor", "toString", "__proto__", "hasOwnProperty"])(
-    "bhv langnode 029 a scheme named %s never resolves to a member of Object.prototype",
-    (name) => {
+  test("bhv langnode 029 a scheme named after an Object.prototype member never resolves to it", () => {
+    for (const name of [
+      "constructor",
+      "toString",
+      "__proto__",
+      "hasOwnProperty",
+    ]) {
       expect(
         new TestableApi(undefined, undefined, null, { bearer }).resolve([name]),
       ).toBeUndefined();
-    },
-  );
+    }
+  });
 
   test("bhv authintegration 003 a resolved scheme credential is the one the request carries, not the client-level authenticator", async () => {
     const client = new CapturingApiClient();
@@ -3052,23 +3053,21 @@ describe("BaseApi per-call request options", () => {
     expect(client.sendOptions?.timeout).toBeNull();
   });
 
-  test.each([[0], [-1], [Number.NaN]])(
-    "bhv misc 134 a timeout of %s is refused",
-    async (timeout) => {
+  test("bhv misc 134 a timeout of zero, a negative number or NaN is refused", async () => {
+    for (const [timeout] of [[0], [-1], [Number.NaN]]) {
       await expect(send(new RecordingApiClient(), { timeout })).rejects.toThrow(
         /Invalid timeout/,
       );
-    },
-  );
+    }
+  });
 
-  test.each([[-1], [1.5], [Number.NaN]])(
-    "bhv misc 053 maxRetries of %s is refused",
-    async (maxRetries) => {
+  test("bhv misc 053 maxRetries of a negative, fractional or NaN value is refused", async () => {
+    for (const [maxRetries] of [[-1], [1.5], [Number.NaN]]) {
       await expect(
         send(new RecordingApiClient(), { maxRetries }),
       ).rejects.toThrow(/Invalid maxRetries/);
-    },
-  );
+    }
+  });
 
   test("bhv authintegration 011 the call is not sent when an option is refused", async () => {
     const client = new RecordingApiClient();
@@ -3406,21 +3405,20 @@ describe("BaseApi call hook", () => {
     expect(seen.order).toEqual(["start", "finish"]);
   });
 
-  test.each([
-    ["https://API.Example.com:8443", "api.example.com"],
-    ["http://[::1]:8080", "::1"],
-    ["http://[2001:db8::1]", "2001:db8::1"],
-  ])(
-    "bhv hooks 003 serverAddress of %s is the host without port or brackets",
-    async (baseUrl, expected) => {
+  test("bhv hooks 003 serverAddress of every listed base URL is the host without port or brackets", async () => {
+    for (const [baseUrl, expected] of [
+      ["https://API.Example.com:8443", "api.example.com"],
+      ["http://[::1]:8080", "::1"],
+      ["http://[2001:db8::1]", "2001:db8::1"],
+    ]) {
       const { client } = scripted({ status: 200 });
       const { hook, seen } = recording();
 
       await get(hooked(client, hook, baseUrl));
 
       expect(seen.infos[0]!.serverAddress).toBe(expected);
-    },
-  );
+    }
+  });
 
   test("bhv hooks 004 a header the hook sets reaches the transport", async () => {
     const { client, sent } = scripted({ status: 200 });
@@ -4037,7 +4035,7 @@ describe("BaseApi per-call credentials and context", () => {
   });
 });
 
-describe("BaseApi body and response encoding behaviours (bhv serialization 122, 125, 128)", () => {
+describe("BaseApi body and response encoding behaviours", () => {
   it("bhv serialization 122 a form-urlencoded body repeats the key for each array element and keeps the order of its pairs", async () => {
     const client = new CapturingApiClient();
     const testApi = new TestableApi(
@@ -4206,9 +4204,8 @@ describe("BaseApi misc query and status behaviours", () => {
     expect(client.capturedUrl).toContain("limit=5");
   });
 
-  test.each([400, 401, 403, 404, 409, 422, 429, 500, 502, 503])(
-    "bhv misc 264 a listed error status %i from the server raises the SDK error carrying that status code",
-    async (status) => {
+  test("bhv misc 264 every listed error status from the server raises the SDK error carrying that status code", async () => {
+    for (const status of [400, 401, 403, 404, 409, 422, 429, 500, 502, 503]) {
       const client = new CapturingApiClient();
       client.responseStatus = status;
       client.responseBody = "{}";
@@ -4228,8 +4225,8 @@ describe("BaseApi misc query and status behaviours", () => {
           null,
         ),
       ).rejects.toMatchObject({ statusCode: status });
-    },
-  );
+    }
+  });
 });
 
 describe("BaseApi misc truncation behaviours", () => {

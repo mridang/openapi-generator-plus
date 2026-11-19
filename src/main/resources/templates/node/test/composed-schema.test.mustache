@@ -529,7 +529,7 @@ describe('Composed Schema misc behaviours', () => {
   });
 });
 
-describe('Composed Schema union accessors and equality (bhv unions 044 to 047)', () => {
+describe('Composed Schema union accessors and equality', () => {
   test('bhv unions 044 each variant of a union has a typed constructor or factory and a typed accessor that identify the variant', () => {
     const treatment = new PetTreatment(new Medication({ drugName: 'Amoxicillin' }));
     expect(treatment.isMedication()).toBe(true);

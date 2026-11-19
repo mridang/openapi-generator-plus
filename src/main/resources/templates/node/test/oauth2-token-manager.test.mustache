@@ -699,17 +699,19 @@ describe('OAuth2TokenManager', () => {
     expect(bodies).toHaveLength(2);
   });
 
-  test.each([
+  test('bhv langnode 092 every token request is form-encoded and asks for JSON', async () => {
+    for (const [_grant, params] of [
     ['authorization_code', { grant_type: 'authorization_code', code: 'abc' }],
     ['client_credentials', { grant_type: 'client_credentials' }],
     ['password', { grant_type: 'password', username: 'user', password: 'pass' }]
-  ])('bhv langnode 092 the %s token request is form-encoded and asks for JSON', async (_grant, params) => {
-    mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
+  ]) {
+      mockClient.responseBody = JSON.stringify({ access_token: 'tok', expires_in: 3600 });
 
-    await tokenManager.getAccessToken('https://auth.example.com/token', params);
+      await tokenManager.getAccessToken('https://auth.example.com/token', params);
 
-    expect(mockClient.lastHeaders['Content-Type']).toBe('application/x-www-form-urlencoded');
-    expect(mockClient.lastHeaders['Accept']).toBe('application/json');
+      expect(mockClient.lastHeaders['Content-Type']).toBe('application/x-www-form-urlencoded');
+      expect(mockClient.lastHeaders['Accept']).toBe('application/json');
+    }
   });
 
   test('bhv authoauthtwotokenmgr 035 the refresh grant request is form-encoded and asks for JSON', async () => {
@@ -1048,12 +1050,14 @@ describe('OAuth2TokenManager', () => {
     ).toBe('no-type');
   });
 
-  test.each([['bearer'], ['Bearer'], ['BEARER']])('bhv langnode 093 token_type %p is accepted', async (tokenType) => {
-    mockClient.responseBody = JSON.stringify({ access_token: 'tok', token_type: tokenType });
+  test('bhv langnode 093 token_type is accepted in any letter case', async () => {
+    for (const [tokenType] of [['bearer'], ['Bearer'], ['BEARER']]) {
+      mockClient.responseBody = JSON.stringify({ access_token: 'tok', token_type: tokenType });
 
-    expect(
-      await tokenManager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' })
-    ).toBe('tok');
+      expect(
+        await tokenManager.getAccessToken('https://auth.example.com/token', { grant_type: 'client_credentials' })
+      ).toBe('tok');
+    }
   });
 
   test('bhv authoauthtwotokenmgr 027 coalesces concurrent refresh calls into single token request', async () => {

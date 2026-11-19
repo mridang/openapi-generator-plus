@@ -89,15 +89,14 @@ describe("OAuth2ImplicitAuthenticator", () => {
     );
   });
 
-  test.each([
-    ["CR/LF", "abc\r\nInjected: yes"],
-    ["LF", "abc\ndef"],
-    ["NUL", "abc\0def"],
-    ["DEL", "abc\x7fdef"],
-    ["non-ASCII", "tök"],
-  ])(
-    "bhv langnode 091 setAccessToken rejects a token containing %s",
-    (_label, token) => {
+  test("bhv langnode 091 setAccessToken rejects a token containing CR, LF or NUL", () => {
+    for (const [_label, token] of [
+      ["CR/LF", "abc\r\nInjected: yes"],
+      ["LF", "abc\ndef"],
+      ["NUL", "abc\0def"],
+      ["DEL", "abc\x7fdef"],
+      ["non-ASCII", "tök"],
+    ]) {
       expect(() => authenticator.setAccessToken(token)).toThrow(TypeError);
       expect(() => authenticator.setAccessToken(token)).toThrow(
         "Access token must contain only printable ASCII characters (RFC 7230 §3.2.6)",
@@ -105,8 +104,8 @@ describe("OAuth2ImplicitAuthenticator", () => {
       expect(() => authenticator.getAuthHeaders()).toThrow(
         "Must set the access token before making API requests",
       );
-    },
-  );
+    }
+  });
 
   test("bhv authoauthtwoimplicit 014 rejects a non-ASCII access token with the RFC 7230 message", () => {
     expect(() => authenticator.setAccessToken("tök")).toThrow(

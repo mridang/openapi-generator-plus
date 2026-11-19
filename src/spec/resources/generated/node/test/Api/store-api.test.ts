@@ -222,32 +222,33 @@ describe("StoreApi nested container deserialization", () => {
     }
   });
 
-  test.each([
-    ["a quoted number", '[[1,"2"]]'],
-    ["a fractional number", "[[1,2.5]]"],
-    ["a null", "[[1,null]]"],
-  ])("bhv langnode 017 getMatrix rejects %s element", async (_label, body) => {
-    const { api: mockApi, close } = await createMockServer(
-      200,
-      "application/json",
-      body,
-    );
-    try {
-      await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(
-        SerializationError,
+  test("bhv langnode 017 getMatrix rejects a fractional number element", async () => {
+    for (const [_label, body] of [
+      ["a quoted number", '[[1,"2"]]'],
+      ["a fractional number", "[[1,2.5]]"],
+      ["a null", "[[1,null]]"],
+    ]) {
+      const { api: mockApi, close } = await createMockServer(
+        200,
+        "application/json",
+        body,
       );
-    } finally {
-      close();
+      try {
+        await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(
+          SerializationError,
+        );
+      } finally {
+        close();
+      }
     }
   });
 
-  test.each([
-    ["a quoted number", '{"available":"5"}'],
-    ["a fractional number", '{"available":5.5}'],
-    ["a null", '{"available":null}'],
-  ])(
-    "bhv langnode 018 getInventory rejects %s element",
-    async (_label, body) => {
+  test("bhv langnode 018 getInventory rejects a fractional number element", async () => {
+    for (const [_label, body] of [
+      ["a quoted number", '{"available":"5"}'],
+      ["a fractional number", '{"available":5.5}'],
+      ["a null", '{"available":null}'],
+    ]) {
       const { api: mockApi, close } = await createMockServer(
         200,
         "application/json",
@@ -260,8 +261,8 @@ describe("StoreApi nested container deserialization", () => {
       } finally {
         close();
       }
-    },
-  );
+    }
+  });
 
   test("bhv operations 114 getSwatchGroups decodes enum leaves into Swatch values", async () => {
     // nested-container-deserialise: Array<Record<string, Swatch>> — an enum
@@ -652,20 +653,19 @@ describe("StoreApi content-encoded query parameters", () => {
     ).toEqual(["blue", "red"]);
   });
 
-  test.each([
-    ["10:30:00.123456789", "at=10%3A30%3A00.123"],
-    ["10:30:00", "at=10%3A30%3A00"],
-  ])(
-    "bhv misc 241 searchStore sends the time %s as %s",
-    async (time, expected) => {
+  test("bhv misc 241 searchStore sends every listed time percent-encoded", async () => {
+    for (const [time, expected] of [
+      ["10:30:00.123456789", "at=10%3A30%3A00.123"],
+      ["10:30:00", "at=10%3A30%3A00"],
+    ]) {
       const url = await captureRequest((s) =>
         s.searchStore({ at: Temporal.PlainTime.from(time) }),
       );
 
       expect(url).toContain(expected);
       expect(url).not.toContain(`${expected}0`);
-    },
-  );
+    }
+  });
 
   test("bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero", async () => {
     const url = await captureRequest((s) =>
@@ -823,19 +823,18 @@ describe("StoreApi named-enum parameters", () => {
 });
 
 describe("StoreApi error dispatch through the typed status routes", () => {
-  test.each([
-    [400, BadRequestError],
-    [401, UnauthorizedError],
-    [403, ForbiddenError],
-    [404, NotFoundError],
-    [409, ConflictError],
-    [418, ClientError],
-    [422, UnprocessableEntityError],
-    [500, InternalServerError],
-    [502, BadGatewayError],
-  ])(
-    "bhv operations 110 getOrderById picks the status-specific error for status %i",
-    async (status, expected) => {
+  test("bhv operations 110 getOrderById picks the status-specific error for every listed status", async () => {
+    for (const [status, expected] of [
+      [400, BadRequestError],
+      [401, UnauthorizedError],
+      [403, ForbiddenError],
+      [404, NotFoundError],
+      [409, ConflictError],
+      [418, ClientError],
+      [422, UnprocessableEntityError],
+      [500, InternalServerError],
+      [502, BadGatewayError],
+    ]) {
       const statusApi = new StoreApi(
         new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
         Configuration.builder()
@@ -847,8 +846,8 @@ describe("StoreApi error dispatch through the typed status routes", () => {
 
       expect((error as Error).constructor).toBe(expected);
       expect((error as ClientError).statusCode).toBe(status);
-    },
-  );
+    }
+  });
 });
 
 describe("StoreApi", () => {

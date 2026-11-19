@@ -32,67 +32,74 @@ import type { ApiClient } from "../src/api-client.js";
 import type { ApiHttpResponse } from "../src/api-http-response.js";
 
 describe("SchemeAuthenticators", () => {
-  it.each([
-    [
-      "PetStoreBasicAuthenticator",
-      PetStoreBasicAuthenticator,
-      BasicAuthenticator,
-    ],
-    ["AdminBasicAuthenticator", AdminBasicAuthenticator, BasicAuthenticator],
-    [
-      "PetStoreBearerAuthenticator",
-      PetStoreBearerAuthenticator,
-      BearerAuthenticator,
-    ],
-    [
-      "ServiceTokenAuthenticator",
-      ServiceTokenAuthenticator,
-      BearerAuthenticator,
-    ],
-    [
-      "ApiKeyHeaderAuthenticator",
-      ApiKeyHeaderAuthenticator,
-      ApiKeyAuthenticator,
-    ],
-    [
-      "InternalApiKeyAuthenticator",
-      InternalApiKeyAuthenticator,
-      ApiKeyAuthenticator,
-    ],
-    ["ApiKeyQueryAuthenticator", ApiKeyQueryAuthenticator, ApiKeyAuthenticator],
-    [
-      "SessionCookieAuthenticator",
-      SessionCookieAuthenticator,
-      ApiKeyAuthenticator,
-    ],
-    [
-      "MachineAuthClientCredentialsAuthenticator",
-      MachineAuthClientCredentialsAuthenticator,
-      OAuth2ClientCredentialsAuthenticator,
-    ],
-    [
-      "LegacyAuthPasswordAuthenticator",
-      LegacyAuthPasswordAuthenticator,
-      OAuth2PasswordAuthenticator,
-    ],
-    [
-      "UserAuthAuthorizationCodeAuthenticator",
-      UserAuthAuthorizationCodeAuthenticator,
-      OAuth2AuthorizationCodeAuthenticator,
-    ],
-    [
-      "BrowserAuthImplicitAuthenticator",
-      BrowserAuthImplicitAuthenticator,
-      OAuth2ImplicitAuthenticator,
-    ],
-    ["SsoAuthAuthenticator", SsoAuthAuthenticator, OpenIdConnectAuthenticator],
-  ])(
-    "bhv langnode 100 %s is exported from the package entry point and extends its base",
-    (_name, cls, base) => {
+  it("bhv langnode 100 every scheme authenticator is exported from the package entry point and extends its base", () => {
+    for (const [_name, cls, base] of [
+      [
+        "PetStoreBasicAuthenticator",
+        PetStoreBasicAuthenticator,
+        BasicAuthenticator,
+      ],
+      ["AdminBasicAuthenticator", AdminBasicAuthenticator, BasicAuthenticator],
+      [
+        "PetStoreBearerAuthenticator",
+        PetStoreBearerAuthenticator,
+        BearerAuthenticator,
+      ],
+      [
+        "ServiceTokenAuthenticator",
+        ServiceTokenAuthenticator,
+        BearerAuthenticator,
+      ],
+      [
+        "ApiKeyHeaderAuthenticator",
+        ApiKeyHeaderAuthenticator,
+        ApiKeyAuthenticator,
+      ],
+      [
+        "InternalApiKeyAuthenticator",
+        InternalApiKeyAuthenticator,
+        ApiKeyAuthenticator,
+      ],
+      [
+        "ApiKeyQueryAuthenticator",
+        ApiKeyQueryAuthenticator,
+        ApiKeyAuthenticator,
+      ],
+      [
+        "SessionCookieAuthenticator",
+        SessionCookieAuthenticator,
+        ApiKeyAuthenticator,
+      ],
+      [
+        "MachineAuthClientCredentialsAuthenticator",
+        MachineAuthClientCredentialsAuthenticator,
+        OAuth2ClientCredentialsAuthenticator,
+      ],
+      [
+        "LegacyAuthPasswordAuthenticator",
+        LegacyAuthPasswordAuthenticator,
+        OAuth2PasswordAuthenticator,
+      ],
+      [
+        "UserAuthAuthorizationCodeAuthenticator",
+        UserAuthAuthorizationCodeAuthenticator,
+        OAuth2AuthorizationCodeAuthenticator,
+      ],
+      [
+        "BrowserAuthImplicitAuthenticator",
+        BrowserAuthImplicitAuthenticator,
+        OAuth2ImplicitAuthenticator,
+      ],
+      [
+        "SsoAuthAuthenticator",
+        SsoAuthAuthenticator,
+        OpenIdConnectAuthenticator,
+      ],
+    ]) {
       expect(typeof cls).toBe("function");
       expect(Object.getPrototypeOf(cls)).toBe(base);
-    },
-  );
+    }
+  });
 
   it("bhv misc 073 a wrapper class exists for every declared scheme", () => {
     const wrappers: unknown[] = [
@@ -250,8 +257,8 @@ describe("SchemeAuthenticators", () => {
     );
   });
 
-  for (const [name, cls, variables] of environmentSchemes) {
-    it(`bhv authscheme 001 ${name} reads its own credential variables from the environment`, () => {
+  it("bhv authscheme 001 every scheme authenticator reads its own credential variables from the environment", () => {
+    for (const [, cls, variables] of environmentSchemes) {
       withVariables(
         variables,
         variables.map((variable) => `value-${variable}`),
@@ -259,9 +266,11 @@ describe("SchemeAuthenticators", () => {
           expect(() => new cls("https://api.example.com")).not.toThrow();
         },
       );
-    });
+    }
+  });
 
-    it(`bhv langnode 099 ${name} fails when it is built and a variable is unset`, () => {
+  it("bhv langnode 099 every scheme authenticator fails when it is built and a variable is unset", () => {
+    for (const [, cls, variables] of environmentSchemes) {
       withVariables(
         variables,
         variables.map(() => undefined),
@@ -271,9 +280,11 @@ describe("SchemeAuthenticators", () => {
           );
         },
       );
-    });
+    }
+  });
 
-    it(`bhv auth 041 ${name} prefers the explicit credential over the variables`, () => {
+  it("bhv auth 041 every scheme authenticator prefers the explicit credential over the variables", () => {
+    for (const [, cls, variables] of environmentSchemes) {
       const invalid = "bad\r\nvalue";
       withVariables(
         variables,
@@ -289,9 +300,11 @@ describe("SchemeAuthenticators", () => {
           ).not.toThrow();
         },
       );
-    });
+    }
+  });
 
-    it(`bhv authscheme 002 ${name} needs no environment when every credential is passed explicitly`, () => {
+  it("bhv authscheme 002 every scheme authenticator needs no environment when every credential is passed explicitly", () => {
+    for (const [, cls, variables] of environmentSchemes) {
       withVariables(
         variables,
         variables.map(() => undefined),
@@ -305,8 +318,8 @@ describe("SchemeAuthenticators", () => {
           ).not.toThrow();
         },
       );
-    });
-  }
+    }
+  });
 
   type SchemeWrapper = new (host: string, ...credentials: string[]) => unknown;
   const schemeWrappers: Array<[string, SchemeWrapper, { name: string }]> = [
@@ -550,10 +563,10 @@ describe("SchemeAuthenticators", () => {
       expectEmptyVariableNamed(name);
     }
   });
-  for (const [name, cls] of schemeWrappers.filter(
-    ([, , base]) => base.name === "BasicAuthenticator",
-  )) {
-    it(`bhv authbasic 002 ${name} emits a basic header and masks the password`, () => {
+  it("bhv authbasic 002 every Basic scheme authenticator emits a basic header and masks the password", () => {
+    for (const [, cls] of schemeWrappers.filter(
+      ([, , base]) => base.name === "BasicAuthenticator",
+    )) {
       const auth = new cls("https://api.example.com", "alice", "s3cret") as {
         getAuthHeaders(): Record<string, string>;
       };
@@ -561,13 +574,13 @@ describe("SchemeAuthenticators", () => {
         Authorization: `Basic ${Buffer.from("alice:s3cret").toString("base64")}`,
       });
       expect(JSON.stringify(auth)).not.toContain("s3cret");
-    });
-  }
+    }
+  });
 
-  for (const [name, cls] of schemeWrappers.filter(
-    ([, , base]) => base.name === "BearerAuthenticator",
-  )) {
-    it(`bhv authbearer 006 ${name} emits a bearer header and masks the token`, () => {
+  it("bhv authbearer 006 every Bearer scheme authenticator emits a bearer header and masks the token", () => {
+    for (const [, cls] of schemeWrappers.filter(
+      ([, , base]) => base.name === "BearerAuthenticator",
+    )) {
       const auth = new cls("https://api.example.com", "abc-123") as {
         getAuthHeaders(): Record<string, string>;
       };
@@ -575,13 +588,13 @@ describe("SchemeAuthenticators", () => {
         Authorization: "Bearer abc-123",
       });
       expect(JSON.stringify(auth)).not.toContain("abc-123");
-    });
-  }
+    }
+  });
 
-  for (const [name, cls] of schemeWrappers.filter(
-    ([, , base]) => base.name === "OAuth2ClientCredentialsAuthenticator",
-  )) {
-    it(`bhv authoauthtwoclientcred 009 ${name} sends the spec scopes to the spec token URL`, async () => {
+  it("bhv authoauthtwoclientcred 009 every client credentials scheme authenticator sends the spec scopes to the spec token URL", async () => {
+    for (const [, cls] of schemeWrappers.filter(
+      ([, , base]) => base.name === "OAuth2ClientCredentialsAuthenticator",
+    )) {
       const sent: Recorded = [];
       const auth = new cls(
         "https://api.example.com",
@@ -600,13 +613,13 @@ describe("SchemeAuthenticators", () => {
       expect(new URLSearchParams(String(sent[0]!.body)).get("scope")).toBe(
         auth.scopes.join(" "),
       );
-    });
-  }
+    }
+  });
 
-  for (const [name, cls] of schemeWrappers.filter(
-    ([, , base]) => base.name === "OAuth2PasswordAuthenticator",
-  )) {
-    it(`bhv authoauthtwopassword 012 ${name} sends the spec scopes and urls`, async () => {
+  it("bhv authoauthtwopassword 012 every password scheme authenticator sends the spec scopes and urls", async () => {
+    for (const [, cls] of schemeWrappers.filter(
+      ([, , base]) => base.name === "OAuth2PasswordAuthenticator",
+    )) {
       const sent: Recorded = [];
       const auth = new cls(
         "https://api.example.com",
@@ -636,6 +649,6 @@ describe("SchemeAuthenticators", () => {
       expect(new URLSearchParams(String(sent[0]!.body)).get("scope")).toBe(
         auth.scopes.join(" "),
       );
-    });
-  }
+    }
+  });
 });

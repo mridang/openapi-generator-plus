@@ -843,18 +843,21 @@ describe("DefaultApiClient", () => {
   });
 
   const zstdAvailable = typeof zlib.zstdDecompress === "function";
-  (zstdAvailable ? test : test.skip)("decompresses zstd response", async () => {
-    const client = new DefaultApiClient();
-    const response = await client.sendRequest(
-      "GET",
-      compressedUrl("zstd"),
-      { "Accept-Encoding": "zstd" },
-      null,
-    );
+  (zstdAvailable ? test : test.skip)(
+    "bhv transport 006 decompresses zstd response",
+    async () => {
+      const client = new DefaultApiClient();
+      const response = await client.sendRequest(
+        "GET",
+        compressedUrl("zstd"),
+        { "Accept-Encoding": "zstd" },
+        null,
+      );
 
-    expect(response.statusCode).toBe(200);
-    expect(JSON.parse(response.body)).toEqual(fixtureBody);
-  });
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body)).toEqual(fixtureBody);
+    },
+  );
 
   /*
    * Regression: POST/PUT/PATCH with body == null must emit an
@@ -1208,9 +1211,8 @@ describe("DefaultApiClient redirect misc behaviours", () => {
     expect(auth(2)).toBeNull();
   });
 
-  it.each([300, 305])(
-    "bhv misc 133 a %i response is returned as it is, even when it carries a Location header",
-    async (status) => {
+  it("bhv misc 133 a 300 or 305 response is returned as it is, even when it carries a Location header", async () => {
+    for (const status of [300, 305]) {
       const calls = scriptFetch([
         { status, location: "https://example.com/elsewhere" },
       ]);
@@ -1225,8 +1227,8 @@ describe("DefaultApiClient redirect misc behaviours", () => {
       );
       expect(response.statusCode).toBe(status);
       expect(calls).toHaveLength(1);
-    },
-  );
+    }
+  });
 });
 
 describe("DefaultApiClient retry misc behaviours", () => {
@@ -1272,13 +1274,12 @@ describe("DefaultApiClient retry misc behaviours", () => {
     expect(transport.methods).toHaveLength(1);
   });
 
-  test.each([
-    ["POST", 1],
-    ["PATCH", 1],
-    ["QUERY", 2],
-  ])(
-    "bhvMisc161 a %s whose connection drops is sent %i time(s), QUERY being idempotent",
-    async (method, attempts) => {
+  test("bhvMisc161 a request whose connection drops is sent the expected number of times, QUERY being idempotent", async () => {
+    for (const [method, attempts] of [
+      ["POST", 1],
+      ["PATCH", 1],
+      ["QUERY", 2],
+    ]) {
       const transport = scripted([connectionDropped(), 200]);
       const outcome: unknown = await clientFor(transport.fetch)
         .sendRequest(method, url, {}, method === "QUERY" ? "{}" : null)
@@ -1289,8 +1290,8 @@ describe("DefaultApiClient retry misc behaviours", () => {
         expect(outcome).toBeInstanceOf(NetworkError);
       }
       expect(transport.methods).toHaveLength(attempts);
-    },
-  );
+    }
+  });
 
   test("bhvMisc163 a one-shot stream body is not replayed on a retryable status, a text body is replayed", async () => {
     const streamTransport = scripted([503, 200]);

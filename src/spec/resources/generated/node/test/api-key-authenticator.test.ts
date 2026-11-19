@@ -362,13 +362,12 @@ describe("ApiKeyAuthenticator", () => {
     }
   });
 
-  it.each([
-    [ApiKeyLocation.HEADER, "X-Api-Key"],
-    [ApiKeyLocation.QUERY, "api_key"],
-    [ApiKeyLocation.COOKIE, "SESSION_ID"],
-  ])(
-    "bhv langnode 007 %s location rejects CR, LF and NUL",
-    (location, name) => {
+  it("bhv langnode 007 every location rejects CR, LF and NUL", () => {
+    for (const [location, name] of [
+      [ApiKeyLocation.HEADER, "X-Api-Key"],
+      [ApiKeyLocation.QUERY, "api_key"],
+      [ApiKeyLocation.COOKIE, "SESSION_ID"],
+    ]) {
       for (const value of ["abc\rdef", "abc\ndef", "abc\0def"]) {
         expect(
           () =>
@@ -391,16 +390,15 @@ describe("ApiKeyAuthenticator", () => {
           `API key value for '${name}' contains forbidden control characters (CR/LF/NUL)`,
         );
       }
-    },
-  );
+    }
+  });
 
-  it.each([
-    [ApiKeyLocation.HEADER, "X-Api-Key"],
-    [ApiKeyLocation.QUERY, "api_key"],
-    [ApiKeyLocation.COOKIE, "SESSION_ID"],
-  ])(
-    "bhv langnode 008 %s location rejects an empty or whitespace key with the exact message",
-    (location, name) => {
+  it("bhv langnode 008 every location rejects an empty or whitespace key with the exact message", () => {
+    for (const [location, name] of [
+      [ApiKeyLocation.HEADER, "X-Api-Key"],
+      [ApiKeyLocation.QUERY, "api_key"],
+      [ApiKeyLocation.COOKIE, "SESSION_ID"],
+    ]) {
       for (const value of ["", "   ", " \t\n\v\f\r"]) {
         expect(
           () =>
@@ -412,8 +410,8 @@ describe("ApiKeyAuthenticator", () => {
             ),
         ).toThrow(`API key value for '${name}' must not be empty`);
       }
-    },
-  );
+    }
+  });
 
   it("bhv authapikey 001 a Unicode space is not blank and is a valid query key", () => {
     for (const value of ["\u00a0", "\u2003"]) {
@@ -503,9 +501,8 @@ describe("ApiKeyAuthenticator", () => {
       expect(auth.getAuthHeaders()).toEqual({ "X-Api-Key": "explicit" });
     });
 
-    it.each([undefined, ""])(
-      "bhv misc 205 fails when it is built with no key and the variable is %p",
-      (value) => {
+    it("bhv misc 205 fails when it is built with no key and the variable is unset or empty", () => {
+      for (const value of [undefined, ""]) {
         if (value === undefined) {
           delete process.env[variable];
         } else {
@@ -524,8 +521,8 @@ describe("ApiKeyAuthenticator", () => {
             `API key for 'X-Api-Key' is required: pass it explicitly or set ${variable}`,
           ),
         );
-      },
-    );
+      }
+    });
   });
 
   it("bhv auth 031 a header key is sent under its fixed name and value", () => {

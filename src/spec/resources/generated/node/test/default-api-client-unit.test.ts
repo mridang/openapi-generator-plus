@@ -1052,22 +1052,21 @@ describe("DefaultApiClient.buildContentDisposition multipart filename safety", (
     expect(header).toContain('filename="hello.txt"');
   });
 
-  it.each([
-    [
-      "résumé*(1).pdf",
-      `filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf`,
-    ],
-    ['a"b\\c.txt', 'filename="a\\"b\\\\c.txt"'],
-    ["\u{1F600}.png", `filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png`],
-    ["plain.txt", 'filename="plain.txt"'],
-  ])(
-    "bhv misc 099 builds the filename directive for %p",
-    (filename, expected) => {
+  it("bhv misc 099 builds the filename directive for every listed filename", () => {
+    for (const [filename, expected] of [
+      [
+        "résumé*(1).pdf",
+        `filename="r_sum_*(1).pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9%2A%281%29.pdf`,
+      ],
+      ['a"b\\c.txt', 'filename="a\\"b\\\\c.txt"'],
+      ["\u{1F600}.png", `filename="_.png"; filename*=UTF-8''%F0%9F%98%80.png`],
+      ["plain.txt", 'filename="plain.txt"'],
+    ]) {
       expect(DefaultApiClient.buildContentDisposition("file", filename)).toBe(
         `form-data; name="file"; ${expected}`,
       );
-    },
-  );
+    }
+  });
 });
 
 // Canonical behavior #4 — a multipart file part advertises a Content-Type
@@ -1185,16 +1184,15 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
     }
   });
 
-  it.each([
-    ["multipart/mixed", "multipart/mixed; boundary="],
-    ["multipart/related", "multipart/related; boundary="],
-    [
-      'Multipart/Related; type="application/json"',
-      "multipart/Related; boundary=",
-    ],
-  ])(
-    "bhv misc 100 a declared %s content type keeps its subtype with the SDK boundary",
-    async (declared, expectedPrefix) => {
+  it("bhv misc 100 a declared multipart content type keeps its subtype with the SDK boundary", async () => {
+    for (const [declared, expectedPrefix] of [
+      ["multipart/mixed", "multipart/mixed; boundary="],
+      ["multipart/related", "multipart/related; boundary="],
+      [
+        'Multipart/Related; type="application/json"',
+        "multipart/Related; boundary=",
+      ],
+    ]) {
       let contentType: string | undefined;
       const srv = http.createServer((req, res) => {
         contentType = req.headers["content-type"];
@@ -1218,8 +1216,8 @@ describe("DefaultApiClient multipart wire form (canonical behaviors #4, #5)", ()
       } finally {
         srv.close();
       }
-    },
-  );
+    }
+  });
 
   it("bhv langnode 067 case 4: unknown file extension falls back to application/octet-stream", async () => {
     const { url, getBody, close } = await captureRawBody();
@@ -1726,22 +1724,26 @@ describe("redirect origin comparison", () => {
       }
     ).sameOrigin(a, b);
 
-  it.each([
-    ["https://api.example.com/a", "https://api.example.com:443/b"],
-    ["https://api.example.com:443/a", "https://api.example.com/b"],
-    ["http://api.example.com/a", "http://api.example.com:80/b"],
-    ["https://API.example.com/a", "https://api.example.com/b"],
-  ])("bhv langnode 077 %s and %s are the same origin", (a, b) => {
-    expect(sameOrigin(a, b)).toBe(true);
+  it("bhv langnode 077 every listed pair of URLs is the same origin", () => {
+    for (const [a, b] of [
+      ["https://api.example.com/a", "https://api.example.com:443/b"],
+      ["https://api.example.com:443/a", "https://api.example.com/b"],
+      ["http://api.example.com/a", "http://api.example.com:80/b"],
+      ["https://API.example.com/a", "https://api.example.com/b"],
+    ]) {
+      expect(sameOrigin(a, b)).toBe(true);
+    }
   });
 
-  it.each([
-    ["https://api.example.com/a", "https://api.example.com:8443/b"],
-    ["https://api.example.com/a", "http://api.example.com/b"],
-    ["http://api.example.com/a", "https://api.example.com:80/b"],
-    ["https://api.example.com/a", "https://other.example.com/b"],
-  ])("bhv langnode 078 %s and %s are different origins", (a, b) => {
-    expect(sameOrigin(a, b)).toBe(false);
+  it("bhv langnode 078 every listed pair of URLs is different origins", () => {
+    for (const [a, b] of [
+      ["https://api.example.com/a", "https://api.example.com:8443/b"],
+      ["https://api.example.com/a", "http://api.example.com/b"],
+      ["http://api.example.com/a", "https://api.example.com:80/b"],
+      ["https://api.example.com/a", "https://other.example.com/b"],
+    ]) {
+      expect(sameOrigin(a, b)).toBe(false);
+    }
   });
 
   it("bhv redirects 030 an explicit default port is the same origin as the implicit one", () => {
@@ -2317,21 +2319,20 @@ describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
     global.fetch = originalFetch;
   });
 
-  test.each([
-    [301, "POST", "GET", false],
-    [302, "POST", "GET", false],
-    [301, "PUT", "PUT", true],
-    [302, "PATCH", "PATCH", true],
-    [302, "DELETE", "DELETE", true],
-    [303, "POST", "GET", false],
-    [303, "PUT", "GET", false],
-    [303, "DELETE", "GET", false],
-    [303, "HEAD", "HEAD", false],
-    [307, "PUT", "PUT", true],
-    [308, "DELETE", "DELETE", true],
-  ])(
-    "bhv langnode 079 %i on %s follows with %s (body kept: %s)",
-    async (status, method, expectedMethod, bodyKept) => {
+  test("bhv langnode 079 every redirect status follows with the stated method and keeps or drops the body", async () => {
+    for (const [status, method, expectedMethod, bodyKept] of [
+      [301, "POST", "GET", false],
+      [302, "POST", "GET", false],
+      [301, "PUT", "PUT", true],
+      [302, "PATCH", "PATCH", true],
+      [302, "DELETE", "DELETE", true],
+      [303, "POST", "GET", false],
+      [303, "PUT", "GET", false],
+      [303, "DELETE", "GET", false],
+      [303, "HEAD", "HEAD", false],
+      [307, "PUT", "PUT", true],
+      [308, "DELETE", "DELETE", true],
+    ]) {
       const calls: Array<{ method: unknown; body: unknown }> = [];
       global.fetch = (async (
         _input: string | URL | Request,
@@ -2367,8 +2368,8 @@ describe("redirect method rewriting (RFC 9110 section 15.4)", () => {
       } else {
         expect(calls[1].body ?? null).toBeNull();
       }
-    },
-  );
+    }
+  });
 
   it("bhv redirects 029 rewrites a PUT to GET only on a 303 and keeps it on a 307", async () => {
     expect(await followedMethod(307, "PUT")).toBe("PUT");
@@ -4404,14 +4405,13 @@ describe("automatic retries (TransportOptions.maxRetries)", () => {
     );
   });
 
-  it.each([-1, 1.5, Number.NaN])(
-    "bhv langnode 080 maxRetries(%p) is rejected",
-    (value) => {
+  it("bhv langnode 080 maxRetries of a negative, fractional or NaN value is rejected", () => {
+    for (const value of [-1, 1.5, Number.NaN]) {
       expect(() => TransportOptions.builder().maxRetries(value)).toThrow(
         TypeError,
       );
-    },
-  );
+    }
+  });
 });
 
 describe("automatic retries and cancellation", () => {
@@ -4564,21 +4564,20 @@ describe("DefaultApiClient misc transport behaviours", () => {
     ).rejects.toThrow();
   });
 
-  it.each([
-    ["gzip", ""],
-    ["gzip", "0"],
-    ["deflate", ""],
-    ["deflate", "0"],
-  ])(
-    "bhv misc 039 a well-formed %s stream of %p is returned as its content, not treated as corrupt",
-    async (encoding, content) => {
+  it("bhv misc 039 a well-formed compressed stream of an empty body is returned as its content, not treated as corrupt", async () => {
+    for (const [encoding, content] of [
+      ["gzip", ""],
+      ["gzip", "0"],
+      ["deflate", ""],
+      ["deflate", "0"],
+    ]) {
       const plain = Buffer.from(content, "utf-8");
       const wire =
         encoding === "gzip" ? zlib.gzipSync(plain) : zlib.deflateSync(plain);
       const out = await DefaultApiClient.ensureDecoded(wire, encoding);
       expect(out.toString("utf-8")).toBe(content);
-    },
-  );
+    }
+  });
 
   it("bhv misc 040 response header names are returned in lower case", async () => {
     const local = await localServer((_req, res) => {
@@ -4939,9 +4938,9 @@ describe("automatic retries misc behaviours", () => {
     expect(headerValue(calls[0]!.headers, "x-raw")).toBe("a%20b c/d");
   });
 
-  it.each(["Authorization", "authorization", "AUTHORIZATION"])(
-    "bhv misc 182 a cross-origin redirect removes the %s header whatever its letter case",
-    async (name) => {
+  it("bhv misc 182 a cross-origin redirect removes the authorization header whatever its letter case", async () => {
+    for (const name of ["Authorization", "authorization", "AUTHORIZATION"]) {
+      calls = [];
       const client = playing(
         [reply(302, { Location: "https://other.example/next" }), reply(200)],
         (builder) => builder.followRedirects(true),
@@ -4954,8 +4953,8 @@ describe("automatic retries misc behaviours", () => {
       );
       expect(calls).toHaveLength(2);
       expect(headerValue(calls[1]!.headers, "authorization")).toBeUndefined();
-    },
-  );
+    }
+  });
 
   it("bhv misc 227 a network error raised before any response is received is retried, so a dropped connection sends a second request", async () => {
     const response = await send(
@@ -5066,7 +5065,7 @@ describe("DefaultApiClient misc cause and redirects", () => {
   });
 });
 
-describe("DefaultApiClient transport and multipart behaviours (bhv transport 084 to 093, serialization 119 to 127)", () => {
+describe("DefaultApiClient transport and multipart behaviours", () => {
   function hungServer(): Promise<{ url: string; close: () => Promise<void> }> {
     return new Promise((resolve) => {
       const srv = http.createServer(() => {

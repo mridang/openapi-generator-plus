@@ -169,29 +169,33 @@ describe('StoreApi nested container deserialization', () => {
     }
   });
 
-  test.each([
+  test('bhv langnode 017 getMatrix rejects a fractional number element', async () => {
+    for (const [_label, body] of [
     ['a quoted number', '[[1,"2"]]'],
     ['a fractional number', '[[1,2.5]]'],
     ['a null', '[[1,null]]'],
-  ])('bhv langnode 017 getMatrix rejects %s element', async (_label, body) => {
-    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
-    try {
-      await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(SerializationError);
-    } finally {
-      close();
+  ]) {
+      const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+      try {
+        await expect(mockApi.getMatrix()).rejects.toBeInstanceOf(SerializationError);
+      } finally {
+        close();
+      }
     }
   });
 
-  test.each([
+  test('bhv langnode 018 getInventory rejects a fractional number element', async () => {
+    for (const [_label, body] of [
     ['a quoted number', '{"available":"5"}'],
     ['a fractional number', '{"available":5.5}'],
     ['a null', '{"available":null}'],
-  ])('bhv langnode 018 getInventory rejects %s element', async (_label, body) => {
-    const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
-    try {
-      await expect(mockApi.getInventory()).rejects.toBeInstanceOf(SerializationError);
-    } finally {
-      close();
+  ]) {
+      const { api: mockApi, close } = await createMockServer(200, 'application/json', body);
+      try {
+        await expect(mockApi.getInventory()).rejects.toBeInstanceOf(SerializationError);
+      } finally {
+        close();
+      }
     }
   });
 
@@ -500,14 +504,16 @@ describe('StoreApi content-encoded query parameters', () => {
     expect(new URL(url, 'http://localhost').searchParams.getAll('labels').sort()).toEqual(['blue', 'red']);
   });
 
-  test.each([
+  test('bhv misc 241 searchStore sends every listed time percent-encoded', async () => {
+    for (const [time, expected] of [
     ['10:30:00.123456789', 'at=10%3A30%3A00.123'],
     ['10:30:00', 'at=10%3A30%3A00'],
-  ])('bhv misc 241 searchStore sends the time %s as %s', async (time, expected) => {
-    const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from(time) }));
+  ]) {
+      const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from(time) }));
 
-    expect(url).toContain(expected);
-    expect(url).not.toContain(`${expected}0`);
+      expect(url).toContain(expected);
+      expect(url).not.toContain(`${expected}0`);
+    }
   });
 
   test('bhv operations 139 searchStore keeps the fractional seconds of a time parameter when non-zero', async () => {
@@ -636,7 +642,8 @@ describe('StoreApi named-enum parameters', () => {
 });
 
 describe('StoreApi error dispatch through the typed status routes', () => {
-  test.each([
+  test('bhv operations 110 getOrderById picks the status-specific error for every listed status', async () => {
+    for (const [status, expected] of [
     [400, BadRequestError],
     [401, UnauthorizedError],
     [403, ForbiddenError],
@@ -646,16 +653,17 @@ describe('StoreApi error dispatch through the typed status routes', () => {
     [422, UnprocessableEntityError],
     [500, InternalServerError],
     [502, BadGatewayError],
-  ])('bhv operations 110 getOrderById picks the status-specific error for status %i', async (status, expected) => {
-    const statusApi = new StoreApi(
-      new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
-      Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
-    );
+  ]) {
+      const statusApi = new StoreApi(
+        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
+        Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
+      );
 
-    const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
+      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
 
-    expect((error as Error).constructor).toBe(expected);
-    expect((error as ClientError).statusCode).toBe(status);
+      expect((error as Error).constructor).toBe(expected);
+      expect((error as ClientError).statusCode).toBe(status);
+    }
   });
 
 });

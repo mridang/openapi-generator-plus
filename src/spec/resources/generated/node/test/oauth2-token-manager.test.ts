@@ -902,16 +902,15 @@ describe("OAuth2TokenManager", () => {
     expect(bodies).toHaveLength(2);
   });
 
-  test.each([
-    ["authorization_code", { grant_type: "authorization_code", code: "abc" }],
-    ["client_credentials", { grant_type: "client_credentials" }],
-    [
-      "password",
-      { grant_type: "password", username: "user", password: "pass" },
-    ],
-  ])(
-    "bhv langnode 092 the %s token request is form-encoded and asks for JSON",
-    async (_grant, params) => {
+  test("bhv langnode 092 every token request is form-encoded and asks for JSON", async () => {
+    for (const [_grant, params] of [
+      ["authorization_code", { grant_type: "authorization_code", code: "abc" }],
+      ["client_credentials", { grant_type: "client_credentials" }],
+      [
+        "password",
+        { grant_type: "password", username: "user", password: "pass" },
+      ],
+    ]) {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",
         expires_in: 3600,
@@ -926,8 +925,8 @@ describe("OAuth2TokenManager", () => {
         "application/x-www-form-urlencoded",
       );
       expect(mockClient.lastHeaders["Accept"]).toBe("application/json");
-    },
-  );
+    }
+  });
 
   test("bhv authoauthtwotokenmgr 035 the refresh grant request is form-encoded and asks for JSON", async () => {
     const headers: Array<Record<string, string>> = [];
@@ -1410,9 +1409,8 @@ describe("OAuth2TokenManager", () => {
     ).toBe("no-type");
   });
 
-  test.each([["bearer"], ["Bearer"], ["BEARER"]])(
-    "bhv langnode 093 token_type %p is accepted",
-    async (tokenType) => {
+  test("bhv langnode 093 token_type is accepted in any letter case", async () => {
+    for (const [tokenType] of [["bearer"], ["Bearer"], ["BEARER"]]) {
       mockClient.responseBody = JSON.stringify({
         access_token: "tok",
         token_type: tokenType,
@@ -1423,8 +1421,8 @@ describe("OAuth2TokenManager", () => {
           grant_type: "client_credentials",
         }),
       ).toBe("tok");
-    },
-  );
+    }
+  });
 
   test("bhv authoauthtwotokenmgr 027 coalesces concurrent refresh calls into single token request", async () => {
     let pendingResolve: ((value: ApiHttpResponse) => void) | null = null;
