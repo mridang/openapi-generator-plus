@@ -2597,16 +2597,13 @@ import Testing
         #expect(text.contains("tags=a&tags=b"))
     }
 
-    /* A multipart field name containing a carriage return, line feed or NUL is rejected before any request is sent. */
-    @Test(arguments: ["a\r\nb", "a\nb", "a\u{0}b"])
-    func testBhvSerialization123AMultipartNameWithAControlCharacterIsRejected(name: String) {
-        #expect(throws: Error.self) {
-            _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
+    /* A multipart field name containing a carriage return, line feed or NUL is rejected before any request is sent, and a double quote is backslash-escaped. */
+    @Test func testBhvSerialization123AMultipartNameWithAControlCharacterIsRejectedAndAQuoteEscaped() throws {
+        for name in ["a\r\nb", "a\nb", "a\u{0}b"] {
+            #expect(throws: Error.self) {
+                _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
+            }
         }
-    }
-
-    /* A double quote in a multipart field name is backslash-escaped, so the part header stays well formed. */
-    @Test func testBhvSerialization123AMultipartQuoteIsBackslashEscaped() throws {
         let data = try BaseApi.buildMultipartBody(["a\"b": "x"], boundary: "b")
         let text = String(decoding: data, as: UTF8.self)
 
