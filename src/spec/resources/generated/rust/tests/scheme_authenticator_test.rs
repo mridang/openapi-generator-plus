@@ -163,6 +163,38 @@ mod pet_store_basic_authenticator {
     }
 
     #[test]
+    fn test_bhv_auth_024_each_credential_field_takes_its_passed_value_or_its_own_variable() {
+        let rest: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD",
+            Some("value-password"),
+        )];
+        with_variables(&rest, || {
+            assert!(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-username"),
+                None
+            )
+            .is_ok());
+        });
+        let rest_unset: Vec<(&str, Option<&str>)> = vec![(
+            "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD",
+            None,
+        )];
+        with_variables(&rest_unset, || {
+            let text = invalid_argument_text(PetStoreBasicAuthenticator::new(
+                "https://api.example.com",
+                Some("explicit-username"),
+                None,
+            ));
+            assert!(
+                text.contains("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BASIC_PASSWORD"),
+                "{}",
+                text
+            );
+        });
+    }
+
+    #[test]
     fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text(PetStoreBasicAuthenticator::new(

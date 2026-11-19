@@ -793,9 +793,9 @@ pub enum QueryValue {
 /// For collections, joins using the specified collection format delimiter.
 /// Returns `QueryValue::Multi` for the "multi" format, `QueryValue::Single` otherwise.
 pub fn to_query_value<T: Serialize + 'static>(value: &T, collection_format: &str) -> QueryValue {
-    /* A time-of-day query value is HH:mm:ss; the fraction of a second is dropped. */
+    /* A time-of-day query value keeps non-zero milliseconds and drops finer precision (D103). */
     if let Some(time) = (value as &dyn std::any::Any).downcast_ref::<chrono::NaiveTime>() {
-        return QueryValue::Single(time.format("%H:%M:%S").to_string());
+        return QueryValue::Single(format_time(time));
     }
     if let Some(text) = scalar_override(value) {
         return QueryValue::Single(text);
@@ -2601,9 +2601,11 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_misc_241_a_time_of_day_query_value_is_sent_as_hh_mm_ss_with_milliseconds_truncated() {
-        let time = chrono::NaiveTime::from_hms_milli_opt(10, 20, 30, 999).unwrap();
-        assert!(matches!(to_query_value(&time, ""), QueryValue::Single(ref s) if s == "10:20:30"));
+    fn test_bhv_misc_241_a_time_of_day_query_value_keeps_milliseconds_and_drops_finer_precision() {
+        let time = chrono::NaiveTime::from_hms_micro_opt(10, 20, 30, 999_999).unwrap();
+        assert!(matches!(to_query_value(&time, ""), QueryValue::Single(ref s) if s == "10:20:30.999"));
+        let whole = chrono::NaiveTime::from_hms_milli_opt(10, 20, 30, 0).unwrap();
+        assert!(matches!(to_query_value(&whole, ""), QueryValue::Single(ref s) if s == "10:20:30"));
     }
 
     #[test]

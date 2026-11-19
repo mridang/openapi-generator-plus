@@ -3,11 +3,9 @@ rust | misc135 | The Rust configuration builder takes a call hook and no cancell
 rust | misc145 | Rust returns a shared reference to the undeclared-key map, so the compiler forbids changing the model through a read; a copy exists only when the caller clones it.
 rust | misc147 | A Rust value owns its nested Box, so a clone always holds its own copy and never shares the nested object; sharing would need Rc, which the models do not use.
 rust | misc149 | Rust copies use typed with_* setters, so an attribute the model does not declare does not compile and cannot reach a copy at run time.
-rust | misc152 | Rust calls take no cancel-signal parameter; cancelling means dropping the future, so an already-aborted signal cannot be passed in.
 rust | misc153 | Rust calls and clients take no cancel-signal parameter; cancelling means dropping the future, so a signal shared by the client and a call cannot exist.
 rust | misc154 | The variables() accessor returns a shared reference, so the compiler refuses edits through it and no run-time test can reach the case.
 rust | misc163 | The Rust request body is Bytes or Multipart only; there is no one-shot stream body type, so a stream cannot be replayed or refused.
-rust | misc171 | The per-call retry override (CallOptions) is crate-private and RequestOptions has no retry field, so an application cannot raise the retry count above the transport limit for one call.
 dart | transport083 | The Dart client returns plain Futures and exposes no cancellation token, so an in-flight request cannot be aborted from outside
 dart | transport084 | The Dart client exposes no call handle, so an in-flight request cannot be cancelled through a handle or by dropping it
 dart | transport085 | The Dart client has no cancellation token or signal to supply, so a timeout is the only way to end a request early
@@ -225,7 +223,6 @@ rust | unions039 | A oneOf is a plain enum and cannot hold null or an invalid va
 rust | unions040 | A oneOf is matched with pattern matching on the enum, so there is no typed accessor that returns the held variant
 rust | unions042 | A oneOf is a plain enum that must hold one variant, so there is no empty wrapper whose is-accessors could answer false
 rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generated DefaultApiClient Drop releases the reqwest pool without any observable hook, so the explicit close is the tested path (lifecycle036)
-rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
 rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
 rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists
 swift | models014 | Swift model properties are declared with let, so reassigning one is a compile-time error that no runtime test can observe
@@ -263,9 +260,7 @@ python | auth015 | python has no infallible header accessor: get_auth_headers ma
 ruby | auth015 | Ruby's auth_headers raises the token error rather than returning a header map, so the header map without an Authorization entry that rust returns cannot exist in ruby; the failure surfacing is asserted by bhv_authoauthtwoclientcred_015
 ruby | errors079 | Ruby sets the request method and path once, at construction through from_response or NetworkError.new; there is no second attachment call, so no later or incomplete attachment exists to ignore
 ruby | unions039 | Ruby has no wrapper object: a union value is the variant itself, and the typed from_<variant> factory checks its class by design and raises ArgumentError, so a value no variant accepts is never held
-rust | auth008 | the PKCE verifier is drawn inside the token manager and no public call accepts one, so the RFC 7636 appendix B verifier cannot be supplied; bhv auth 023 checks that the challenge is the S256 hash of the verifier that is sent
 rust | auth022 | the generated constructor takes the explicit token and then the environment, while the token provider is a separate constructor that never reads the environment, so no call falls through from an unset variable to a provider; the explicit-over-environment order is bhv scheme 009 and bhv authbearer 018
-rust | auth024 | the rust scheme test template builds only all-explicit or all-environment argument lists, so one field cannot be explicit while another is read from its variable without a codegen change to build a mixed list; the explicit and environment paths of each field are checked by bhv scheme 002, 009 and 010
 rust | redirects045 | reqwest Client exposes no getter for its redirect policy, so DefaultApiClient::with_client cannot tell a client that follows redirects and cannot refuse one; the Policy::none requirement is documented on with_client instead
 swift | auth005 | ApiKeyAuthenticator takes its key as a fixed String and has no provider initializer, so a key is never asked for again; only BearerAuthenticator takes a provider (bearer002, bearer014), and adding an api key provider would be a public API addition
 swift | auth015 | Swift has no synchronous header accessor on token flows: authHeaders() is async throws (the D12 matrix row), so a failed token request always throws and no call returns headers without the Authorization entry
@@ -310,7 +305,6 @@ php | mocking009 | This language has no README test yet (#118); the section is p
 python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 node | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 dart | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
-rust | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 elixir | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 go | mocking007 | Go interfaces carry methods and not fields, so there is no client interface; the Client struct holds group-interface fields and mocking008 covers a client built from fakes
@@ -394,7 +388,7 @@ go | misc105 | Go models have no validation step at construction or copy, so cop
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
 rust | misc083 | Rust builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
-rust | misc085 | the trackingId parameter is typed uuid::Uuid, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder
+rust | misc085 | a uuid::Uuid field cannot be built from a non-canonical value, and its serde decoder accepts the braced, simple and urn spellings, so a refusal needs a canonical-only decode adapter that the generator does not emit yet
 rust | misc088 | Rust's number is f64 and documented lossy (serializationobject002), so the decimal places a value was written with are not kept and the exact-decimal writing this promise needs is not the Rust contract
 rust | misc091 | the SDK does not enforce pattern, length or range keywords (S3), so refusing a value that breaks a constraint would contradict S3 and serialization069
 rust | misc098 | Rust multipart parts hold owned bytes (MultipartValue::Bytes(Vec<u8>)) and take no caller-supplied stream, so there is no stream the SDK could read into the body or leave open
@@ -447,12 +441,8 @@ elixir | misc033 | the test certificates are generated per Maven run as one CA a
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
 elixir | misc035 | The SDK has no cancellation argument and no abort signal (readme), so no call can carry an already-aborted signal
 elixir | misc036 | A file part is an in-memory {:file, name, content} tuple that the SDK never consumes or closes, so the caller holds no handle that a failed request could leave unreadable
-rust | misc029 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no caller cancellation error exists for the SDK to wrap or replace
-rust | misc030 | Rust has no per-call deadline (S7): the only time bound is the transport timeout, so no already-passed deadline can be supplied to a call and reach the transport check
 rust | misc033 | the Rust suite has no TLS server or certificate chain fixture, so a server that sends an intermediate linking its leaf to a pinned root cannot be started in a test
-rust | misc035 | Rust has no abort signal on a call (S7): an already-cancelled call is a dropped future that never reaches the transport, and no abort error exists to assert
 rust | misc036 | Rust moves a caller's body into the call, so after a failed request the caller holds no part to read; readability after a failure does not arise
-rust | misc038 | the Rust suite has no TLS server, so a server presenting a self-signed certificate that the platform trust store rejects cannot be started in a test
 dart | misc030 | Dart has no per-call deadline: the only deadline is the client-wide timeout, which must be a positive number of milliseconds when built, so a deadline cannot already be past when a request starts
 dart | misc033 | the suite ships a single server certificate with no root and intermediate pair, so a root-only pinned CA file cannot be paired with a server that also sends the intermediate
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
@@ -668,8 +658,6 @@ kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string varia
 rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
 rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
 
-rust | misc262 | The Rust client has no cancellation API: a pending request is cancelled by dropping its future, and no client operation cancels pending requests or reports a cancellation to the caller.
-rust | misc263 | The Rust client has no per-call timeout: the timeout is set on the transport options when the client is built and no call accepts its own value, so a per-call timeout longer than the client timeout cannot be expressed.
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
 
 
@@ -685,9 +673,7 @@ kotlin | transport083 | Kotlin has no client-level cancellation setting: a call 
 kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
 kotlin | transport091 | Kotlin upload parts are byte arrays copied before the request is sent and the SDK never opens or holds a caller-supplied stream, so there is no caller stream to leave open
 kotlin | serialization130 | Kotlin has no canonical serialize message prefix: a failed serialize throws the kotlinx.serialization exception carrying its own detail message
-rust | misc291 | Rust keeps every matching variant of a union rather than the first declared, as the anyOf test test_bhv_misc_293 and the RETAIN-ALL decision require
 rust | serialization068 | Rust model fields are statically typed, so a value of the wrong type cannot be constructed and there is no wrong-typed value to keep as given
-rust | serialization079 | Rust models have no copy-with-changes method; a copy with named changes is written with struct update syntax on a clone, which is the language itself and not an SDK API
 rust | retries045 | Rust request bodies are always buffered as bytes or multipart, so there is no streamed body type that could be sent once and then not replayed after a 401
 kotlin | misc231 | Kotlin types a model property as its declared type, so a model built in code cannot hold a value of the wrong type; the compiler refuses it before any SDK code runs, and the decode half is pinned by bhv serializationobject 095
 kotlin | misc260 | Kotlin's Map of server variable values is typed Map<String, String>, so a nil value cannot be passed to getUrl; the compiler refuses the call before the enum check runs
@@ -702,8 +688,6 @@ swift | transport083 | Swift has no client-level cancellation token: cancellatio
 swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
 swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists
 
-rust | transport083 | The SDK has no client-level cancellation setting, so a call is cancelled only by dropping its future (README Cancellation); there is nothing a client-level signal could abort.
-rust | transport085 | The SDK has no cancellation token or signal parameter, so there is no unfired handle to hold while a timeout runs; the timeout itself is covered by transport086.
 rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
 rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.
 rust | misc231 | A Rust model field has a fixed declared type, so the compiler refuses a wrong-typed value when a model is built in code; there is no constructor that bypasses the type, and the wrong-type check runs only when decoding

@@ -2073,6 +2073,28 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
 }
 
 #[test]
+fn test_bhv_mocking_009_the_readme_testing_your_code_section_names_the_group_and_client_interfaces()
+{
+    let readme = std::fs::read_to_string("README.md").expect("the README");
+    let start = readme
+        .find("\n### Testing your code\n")
+        .expect("the section heading");
+    let rest = &readme[start + 1..];
+    let section = match rest[4..].find("\n### ") {
+        Some(end) => &rest[..end + 4],
+        None => rest,
+    };
+    assert!(
+        section.contains("PetApiTrait"),
+        "the section names the group interface"
+    );
+    assert!(
+        section.contains("ClientTrait"),
+        "the section names the client interface"
+    );
+}
+
+#[test]
 fn test_bhv_mocking_002_group_trait_lists_exactly_the_public_operations_of_the_class() {
     let (listed, declared) = read_group("src/api/pet_api.rs", "PetApiTrait");
     let mut listed = listed;

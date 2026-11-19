@@ -89,13 +89,11 @@ impl OAuth2TokenManager {
     /// challenge.
     pub(crate) fn begin_pkce(&self) -> String {
         use base64::Engine as _;
-        use sha2::{Digest, Sha256};
         let mut random = Vec::with_capacity(32);
         random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
         random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
         let verifier = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&random[..32]);
-        let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(Sha256::digest(verifier.as_bytes()));
+        let challenge = pkce_s256_challenge(&verifier);
         *self.pkce_verifier.lock().unwrap() = Some(verifier);
         challenge
     }
@@ -572,4 +570,25 @@ fn is_plain_decimal(s: &str) -> bool {
         }
     }
     digits > 0 && dots <= 1
+}
+
+/// The S256 PKCE code challenge of `verifier` (RFC 7636 section 4.2): the
+/// base64url encoding, without padding, of the SHA-256 of the verifier.
+pub(crate) fn pkce_s256_challenge(verifier: &str) -> String {
+    use base64::Engine as _;
+    use sha2::{Digest, Sha256};
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
+#[cfg(test)]
+mod pkce_tests {
+    use super::*;
+
+    #[test]
+    fn test_bhv_auth_008_the_s256_challenge_matches_the_rfc_7636_appendix_b_vector() {
+        assert_eq!(
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            pkce_s256_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+        );
+    }
 }

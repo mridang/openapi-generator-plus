@@ -1526,3 +1526,51 @@ async fn test_bhv_misc_240_a_multipart_file_part_is_echoed_back_with_its_content
         .expect("unexpected error");
     assert!(resp.body().contains("file content"), "{}", resp.body());
 }
+
+/* A per-call deadline longer than the transport timeout lets a slow response complete. */
+#[tokio::test]
+async fn test_bhv_misc_263_a_per_call_timeout_longer_than_the_clients_lets_a_slow_response_complete(
+) {
+    let chasm_url = testcontainers_helper::chasm_http_url();
+    let transport = TransportOptionsBuilder::new()
+        .timeout(Some(1000))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let options = petstore::api_client::RequestOptions::new().deadline(Some(
+        std::time::Instant::now() + std::time::Duration::from_secs(60),
+    ));
+    let resp = client
+        .send_request_with_options(
+            "GET",
+            &format!("{}/test/slow", chasm_url),
+            &HashMap::new(),
+            None,
+            &options,
+        )
+        .await
+        .expect("the longer per-call budget lets the slow response finish");
+    assert_eq!(resp.status_code(), 200);
+}
+
+/* With no CA certificate configured the platform trust store decides, and it does not
+ * hold the fixture CA, so the handshake is refused. */
+#[tokio::test]
+async fn test_bhv_misc_038_with_no_ca_certificate_server_certificates_use_the_platform_trust_store()
+{
+    let chasm_url = testcontainers_helper::chasm_https_url();
+    let transport = TransportOptionsBuilder::new()
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let err = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", chasm_url),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect_err("the platform trust store must not accept the fixture CA");
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+}
