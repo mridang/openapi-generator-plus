@@ -811,6 +811,48 @@ import Testing
         #expect(try ObjectSerializer.serialize(value) == json)
     }
 
+    /* A time of day is written as hours, minutes and seconds, zero-padded, with a fractional part only when the value
+       has one, and never as a full date-time. A time is a plain string in Swift, so the wire carries the value as it
+       was given. */
+    @Test(arguments: [("09:05:03", "09:05:03"), ("09:05:03.250", "09:05:03.250")])
+    func testBhvSerialization043ATimeOfDayIsWrittenAsHoursMinutesAndSecondsNeverAsADateTime(
+        time: String, wire: String
+    ) throws {
+        let json = try ObjectSerializer.serialize(EdgeCases(cutoff: time))
+        #expect(json.contains("\"cutoff\":\"\(wire)\""))
+        #expect(!json.contains("T09"))
+    }
+
+    /* A time of day is zero-padded HH:MM:SS, with a fractional part only when it has a sub-second value. */
+    @Test func testBhvSerialization078ATimeOfDayIsZeroPaddedAndHasAFractionOnlyWhenItHasOne() throws {
+        let whole = try ObjectSerializer.serialize(EdgeCases(cutoff: "00:00:00"))
+        #expect(whole.contains("\"cutoff\":\"00:00:00\""))
+        let fractional = try ObjectSerializer.serialize(EdgeCases(cutoff: "00:00:00.001"))
+        #expect(fractional.contains("\"cutoff\":\"00:00:00.001\""))
+    }
+
+    /* A time stringifies as HH:mm:ss, with .SSS only for a non-zero millisecond part. */
+    @Test func testBhvSerializationobject164ATimeStringifiesWithAFractionOnlyForANonZeroMillisecondPart() {
+        #expect(ObjectSerializer.stringify("10:30:00") == "10:30:00")
+        #expect(ObjectSerializer.stringify("10:30:00.123") == "10:30:00.123")
+    }
+
+    /* A time value survives a stringify and parse round trip. */
+    @Test func testBhvSerializationobject230ATimeValueSurvivesAStringifyAndParseRoundTrip() throws {
+        let written = ObjectSerializer.stringify("10:30:00.123")
+        let json = "{\"cutoff\":\"\(written)\"}"
+        let value = try #require(try ObjectSerializer.deserialize(json, as: EdgeCases.self))
+        #expect(value.cutoff == "10:30:00.123")
+        #expect(ObjectSerializer.stringify(value.cutoff ?? "") == written)
+    }
+
+    /* A date-only value is written as an ISO 8601 date with no time component. */
+    @Test func testBhvSerializationobject044ADateOnlyValueIsWrittenWithoutATimeComponent() throws {
+        let json = try ObjectSerializer.serialize(NativeValues(since: "2024-02-29"))
+        #expect(json.contains("\"since\":\"2024-02-29\""))
+        #expect(!json.contains("2024-02-29T"))
+    }
+
     /* A protobuf-JSON duration decodes to seconds and encodes back. */
     @Test(arguments: [("3600s", 3600.0), ("-90s", -90.0), ("3600.500s", 3600.5), ("0s", 0.0)])
     func testBhvSerializationobject013EdgeCasesRetryAfterRoundTrips(literal: String, seconds: Double) throws {

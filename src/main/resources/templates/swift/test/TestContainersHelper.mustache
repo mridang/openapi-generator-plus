@@ -233,7 +233,7 @@ struct LoopbackResponse: Sendable {
 final class LoopbackServer: @unchecked Sendable {
     private let lock = NSLock()
     private var requestLog: [LoopbackRequest] = []
-    private var listener: Int32 = -1
+    private var stopped = false
     private let handler: @Sendable (LoopbackRequest, Int) -> LoopbackResponse
     private(set) var port: Int = 0
 
@@ -269,7 +269,6 @@ final class LoopbackServer: @unchecked Sendable {
             $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &length) }
         }
         port = Int(UInt16(bigEndian: assigned.sin_port))
-        listener = fd
         let thread = Thread { [self] in acceptLoop(fd) }
         thread.start()
     }
@@ -289,23 +288,48 @@ final class LoopbackServer: @unchecked Sendable {
         return requestLog
     }
 
+    /// Stops accepting connections; one already being served finishes.
     func stop() {
         lock.lock()
-        let fd = listener
-        listener = -1
+        let wasStopped = stopped
+        stopped = true
         lock.unlock()
-        if fd >= 0 {
-            shutdown(fd, Int32(SHUT_RDWR))
-            close(fd)
+        if wasStopped { return }
+        /* A connection to ourselves wakes the accept loop, which closes the
+         * listening socket itself: closing it here could let another socket
+         * take its descriptor number while the loop still accepts on it. */
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let wake = socket(AF_INET, stream, 0)
+        if wake < 0 { return }
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        _ = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(wake, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
         }
+        close(wake)
     }
 
     deinit { stop() }
 
     private func acceptLoop(_ fd: Int32) {
+        defer { close(fd) }
         while true {
             let client = accept(fd, nil, nil)
-            if client < 0 { return }
+            lock.lock()
+            let done = stopped
+            lock.unlock()
+            if client < 0 || done {
+                if client >= 0 { close(client) }
+                return
+            }
             let thread = Thread { [self] in serve(client) }
             thread.start()
         }

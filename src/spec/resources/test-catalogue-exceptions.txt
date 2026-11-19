@@ -46,8 +46,6 @@ python | serializationobject015 | Python has no set order to keep: a uniqueItems
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
 swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
 swift | serializationobject015 | Swift Set members have no insertion order (S6, unspecified uniqueItems order) and Pet.photoUrls is a Set, so the schema promises no order
-swift | serializationobject044 | format: date maps to String in Swift, so a date-only value is written as the string it holds and no Date is turned into a date-only form
-swift | serializationobject164 | format: time maps to String in Swift (testTimeFormatStaysAsString), so no Time value is formatted and the wire string passes through unchanged
 swift | operations111 | the typed trackingId is a Foundation UUID, so a malformed value cannot be passed to getOrderByTrackingId; a malformed wire value is refused by the decoder (bhv serializationobject048)
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
@@ -143,7 +141,6 @@ kotlin | transport062 | kotlin: the Ktor CIO engine verifies the certificate hos
 php | transport060 | PHP has no per-call cancellation handle and no cancellation error (S7): a call runs synchronously and is bounded only by the TransportOptions timeout, pinned by bhv transport 024
 ruby | transport064 | Net::HTTP reads each response body in full before Faraday hands it to the SDK, so a refused redirect never holds an intermediate connection or body the SDK has to release
 rust | servers020 | the per-operation server variable is a Rust enum (GetStagingPetInfoServerEnvironment), so a value outside its enum cannot be constructed; the compiler rejects it before the call
-swift | serializationobject230 | format: time maps to String in Swift (as serializationobject164), so there is no Time value to stringify or parse and the wire string passes through unchanged
 swift | servers020 | a per-operation server is a generated struct whose variables are Swift enums (GetStagingPetInfoServerStagingServer takes environment as an enum), so a value outside the enum cannot be constructed and the compiler rejects it before the SDK runs
 swift | servers024 | ServerVariable is an immutable struct whose enumValues is a let property of value type, so no caller can change the list and the only probe of that is a compile error
 swift | transport062 | libcurl on Linux takes its CA bundle from fixed system paths and swift-corelibs-foundation reads URLSessionCertificateAuthorityInfoFile only on Android and raises no server-trust challenge, so a CA file or disabled verification cannot be applied there and the SDK refuses both at construction (D72); no CA can be pinned or trusted in the Linux suite
@@ -230,7 +227,6 @@ swift | options063 | Swift per-call options are structs whose fields are declare
 swift | servers028 | Swift generated server lists are let constants, so changing one after creation is a compile-time error that no runtime test can observe
 swift | serialization011 | Swift writes model keys sorted through JSONEncoder with sortedKeys, a forced divergence recorded as D85, so model keys are not in declaration order
 swift | serialization041 | Swift maps format time to String with no time-of-day type in Foundation, so the wire string is the value and is never parsed into a time value
-swift | serialization043 | Swift maps format time to String with no time-of-day type in Foundation, so a time of day is kept as its wire string and never written from a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
 csharp | auth007 | the generic csharp authenticators take their credential as a required constructor argument, so an authenticator built without credentials does not compile; environment reading exists only in the per-scheme wrappers and FromEnvironment, which the authscheme and lifecycle rows cover
 csharp | auth015 | csharp's synchronous GetAuthHeaders raises for every OAuth2 token flow (D12, forced by the interface), so no sync header call can return headers without an Authorization entry after a failed token request
@@ -370,7 +366,6 @@ python | misc068 | python keeps an explicitly passed empty credential and reject
 ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
 ruby | misc091 | settled decision S3 (D55): schema constraints such as pattern, length and range are not enforced by the client, the server owns validation
 node | auth042 | the Node Basic and OAuth2 wrappers keep an explicit empty username, password or secret as given and do not refuse it at construction, while the bearer and API-key wrappers refuse it; the refusal is therefore tested for those two only, by the existing authbearer and authapikey tests
-swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
 csharp | misc283 | C# has no package root module to re-export from: the error types are declared once in the Errors namespace and a consumer reaches each of them by that namespace
 rust | misc004 | Rust operations take required parameters as positional arguments, so omitting one is refused by the compiler and no run-time argument error naming the field exists
 rust | misc007 | Rust operations take required path parameters and the options argument positionally, so omitting either is refused by the compiler and no run-time error naming the parameter exists
@@ -534,9 +529,8 @@ go | misc153 | Go has no client-level cancellation signal: a context is passed t
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
 go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
 python | misc135 | Python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so the TransportOptionsBuilder has no field to store one
-swift | misc074 | The petstore fixture has no operation whose security requirement names two schemes together, so there is no alternative to call that sends both credentials
-swift | misc075 | The client takes one named credential per declared scheme, so a credential keyed to an undeclared scheme cannot be passed to it
-swift | misc081 | A binary response is returned as Data because an operation's return type comes from its spec, so no operation returns a String from a base64 binary body
+swift | misc074 | An operation takes the first scheme in its own security order that the client holds (F857), so a requirement that names two schemes together never sends both credentials, and the fixture has no operation with such a requirement
+swift | misc075 | A credential keyed to a scheme name the API does not declare is accepted and never used, because an operation reads only the schemes it names; no check refuses it when the client is built, and adding one is an API decision
 swift | misc083 | The Swift client has no entry point that takes a query as raw text: every query parameter is typed and percent-encoded one at a time by the generated operation
 swift | misc087 | Swift has no decimal value type that reaches the wire: a decimal schema value is a Double (documented in the readme), and a loose body cannot carry a Decimal through JSONSerialization
 swift | misc088 | A decimal schema value is stored as a Double (documented in the readme), which keeps no trailing decimal places, so there is no written places form to keep
@@ -546,7 +540,6 @@ swift | misc100 | The Swift client always sends multipart/form-data with its own
 swift | misc101 | Swift multipart parts are Data, String or model values already in memory, so a part source cannot fail to read at send time
 swift | misc110 | The Swift decoder reads a calendar-date field as a plain String and has no list-of-dates type whose elements are refused when they are not dates
 swift | misc111 | The Swift client writes uniqueItems collections in their natural order and never sorts them (documented in the readme)
-swift | misc114 | A Swift operation returns the single success type its spec declares, so there is no per-status decoder to choose from the status code received
 swift | misc116 | int32 maps to Int in Swift (a documented known limit, docs/languages/swift.md), so a value past 32 bits is accepted
 java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both

@@ -922,13 +922,13 @@ private final class StubURLProtocol: URLProtocol {
   {
     let server = try LoopbackServer { request, _ in
       request.target == "/slow"
-        ? LoopbackResponse(status: 200, body: Data("{}".utf8), delay: 3) : .ok()
+        ? LoopbackResponse(status: 200, body: Data("{}".utf8), delay: 6) : .ok()
     }
     defer { server.stop() }
     let session = URLSession(configuration: .ephemeral)
     defer { session.invalidateAndCancel() }
     let transport = try TransportOptionsBuilder()
-      .session(session).userAgent("Custom/1.0").timeout(500).maxRetries(0).build()
+      .session(session).userAgent("Custom/1.0").timeout(3000).maxRetries(0).build()
     let client = try DefaultApiClient(transportOptions: transport)
     _ = try await client.sendRequest(
       method: "GET", url: server.origin + "/x", headers: [:], body: nil)

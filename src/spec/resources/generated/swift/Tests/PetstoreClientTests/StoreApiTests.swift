@@ -160,6 +160,21 @@ import Testing
     #expect(result.asReservationReceipt?.receiptCode == "C1")
   }
 
+  /* A success response is decoded by the decoder for the status code actually received. */
+  @Test func testBhvMisc114ASuccessResponseIsDecodedByTheDecoderForTheStatusActuallyReceived()
+    async throws
+  {
+    let created = storeApiForMock(
+      statusCode: 201, body: "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}")
+    let receipt = try await created.reserveStock()
+    #expect(receipt.isReservationReceipt)
+    #expect(receipt.asReservationReceipt?.receiptCode == "R-1")
+    let existing = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
+    let reservation = try await existing.reserveStock()
+    #expect(reservation.isReservation)
+    #expect(reservation.asReservation?.reservationId == 31)
+  }
+
   /* A 200 body that fits only the 201 receipt is refused: it is decoded with its own status's schema. */
   @Test func testBhvMisc080ABodyIsDecodedWithItsOwnStatusSchema() async throws {
     let mockApi = storeApiForMock(

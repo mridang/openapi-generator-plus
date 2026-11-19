@@ -682,6 +682,13 @@ final class PetApiTests {
         _ = result
     }
 
+    /* A body sent as base64 text under a binary content type is decoded before it is returned to the caller. */
+    @Test func testBhvMisc081ABase64BodyUnderABinaryContentTypeIsDecodedBeforeItIsReturned() async throws {
+        let mockApi = petApiForMock(statusCode: 200, body: "aGVsbG8=", contentType: "application/octet-stream")
+        let result = try await mockApi.getPetAvatar(petId: 1)
+        #expect(result == Data("hello".utf8))
+    }
+
     // byte-over-json: `format: byte` returned as application/json arrives as a JSON
     // string literal ("dGVzdC1pbWFnZQ=="). It must be JSON-parsed and then
     // base64-decoded into the raw bytes — not handed back as the utf8 bytes of the
