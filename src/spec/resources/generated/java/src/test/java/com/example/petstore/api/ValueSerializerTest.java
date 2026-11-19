@@ -1329,4 +1329,32 @@ class ValueSerializerTest {
   void bhvMisc238ANumberQueryParameterIsSentAsAPlainNumber() {
     assertEquals("2.5", ValueSerializer.serialize(2.5, "query", "number", null));
   }
+
+  @Test
+  @DisplayName("bhvMisc250 array items with a comma keep the literal separator on a path")
+  void bhvMisc250AArrayItemsWithACommaKeepTheLiteralSeparatorOnAPath() {
+    assertEquals(
+        "a%2Cb,c", ValueSerializer.serialize(Arrays.asList("a,b", "c"), "path", "array", "csv"));
+  }
+
+  @Test
+  @DisplayName("bhvMisc253 an allowReserved value still percent-encodes hash and brackets")
+  void bhvMisc253AnAllowReservedValueStillPercentEncodesHashAndBrackets() {
+    assertEquals(
+        "a/b%23c%5Bd%5D",
+        ValueSerializer.serialize(
+            ValueSerializer.maybeAllowReserved("a/b#c[d]", true), "query", "string", null));
+  }
+
+  @Test
+  @DisplayName("bhvMisc254 an unmarked query value percent-encodes slash and colon")
+  void bhvMisc254AnUnmarkedQueryValuePercentEncodesSlashAndColon() {
+    assertEquals("a%2Fb%3Ac", ValueSerializer.serialize("a/b:c", "query", "string", null));
+  }
+
+  @Test
+  @DisplayName("bhvMisc255 separate query parameters encode a space as %20")
+  void bhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20() {
+    assertEquals("a%20b", ValueSerializer.serialize("a b", "query", "string", null));
+  }
 }
