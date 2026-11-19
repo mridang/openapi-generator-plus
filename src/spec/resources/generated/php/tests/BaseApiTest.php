@@ -2742,3 +2742,47 @@ test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set
     );
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
 });
+
+test('bhv serialization 125 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => "a+b \u{00e9}"], [], null, ['application/json'], 'application/json');
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Bb%20%C3%A9');
+
+    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded');
+    expect($client->capturedBody)->toBe('q=a%2Bb+%C3%A9');
+});
+
+test('bhv serialization 128 a binary return type gets the raw bytes of a JSON body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":7,"name":"photo"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['image/jpeg', 'application/json'],
+        'application/json',
+        'string'
+    );
+    expect($result)->toBe('{"id":7,"name":"photo"}');
+});
