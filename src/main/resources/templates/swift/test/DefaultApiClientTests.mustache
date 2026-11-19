@@ -1257,6 +1257,124 @@ import FoundationNetworking
         }
         #expect(error?.underlyingError != nil)
     }
+
+    /* A streamed request body is sent only once: after a 401 that invalidates the token, the request is not replayed. */
+    @Test func testBhvRetries045AStreamedBodyIsSentOnceAfterAnUnauthorizedResponse() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(3).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            _ = hops.increment()
+            return (Data(), 401, [:])
+        }
+        let response = try await client.sendRequest(
+            method: "POST", url: "https://example.com/upload", headers: [:],
+            body: InputStream(data: Data("payload".utf8)))
+
+        #expect(response.statusCode == 401)
+        #expect(hops.increment() == 2)
+    }
+
+    /* A request body is resent unchanged when a 307 redirect keeps the same scheme. */
+    @Test func testBhvRetries046A307ResendsTheBodyUnchangedWhenTheSchemeIsKept() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).build()
+        let hops = HopCounter()
+        var followupBody: String?
+        let client = makeClient(transport: transport) { req in
+            if hops.increment() == 1 {
+                return (Data(), 307, ["Location": "https://example.com/next"])
+            }
+            if let body = req.httpBody {
+                followupBody = String(data: body, encoding: .utf8)
+            }
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        _ = try await client.sendRequest(
+            method: "POST", url: "https://example.com/start",
+            headers: ["Content-Type": "application/json"], body: Data("payload".utf8))
+
+        #expect(followupBody == "payload")
+    }
+
+    /* All attempts and their backoff or Retry-After waits together stay within the timeout the caller set, and a wait that would overrun it is not taken. */
+    @Test func testBhvRetries047AWaitThatWouldOverrunTheCallerTimeoutIsNotTaken() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(3).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            _ = hops.increment()
+            return (Data(), 503, ["Retry-After": "60"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil,
+            noRedirect: false, refreshHeaders: nil, timeout: 5000)
+
+        #expect(response.statusCode == 503)
+        #expect(hops.increment() == 2)
+    }
+
+    /* The default client retries a 503 response and returns the later success. The stub covers the retry logic only, not a live connection. */
+    @Test func testBhvRetries048TheDefaultClientRetriesA503AndReturnsTheLaterSuccess() async throws {
+        let hops = HopCounter()
+        let client = makeClient { _ in
+            if hops.increment() == 1 {
+                return (Data(), 503, ["Retry-After": "0"])
+            }
+            return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil)
+
+        #expect(response.statusCode == 200)
+        #expect(hops.increment() == 3)
+    }
+
+    /* The max retries setting allows that many retries after the first attempt, so n retries means n plus one requests, after which the last failure is returned. */
+    @Test func testBhvRetries049MaxRetriesAllowsThatManyRetriesAfterTheFirstAttempt() async throws {
+        let transport = try TransportOptionsBuilder().maxRetries(2).build()
+        let hops = HopCounter()
+        let client = makeClient(transport: transport) { _ in
+            _ = hops.increment()
+            return (Data(), 503, ["Retry-After": "0"])
+        }
+        let response = try await client.sendRequest(
+            method: "GET", url: "https://example.com/x", headers: [:], body: nil)
+
+        #expect(response.statusCode == 503)
+        #expect(hops.increment() == 4)
+    }
+
+    /* A Retry-After header given as an HTTP date is honoured: the wait is the time left until that date. */
+    @Test func testBhvRetries050AnHttpDateRetryAfterWaitsTheTimeLeftUntilThatDate() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        let httpDate = formatter.string(from: now.addingTimeInterval(30))
+
+        let delay = DefaultApiClient.retryDelay(attempt: 0, retryAfter: httpDate, now: now)
+
+        #expect(delay == 30)
+    }
+
+    /* A request with a body is refused, and fails with status 307, when a redirect downgrades https to http rather than resending the body. */
+    @Test func testBhvRetries051ABodyIsRefusedWithStatus307OnAnHttpsToHttpDowngrade() async throws {
+        let transport = try TransportOptionsBuilder().followRedirects(true).build()
+        RedirectStubURLProtocol.configure { _ in
+            return .redirect(status: 307, location: "http://example.com/downgrade")
+        }
+        let client = DefaultApiClient(
+            transportOptions: transport,
+            protocolClasses: [RedirectStubURLProtocol.self])
+        do {
+            _ = try await client.sendRequest(
+                method: "POST", url: "https://example.com/start",
+                headers: ["Content-Type": "application/json"],
+                body: Data("payload".utf8))
+            Issue.record("the downgrading redirect with a body was not refused")
+        } catch let error as ApiError {
+            #expect(error.statusCode == 307)
+        }
+    }
 }
 
 /// A URLProtocol that accepts a request and never answers it, so a test can

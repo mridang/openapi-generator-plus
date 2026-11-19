@@ -836,4 +836,24 @@ class ComposedSchemaTest {
                 }
             assertTrue(ex.message!!.contains("foodType"), ex.message)
         }
+
+    @Test
+    fun bhvUnions045EqualDataBuildsEqualUnionValues() =
+        runBlocking<Unit> {
+            assertEquals(
+                json.decodeFromString<DryFood>("""{"foodType":"dry","weightKg":2.5}"""),
+                json.decodeFromString<DryFood>("""{"foodType":"dry","weightKg":2.5}"""),
+            )
+            assertEquals(PetFood.fromDryFood(DryFood(weightKg = 2.5)), PetFood.fromDryFood(DryFood(weightKg = 2.5)))
+        }
+
+    @Test
+    fun bhvUnions047AnUnlistedDiscriminatorRaisesAClearError() =
+        runBlocking<Unit> {
+            val ex =
+                assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                    json.decodeFromString<PetFood>("""{"foodType":"fish"}""")
+                }
+            assertTrue(ex.message!!.contains("fish"), ex.message)
+        }
 }

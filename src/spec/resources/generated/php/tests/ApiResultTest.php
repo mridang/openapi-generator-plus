@@ -64,3 +64,17 @@ test('bhv langphp 063 carries all fields together', function (): void {
     expect($result->rawBody)->toBe('{"ok":true}');
     expect($result->headers)->toBe(['Location' => '/resources/1']);
 });
+
+test('bhv results 007 carries all fields together', function (): void {
+    $result = new ApiResult(
+        statusCode: 201,
+        data: ['ok' => true],
+        rawBody: '{"ok":true}',
+        headers: ['Location' => '/resources/1'],
+    );
+
+    expect($result->statusCode)->toBe(201);
+    expect($result->data)->toBe(['ok' => true]);
+    expect($result->rawBody)->toBe('{"ok":true}');
+    expect($result->headers)->toBe(['Location' => '/resources/1']);
+});
