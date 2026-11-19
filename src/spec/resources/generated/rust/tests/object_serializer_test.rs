@@ -1844,3 +1844,46 @@ fn test_bhv_misc_151_a_model_holding_a_map_compares_by_its_entries() {
     assert_eq!(with("2"), with("2"));
     assert_ne!(with("2"), with("3"));
 }
+#[test]
+fn test_bhv_misc_252_an_enum_wire_value_with_separators_round_trips_unchanged() {
+    let value: petstore::models::Separator =
+        serde_json::from_str("\"@@\"").expect("the wire value must decode");
+    assert_eq!(
+        "\"@@\"",
+        serde_json::to_string(&value).expect("the value must encode")
+    );
+}
+
+#[test]
+fn test_bhv_misc_256_a_fractional_second_keeps_only_the_digits_present() {
+    use chrono::TimeDelta as Duration;
+    use petstore::proto_duration;
+    assert_eq!(
+        "1.5s",
+        proto_duration::format(&Duration::milliseconds(1500))
+    );
+}
+
+#[test]
+fn test_bhv_misc_288_a_snake_case_key_at_the_top_level_is_captured_as_an_undeclared_extra() {
+    let model: petstore::models::Freeform =
+        serde_json::from_str(r#"{"label":"x","snake_case_key":1}"#).expect("the model must decode");
+    assert_eq!(
+        1,
+        model.additional_properties.len(),
+        "{:?}",
+        model.additional_properties.keys().collect::<Vec<_>>()
+    );
+    assert!(model.additional_properties.contains_key("snake_case_key"));
+}
+
+#[test]
+fn test_bhv_misc_289_a_snake_case_key_inside_a_list_element_is_captured_as_an_undeclared_extra() {
+    let items: Vec<petstore::models::Freeform> =
+        serde_json::from_str(r#"[{"label":"x","snake_case_key":1}]"#)
+            .expect("the list must decode");
+    assert_eq!(1, items[0].additional_properties.len());
+    assert!(items[0]
+        .additional_properties
+        .contains_key("snake_case_key"));
+}

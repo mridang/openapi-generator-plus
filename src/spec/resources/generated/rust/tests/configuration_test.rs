@@ -424,3 +424,30 @@ fn test_bhv_misc_136_the_configuration_debug_text_shows_the_base_url_and_plain_d
     assert!(shown.contains("https://api.example.com"), "{shown}");
     assert!(shown.contains("text/plain"), "{shown}");
 }
+#[test]
+fn test_bhv_misc_277_each_call_to_the_default_configuration_returns_a_distinct_object() {
+    let first = Configuration::default();
+    let second = Configuration::default();
+    assert!(
+        !std::ptr::eq(&first, &second),
+        "each default must be its own value"
+    );
+}
+
+#[test]
+fn test_bhv_misc_279_changing_headers_returned_from_a_configuration_leaves_its_own_headers_unchanged(
+) {
+    let config = Configuration::builder()
+        .default_header("X-Keep", "yes")
+        .build();
+    let mut copy = config.default_headers();
+    copy.insert("X-New".to_string(), "no".to_string());
+    assert!(
+        !config.default_headers().contains_key("X-New"),
+        "the configuration must not see the change"
+    );
+    assert_eq!(
+        Some(&"yes".to_string()),
+        config.default_headers().get("X-Keep")
+    );
+}

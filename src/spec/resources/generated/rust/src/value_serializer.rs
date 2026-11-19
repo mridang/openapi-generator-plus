@@ -1647,4 +1647,12 @@ mod tests {
         ));
         assert!(got.contains(r#"{"a":1}"#), "got: {}", got);
     }
+
+    #[test]
+    fn test_bhv_misc_253_an_allow_reserved_value_still_encodes_hash_and_brackets() {
+        assert_eq!(
+            super::encode_query_allowing_reserved("a/b#c[d]"),
+            "a/b%23c%5Bd%5D"
+        );
+    }
 }
