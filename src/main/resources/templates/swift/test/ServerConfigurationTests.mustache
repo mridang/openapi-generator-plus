@@ -242,4 +242,28 @@ import Testing
         )
         #expect(try server.url() == "https://staging.api.example.com/v3")
     }
+
+    /* A placeholder introduced by a substituted value, whether from a default or an override, stays literal in the resulting URL and is never expanded again. */
+    @Test func testBhvServers029APlaceholderIntroducedBySubstitutionStaysLiteral() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{a}.example.com",
+            variables: [
+                "a": ServerVariable(defaultValue: "{b}", enumValues: ["{b}"]),
+                "b": ServerVariable(defaultValue: "z", enumValues: ["z"]),
+            ])
+
+        #expect(try server.url() == "https://{b}.example.com")
+        #expect(try server.url(variables: ["a": "{b}"]) == "https://{b}.example.com")
+    }
+
+    /* A value that is not one of a server variable's declared enum values is rejected with an error. */
+    @Test func testBhvServers030AValueOutsideTheDeclaredEnumIsRejected() throws {
+        let server = ServerConfiguration(
+            urlTemplate: "https://{env}.api.example.com",
+            variables: ["env": ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"])])
+
+        #expect(throws: Error.self) {
+            _ = try server.url(variables: ["env": "dev"])
+        }
+    }
 }

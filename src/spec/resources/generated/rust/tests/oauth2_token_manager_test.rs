@@ -871,6 +871,28 @@ async fn test_bhv_authoauthtwotokenmgr_034_token_post_uses_no_redirect() {
     );
 }
 
+/// misc172: a token request is sent once, even when the token endpoint answers 503,
+/// which a retrying call would repeat.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_172_a_token_request_answered_503_is_sent_once() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("", 503);
+    client.enqueue("", 503);
+
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+
+    let outcome = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await;
+
+    assert!(outcome.is_err());
+    assert_eq!(1, client.requests().len());
+}
+
 /// Gap 3.2: RFC 6749 §3.2 forbids redirects at the token endpoint. The
 /// manager must refuse the whole 300-399 range (302 and 307 both exercised
 /// here, plus 301/303/308) rather than replaying the credential-bearing POST

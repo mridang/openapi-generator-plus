@@ -238,3 +238,31 @@ test('bhv misc 297 server URL template variables are replaced with the supplied 
     expect($server->getUrl(['region' => 'us', 'port' => '9443', 'version' => '2']))
         ->toBe('https://us.api.example.com:9443/v2');
 });
+
+test('bhv servers 029 a placeholder introduced by a substituted value is not expanded again', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/{version}',
+        variables: [
+            'env' => new ServerVariable(defaultValue: '{version}'),
+            'version' => new ServerVariable(defaultValue: 'v2'),
+        ],
+    );
+
+    expect($server->getUrl())->toBe('https://{version}.example.com/v2');
+});
+
+test('bhv servers 030 override not in enum is rejected', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: [
+            'env' => new ServerVariable(defaultValue: 'api', enumValues: ['api', 'staging']),
+        ],
+    );
+
+    // A server variable outside its enum is a caller mistake, not an SDK error.
+    expect(fn () => $server->getUrl(['env' => 'invalid']))
+        ->toThrow(function (\Exception $e): void {
+            expect($e::class)->toBe(\InvalidArgumentException::class);
+            expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+        });
+});

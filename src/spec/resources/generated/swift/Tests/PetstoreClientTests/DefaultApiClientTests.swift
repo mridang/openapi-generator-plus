@@ -923,8 +923,8 @@ import Testing
       #expect(response.statusCode == 200)
     }
 
-    /* A 302 from HTTPS to plain HTTP is followed rather than refused, because the next request carries no body. */
-    @Test func testBhvRedirects040A302FromHttpsToHttpIsFollowed() async throws {
+    /* A 302 from HTTPS to plain HTTP is refused for a POST that carries a body, so the body is never sent in cleartext. */
+    @Test func testBhvRedirects040A302FromHttpsToHttpWithABodyIsRefused() async throws {
       let transport = try TransportOptionsBuilder().followRedirects(true).maxRedirects(5).build()
       let hopCount = HopCounter()
       let client = makeClient(transport: transport) { _ in
@@ -934,10 +934,11 @@ import Testing
         }
         return (Data("{}".utf8), 200, [:])
       }
-      let response = try await client.sendRequest(
-        method: "POST", url: "https://example.com/start", headers: [:],
-        body: "payload".data(using: .utf8)!)
-      #expect(response.statusCode == 200)
+      await #expect(throws: ApiError.self) {
+        _ = try await client.sendRequest(
+          method: "POST", url: "https://example.com/start", headers: [:],
+          body: "payload".data(using: .utf8)!)
+      }
     }
 
     /* A 307 redirect of a bodyless POST keeps the request a POST. */
@@ -1421,6 +1422,123 @@ import Testing
       } catch let error as ApiError {
         #expect(error.statusCode == 307)
       }
+    }
+
+    /* Cancelling a call through its own handle stops that request at once. */
+    @Test func testBhvTransport084CancellingTheCallThroughItsHandleStopsTheRequestAtOnce()
+      async throws
+    {
+      HangingURLProtocol.reset()
+      let client = DefaultApiClient(
+        transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+      let task = Task {
+        try await client.sendRequest(
+          method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+      }
+      for _ in 0..<300 where !HangingURLProtocol.started {
+        try await Task.sleep(nanoseconds: 10_000_000)
+      }
+      let cancelledAt = Date()
+      task.cancel()
+      await #expect(throws: CancellationError.self) {
+        _ = try await task.value
+      }
+      #expect(Date().timeIntervalSince(cancelledAt) < 5)
+      for _ in 0..<300 where !HangingURLProtocol.stopped {
+        try await Task.sleep(nanoseconds: 10_000_000)
+      }
+      #expect(HangingURLProtocol.stopped)
+    }
+
+    /* A timeout still raises the network timeout error when a cancellation handle is supplied but never fires. */
+    @Test func testBhvTransport085ATimeoutStillRaisesWhenTheHandleNeverFires() async throws {
+      HangingURLProtocol.reset()
+      let transport = try TransportOptionsBuilder().timeout(500).build()
+      let client = DefaultApiClient(
+        transportOptions: transport, protocolClasses: [HangingURLProtocol.self])
+      let task = Task {
+        try await client.sendRequest(
+          method: "GET", url: "https://example.com/slow", headers: [:], body: nil)
+      }
+      await #expect(throws: NetworkTimeoutError.self) {
+        _ = try await task.value
+      }
+    }
+
+    /* A request that exceeds its timeout fails with the network timeout error within the time budget. */
+    @Test func testBhvTransport086ARequestPastItsTimeoutFailsWithinTheBudget() async throws {
+      HangingURLProtocol.reset()
+      let client = DefaultApiClient(
+        transportOptions: nil, protocolClasses: [HangingURLProtocol.self])
+      let started = Date()
+      await #expect(throws: NetworkTimeoutError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "https://example.com/slow", headers: [:], body: nil,
+          noRedirect: false, refreshHeaders: nil, timeout: 500)
+      }
+      #expect(Date().timeIntervalSince(started) < 10)
+    }
+
+    /* A response body that is validly gzip-encoded is decoded before it is returned. */
+    @Test func testBhvTransport088AValidGzipBodyIsDecodedBeforeItIsReturned() async throws {
+      let gzipped = Data([
+        0x1F, 0x8B, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xFF, 0xAB, 0x56, 0xCA, 0xCF,
+        0x56, 0xB2, 0x2A, 0x29, 0x2A, 0x4D, 0xAD, 0x05, 0x00, 0x90, 0x5F, 0xD4, 0xA7, 0x0B,
+        0x00, 0x00, 0x00,
+      ])
+      let client = makeClient { _ in
+        return (gzipped, 200, ["Content-Encoding": "gzip"])
+      }
+      let resp = try await client.sendRequest(
+        method: "GET", url: "https://example.com", headers: [:], body: nil)
+
+      #expect(resp.statusCode == 200)
+      #expect(resp.body == #"{"ok":true}"#)
+    }
+
+    /* A response whose declared Content-Encoding does not match its body raises the SDK's API error rather than crashing. */
+    @Test func testBhvTransport089AMismatchedContentEncodingRaisesAnApiError() async throws {
+      let client = makeClient { _ in
+        return (Data([0x1F, 0x8B, 0x00]), 200, ["Content-Encoding": "gzip"])
+      }
+      do {
+        _ = try await client.sendRequest(
+          method: "GET", url: "https://example.com", headers: [:], body: nil)
+        Issue.record("a Content-Encoding that does not match the body must throw an ApiError")
+      } catch let error as ApiError {
+        #expect(error.statusCode == 200)
+      }
+    }
+
+    /* The SDK leaves a caller-supplied upload stream open after sending the request. */
+    @Test func testBhvTransport091TheSdkLeavesACallerSuppliedUploadStreamOpen() async throws {
+      let stream = InputStream(data: Data("payload".utf8))
+      let client = makeClient { _ in
+        return (Data("{}".utf8), 200, [:])
+      }
+      _ = try await client.sendRequest(
+        method: "POST", url: "https://example.com/upload", headers: [:], body: stream)
+
+      #expect(stream.streamStatus != .closed)
+    }
+
+    /* A caller-supplied HTTP client or connection pool receives the SDK's request. */
+    @Test func testBhvTransport092ACallerSuppliedHttpClientReceivesTheSdkRequest() async throws {
+      let seen = LockedRequests()
+      let session = StubURLProtocol.session { req in
+        seen.append(req)
+        return (Data("{}".utf8), 200, [:])
+      }
+      let transport = try TransportOptionsBuilder().session(session).build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      let resp = try await client.sendRequest(
+        method: "POST", url: "https://example.com/pool", headers: ["X-Caller": "1"],
+        body: Data("body".utf8))
+
+      #expect(resp.statusCode == 200)
+      let requests = seen.all
+      #expect(requests.count == 1)
+      #expect(requests.first?.value(forHTTPHeaderField: "X-Caller") == "1")
     }
   }
 
