@@ -34,7 +34,6 @@ dart | headers015 | isJsonMime takes a non-nullable String, so nil cannot be pas
 dart | transport004 | Dart has no stdlib brotli decoder; a br response is refused as an unsupported Content-Encoding, not decompressed
 dart | transport006 | Dart has no stdlib zstd decoder; a zstd response is refused as an unsupported Content-Encoding, not decompressed
 node | errors042 | FORCED D-FORCED-1: the fetch layer owns Content-Encoding and node passes an unrecognised coding through untouched rather than raising ApiError (see the node AGENTS.md forced divergences)
-python | serializationobject015 | Python has no set order to keep: a uniqueItems array decodes to a set, which the SDK writes sorted (TestSetSanitization), so no insertion order exists to pin
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
 swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
 swift | serializationobject015 | Swift Set members have no insertion order (S6, unspecified uniqueItems order) and Pet.photoUrls is a Set, so the schema promises no order
@@ -52,7 +51,6 @@ php | serializationobject030 | schema bounds such as nickname minLength and quan
 php | authoauthtwotokenmgr019 | PHP runs one call at a time in one process, so no caller can race another caller's refetch after an invalidate; the refetch after an invalidate is bhv authoauthtwotokenmgr 018
 php | authoauthtwotokenmgr027 | PHP runs one call at a time in one process, so concurrent callers cannot arrive while a refresh is in flight; a later caller served from the cache is bhv authoauthtwotokenmgr 025
 java | lifecycle014 | The Java client takes built authenticator objects and never reads the environment itself; the per-scheme authenticator reads it when built with no credential, and that behaviour is pinned by bhv authbearer 010 (same promise)
-python | operations111 | the trackingId parameter is typed uuid.UUID, which refuses a malformed value when the caller builds it, so the SDK never receives one it must reject; a plain str bypasses that type and is sent unchecked
 dart | serializationobject002 | Dart decodes a bare type: number to double, a binary float (D83, FD-11), so it cannot be exact and written in plain notation the way the java, csharp and kotlin BigDecimal decoders are
 go | authintegration013 | Go per-call request options (WithTimeout, WithHeaders, WithMaxRetries, WithRequestContentType) carry no authenticator, so there is no per-call :auth to override; a scheme credential replacing the client-level authenticator is bhv authintegration 003
 go | headers002 | HeaderSelector.selectHeaders takes a string content type, so a nil value cannot be passed; the empty-string default is bhv headers 001
@@ -95,12 +93,6 @@ kotlin | options046 | TransportOptions has a private constructor, so a caller ca
 kotlin | retries032 | Kotlin request bodies are a String, a ByteArray or a multipart map, all held in memory, and no public body type is a one-shot stream that a retry would have to refuse to resend (bhv retries 034 covers the string body)
 node | authbearer026 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal
 node | serializationobject191 | JS numbers are binary doubles and JSON.parse rounds an int64 above 2^53 before the SDK sees it, so the digits are lost on decode; only a Decimal keeps its text, and the exact digits of the largest safe integer are pinned by serializationobject190
-python | authscheme003 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
-python | authscheme004 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
-python | authscheme005 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
-python | authscheme006 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
-python | authscheme007 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
-python | authscheme008 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
 rust | authbearer026 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test
 rust | config024 | Rust has no process-wide mutable configuration default: Configuration::default() returns a fresh value and no setter is generated, so there is no call to assert on
 rust | lifecycle030 | rust's with_credentials takes the host as a required argument and its Credentials hold no default authenticator, so there is no second source for the base URL to fall back to
@@ -183,7 +175,6 @@ php | auth030 | PHP runs one request at a time in one process with no threads or
 php | misc001 | PHP runs one request at a time in one process with no threads or tasks, so replacing the access token cannot race with a reader
 php | errors079 | PHP attaches request details only through the error constructor, so there is no later attachment that could replace or be ignored after the error is built
 php | auth015 | PHP's header call raises the token error instead of returning headers, so no header map without an Authorization entry can ever be returned; the raise is pinned by bhv auth 001
-python | options058 | TransportOptions has no HTTP client field; a caller's HTTP client is the pool_manager argument of DefaultApiClient, which the client tests cover
 python | options059 | TransportOptions has no transport hook field, and the python client exposes no per-request hook to leave unset
 python | transport079 | urllib3 honours verify_ssl=False directly, so no client has to refuse it at construction because it cannot apply it
 ruby | auth001 | The token exchange runs inside the synchronous auth_headers call and no credential needs an asynchronous step, so the refusal cannot occur
@@ -272,7 +263,6 @@ php | tracing014 | PHP runs one request at a time and has no suspension point in
 php | tracing015 | PHP runs one request at a time in one process, so two operations cannot be in flight together
 go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
 kotlin | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
-python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 go | mocking007 | Go interfaces carry methods and not fields, so there is no client interface; the Client struct holds group-interface fields and mocking008 covers a client built from fakes
 elixir | mocking008 | There is no client behaviour to implement, so no fake client exists; a fake group module opens no connection by construction
@@ -348,7 +338,6 @@ swift | misc038 | the Swift suite starts no TLS listener of its own and its unit
 swift | misc047 | a union wrapper holds only a declared variant and is built only from one, so a value that is not a variant cannot be constructed; an empty union is nil (testBhvUnions042), so the compile-time guarantee covers both cases
 csharp | misc007 | the generated code checks no path parameter for nil, and the options null check runs first, so the error names options and never the path parameter
 python | misc033 | the HTTPS fixture server presents only its leaf certificate, so there is no intermediate to leave out of the chain it sends
-python | misc035 | the SDK has no abort signal: a cancelled call is the task's CancelledError (transport_060) and a deadline is a timeout (misc030), so a call aborted before it starts cannot be expressed
 python | misc036 | multipart parts are plain values the caller passes in and are read into the request before it is sent, so no caller-owned readable body part exists after a failure
 python | misc051 | operation Options objects are typed, so an option the operation cannot apply is refused by Python as an unknown keyword at construction
 dart | misc010 | addPetPhotos takes its options object as a required positional parameter, so omitting it is a compile-time error rather than a runtime TypeError
@@ -508,7 +497,6 @@ elixir | transport091 | Elixir multipart file content is in-memory bytes given t
 elixir | serialization129 | Elixir Duration holds microseconds at most, so a nanosecond-precision value cannot be built and the nine-digit fraction is never produced from a Duration
 go | misc260 | Go takes server variable overrides as map[string]string, so a nil value for an enum variable cannot be expressed and the type system rules it out
 python | misc185 | python's OAuth2 token manager has no stop operation and holds no process or resource to release, so a second stop and a stopped-manager error do not exist
-python | misc186 | python transport options take no ready-made HTTP connection value, so there is no connection to refuse or to combine with a CA bundle setting
 kotlin | misc101 | Kotlin request bodies and multipart parts are ByteArray or String values read in full before the call (transport061 pins the buffering), so no source can become unreadable during the send and a missing value fails when the caller builds the body
 kotlin | misc105 | Kotlin copy() takes typed arguments, so a value the schema forbids cannot be passed to it, and the generated models never validate on copy (misc051 pins the typed arguments)
 java | misc149 | The Java copy method takes only the generated typed setters, so an attribute the model does not declare cannot be named at compile time and no refusal can occur
@@ -579,10 +567,6 @@ rust | misc214 | A Rust JSON content value is a serde_json::Value tree with stri
 rust | misc217 | Streaming request bodies are not implemented yet (issue #114, deferred); only in-memory bytes are accepted
 ruby | misc043 | Net::HTTP writes its own User-Agent (Ruby) whenever a request carries none, so the header cannot be omitted from the wire
 node | misc043 | Node fetch (undici) appends its own User-Agent when the request carries none, so an explicitly cleared user agent cannot be omitted from the wire; the SDK sends no header of its own (the default-header and userAgent(null) paths are covered by bhv transport tests)
-python | misc043 | urllib3 always adds a default User-Agent when the request carries none, so an explicitly cleared user agent cannot be omitted from the request with this transport
-python | misc274 | every non-2xx response raises its typed error carrying the status code: bhv errors 037 and misc284 settle the typed raise per listed status, so the status is intact on the error, not returned
-python | misc254 | an unmarked query value is percent-encoded on the wire (urlencode quote); the unit serializer returns the value unencoded, which serialization118 settles for a timestamp colon
-python | misc255 | a space in a query value is percent-encoded as %20 on the wire; the unit serializer returns the raw value, the same settled behaviour as misc254
 python | misc085 | building a model never validates (serialization068), so an invalid UUID is kept as given on construction; the wire decode still refuses it (serializationobject048)
 node | misc139 | a model constructor assigns its data and never copies or freezes a collection (settled F868 in the node AGENTS.md: there is no runtime freeze and the constructor checks nothing); the decode path freezes a copy of decoded collections instead, which the decode tests pin
 java | serialization128 | The Java transport carries a binary response as the base64 text of its bytes (settled: binary bodies as base64 text, bhv serializationwire017 and misc081), so a sendRequest body under image/png is that base64 text and the raw text is returned only through the typed call path

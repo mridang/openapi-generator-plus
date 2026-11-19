@@ -387,6 +387,15 @@ class TestUserAgentHeader:
         # chasm envelope lowercases all header keys
         assert body["headers"]["user-agent"] == "MyApp/1.0"
 
+    def test_bhv_misc_043_an_explicitly_cleared_user_agent_is_omitted_from_the_request(
+        self, chasm_http_url: Any
+    ) -> None:
+        client = DefaultApiClient(TransportOptions.builder().user_agent(None).build())
+        response = client.send_request("GET", chasm_http_url + "/test/echo", {}, None)
+
+        assert response.status_code == 200
+        assert "user-agent" not in json.loads(response.body)["headers"]
+
     def test_bhv_transport_003_lowercase_caller_headers_suppress_injection(
         self, chasm_http_url: Any
     ) -> None:
@@ -1439,6 +1448,45 @@ class TestCancellation:
             await task
 
         assert time.monotonic() - started < 2
+
+    async def test_bhv_misc_035_a_call_whose_handle_is_already_cancelled_is_rejected_as_cancelled_not_a_timeout(
+        self, chasm_http_url: Any
+    ) -> None:
+        from petstore_client.default_api_client import RequestHandle
+        from petstore_client.errors import NetworkTimeoutException
+
+        client = DefaultApiClient(TransportOptions.builder().timeout(20000).build())
+        handle = RequestHandle()
+        handle.cancel()
+
+        with pytest.raises(RuntimeError, match="cancelled") as excinfo:
+            client.send_request(
+                "GET", chasm_http_url + "/test/echo", {}, None, False, handle
+            )
+
+        assert not isinstance(excinfo.value, NetworkTimeoutException)
+
+
+class TestSuppliedPoolManager:
+    def test_bhv_options_058_a_supplied_pool_manager_is_kept_as_the_same_instance(
+        self,
+    ) -> None:
+        import urllib3
+
+        pool = urllib3.PoolManager()
+        assert DefaultApiClient()._pool_manager is not pool
+        assert DefaultApiClient(pool_manager=pool)._pool_manager is pool
+
+    def test_bhv_misc_186_a_ca_bundle_beside_a_supplied_pool_manager_is_rejected(
+        self,
+    ) -> None:
+        import urllib3
+
+        with pytest.raises(ValueError, match="ca_cert_path"):
+            DefaultApiClient(
+                TransportOptions.builder().ca_cert_path("/does/not/matter.pem").build(),
+                pool_manager=urllib3.PoolManager(),
+            )
 
 
 class TestDefaultConfigurationRequests:
