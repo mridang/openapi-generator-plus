@@ -2687,6 +2687,62 @@ test('bhv misc 197 the default authenticator serves an operation whose named sch
     expect($client->capturedHeaders['Authorization'])->toBe('Bearer default');
 });
 
+test('bhv misc 209 a void operation ignores a success body whether it is text or a non object json value', function (): void {
+    foreach (['text/plain' => 'plain words', 'application/json' => '42'] as $contentType => $body) {
+        $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(200, $body, ['Content-Type' => $contentType])]), new Configuration('https://example.test'));
+        expect($api->call('GET', '/items', [], [], null, ['application/json'], 'application/json'))->toBeNull();
+    }
+});
+
+test('bhv misc 210 a date time form field is encoded in canonical form with its colons and plus sign percent escaped', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('POST', '/x', [], [], ['renewalDate' => '2024-01-01T13:45:30+02:00'], ['application/json'], 'application/x-www-form-urlencoded');
+    expect($client->capturedBody)->toContain('renewalDate=2024-01-01T13%3A45%3A30%2B02%3A00');
+});
+
+test('bhv misc 212 a 404 or 500 response raises its error class through the api layer', function (): void {
+    foreach ([[404, NotFoundException::class], [500, InternalServerErrorException::class]] as [$status, $class]) {
+        $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse($status, '{"message":"failed"}', ['Content-Type' => 'application/json'])]), new Configuration('https://example.test'));
+        expect(fn () => $api->call('GET', '/items', [], [], null, ['application/json'], 'application/json', 'string'))->toThrow($class);
+    }
+});
+
+test('bhv misc 216 a binary response is returned decoded while the raw body keeps the encoded text', function (): void {
+    $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(200, 'aGVsbG8=', ['Content-Type' => 'application/octet-stream'])]), new Configuration('https://example.test'));
+    $result = $api->callOperation('getBytes', '/x', 'GET', '/x', [], [], null, ['application/octet-stream'], 'application/json', 'bytes');
+    expect($result->data)->toBe('hello');
+    expect($result->rawBody)->toBe('aGVsbG8=');
+});
+
+test('bhv misc 218 a per call header takes precedence over a configured header of the same name without a duplicate key', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost', ['X-Trace' => 'configured']));
+    $api->call('GET', '/x', [], ['X-Trace' => 'per-call'], null, ['application/json'], 'application/json');
+    expect($client->capturedHeaders['X-Trace'])->toBe('per-call');
+    expect(array_filter(array_keys($client->capturedHeaders), fn (string $key): bool => strtolower($key) === 'x-trace'))->toHaveCount(1);
+});
+
+test('bhv misc 220 a full response call keeps the status code and decodes the body', function (): void {
+    $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(201, '{"drugName":"Amoxicillin","dosage":"250mg"}', ['Content-Type' => 'application/json'])]), new Configuration('https://example.test'));
+    $result = $api->callOperation('create', '/x', 'POST', '/x', [], [], null, ['application/json'], 'application/json', 'object');
+    expect($result->statusCode)->toBe(201);
+    expect($result->data)->toBe(['drugName' => 'Amoxicillin', 'dosage' => '250mg']);
+});
+
+test('bhv misc 221 a credential is sent using the security scheme the operation declares rather than bearer', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+    $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', 'object', new ApiKeyAuthenticator('http://localhost', 'X-Api-Key', 'key', ApiKeyLocation::HEADER));
+    expect($client->capturedHeaders['X-Api-Key'])->toBe('key');
+    expect($client->capturedHeaders)->not->toHaveKey('Authorization');
+});
+
+test('bhv misc 222 a success response with a 201 status and an empty body returns no data without an error', function (): void {
+    $api = new TestableApi(new ScriptedApiClient([new ApiHttpResponse(201, '', ['Content-Type' => 'application/json'])]), new Configuration('https://example.test'));
+    expect($api->call('POST', '/x', [], [], null, ['application/json'], 'application/json', 'object'))->toBeNull();
+});
+
 test('bhv misc 202 a text body without a declared content type goes out with the bare json media type', function (): void {
     $client = new CapturingApiClient();
     $api = new TestableApi($client, new Configuration('http://localhost'));
@@ -2741,4 +2797,48 @@ test('bhv serialization 111 a form-urlencoded body keeps only the unreserved set
         'application/x-www-form-urlencoded'
     );
     expect($client->capturedBody)->toBe('k~%2A=a~b%2Ac%21%27%28%29');
+});
+
+test('bhv serialization 125 a literal plus is sent as percent 2B and non ascii text as percent encoded utf 8', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => "a+b \u{00e9}"], [], null, ['application/json'], 'application/json');
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%2Bb%20%C3%A9');
+
+    $api->call('POST', '/test/echo', [], [], ['q' => "a+b \u{00e9}"], ['application/json'], 'application/x-www-form-urlencoded');
+    expect($client->capturedBody)->toBe('q=a%2Bb+%C3%A9');
+});
+
+test('bhv serialization 128 a binary return type gets the raw bytes of a JSON body', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, '{"id":7,"name":"photo"}', ['Content-Type' => 'application/json']);
+        }
+    };
+    $config = new Configuration('http://localhost');
+    $testApi = new TestableApi($client, $config);
+    $result = $testApi->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['image/jpeg', 'application/json'],
+        'application/json',
+        'string'
+    );
+    expect($result)->toBe('{"id":7,"name":"photo"}');
 });
