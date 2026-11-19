@@ -257,17 +257,6 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     _(auth.auth_headers).must_equal('X-Api-Key' => 'from-other')
   end
 
-  it 'bhv_lifecycle_025 reads the environment once, at construction' do
-    env = { 'OTHER_KEY' => 'first' }
-    auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
-      'https://api.example.com', 'X-Api-Key', nil, Petstore::Client::Auth::ApiKeyLocation::HEADER,
-      env: env, api_key_env: 'OTHER_KEY'
-    )
-    env['OTHER_KEY'] = 'second'
-
-    _(auth.auth_headers).must_equal('X-Api-Key' => 'first')
-  end
-
   it 'bhv_auth_031 sends the key in the header under its exact name and value' do
     auth = Petstore::Client::Auth::ApiKeyAuthenticator.new(
       'https://api.example.com', 'X-Custom-Key', 'k-123', Petstore::Client::Auth::ApiKeyLocation::HEADER

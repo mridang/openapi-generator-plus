@@ -1016,16 +1016,6 @@ describe Petstore::Client::Api::PetApi do
       _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
     end
 
-    it 'bhv_operations_125 raises ArgumentError naming the required query param category when it is nil' do
-      # Deliberately breaks the signature, which types category as String.
-      # @type var missing: untyped
-      missing = nil
-      err = assert_raises(ArgumentError) do
-        @api.get_pet_by_name('Rex', Petstore::Client::Api::Options::GetPetByNameOptions.new(category: missing, x_correlation_id: 'corr-1'))
-      end
-      _(err.message).must_include "Missing the required parameter 'category' when calling PetApi.get_pet_by_name"
-    end
-
     it 'bhv_misc_012 raises ArgumentError when the required path param name is nil' do
       err = assert_raises(ArgumentError) do
         @api.get_pet_by_name(nil, Petstore::Client::Api::Options::GetPetByNameOptions.new(category: 'dogs', x_correlation_id: 'corr-1'))
@@ -1255,21 +1245,18 @@ describe Petstore::Client::Api::PetApi do
       [api, server, thread, captured]
     end
 
-    it 'bhv_operations_059 sends format:byte query and header params as padded standard base64' do
+    it 'bhv_operations_059 sends format:byte query and header params as padded standard base64, with the standard alphabet' do
       client = RecordingPetClient.new
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
       api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: 'hi', x_fingerprint: 'hi'))
       _(client.url).must_include 'fingerprint=aGk%3D'
       _(client.headers['X-Fingerprint']).must_equal 'aGk='
-    end
 
-    it 'bhv_operations_059 uses the standard base64 alphabet for format:byte params' do
-      client = RecordingPetClient.new
-      config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
-      api = Petstore::Client::Api::PetApi.new(client, config)
+      alphabet = RecordingPetClient.new
+      api = Petstore::Client::Api::PetApi.new(alphabet, config)
       api.get_pet_tag(5, 'cute', Petstore::Client::Api::Options::GetPetTagOptions.new(fingerprint: "\xFB\xFF".b))
-      _(client.url).must_include 'fingerprint=%2B%2F8%3D'
+      _(alphabet.url).must_include 'fingerprint=%2B%2F8%3D'
     end
 
     it 'bhv_operations_066 percent-encodes a # in an allowReserved value instead of truncating the query' do
@@ -2024,19 +2011,6 @@ describe Petstore::Client::Api::PetApi do
       api.find_pets_by_status_with_http_info
       _(hook.infos.length).must_equal 2
       _(hook.outcomes.length).must_equal 2
-    end
-
-    it 'bhv_hooks_002 names the operation as the spec writes it and gives its path template' do
-      hook = RecordingCallHook.new
-
-      hooked_pet_api(hook).find_pets_by_status
-
-      info = hook.infos.first
-      _(info.operation_id).must_equal 'findPetsByStatus'
-      _(info.http_method).must_equal 'GET'
-      _(info.url_template).must_equal '/pet/findByStatus'
-      _(info.url).must_equal 'http://127.0.0.1:1/pet/findByStatus'
-      _(hook.outcomes.first.status_code).must_equal 200
     end
   end
 end

@@ -368,9 +368,11 @@ test('bhv options 027 max retries can be set, including to 0 to disable retrying
     expect(TransportOptions::builder()->maxRetries($retries)->build()->maxRetries)->toBe($retries);
 })->with([0, 1, 5]);
 
-test('bhv options 007 constructor rejects a negative max retries', function (): void {
+test('bhv options 007 a negative max retries is rejected by the constructor and by the builder', function (): void {
     expect(fn () => new TransportOptions(maxRetries: -1))
         ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries: must not be negative (got -1)');
+    expect(fn () => TransportOptions::builder()->maxRetries(-1)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
 });
 
 test('bhv options 064 debug output shows the max retries', function (): void {

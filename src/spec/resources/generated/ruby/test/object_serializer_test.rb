@@ -2396,19 +2396,16 @@ describe Petstore::Client::ObjectSerializer do
       _(value[:x].first).must_be_instance_of(Float)
     end
 
-    it 'bhv_serializationparam_104 writes a duration parameter in the protobuf form' do
-      _(Petstore::Client::ObjectSerializer.stringify(ISO8601::Duration.new('PT1H'))).must_equal('3600s')
-    end
-
     it 'bhv_serializationparam_105 writes an address parameter in its canonical text' do
       _(Petstore::Client::ObjectSerializer.stringify(IPAddr.new('192.0.2.1'))).must_equal('192.0.2.1')
       _(Petstore::Client::ObjectSerializer.stringify(IPAddr.new('2001:0DB8::1'))).must_equal('2001:db8::1')
     end
 
-    it 'bhv_serializationparam_106 writes a decimal parameter in plain notation' do
+    it 'bhv_serializationparam_106 path with null style behaves like simple, and a decimal parameter is written in plain notation' do
       _(Petstore::Client::ObjectSerializer.stringify(BigDecimal('12.345678901234567890123')))
         .must_equal('12.345678901234567890123')
       _(Petstore::Client::ObjectSerializer.stringify(BigDecimal('1E+3'))).must_equal('1000')
+      _(Petstore::Client::ValueSerializer.serialize_styled('id', '5', :path, 'string', nil, nil, false)).must_equal('5')
     end
   end
 

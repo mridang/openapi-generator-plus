@@ -1875,7 +1875,7 @@ class TestHeaderMergeIsCaseInsensitive:
         assert not any(k.lower() == "content-type" for k in sent)
 
     @pytest.mark.parametrize("make", [bytearray, memoryview])
-    def test_bhv_operations_157_a_byte_like_body_is_sent_verbatim(
+    def test_bhv_operations_014_a_byte_like_body_is_sent_verbatim(
         self, make: Any
     ) -> None:
         sent = self._send({"Content-Type": "image/png"}, make(b"\x89PNG"), "PUT")

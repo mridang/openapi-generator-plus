@@ -704,12 +704,10 @@ test('bhv misc 042 disabled verification on a supplied client is refused and the
         ->toThrow(\InvalidArgumentException::class, 'verifySsl');
 });
 
-test('bhv misc 186 a value that is not an http connection is refused as the connection', function (): void {
+test('bhv misc 186 a value that is not an http connection is refused as the connection, and a ready made connection with a ca bundle is refused when the options are built', function (): void {
     expect(fn () => newUnchecked(Client::class, [$this->authenticator, null, new \stdClass()]))
         ->toThrow(\TypeError::class);
-});
 
-test('bhv misc 186 a ready made connection combined with a ca bundle is refused when the options are built', function (): void {
     $factory = new Psr17Factory();
     $stub = new StubPsr18Client();
     $options = TransportOptions::builder()->caCertPath('/tmp/ca.pem')->build();

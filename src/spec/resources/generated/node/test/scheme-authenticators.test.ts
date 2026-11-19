@@ -502,10 +502,10 @@ describe("SchemeAuthenticators", () => {
     }
   });
 
-  for (const [name, cls, base] of schemeWrappers.filter(
-    ([, , base]) => base.name === "BasicAuthenticator",
-  )) {
-    it(`bhv misc 193 ${name} sends the same header as its base and refuses a colon in the username as the base does`, () => {
+  it("bhv misc 193 every scheme wrapper sends the same header as its base, and a Basic wrapper refuses a colon in the username as its base does", () => {
+    for (const [, cls, base] of schemeWrappers.filter(
+      ([, , base]) => base.name === "BasicAuthenticator",
+    )) {
       const wrapped = new cls("https://api.example.com", "alice", "s3cret") as {
         getAuthHeaders(): Record<string, string>;
       };
@@ -526,13 +526,10 @@ describe("SchemeAuthenticators", () => {
             "s3cret",
           ),
       ).toThrow(TypeError);
-    });
-  }
-
-  for (const [name, cls, base] of schemeWrappers.filter(
-    ([, , base]) => base.name === "BearerAuthenticator",
-  )) {
-    it(`bhv misc 193 ${name} sends the same bearer header as its base for the same token`, () => {
+    }
+    for (const [, cls, base] of schemeWrappers.filter(
+      ([, , base]) => base.name === "BearerAuthenticator",
+    )) {
       const wrapped = new cls("https://api.example.com", "Bearer abc-123") as {
         getAuthHeaders(): Record<string, string>;
       };
@@ -541,8 +538,8 @@ describe("SchemeAuthenticators", () => {
         "Bearer abc-123",
       ) as { getAuthHeaders(): Record<string, string> };
       expect(wrapped.getAuthHeaders()).toEqual(plain.getAuthHeaders());
-    });
-  }
+    }
+  });
 
   it("bhv misc 208 an empty environment variable for an implicit credential fails with the unset message", () => {
     const names = schemeClassesOf("OAuth2ImplicitAuthenticator").filter(

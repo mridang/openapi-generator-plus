@@ -63,14 +63,14 @@ mod {{module}} {
     }
 
     #[test]
-    fn test_bhv_authbasic_001_it_builds_from_its_environment_variables_alone() {
+    fn test_{{#commonBhvOnce}}bhv_authbasic_001_{{/commonBhvOnce}}it_builds_from_its_environment_variables_alone() {
         with_variables(&set_all(), || {
             assert!({{className}}::new({{{bareArgs}}}).is_ok());
         });
     }
 
     #[test]
-    fn test_bhv_authscheme_002_explicit_arguments_need_no_environment() {
+    fn test_{{#commonBhvOnce}}bhv_authscheme_002_{{/commonBhvOnce}}explicit_arguments_need_no_environment() {
         with_variables(&unset_all(), || {
             assert!({{className}}::new({{{explicitArgs}}}).is_ok());
         });
@@ -111,7 +111,7 @@ mod {{module}} {
 {{/bearerIdOnce}}
 
     #[test]
-    fn test_bhv_authscheme_001_bhv_authbasic_003_a_missing_credential_names_its_variable() {
+    fn test_{{#commonBhvOnce}}bhv_authscheme_001_bhv_authbasic_003_{{/commonBhvOnce}}a_missing_credential_names_its_variable() {
         with_variables(&unset_all(), || {
             let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
             assert!(text.contains("{{firstEnvName}}"), "{}", text);
@@ -119,7 +119,7 @@ mod {{module}} {
     }
 
     #[test]
-    fn test_bhv_authbasic_003_an_empty_variable_counts_as_unset() {
+    fn test_{{#commonBhvOnce}}bhv_authbasic_003_{{/commonBhvOnce}}an_empty_variable_counts_as_unset() {
         with_variables(&empty_all(), || {
             let text = invalid_argument_text({{className}}::new({{{bareArgs}}}));
             assert!(text.contains("{{firstEnvName}}"), "{}", text);
