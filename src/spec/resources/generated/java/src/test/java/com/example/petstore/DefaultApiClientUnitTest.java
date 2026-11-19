@@ -4109,6 +4109,33 @@ class DefaultApiClientUnitTest {
         ex.getCause() instanceof java.io.FileNotFoundException, String.valueOf(ex.getCause()));
   }
 
+  @Test
+  void bhvMisc203SecondCloseRaisesNoError() {
+    DefaultApiClient apiClient = new DefaultApiClient();
+    apiClient.close();
+    org.junit.jupiter.api.Assertions.assertDoesNotThrow(apiClient::close);
+  }
+
+  @Test
+  void bhvTransport091CallerSuppliedUploadStreamIsLeftOpenAfterTheSend() throws Exception {
+    class TrackingStream extends java.io.ByteArrayInputStream {
+      boolean closed;
+
+      TrackingStream() {
+        super("data".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      }
+
+      @Override
+      public void close() throws java.io.IOException {
+        closed = true;
+        super.close();
+      }
+    }
+    TrackingStream stream = new TrackingStream();
+    renderMultipartBody(Map.of("upload", stream));
+    org.junit.jupiter.api.Assertions.assertFalse(stream.closed);
+  }
+
   private static String renderMultipartBody(Map<?, ?> fields) throws Exception {
     DefaultApiClient client = new DefaultApiClient();
     java.lang.reflect.Method method =

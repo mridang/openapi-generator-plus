@@ -420,3 +420,44 @@ test('bhv config 026 a configuration built through the builder entry point retur
 
     expect($config->baseUrl)->toBe('https://api.example.test');
 });
+
+test('bhv misc 276 the default configuration and the default builder both use the spec base url', function (): void {
+    expect((new Configuration())->baseUrl)->toBe('/api/v3');
+    expect(Configuration::builder()->build()->baseUrl)->toBe('/api/v3');
+});
+
+test('bhv misc 277 each call to the default configuration returns a distinct configuration object', function (): void {
+    expect(new Configuration())->not->toBe(new Configuration());
+});
+
+test('bhv misc 278 a server url with templated variables resolves to its default values when no overrides are given', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com/api/{version}',
+        description: 'Test server',
+        variables: [
+            'env' => new ServerVariable(
+                defaultValue: 'api',
+                enumValues: ['api', 'staging'],
+            ),
+            'version' => new ServerVariable(
+                defaultValue: 'v3',
+                enumValues: ['v2', 'v3'],
+            ),
+        ],
+    );
+
+    $config = Configuration::builder()
+        ->server($server)
+        ->build();
+
+    expect($config->baseUrl)->toBe('https://api.example.com/api/v3');
+});
+
+test('bhv misc 279 changing the headers returned from a configuration does not change the headers it holds', function (): void {
+    $config = Configuration::builder()->defaultHeader('X-Custom', 'value')->build();
+
+    $headers = $config->defaultHeaders;
+    $headers['X-Custom'] = 'changed';
+
+    expect($config->defaultHeaders)->toBe(['X-Custom' => 'value']);
+});
