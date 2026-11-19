@@ -867,7 +867,7 @@ public abstract class BaseApi
             case "path":
                 return ValueSerializer.EncodePathSegment(json);
             case "cookie":
-                return Uri.EscapeDataString(json);
+                return Uri.EscapeDataString(json).Replace(".", "%2E", StringComparison.Ordinal);
             default:
                 if (
                     json.Contains('\r', StringComparison.Ordinal)
