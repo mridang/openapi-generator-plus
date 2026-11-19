@@ -776,6 +776,13 @@ import Testing
     #expect(decoded?.trackingId == id)
   }
 
+  /* A malformed id is refused: a typed identifier cannot be built from one, so the refusal is at decode. */
+  @Test func testBhvOperations111AMalformedTrackingIdIsRefusedBeforeItCanBeUsed() {
+    #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"trackingId\":\"12345\"}", as: Order.self)
+    }
+  }
+
   @Test func testBhvSerializationobject048OrderTrackingIdRejectsAMalformedUuid() {
     #expect(throws: SerializationError.self) {
       _ = try ObjectSerializer.deserialize("{\"trackingId\":\"not-a-uuid\"}", as: Order.self)

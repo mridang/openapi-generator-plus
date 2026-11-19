@@ -94,6 +94,13 @@ import FoundationNetworking
         #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
     }
 
+    /* Transport options are only built through the builder, which rejects a proxy that is not http or https. */
+    @Test func testBhvOptions046TransportOptionsWithANonHttpProxySchemeCannotBeBuilt() {
+        #expect(throws: ConfigurationError.self) {
+            try TransportOptionsBuilder().proxy("socks5://proxy.example.com:1080").build()
+        }
+    }
+
     @Test func testBhvOptions058SessionDefaultsToNil() throws {
         #expect(try TransportOptionsBuilder().build().session == nil)
     }

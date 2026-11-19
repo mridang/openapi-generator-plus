@@ -388,6 +388,14 @@ import Testing
     }
 
     /// An anyOf wrapper built from no variants is refused, because reading it would trap.
+    /// A union holds only a declared variant: one built from none is nil, and a value that fits no variant fails to decode.
+    @Test func testBhvMisc047AUnionWithNoDeclaredVariantCannotBeBuiltOrDecoded() {
+        #expect(PetTreatment([]) == nil)
+        #expect(throws: (any Error).self) {
+            _ = try ObjectSerializer.deserialize("\"just a string\"", as: PetTreatment.self)
+        }
+    }
+
     @Test func testBhvUnions042PetTreatmentFromNoVariantsIsNil() {
         #expect(PetTreatment([]) == nil)
     }

@@ -160,6 +160,22 @@ import Testing
     #expect(result.asReservationReceipt?.receiptCode == "C1")
   }
 
+  /* Per-call options are values: changing a copy of a field leaves the built options as they were. */
+  @Test func testBhvOptions063ChangingACopyOfABuiltOptionsFieldLeavesTheOptionsUnchanged() {
+    let options = GetInventoryOptions(headers: ["X-Per-Call": "1"])
+    var copy = options.headers
+    copy?["X-Per-Call"] = "2"
+    #expect(options.headers == ["X-Per-Call": "1"])
+  }
+
+  /* The generated server list is a constant: changing a copy of it leaves it as it was. */
+  @Test func testBhvServers028ChangingACopyOfTheServerListLeavesTheListUnchanged() {
+    let before = Servers.all.count
+    var copy = Servers.all
+    copy.removeAll()
+    #expect(Servers.all.count == before)
+  }
+
   /* A success response is decoded by the decoder for the status code actually received. */
   @Test func testBhvMisc114ASuccessResponseIsDecodedByTheDecoderForTheStatusActuallyReceived()
     async throws

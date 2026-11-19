@@ -43,7 +43,6 @@ python | serializationobject015 | Python has no set order to keep: a uniqueItems
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
 swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
 swift | serializationobject015 | Swift Set members have no insertion order (S6, unspecified uniqueItems order) and Pet.photoUrls is a Set, so the schema promises no order
-swift | operations111 | the typed trackingId is a Foundation UUID, so a malformed value cannot be passed to getOrderByTrackingId; a malformed wire value is refused by the decoder (bhv serializationobject048)
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
 swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert
@@ -118,7 +117,6 @@ rust | options045 | max_redirects takes an Option<usize>, so a negative count ca
 rust | retries032 | RequestBody has only Bytes and Multipart variants and no stream body, so a streamed upload is not a request type here; the one body never sent twice is multipart, pinned by bhv retries 003
 swift | authbearer026 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it
 swift | lifecycle030 | the scheme initializer takes the base URL as its required host argument (init(host:...)), so no scheme credential ever supplies the base URL and the second half of the promise cannot exist; the authenticator-first half is the init(authenticator:) path
-swift | options046 | TransportOptions has a fileprivate initializer, so a caller can only obtain one from TransportOptionsBuilder.build(), which rejects a non-http proxy (options051); direct construction is not expressible
 csharp | transport065 | The pinned CA is applied inside a private ServerCertificateCustomValidationCallback that no public member exposes, and the offline Chasm host has no certificate chained to a system root, so the replace-not-add rule cannot be observed through the SDK public API
 dart | servers020 | the per-operation server variables are enum-typed constructor arguments (GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerVersion), so a value outside the enum does not compile and never reaches the URL template
 dart | transport060 | Dart has no cancellation handle: a Future cannot be cancelled and the SDK exposes no cancel token or abort trigger (the readme documents this), so a call is bounded only by its timeout, covered by bhv transport 024
@@ -217,8 +215,6 @@ rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generate
 rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
 rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
 rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists
-swift | options063 | Swift per-call options are structs whose fields are declared with let, so changing a built one is a compile-time error that no runtime test can observe
-swift | servers028 | Swift generated server lists are let constants, so changing one after creation is a compile-time error that no runtime test can observe
 swift | serialization011 | Swift writes model keys sorted through JSONEncoder with sortedKeys, a forced divergence recorded as D85, so model keys are not in declaration order
 swift | serialization041 | Swift maps format time to String with no time-of-day type in Foundation, so the wire string is the value and is never parsed into a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
@@ -392,7 +388,6 @@ ruby | misc074 | the petstore declares no security requirement that names two sc
 kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made
 swift | misc030 | the SDK takes only a relative timeout per call and has no absolute deadline argument, so a deadline cannot already have passed when a call starts
 swift | misc033 | libcurl on Linux takes its CA bundle from fixed system paths and swift-corelibs-foundation reads URLSessionCertificateAuthorityInfoFile only on Android and raises no server-trust challenge, so a CA file or disabled verification cannot be applied there and the SDK refuses both at construction (D72); no CA can be pinned or trusted in the Linux suite
-swift | misc047 | a union wrapper holds only a declared variant and is built only from one, so a value that is not a variant cannot be constructed; an empty union is nil (testBhvUnions042), so the compile-time guarantee covers both cases
 csharp | misc007 | the generated code checks no path parameter for nil, and the options null check runs first, so the error names options and never the path parameter
 csharp | misc010 | the options argument is a required C# method parameter, so a call that omits it is a compile-time error and never reaches the runtime
 csharp | misc011 | an operation with no parameters gets no options class in C#, so its call takes no argument and has no per-call timeout, header or retry settings to default
