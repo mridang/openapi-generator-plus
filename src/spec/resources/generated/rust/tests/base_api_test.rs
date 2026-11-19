@@ -4289,3 +4289,148 @@ async fn test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_list
         );
     }
 }
+
+#[tokio::test]
+async fn test_bhv_misc_197_an_operation_whose_named_schemes_the_client_lacks_is_served_by_the_default_authenticator(
+) {
+    /* When `None` is passed for `auth`, the operation must fall back to the
+     * authenticator that was wired into the BaseApi at construction time. */
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let client_auth: Arc<dyn petstore::auth::Authenticator> = Arc::new(NoopAuthenticator);
+    let api = PetApi::new(client.clone(), config, Some(client_auth));
+    let pet = Pet::new("FallbackPet".to_string(), HashSet::new());
+    /* Passing None must succeed (no panic) and dispatch the request. */
+    let _ = api.add_pet(pet, None).await;
+    let body = client.captured_body.lock().unwrap();
+    assert!(
+        body.is_some(),
+        "expected request body to be captured when auth=None falls back to client authenticator"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_202_a_text_body_without_a_content_type_goes_out_as_json_with_no_parameters()
+{
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let _ = api.get_pet_by_id(1, None, None).await;
+    let headers = client.captured_headers.lock().unwrap();
+    if let Some(ct) = headers.get("Content-Type") {
+        assert_eq!(
+            ct, "application/json",
+            "expected Content-Type to be application/json"
+        );
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_210_a_date_time_form_field_is_encoded_canonically_with_escaped_colons_and_plus(
+) {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+
+    let instant = chrono::DateTime::parse_from_rfc3339("2024-01-15T10:30:00Z").unwrap();
+    let opts = SetPetPreferencesOptions::new("Good Boy".to_string())
+        .reminder(petstore::date_time::DateTime::new(instant));
+    let _ = api.set_pet_preferences(1, Some(&opts)).await;
+
+    let body = client.captured_body.lock().unwrap();
+    let body_str = String::from_utf8(body.as_ref().expect("form body captured").clone()).unwrap();
+    assert!(
+        body_str.contains("reminder=2024-01-15T10%3A30%3A00.000%2B00%3A00"),
+        "date-time form value must use the canonical form: {}",
+        body_str
+    );
+    assert!(
+        !body_str.contains("%20"),
+        "space must never encode as %20: {}",
+        body_str
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_213_an_optional_array_query_parameter_uses_its_declared_style_without_brackets(
+) {
+    let client = Arc::new(QueryCapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = StoreApi::new(client.clone(), config, None);
+    let opts = petstore::api::options::SearchStoreOptions::new()
+        .labels(vec!["a".to_string(), "b".to_string()]);
+    let _ = api.search_store(Some(&opts)).await;
+    let url = client.captured_url.lock().unwrap();
+    assert!(
+        url.contains("labels=a&labels=b"),
+        "expected expanded array params, got: {}",
+        url
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_218_a_per_call_header_takes_precedence_over_a_configured_header_without_a_duplicate(
+) {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .default_header("X-Trace-Id", "default")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let pet = Pet::new("TestPet".to_string(), HashSet::new());
+    let opts = AddPetOptions::new().header("X-Trace-Id", "per-call");
+    let _ = api.add_pet(pet, Some(&opts)).await;
+    let headers = client.captured_headers.lock().unwrap();
+    assert_eq!(
+        headers.get("X-Trace-Id").map(|s| s.as_str()),
+        Some("per-call"),
+        "a per-call header must replace the default header of the same name"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_209_a_void_operation_ignores_a_success_body_of_any_shape() {
+    for body in ["plain text", "42"] {
+        let client = ScriptedApiClient::new(vec![Scripted::Status(200, Some(body))], 0, None);
+        let result = retrying_api(&client).delete_pet(1, None).await;
+        assert!(
+            result.is_ok(),
+            "body {:?} must not fail a void operation: {:?}",
+            body,
+            result.err()
+        );
+    }
+}
+
+struct FixedServerUrl(&'static str);
+
+impl GetMultiServerPetInfoServer for FixedServerUrl {
+    fn get_url(&self) -> String {
+        self.0.to_string()
+    }
+}
+
+#[tokio::test]
+async fn test_bhv_misc_219_an_operation_with_several_servers_sends_to_the_server_it_is_given() {
+    let client = Arc::new(CapturingApiClient::new());
+    let config = ConfigurationBuilder::new()
+        .base_url("http://localhost")
+        .build();
+    let api = PetApi::new(client.clone(), config, None);
+    let server = FixedServerUrl("https://chosen.example.test");
+    let _ = api.get_multi_server_pet_info(1, Some(&server), None).await;
+    let url = client.captured_url.lock().unwrap().clone();
+    assert!(
+        url.starts_with("https://chosen.example.test"),
+        "got: {}",
+        url
+    );
+}

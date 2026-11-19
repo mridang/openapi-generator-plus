@@ -666,3 +666,20 @@ async fn test_bhv_misc_063_scheme_wrapper_posts_the_token_request_to_the_declare
         Some("https://auth.example.com/oauth/token")
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_198_a_new_grant_without_expires_in_clears_the_expiry_of_the_previous_token()
+{
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"short","expires_in":0}"#, 200);
+    client.enqueue(r#"{"access_token":"open-ended"}"#, 200);
+
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    auth.try_auth_headers().await.expect("should succeed");
+    auth.try_auth_headers().await.expect("should succeed");
+    let third = auth.try_auth_headers().await.expect("should succeed");
+
+    assert_eq!("Bearer open-ended", third.get("Authorization").unwrap());
+}

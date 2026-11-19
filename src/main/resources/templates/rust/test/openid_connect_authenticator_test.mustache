@@ -1051,3 +1051,78 @@ async fn test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_n
     );
     assert!(!pairs.iter().any(|p| p.starts_with("nonce=")), "{}", url);
 }
+
+/// Once the cached discovery document's max-age has elapsed, later calls use the endpoints of the new document.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_199_oidc_discovery_runs_again_when_the_cache_expires_and_uses_the_new_endpoints() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue_cached(DISCOVERY, "max-age=1");
+    client.enqueue_cached(REDISCOVERY, "max-age=3600");
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let first = auth.build_authorization_url("").await.expect("should succeed");
+    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let second = auth.build_authorization_url("").await.expect("should succeed");
+
+    assert!(first.starts_with("https://auth.example.com/authorize?"), "{}", first);
+    assert!(second.starts_with("https://auth.example.com/authorize-v2?"), "{}", second);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_200_a_discovery_document_whose_issuer_names_another_server_is_rejected() {
+    for (issuer, accepted) in [
+        (Some("https://auth.example.com"), true),
+        (Some("https://auth.example.com/"), true),
+        (None, true),
+        (Some("https://evil.example.com"), false),
+    ] {
+        let client = Arc::new(FakeApiClient::new());
+        let mut document = serde_json::json!({
+            "authorization_endpoint": "https://auth.example.com/authorize",
+            "token_endpoint": "https://auth.example.com/token"
+        });
+        if let Some(issuer) = issuer {
+            document["issuer"] = serde_json::json!(issuer);
+        }
+        client.enqueue(&document.to_string(), 200);
+        let mut auth = create_authenticator();
+        auth.set_api_client(client);
+
+        let result = auth.build_authorization_url("").await;
+
+        let outcome = result.as_ref().err().map(|e| e.to_string());
+        assert_eq!(accepted, result.is_ok(), "issuer {:?}: {:?}", issuer, outcome);
+        if !accepted {
+            let err = result.unwrap_err();
+            let serialization = err
+                .downcast_ref::<SerializationError>()
+                .expect("a SerializationError");
+            assert_eq!(
+                "OIDC discovery issuer 'https://evil.example.com' does not match 'https://auth.example.com'",
+                serialization.message()
+            );
+        }
+    }
+}
+
+/// A failed discovery request names its method and URL in the error.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_201_a_failed_oidc_discovery_request_reports_its_path_without_the_query_string() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue("<html><body>Internal Server Error</body></html>", 500);
+    let mut auth = create_authenticator();
+    auth.set_api_client(client.clone());
+
+    let err = auth
+        .build_authorization_url("")
+        .await
+        .expect_err("a 500 discovery response must produce an error");
+    let internal = err
+        .downcast_ref::<InternalServerError>()
+        .unwrap_or_else(|| panic!("expected InternalServerError, got: {}", err));
+    assert_eq!(
+        "API returned status code 500 for GET https://auth.example.com/.well-known/openid-configuration",
+        internal.server_error().api_error().message()
+    );
+}
