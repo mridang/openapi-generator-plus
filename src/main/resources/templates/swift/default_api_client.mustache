@@ -357,7 +357,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
                 response = received
                 delay = DefaultApiClient.retryDelay(
                     attempt: attempt, retryAfter: received.headers["retry-after"])
-            } catch let error where DefaultApiClient.isRetryableError(error) {
+            } catch let error where DefaultApiClient.isRetryableError(error, method: method) {
                 if attempt >= maxRetries { throw error }
                 failure = error
                 delay = DefaultApiClient.retryDelay(attempt: attempt, retryAfter: nil)
@@ -387,10 +387,32 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         return status == 408 || status == 409 || status == 429 || (status >= 500 && status <= 599 && status != 501)
     }
 
+    /// Methods that may be sent again after the connection drops before any
+    /// response (RFC 9110 section 9.2.2, and QUERY, which is idempotent).
+    static let idempotentMethods: Set<String> = ["GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY"]
+
+    /// Transport failures that come from the TLS handshake or the certificate
+    /// chain. They would fail the same way again, so they are never retried.
+    static let tlsFailureCodes: Set<URLError.Code> = [
+        .secureConnectionFailed, .serverCertificateHasBadDate, .serverCertificateUntrusted,
+        .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid,
+        .clientCertificateRejected, .clientCertificateRequired,
+    ]
+
     /// A network error that happened before any response. A timeout is the
-    /// end-to-end budget running out, so it is not retried.
-    static func isRetryableError(_ error: Error) -> Bool {
-        return error is NetworkError && !(error is NetworkTimeoutError)
+    /// end-to-end budget running out, so it is not retried. A TLS or certificate
+    /// failure is not retried. A request whose method is not idempotent is sent
+    /// once, because the server may already have acted on it.
+    static func isRetryableError(_ error: Error, method: String) -> Bool {
+        guard error is NetworkError, !(error is NetworkTimeoutError) else {
+            return false
+        }
+        if let urlError = (error as? ApiError)?.underlyingError as? URLError,
+            tlsFailureCodes.contains(urlError.code)
+        {
+            return false
+        }
+        return idempotentMethods.contains(method.uppercased())
     }
 
     /// Seconds to wait before retry number `attempt + 1`: the `Retry-After`

@@ -420,6 +420,24 @@ class DefaultApiClientUnitTest {
             assertTrue(wire.contains("Content-Type: application/json"), wire)
             assertTrue(wire.contains("\"2fa\":true"), wire)
         }
+
+        @Test
+        @DisplayName("bhvSerialization123 a multipart field name with a quote character is refused before any request is sent")
+        fun bhvSerialization123FieldNameWithQuoteIsRefused() {
+            var sent = false
+            val apiClient = DefaultApiClient(mockClient(requestCapture = { sent = true }))
+            assertThrows(IllegalArgumentException::class.java) {
+                runBlocking {
+                    apiClient.sendRequest(
+                        "POST",
+                        "http://localhost/upload",
+                        mapOf("Content-Type" to "multipart/form-data"),
+                        mapOf("fi\"le" to "x"),
+                    )
+                }
+            }
+            assertFalse(sent)
+        }
     }
 
     @Nested
@@ -525,6 +543,14 @@ class DefaultApiClientUnitTest {
             // ASCII filename does not throw
             validateMultipartFilename("file.png")
         }
+
+        @Test
+        @DisplayName("bhvSerialization124 a non-ASCII filename gets an ASCII fallback and an RFC 5987 filename* form")
+        fun bhvSerialization124NonAsciiFilenameGetsFallbackAndRfc5987() {
+            val directive = buildFilenameDirective("日本.pdf")
+            assertTrue(directive.contains("filename*=UTF-8''%E6%97%A5%E6%9C%AC"), directive)
+            assertTrue(directive.startsWith("filename=\""), directive)
+        }
     }
 
     @Nested
@@ -569,6 +595,13 @@ class DefaultApiClientUnitTest {
             // extension sniffs the per-part Content-Type from that extension,
             // falling back to octet-stream. `avatar.png` => image/png.
             assertEquals("image/png", contentTypeForFilename("avatar.png").toString())
+        }
+
+        @Test
+        @DisplayName("bhvSerialization120 a file part takes its Content-Type from the extension and falls back to octet-stream")
+        fun bhvSerialization120FilePartTypeFollowsTheExtension() {
+            assertEquals("image/png", contentTypeForFilename("avatar.png").toString())
+            assertEquals("application/octet-stream", contentTypeForFilename("blob").toString())
         }
     }
 
@@ -731,6 +764,25 @@ class DefaultApiClientUnitTest {
             val meta = part("meta")
             assertTrue(meta.contains("Content-Type: application/json"), meta)
             assertTrue(meta.endsWith("\r\n\r\n{\"k\":\"v\"}"), meta)
+        }
+
+        @Test
+        @DisplayName("bhvSerialization126 a non-ASCII multipart field name is preserved as UTF-8 in the part header")
+        fun bhvSerialization126NonAsciiFieldNameIsUtf8InThePartHeader() {
+            var bodyBytes: ByteArray? = null
+            val client =
+                mockClient(requestCapture = { request ->
+                    bodyBytes = runBlocking { request.body.toByteArray() }
+                })
+            runBlocking {
+                DefaultApiClient(client).sendRequest(
+                    "POST",
+                    "http://localhost/upload",
+                    mapOf("Content-Type" to "multipart/form-data"),
+                    mapOf("café" to "value"),
+                )
+            }
+            assertTrue(String(bodyBytes!!, Charsets.UTF_8).contains("name=\"café\""))
         }
     }
 
@@ -4617,4 +4669,116 @@ class DefaultApiClientUnitTest {
             assertEquals(401, response.statusCode)
             assertEquals(1, sent)
         }
+
+    @Test
+    fun bhvSerialization119AResponseIsDecodedWithItsLabelOrFallsBackToUtf8() =
+        runBlocking<Unit> {
+            val engine =
+                MockEngine { _ ->
+                    respond(
+                        content = byteArrayOf(0xC3.toByte(), 0xA9.toByte()),
+                        status = HttpStatusCode.OK,
+                        headers = headersOf("Content-Type", "text/plain; charset=no-such-charset"),
+                    )
+                }
+            val response =
+                DefaultApiClient(HttpClient(engine) { followRedirects = false })
+                    .sendRequest("GET", "http://localhost/unknown", emptyMap(), null)
+            assertEquals("é", response.body)
+        }
+
+    @Test
+    fun bhvSerialization122AFormBodyRepeatsTheKeyForEachArrayElementInOrder() =
+        runBlocking<Unit> {
+            var wire: String? = null
+            val client = mockClient(requestCapture = { request -> wire = runBlocking { request.body.toByteArray().decodeToString() } })
+            DefaultApiClient(client).sendRequest(
+                "POST",
+                "http://localhost/form",
+                mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+                mapOf("tags" to listOf("a", "b")),
+            )
+            assertEquals("tags=a&tags=b", wire)
+        }
+
+    @Test
+    @DisplayName("bhvMisc182 removing a header matches its name without regard to letter case so every spelling is removed")
+    fun bhvMisc182RemovingAHeaderMatchesEverySpellingOfItsName() =
+        runBlocking<Unit> {
+            listOf("Authorization", "authorization", "AUTHORIZATION").forEach { spelling ->
+                val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+                val engine =
+                    MockEngine { request ->
+                        seen.add(request)
+                        if (request.url.host == "origin.example.com") {
+                            respond(
+                                "",
+                                HttpStatusCode.TemporaryRedirect,
+                                headersOf(io.ktor.http.HttpHeaders.Location, "https://target.example.net/"),
+                            )
+                        } else {
+                            respond("", HttpStatusCode.OK)
+                        }
+                    }
+                val options =
+                    TransportOptions
+                        .builder()
+                        .followRedirects(true)
+                        .defaultHeader(spelling, "Bearer secret")
+                        .build()
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }, options)
+                    .sendRequest("GET", "http://origin.example.com/", emptyMap(), null)
+                assertEquals(2, seen.size)
+                assertNull(seen[1].headers[io.ktor.http.HttpHeaders.Authorization], "the $spelling header must not follow the redirect")
+            }
+        }
+
+    @Test
+    @DisplayName("bhvMisc183 closing a client whose credentials hold nothing that needs releasing succeeds")
+    fun bhvMisc183ClosingAClientWithNothingToReleaseSucceeds() {
+        val apiClient = DefaultApiClient(HttpClient(MockEngine { respond("", HttpStatusCode.OK) }) { followRedirects = false })
+        org.junit.jupiter.api.Assertions
+            .assertDoesNotThrow { apiClient.close() }
+    }
+
+    @Test
+    @DisplayName("bhvMisc184 closing a client returns without waiting for a request still running and does not cancel it")
+    fun bhvMisc184CloseDoesNotWaitForOrCancelAnInFlightRequest() =
+        runBlocking<Unit> {
+            val served = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val release = kotlinx.coroutines.CompletableDeferred<Unit>()
+            val engine =
+                MockEngine { _ ->
+                    served.complete(Unit)
+                    release.await()
+                    respond("ok", HttpStatusCode.OK)
+                }
+            val apiClient = DefaultApiClient(HttpClient(engine) { followRedirects = false })
+            val pending = async { apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null) }
+            served.await()
+            apiClient.close()
+            release.complete(Unit)
+            assertEquals(200, pending.await().statusCode)
+        }
+
+    @Test
+    @DisplayName("bhvMisc188 a client rejects requests only after close has been called on it")
+    fun bhvMisc188ClientRejectsRequestsOnlyAfterClose() =
+        runBlocking<Unit> {
+            val apiClient = DefaultApiClient(HttpClient(MockEngine { respond("ok", HttpStatusCode.OK) }) { followRedirects = false })
+            assertEquals(200, apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null).statusCode)
+            apiClient.close()
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { apiClient.sendRequest("GET", "http://localhost/echo", emptyMap(), null) }
+            }
+        }
+
+    @Test
+    @DisplayName("bhvMisc203 closing a client that is already closed does nothing and raises no error")
+    fun bhvMisc203SecondCloseRaisesNoError() {
+        val apiClient = DefaultApiClient(HttpClient(MockEngine { respond("", HttpStatusCode.OK) }) { followRedirects = false })
+        apiClient.close()
+        org.junit.jupiter.api.Assertions
+            .assertDoesNotThrow { apiClient.close() }
+    }
 }

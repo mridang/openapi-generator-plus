@@ -3720,6 +3720,150 @@ class ObjectSerializerTest {
             serializer.deserialize<java.time.Duration>("\"315576000001s\"")
         }
     }
+
+
+    @Test
+    fun bhvSerialization084FractionalSecondsOfADurationParseToTheExactNanos() = runBlocking<Unit> {
+        assertEquals(java.time.Duration.ofMillis(1500), serializer.deserialize<java.time.Duration>("\"1.5s\""))
+        assertEquals(java.time.Duration.ofNanos(1), serializer.deserialize<java.time.Duration>("\"0.000000001s\""))
+    }
+
+    @Test
+    fun bhvSerialization085ADateTimeFieldDecodesFromItsIso8601String() = runBlocking<Unit> {
+        val value = serializer.deserialize<java.time.OffsetDateTime>("\"2024-01-02T03:04:05Z\"")
+        assertEquals(java.time.OffsetDateTime.parse("2024-01-02T03:04:05Z"), value)
+    }
+
+    @Test
+    fun bhvSerialization086DurationIsWrittenAsAProtobufSecondsStringWithDaysFolded() = runBlocking<Unit> {
+        assertEquals("259200.500s", serializer.stringify(java.time.Duration.ofDays(3).plusMillis(500)))
+        assertEquals("0s", serializer.stringify(java.time.Duration.ZERO))
+    }
+
+    @Test
+    fun bhvSerialization087VerySmallDurationIsFixedPointNeverScientific() = runBlocking<Unit> {
+        assertEquals("0.000000001s", serializer.stringify(java.time.Duration.ofNanos(1)))
+    }
+
+    @Test
+    fun bhvSerialization089ABase64StringDecodesIntoAByteValue() = runBlocking<Unit> {
+        assertTrue(serializer.deserialize<ByteArray>("\"AQID\"")!!.contentEquals(byteArrayOf(1, 2, 3)))
+    }
+
+    @Test
+    fun bhvSerialization090MalformedBase64IsRejected() = runBlocking<Unit> {
+        assertThrows(SerializationException::class.java) {
+            serializer.deserialize<ByteArray>("\"AQI\"")
+        }
+    }
+
+    @Test
+    fun bhvSerialization091BytesWithTheHighBitSetRoundTrip() = runBlocking<Unit> {
+        val bytes = byteArrayOf(-1, -128, 127)
+        val back = serializer.deserialize<ByteArray>(serializer.serialize(bytes))
+        assertTrue(back!!.contentEquals(bytes))
+    }
+
+    @Test
+    fun bhvSerialization092TimeOfDayRoundTripsThroughItsString() = runBlocking<Unit> {
+        val time = java.time.LocalTime.of(9, 5)
+        assertEquals(time, serializer.deserialize<java.time.LocalTime>(serializer.serialize(time)))
+    }
+
+    @Test
+    fun bhvSerialization093DateTimeIsWrittenWithANumericOffsetNeverZ() = runBlocking<Unit> {
+        val text = serializer.stringify(java.time.OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 600000000, java.time.ZoneOffset.UTC))
+        assertTrue(text.endsWith("+00:00"), text)
+        assertTrue(text.contains(".6"), text)
+    }
+
+    @Test
+    fun bhvSerialization094StringsAreWrittenVerbatimWithoutEscaping() = runBlocking<Unit> {
+        val meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"html\":\"<a&b>/c\"}")
+        assertTrue(serializer.serialize(meta).contains("\"html\":\"<a&b>/c\""))
+    }
+
+    @Test
+    fun bhvSerialization095AnExplicitNullReplacesTheSchemaDefaultOnDecode() = runBlocking<Unit> {
+        val order = serializer.deserialize<{{modelPackage}}.Order>("{\"status\":null}")
+        assertNull(order!!.status)
+    }
+
+    @Test
+    fun bhvSerialization096AnAbsentFieldDecodesToItsSchemaDefault() = runBlocking<Unit> {
+        val order = serializer.deserialize<{{modelPackage}}.Order>("{}")
+        assertEquals({{modelPackage}}.Order.StatusEnum.PLACED, order!!.status)
+    }
+
+    @Test
+    fun bhvSerialization097AnEnumWithASchemaDefaultIsWrittenWithIt() = runBlocking<Unit> {
+        assertTrue(serializer.serialize({{modelPackage}}.Order()).contains("\"status\":\"placed\""))
+    }
+
+    @Test
+    fun bhvSerialization099AStrictModelRejectsAnUndeclaredKey() = runBlocking<Unit> {
+        assertThrows(SerializationException::class.java) {
+            serializer.deserialize<{{modelPackage}}.StrictTag>("{\"id\":1,\"name\":\"x\",\"unexpected\":true}")
+        }
+    }
+
+    @Test
+    fun bhvSerialization101AnIntegerBackedEnumIsWrittenAsANumber() = runBlocking<Unit> {
+        val item = {{modelPackage}}.StockItem(priority = {{modelPackage}}.Priority.NUMBER_1)
+        assertTrue(serializer.serialize(item).contains("\"priority\":1"))
+        assertEquals({{modelPackage}}.Priority.NUMBER_1, serializer.deserialize<{{modelPackage}}.StockItem>("{\"priority\":1}")!!.priority)
+    }
+
+    @Test
+    fun bhvSerialization102ADateTimeKeepsANonUtcOffsetOnTheWire() = runBlocking<Unit> {
+        val value = serializer.deserialize<java.time.OffsetDateTime>("\"2024-01-02T03:04:05+02:00\"")
+        assertEquals(java.time.ZoneOffset.ofHours(2), value!!.offset)
+        assertTrue(serializer.stringify(value).endsWith("+02:00"))
+    }
+
+    @Test
+    fun bhvSerialization104AUuidIsWrittenLowercaseAndReadBackLowercase() = runBlocking<Unit> {
+        val upper = serializer.deserialize<java.util.UUID>("\"ABCDEF01-2345-6789-ABCD-EF0123456789\"")
+        assertEquals("abcdef01-2345-6789-abcd-ef0123456789", upper.toString())
+        assertEquals("\"abcdef01-2345-6789-abcd-ef0123456789\"", serializer.stringify(upper))
+    }
+
+    @Test
+    fun bhvSerialization105AnEnumValueOutsideTheMembersRaisesAnError() = runBlocking<Unit> {
+        assertThrows(SerializationException::class.java) {
+            serializer.deserialize<{{modelPackage}}.Order>("{\"status\":\"DELIVERED\"}")
+        }
+    }
+
+
+    @Test
+    fun bhvSerialization112APasswordPropertyIsMaskedInTextButNotOnTheWire() = runBlocking<Unit> {
+        val user = {{modelPackage}}.User(password = "hunter2")
+        assertFalse(user.toString().contains("hunter2"), user.toString())
+        assertTrue(serializer.serialize(user).contains("hunter2"))
+    }
+
+    @Test
+    fun bhvSerialization114NumericValuesKeepEveryDigit() = runBlocking<Unit> {
+        assertEquals("1.2345678901234567890", serializer.serialize(java.math.BigDecimal("1.2345678901234567890")).trim('"'))
+        assertEquals("9223372036854775807", serializer.serialize(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun bhvSerialization115AnIntegralNumberDecodedIntoAFloatBecomesAFloat() = runBlocking<Unit> {
+        assertEquals(3.0, serializer.deserialize<Double>("3"))
+    }
+
+    @Test
+    fun bhvSerialization116AKeywordNamedKeyKeepsItsExactWireKey() = runBlocking<Unit> {
+        val meta = serializer.deserialize<{{modelPackage}}.Metadata>("{\"class\":\"x\"}")
+        assertTrue(serializer.serialize(meta).contains("\"class\":\"x\""))
+    }
+
+    @Test
+    fun bhvSerialization117AProtobufDurationStringDecodesToADuration() = runBlocking<Unit> {
+        assertEquals(java.time.Duration.ofMillis(2500), serializer.deserialize<java.time.Duration>("\"2.5s\""))
+    }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.

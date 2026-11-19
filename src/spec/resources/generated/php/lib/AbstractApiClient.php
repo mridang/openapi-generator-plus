@@ -330,7 +330,9 @@ abstract class AbstractApiClient implements ApiClient
                     $nextScheme = strtolower((string) $scheme);
                     $isDowngrade = $prevScheme === 'https' && $nextScheme === 'http';
                     $hasBody = $currentBody !== null;
-                    if ($isDowngrade && $hasBody && !$dropBody) {
+                    /* misc124: a 301 or 302 downgrade is refused with a body too,
+                     * even though the follow-up would drop it. 303 is still followed. */
+                    if ($isDowngrade && $hasBody && (!$dropBody || $statusCode === 301 || $statusCode === 302)) {
                         /* Gap 3.3 / T-D2: raise instead of silently returning
                          * the 3xx so the caller sees the refused downgrade,
                          * matching the SDKs that throw on a refused replay. */
@@ -540,6 +542,12 @@ abstract class AbstractApiClient implements ApiClient
                  * so the timeout is raised on the first attempt. */
                 throw $e;
             } catch (NetworkException $e) {
+                /* misc161: a dropped connection is retried only for idempotent
+                 * methods, since the request may already have reached the server.
+                 * misc170: a TLS or certificate failure is never retried. */
+                if (!$this->isIdempotentMethod($method) || $this->isTlsFailure($e)) {
+                    throw $e;
+                }
                 $response = null;
                 $failure = $e;
             } finally {
@@ -595,6 +603,30 @@ abstract class AbstractApiClient implements ApiClient
     {
         return in_array($status, [408, 409, 429], true)
             || ($status >= 500 && $status <= 599 && $status !== 501);
+    }
+
+    /**
+     * Whether a method may be sent again after a dropped connection: the
+     * RFC 9110 idempotent methods plus QUERY. POST and PATCH are not.
+     */
+    private function isIdempotentMethod(string $method): bool
+    {
+        return in_array(strtoupper($method), ['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY'], true);
+    }
+
+    /**
+     * Whether a transport failure is a TLS or certificate failure, found by
+     * walking the exception and its previous chain. The lookaround keeps a
+     * host such as ssl.example.com from matching.
+     */
+    private function isTlsFailure(\Throwable $e): bool
+    {
+        for ($cause = $e; $cause instanceof \Throwable; $cause = $cause->getPrevious()) {
+            if (preg_match('/(?<![.\w-])(ssl|tls)(?![.\w-])|certificate/i', $cause->getMessage()) === 1) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

@@ -1219,6 +1219,90 @@ import Testing
       #expect(userAgent == "caller/2.0")
       #expect(requestID == "caller-id")
     }
+
+    /* A caller-supplied HTTP client's own default headers are sent on the wire with each request. */
+    @Test func testBhvMisc267ACallerSuppliedClientsDefaultHeadersAreSentOnTheWire() async throws {
+      let config = URLSessionConfiguration.ephemeral
+      config.protocolClasses = [StubURLProtocol.self]
+      config.httpAdditionalHeaders = ["X-Client-Default": "from-session"]
+      var seen: String?
+      StubURLProtocol.handler = { req in
+        seen = req.value(forHTTPHeaderField: "X-Client-Default")
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      let transport = try TransportOptionsBuilder()
+        .session(URLSession(configuration: config)).build()
+      let client = try DefaultApiClient(transportOptions: transport)
+      _ = try await client.sendRequest(
+        method: "GET", url: "https://example.com/headers", headers: [:], body: nil)
+      #expect(seen == "from-session")
+    }
+
+    /* The request-id header carries a UUID v4 when enabled and is omitted when disabled. */
+    @Test func testBhvMisc273TheRequestIdIsAVersion4UuidWhenEnabledAndOmittedWhenDisabled()
+      async throws
+    {
+      var enabled: String?
+      var disabled: String?
+      let onTransport = try TransportOptionsBuilder().injectRequestID(true).build()
+      let on = makeClient(transport: onTransport) { req in
+        enabled = req.value(forHTTPHeaderField: "X-Request-ID")
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      _ = try await on.sendRequest(
+        method: "GET", url: "https://example.com/a", headers: [:], body: nil)
+      let value = try #require(enabled)
+      #expect(UUID(uuidString: value) != nil)
+      #expect(value.dropFirst(14).first == "4")
+
+      let offTransport = try TransportOptionsBuilder().injectRequestID(false).build()
+      let off = makeClient(transport: offTransport) { req in
+        disabled = req.value(forHTTPHeaderField: "X-Request-ID")
+        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      _ = try await off.sendRequest(
+        method: "GET", url: "https://example.com/b", headers: [:], body: nil)
+      #expect(disabled == nil)
+    }
+
+    /* A non-2xx response is returned to the caller with its status code intact. */
+    @Test func testBhvMisc274ANon2xxResponseIsReturnedWithItsStatusCodeIntact() async throws {
+      let client = makeClient { _ in
+        (Data("{}".utf8), 418, ["Content-Type": "application/json"])
+      }
+      let response = try await client.sendRequest(
+        method: "GET", url: "https://example.com/teapot", headers: [:], body: nil)
+      #expect(response.statusCode == 418)
+    }
+
+    /* The request is sent with the intended HTTP method and the response is returned to the caller. */
+    @Test func testBhvMisc275TheRequestIsSentWithItsMethodAndItsResponseIsReturned() async throws {
+      var method: String?
+      let client = makeClient { req in
+        method = req.httpMethod
+        return (Data("{\"ok\":true}".utf8), 200, ["Content-Type": "application/json"])
+      }
+      let response = try await client.sendRequest(
+        method: "PUT", url: "https://example.com/items/1",
+        headers: ["Content-Type": "application/json"], body: Data("{}".utf8))
+      #expect(method == "PUT")
+      #expect(response.body.contains("ok"))
+    }
+
+    /* A network failure raised after the connection drops keeps the underlying transport error as its cause. */
+    @Test func testBhvMisc282ANetworkFailureAfterADroppedConnectionKeepsTheTransportError()
+      async throws
+    {
+      RedirectStubURLProtocol.configure { _ in .dropped }
+      let transport = try TransportOptionsBuilder().maxRetries(0).build()
+      let client = try DefaultApiClient(
+        transportOptions: transport, protocolClasses: [RedirectStubURLProtocol.self])
+      let error = await #expect(throws: NetworkError.self) {
+        _ = try await client.sendRequest(
+          method: "GET", url: "https://example.com/dropped", headers: [:], body: nil)
+      }
+      #expect(error?.underlyingError != nil)
+    }
   }
 
   /// A URLProtocol that accepts a request and never answers it, so a test can
@@ -1771,5 +1855,28 @@ import Testing
     } catch {
       Issue.record("expected CancellationError, got \(error)")
     }
+  }
+
+  /* A server presenting a certificate from a trusted CA is still rejected when the hostname does not match. */
+  @Test func testBhvMisc268ATrustedCertificateForAnotherHostnameIsRejected() async throws {
+    var components = try #require(URLComponents(string: chasmHttpsUrl))
+    components.host = "127.0.0.1"
+    let address = try #require(components.string)
+    let client = try DefaultApiClient(
+      transportOptions: TransportOptionsBuilder().verifySsl(true).build())
+    let error = await #expect(throws: NetworkError.self) {
+      _ = try await client.sendRequest(
+        method: "GET", url: address + "/test/echo", headers: [:], body: nil)
+    }
+    #expect(error?.statusCode == 0)
+  }
+
+  /* A self-signed endpoint is reached only when certificate verification is disabled. */
+  @Test func testBhvMisc269ASelfSignedEndpointIsReachedWithVerificationDisabled() async throws {
+    let transport = try TransportOptionsBuilder().verifySsl(false).build()
+    let client = try DefaultApiClient(transportOptions: transport)
+    let response = try await client.sendRequest(
+      method: "GET", url: chasmHttpsUrl + "/test/echo", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
   }
 }
