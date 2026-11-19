@@ -315,8 +315,14 @@ describe('BearerAuthenticator token provider results', () => {
 });
 
 describe('BearerAuthenticator misc behaviours', () => {
-  it('bhv misc 174 a bearer token containing a line break is refused on use', () => {
-    const auth = new BearerAuthenticator('https://api.example.com', 'abc\ndef');
-    expect(() => auth.getAuthHeaders()).toThrow();
+  it('bhv misc 174 a bearer token containing a line break is refused, and the error never repeats it', () => {
+    let error: unknown;
+    try {
+      new BearerAuthenticator('https://api.example.com', 'abc\ndef');
+    } catch (e) {
+      error = e;
+    }
+    expect(error).toBeInstanceOf(TypeError);
+    expect((error as Error).message).not.toContain('abc');
   });
 });

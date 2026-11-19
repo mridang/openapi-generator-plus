@@ -1197,12 +1197,10 @@ public final class DefaultApiClient implements ApiClient {
    * DELETE and QUERY are safe to send again, while POST and PATCH are not.
    */
   static boolean isIdempotentMethod(String method) {
-    switch (method.toUpperCase(java.util.Locale.ROOT)) {
-      case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY":
-        return true;
-      default:
-        return false;
-    }
+    return switch (method.toUpperCase(java.util.Locale.ROOT)) {
+      case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY" -> true;
+      default -> false;
+    };
   }
 
   private static final Pattern CHARSET_PATTERN =

@@ -31,6 +31,7 @@ import java.util.Objects;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class ApiExceptionTest {
 
   @Test
@@ -1002,10 +1003,12 @@ class ApiExceptionTest {
   @Test
   void bhvErrors088RenderedMessageLeavesOutTheAbsentParts() {
     assertEquals(
-        "bad gateway\n"
-            + "HTTP status code: 502\n"
-            + "Response headers: {\"retry-after\":\"5\"}\n"
-            + "Response body: upstream down",
+        """
+        bad gateway
+        HTTP status code: 502
+        Response headers: {"retry-after":"5"}
+        Response body: upstream down\
+        """,
         new ApiException(502, "bad gateway", Map.of("retry-after", "5"), "upstream down")
             .toString());
     assertEquals(

@@ -39,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Integration tests for the Store API endpoints. */
+@SuppressWarnings("NullAway")
 class StoreApiTest {
 
   private StoreApi api;

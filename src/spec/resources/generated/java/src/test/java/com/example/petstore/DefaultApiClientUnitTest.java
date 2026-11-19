@@ -38,6 +38,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class DefaultApiClientUnitTest {
 
   private static HttpServer server;
@@ -4360,7 +4361,9 @@ class DefaultApiClientUnitTest {
   void bhvMisc152ACallWhoseCancelSignalIsAlreadyAbortedSendsNothing() throws Exception {
     java.util.concurrent.atomic.AtomicInteger hits =
         new java.util.concurrent.atomic.AtomicInteger();
-    HttpServer server = HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+    HttpServer server =
+        HttpServer.create(
+            new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
     server.createContext(
         "/",
         exchange -> {

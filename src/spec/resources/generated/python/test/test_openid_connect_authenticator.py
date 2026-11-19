@@ -840,7 +840,9 @@ class TestOidcPkceAndInvalidation:
         exchange.join(5)
 
         assert "code_challenge=" in url
-        assert len(discovery_requests) == 1
+        # The configuration was discovered before the exchange began, so the
+        # second build reuses it and sends no new discovery request.
+        assert len(discovery_requests) == 0
 
     def test_bhv_misc_078_the_authorization_url_carries_an_s256_challenge_and_no_nonce(
         self,

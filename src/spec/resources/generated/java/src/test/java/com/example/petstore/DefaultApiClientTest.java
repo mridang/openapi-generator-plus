@@ -26,6 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class DefaultApiClientTest {
 
   private static final String CA_CERT_PATH = "/app/src/test/resources/certs/ca.pem";
@@ -1297,7 +1298,8 @@ class DefaultApiClientTest {
   void bhvMisc285AnUndecodableContentEncodingIsRefusedWithTheExactMessage() throws Exception {
     String message = "Unsupported Content-Encoding 'x-unknown'";
     com.sun.net.httpserver.HttpServer server =
-        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        com.sun.net.httpserver.HttpServer.create(
+            new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
     server.createContext(
         "/",
         exchange -> {
@@ -1331,7 +1333,8 @@ class DefaultApiClientTest {
     java.util.concurrent.atomic.AtomicInteger hits =
         new java.util.concurrent.atomic.AtomicInteger();
     com.sun.net.httpserver.HttpServer server =
-        com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+        com.sun.net.httpserver.HttpServer.create(
+            new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
     server.createContext(
         "/",
         exchange -> {
@@ -1377,7 +1380,7 @@ class DefaultApiClientTest {
     private String bodyWithContentType(String contentType, byte[] bytes) throws Exception {
       com.sun.net.httpserver.HttpServer server =
           com.sun.net.httpserver.HttpServer.create(
-              new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
       server.createContext(
           "/",
           exchange -> {
@@ -1484,7 +1487,7 @@ class DefaultApiClientTest {
     void bhvTransport089MismatchedContentEncodingRaisesTheApiError() throws Exception {
       com.sun.net.httpserver.HttpServer server =
           com.sun.net.httpserver.HttpServer.create(
-              new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
       server.createContext(
           "/",
           exchange -> {
@@ -1515,7 +1518,7 @@ class DefaultApiClientTest {
     void bhvTransport090RepeatedResponseHeadersKeepEveryValue() throws Exception {
       com.sun.net.httpserver.HttpServer server =
           com.sun.net.httpserver.HttpServer.create(
-              new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
       server.createContext(
           "/",
           exchange -> {
@@ -1549,7 +1552,7 @@ class DefaultApiClientTest {
           new java.util.concurrent.atomic.AtomicInteger();
       com.sun.net.httpserver.HttpServer proxy =
           com.sun.net.httpserver.HttpServer.create(
-              new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+              new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
       proxy.createContext(
           "/",
           exchange -> {

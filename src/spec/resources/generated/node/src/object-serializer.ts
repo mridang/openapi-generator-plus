@@ -1312,15 +1312,18 @@ export class ObjectSerializer {
 
   /**
    * Whether a deserializer argument is a model class constructor (as opposed
-   * to a bare element-deserializer arrow function). A class constructor has
-   * an own `prototype`; an arrow function does not. Used to decide whether a
+   * to a bare element-deserializer function). A function declaration also has
+   * a `prototype`, so the test reads the source text for the `class` keyword. Used to decide whether a
    * produced `null` is a failed-model-parse sentinel (drop) or a legitimate
    * primitive/enum null wire value (keep).
    */
   private static isClassConstructor<T>(
     cls: ClassConstructor<T> | ((value: unknown) => T | null),
   ): cls is ClassConstructor<T> {
-    return typeof cls === "function" && "prototype" in cls;
+    return (
+      typeof cls === "function" &&
+      /^class[\s{]/.test(Function.prototype.toString.call(cls))
+    );
   }
 
   /**

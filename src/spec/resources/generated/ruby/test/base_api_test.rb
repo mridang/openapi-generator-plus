@@ -430,7 +430,7 @@ describe Petstore::Client::Api::BaseApi do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
-    test_api.call('GET', '/test/echo', { 'bornAfter' => Date.new(2024, 1, 1) }, { 'Report-Date' => Date.new(2024, 1, 1) },
+    test_api.call('GET', '/test/echo', { 'bornAfter' => Date.new(2024, 1, 1) }, { 'Report-Date' => Petstore::Client::ValueSerializer.serialize(Date.new(2024, 1, 1), :header, 'Date') },
                   nil, ['application/json'], 'application/json', nil)
 
     _(client.captured_url).must_include 'bornAfter=2024-01-01'
@@ -1663,7 +1663,7 @@ describe Petstore::Client::Api::BaseApi do
     [['text/plain', 'some text'], ['application/json', '42']].each do |content_type, body|
       client = Object.new
       client.define_singleton_method(:send_request) do |*_args, **_kwargs|
-        Petstore::Client::ApiHttpResponse.new(status_code: 200, body: body, headers: { 'content-type' => content_type })
+        Petstore::Client::ApiHttpResponse.new(status_code: 200, body: body.to_s, headers: { 'content-type' => content_type.to_s })
       end
       config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
       test_api = TestableApi.new(client, config)
@@ -1711,13 +1711,22 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_url).wont_include 'blue%2Cblack'
   end
 
+  it 'bhv_misc_254 an unmarked query value percent-encodes reserved characters such as slash and colon' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'q' => 'a/b:c' }, {}, nil, ['application/json'], 'application/json', nil)
+    _(client.captured_url).must_equal 'http://localhost/test/echo?q=a%2Fb%3Ac'
+  end
+
   it 'bhv_misc_214 an unserializable query content value raises a serialization error before any request is sent' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
     test_api = TestableApi.new(client, config)
 
     _(lambda do
-      test_api.call('GET', '/test/echo', { 'filter' => { 'nested' => { 'deep' => 1 } } }, {}, nil,
+      filter = Petstore::Client::ObjectSerializer.serialize({ 'nested' => { 'deep' => Float::NAN } })
+      test_api.call('GET', '/test/echo', { 'filter' => filter }, {}, nil,
                     ['application/json'], 'application/json', nil)
     end).must_raise Petstore::Client::Errors::SerializationError
     _(client.captured_url).must_be_nil
