@@ -1960,7 +1960,7 @@ class PetApiTest {
         UrlRecording recording = new UrlRecording("{\"name\":\"x\",\"photoUrls\":[]}");
         PetApi petApi = new PetApi(recording,
                 Configuration.builder().baseUrl("http://localhost").build());
-        petApi.getExternalPetInfo(7L);
+        petApi.getExternalPetInfo(7L, new PetApi.GetExternalPetInfoServer.Server0(), null);
         assertThat(recording.capturedUrl).startsWith("https://external-api.example.com/v1");
     }
 

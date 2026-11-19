@@ -127,10 +127,29 @@ public class Sparse {
      * @param value the property value
      * @return this builder
      */
-    @com.fasterxml.jackson.annotation.JsonAnySetter
     public Builder putAdditionalProperty(String key, String value) {
       this.additionalProperties.put(key, value);
       return this;
+    }
+
+    /**
+     * Captures an undeclared JSON property whose value is a string. A null is kept only when the
+     * value schema is nullable; a number, a boolean, an object or an array is the wrong JSON type.
+     *
+     * @param key the property name
+     * @param value the JSON value
+     */
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void absorbAdditionalProperty(String key, com.fasterxml.jackson.databind.JsonNode value) {
+      if (value.isNull()) {
+        this.additionalProperties.put(key, null);
+        return;
+      }
+      if (!value.isTextual()) {
+        throw new IllegalArgumentException(
+            "additional property '" + key + "' must be a JSON string");
+      }
+      putAdditionalProperty(key, value.asText());
     }
 
     /**

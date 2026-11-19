@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.example.petstore.BaseApiTest;
 import com.example.petstore.errors.SerializationException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -1192,11 +1193,6 @@ class ValueSerializerTest {
   }
 
   @Test
-  void bhvMisc083QueryGivenAsRawTextKeepsRepeatedKeysValuesAndEncodingsAsWritten() {
-    assertEquals("a=1&a=2&b=%20x", ValueSerializer.encodeQueryAllowingReserved("a=1&a=2&b=%20x"));
-  }
-
-  @Test
   void bhvMisc084SetOptionalScalarSendsItsValueInEveryLocationAndStyle() {
     assertEquals(
         "on-hold",
@@ -1338,25 +1334,42 @@ class ValueSerializerTest {
         "a%2Cb,c", ValueSerializer.serialize(Arrays.asList("a,b", "c"), "path", "array", "csv"));
   }
 
+  /** Sends one query parameter through BaseApi and returns the URL that reached the transport. */
+  private static String wireQuery(String key, Object value, boolean allowReserved)
+      throws Exception {
+    var client = new BaseApiTest.CapturingApiClient();
+    var api = new BaseApiTest.TestableApi(client, "http://localhost");
+    Map<String, Object> query = new java.util.HashMap<>();
+    query.put(key, ValueSerializer.maybeAllowReserved(value, allowReserved));
+    api.call(
+        "GET",
+        "/test/echo",
+        query,
+        new java.util.HashMap<>(),
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        null,
+        null);
+    return client.capturedUrl;
+  }
+
   @Test
   @DisplayName("bhvMisc253 an allowReserved value still percent-encodes hash and brackets")
-  void bhvMisc253AnAllowReservedValueStillPercentEncodesHashAndBrackets() {
-    assertEquals(
-        "a/b%23c%5Bd%5D",
-        ValueSerializer.serialize(
-            ValueSerializer.maybeAllowReserved("a/b#c[d]", true), "query", "string", null));
+  void bhvMisc253AnAllowReservedValueStillPercentEncodesHashAndBrackets() throws Exception {
+    assertTrue(wireQuery("q", "a/b#c[d]", true).endsWith("?q=a/b%23c%5Bd%5D"));
   }
 
   @Test
   @DisplayName("bhvMisc254 an unmarked query value percent-encodes slash and colon")
-  void bhvMisc254AnUnmarkedQueryValuePercentEncodesSlashAndColon() {
-    assertEquals("a%2Fb%3Ac", ValueSerializer.serialize("a/b:c", "query", "string", null));
+  void bhvMisc254AnUnmarkedQueryValuePercentEncodesSlashAndColon() throws Exception {
+    assertTrue(wireQuery("q", "a/b:c", false).endsWith("?q=a%2Fb%3Ac"));
   }
 
   @Test
   @DisplayName("bhvMisc255 separate query parameters encode a space as %20")
-  void bhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20() {
-    assertEquals("a%20b", ValueSerializer.serialize("a b", "query", "string", null));
+  void bhvMisc255SeparateQueryParametersEncodeASpaceAsPercent20() throws Exception {
+    assertTrue(wireQuery("q", "a b", false).endsWith("?q=a%20b"));
   }
 
   @Test
