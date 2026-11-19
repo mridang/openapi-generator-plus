@@ -1254,21 +1254,13 @@ test('bhv redirects 038 https to https with body still follows on 307', function
     expect($response->statusCode)->toBe(200);
 });
 
-// -- N1: redirect body-replay guard fires only on 307/308, not on 302 --
+// -- N1: redirect body-replay guard fires on 301, 302, 307 and 308 --
 //
-// Canonical cross-SDK scenario (DIVERGENCE N1): the HTTPS->HTTP body-replay
-// guard must apply ONLY to 307/308. On a 302 HTTPS->HTTP redirect carrying a
-// body the request MUST PROCEED (per RFC the method becomes GET and the body
-// is dropped, so there is nothing to leak); on a 307/308 HTTPS->HTTP redirect
-// with a body it MUST THROW. PHP guards 307/308 only (GREEN here); the same
-// test is added to all 12 SDKs to lock the behaviour (red in node, which
-// refuses body-replay on every redirect status). Co-located with the existing
-// 307/308 body-replay tests above (their working MockHttpClient harness).
+// A body is never replayed across an HTTPS->HTTP redirect. 307/308 keep their
+// refusal; 301/302 are refused too (misc124), so a 302 with a body throws
+// rather than being followed as a GET without the body.
 
-test('bhv redirects 040 N1: 302 https to http downgrade with body proceeds as get', function (): void {
-    /* A 302 from an HTTPS origin to an HTTP URL while carrying a POST body
-     * must NOT throw — 301/302 force the follow-up to GET and drop the body,
-     * so there is no plaintext body to leak. The request proceeds. */
+test('bhv redirects 040 N1: 302 https to http downgrade with body is refused', function (): void {
     $downgrade = new MockResponse('', [
         'http_code' => 302,
         'response_headers' => ['Location' => 'http://insecure.example.com/final'],
@@ -1277,10 +1269,27 @@ test('bhv redirects 040 N1: 302 https to http downgrade with body proceeds as ge
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade, $final]), $transport);
 
-    $response = $client->sendRequest('POST', 'https://api.example.com/start', [], 'sensitive=payload');
-
-    expect($response->statusCode)->toBe(200);
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/start', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
 });
+
+test('bhv misc 124 a 301 or 302 from https to http with a body is refused and the body is not replayed', function (int $status): void {
+    $seen = [];
+    $redirect = new MockResponse('', [
+        'http_code' => $status,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $factory = function (string $method, string $url) use (&$seen, $redirect): MockResponse {
+        $seen[] = [$method, $url];
+        return $redirect;
+    };
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
+    expect(count($seen))->toBe(1);
+})->with([301, 302]);
 
 test('bhv retries 011 N1: 308 https to http downgrade with body throws', function (): void {
     $downgrade = new MockResponse('', [
@@ -2339,6 +2348,40 @@ test('bhv retries 013 a network error before a response is retried', function ()
     expect(count($log))->toBe(2);
 });
 
+test('bhv misc 161 a POST or PATCH whose connection drops before a response is sent once', function (string $method): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
+    $client = retryTestClient([$reset, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
+
+    expect(fn (): mixed => $client->sendWithRetries($method, 'http://example.com/flaky', static fn (): array => [], null))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+    expect(count($log))->toBe(1);
+})->with(['POST', 'PATCH']);
+
+test('bhv misc 161 an idempotent request whose connection drops before a response is retried', function (string $method): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $reset = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset by peer');
+    $client = retryTestClient([$reset, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
+
+    $response = $client->sendWithRetries($method, 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(2);
+})->with(['GET', 'HEAD', 'OPTIONS', 'TRACE', 'PUT', 'DELETE', 'QUERY']);
+
+test('bhv misc 170 a TLS failure is raised on the first attempt and never retried', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $tls = new \Symfony\Component\HttpClient\Exception\TransportException('SSL certificate problem: unable to get local issuer certificate');
+    $client = retryTestClient([$tls, 200], TransportOptions::builder()->maxRetries(2)->build(), $log);
+
+    expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/secure', static fn (): array => [], null))
+        ->toThrow(\{{invokerPackage}}\Errors\NetworkException::class);
+    expect(count($log))->toBe(1);
+});
+
 test('bhv retries 033 the last network error is raised once the retries are spent', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
@@ -2530,7 +2573,7 @@ test('bhv redirects 019 redirect refusal messages never carry a query parameter 
         });
 });
 
-test('bhv redirects 001 a 302 from https to http with a body proceeds as a GET without the body', function (): void {
+test('bhv redirects 001 a 302 from https to http with a body is refused, not followed as a GET', function (): void {
     $redirect = new MockResponse('', [
         'http_code' => 302,
         'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
@@ -2544,10 +2587,9 @@ test('bhv redirects 001 a 302 from https to http with a body proceeds as a GET w
     $transport = TransportOptions::builder()->followRedirects(true)->build();
     $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
 
-    $response = $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload');
-
-    expect($response->statusCode)->toBe(200);
-    expect($seen[1][0])->toBe('GET');
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(ApiException::class);
+    expect(count($seen))->toBe(1);
 });
 
 test('bhv redirects 031 a 3xx without a Location is returned unchanged when max redirects is zero', function (): void {
@@ -2584,7 +2626,7 @@ test('bhv redirects 041 a redirect that turns a POST into a GET sends no Content
     expect($seen[1]['method'])->toBe('GET');
     expect($seen[1]['headers'])->not->toHaveKey('content-type');
     expect($seen[1]['headers'])->not->toHaveKey('content-length');
-})->with([301, 302, 303]);
+})->with([303]);
 
 test('bhv redirects 042 a 307 redirect of a bodyless POST keeps the request a POST and sends a zero Content-Length', function (): void {
     $seen = [];
