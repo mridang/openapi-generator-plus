@@ -771,6 +771,18 @@ test('bhv misc 122 deserialize holds the exact string default literal for greeti
     expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
 });
 
+test('bhv misc 214 an unserializable query content value raises a serialization error before any request is sent', function (): void {
+    $cyclic = [];
+    $cyclic['self'] = &$cyclic;
+    expect(fn () => ObjectSerializer::serialize($cyclic))->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 215 an input object with no fields is filled with every declared default value', function (): void {
+    $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
+    \assert($defaults instanceof Defaults);
+    expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
+});
+
 test('bhv serializationobject 111 numeric schema defaults are exact typed values', function (): void {
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize('{}', Defaults::class);

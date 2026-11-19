@@ -414,6 +414,15 @@ test('bhv redirects 008 returns redirect when disabled', function (): void {
     expect($response->statusCode)->toBe(302);
 });
 
+test('bhv misc 223 a see other redirect drops the request body of the follow up request', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $transport = TransportOptions::builder()->followRedirects(true)->maxRedirects(5)->build();
+    $response = (new DefaultApiClient($transport))->sendRequest('POST', $chasmUrl . '/test/redirect/303', ['Content-Type' => 'application/json'], 'hello-body');
+    /** @var array<string, mixed> $json */
+    $json = json_decode($response->body, true);
+    expect($json['body'])->toBe('');
+});
+
 test('bhv redirects 005 redirect 303 switches to get and drops body', function (): void {
     $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
 

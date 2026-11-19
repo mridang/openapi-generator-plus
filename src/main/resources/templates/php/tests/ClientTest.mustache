@@ -782,6 +782,44 @@ test('bhv misc 205 a credential found nowhere makes the missing credential error
     }
 });
 
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+{{#-first}}
+test('bhv misc 206 a client built with only a default authenticator takes its host from that authenticator', function (): void {
+    $client = new {{clientClassName}}(new BearerAuthenticator('https://only-default.example.com', 'tok'));
+    $property = (new \ReflectionClass(\{{apiPackage}}\BaseApi::class))->getProperty('config');
+    expect($property->getValue($client->{{clientPropertyName}}))->toHaveProperty('baseUrl', 'https://only-default.example.com');
+});
+{{/-first}}
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+
+test('bhv misc 207 a credential not passed to the constructor is read from the matching environment variable', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=from-environment');
+    try {
+        $authenticator = new BearerAuthenticator('https://api.example.com');
+        expect($authenticator->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
+test('bhv misc 208 an empty environment variable is treated the same as an unset one for the implicit credential', function (): void {
+    $name = '{{tokenEnv}}';
+    $previous = getenv($name);
+    putenv($name . '=');
+    try {
+        expect(fn () => new BearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class);
+    } finally {
+        putenv($previous === false ? $name : $name . '=' . $previous);
+    }
+});
+
 test('bhv misc 071 a client level credential that needs http receives the clients transport', function (): void {
     $credential = new class('{{{basePath}}}', 'tok') extends BearerAuthenticator implements HttpAwareAuthenticator {
         public ?ApiClient $received = null;

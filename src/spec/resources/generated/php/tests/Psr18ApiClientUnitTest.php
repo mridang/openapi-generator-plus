@@ -173,6 +173,19 @@ test('bhv serializationwire 034 psr18 decodes iso 8859 1 body to utf 8 when char
     expect($response->body)->toBe("\xC3\xA9"); // UTF-8 'é'
 });
 
+test('bhv misc 224 transport default headers are not sent to another origin after a redirect', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://other.example.com/final']),
+        psr18Response(200, 'ok')
+    );
+    $transport = (new TransportOptionsBuilder())->defaultHeader('X-Api-Key', 'secret')->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($stub->requests[1]->hasHeader('X-Api-Key'))->toBeFalse();
+});
+
 test('bhv redirects 013 psr18 cross origin redirect strips authorization and cookie', function (): void {
     $stub = new StubPsr18Client(
         psr18Response(302, '', ['Location' => 'https://other.example.com/final']),
