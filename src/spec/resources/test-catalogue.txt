@@ -632,7 +632,7 @@ serializationobject074 | EdgeCases.slug accepts a value matching its pattern
 serializationobject075 | Equality compares byte arrays by content (bare, list and map)
 serializationobject076 | Every Availability member, hostile ones included, round-trips its wire value | multi
 serializationobject077 | Every wire-shape failure is a SerializationError | multi
-serializationobject078 | Float returns string representation
+serializationobject078 | Float returns string representation | multi
 serializationobject079 | Format:byte scalar and array fields round-trip through base64
 serializationobject080 | Format:duration that is malformed or overflows raises the SDK SerializationException | multi
 serializationobject081 | FormatProtobufDuration emits whole seconds
@@ -1456,30 +1456,30 @@ mocking007 | The top-level client interface exposes every group typed as its gro
 mocking008 | A fake client built from fake groups never opens a connection, and closing it does nothing and does not fail
 mocking009 | The README has a section named "Testing your code" that names the group interface and the top-level interface and shows a fake
 hooks001 | Without a hook set a call sends the same headers and returns the same result as before
-hooks002 | start is called once per operation call with the spec operation id, the upper-case method, the url template and the url without its query string
+hooks002 | start is called once per operation call with the spec operation id, the upper-case method, the url template and the url without its query string | multi
 hooks003 | serverAddress is the host without port, and without the brackets of an IPv6 literal | multi
 hooks004 | A header the hook sets reaches the server
 hooks005 | start sees the final header set, authentication and default headers included, and can replace one
-hooks006 | A header the hook sets is on every send of the call, retries and the replay after a 401 included
+hooks006 | A header the hook sets is on every send of the call, retries and the replay after a 401 included | multi
 hooks007 | The fresh authentication headers of a replay still replace a hook header of the same name
 hooks008 | A call that is retried by the transport calls start once and finish once
 hooks009 | The plain and the WithHttpInfo variant of an operation call the hook once each
-hooks010 | A hook set on the configuration still fires when the caller supplied the transport
+hooks010 | A hook set on the configuration still fires when the caller supplied the transport | multi
 hooks011 | finish gets the status, the lower-cased response headers and no error on a 2xx
 hooks012 | finish gets the status, the headers and the same typed ApiError the caller receives on a non-2xx
 hooks013 | finish gets status 0, null headers and the network error when no response arrived
 hooks014 | finish gets the timeout error when the end-to-end budget is exhausted, never the cancellation error
-hooks015 | finish gets the cancellation and the call rethrows it, never as the timeout error
+hooks015 | finish gets the cancellation and the call rethrows it, never as the timeout error | multi
 hooks016 | finish gets the SerializationError, with the status that arrived, when the response cannot be decoded
 hooks017 | finish is called when the request body cannot be encoded and nothing is sent
-hooks018 | An error thrown by start reaches the caller unchanged, nothing is sent and finish is not called
-hooks019 | An error thrown by finish is swallowed and the caller still gets its result or its own error
-hooks020 | chain starts the hooks in order and finishes their observers in reverse order, and a hook that returns nothing is skipped
-hooks021 | The url given to the hook never carries the query string or the fragment
+hooks018 | An error thrown by start reaches the caller unchanged, nothing is sent and finish is not called | multi
+hooks019 | An error thrown by finish is swallowed and the caller still gets its result or its own error | multi
+hooks020 | chain starts the hooks in order and finishes their observers in reverse order, and a hook that returns nothing is skipped | multi
+hooks021 | The url given to the hook never carries the query string or the fragment | multi
 telemetry001 | The span is named with the spec operation id and has kind client
 telemetry002 | A 2xx sets http.request.method, url.template, server.address and http.response.status_code and leaves the span status unset
 telemetry003 | A 4xx or 5xx sets error.type to the status code as text and marks the span as an error
-telemetry004 | error.type is timeout for the timeout error, network_error for the network error, serialization_error for the decode error, cancelled for a cancelled call and _OTHER for anything else
+telemetry004 | error.type is timeout for the timeout error, network_error for the network error, serialization_error for the decode error, cancelled for a cancelled call and _OTHER for anything else | multi
 telemetry005 | A call with no response sets no http.response.status_code
 telemetry006 | The span is a child of the caller's active span and the traceparent sent names the client span as its parent | multi
 telemetry007 | A call retried by the transport records one span and one count
@@ -1511,11 +1511,11 @@ auth048 | The authorization-code flow builds the exact authorize URL and calls t
 auth049 | The implicit flow builds an exact authorize URL with response_type token and scopes percent-encoded as %20.
 auth050 | The client-credentials grant posts grant_type client_credentials with the declared scopes joined by a plus to the declared token URL.
 auth051 | The password grant posts to the declared token URL and refreshes at the declared refresh URL with the declared scopes.
-auth052 | An OAuth authenticator that holds no token refuses to produce auth headers, both synchronously and asynchronously.
+auth052 | An OAuth authenticator that holds no token refuses to produce auth headers, both synchronously and asynchronously. | multi
 auth053 | Exchanging a code discards any refresh token previously held.
 auth054 | A non-success token endpoint response surfaces as an OAuth2 server error that names the status and the response body, not as an API error.
 auth055 | A network failure during a token request reaches the caller unchanged.
-auth056 | An expires_in value is honoured only as a decimal number, with padding allowed; any other value marks the token as stale.
+auth056 | An expires_in value is honoured only as a decimal number, with padding allowed; any other value marks the token as stale. | multi
 auth057 | A refresh attempt that is rejected, unreachable or returns a malformed response falls back to the original grant.
 auth058 | A request that needs a new token uses the refresh grant first when a refresh token is held.
 config026 | A configuration built through the builder entry point returns the base URL that was set on the builder.
@@ -1588,7 +1588,7 @@ misc049 | A choice between a single binary value and a list of binary values wri
 misc050 | Per-call options override the options object, and an option that is unset falls through to the object's value.
 misc051 | An operation refuses an option it cannot apply, such as an unknown key or a server setting on an operation without servers, rather than ignoring it.
 misc052 | When the same kind of per-call option is given more than once, the last one given takes effect.
-misc053 | A per-call retry budget of zero is accepted, and a negative or non-whole budget is refused.
+misc053 | A per-call retry budget of zero is accepted, and a negative or non-whole budget is refused. | multi
 misc054 | Per-call headers are a read-only copy that later changes to the caller's own map do not reach.
 misc055 | A per-call timeout, retry count or header set that is not valid is refused with an argument error.
 misc056 | Setting the proxy to an empty string removes a proxy set earlier.
@@ -1599,11 +1599,11 @@ misc060 | Supplying both an API key and an API key provider is refused.
 misc061 | An authenticator that must make a request receives the caller's cancellation and context values, and the headers it returns are sent.
 misc062 | The authorization URL produced by a per-scheme wrapper carries the scopes that its security scheme declares.
 misc063 | A per-scheme wrapper sends its token request to the token URL that its security scheme declares.
-misc064 | An operation that declares no security never sends the client's default credential.
+misc064 | An operation that declares no security never sends the client's default credential. | multi
 misc065 | Scheme credentials are copied when the API is built, so later changes to the caller's map do not affect the API.
 misc066 | A token provider's value is sent as the bearer credential on the authenticated request.
 misc067 | When a token provider raises an error, the request fails with that same error.
-misc068 | An empty string passed for a credential counts as not passed, so the value is read from its environment variable instead.
+misc068 | An empty string passed for a credential counts as not passed, so the value is read from its environment variable instead. | multi
 misc069 | A token response whose access token is empty or not a string, or whose body is not a JSON object, is refused as an error that names the problem.
 misc070 | A discovery document that is not a JSON object raises the serialization error with the canonical message, keeps no cause, and does not repeat the response body.
 misc071 | A client-level credential that needs the HTTP transport receives the client's own transport.
@@ -1614,13 +1614,13 @@ misc075 | A credential keyed to a security scheme the API does not declare is re
 misc076 | A call made during a code exchange, or after a dropped one, reuses the discovered configuration and sees the code as not yet exchanged.
 misc077 | A generated PKCE verifier is 43 characters from the unreserved set and differs on every call.
 misc078 | An OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce.
-misc079 | When an operation declares different body types for several success statuses, each response is decoded as the type declared for the status it arrived with.
+misc079 | When an operation declares different body types for several success statuses, each response is decoded as the type declared for the status it arrived with. | multi
 misc080 | A response body is decoded with the schema of its own status code, so a body that fits another status's schema is refused with an error.
 misc081 | A body sent as base64 text under a binary content type is decoded before it is returned to the caller as a string.
-misc082 | An enum value given in a path, query or header parameter is sent as its wire value.
+misc082 | An enum value given in a path, query or header parameter is sent as its wire value. | multi
 misc083 | A query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written.
 misc084 | A set optional scalar parameter sends its value in every location and style.
-misc085 | A UUID whose text is not in canonical form is refused with a type error, both when it is built and when it is written as a parameter.
+misc085 | A UUID whose text is not in canonical form is refused with a type error, both when it is built and when it is written as a parameter. | multi
 misc086 | A container element that holds JSON text is taken as its own value and never decoded a second time.
 misc087 | A decimal field in a loosely built request body is written as a bare JSON number, not a string.
 misc088 | A decimal decoded from text keeps the number of decimal places it was written with.
@@ -1632,7 +1632,7 @@ misc093 | Additional properties with numeric names are written as members of a J
 misc094 | A free-form JSON object is written with its members and their values unchanged.
 misc095 | A response body with bytes invalid in its charset decodes with each bad byte replaced by U+FFFD instead of failing.
 misc096 | A multipart part carries no Content-Transfer-Encoding header, and a text part carries only its Content-Disposition.
-misc097 | Each element of a multipart array field is sent as its own part in the order given, and a scalar field is sent as one part.
+misc097 | Each element of a multipart array field is sent as its own part in the order given, and a scalar field is sent as one part. | multi
 misc098 | A caller-supplied stream used as a multipart part is read into the body and never closed by the SDK.
 misc099 | Every multipart filename becomes one canonical content directive, with a quoted ASCII fallback and an extended form only when the name needs it.
 misc100 | A multipart request keeps its declared multipart subtype with a boundary, and falls back to form-data when the declared value is unsafe.
@@ -1648,7 +1648,7 @@ misc109 | Decoding an object validates its nested objects with the same rules th
 misc110 | A list of dates is refused with a type error when any element is not a calendar date.
 misc111 | A collection of unique strings or numbers is written in a defined sorted order, code point order for strings and numeric order for numbers.
 misc112 | Decoding an array that must be unique drops repeated elements, keeping one copy of each.
-misc113 | A model's string form shows the contents of its list, map and byte fields rather than their type names.
+misc113 | A model's string form shows the contents of its list, map and byte fields rather than their type names. | multi
 misc114 | A success response is decoded by the decoder for the status code actually received.
 misc115 | Serializing a bare string value yields a quoted JSON string.
 misc116 | An int32 field accepts exactly the values from its minimum to its maximum and refuses overflow and fractional values.
@@ -1659,7 +1659,7 @@ misc120 | An object parameter becomes name and value pairs keyed by wire name, s
 misc121 | An object with no declared schema is written as a JSON object of its properties.
 misc122 | A string default from the schema is applied as the exact literal, including quotes, backslashes, control characters and template-like text.
 misc123 | A cookie value the caller has already percent-encoded reaches the wire unchanged, with no second encoding.
-misc124 | A request body is not replayed across a 301 redirect from HTTPS to plain HTTP, and the call fails instead.
+misc124 | A request body is not replayed across a 301 redirect from HTTPS to plain HTTP, and the call fails instead. | multi
 misc125 | A 307 redirect that stays on one scheme, or upgrades HTTP to HTTPS, is not refused as a body replay.
 misc126 | A HEAD request that receives a 303 redirect is followed as HEAD rather than converted to GET.
 misc127 | A Location that contains only a query keeps the path of the redirected request and replaces its query.
@@ -1674,7 +1674,7 @@ misc135 | A client-level cancellation handle given to the builder is stored on t
 misc136 | The configuration's debug text shows the base URL and the non-sensitive default headers.
 misc137 | A generated enum lists its declared values and reports whether a given value is one of them.
 misc138 | Converting an enum member to text yields its wire value.
-misc139 | A collection passed into a model is copied, so later changes to the source do not reach the model, and the model's collection cannot be changed through the model.
+misc139 | A collection passed into a model is copied, so later changes to the source do not reach the model, and the model's collection cannot be changed through the model. | multi
 misc140 | Building a model without one of its required properties fails with an error that names the missing property.
 misc141 | A model built without a value for a property that has a schema default holds that default.
 misc142 | Values stored in a model's additional properties map are returned unchanged when read back by key, and the map holds exactly the stored entries.
@@ -1696,21 +1696,21 @@ misc157 | A server built with explicit variable values resolves those values int
 misc158 | A server built with a fixed URL reports exactly that URL, unchanged.
 misc159 | A 401 response is replayed once, even when retries are turned off, when an authenticator can supply fresh credentials.
 misc160 | An error that is not a network failure is never retried.
-misc161 | When the connection drops before any response arrives, a non-idempotent request such as POST or PATCH is sent exactly once, and QUERY is treated as an idempotent method.
+misc161 | When the connection drops before any response arrives, a non-idempotent request such as POST or PATCH is sent exactly once, and QUERY is treated as an idempotent method. | multi
 misc162 | When the connection drops before any response arrives, an idempotent request is sent again exactly once.
-misc163 | A request body holding a one-shot stream, alone or as a multipart part, is not replayed on retry, while text, bytes, maps and an absent body remain replayable.
+misc163 | A request body holding a one-shot stream, alone or as a multipart part, is not replayed on retry, while text, bytes, maps and an absent body remain replayable. | multi
 misc164 | A retry whose wait fits within the remaining timeout budget is sent.
 misc165 | A request body is replayed across a redirect that keeps the same plain-text scheme, because no transport security is downgraded.
 misc166 | A call that disables its deadline is not cut short while it waits to retry.
 misc167 | An operation that keeps receiving a retryable status is attempted up to the retry limit and then raises the error for that status.
 misc168 | With no retry setting, a failing request is sent three times in total, pausing half a second and then one second between attempts.
 misc169 | The pause between retries starts at half a second, doubles on each attempt, and never exceeds eight seconds.
-misc170 | A TLS or certificate failure is reported as a network error on the first attempt and is never retried.
+misc170 | A TLS or certificate failure is reported as a network error on the first attempt and is never retried. | multi
 misc171 | A per-call maximum retry count larger than the transport limit applies to that call and allows more attempts.
-misc172 | A request to a token endpoint is sent once and is not retried, even when the server answers 503.
+misc172 | A request to a token endpoint is sent once and is not retried, even when the server answers 503. | multi
 misc173 | A streamed request body is replayed across a redirect from https to http only when the original body was empty, and a missing original body is refused.
 misc174 | A header value refused for containing a line break or NUL byte is never repeated in the error raised for it.
-misc175 | Credential-bearing header names are recognised regardless of letter case, and ordinary header names are not treated as credential-bearing.
+misc175 | Credential-bearing header names are recognised regardless of letter case, and ordinary header names are not treated as credential-bearing. | multi
 misc176 | A required cookie parameter is sent in the Cookie header with its value.
 misc177 | A default Content-Type header given in any letter case is not sent when the request has no body.
 misc178 | A declared multipart content type other than form-data reaches the transport unchanged.
@@ -1721,14 +1721,14 @@ misc182 | Removing a header matches its name without regard to letter case, so e
 misc183 | Closing a client whose credentials hold nothing that needs releasing succeeds.
 misc184 | Closing a client returns without waiting for a request that is still running and does not cancel it; only that request's own cancellation handle aborts it.
 misc185 | Stopping a token manager a second time is a no-op, and any token request after stop fails with a typed error and a fixed message.
-misc186 | Supplying a non-connection value as the HTTP connection, or combining a ready-made connection with a CA bundle setting, is rejected when the options are built.
+misc186 | Supplying a non-connection value as the HTTP connection, or combining a ready-made connection with a CA bundle setting, is rejected when the options are built. | multi
 misc187 | A client built without a host or token takes each from the environment when it is not passed explicitly.
 misc188 | A client reports itself as closed only after close has been called on it.
 misc189 | The API-key query wrapper sends its key as the api_key query parameter on the wire.
 misc190 | Printed output of the authenticator hides the secret.
 misc191 | An auth cookie containing a character that RFC 6265 forbids raises an ArgumentError that is not an OpenAPI error.
 misc192 | An auth cookie made only of legal cookie octets is sent exactly as given.
-misc193 | The Basic and Bearer scheme authenticators send the same header as their base authenticators and reject invalid input the same way.
+misc193 | The Basic and Bearer scheme authenticators send the same header as their base authenticators and reject invalid input the same way. | multi
 misc194 | A token returned by a token provider is sent under the same Bearer prefix rule as a static token.
 misc195 | A whitespace-only token returned by a token provider is rejected when the request is made.
 misc196 | A scheme wrapper with no token from its argument or environment fails with an error.
@@ -1768,7 +1768,7 @@ misc229 | A per-call max retries value overrides the client's setting, so a call
 misc230 | A model with no extra properties writes exactly its declared keys, with no nested data key.
 misc231 | A model built in code keeps a value of the wrong type, while decoding that same value from JSON raises an error.
 misc232 | A string path parameter in explicit simple style percent-encodes slashes.
-misc233 | A cookie parameter carrying a JSON model is fully percent-encoded, including its colons and dots.
+misc233 | A cookie parameter carrying a JSON model is fully percent-encoded, including its colons and dots. | multi
 misc234 | A model nested in another model, or in a list of models, keeps its additional properties through both serialize and deserialize.
 misc235 | A duration field with fractional seconds keeps its fraction when serialized.
 misc236 | A date-only value is written as yyyy-mm-dd with no time, in query, header, cookie and array locations.
@@ -1808,7 +1808,7 @@ misc269 | A self-signed endpoint is reached when certificate verification is dis
 misc270 | A missing CA certificate file is rejected even when certificate verification is disabled, with an error naming the certificate.
 misc271 | With no proxy configured, the client connects directly even when a proxy environment variable is set.
 misc272 | Credentials embedded in the proxy URL are accepted by an authenticating proxy end to end.
-misc273 | The request-id header carries a UUID v4 when enabled and is omitted when disabled.
+misc273 | The request-id header carries a UUID v4 when enabled and is omitted when disabled. | multi
 misc274 | A non-2xx response is returned to the caller with its status code intact.
 misc275 | The request is sent with the intended HTTP method and the response is returned to the caller.
 misc276 | The default configuration and the default builder both use the base URL declared in the API specification.
@@ -1842,7 +1842,7 @@ operations163 | A request with no body sends no Content-Type header, whatever th
 operations164 | A call with a missing or nil required parameter raises an argument error and sends no request.
 operations165 | A path parameter is written into the request path using the serialization style the operation declares.
 options068 | Configuring a proxy with a SOCKS scheme fails at construction with the documented error message.
-redirects046 | A redirect chain within the configured redirect limit is followed to its target, and a redirect past the limit raises a too-many-redirects error that carries the 3xx status and the canonical message.
+redirects046 | A redirect chain within the configured redirect limit is followed to its target, and a redirect past the limit raises a too-many-redirects error that carries the 3xx status and the canonical message. | multi
 redirects047 | A redirect refusal or a successful redirect in one request does not change the outcome of other requests running at the same time.
 redirects048 | A 301 or 302 response turns a POST follow-up into a GET with no body, while PUT, PATCH, DELETE, HEAD and GET keep their method.
 redirects049 | A 307 or 308 response repeats the request with the same method and body, and redirects are followed by default.
@@ -1915,33 +1915,33 @@ serialization117 | A protobuf duration string decodes into a duration value, bot
 serialization118 | A date-time query or path parameter keeps its full ISO-8601 time and offset rather than being cut to the date.
 serialization119 | A response body is decoded using its declared charset label, falling back to UTF-8 when the label is absent or unknown, and BOM-less UTF-16 is read as big-endian.
 serialization120 | A multipart file part takes its Content-Type from its file extension, and uses application/octet-stream when the extension is missing or unknown.
-serialization121 | A model sent as a multipart part is serialized with its wire property names and the SDK's date-time format.
-serialization122 | A form-urlencoded body repeats the key for each element of an array property and keeps the order of its pairs.
-serialization123 | Multipart field names and filenames containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header.
-serialization124 | A non-ASCII multipart filename is sent with an ASCII fallback plus an RFC 5987 encoded form that keeps only unreserved characters literal.
-serialization125 | Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B.
-serialization126 | A non-ASCII multipart field name is preserved as UTF-8 in the part header.
-serialization127 | Primitive multipart parts are sent as plain text in their canonical form, and only model parts are sent as JSON.
-serialization128 | A response whose declared type is bytes or string is returned unchanged as raw bytes or text, whatever its content type.
+serialization121 | A model sent as a multipart part is serialized with its wire property names and the SDK's date-time format. | multi
+serialization122 | A form-urlencoded body repeats the key for each element of an array property and keeps the order of its pairs. | multi
+serialization123 | Multipart field names and filenames containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header. | multi
+serialization124 | A non-ASCII multipart filename is sent with an ASCII fallback plus an RFC 5987 encoded form that keeps only unreserved characters literal. | multi
+serialization125 | Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B. | multi
+serialization126 | A non-ASCII multipart field name is preserved as UTF-8 in the part header. | multi
+serialization127 | Primitive multipart parts are sent as plain text in their canonical form, and only model parts are sent as JSON. | multi
+serialization128 | A response whose declared type is bytes or string is returned unchanged as raw bytes or text, whatever its content type. | multi
 serialization129 | A nanosecond-precision duration is written with a nine-digit fraction.
-serialization130 | A failed serialize reports its detail under the canonical serialize message prefix.
-servers029 | A placeholder introduced by a substituted value, whether from a default or an override, stays literal in the resulting URL and is never expanded again.
+serialization130 | A failed serialize reports its detail under the canonical serialize message prefix. | multi
+servers029 | A placeholder introduced by a substituted value, whether from a default or an override, stays literal in the resulting URL and is never expanded again. | multi
 servers030 | A value that is not one of a server variable's declared enum values is rejected with an error.
 transport083 | A cancellation supplied at client level aborts a request that is already in flight.
 transport084 | Cancelling a call through its own handle, or dropping an in-flight call, stops that request at once.
 transport085 | A timeout still raises the network timeout error when a cancellation token or signal is supplied but never fires.
-transport086 | A request that exceeds its timeout fails with the network timeout error within the time budget.
-transport087 | A connection that cannot be established raises the SDK's network error.
-transport088 | A response body that is validly gzip-encoded is decoded before it is returned.
-transport089 | A response whose declared Content-Encoding does not match its body raises the SDK's API error rather than crashing.
-transport090 | Response headers repeated on the wire are returned with every value present.
+transport086 | A request that exceeds its timeout fails with the network timeout error within the time budget. | multi
+transport087 | A connection that cannot be established raises the SDK's network error. | multi
+transport088 | A response body that is validly gzip-encoded is decoded before it is returned. | multi
+transport089 | A response whose declared Content-Encoding does not match its body raises the SDK's API error rather than crashing. | multi
+transport090 | Response headers repeated on the wire are returned with every value present. | multi
 transport091 | The SDK leaves a caller-supplied file or upload stream open after sending the request.
-transport092 | A caller-supplied HTTP client or connection pool receives the SDK's request.
-transport093 | A server whose certificate is signed by a CA other than the configured one is rejected with a network error.
-unions044 | Each variant of a union has a typed constructor or factory and a typed accessor that identify the variant the value was built from or decoded as.
-unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor.
-unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null.
-unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant.
+transport092 | A caller-supplied HTTP client or connection pool receives the SDK's request. | multi
+transport093 | A server whose certificate is signed by a CA other than the configured one is rejected with a network error. | multi
+unions044 | Each variant of a union has a typed constructor or factory and a typed accessor that identify the variant the value was built from or decoded as. | multi
+unions045 | Two union values built from the same data compare equal, whether decoded from identical JSON or built by a factory versus a constructor. | multi
+unions046 | When a payload matches several variants of an anyOf composite, each matching variant reports itself as matched and keeps its value, while non-matching variants report false or null. | multi
+unions047 | A discriminator value that is not one of the listed mapping names, including an empty value, raises an error with a clear message instead of falling through to another variant. | multi
 langswift001 | An API error conforms to the platform error protocol and reports a non-empty description
 langswift002 | An OAuth2 token error's localized description is exactly its message
 langswift003 | A refused loopback connection with no response raises a network error with status zero that keeps the transport error
@@ -2094,7 +2094,7 @@ langdart020 | a model property is checked against the integer width of its decla
 langdart021 | a rejected username never appears in the construction error
 langdart022 | an authenticator built with no token from any source fails at construction
 langdart023 | a bearer authenticator with no token names the environment variable it was missing | multi
-langdart024 | the scheme name in each generated bearer authenticator test identifies the scheme under test
+langdart024 | the scheme name in each generated bearer authenticator test identifies the scheme under test | multi
 langdart025 | an unset environment variable with no other source fails at construction
 langdart026 | a failing observer does not stop the others, and its error is rethrown afterwards
 langdart027 | each observer receives a header map that carries the edits made by the observers before it
