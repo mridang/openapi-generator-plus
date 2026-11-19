@@ -450,7 +450,8 @@ class BaseApi {
               'QUERY',
             }.contains(method.toUpperCase()) &&
             retries < maxRetriesLeft &&
-            failure is! NetworkTimeoutException) {
+            failure is! NetworkTimeoutException &&
+            !_isTlsFailure(failure!)) {
           final delay = _retryDelay(retries, const {});
           if (_withinBudget(delay, budgetMs, clock)) {
             retries++;
@@ -494,6 +495,18 @@ class BaseApi {
       status == 409 ||
       status == 429 ||
       (status >= 500 && status <= 599 && status != 501);
+
+  /// Whether a network [failure] is a TLS or certificate failure. The shared
+  /// loop cannot name the dart:io types (the web build has none), so it matches
+  /// the type name or the platform text the transport carries in the message
+  /// or the cause. A TLS failure is never retried: the same peer would fail the
+  /// same handshake again.
+  static bool _isTlsFailure(ApiException failure) {
+    final text = '${failure.message} ${failure.cause}';
+    return text.contains('TlsException') ||
+        text.contains('HandshakeException') ||
+        text.contains('CERTIFICATE_VERIFY_FAILED');
+  }
 
   /// Time left of the end-to-end timeout of [budgetMs] milliseconds, never
   /// negative.

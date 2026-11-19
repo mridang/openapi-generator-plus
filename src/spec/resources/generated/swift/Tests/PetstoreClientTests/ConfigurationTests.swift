@@ -313,4 +313,22 @@ import Testing
       .build()
     #expect(config.description.contains("visible-value"))
   }
+
+  @Test func testBhvMisc276TheDefaultConfigurationAndTheDefaultBuilderUseTheSpecBaseURL() {
+    #expect(Configuration.default().baseURL == "/api/v3")
+    #expect(ConfigurationBuilder().build().baseURL == "/api/v3")
+  }
+
+  /* Each call to the default configuration returns a distinct configuration object. */
+  @Test func testBhvMisc277EachCallToTheDefaultConfigurationReturnsADistinctObject() {
+    #expect(Configuration.default() !== Configuration.default())
+  }
+
+  /* Changing a copy of the headers returned from a configuration does not change the configuration. */
+  @Test func testBhvMisc279ChangingACopyOfTheDefaultHeadersDoesNotChangeTheConfiguration() {
+    let config = ConfigurationBuilder().build()
+    var copy = config.defaultHeaders
+    copy["X-Changed"] = "1"
+    #expect(config.defaultHeaders["X-Changed"] == nil)
+  }
 }

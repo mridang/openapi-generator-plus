@@ -1267,4 +1267,52 @@ class ValueSerializerTest {
             assertEquals("gold-tier", TierFixture.GOLD.toString())
         }
     }
+
+    @Test
+    fun bhvSerialization106NonExplodedArrayQueryJoinsValuesWithCommas() =
+        runBlocking<Unit> {
+            assertEquals("a,b,c", ValueSerializer.serializeStyled("ids", listOf("a", "b", "c"), "query", "array", null, "form", false))
+        }
+
+    @Test
+    fun bhvSerialization107ExplodedArrayQueryRepeatsTheKeyForEachElement() =
+        runBlocking<Unit> {
+            val wire = ValueSerializer.serializeStyled("ids", listOf("a", "b"), "query", "array", null, "form", true).toString()
+            assertEquals(2, Regex("ids").findAll(wire).count(), wire)
+        }
+
+    @Test
+    fun bhvSerialization108ADefaultStyleMatchesTheSimpleStyleForPathParameters() =
+        runBlocking<Unit> {
+            assertEquals(
+                ValueSerializer.serializeStyled("name", "x", "path", "string", null, "simple", false),
+                ValueSerializer.serializeStyled("name", "x", "path", "string", null, null, false),
+            )
+        }
+
+    @Test
+    fun bhvSerialization109AStringPathParameterIsPercentEncodedExactlyOnce() =
+        runBlocking<Unit> {
+            assertEquals("100%25", ValueSerializer.encodePathSegment("100%"))
+        }
+
+    @Test
+    fun bhvSerialization111OnlyUnreservedCharactersStayLiteralAndTheRestAreUtf8Encoded() =
+        runBlocking<Unit> {
+            assertEquals("a~b", ValueSerializer.encodePathSegment("a~b"))
+            assertEquals("%C3%A9%2F", ValueSerializer.encodePathSegment("é/"))
+        }
+
+    @Test
+    fun bhvSerialization113AStringValuePassesThroughWithoutNormalisation() =
+        runBlocking<Unit> {
+            assertEquals("é", ValueSerializer.serialize("é", "query", "string", null))
+        }
+
+    @Test
+    fun bhvSerialization118ADateTimeQueryParameterKeepsItsTimeAndOffset() =
+        runBlocking<Unit> {
+            val value = ValueSerializer.serialize(java.time.OffsetDateTime.parse("2024-01-02T03:04:05+02:00"), "query", "string", null)
+            assertTrue(value.toString().contains("T03:04:05+02:00"), value.toString())
+        }
 }

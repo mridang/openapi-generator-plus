@@ -519,6 +519,39 @@ describe Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator do
     _(auth.instance_variable_get(:@discovery_expiry)).must_be :<=, Time.now + 31_536_000
   end
 
+  it 'bhv_misc_199 discovery runs again when the cached document expires or its max-age is zero' do
+    no_cache = discovery_response.merge(headers: { 'cache-control' => 'max-age=0' })
+    client = FakeOidcClient.new([no_cache, no_cache])
+    auth = oidc_authenticator(client)
+
+    auth.build_authorization_url
+    auth.build_authorization_url
+    _(discovery_requests(client).length).must_equal 2
+  end
+
+  it 'bhv_misc_200 a discovery document whose issuer names another server is rejected' do
+    client = FakeOidcClient.new([{ status: 200, body: { 'issuer' => 'https://evil.example.com',
+                                                        'authorization_endpoint' => 'https://auth.example.com/authorize',
+                                                        'token_endpoint' => 'https://auth.example.com/token' } }])
+    auth = oidc_authenticator(client)
+
+    err = assert_raises(Petstore::Client::Errors::SerializationError) { auth.build_authorization_url }
+    _(err.message).must_equal 'OIDC discovery document issuer does not match the discovery URL'
+  end
+
+  it 'bhv_misc_201 a failed discovery request reports its path without the query string' do
+    auth = Petstore::Client::Auth::OAuth::OpenIdConnectAuthenticator.new(
+      'https://api.example.com',
+      'https://auth.example.com/.well-known/openid-configuration?tenant=a',
+      'my_client_id', 'my_client_secret',
+      'https://app.example.com/callback', %w[openid]
+    )
+    auth.api_client = FakeOidcClient.new([{ status: 404, body: '{}' }])
+
+    err = assert_raises(Petstore::Client::Errors::NotFoundError) { auth.build_authorization_url }
+    _(err.request_path).must_equal '/.well-known/openid-configuration'
+  end
+
   it 'bhv_authoidc_030 rediscovers on every call when max-age is zero' do
     no_cache = discovery_response.merge(headers: { 'cache-control' => 'max-age=0' })
     client = FakeOidcClient.new([no_cache, no_cache])

@@ -336,7 +336,7 @@ final transport = TransportOptions.builder()
   .build();
 ```
 
-Network errors before a response and statuses 408, 409, 429 and 500-599 (not 501) are retried with a backoff of 0.5 s doubling to 8 s with 25% jitter; `Retry-After` (at most 60 s) is honoured, the request timeout is never extended, and a multipart body is never retried.
+Network errors before a response for GET, HEAD, OPTIONS, TRACE, PUT, DELETE and QUERY (TLS and certificate failures are never retried, and POST and PATCH are sent once), and statuses 408, 409, 429 and 500-599 (not 501) are retried with a backoff of 0.5 s doubling to 8 s with 25% jitter; `Retry-After` (at most 60 s) is honoured, the request timeout is never extended, and a multipart body is never retried.
 
 ### Custom HTTP client
 

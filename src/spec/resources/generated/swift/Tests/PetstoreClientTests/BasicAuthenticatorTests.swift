@@ -374,4 +374,21 @@ import Testing
         host: "https://api.example.com", username: "ali:ce", password: "s3cret")
     }
   }
+
+  /* A basic scheme wrapper sends the same header as its base authenticator and refuses invalid input the same way. */
+  @Test(arguments: ["AdminBasic", "PetStoreBasic"])
+  func testBhvMisc193ABasicSchemeWrapperMatchesItsBaseAuthenticator(scheme: String) async throws {
+    let base = try BasicAuthenticator(
+      host: "https://api.example.com", username: "user", password: "pass")
+    let expected = try await base.authHeaders()
+    let wrapper = try Self.schemeWrapper(scheme, username: "user", password: "pass")
+    #expect(try await wrapper.authHeaders() == expected)
+    #expect(
+      throws: ConfigurationError.invalidArgument(
+        "Basic auth username must not contain ':' (RFC 7617 \u{A7}2)")
+    ) {
+      _ = try Self.schemeWrapper(scheme, username: "us:er", password: "pass")
+    }
+  }
+
 }

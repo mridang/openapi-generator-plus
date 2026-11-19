@@ -2468,6 +2468,17 @@ class PetApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc219 an operation with several servers sends its request only to the server chosen for that operation")
+        fun bhvMisc219OperationWithSeveralServersSendsToTheChosenServer() {
+            val urls = mutableListOf<String>()
+            val api = apiRecordingUrls(urls)
+            val eu = PetApi.GetMultiServerPetInfoServer.Regional(PetApi.GetMultiServerPetInfoServer.RegionalRegion.EU)
+            runBlocking { api.getMultiServerPetInfo(7L, eu) }
+            assertEquals(1, urls.size)
+            assertFalse(urls[0].startsWith("https://primary.example.com/v1/"), urls[0])
+        }
+
+        @Test
         @DisplayName("bhvServers020 a per-operation server variable value outside its enum is rejected")
         fun perOperationServerVariableOutsideItsEnumIsRejected() {
             assertThrows(IllegalArgumentException::class.java) {

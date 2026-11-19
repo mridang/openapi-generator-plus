@@ -17,6 +17,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.example.petstore.errors.SerializationException;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -1232,6 +1234,21 @@ class ValueSerializerTest {
   }
 
   @Test
+  @DisplayName("bhvMisc213 an optional array query parameter is joined in its declared style")
+  void bhvMisc213AnOptionalArrayQueryParameterIsJoinedInItsDeclaredStyle() {
+    assertEquals(
+        "blue|black",
+        ValueSerializer.serializeStyled(
+            "colors",
+            Arrays.asList("blue", "black"),
+            "query",
+            "array",
+            null,
+            "pipeDelimited",
+            false));
+  }
+
+  @Test
   @DisplayName("bhvSerialization109 a path value is percent-encoded exactly once")
   void bhvSerialization109APathValueIsPercentEncodedExactlyOnce() {
     assertEquals("a%25b", ValueSerializer.serialize("a%b", "path", "string", null));
@@ -1257,5 +1274,38 @@ class ValueSerializerTest {
   @DisplayName("bhvSerialization113 a string value passes through without normalising its form")
   void bhvSerialization113AStringValuePassesThroughWithoutNormalisingItsForm() {
     assertEquals("é", ValueSerializer.serialize("é", "query", "string", null));
+  }
+
+  @Test
+  @DisplayName(
+      "bhvSerialization107 an exploded array query parameter repeats its key once per element")
+  void bhvSerialization107ExplodedArrayRepeatsItsKey() {
+    assertEquals(
+        List.of("a", "b"),
+        ValueSerializer.serializeStyled(
+            "ids", List.of("a", "b"), "query", "array", null, "form", true));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization108 a path parameter with no style matches the simple style")
+  void bhvSerialization108DefaultStyleMatchesSimpleForPaths() {
+    assertEquals(
+        ValueSerializer.serializeStyled("p", "v", "path", "string", null, "simple", false),
+        ValueSerializer.serializeStyled("p", "v", "path", "string", null, null, false));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization118 a date-time query value keeps its time and offset")
+  void bhvSerialization118DateTimeQueryKeepsItsTime() {
+    Object value =
+        ValueSerializer.serializeStyled(
+            "at",
+            OffsetDateTime.of(2026, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC),
+            "query",
+            "string",
+            null,
+            "form",
+            true);
+    assertTrue(String.valueOf(value).startsWith("2026-01-02T03:04:05"), String.valueOf(value));
   }
 }

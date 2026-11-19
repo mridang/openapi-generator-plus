@@ -216,6 +216,17 @@ class DefaultApiClientTest {
                 assertEquals(0, ex.statusCode)
                 assertNotNull(ex.cause, "the host name failure must be kept as the cause")
             }
+
+        @Test
+        fun bhvTransport093ServerFromAnotherCaIsRejectedWithANetworkError() =
+            runBlocking<Unit> {
+                val client = DefaultApiClient(TransportOptions.builder().maxRetries(0).build())
+                val ex =
+                    assertThrowsExactly(com.example.petstore.errors.NetworkException::class.java) {
+                        runBlocking { client.sendRequest("GET", "${ChasmContainer.getHttpsBaseUrl()}/test/echo", emptyMap(), null) }
+                    }
+                assertEquals(0, ex.statusCode)
+            }
     }
 
     @Nested

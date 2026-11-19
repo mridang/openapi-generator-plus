@@ -424,12 +424,14 @@ abstract class AbstractApiClient
            * body (which may contain credentials, PII, or signed payloads), so
            * re-emitting it over an unencrypted hop is a leak — raise a typed
            * SDK error instead. 301/302/303 coerce to GET and DROP the body
-           * above, so nothing is replayed and the redirect must proceed (guard
-           * 307/308 only). Checking the COERCED [nextBody] — not the original
-           * [currentBody] — is what distinguishes the two: it is null after a
-           * 301/302/303 body-drop and non-null only when the body would
-           * actually cross the wire. */
-          if (downgrade && nextBody != null) {
+           * above, but a 301/302 from a POST that carried a body is still
+           * refused, since the original body was sent on the HTTPS hop and the
+           * owner rule forbids replaying it across the downgrade. A 303 is
+           * followed with the body dropped. */
+          final replaysBody = (statusCode == 301 || statusCode == 302)
+              ? currentBody != null
+              : nextBody != null;
+          if (downgrade && replaysBody) {
             throw ApiException(
               statusCode: streamedResponse.statusCode,
               message:

@@ -432,9 +432,9 @@ impl ApiClient for DefaultApiClient {
                     };
 
                     /* Refuse to replay a request body across an
-                     * HTTPS->HTTP downgrade. Only 307/308 preserve the body, so
-                     * we only guard those: a TLS-protected payload (POST/PUT
-                     * body) must not be silently re-sent in cleartext. */
+                     * HTTPS->HTTP downgrade. Every hop except 303 may carry the
+                     * body on, so a TLS-protected payload must not be re-sent in
+                     * cleartext, even by a 301 or 302 that would drop it. */
                     if is_https_to_http_body_replay(
                         status_code,
                         &current_method,
@@ -820,18 +820,17 @@ pub(crate) fn redirect_next_method(status_code: u16, method: &str) -> String {
     }
 }
 
-/// Returns `true` when following the redirect would replay the
-/// in-flight request body across an HTTPS->HTTP downgrade. A body is replayed
-/// only when the hop keeps the method and is not a 303, so the predicate is
-/// false for a hop that becomes GET even when the schemes differ.
+/// Returns `true` when following the redirect would send the in-flight request
+/// body across an HTTPS->HTTP downgrade. A 303 never carries the body on, so it is
+/// the only status that is not refused; every other redirect status is.
 pub(crate) fn is_https_to_http_body_replay(
     status_code: u16,
-    method: &str,
+    _method: &str,
     current_url: Option<&reqwest::Url>,
     next_url: &reqwest::Url,
     has_body: bool,
 ) -> bool {
-    if status_code == 303 || redirect_next_method(status_code, method) != method {
+    if status_code == 303 {
         return false;
     }
     if !has_body {
@@ -1262,6 +1261,36 @@ mod tests {
         }
     }
 
+    /* A 301 or 302 from HTTPS to plain HTTP is refused for a request with a body, even a POST that would become GET. */
+    #[test]
+    fn test_bhv_misc_124_a_301_or_302_from_https_to_http_with_a_body_is_refused() {
+        let https = reqwest::Url::parse("https://example.com/x").unwrap();
+        let http = reqwest::Url::parse("http://example.com/x").unwrap();
+        for status in [301, 302] {
+            assert!(is_https_to_http_body_replay(
+                status,
+                "POST",
+                Some(&https),
+                &http,
+                true
+            ));
+            assert!(is_https_to_http_body_replay(
+                status,
+                "PUT",
+                Some(&https),
+                &http,
+                true
+            ));
+        }
+        assert!(!is_https_to_http_body_replay(
+            303,
+            "POST",
+            Some(&https),
+            &http,
+            true
+        ));
+    }
+
     /* A 301 from HTTPS to plain HTTP that keeps a PUT would replay the body in cleartext, so it is refused. */
     #[test]
     fn test_bhv_misc_124_a_301_from_https_to_http_that_keeps_a_body_is_refused() {
@@ -1297,19 +1326,23 @@ mod tests {
         ));
     }
 
-    /* A 301, 302 or 303 redirect from HTTPS to plain HTTP is followed rather than refused:
-     * a POST becomes a GET with no body, so no body is ever replayed in cleartext. */
+    /* A 301 or 302 redirect from HTTPS to plain HTTP that carries a body is refused, while a 303 is followed. */
     #[test]
-    fn test_bhv_redirects_040_a_301_302_or_303_downgrade_to_http_is_followed_not_refused() {
+    fn test_bhv_redirects_040_a_301_or_302_downgrade_to_http_with_a_body_is_refused_and_a_303_is_followed(
+    ) {
         let https = reqwest::Url::parse("https://example.com/x").unwrap();
         let http = reqwest::Url::parse("http://example.com/x").unwrap();
 
-        for status in [301, 302, 303] {
+        for status in [301, 302] {
             assert!(
-                !is_https_to_http_body_replay(status, "POST", Some(&https), &http, true),
-                "{status} from https to http must be followed, not refused"
+                is_https_to_http_body_replay(status, "POST", Some(&https), &http, true),
+                "{status} from https to http with a body must be refused"
             );
         }
+        assert!(
+            !is_https_to_http_body_replay(303, "POST", Some(&https), &http, true),
+            "303 from https to http must be followed"
+        );
     }
 
     /* ── HTTPS->HTTP body-replay predicate ──
@@ -1363,15 +1396,15 @@ mod tests {
             &https2,
             true
         ));
-        /* 302 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(
+        /* 302 + body + https->http: must refuse, even though a POST would drop the body. */
+        assert!(is_https_to_http_body_replay(
             302,
             "POST",
             Some(&https),
             &http,
             true
         ));
-        /* 303 (drops body anyway): must NOT refuse. */
+        /* 303 (never carries the body): must NOT refuse. */
         assert!(!is_https_to_http_body_replay(
             303,
             "POST",
@@ -1379,8 +1412,8 @@ mod tests {
             &http,
             true
         ));
-        /* 301 (drops body anyway): must NOT refuse. */
-        assert!(!is_https_to_http_body_replay(
+        /* 301 + body + https->http: must refuse, even though a POST would drop the body. */
+        assert!(is_https_to_http_body_replay(
             301,
             "POST",
             Some(&https),

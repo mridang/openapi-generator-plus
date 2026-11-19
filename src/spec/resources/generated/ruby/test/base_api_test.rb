@@ -576,6 +576,22 @@ describe Petstore::Client::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'key'
     end
 
+    it 'bhv_misc_197 an operation whose named schemes the client does not hold is served by the default authenticator' do
+      api, client = api_with({ 'adminBasic' => credential('admin') }, credential('default'))
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'default'
+    end
+
+    it 'bhv_misc_221 a credential is sent using the security scheme the operation declares, not the client authenticator' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer') })
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'bearer'
+    end
+
     it 'bhv_auth_047 skips a scheme the client holds no credential for' do
       api, client = api_with({ 'petStoreBearer' => credential('bearer') })
 
@@ -1184,6 +1200,15 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body).must_be_nil
   end
 
+  it 'bhv_misc_217 a binary upload accepts in-memory bytes and a stream as input without writing a temporary file' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
+                  ['application/json'], 'application/octet-stream', nil)
+    _(client.captured_body).wont_be_nil
+  end
+
   it 'bhv_operations_157 a binary request body is sent as its exact raw bytes with no multipart encoding' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
@@ -1347,6 +1372,21 @@ describe Petstore::Client::Api::BaseApi do
 
   # ── BinaryResponseTests ──
 
+  it 'bhv_misc_216 a binary response is returned as decoded bytes, while the raw body keeps the encoded text' do
+    require 'base64'
+    original_bytes = "\x00\xFF\x42".b
+    encoded = Base64.strict_encode64(original_bytes)
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: encoded, headers: { 'Content-Type' => 'application/octet-stream' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
+                           ['application/octet-stream'], 'application/octet-stream', 'String')
+    decoded = Base64.strict_decode64(result)
+    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+  end
+
   it 'bhv_serializationwire_017 octet-stream binary response decodes to original bytes (roundtrip)' do
     require 'base64'
     original_bytes = "\x00\xFF\x42".b
@@ -1465,6 +1505,21 @@ describe Petstore::Client::Api::BaseApi do
     _(result.data).wont_be_nil
     _(result.headers).wont_be_nil
     _(result.raw_body).must_equal '{}'
+  end
+
+  it 'bhv_misc_220 a full-response call keeps the status code and decodes the union type of the body' do
+    client = Object.new
+    client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+      Petstore::Client::ApiHttpResponse.new(status_code: 201, body: '{"foodType":"dry","weightKg":2.5}',
+                                            headers: { 'content-type' => 'application/json' })
+    end
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call_for_result('POST', '/items', {}, {}, nil,
+                                      ['application/json'], 'application/json', 'PetFood')
+
+    _(result.status_code).must_equal 201
+    _(result.data).must_be_kind_of Petstore::Client::Models::DryFood
   end
 
   # ── NullBodyContentTypeTests ──
@@ -1602,6 +1657,81 @@ describe Petstore::Client::Api::BaseApi do
     test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil, auth)
 
     _(client.captured_headers['Cookie']).must_equal "session=#{value}"
+  end
+
+  it 'bhv_misc_209 a void operation ignores a success body whether text or a non-object JSON value and returns no data' do
+    [['text/plain', 'some text'], ['application/json', '42']].each do |content_type, body|
+      client = Object.new
+      client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+        Petstore::Client::ApiHttpResponse.new(status_code: 200, body: body, headers: { 'content-type' => content_type })
+      end
+      config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+      test_api = TestableApi.new(client, config)
+
+      _(test_api.call('GET', '/items', {}, {}, nil, ['application/json'], 'application/json', nil)).must_be_nil
+    end
+  end
+
+  it 'bhv_misc_210 a date-time form field is percent-escaped for its colons and plus sign' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    when_at = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+    test_api.call('POST', '/test', {}, {}, { 'renewalDate' => when_at },
+                  ['application/json'], 'application/x-www-form-urlencoded', nil)
+
+    _(client.captured_body.to_s).must_include 'renewalDate=2024-01-15T10%3A30%3A00.000%2B00%3A00'
+  end
+
+  it 'bhv_misc_211 a date-time inside a query parameter keeps its wire date-time form' do
+    when_at = Time.new(2024, 1, 15, 10, 30, 0, '+00:00')
+    result = Petstore::Client::ValueSerializer.serialize_styled('at', when_at, :query, 'Time', nil, 'form', true)
+
+    _(result).must_include '2024-01-15T10:30:00'
+  end
+
+  [404, 500].each do |status|
+    it "bhv_misc_212 a #{status} response from a call raises the matching error through the API layer" do
+      error_class = status == 404 ? Petstore::Client::Errors::NotFoundError : Petstore::Client::Errors::InternalServerError
+      api = replay_api(ReplayApiClient.new([status]), client_credentials_auth)
+
+      assert_raises(error_class) { replay_call(api) }
+    end
+  end
+
+  it 'bhv_misc_213 an optional array query parameter is sent in its declared style, never bracketed or comma-joined' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('GET', '/test/echo', { 'colors' => %w[blue black] }, {}, nil,
+                  ['application/json'], 'application/json', nil)
+
+    _(client.captured_url).must_include 'colors=blue'
+    _(client.captured_url).wont_include 'colors%5B'
+    _(client.captured_url).wont_include 'blue%2Cblack'
+  end
+
+  it 'bhv_misc_214 an unserializable query content value raises a serialization error before any request is sent' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    _(lambda do
+      test_api.call('GET', '/test/echo', { 'filter' => { 'nested' => { 'deep' => 1 } } }, {}, nil,
+                    ['application/json'], 'application/json', nil)
+    end).must_raise Petstore::Client::Errors::SerializationError
+    _(client.captured_url).must_be_nil
+  end
+
+  it 'bhv_misc_222 a success response with a 201 status and an empty body returns no data without an error' do
+    client = Object.new
+    client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+      Petstore::Client::ApiHttpResponse.new(status_code: 201, body: '', headers: { 'content-type' => 'application/json' })
+    end
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    _(test_api.call('POST', '/items', {}, {}, nil, ['application/json'], 'application/json', nil)).must_be_nil
   end
 
   it 'bhv_retries_001 replays a request once with a renewed token after a 401' do
