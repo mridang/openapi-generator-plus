@@ -765,3 +765,4 @@ swift | misc272 | Proving an authenticating proxy accepts the credentials needs 
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
 ||||||| 961a989e5
 ||||||| e442aeefb
+swift | misc285 | The Swift transport decodes only gzip, detected by its magic bytes; any other Content-Encoding is passed through unchanged, and no refusal with an unsupported-encoding message exists
