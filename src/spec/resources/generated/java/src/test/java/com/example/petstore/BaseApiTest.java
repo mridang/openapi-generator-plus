@@ -174,6 +174,27 @@ public class BaseApiTest {
           urlTemplate);
     }
 
+    com.example.petstore.ApiResult<JsonNode> timed(
+        @Nullable Authenticator auth, int timeoutMillis) {
+      return this.<JsonNode>invokeApiForResult(
+          "echoOperation",
+          "GET",
+          "/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          JSON_NODE_TYPE,
+          auth,
+          timeoutMillis,
+          null,
+          null,
+          null,
+          "echo_operation",
+          "/echo");
+    }
+
     <T> com.example.petstore.ApiResult<T> callForResult(
         String method,
         String path,
@@ -4052,6 +4073,44 @@ public class BaseApiTest {
           null);
       assertEquals("q=a%2Bb%26c", String.valueOf(client.capturedBody));
     }
+  }
+
+  @Test
+  @DisplayName(
+      "bhvMisc030 a deadline spent while the credential is obtained times out before the transport")
+  void bhvMisc030ASpentDeadlineTimesOutBeforeTheTransport() {
+    var client = new CapturingApiClient();
+    var testApi = new TestableApi(client, "http://localhost");
+    Authenticator slow =
+        new Authenticator() {
+          @Override
+          public String getHost() {
+            return "";
+          }
+
+          @Override
+          public Map<String, String> getAuthHeaders() {
+            try {
+              Thread.sleep(80);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return Map.of("Authorization", "Bearer t");
+          }
+
+          @Override
+          public Map<String, String> getQueryParams() {
+            return Map.of();
+          }
+
+          @Override
+          public Map<String, String> getCookieParams() {
+            return Map.of();
+          }
+        };
+    assertThrows(
+        com.example.petstore.errors.NetworkTimeoutException.class, () -> testApi.timed(slow, 20));
+    assertEquals("", client.capturedUrl);
   }
 
   @Test

@@ -382,7 +382,6 @@ kotlin | misc033 | the HTTPS fixture server presents only its leaf certificate, 
 go | misc135 | Go has no client-level cancellation handle: cancellation is the context.Context each call takes, so the ConfigurationBuilder has no field to store one
 node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
 node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
-java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
 java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
 elixir | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
@@ -444,7 +443,6 @@ swift | misc052 | Swift's per-call options are struct initializers that take eac
 swift | misc059 | the token response decodes expires_in as a whole Int, so NaN, Infinity or an overflowing lifetime never reaches the expiry computation as a value to cache
 swift | misc060 | Swift's BearerAuthenticator has a token initializer and a separate token provider initializer, so one construction cannot pass both
 swift | misc061 | the Swift Authenticator protocol takes no call-context argument and the SDK has no caller-context API, so an authenticator receives no caller cancellation or context value to test
-java | misc047 | A Java union wrapper never validates the value it holds (bhvUnions039), so serializing a non-variant value writes it without failing and no error names the union
 java | misc051 | Java per-call options are typed classes, so an unknown key or a server setting on an operation without servers is a compile error rather than a runtime refusal
 java | misc060 | Java's ApiKeyAuthenticator takes no key provider, so an API key and a key provider cannot be supplied together; the bearer case is bhv auth 039
 java | misc061 | The Java Authenticator receives only the ApiClient and no cancellation or context value, so the caller's cancellation and context cannot reach it

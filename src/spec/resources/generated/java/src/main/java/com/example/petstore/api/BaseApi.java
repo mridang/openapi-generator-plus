@@ -393,6 +393,7 @@ public abstract class BaseApi {
     } else {
       effectiveAuth = this.authenticator;
     }
+    final long callStartNanos = System.nanoTime();
     if (effectiveAuth != null) {
       for (Map.Entry<String, String> entry : effectiveAuth.getQueryParams().entrySet()) {
         queryParams.put(entry.getKey(), entry.getValue());
@@ -419,6 +420,16 @@ public abstract class BaseApi {
     Map<String, String> sentAuthHeaders = Map.of();
     if (effectiveAuth != null) {
       sentAuthHeaders = effectiveAuth.getAuthHeaders();
+      /* A deadline spent while the credential was being obtained is a timeout: the
+       * request never reaches the transport (misc030). */
+      if (timeoutMillis != null
+          && System.nanoTime() - callStartNanos >= timeoutMillis * 1_000_000L) {
+        throw new com.example.petstore.errors.NetworkTimeoutException(
+            "The call timed out after " + timeoutMillis + " ms before it was sent",
+            new java.util.concurrent.TimeoutException("deadline already passed"),
+            method.toUpperCase(java.util.Locale.ROOT),
+            requestPathOf(url));
+      }
       headers.putAll(sentAuthHeaders);
       Map<String, String> cookies = effectiveAuth.getCookieParams();
       if (!cookies.isEmpty()) {
