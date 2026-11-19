@@ -4197,6 +4197,12 @@ class ObjectSerializerTest {
         runBlocking<Unit> {
             assertEquals(java.time.Duration.ofMillis(2500), serializer.deserialize<java.time.Duration>("\"2.5s\""))
         }
+
+    @Test
+    fun bhvSerialization129ANanosecondDurationIsWrittenWithANineDigitFraction() =
+        runBlocking<Unit> {
+            assertEquals("1.000000001s", serializer.stringify(java.time.Duration.ofNanos(1_000_000_001L)))
+        }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.
