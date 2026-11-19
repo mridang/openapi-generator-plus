@@ -604,3 +604,19 @@ fn test_bhv_models_024_a_newly_built_model_leaves_its_optional_properties_unset(
     let fresh = Metadata::new();
     assert!(fresh.created_at.is_none(), "an optional property starts unset");
 }
+#[test]
+fn test_bhv_misc_287_wire_key_named_additional_properties_alongside_other_extras() {
+    let wire = r#"{"createdAt":"2024-01-15T10:30:00+00:00","additional_properties":"bar","region":"eu"}"#;
+    let metadata: Metadata = serde_json::from_str(wire).expect("failed to deserialize Metadata");
+    assert_eq!(Some(&"bar".to_string()), metadata.additional_properties.get("additional_properties"));
+    assert_eq!(Some(&"eu".to_string()), metadata.additional_properties.get("region"));
+}
+
+#[test]
+fn test_bhv_misc_290_dict_valued_wire_key_survives_full_round_trip() {
+    let wire = r#"{"createdAt":"2024-01-15T10:30:00+00:00","additional_properties":"bar"}"#;
+    let metadata: Metadata = serde_json::from_str(wire).expect("failed to deserialize Metadata");
+    let json = serde_json::to_string(&metadata).expect("failed to serialize Metadata");
+    let restored: Metadata = serde_json::from_str(&json).expect("the round trip must decode");
+    assert_eq!(Some(&"bar".to_string()), restored.additional_properties.get("additional_properties"));
+}
