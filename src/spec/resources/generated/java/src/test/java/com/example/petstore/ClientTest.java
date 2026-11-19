@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class ClientTest {
 
   private final BearerAuthenticator authenticator =

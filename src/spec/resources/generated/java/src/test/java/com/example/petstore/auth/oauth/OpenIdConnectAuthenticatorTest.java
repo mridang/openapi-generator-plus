@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class OpenIdConnectAuthenticatorTest {
 
   private static final String DISCOVERY_RESPONSE =

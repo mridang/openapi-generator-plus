@@ -52,6 +52,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Integration tests for the Pet API endpoints. */
+@SuppressWarnings("NullAway")
 class PetApiTest {
 
   private PetApi api;

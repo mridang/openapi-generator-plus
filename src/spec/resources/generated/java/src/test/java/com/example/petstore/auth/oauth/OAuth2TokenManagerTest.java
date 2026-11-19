@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class OAuth2TokenManagerTest {
 
   private static final String TOKEN_URL = "https://auth.example.com/token";
