@@ -119,6 +119,12 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first scheme it lists that you set. A per-call override of the scheme is deferred, and Rust has no such override.
 * **Test TLS keys.** No private key is committed. The test CA and the server key are generated once per test run by the shared harness and mounted into the containers that run the generated tests. The Dart and Swift standard libraries cannot create X.509 certificates, so the generated SDK tests only read the material and do not create it.
 * **Trace context comes from the caller's context (#136).** A request carries the span active in the context of the call. Go takes the context as the `ctx` argument; the other eleven read the ambient OpenTelemetry context in the caller's thread, task, fiber, process or zone. No SDK builds a context of its own, and a failure to inject never fails a call.
+* **A response that lies about its encoding is an error.** When the server declares `Content-Encoding: gzip` (or another compression) and the body is not that encoding, the call fails with the SDK's API error. The body is never returned as if it were plain text, because that hides a broken server behind a success.
+* **A time of day in a query keeps its milliseconds.** `10:20:30.250` is sent as `10:20:30.250`, a whole second as `10:20:30`, and anything finer than a millisecond is cut off. This is the same rule as for a time in a body.
+* **readOnly and writeOnly have no effect on the wire.** The SDK writes and reads such a property like any other; the schema keyword is documentation. The server owns the decision to ignore it.
+* **A duration fraction has at least three digits.** `1.5` seconds is written `1.500s`; the fraction grows to six or nine digits only when it needs them.
+* **Multipart names that cannot be written are rejected.** A field name or filename with a carriage return, line feed or NUL fails before any request is sent; a double quote is escaped with a backslash.
+* **A string result under a binary content type is decoded.** The internal base64 carrier the transport uses for binary bodies never reaches your code.
 
 ## Under review
 
