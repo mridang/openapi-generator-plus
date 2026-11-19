@@ -2730,6 +2730,23 @@ test('bhv enums 011 a description with comment terminators still yields a compil
     expect(enumModelSource('Tier'))->toContain("/** The largest tier. Ends with *_/ and #{x} and \$x. */\n    case LARGE");
 });
 
+test('bhv misc 093 additional properties with numeric names are written as object members, alone or beside named fields', function (): void {
+    $beside = ObjectSerializer::deserialize(
+        '{"createdAt":"2024-01-01T00:00:00+00:00","404":"missing","7":"seven"}',
+        \{{invokerPackage}}\Models\Metadata::class
+    );
+    $besideData = json_decode(ObjectSerializer::serialize($beside));
+    expect($besideData)->toBeInstanceOf(\stdClass::class);
+    expect($besideData->{'404'})->toBe('missing');
+    expect($besideData->{'7'})->toBe('seven');
+
+    $alone = ObjectSerializer::deserialize('{"0":"x","1":"y"}', \{{invokerPackage}}\Models\Metadata::class);
+    $aloneData = json_decode(ObjectSerializer::serialize($alone));
+    expect($aloneData)->toBeInstanceOf(\stdClass::class);
+    expect($aloneData->{'0'})->toBe('x');
+    expect($aloneData->{'1'})->toBe('y');
+});
+
 test('bhv misc 287 a wire key literally named additional_properties is kept as an undeclared extra', function (): void {
     $metadata = ObjectSerializer::deserialize(
         '{"createdAt":"2024-01-01T00:00:00Z","additional_properties":"x"}',
