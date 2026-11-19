@@ -246,7 +246,13 @@ describe("ServerConfiguration misc behaviours", () => {
         region: new ServerVariable("eu", null, []),
       },
     );
-    config.variables["region"] = new ServerVariable("us", null, []);
+    expect(
+      Reflect.set(
+        config.variables,
+        "region",
+        new ServerVariable("us", null, []),
+      ),
+    ).toBe(false);
     expect(config.getUrl()).toBe("https://eu.example.com");
   });
 

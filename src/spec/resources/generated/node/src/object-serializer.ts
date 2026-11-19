@@ -371,10 +371,9 @@ function isNestedModelClass(
 
 function revalidateNestedValue(value: unknown): unknown {
   if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i++) {
-      value[i] = revalidateNestedValue(value[i]);
-    }
-    return value;
+    return Object.freeze(
+      value.map((element) => revalidateNestedValue(element)),
+    );
   }
   if (value instanceof Set) {
     return new Set([...value].map((element) => revalidateNestedValue(element)));
@@ -389,7 +388,14 @@ function revalidateNestedValue(value: unknown): unknown {
     return rebuilt;
   }
   if (ctor === Object) {
-    revalidateNestedFields(value as Record<string, unknown>);
+    return Object.freeze(
+      Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([k, v]) => [
+          k,
+          revalidateNestedValue(v),
+        ]),
+      ),
+    );
   }
   return value;
 }
@@ -1306,15 +1312,18 @@ export class ObjectSerializer {
 
   /**
    * Whether a deserializer argument is a model class constructor (as opposed
-   * to a bare element-deserializer arrow function). A class constructor has
-   * an own `prototype`; an arrow function does not. Used to decide whether a
+   * to a bare element-deserializer function). A function declaration also has
+   * a `prototype`, so the test reads the source text for the `class` keyword. Used to decide whether a
    * produced `null` is a failed-model-parse sentinel (drop) or a legitimate
    * primitive/enum null wire value (keep).
    */
   private static isClassConstructor<T>(
     cls: ClassConstructor<T> | ((value: unknown) => T | null),
   ): cls is ClassConstructor<T> {
-    return typeof cls === "function" && "prototype" in cls;
+    return (
+      typeof cls === "function" &&
+      /^class[\s{]/.test(Function.prototype.toString.call(cls))
+    );
   }
 
   /**

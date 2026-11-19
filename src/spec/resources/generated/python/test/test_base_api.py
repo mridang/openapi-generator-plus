@@ -42,6 +42,10 @@ from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import (
 )
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.errors import ApiException, NetworkException, OpenAPIException
+from petstore_client.errors.network_timeout_exception import NetworkTimeoutException
+from petstore_client.errors.service_unavailable_exception import (
+    ServiceUnavailableException,
+)
 from petstore_client.errors.bad_gateway_exception import BadGatewayException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.server_exception import ServerException
@@ -5175,18 +5179,18 @@ class TestRetryOutcomesAndBodyReplay:
         server = scripted((503, {"Retry-After": "0"}, "{}"), _OK)
         api = _retry_api(server)
 
-        result = await api.call_result(
-            "POST",
-            "/x",
-            {},
-            {},
-            io.BytesIO(b"payload"),
-            ["application/json"],
-            "application/octet-stream",
-            None,
-        )
+        with pytest.raises(ServiceUnavailableException):
+            await api.call_result(
+                "POST",
+                "/x",
+                {},
+                {},
+                io.BytesIO(b"payload"),
+                ["application/json"],
+                "application/octet-stream",
+                None,
+            )
 
-        assert result.status_code == 503
         assert len(server.requests) == 1
 
     async def test_bhv_misc_164_a_retry_whose_wait_fits_the_timeout_budget_is_sent(
@@ -5203,7 +5207,9 @@ class TestRetryOutcomesAndBodyReplay:
     ) -> None:
         server = scripted((307, {"Location": "/y"}, "{}"), _OK)
 
-        await api_post_text(_retry_api(server), '{"a":1}')
+        await _retry_api(server).call(
+            "POST", "/x", {}, {}, '{"a":1}', ["application/json"], "text/plain", None
+        )
 
         assert len(server.requests) == 2
         assert server.bodies[1] == '{"a":1}'

@@ -7,12 +7,14 @@
 
 import asyncio
 import functools
+import ssl
 import time
 from typing import (
     Any,
     Awaitable,
     Callable,
     Concatenate,
+    Coroutine,
     Dict,
     List,
     Mapping,
@@ -24,6 +26,7 @@ from typing import (
 )
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
+import urllib3
 from pydantic import BaseModel
 
 from ..api_client import ApiClient
@@ -84,6 +87,23 @@ _IDEMPOTENT_METHODS = frozenset(
 )
 
 
+def _is_replayable(body: Any) -> bool:
+    """A body can be sent again only if no part of it is a one-shot stream."""
+    if hasattr(body, "read"):
+        return False
+    if isinstance(body, dict):
+        return all(_is_replayable(v) for v in body.values())
+    if isinstance(body, (list, tuple)):
+        return all(_is_replayable(v) for v in body)
+    return True
+
+
+def _is_tls_failure(error: NetworkException) -> bool:
+    """A certificate or handshake failure will fail the same way again."""
+    cause = error.__cause__
+    return isinstance(cause, (ssl.SSLError, urllib3.exceptions.SSLError))
+
+
 class _NoAuth:
     """Internal no-auth sentinel type.
 
@@ -142,7 +162,7 @@ def _is_valid_cookie_value(value: str) -> bool:
 
 def _tracked(
     method: Callable[Concatenate["BaseApi", _P], Awaitable[_R]],
-) -> Callable[Concatenate["BaseApi", _P], Awaitable[_R]]:
+) -> Callable[Concatenate["BaseApi", _P], Coroutine[Any, Any, _R]]:
     """Counts the call as in flight on the API's :class:`DefaultApiClient`.
 
     A call that has started when the client is closed finishes (its retries and
@@ -595,7 +615,12 @@ class BaseApi:
                 error._with_request(method, request_path)
                 raise
 
-            if response.status_code < 200 or response.status_code >= 300:
+            is_terminal_3xx = 300 <= response.status_code < 400 and not any(
+                k.lower() == "location" for k in response.headers
+            )
+            if (
+                response.status_code < 200 or response.status_code >= 300
+            ) and not is_terminal_3xx:
                 self._throw_api_exception(response, method, request_path, error_schemas)
 
             data: Any = None
@@ -781,14 +806,18 @@ class BaseApi:
             except NetworkException as error:
                 if (
                     isinstance(error, NetworkTimeoutException)
+                    or _is_tls_failure(error)
                     or attempt >= max_retries
                     or method.upper() not in _IDEMPOTENT_METHODS
+                    or not _is_replayable(body)
                 ):
                     raise
                 failure = error
             if response is not None:
-                if attempt >= max_retries or not _is_retryable_status(
-                    response.status_code
+                if (
+                    attempt >= max_retries
+                    or not _is_retryable_status(response.status_code)
+                    or not _is_replayable(body)
                 ):
                     return response
                 retry_after = next(

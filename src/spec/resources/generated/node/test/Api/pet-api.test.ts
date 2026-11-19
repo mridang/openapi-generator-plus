@@ -941,10 +941,10 @@ describe("PetApi form-urlencoded body serialization", () => {
     try {
       await api.setPetPreferences(1, {
         nickname: "good boy",
-        renewalDate: "2024-01-01T13:45:30+02:00",
+        reminder: "2024-01-01T13:45:30+02:00",
       });
       expect(getCapture().body).toContain(
-        "renewalDate=2024-01-01T13%3A45%3A30%2B02%3A00",
+        "reminder=2024-01-01T13%3A45%3A30%2B02%3A00",
       );
     } finally {
       close();

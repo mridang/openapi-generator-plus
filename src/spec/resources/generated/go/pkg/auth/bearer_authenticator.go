@@ -89,6 +89,11 @@ func validateBearerToken(token string) error {
 	if strings.Trim(token, " \t\n\r\f\v") == "" {
 		return &invalidBearerTokenError{"bearer token must not be empty"}
 	}
+	// A token already carrying the "Bearer " prefix is passed through as the caller wrote it; a bare token may not contain spaces.
+	prefixed := len(token) >= 7 && strings.EqualFold(token[:7], "Bearer ")
+	if !prefixed && strings.ContainsAny(token, " \t") {
+		return &invalidBearerTokenError{"bearer token must not contain spaces or tabs"}
+	}
 	for _, c := range token {
 		if c != '\t' && (c < 0x20 || c >= 0x7F) {
 			return &invalidBearerTokenError{"bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"}

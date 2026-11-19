@@ -509,15 +509,22 @@ describe("SchemeAuthenticators", () => {
       const wrapped = new cls("https://api.example.com", "alice", "s3cret") as {
         getAuthHeaders(): Record<string, string>;
       };
-      const plain = new base("https://api.example.com", "alice", "s3cret") as {
-        getAuthHeaders(): Record<string, string>;
-      };
+      const plain = new (base as unknown as SchemeWrapper)(
+        "https://api.example.com",
+        "alice",
+        "s3cret",
+      ) as { getAuthHeaders(): Record<string, string> };
       expect(wrapped.getAuthHeaders()).toEqual(plain.getAuthHeaders());
       expect(
         () => new cls("https://api.example.com", "ali:ce", "s3cret"),
       ).toThrow(TypeError);
       expect(
-        () => new base("https://api.example.com", "ali:ce", "s3cret"),
+        () =>
+          new (base as unknown as SchemeWrapper)(
+            "https://api.example.com",
+            "ali:ce",
+            "s3cret",
+          ),
       ).toThrow(TypeError);
     });
   }
@@ -529,9 +536,10 @@ describe("SchemeAuthenticators", () => {
       const wrapped = new cls("https://api.example.com", "Bearer abc-123") as {
         getAuthHeaders(): Record<string, string>;
       };
-      const plain = new base("https://api.example.com", "Bearer abc-123") as {
-        getAuthHeaders(): Record<string, string>;
-      };
+      const plain = new (base as unknown as SchemeWrapper)(
+        "https://api.example.com",
+        "Bearer abc-123",
+      ) as { getAuthHeaders(): Record<string, string> };
       expect(wrapped.getAuthHeaders()).toEqual(plain.getAuthHeaders());
     });
   }

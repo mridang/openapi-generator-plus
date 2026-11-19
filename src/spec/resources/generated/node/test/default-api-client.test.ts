@@ -24,6 +24,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import * as tls from "node:tls";
 
+async function ipHttpsUrl(): Promise<string> {
+  const chasmUrl = new URL(process.env["CHASM_HTTPS_URL"]!);
+  const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
+  return `https://${address}:${chasmUrl.port}`;
+}
+
 describe("DefaultApiClient", () => {
   test("bhv transport 018 makes HTTPS request with verifySsl=false", async () => {
     const chasmUrl = process.env["CHASM_HTTPS_URL"]!;
@@ -52,12 +58,6 @@ describe("DefaultApiClient", () => {
      * independent of chain trust, so we can assert that turning off
      * verification skips the hostname check too.
      */
-
-    async function ipHttpsUrl(): Promise<string> {
-      const chasmUrl = new URL(process.env["CHASM_HTTPS_URL"]!);
-      const { address } = await dns.lookup(chasmUrl.hostname, { family: 4 });
-      return `https://${address}:${chasmUrl.port}`;
-    }
 
     test("bhv transport 025 verifySsl=true rejects hostname mismatch (the cert does not name the address)", async () => {
       const caCertPath = process.env["CA_CERT_PATH"]!;
@@ -301,23 +301,23 @@ describe("DefaultApiClient", () => {
     expect(error).toBeInstanceOf(NetworkError);
     expect((error as NetworkTimeoutError).statusCode).toBe(0);
     expect((error as NetworkTimeoutError).cause).toBeDefined();
+  });
 
-    test("bhv misc 268 a server presenting a certificate from a trusted CA is still rejected when the hostname does not match", async () => {
-      const url = await ipHttpsUrl();
-      const client = new DefaultApiClient(
-        TransportOptions.builder()
-          .verifySsl(true)
-          .caCertPath(process.env["CA_CERT_PATH"]!)
-          .build(),
-      );
-      try {
-        await expect(
-          client.sendRequest("GET", `${url}/test/echo`, {}, null),
-        ).rejects.toThrow();
-      } finally {
-        await client.close();
-      }
-    });
+  test("bhv misc 268 a server presenting a certificate from a trusted CA is still rejected when the hostname does not match", async () => {
+    const url = await ipHttpsUrl();
+    const client = new DefaultApiClient(
+      TransportOptions.builder()
+        .verifySsl(true)
+        .caCertPath(process.env["CA_CERT_PATH"]!)
+        .build(),
+    );
+    try {
+      await expect(
+        client.sendRequest("GET", `${url}/test/echo`, {}, null),
+      ).rejects.toThrow();
+    } finally {
+      await client.close();
+    }
   });
 
   describe("redirect chain timeout is one budget", () => {
@@ -1114,19 +1114,29 @@ describe("DefaultApiClient redirect misc behaviours", () => {
   });
 
   it("bhv misc 128 a cross-origin redirect keeps the proxy credential on every request through the shared transport", async () => {
-    const seen: Array<{ url: string; auth: string | undefined }> = [];
-    const proxy = http.createServer((req, res) => {
-      seen.push({
-        url: String(req.url),
-        auth: req.headers["proxy-authorization"],
-      });
-      if (req.url === "http://origin-a.example/start") {
+    /* undici tunnels every http:// origin through CONNECT, so the proxy answers each
+     * tunnel and serves the origin request inside it. */
+    const seen: Array<{ target: string; auth: string | undefined }> = [];
+    const origin = http.createServer((req, res) => {
+      if (req.headers.host === "origin-a.example") {
         res.writeHead(302, { Location: "http://origin-b.example/hop" });
         res.end();
         return;
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end('{"ok":true}');
+    });
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(400);
+      res.end();
+    });
+    proxy.on("connect", (req, socket) => {
+      seen.push({
+        target: String(req.url),
+        auth: req.headers["proxy-authorization"],
+      });
+      socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+      origin.emit("connection", socket);
     });
     await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
     try {
@@ -1144,9 +1154,9 @@ describe("DefaultApiClient redirect misc behaviours", () => {
         null,
       );
       expect(response.statusCode).toBe(200);
-      expect(seen.map((s) => s.url)).toEqual([
-        "http://origin-a.example/start",
-        "http://origin-b.example/hop",
+      expect(seen.map((s) => s.target)).toEqual([
+        "origin-a.example:80",
+        "origin-b.example:80",
       ]);
       expect(seen.every((s) => s.auth !== undefined)).toBe(true);
     } finally {

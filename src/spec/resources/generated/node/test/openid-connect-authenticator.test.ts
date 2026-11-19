@@ -296,7 +296,7 @@ describe("OpenIdConnectAuthenticator", () => {
       await authenticator.buildAuthorizationUrl();
       expect(mockClient.callCount).toBe(2);
 
-      mockClient.responses = [tokenResponse("tok2")];
+      mockClient.responses[mockClient.callCount] = tokenResponse("tok2");
       await authenticator.exchangeCode("my-auth-code");
       expect(mockClient.callCount).toBe(3);
     });
@@ -958,6 +958,8 @@ describe("OpenIdConnectAuthenticator discovery document", () => {
       "https://auth.example.com/.well-known/openid-configuration",
       "my-client-id",
       "my-client-secret",
+      "https://myapp.example.com/callback",
+      ["openid", "profile"],
     );
     auth.setApiClient(client);
 

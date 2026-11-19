@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 from petstore_client.api.base_api import BaseApi
 from petstore_client.configuration import Configuration
 from petstore_client.default_api_client import DefaultApiClient
-from petstore_client.errors import NetworkException
+from petstore_client.errors import ApiException, NetworkException
 from petstore_client.transport_options import TransportOptions
 
 
@@ -783,23 +783,23 @@ class TestN1RedirectBodyReplayMatrix:
 
         return _Pool()
 
-    def test_bhv_redirects_001_https_to_http_302_with_body_proceeds(self) -> None:
-        # 302 demotes POST -> GET and drops the body, so the plaintext hop
-        # carries no sensitive payload: it must proceed, not throw.
+    def test_bhv_redirects_001_https_to_http_302_with_body_is_refused(self) -> None:
+        # A body must never be replayed in plain text: a 302 HTTPS -> HTTP hop
+        # that would carry the body is refused, and the call fails.
         transport = TransportOptions.builder().follow_redirects(True).build()
         pool = self._pool(302)
         client = DefaultApiClient(transport, pool_manager=pool)
-        response = client.send_request(
-            "POST",
-            "https://example.com/secure",
-            {"Content-Type": "application/json"},
-            '{"secret":"value"}',
-        )
-        assert response.status_code == 200
-        assert len(pool.calls) == 2
-        # The follow-up is a GET with the body dropped.
-        assert pool.calls[1][0] == "GET"
-        assert pool.calls[1][2] is None
+        with pytest.raises(
+            ApiException,
+            match="Refusing to replay request body across HTTPS->HTTP redirect",
+        ):
+            client.send_request(
+                "POST",
+                "https://example.com/secure",
+                {"Content-Type": "application/json"},
+                '{"secret":"value"}',
+            )
+        assert len(pool.calls) == 1
 
     def test_bhv_redirects_029_a_301_or_302_keeps_the_method_and_body_of_put_patch_and_delete(
         self,

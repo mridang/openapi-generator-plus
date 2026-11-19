@@ -2,6 +2,7 @@
 
 import type { ClassConstructor } from 'class-transformer';
 import { ObjectSerializer } from '../object-serializer{{importFileExtension}}';
+import { SerializationError } from './serialization-error{{importFileExtension}}';
 import { {{errorPrefix}}Error } from './{{errorPrefixKebab}}-error{{importFileExtension}}';
 
 /**
@@ -260,6 +261,11 @@ export class ApiError<T = unknown> extends {{errorPrefix}}Error {
       this.responseBody != null && this.responseBody !== ''
         ? ObjectSerializer.parseJson(this.responseBody)
         : null;
+    if (json !== null && (typeof json !== 'object' || Array.isArray(json))) {
+      throw new SerializationError(
+        `Expected an object error body for ${clazz.name} but received: ${Array.isArray(json) ? 'array' : typeof json}`
+      );
+    }
     return ObjectSerializer.deserialize(json, clazz);
   }
 

@@ -332,7 +332,7 @@ func TestBhvSerializationobject007_Model_PasswordIsMaskedInTheStringForm(t *test
 func TestBhvMisc113_Model_AStringFormShowsTheContentsOfListMapAndByteFields(t *testing.T) {
 	t.Parallel()
 	seal := []byte{0x01, 0x02, 0x03}
-	shards := [][]byte
+	shards := [][]byte{{0x04, 0x05}}
 	labels := map[string][]byte{"first": {0x07, 0x08}}
 	vault := models.BinaryVault{Seal: &seal, Shards: &shards, Labels: &labels}
 	text := vault.String()
