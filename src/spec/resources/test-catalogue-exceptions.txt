@@ -285,28 +285,21 @@ swift | serializationobject404 | swift keeps a duration as a TimeInterval (a Dou
 php | serializationobject410 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 php | serializationobject411 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 php | serializationobject412 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-php | serializationparam106 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 dart | serializationobject410 | Dart decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 dart | serializationobject411 | Dart decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 dart | serializationobject412 | Dart decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-dart | serializationparam106 | Dart decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 go | serializationobject410 | Go decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 go | serializationobject411 | Go decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 go | serializationobject412 | Go decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-go | serializationparam106 | Go decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 rust | serializationobject410 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 rust | serializationobject411 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 rust | serializationobject412 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-rust | serializationparam106 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 swift | serializationobject410 | Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 swift | serializationobject411 | Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 swift | serializationobject412 | Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 elixir | serializationobject410 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 elixir | serializationobject411 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 elixir | serializationobject412 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-elixir | serializationparam106 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-php | serializationobject002 | PHP stores a bare type: number as a float, so it cannot be exact and written in plain notation; the decimal types of java, csharp and kotlin are not available without ext-bcmath on PHP 8.4
-elixir | serializationobject002 | Elixir decodes a bare type: number to a float, so it cannot be exact and written in plain notation; the Decimal package is a hex dependency, not the standard library
 java | tracing014 | the call is blocking and builds the headers on the caller's thread, so no suspension or thread change can happen before the span is read; tracing013 covers the path
 php | tracing014 | PHP runs one request at a time and has no suspension point in the header path; tracing013 covers the path
 php | tracing015 | PHP runs one request at a time in one process, so two operations cannot be in flight together
@@ -339,7 +332,6 @@ ruby | auth038 | settled credential order F862: the environment variable is read
 ruby | transport083 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no client-level signal can abort a request in flight
 ruby | transport084 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call handle exists to cancel a request or drop an in-flight call
 ruby | transport085 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no cancellation token or signal can be supplied alongside a timeout
-ruby | operations159 | the generated Ruby client returns nil for a value-returning call with an empty success body instead of raising a typed ApiError; the cross-language contract is not settled yet
 ruby | misc029 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so a caller's cancellation is never seen or surfaced by the SDK
 ruby | misc035 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no call can carry an already-aborted signal
 node | auth039 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal (the same case as authbearer026)
@@ -424,7 +416,6 @@ ruby | misc052 | Ruby keyword arguments cannot name the same option twice in one
 ruby | misc054 | a call reads its header hash before it returns and keeps no reference to it, and no option object holds the map for later, so a change the caller makes afterwards cannot reach a request
 ruby | misc059 | JSON.parse rejects the NaN and Infinity literals by default, so a token response cannot carry a non-finite lifetime for the cache to refuse
 ruby | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so there is no combined credential to send
-go | misc113 | Go models have no generated string form, and fmt's default formatting prints the address of each pointer to a list, map or byte field, so the contents of those fields are never shown
 kotlin | misc010 | Kotlin rejects at compile time a call that omits the addPetPhotos options argument, since the parameter has no default value, so no runtime call without it can be made
 swift | misc010 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the same rule is stated by misc004
 swift | misc012 | every required argument is a non-optional Swift parameter, so a nil value cannot be passed; the empty-string case is covered by misc007
@@ -484,7 +475,6 @@ elixir | misc056 | Elixir transport options are a keyword list given once to Tra
 elixir | misc059 | JSON has no NaN or Infinity literal and Jason refuses them, so a non-finite token lifetime cannot reach the token cache
 elixir | misc060 | The bearer authenticator constructor takes one token and has no token provider argument, so both cannot be supplied together
 elixir | misc061 | An authenticator is a plain module function with no call context argument, so there is no caller cancellation or context value to pass to it
-elixir | misc068 | Elixir reads the environment only for a nil credential; an empty string is passed on as the value and refused (a bearer token must be non-empty), so it never falls back to the environment
 elixir | misc074 | BaseApi.scheme_auth returns the one credential of the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
 elixir | misc262 | Elixir has no client-level cancellation to surface: a call is stopped only by its own process exiting (S7), and the SDK never receives or wraps a caller's cancellation (misc029)
 elixir | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway, see TestCertificates), so no reachable address is missing from its names and a hostname mismatch cannot be produced
