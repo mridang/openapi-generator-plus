@@ -432,7 +432,7 @@ class TestClientSchemeCredentials:
                         "https://api.example.com", "tok"
                     )
                 }
-            )
+            )  # type: ignore[arg-type]
 
     def test_bhv_lang_python_049_the_call_hook_reaches_every_api_group(self) -> None:
         class _Hook:

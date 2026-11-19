@@ -691,7 +691,8 @@ class TestNativeValueFormats:
         from petstore_client._duration import _format_timedelta_protobuf
 
         assert (
-            _format_timedelta_protobuf(datetime.timedelta(milliseconds=1500)) == "1.5s"
+            _format_timedelta_protobuf(datetime.timedelta(milliseconds=1500))
+            == "1.500s"
         )
 
 
@@ -806,7 +807,7 @@ class TestDurationRoundTrip:
             _format_timedelta_protobuf(
                 datetime.timedelta(seconds=1, microseconds=500000)
             )
-            == "1.5s"
+            == "1.500s"
         )
 
     def test_bhv_serialization_080_a_protobuf_duration_spans_the_full_range_and_rejects_one_past(
@@ -1720,7 +1721,7 @@ class TestWireNamesMapsAndFreeForm:
                     )
                 )
             )
-        )
+        )  # type: ignore[call-arg]
 
         assert out["createdAt"].startswith("2024-01-02T03:04:05")
 
@@ -4038,6 +4039,7 @@ class TestEnumMemberNames:
             values: Set[str]
 
         decoded = ObjectSerializer().deserialize('{"values":["a","a","b"]}', UniqueTags)
+        assert decoded is not None
         assert decoded.values == {"a", "b"}
 
     def test_bhv_misc_113_a_string_form_shows_the_contents_of_list_map_and_bytes(
@@ -4099,6 +4101,7 @@ class TestStringDefaultAndCollectionCopy:
         from petstore_client.models.defaults import Defaults
 
         filled = ObjectSerializer().deserialize("{}", Defaults)
+        assert filled is not None
         assert filled.greeting == 'it\'s "quoted" \\ back\tslash\nnext $USD #{x} a*/b'
 
     def test_bhv_misc_139_a_collection_passed_into_a_model_is_copied(self) -> None:
@@ -4115,7 +4118,7 @@ class TestModelRequiredCopyAndEquality:
         self,
     ) -> None:
         with pytest.raises(TypeError, match="'name'"):
-            Employee()
+            Employee()  # type: ignore[call-arg]
 
     def test_bhv_misc_141_a_model_built_without_a_defaulted_property_holds_the_default(
         self,

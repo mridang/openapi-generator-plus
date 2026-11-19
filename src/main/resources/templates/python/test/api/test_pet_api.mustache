@@ -1009,7 +1009,7 @@ class TestPetApi:
 
     async def test_bhv_misc_012_a_nil_required_argument_is_named_and_nothing_is_sent(self) -> None:
         with pytest.raises(ValueError, match='pet'):
-            await self.api.add_pet(None)
+            await self.api.add_pet(None)  # type: ignore[arg-type]
 
 
 def _create_mock_server(status: int, content_type: str, body: str) -> tuple[PetApi, HTTPServer]:

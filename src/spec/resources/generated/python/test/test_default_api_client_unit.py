@@ -20,6 +20,7 @@ from petstore_client.default_api_client import (
     _sanitize_multipart_field_name,
     _sanitize_multipart_filename,
 )
+from petstore_client.errors import ApiException, NetworkException
 from petstore_client.transport_options import TransportOptions
 
 
@@ -304,7 +305,7 @@ class TestDefaultApiClientUnit:
         Content-Encoding: gzip but is not valid gzip must surface as the
         SDK's ApiException carrying the response's real status, not a
         NetworkException and not a raw gzip.BadGzipFile / OSError."""
-        from petstore_client.errors import ApiException, NetworkException
+        from petstore_client.errors import NetworkException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as exc_info:
@@ -318,7 +319,7 @@ class TestDefaultApiClientUnit:
         """An unrecognised Content-Encoding the client cannot decode must
         surface as the SDK's ApiException carrying the response's real status,
         not a NetworkException and not the body handed back still encoded."""
-        from petstore_client.errors import ApiException, NetworkException
+        from petstore_client.errors import NetworkException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as exc_info:
@@ -581,7 +582,6 @@ class TestDefaultApiClientUnit:
     def test_bhv_transport_089_a_content_encoding_that_does_not_match_the_body_raises_the_api_error(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as excinfo:
@@ -591,7 +591,6 @@ class TestDefaultApiClientUnit:
     def test_bhv_transport_030_content_encoding_gzip_lie_with_plaintext_body_surfaces_api_exception(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         client = DefaultApiClient()
         with pytest.raises(ApiException) as excinfo:
@@ -675,7 +674,7 @@ class TestDefaultApiClientUnit:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 raise urllib3.exceptions.ReadTimeoutError(
                     None, "https://example.com/x", "timed out"
-                )
+                )  # type: ignore[arg-type]
 
         handle = RequestHandle()
         client = DefaultApiClient(
@@ -1259,7 +1258,7 @@ class _FakeResp:
     standing up a real HTTP server. ``read``/``release_conn`` mirror the
     urllib3 contract the loop relies on."""
 
-    def __init__(self, status: int, headers: dict[str, Any]) -> None:
+    def __init__(self, status: int, headers: Any) -> None:
         self.status = status
         self.headers = HTTPHeaderDict(headers)
         self.released = False
@@ -1374,7 +1373,6 @@ class TestBodyReplayOnTlsDowngrade:
     credential header path; this guard covers the body itself."""
 
     def test_bhv_retries_051_status_307_downgrade_with_body_raises(self) -> None:
-        from petstore_client.errors import ApiException
 
         class _Pool:
             def __init__(self) -> None:
@@ -1410,7 +1408,6 @@ class TestBodyReplayOnTlsDowngrade:
     def test_bhv_transport_064_refused_downgrade_releases_the_redirect_connection(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         redirect = _FakeResp(307, {"location": "http://example.com/insecure"})
 
@@ -1430,7 +1427,6 @@ class TestBodyReplayOnTlsDowngrade:
         assert redirect.released
 
     def test_bhv_lang_python_065_status_308_downgrade_with_body_raises(self) -> None:
-        from petstore_client.errors import ApiException
 
         class _Pool:
             def __init__(self) -> None:
@@ -1695,7 +1691,6 @@ class TestRedirectRefusals:
     def test_bhv_retries_020_a_non_http_target_is_refused_with_the_canonical_message(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         client = self._client(
             [_FakeResp(302, {"Location": "ftp://example.com/x", "X-Request-Id": "r1"})]
@@ -1713,7 +1708,6 @@ class TestRedirectRefusals:
     def test_bhv_redirects_046_an_exhausted_budget_is_refused_with_the_canonical_message(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         hop = {"Location": "https://example.com/next"}
         client = self._client([_FakeResp(302, dict(hop)) for _ in range(3)])
@@ -1763,7 +1757,6 @@ class TestRedirectBudgetAndOptOut:
     def test_bhv_redirects_026_throws_api_exception_when_max_redirects_is_exceeded(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -1783,7 +1776,6 @@ class TestRedirectMessagesKeepTheQueryOut:
     def test_bhv_redirects_019_the_downgrade_refusal_does_not_quote_a_query_parameter_api_key(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -2008,7 +2000,6 @@ class TestRedirectExhaustion:
     response."""
 
     def test_bhv_redirects_018_exhausting_redirect_budget_raises(self) -> None:
-        from petstore_client.errors import ApiException
 
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -2028,7 +2019,6 @@ class TestRedirectExhaustion:
     def test_bhv_retries_019_exhausting_redirect_budget_releases_every_redirect_connection(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         responses: list[_FakeResp] = []
 
@@ -2307,11 +2297,7 @@ class TestNetworkErrors:
         self,
     ) -> None:
         import socket
-        from petstore_client.errors import (
-            ApiException,
-            NetworkException,
-            NetworkTimeoutException,
-        )
+        from petstore_client.errors import NetworkException, NetworkTimeoutException
 
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
@@ -2469,7 +2455,12 @@ class TestPastDeadline:
 
         with pytest.raises(NetworkTimeoutException):
             client.send_request(
-                "GET", "http://127.0.0.1:1/echo", {}, None, False, time.monotonic() - 1
+                "GET",
+                "http://127.0.0.1:1/echo",
+                {},
+                None,
+                False,
+                deadline=time.monotonic() - 1,
             )
 
         pool.request.assert_not_called()
@@ -2664,7 +2655,6 @@ class TestRedirectToNonHttpScheme:
     must be refused with a typed ApiException rather than silently returned."""
 
     def test_bhv_redirects_020_non_http_scheme_redirect_raises(self) -> None:
-        from petstore_client.errors import ApiException
 
         class _Pool:
             def __init__(self) -> None:
@@ -2688,7 +2678,6 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_lifecycle_022_refused_scheme_releases_the_redirect_connection(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         redirect = _FakeResp(302, {"location": "file:///etc/passwd"})
 
@@ -2705,7 +2694,7 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_misc_265_a_non_http_redirect_is_an_api_error_not_a_network_error(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException, NetworkException
+        from petstore_client.errors import NetworkException
 
         class _Pool:
             def __init__(self) -> None:
@@ -2959,7 +2948,6 @@ class TestRedirectHopsAndStatuses:
     def test_bhv_misc_124_a_301_https_to_http_redirect_refuses_the_body_replay(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException
 
         pool = _ScriptedPool((301, "http://example.com/plain"))
         client = DefaultApiClient(
@@ -2996,7 +2984,7 @@ class TestRedirectHopsAndStatuses:
         )
         response = client.send_request("GET", "https://example.com/start", {}, None)
         assert len(pool.calls) == 1
-        assert response.status == status
+        assert response.status_code == status
 
     def test_bhv_misc_130_a_credential_removed_by_a_cross_origin_hop_is_not_restored_on_return(
         self,
@@ -3023,7 +3011,7 @@ class TestRedirectHopsAndStatuses:
         )
         response = client.send_request("GET", "https://example.com/start", {}, None)
         assert len(pool.calls) == 2
-        assert response.status == 200
+        assert response.status_code == 200
 
     def test_bhv_misc_132_a_per_call_header_with_a_credential_word_is_dropped_on_cross_origin_redirect(
         self,
@@ -3153,7 +3141,7 @@ class TestResponseContentEncoding:
     def test_bhv_transport_049_raw_deflate_without_the_zlib_header_raises_with_the_status(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException, NetworkException
+        from petstore_client.errors import NetworkException
 
         with pytest.raises(ApiException) as excinfo:
             DefaultApiClient().send_request(
@@ -3180,7 +3168,7 @@ class TestResponseContentEncoding:
     def test_bhv_transport_073_a_truncated_compressed_stream_raises_the_api_error_not_raw_bytes(
         self,
     ) -> None:
-        from petstore_client.errors import ApiException, NetworkException
+        from petstore_client.errors import NetworkException
 
         with pytest.raises(ApiException) as excinfo:
             DefaultApiClient().send_request(
@@ -3198,7 +3186,6 @@ class TestResponseContentEncoding:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import petstore_client.default_api_client as client_module
-        from petstore_client.errors import ApiException
 
         monkeypatch.setattr(client_module, "_brotli", None)
 

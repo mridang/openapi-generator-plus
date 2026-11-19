@@ -42,6 +42,7 @@ from petstore_client.auth.oauth.oauth2_client_credentials_authenticator import (
 )
 from petstore_client.auth.http_aware_authenticator import HttpAwareAuthenticator
 from petstore_client.errors import ApiException, NetworkException, OpenAPIException
+from petstore_client.errors.network_timeout_exception import NetworkTimeoutException
 from petstore_client.errors.bad_gateway_exception import BadGatewayException
 from petstore_client.errors.client_exception import ClientException
 from petstore_client.errors.server_exception import ServerException

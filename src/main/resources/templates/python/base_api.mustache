@@ -8,6 +8,7 @@ from typing import (
     Awaitable,
     Callable,
     Concatenate,
+    Coroutine,
     Dict,
     List,
     Mapping,
@@ -130,7 +131,7 @@ def _is_valid_cookie_value(value: str) -> bool:
 
 def _tracked(
     method: Callable[Concatenate['BaseApi', _P], Awaitable[_R]],
-) -> Callable[Concatenate['BaseApi', _P], Awaitable[_R]]:
+) -> Callable[Concatenate['BaseApi', _P], Coroutine[Any, Any, _R]]:
     """Counts the call as in flight on the API's :class:`DefaultApiClient`.
 
     A call that has started when the client is closed finishes (its retries and

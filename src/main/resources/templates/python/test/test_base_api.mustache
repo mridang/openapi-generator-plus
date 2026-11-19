@@ -30,6 +30,7 @@ from {{packageName}}.auth.authenticator import Authenticator
 from {{packageName}}.auth.oauth.oauth2_client_credentials_authenticator import OAuth2ClientCredentialsAuthenticator
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 from {{packageName}}.errors import ApiException, NetworkException, {{errorPrefix}}Exception
+from {{packageName}}.errors.network_timeout_exception import NetworkTimeoutException
 from {{packageName}}.errors.bad_gateway_exception import BadGatewayException
 from {{packageName}}.errors.client_exception import ClientException
 from {{packageName}}.errors.server_exception import ServerException
