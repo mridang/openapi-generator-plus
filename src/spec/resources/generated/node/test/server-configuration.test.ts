@@ -273,3 +273,31 @@ describe("ServerConfiguration misc behaviours", () => {
     expect(config.getUrl()).toBe("https://api.example.com/fixed");
   });
 });
+
+describe("ServerConfiguration substitution behaviours (bhv servers 029 to 030)", () => {
+  it("bhv servers 029 a placeholder introduced by a substituted value stays literal in the resulting URL and is never expanded again", () => {
+    const config = new ServerConfiguration(
+      "https://{env}.api.example.com/{version}",
+      null,
+      {
+        env: new ServerVariable("{version}", null, []),
+        version: new ServerVariable("v2", null, []),
+      },
+    );
+    expect(config.getUrl()).toBe("https://{version}.api.example.com/v2");
+  });
+
+  it("bhv servers 030 a value that is not one of a server variable declared enum values is rejected with an error", () => {
+    const config = new ServerConfiguration(
+      "https://api.example.com/{env}",
+      null,
+      {
+        env: new ServerVariable("prod", null, ["api", "staging"]),
+      },
+    );
+    expect(() => config.getUrl({ env: "bogus" })).toThrow(TypeError);
+    expect(() => config.getUrl({ env: "bogus" })).toThrow(
+      "Invalid value 'bogus' for server variable 'env'",
+    );
+  });
+});

@@ -2500,6 +2500,8 @@ test('bhv misc 296 a failed request is retried twice by default, so three reques
     expect(fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, null))
         ->toThrow(ServerException::class);
     expect(count($seen))->toBe(3);
+});
+
 test('bhv misc 081 a base64 body under a binary content type is decoded before the caller gets it', function (): void {
     $client = new class implements ApiClient {
         public function close(): void

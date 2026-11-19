@@ -987,3 +987,13 @@ fn test_bhv_misc_180_the_inspect_form_shows_the_value_of_a_non_sensitive_default
     let debug = format!("{:?}", opts);
     assert!(debug.contains("visible-trace-value"), "{}", debug);
 }
+
+#[test]
+fn test_bhv_misc_134_a_zero_timeout_is_refused_at_build_with_a_configuration_error() {
+    let result = TransportOptionsBuilder::new().timeout(Some(0)).build();
+    assert!(
+        matches!(result, Err(ConfigurationError::InvalidTimeout(0))),
+        "expected InvalidTimeout(0), got {:?}",
+        result
+    );
+}

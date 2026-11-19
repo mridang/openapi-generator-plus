@@ -2878,6 +2878,72 @@ describe 'DefaultApiClientUnit' do
     _(envs.first.request_headers['content-type']).must_be_nil
   end
 
+  it 'bhv_misc_178 a declared multipart content type other than form-data reaches the transport with its subtype kept' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'multipart/related' },
+                                      body: { 'note' => 'hello' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_match %r{\Amultipart/related; boundary=}
+  end
+
+  it 'bhv_misc_179 a form-urlencoded body sends the application/x-www-form-urlencoded Content-Type' do
+    _outcome, envs, = run_retry_probe(verb: :post, headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+                                      body: 'a=1') { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['Content-Type']).must_equal 'application/x-www-form-urlencoded'
+  end
+
+  it 'bhv_misc_181 content placed in a header is sent exactly as serialised, with no percent-encoding applied' do
+    _outcome, envs, = run_retry_probe(headers: { 'X-Raw' => 'a%20b c/d' }) { [200, {}, 'ok'] }
+
+    _(envs.first.request_headers['X-Raw']).must_equal 'a%20b c/d'
+  end
+
+  it 'bhv_misc_182 a cross-origin redirect removes the Authorization header whatever its letter case' do
+    %w[Authorization authorization AUTHORIZATION].each do |name|
+      followup = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.get('/start') { [302, { 'location' => 'http://otherhost.example.com/landing' }, ''] }
+        stub.get('http://otherhost.example.com/landing') do |env|
+          followup = env.request_headers
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.follow_redirects(true).build)
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:GET, 'http://localhost/start', { name => 'Bearer x' }, nil)
+      end
+
+      _(followup['Authorization']).must_be_nil
+    end
+  end
+
+  it 'bhv_misc_183 closing a client whose credentials hold nothing that needs releasing succeeds' do
+    _(-> { Petstore::Client::DefaultApiClient.new.close }).must_be_silent
+  end
+
+  it 'bhv_misc_184 close does not wait for a request that is still running and does not cancel it' do
+    release = Queue.new
+    port, thread = serve_when_released(release)
+    closes = [] # : Array[bool]
+    client = client_counting_closes(closes)
+    request = Thread.new { client.send_request('GET', "http://127.0.0.1:#{port}/slow", {}, nil) }
+    wait_until { client.instance_variable_get(:@in_flight) == 1 && client.instance_variable_get(:@connection) }
+    client.close
+    _(closes).must_be_empty
+    release << true
+    response = request.value
+
+    _(response.status_code).must_equal 200
+    thread.join
+  end
+
+  it 'bhv_misc_188 a client reports itself as closed only after close has been called on it' do
+    client = Petstore::Client::DefaultApiClient.new
+    _(client.instance_variable_get(:@closed)).must_equal false
+    client.close
+    _(client.instance_variable_get(:@closed)).must_equal true
+  end
+
   it 'bhv_retries_038 sends the request again after a 503 and returns the later success' do
     outcome, envs, delays = run_retry_probe(&ok_after(2, [503, {}, 'busy']))
 

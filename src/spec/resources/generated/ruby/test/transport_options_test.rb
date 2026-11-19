@@ -6,6 +6,16 @@ require 'petstore_client'
 describe Petstore::Client::TransportOptions do
   parallelize_me!
 
+  it 'bhv_misc_180 the inspect form shows the values of non-sensitive default headers and hides sensitive ones' do
+    options = Petstore::Client::TransportOptions.builder
+                                           .default_header('X-Visible', 'shown-value')
+                                           .default_header('Authorization', 'Bearer hidden-secret')
+                                           .build
+
+    _(options.inspect).must_include 'shown-value'
+    _(options.inspect).wont_include 'hidden-secret'
+  end
+
   it 'bhv_misc_051 an unknown option is refused by the builder rather than ignored' do
     _ { Petstore::Client::TransportOptions.builder.no_such_option(1) }.must_raise NoMethodError
   end
