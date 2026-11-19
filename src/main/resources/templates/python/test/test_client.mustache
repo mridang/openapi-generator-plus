@@ -198,7 +198,7 @@ class TestClientCredentials:
         monkeypatch.setenv('{{envPrefix}}_BASE_URL', 'https://env.example.com')
         monkeypatch.setenv('{{envPrefix}}_ACCESS_TOKEN', 'env-token')
 
-        client = {{clientClassName}}()
+        client = {{clientClassName}}.with_token()
 
         assert _host(client) == 'https://env.example.com'
         assert _authorization(client) == 'Bearer env-token'

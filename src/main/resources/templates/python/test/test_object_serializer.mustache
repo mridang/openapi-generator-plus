@@ -1110,11 +1110,10 @@ class TestFixtureModelsOnTheWire:
         assert str(order.tracking_id) == self._TRACKING_ID.lower()
 
     def test_bhv_misc_085_a_non_canonical_uuid_is_refused_when_the_model_is_built(self) -> None:
-        import uuid
         from {{packageName}}.models.order import Order
 
         with pytest.raises(ValidationError):
-            Order(trackingId=uuid.UUID('not-a-uuid'))
+            Order(trackingId='not-a-uuid')  # type: ignore[arg-type]
 
     def test_bhv_serializationobject_048_a_malformed_uuid_is_rejected_on_decode(self) -> None:
         with pytest.raises(SerializationException):

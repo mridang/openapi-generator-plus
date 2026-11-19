@@ -2300,12 +2300,12 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_misc_285_an_undecodable_content_encoding_is_refused_with_the_exact_message(self) -> None:
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
-                return _FakeResp(200, {"content-encoding": "br"})
+                return _FakeResp(200, {"content-encoding": "x-custom"})
 
         client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=_Pool())
         with pytest.raises(ValueError) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
-        assert str(excinfo.value) == "Unsupported Content-Encoding 'br'"
+        assert str(excinfo.value) == "Unsupported Content-Encoding 'x-custom'"
 
 
 class TestZstdDecompression:

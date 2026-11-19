@@ -2,7 +2,7 @@ import datetime
 import ipaddress
 import json
 import warnings
-from typing import Any
+from typing import Any, cast
 from decimal import Decimal
 import pytest
 from pydantic import SecretStr, ValidationError
@@ -1446,11 +1446,10 @@ class TestFixtureModelsOnTheWire:
     def test_bhv_misc_085_a_non_canonical_uuid_is_refused_when_the_model_is_built(
         self,
     ) -> None:
-        import uuid
         from petstore_client.models.order import Order
 
         with pytest.raises(ValidationError):
-            Order(trackingId=uuid.UUID("not-a-uuid"))
+            Order(trackingId="not-a-uuid")
 
     def test_bhv_serializationobject_048_a_malformed_uuid_is_rejected_on_decode(
         self,
@@ -1716,12 +1715,17 @@ class TestWireNamesMapsAndFreeForm:
         out = json.loads(
             ObjectSerializer().serialize(
                 Metadata(
-                    created_at=datetime.datetime(
-                        2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                    **cast(
+                        Any,
+                        {
+                            "created_at": datetime.datetime(
+                                2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+                            )
+                        },
                     )
                 )
             )
-        )  # type: ignore[call-arg]
+        )
 
         assert out["createdAt"].startswith("2024-01-02T03:04:05")
 
@@ -4131,6 +4135,7 @@ class TestModelRequiredCopyAndEquality:
         self,
     ) -> None:
         meta = ObjectSerializer().deserialize('{"note":"x","owner":"ann"}', Metadata)
+        assert meta is not None
         assert meta.additional_properties["note"] == "x"
         assert list(meta.additional_properties) == ["note", "owner"]
 

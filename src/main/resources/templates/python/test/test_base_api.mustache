@@ -31,6 +31,7 @@ from {{packageName}}.auth.oauth.oauth2_client_credentials_authenticator import O
 from {{packageName}}.auth.http_aware_authenticator import HttpAwareAuthenticator
 from {{packageName}}.errors import ApiException, NetworkException, {{errorPrefix}}Exception
 from {{packageName}}.errors.network_timeout_exception import NetworkTimeoutException
+from {{packageName}}.errors.service_unavailable_exception import ServiceUnavailableException
 from {{packageName}}.errors.bad_gateway_exception import BadGatewayException
 from {{packageName}}.errors.client_exception import ClientException
 from {{packageName}}.errors.server_exception import ServerException
@@ -3210,11 +3211,11 @@ class TestRetryOutcomesAndBodyReplay:
         server = scripted((503, {'Retry-After': '0'}, '{}'), _OK)
         api = _retry_api(server)
 
-        result = await api.call_result(
-            'POST', '/x', {}, {}, io.BytesIO(b'payload'), ['application/json'], 'application/octet-stream', None,
-        )
+        with pytest.raises(ServiceUnavailableException):
+            await api.call_result(
+                'POST', '/x', {}, {}, io.BytesIO(b'payload'), ['application/json'], 'application/octet-stream', None,
+            )
 
-        assert result.status_code == 503
         assert len(server.requests) == 1
 
     async def test_bhv_misc_164_a_retry_whose_wait_fits_the_timeout_budget_is_sent(self, scripted: Any) -> None:
@@ -3227,7 +3228,7 @@ class TestRetryOutcomesAndBodyReplay:
     async def test_bhv_misc_165_a_body_is_replayed_across_a_redirect_that_keeps_plain_http(self, scripted: Any) -> None:
         server = scripted((307, {'Location': '/y'}, '{}'), _OK)
 
-        await api_post_text(_retry_api(server), '{"a":1}')
+        await _retry_api(server).call('POST', '/x', {}, {}, '{"a":1}', ['application/json'], 'text/plain', None)
 
         assert len(server.requests) == 2
         assert server.bodies[1] == '{"a":1}'

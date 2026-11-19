@@ -8,7 +8,7 @@ import urllib3
 from urllib3._collections import HTTPHeaderDict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from petstore_client.default_api_client import (
     DefaultApiClient,
@@ -673,8 +673,8 @@ class TestDefaultApiClientUnit:
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
                 raise urllib3.exceptions.ReadTimeoutError(
-                    None, "https://example.com/x", "timed out"
-                )  # type: ignore[arg-type]
+                    cast(Any, None), "https://example.com/x", "timed out"
+                )
 
         handle = RequestHandle()
         client = DefaultApiClient(
@@ -2716,14 +2716,14 @@ class TestRedirectToNonHttpScheme:
     ) -> None:
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
-                return _FakeResp(200, {"content-encoding": "br"})
+                return _FakeResp(200, {"content-encoding": "x-custom"})
 
         client = DefaultApiClient(
             TransportOptions.builder().build(), pool_manager=_Pool()
         )
         with pytest.raises(ValueError) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
-        assert str(excinfo.value) == "Unsupported Content-Encoding 'br'"
+        assert str(excinfo.value) == "Unsupported Content-Encoding 'x-custom'"
 
 
 class TestZstdDecompression:
