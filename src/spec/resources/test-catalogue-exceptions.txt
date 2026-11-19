@@ -750,7 +750,6 @@ kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: th
 kotlin | misc291 | Kotlin decodes a oneOf by its discriminator value, which names exactly one variant, so a payload cannot match two variants and there is no first-declared match to choose
 kotlin | misc293 | Kotlin resolves an anyOf to a single value of type Any by trying the candidates in order and taking the first that decodes, so it cannot return every matching variant
 kotlin | misc295 | The Kotlin fixture declares no oneOf with a byte-string variant, so no generated model exists that round-trips one through base64 or rejects a non-list value for an array variant
-
 php | serialization068 | PHP typed constructor parameters and enum-typed properties reject a wrong-typed or unknown value at construction under strict types, so a model cannot hold one as given
 swift | misc214 | Query content is a typed Codable value at the call site, so a value that cannot be serialized (a cyclic or NaN-bearing object) cannot be passed to the operation; the compiler rules it out
 swift | misc241 | Swift has no time-of-day type: a time value is a String the caller supplies and checks at the call site, so the SDK never truncates milliseconds from a time
@@ -758,6 +757,8 @@ swift | misc260 | Server variable overrides are a [String: String] map, so a nil
 swift | misc271 | URLSession takes proxy settings from the system configuration or the explicit proxy option and never reads HTTP(S)_PROXY environment variables, so no environment variable can route a request through a proxy here
 swift | misc272 | Proving an authenticating proxy accepts the credentials needs a live proxy server, which the Swift unit suite cannot start; the proxy URL credentials are passed to URLSession unchanged
 swift | misc283 | Swift has one module with no package root that re-exports a separate error tree, so there is no re-export to test; every error type is visible from the module itself
+kotlin | misc215 | Kotlin gives every declared default as a constructor default argument, so an input object with no fields is filled by the compiler when it is built and no runtime fill step exists to test
+kotlin | misc216 | Kotlin returns a binary body as its raw bytes without base64 decoding, pinned by bhv serialization wire 060, so the body is never decoded and the raw text is the value returned
 swift | misc285 | The Swift transport decodes only gzip, detected by its magic bytes; any other Content-Encoding is passed through unchanged, and no refusal with an unsupported-encoding message exists
 kotlin | transport083 | Kotlin has no client-level cancellation setting: a call is cancelled only through the coroutine that makes it, so there is no supplied cancellation to honour (see transport084)
 kotlin | transport085 | Kotlin has no cancellation-token or signal parameter to supply, so a timeout cannot be paired with a token that never fires
