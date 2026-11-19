@@ -1718,4 +1718,34 @@ mod tests {
         );
         assert_eq!(unwrap_single(result), "a%25b");
     }
+
+    /* -- absent values and path encoding (chunk 15) -- */
+
+    #[test]
+    fn test_bhv_serialization_110_an_absent_path_value_is_empty_and_an_absent_query_value_is_none()
+    {
+        assert_eq!(
+            super::serialize_value(None::<&str>, "path", "string", "").unwrap(),
+            ""
+        );
+        assert!(super::serialize_value(None::<&str>, "query", "string", "").is_none());
+    }
+
+    #[test]
+    fn test_bhv_serialization_111_only_unreserved_characters_stay_literal_and_others_are_utf8_encoded(
+    ) {
+        assert_eq!(
+            super::encode_path_segment("a~b-._z \u{e9}"),
+            "a~b-._z%20%C3%A9"
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_118_a_date_time_query_value_keeps_its_time_and_offset() {
+        let rendered =
+            super::serialize_value(Some("2024-01-15T13:45:30+00:00"), "query", "string", "")
+                .unwrap();
+        assert!(rendered.contains("T13:45:30"), "got: {}", rendered);
+        assert!(rendered.ends_with("+00:00"), "got: {}", rendered);
+    }
 }
