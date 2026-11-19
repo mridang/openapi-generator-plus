@@ -2357,3 +2357,32 @@ async fn test_bhv_misc_123_a_pre_encoded_cookie_value_is_sent_unchanged() {
         request
     );
 }
+
+#[tokio::test]
+async fn test_bhv_misc_220_a_full_response_call_keeps_the_status_code_and_the_decoded_body() {
+    let body = r#"{"id":1,"name":"x","photoUrls":[]}"#;
+    let (api, _) = new_pet_api_for_mock(200, "application/json", body);
+    let result = api
+        .get_pet_by_id_with_http_info(1, None, None)
+        .await
+        .expect("get_pet_by_id_with_http_info failed");
+    assert_eq!(result.status_code(), 200);
+    assert_eq!(result.data().map(|pet| pet.name.as_str()), Some("x"));
+    assert_eq!(result.raw_body(), body);
+    assert!(
+        result.headers().keys().any(|k| k.eq_ignore_ascii_case("content-type")),
+        "the ApiResult must carry the response headers, got: {:?}",
+        result.headers()
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_misc_216_a_binary_response_is_returned_as_bytes_and_the_raw_body_keeps_its_text() {
+    let (api, _) = new_pet_api_for_mock(200, "application/octet-stream", "hello");
+    let result = api
+        .get_pet_avatar_with_http_info(1, None)
+        .await
+        .expect("the binary response decodes");
+    assert_eq!(result.data().map(|bytes| bytes.as_slice()), Some(&b"hello"[..]));
+    assert_eq!(result.raw_body(), "hello");
+}
