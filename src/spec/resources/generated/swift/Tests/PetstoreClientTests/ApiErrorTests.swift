@@ -281,7 +281,7 @@ import Testing
     }
   }
 
-  @Test func testBhvErrors006StatusCodesMapToTypedErrorsAndDispatchEveryStatus() async {
+  @Test func testBhvErrors006StatusCodesMapToTypedErrorsAndDispatchEveryStatus() async throws {
     do {
       do {
         do {
@@ -1168,5 +1168,28 @@ import Testing
 
     #expect(error.localizedDescription.contains("401"))
     #expect(error.localizedDescription.contains("invalid_client"))
+  }
+}
+
+private final class MockApiClient: ApiClient, @unchecked Sendable {
+  var responseStatusCode: Int = 200
+  var responseBody: String = "{}"
+  var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+
+  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+    async throws -> ApiHttpResponse
+  {
+    try await sendRequest(
+      method: method, url: url, headers: headers, body: body, noRedirect: false)
+  }
+
+  func sendRequest(
+    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
+  ) async throws -> ApiHttpResponse {
+    return ApiHttpResponse(
+      statusCode: responseStatusCode,
+      body: responseBody,
+      headers: responseHeaders
+    )
   }
 }
