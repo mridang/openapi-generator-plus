@@ -761,3 +761,6 @@ node | misc139 | a model constructor assigns its data and never copies or freeze
 node | misc090 | a duration's fractional seconds are written as the shortest 3, 6 or 9 digit group, so 1.5 seconds is written as 1.500s (settled decision, pinned by bhv misc 090 variants that expect 1.500s)
 go | misc256 | Go writes a duration fraction as its shortest 3, 6 or 9 digit group ('1.100s', settled serialization046), so trailing zeros are kept to that group rather than trimmed
 go | misc216 | Go returns a binary response body as base64 text, not decoded bytes (settled serializationwire), and the raw body keeps the same encoded text
+java | misc235 | Settled serialization046 writes a duration fraction in the shortest group of three, six or nine digits (1.500s, not 1.5s), so trailing zeros are not trimmed to the digits present; serializationobject179 pins the same rule
+java | misc256 | Settled serialization046 writes a duration fraction in the shortest group of three, six or nine digits (1.500s, not 1.5s), so trailing zeros are not trimmed to the digits present; serializationobject179 pins the same rule
+java | misc294 | Settled unions015 and unions033 refuse a union payload with no discriminator with the SDK's serialization error, so a payload that omits foodType cannot be decoded as the mapped variant
