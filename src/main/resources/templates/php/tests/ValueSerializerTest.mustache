@@ -168,17 +168,13 @@ test('bhv serializationparam 090 query single element array returns single value
     expect(ValueSerializer::serialize(['a'], 'query', 'array'))->toBe('a');
 });
 
-test('bhv serializationparam 011 query array csv keeps slot for null element', function (): void {
-    // Per W1/N1: a null element in a csv array becomes an empty slot, not skipped.
+test('bhv serializationparam 011 query array csv keeps slot for null element, and multi keeps empty string for null element', function (): void {
     expect(ValueSerializer::serialize([1, null, 3], 'query', 'array'))->toBe('1,,3');
+    expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'))->toBe(['1', '', '3']);
 });
 
 test('bhv serializationparam 001 query array csv explicit keeps slot for null element', function (): void {
     expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'csv'))->toBe('1,,3');
-});
-
-test('bhv serializationparam 011 query array multi keeps empty string for null element', function (): void {
-    expect(ValueSerializer::serialize([1, null, 3], 'query', 'array', 'multi'))->toBe(['1', '', '3']);
 });
 
 test('bhv serializationparam 014 query array of integers stringifies elements', function (): void {
