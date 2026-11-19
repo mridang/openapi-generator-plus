@@ -1116,31 +1116,33 @@ describe('DefaultApiClient retry misc behaviours', () => {
     expect(transport.methods).toHaveLength(1);
   });
 
-  test.each(['POST', 'PATCH'])('bhvMisc161 a %s whose connection drops is sent exactly once', async (method) => {
+  test.each([
+    ['POST', 1],
+    ['PATCH', 1],
+    ['QUERY', 2]
+  ])('bhvMisc161 a %s whose connection drops is sent %i time(s), QUERY being idempotent', async (method, attempts) => {
     const transport = scripted([connectionDropped(), 200]);
-    await expect(clientFor(transport.fetch).sendRequest(method, url, {}, null)).rejects.toBeInstanceOf(NetworkError);
-    expect(transport.methods).toHaveLength(1);
+    const outcome: unknown = await clientFor(transport.fetch)
+      .sendRequest(method, url, {}, method === 'QUERY' ? '{}' : null)
+      .catch((error: unknown) => error);
+    if (method === 'QUERY') {
+      expect((outcome as { statusCode: number }).statusCode).toBe(200);
+    } else {
+      expect(outcome).toBeInstanceOf(NetworkError);
+    }
+    expect(transport.methods).toHaveLength(attempts);
   });
 
-  test('bhvMisc161 a QUERY whose connection drops is treated as idempotent and sent again', async () => {
-    const transport = scripted([connectionDropped(), 200]);
-    const response = await clientFor(transport.fetch).sendRequest('QUERY', url, {}, '{}');
-    expect(response.statusCode).toBe(200);
-    expect(transport.methods).toEqual(['QUERY', 'QUERY']);
-  });
-
-  test('bhvMisc163 a one-shot stream body is not replayed on a retryable status', async () => {
-    const transport = scripted([503, 200]);
+  test('bhvMisc163 a one-shot stream body is not replayed on a retryable status, a text body is replayed', async () => {
+    const streamTransport = scripted([503, 200]);
     const stream = Readable.from(['payload']);
-    await clientFor(transport.fetch).sendRequest('POST', url, {}, stream as unknown as Record<string, unknown>).catch(() => undefined);
-    expect(transport.methods).toHaveLength(1);
-  });
+    await clientFor(streamTransport.fetch).sendRequest('POST', url, {}, stream as unknown as Record<string, unknown>).catch(() => undefined);
+    expect(streamTransport.methods).toHaveLength(1);
 
-  test('bhvMisc163 a text body is replayed on a retryable status', async () => {
-    const transport = scripted([503, 200]);
-    const response = await clientFor(transport.fetch).sendRequest('POST', url, {}, 'payload');
+    const textTransport = scripted([503, 200]);
+    const response = await clientFor(textTransport.fetch).sendRequest('POST', url, {}, 'payload');
     expect(response.statusCode).toBe(200);
-    expect(transport.methods).toHaveLength(2);
+    expect(textTransport.methods).toHaveLength(2);
   });
 
   test('bhvMisc170 a TLS certificate failure is a network error on the first attempt and is not retried', async () => {
@@ -1152,12 +1154,9 @@ describe('DefaultApiClient retry misc behaviours', () => {
     expect(transport.methods).toHaveLength(1);
   });
 
-  test('bhvMisc186 a value that is not a fetch function is refused when the options are built', () => {
-    expect(() => TransportOptions.builder().fetch('not a function' as unknown as typeof fetch).build()).toThrow(TypeError);
-  });
-
-  test('bhvMisc186 a ready-made fetch combined with a CA bundle is refused when the options are built', () => {
+  test('bhvMisc186 a non-fetch value and a ready-made fetch combined with a CA bundle are refused when the options are built', () => {
     const transport = scripted([200]);
+    expect(() => TransportOptions.builder().fetch('not a function' as unknown as typeof fetch).build()).toThrow(TypeError);
     expect(() => TransportOptions.builder().fetch(transport.fetch).caCertPath('/path/to/ca.pem').build()).toThrow(TypeError);
   });
 });
