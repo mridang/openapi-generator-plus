@@ -5418,47 +5418,6 @@ public class DefaultApiClientUnitTest
             return Task.FromResult(response);
         }
     }
-}
-
-/// <summary>
-/// A stand-in model part for the multipart serialization test above. It is
-/// declared here rather than taken from the generated models so the test holds
-/// for EVERY spec this SDK is generated from — no spec is guaranteed to contain
-/// a model with these properties. It mirrors how the generator emits models:
-/// the wire name lives in a [JsonPropertyName] attribute while the C# property
-/// keeps PascalCase.
-/// </summary>
-public sealed class MultipartModelPart
-{
-    [System.Text.Json.Serialization.JsonPropertyName("isEnabled")]
-    public bool? IsEnabled { get; set; }
-
-    [System.Text.Json.Serialization.JsonPropertyName("recordedAt")]
-    public DateTimeOffset? RecordedAt { get; set; }
-}
-
-/// <summary>
-/// A stand-in string enum for the multipart text-part test above, carrying
-/// its wire value the way generated enums do.
-/// </summary>
-[System.Text.Json.Serialization.JsonConverter(typeof(MultipartShadeConverter))]
-public enum MultipartShade
-{
-    Red,
-}
-
-/// <summary>Maps <see cref="MultipartShade"/> to its wire value.</summary>
-public sealed class MultipartShadeConverter : System.Text.Json.Serialization.JsonConverter<MultipartShade>
-{
-    public override MultipartShade Read(
-        ref System.Text.Json.Utf8JsonReader reader,
-        Type typeToConvert,
-        System.Text.Json.JsonSerializerOptions options) => MultipartShade.Red;
-
-    public override void Write(
-        System.Text.Json.Utf8JsonWriter writer,
-        MultipartShade value,
-        System.Text.Json.JsonSerializerOptions options) => writer.WriteStringValue("red");
 
     [Theory]
     [InlineData("authorization")]
@@ -5741,5 +5700,45 @@ public sealed class MultipartShadeConverter : System.Text.Json.Serialization.Jso
         Assert.Equal(200, response.StatusCode);
         Assert.Equal("/echo", received?.AbsolutePath);
     }
+}
 
+/// <summary>
+/// A stand-in model part for the multipart serialization test above. It is
+/// declared here rather than taken from the generated models so the test holds
+/// for EVERY spec this SDK is generated from — no spec is guaranteed to contain
+/// a model with these properties. It mirrors how the generator emits models:
+/// the wire name lives in a [JsonPropertyName] attribute while the C# property
+/// keeps PascalCase.
+/// </summary>
+public sealed class MultipartModelPart
+{
+    [System.Text.Json.Serialization.JsonPropertyName("isEnabled")]
+    public bool? IsEnabled { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("recordedAt")]
+    public DateTimeOffset? RecordedAt { get; set; }
+}
+
+/// <summary>
+/// A stand-in string enum for the multipart text-part test above, carrying
+/// its wire value the way generated enums do.
+/// </summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(MultipartShadeConverter))]
+public enum MultipartShade
+{
+    Red,
+}
+
+/// <summary>Maps <see cref="MultipartShade"/> to its wire value.</summary>
+public sealed class MultipartShadeConverter : System.Text.Json.Serialization.JsonConverter<MultipartShade>
+{
+    public override MultipartShade Read(
+        ref System.Text.Json.Utf8JsonReader reader,
+        Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options) => MultipartShade.Red;
+
+    public override void Write(
+        System.Text.Json.Utf8JsonWriter writer,
+        MultipartShade value,
+        System.Text.Json.JsonSerializerOptions options) => writer.WriteStringValue("red");
 }

@@ -7,6 +7,7 @@
 #nullable enable
 
 using PetstoreClient;
+using PetstoreClient.Models;
 using Xunit;
 
 namespace Test;
