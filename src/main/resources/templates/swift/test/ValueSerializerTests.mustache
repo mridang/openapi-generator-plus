@@ -870,4 +870,36 @@ import Testing
     @Test func testBhvMisc255ASpaceInAQueryParameterIsEncodedAsPercent20() throws {
         #expect(BaseApi.buildQueryString(["q": "a b"]).contains("a%20b"))
     }
+
+    /* An exploded array or set query parameter repeats its key once for each element. */
+    @Test func testBhvSerialization107AnExplodedArrayQueryParameterRepeatsItsKeyPerElement() {
+        let result = ValueSerializer.serializeValue(
+            ["a", "b"], location: "query", schemaType: "array", collectionFormat: "multi")
+
+        #expect(result as? [String] == ["a", "b"])
+    }
+
+    /* A parameter with no declared style uses the default style for its location, which matches the simple style for path parameters. */
+    @Test func testBhvSerialization108APathValueWithNoStyleMatchesTheSimpleStyle() {
+        let defaulted = ValueSerializer.serializeStyled(
+            "id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "", explode: false)
+        let simple = ValueSerializer.serializeStyled(
+            "id", value: "5", location: "path", schemaType: "string", collectionFormat: "", style: "simple", explode: false)
+
+        #expect(defaulted as? String == simple as? String)
+        #expect(defaulted as? String == "5")
+    }
+
+    /* A string path parameter is percent-encoded exactly once in the final request URL. */
+    @Test func testBhvSerialization109AStringPathParameterIsPercentEncodedExactlyOnce() {
+        #expect(ValueSerializer.encodePathSegment("a b/c") == "a%20b%2Fc")
+        #expect(ValueSerializer.encodePathSegment("a%20b") == "a%2520b")
+    }
+
+    /* Only RFC 3986 unreserved characters, including tilde, stay literal, and every other character is percent-encoded as UTF-8. */
+    @Test func testBhvSerialization111OnlyUnreservedCharactersStayLiteral() {
+        #expect(ValueSerializer.encodePathSegment("AZaz09-._~") == "AZaz09-._~")
+        #expect(ValueSerializer.encodePathSegment("+") == "%2B")
+        #expect(ValueSerializer.encodePathSegment("é") == "%C3%A9")
+    }
 }
