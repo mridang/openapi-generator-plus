@@ -60,7 +60,9 @@ type {{clientClassName}} struct {
 {{/apis}}
 {{/apiInfo}}
 
-	apiClient ApiClient
+	apiClient     ApiClient
+	config        *Configuration
+	authenticator Authenticator
 }
 
 // ClientOption configures a client built by one of the New{{clientClassName}}
@@ -158,7 +160,9 @@ func newClient(host string, authenticator Authenticator, credentials map[string]
 {{/apis}}
 {{/apiInfo}}
 	return &{{clientClassName}}{
-		apiClient: apiClient,
+		apiClient:     apiClient,
+		config:        config,
+		authenticator: authenticator,
 {{#apiInfo}}
 {{#apis}}
 {{#operations}}
