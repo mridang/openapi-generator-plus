@@ -584,6 +584,14 @@ describe Petstore::Client::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'default'
     end
 
+    it 'bhv_misc_221 a credential is sent using the security scheme the operation declares, not the client authenticator' do
+      api, client = api_with({ 'petStoreBearer' => credential('bearer') })
+
+      add_pet(api)
+
+      _(client.captured_headers['X-Credential']).must_equal 'bearer'
+    end
+
     it 'bhv_auth_047 skips a scheme the client holds no credential for' do
       api, client = api_with({ 'petStoreBearer' => credential('bearer') })
 
@@ -1192,6 +1200,15 @@ describe Petstore::Client::Api::BaseApi do
     _(client.captured_body).must_be_nil
   end
 
+  it 'bhv_misc_217 a binary upload accepts in-memory bytes and a stream as input without writing a temporary file' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    test_api.call('POST', '/test', {}, {}, "\x01\x02\x03".b,
+                  ['application/json'], 'application/octet-stream', nil)
+    _(client.captured_body).wont_be_nil
+  end
+
   it 'bhv_operations_157 a binary request body is sent as its exact raw bytes with no multipart encoding' do
     client = CapturingApiClient.new
     config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
@@ -1354,6 +1371,21 @@ describe Petstore::Client::Api::BaseApi do
   end
 
   # ── BinaryResponseTests ──
+
+  it 'bhv_misc_216 a binary response is returned as decoded bytes, while the raw body keeps the encoded text' do
+    require 'base64'
+    original_bytes = "\x00\xFF\x42".b
+    encoded = Base64.strict_encode64(original_bytes)
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: encoded, headers: { 'Content-Type' => 'application/octet-stream' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil,
+                           ['application/octet-stream'], 'application/octet-stream', 'String')
+    decoded = Base64.strict_decode64(result)
+    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+  end
 
   it 'bhv_serializationwire_017 octet-stream binary response decodes to original bytes (roundtrip)' do
     require 'base64'
@@ -1674,6 +1706,17 @@ describe Petstore::Client::Api::BaseApi do
                     ['application/json'], 'application/json', nil)
     end).must_raise Petstore::Client::Errors::SerializationError
     _(client.captured_url).must_be_nil
+  end
+
+  it 'bhv_misc_222 a success response with a 201 status and an empty body returns no data without an error' do
+    client = Object.new
+    client.define_singleton_method(:send_request) do |*_args, **_kwargs|
+      Petstore::Client::ApiHttpResponse.new(status_code: 201, body: '', headers: { 'content-type' => 'application/json' })
+    end
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+
+    _(test_api.call('POST', '/items', {}, {}, nil, ['application/json'], 'application/json', nil)).must_be_nil
   end
 
   it 'bhv_retries_001 replays a request once with a renewed token after a 401' do

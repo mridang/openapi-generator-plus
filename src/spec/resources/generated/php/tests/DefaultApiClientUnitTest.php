@@ -3275,3 +3275,132 @@ test('bhv misc 100 a multipart request declares the form data subtype with a bou
     expect(implode(' ', (array) ($capturedHeaders['Content-Type'] ?? $capturedHeaders['content-type'] ?? [])))
         ->toStartWith('multipart/form-data; boundary=');
 });
+
+test('bhv retries 047 retries never extend the request timeout', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->timeout(1000)->build();
+    $client = retryTestClient([[503, ['Retry-After' => '5']], 200], $options, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(1);
+    expect($client->pauses)->toBe([]);
+});
+
+test('bhv retries 048 a 503 is sent again until it succeeds', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 503, 200], null, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(3);
+    expect($client->pauses)->toHaveCount(2);
+});
+
+test('bhv retries 049 stops after max retries and returns the last response', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([503, 503, 503, 503], null, $log);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(503);
+    expect(count($log))->toBe(3);
+});
+
+test('bhv retries 050 Retry-After as an HTTP date is honoured', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $options = TransportOptions::builder()->maxRetries(1)->timeout(null)->build();
+    $date = gmdate('D, d M Y H:i:s', time() + 30) . ' GMT';
+    $client = retryTestClient([[503, ['Retry-After' => $date]], 200], $options, $log);
+
+    $client->sendWithRetries('GET', 'http://example.com/limited', static fn (): array => [], null);
+
+    expect($client->pauses)->toHaveCount(1);
+    expect($client->pauses[0])->toBeGreaterThan(25.0)->toBeLessThanOrEqual(30.0);
+});
+
+test('bhv retries 051 https to http downgrade refuses body replay on 307', function (): void {
+    /* Gap 3.3 / T-D2: a 307 from an HTTPS origin pointing at an HTTP URL
+     * must NOT replay the body in plaintext. The downgrade is refused by
+     * raising an SDK-typed ApiException (not by silently returning the
+     * 307), matching the throwing SDKs. */
+    $downgrade = new MockResponse('', [
+        'http_code' => 307,
+        'response_headers' => ['Location' => 'http://insecure.example.com/sink'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$downgrade]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('POST', 'https://api.example.com/secret', [], 'sensitive=payload'))
+        ->toThrow(function (\Exception $e): void {
+            /* A refused redirect is a response that arrived but could not
+             * be used: exactly ApiException, carrying the real status. */
+            expect($e::class)->toBe(ApiException::class);
+            if (!$e instanceof ApiException) {
+                return;
+            }
+            expect($e->getCode())->toBe(307);
+            expect($e->getMessage())->toBe(
+                'Refusing to replay request body across HTTPS->HTTP redirect: '
+                . 'https://api.example.com/secret -> http://insecure.example.com/sink'
+            );
+            expect($e->getResponseHeaders())->toHaveKey('location');
+        });
+});
+
+test('bhv redirects 056 an opted out request sends no default header and the next normal request does', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = strtolower(implode("\n", $options['headers']));
+
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $transport = TransportOptions::builder()->defaultHeaders(['X-Default' => 'd'])->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory), $transport);
+
+    $client->sendRequest('POST', 'https://example.com/token', [], 'a=b', noRedirect: true);
+    $client->sendRequest('GET', 'https://example.com/x', [], null);
+
+    expect($seen[0])->not->toContain('x-default:');
+    expect($seen[1])->toContain('x-default: d');
+});
+
+test('bhv retries 045 a streamed body is sent once and not replayed after a 401', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $client = retryTestClient([401, 200], null, $log);
+    $stream = fopen('php://temp', 'w+');
+    expect($stream)->toBeResource();
+    fwrite($stream, 'payload');
+    rewind($stream);
+
+    $response = $client->sendWithRetries('POST', 'http://example.com/upload', static fn (): array => [], $stream);
+
+    expect($response->statusCode)->toBe(401);
+    expect(count($log))->toBe(1);
+});
+
+test('bhv retries 046 a request body is resent unchanged on a 307 that keeps the scheme', function (): void {
+    /** @var list<string> $bodies */
+    $bodies = [];
+    $mock = new MockHttpClient(function (string $method, string $url, array $options) use (&$bodies): MockResponse {
+        $bodies[] = collectDefaultApiClientRequestBody($options['body'] ?? '');
+
+        return count($bodies) < 2
+            ? new MockResponse('', ['http_code' => 307, 'response_headers' => ['Location' => 'https://example.com/items/next']])
+            : new MockResponse('{}', ['http_code' => 200]);
+    });
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mock, $transport);
+
+    $response = $client->sendRequest('POST', 'https://example.com/items', [], '{"a":1}');
+
+    expect($response->statusCode)->toBe(200);
+    expect($bodies)->toBe(['{"a":1}', '{"a":1}']);
+});
