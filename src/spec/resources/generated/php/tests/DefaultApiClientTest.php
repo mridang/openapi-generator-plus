@@ -903,3 +903,71 @@ test('bhv transport 093 a configured ca cert is the only trust anchor so an unre
         unlink($path);
     }
 });
+
+test('bhv misc 268 a trusted ca certificate is rejected when the hostname does not match', function (): void {
+    /* Reach the fixture by its IP address, which its certificate does not name. */
+    $parts = parse_url(getenv('CHASM_HTTPS_URL') ?: '');
+    assert(is_array($parts));
+    $address = gethostbyname((string) ($parts['host'] ?? ''));
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath(getenv('CA_CERT_PATH') ?: null)
+        ->build();
+    $client = new DefaultApiClient($transport);
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://' . $address . ':' . ($parts['port'] ?? 443) . '/test/echo', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+});
+
+test('bhv misc 269 a self signed endpoint is reached only with verification disabled', function (): void {
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+
+    $off = new DefaultApiClient(TransportOptions::builder()->verifySsl(false)->build());
+    $response = $off->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    expect($response->statusCode)->toBe(200);
+
+    $on = new DefaultApiClient(TransportOptions::builder()->verifySsl(true)->build());
+    expect(fn (): mixed => $on->sendRequest('GET', $chasmUrl . '/test/echo', [], null))
+        ->toThrow(\PetstoreClient\Errors\NetworkException::class);
+});
+
+test('bhv misc 271 a client without a proxy connects directly even when a proxy environment variable is set', function (): void {
+    $chasmUrl = getenv('CHASM_HTTP_URL') ?: '';
+    $names = ['http_proxy', 'HTTP_PROXY', 'https_proxy', 'HTTPS_PROXY', 'all_proxy', 'ALL_PROXY'];
+    $saved = [];
+    foreach ($names as $name) {
+        $saved[$name] = $_SERVER[$name] ?? null;
+        $_SERVER[$name] = 'http://127.0.0.1:1';
+    }
+
+    try {
+        $client = new DefaultApiClient(TransportOptions::builder()->build());
+        $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+    } finally {
+        foreach ($saved as $name => $value) {
+            if ($value === null) {
+                unset($_SERVER[$name]);
+            } else {
+                $_SERVER[$name] = $value;
+            }
+        }
+    }
+
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 272 an authenticating proxy accepts the credentials embedded in the proxy url end to end', function (): void {
+    // The Squid fixture's second port answers 407 unless the request carries
+    // Basic proxy credentials, so a success through it proves the credentials
+    // embedded in the proxy URL reached the proxy.
+    $proxy = parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_HOST) . ':'
+        . parse_url((string) getenv('PROXY_AUTH_URL'), PHP_URL_PORT);
+    $client = new DefaultApiClient(
+        TransportOptions::builder()->proxy('http://user:pass@' . $proxy)->build()
+    );
+    $response = $client->sendRequest('GET', getenv('CHASM_INTERNAL_HTTP_URL') . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toContain('"method"');
+});

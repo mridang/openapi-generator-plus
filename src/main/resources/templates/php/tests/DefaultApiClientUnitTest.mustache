@@ -3520,3 +3520,69 @@ test('bhv transport 091 a caller supplied upload stream is left open after the s
 
     expect(is_resource($stream))->toBeTrue();
 });
+
+test('bhv misc 265 a redirect to a non http scheme is an api error with the redirect status, not a network error', function (): void {
+    $redirect = new MockResponse('', [
+        'http_code' => 302,
+        'response_headers' => ['Location' => 'file:///etc/passwd'],
+    ]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), $transport);
+
+    expect(fn (): mixed => $client->sendRequest('GET', 'https://api.example.com/start', [], null))
+        ->toThrow(function (\Exception $e): void {
+            expect($e)->toBeInstanceOf(ApiException::class);
+            expect($e)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\NetworkException::class);
+            expect($e->getCode())->toBe(302);
+        });
+});
+
+test('bhv misc 270 a missing ca file is rejected even when certificate verification is disabled', function (): void {
+    $transport = TransportOptions::builder()->verifySsl(false)->caCertPath('/nonexistent/ca.pem')->build();
+
+    expect(fn (): mixed => new DefaultApiClient($transport))
+        ->toThrow(function (\Exception $e): void {
+            expect($e->getMessage())->toContain('/nonexistent/ca.pem');
+        });
+});
+
+test('bhv misc 275 the request is sent with the intended http method and the response is returned', function (): void {
+    $seen = [];
+    $factory = function (string $method, string $url, array $options) use (&$seen): MockResponse {
+        $seen[] = $method;
+
+        return new MockResponse('{}', ['http_code' => 200]);
+    };
+    $client = new StubbedDefaultApiClient(new MockHttpClient($factory));
+
+    $response = $client->sendRequest('PATCH', 'http://example.com/items', [], null);
+
+    expect($seen)->toBe(['PATCH']);
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 281 headers from a received response are copied onto the error raised for that response', function (): void {
+    $ex = ApiException::fromResponse(400, ['x-request-id' => 'abc'], '{"code":"denied"}');
+
+    expect($ex->getResponseHeaders())->toBe(['x-request-id' => 'abc']);
+});
+
+test('bhv misc 280 a rendered message that truncates the response body states how many bytes were left out', function (): void {
+    $ex = new ApiException(500, 'boom', [], str_repeat('a', 1100));
+
+    expect((string) $ex)->toContain('76 more bytes');
+});
+
+test('bhv misc 282 a network failure raised after the connection drops keeps the transport error as its cause', function (): void {
+    $cause = new \Symfony\Component\HttpClient\Exception\TransportException('Connection reset');
+    $client = new StubbedDefaultApiClient(new MockHttpClient(function () use ($cause): never {
+        throw $cause;
+    }));
+
+    try {
+        $client->sendRequest('GET', 'http://example.com/dropped', [], null);
+        test()->fail('Expected NetworkException');
+    } catch (\{{invokerPackage}}\Errors\NetworkException $e) {
+        expect($e->getPrevious())->toBe($cause);
+    }
+});
