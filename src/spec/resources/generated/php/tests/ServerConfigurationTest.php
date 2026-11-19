@@ -308,3 +308,38 @@ test('bhv misc 261 a value containing backslash sequences is inserted into the u
 
     expect($server->getUrl(['env' => 'a\\nb']))->toBe('https://a\\nb.example.com');
 });
+
+test('bhv misc 154 editing the variables map returned by the accessor does not change the configuration', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: 'api')],
+    );
+
+    $variables = $server->variables;
+    $variables['env'] = new ServerVariable(defaultValue: 'other');
+    $variables['extra'] = new ServerVariable(defaultValue: 'x');
+
+    expect(array_keys($server->variables))->toBe(['env']);
+    expect($server->getUrl())->toBe('https://api.example.com');
+});
+
+test('bhv misc 155 resolving a url with an enum variable left unset is refused, naming the variable and its allowed values', function (): void {
+    $server = new ServerConfiguration(
+        urlTemplate: 'https://{env}.example.com',
+        variables: ['env' => new ServerVariable(defaultValue: '', enumValues: ['api', 'staging'])],
+    );
+
+    expect(fn (): string => $server->getUrl())
+        ->toThrow(\InvalidArgumentException::class, "for server variable 'env'. Allowed values: [api, staging]");
+});
+
+test('bhv misc 156 the list of all generated servers keeps the order in which they are declared', function (): void {
+    expect(array_map(fn (ServerConfiguration $server): string => $server->urlTemplate, Servers::all()))
+        ->toBe(['/api/v3', 'https://{environment}.example.com/api/{version}', 'https://{tenant}.example.com/api']);
+});
+
+test('bhv misc 158 a server built with a fixed url reports exactly that url', function (): void {
+    $server = new ServerConfiguration(urlTemplate: 'https://api.example.com/v1/fixed');
+
+    expect($server->getUrl())->toBe('https://api.example.com/v1/fixed');
+});

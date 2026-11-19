@@ -461,3 +461,16 @@ test('bhv misc 279 changing the headers returned from a configuration does not c
 
     expect($config->defaultHeaders)->toBe(['X-Custom' => 'value']);
 });
+
+test('bhv misc 136 the debug output shows the base url and the non sensitive default headers', function (): void {
+    $config = Configuration::builder()
+        ->baseUrl('https://api.example.com/v2')
+        ->defaultHeader('X-Trace', 'visible')
+        ->build();
+
+    $dump = print_r($config, true);
+
+    expect($dump)->toContain('https://api.example.com/v2');
+    expect($dump)->toContain('X-Trace');
+    expect($dump)->toContain('visible');
+});

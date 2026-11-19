@@ -3580,3 +3580,18 @@ test('bhv misc 282 a network failure raised after the connection drops keeps the
         expect($e->getPrevious())->toBe($cause);
     }
 });
+
+test('bhv misc 133 a 300 or 305 response is returned as it is, even with a location header', function (int $status): void {
+    $redirect = new MockResponse('', [
+        'http_code' => $status,
+        'response_headers' => ['Location' => 'https://api.example.com/next'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$redirect]), TransportOptions::builder()->build());
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe($status);
+})->with([
+    '300' => [300],
+    '305' => [305],
+]);

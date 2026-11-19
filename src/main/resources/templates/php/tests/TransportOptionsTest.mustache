@@ -410,3 +410,8 @@ test('bhv options 068 a SOCKS proxy is refused at construction with the document
     expect(fn () => new TransportOptions(proxy: 'socks5://proxy:1080'))
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
 });
+
+test('bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error', function (): void {
+    expect(fn () => TransportOptions::builder()->timeout(0)->build())
+        ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
+});
