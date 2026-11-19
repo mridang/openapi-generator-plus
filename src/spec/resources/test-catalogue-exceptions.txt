@@ -259,9 +259,8 @@ rust | auth008 | the PKCE verifier is drawn inside the token manager and no publ
 rust | auth022 | the generated constructor takes the explicit token and then the environment, while the token provider is a separate constructor that never reads the environment, so no call falls through from an unset variable to a provider; the explicit-over-environment order is bhv scheme 009 and bhv authbearer 018
 rust | auth024 | the rust scheme test template builds only all-explicit or all-environment argument lists, so one field cannot be explicit while another is read from its variable without a codegen change to build a mixed list; the explicit and environment paths of each field are checked by bhv scheme 002, 009 and 010
 rust | redirects045 | reqwest Client exposes no getter for its redirect policy, so DefaultApiClient::with_client cannot tell a client that follows redirects and cannot refuse one; the Policy::none requirement is documented on with_client instead
-swift | auth005 | ApiKeyAuthenticator takes its key as a fixed String and has no provider initializer, so a key is never asked for again; only BearerAuthenticator takes a provider (bearer002, bearer014), and adding an api key provider would be a public API addition
 swift | auth015 | Swift has no synchronous header accessor on token flows: authHeaders() is async throws (the D12 matrix row), so a failed token request always throws and no call returns headers without the Authorization entry
-swift | redirects045 | A supplied URLSession is not refused: the SDK attaches its own delegate to every task, which overrides the session delegate's redirect handling, so the SDK's redirect rules always decide (redirects test in testSuppliedSessionStillAppliesTheRedirectRules)
+swift | redirects045 | URLSession follows redirects by default and exposes no redirect setting, and a delegate cannot be inspected for redirect handling, so a supplied session that follows redirects on its own cannot be told from any other; the SDK attaches its own delegate to every task instead
 swift | serialization017 | Object-valued parameters are decoded into a [String: AnyCodable] dictionary, which has no order, and JSONEncoder has no declared-order mode, so the wire fields are sorted by name (documented forced divergence in the swift AGENTS)
 php | authscheme008 | The SsoAuth scheme is an OpenID Connect authenticator, which takes its credentials as constructor arguments and reads no environment variable (the README says so), so the SsoAuthAuthenticator has no variable to leave empty
 java | serializationobject407 | ipv4 and ipv6 are plain strings in java: the JDK has no literal-only address parser below Java 22, so nothing is checked and no error can be raised
@@ -534,9 +533,7 @@ swift | misc083 | The Swift client has no entry point that takes a query as raw 
 swift | misc087 | Swift has no decimal value type that reaches the wire: a decimal schema value is a Double (documented in the readme), and a loose body cannot carry a Decimal through JSONSerialization
 swift | misc088 | A decimal schema value is stored as a Double (documented in the readme), which keeps no trailing decimal places, so there is no written places form to keep
 swift | misc091 | The Swift generator emits no schema constraint or pattern checks into its models, so decoding never checks a declared constraint
-swift | misc098 | The Swift multipart builder takes only Data, String and model values as parts, so a caller-supplied stream can never be a part; a caller body stream is covered by the transport tests
 swift | misc100 | The Swift client always sends multipart/form-data with its own boundary and ignores a declared multipart subtype, so the declared subtype is never kept
-swift | misc101 | Swift multipart parts are Data, String or model values already in memory, so a part source cannot fail to read at send time
 swift | misc110 | The Swift decoder reads a calendar-date field as a plain String and has no list-of-dates type whose elements are refused when they are not dates
 swift | misc111 | The Swift client writes uniqueItems collections in their natural order and never sorts them (documented in the readme)
 swift | misc116 | int32 maps to Int in Swift (a documented known limit, docs/languages/swift.md), so a value past 32 bits is accepted
@@ -596,7 +593,6 @@ swift | misc147 | Swift models are value types, so a copy's nested model is an i
 swift | misc149 | copy takes only the model's declared properties as typed parameters, so an undeclared attribute is a compile-time error and no runtime error naming it can occur
 swift | misc152 | Swift has no abort signal: a call is cancelled through Task cancellation, and no call takes a signal that could already be aborted
 swift | misc153 | Swift has no client-level or per-call cancel signal: cancellation is Task cancellation of the awaiting task, and the client has no signal to set
-swift | misc178 | the Swift test fixture declares no operation with a multipart content type other than multipart/form-data, so no other multipart type reaches the transport
 swift | misc185 | the Swift OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be observed
 swift | misc186 | the Swift transport options take no ready-made HTTP connection object, so there is no connection value to reject when the options are built
 dart | misc135 | Dart has no client-level cancellation handle: a call is cancelled through the subscription it returns, so the configuration holds no signal to store

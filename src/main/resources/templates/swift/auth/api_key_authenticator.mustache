@@ -6,7 +6,8 @@ import Foundation
 public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     private let _host: String
     private let keyParamName: String
-    private let apiKey: String
+    private let apiKey: String?
+    private let apiKeyProvider: (@Sendable () -> String)?
     private let location: ApiKeyLocation
 
     /// Creates an API key authenticator.
@@ -46,8 +47,33 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
         self._host = host
         self.keyParamName = keyParamName
         self.apiKey = apiKey
+        self.apiKeyProvider = nil
         self.location = location
         super.init()
+    }
+
+    /// Creates an API key authenticator whose key is asked of `apiKeyProvider`
+    /// again for every request, so a rotated key is picked up at once.
+    ///
+    /// - Parameters:
+    ///   - host: The base URL of the API.
+    ///   - keyParamName: The name of the header, query parameter, or cookie carrying the key.
+    ///   - apiKeyProvider: Returns the API key to send with the request.
+    ///   - location: Where the API key is sent on each request.
+    public init(
+        host: String, keyParamName: String, apiKeyProvider: @escaping @Sendable () -> String,
+        location: ApiKeyLocation
+    ) {
+        self._host = host
+        self.keyParamName = keyParamName
+        self.apiKey = nil
+        self.apiKeyProvider = apiKeyProvider
+        self.location = location
+        super.init()
+    }
+
+    private func currentKey() -> String {
+        return apiKeyProvider?() ?? apiKey ?? ""
     }
 
     /// Returns the base URL of the API.
@@ -58,7 +84,7 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     /// Returns the API key as a header if the location is `.header`.
     override public func authHeaders() async -> [String: String] {
         if location == .header {
-            return [keyParamName: apiKey]
+            return [keyParamName: currentKey()]
         }
         return [:]
     }
@@ -66,7 +92,7 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     /// Returns the API key as a query parameter if the location is `.query`.
     override public func queryParams() -> [String: String] {
         if location == .query {
-            return [keyParamName: apiKey]
+            return [keyParamName: currentKey()]
         }
         return [:]
     }
@@ -74,7 +100,7 @@ public class ApiKeyAuthenticator: BaseAuthenticator, @unchecked Sendable {
     /// Returns the API key as a cookie if the location is `.cookie`.
     override public func cookieParams() -> [String: String] {
         if location == .cookie {
-            return [keyParamName: apiKey]
+            return [keyParamName: currentKey()]
         }
         return [:]
     }
