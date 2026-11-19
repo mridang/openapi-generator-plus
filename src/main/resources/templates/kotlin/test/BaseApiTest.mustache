@@ -508,6 +508,55 @@ class BaseApiTest {
         assertEquals("session=abc-123_XYZ.~", client.capturedHeaders["Cookie"])
     }
 
+    @Test
+    @DisplayName("bhvMisc197 an operation whose named schemes the client does not hold is served by the default authenticator")
+    fun bhvMisc197UnheldSchemeFallsBackToTheDefaultAuthenticator() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        val defaultAuth = TestAuthenticator(mapOf("Authorization" to "Bearer default-token"), emptyMap(), emptyMap())
+        val api = TestableApiWithSchemes(client, "http://localhost", defaultAuth, emptyMap())
+        api.call("/test/echo", api.pick("unheld"))
+        assertEquals("Bearer default-token", client.capturedHeaders["Authorization"])
+    }
+
+    @Test
+    @DisplayName("bhvMisc202 a text body sent without a declared content type goes out with the JSON media type and no parameters")
+    fun bhvMisc202TextBodyWithoutContentTypeIsSentAsJson() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost").call("POST", "/test/echo", body = "hello")
+        val type = client.capturedHeaders.entries.firstOrNull { it.key.equals("Content-Type", ignoreCase = true) }?.value
+        assertEquals("application/json", type)
+    }
+
+    @Test
+    @DisplayName("bhvMisc210 a date-time form field is encoded in canonical form with escaped colons on the wire")
+    fun bhvMisc210DateTimeFormFieldIsEncodedCanonically() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        val reminder = java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC)
+        TestableApiWithClient(client, "http://localhost").call(
+            "POST", "/test/echo", body = linkedMapOf<String, Any?>("reminder" to reminder),
+            contentType = "application/x-www-form-urlencoded",
+        )
+        assertTrue(client.capturedBody.toString().contains("reminder=2024-01-15T10%3A30%3A00"), client.capturedBody.toString())
+    }
+
+    @Test
+    @DisplayName("bhvMisc211 a date-time inside a JSON query parameter keeps its wire date-time form")
+    fun bhvMisc211DateTimeInJsonQueryParamKeepsItsWireForm() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        val since = java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC)
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", queryParams = mutableMapOf("since" to since))
+        assertTrue(client.capturedUrl.contains("2024-01-15T10"), client.capturedUrl)
+    }
+
+    @Test
+    @DisplayName("bhvMisc212 a 404 and a 500 response raise their matching error through the API layer")
+    fun bhvMisc212NotFoundAndServerErrorRaiseTheirErrors() {
+        val (notFound, _) = statusClient(404)
+        assertThrows(NotFoundException::class.java) { runBlocking { PerCallApi(notFound).call() } }
+        val (serverError, _) = statusClient(500)
+        assertThrows(InternalServerErrorException::class.java) { runBlocking { PerCallApi(serverError).call(callMaxRetries = 0) } }
+    }
+
     private fun api() = TestableApi(ChasmContainer.getBaseUrl())
 
     /* A BaseApi that forwards the per-call settings an operation's options carry. */

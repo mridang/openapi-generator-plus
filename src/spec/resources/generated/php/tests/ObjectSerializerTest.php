@@ -2739,3 +2739,55 @@ test('bhv misc 105 copying a model keeps every value it holds', function (): voi
 test('bhv misc 106 a null element in an array body is kept in its position when serialized', function (): void {
     expect(ObjectSerializer::serialize(['a', null, 'b']))->toBe('["a",null,"b"]');
 });
+
+test('bhv serialization 067 extra properties are written as top level keys beside the declared fields', function (): void {
+    $metadata = new Metadata(createdAt: new \DateTime('2024-01-01T00:00:00+00:00'));
+    $metadata->additionalProperties = new \Ds\Map(['region' => 'eu']);
+
+    $wire = json_decode(ObjectSerializer::serialize($metadata), true);
+
+    expect($wire['region'])->toBe('eu');
+    expect($wire)->toHaveKey('createdAt');
+});
+
+test('bhv serialization 069 a value outside a schema bound is kept at construction', function (): void {
+    $long = str_repeat('a', 300);
+
+    expect((new Category(name: $long))->name)->toBe($long);
+});
+
+test('bhv serialization 070 a json null for an optional field decodes to null', function (): void {
+    /** @var Tag $tag */
+    $tag = ObjectSerializer::deserialize('{"id":null,"name":"x"}', Tag::class);
+
+    expect($tag->id)->toBeNull();
+    expect($tag->name)->toBe('x');
+});
+
+test('bhv serialization 071 json nested beyond the depth cap is refused before parsing', function (): void {
+    $deep = str_repeat('[', 1001) . str_repeat(']', 1001);
+
+    expect(fn (): mixed => ObjectSerializer::deserialize($deep, Tag::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'exceeds limit 1000');
+});
+
+test('bhv serialization 072 several undeclared keys of any shape are skipped', function (): void {
+    /** @var Category $category */
+    $category = ObjectSerializer::deserialize('{"id":1,"name":"Dogs","a":1,"b":"x","c":{"d":[1,2]},"e":null}', Category::class);
+
+    expect($category->id)->toBe(1);
+    expect($category->name)->toBe('Dogs');
+});
+
+test('bhv serialization 073 a null required field fails decoding with an error naming that field', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"child":null}', TreeNode::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'value');
+});
+
+test('bhv serialization 074 nested arrays serialize back to the same nested shape', function (): void {
+    expect(json_decode(ObjectSerializer::serialize([[1, 2], [3]]), true))->toBe([[1, 2], [3]]);
+});
+
+test('bhv serialization 075 an enum value decodes from its wire string to its member', function (): void {
+    expect(ObjectSerializer::deserialize('"placed"', OrderStatusEnum::class))->toBe(OrderStatusEnum::PLACED);
+});

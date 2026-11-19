@@ -353,4 +353,30 @@ class ServerConfigurationTest {
                 )
             assertEquals("https://x.example.com/y/z", server.getUrl(mapOf("a" to "x", "b" to "y", "c" to "z")))
         }
+
+    @Test
+    fun bhvServers029APlaceholderIntroducedBySubstitutionStaysLiteral() =
+        runBlocking<Unit> {
+            val server =
+                ServerConfiguration(
+                    "https://{env}.example.com",
+                    null,
+                    mapOf("env" to ServerVariable("api", null, emptyList())),
+                )
+            assertEquals("https://{env}.example.com", server.getUrl(mapOf("env" to "{env}")))
+        }
+
+    @Test
+    fun bhvServers030AValueOutsideTheEnumIsRejected() =
+        runBlocking<Unit> {
+            val server =
+                ServerConfiguration(
+                    "https://{env}.example.com",
+                    null,
+                    mapOf("env" to ServerVariable("api", null, listOf("api", "staging"))),
+                )
+            assertThrows(IllegalArgumentException::class.java) {
+                server.getUrl(mapOf("env" to "prod"))
+            }
+        }
 }

@@ -763,4 +763,45 @@ class OpenIdConnectAuthenticatorTest {
         repeat(3) { runBlocking { auth.buildAuthorizationUrl() } }
         assertEquals(3, client.getCount)
     }
+    @Test
+    @DisplayName("bhvMisc199 discovery runs again when the cached document has a max-age of zero and uses the rediscovered endpoints")
+    fun bhvMisc199DiscoveryRunsAgainWhenMaxAgeIsZero() {
+        val client = FakeApiClient()
+        repeat(3) {
+            client.enqueue(discovery("https://auth.example.com/authorize"), headers = mapOf("cache-control" to "max-age=0"))
+        }
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        repeat(3) { runBlocking { auth.buildAuthorizationUrl() } }
+        assertEquals(3, client.getCount)
+    }
+
+    @Test
+    @DisplayName("bhvMisc200 a discovery document whose issuer names another server is rejected with a serialization error")
+    fun bhvMisc200DiscoveryIssuerOfAnotherServerIsRejected() {
+        val client = FakeApiClient()
+        client.enqueue("""{"issuer":"https://evil.example.net","authorization_endpoint":"https://auth.example.com/authorize","token_endpoint":"https://auth.example.com/token"}""")
+        val auth = createAuthenticator()
+        auth.setApiClient(client)
+        assertThrows({{invokerPackage}}.errors.SerializationException::class.java) { runBlocking { auth.buildAuthorizationUrl() } }
+    }
+
+    @Test
+    @DisplayName("bhvMisc201 a failed discovery request reports its request path without the query string")
+    fun bhvMisc201FailedDiscoveryReportsPathWithoutQuery() {
+        val client = FakeApiClient()
+        client.enqueue("down", statusCode = 500)
+        val auth = OpenIdConnectAuthenticator(
+            host = "https://api.example.com",
+            openIdConnectUrl = "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+            clientId = "my-client-id",
+            clientSecret = "my-client-secret",
+            redirectUri = "https://app.example.com/callback",
+            scopes = listOf("openid")
+        )
+        auth.setApiClient(client)
+        val ex = assertThrows(ApiException::class.java) { runBlocking { auth.buildAuthorizationUrl() } }
+        assertEquals("/.well-known/openid-configuration", ex.requestPath)
+    }
+
 }
