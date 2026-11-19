@@ -1245,4 +1245,32 @@ class ValueSerializerTest {
             "pipeDelimited",
             false));
   }
+
+  @Test
+  @DisplayName("bhvSerialization109 a path value is percent-encoded exactly once")
+  void bhvSerialization109APathValueIsPercentEncodedExactlyOnce() {
+    assertEquals("a%25b", ValueSerializer.serialize("a%b", "path", "string", null));
+  }
+
+  @Test
+  @DisplayName(
+      "bhvSerialization110 an absent path value is empty and an absent query value is null")
+  void bhvSerialization110AnAbsentPathValueIsEmptyAndAnAbsentQueryValueIsNull() {
+    assertEquals("", ValueSerializer.serialize(null, "path", "string", null));
+    assertNull(ValueSerializer.serialize(null, "query", "string", null));
+  }
+
+  @Test
+  @DisplayName(
+      "bhvSerialization111 only unreserved characters stay literal and others are UTF-8 encoded")
+  void bhvSerialization111OnlyUnreservedCharactersStayLiteralAndOthersAreUtf8Encoded() {
+    assertEquals(
+        "a~b-._z%20%C3%A9", ValueSerializer.serialize("a~b-._z é", "path", "string", null));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization113 a string value passes through without normalising its form")
+  void bhvSerialization113AStringValuePassesThroughWithoutNormalisingItsForm() {
+    assertEquals("é", ValueSerializer.serialize("é", "query", "string", null));
+  }
 }

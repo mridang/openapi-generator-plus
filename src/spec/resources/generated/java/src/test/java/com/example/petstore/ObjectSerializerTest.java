@@ -4586,4 +4586,32 @@ class ObjectSerializerTest {
 
     assertEquals("bar", restored.getAdditionalProperties().get("additional_properties"));
   }
+
+  @Test
+  @DisplayName("bhvSerialization114 decode keeps a large magnitude with a fraction")
+  void bhvSerialization114DecodeKeepsALargeMagnitudeWithAFraction() {
+    assertEquals(
+        "0.1234567890123456789",
+        ObjectSerializer.stringify(new java.math.BigDecimal("0.1234567890123456789")));
+  }
+
+  @Test
+  @DisplayName(
+      "bhvSerialization115 an integral JSON number decoded into a floating-point field becomes a"
+          + " float")
+  void bhvSerialization115AnIntegralJsonNumberDecodedIntoAFloatingPointFieldBecomesAFloat() {
+    com.example.petstore.models.DryFood dry =
+        serializer.deserialize(
+            "{\"foodType\":\"dry\",\"weightKg\":5}", com.example.petstore.models.DryFood.class);
+
+    assertEquals(5.0, dry.weightKg);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization117 a protobuf duration string decodes to a standalone duration")
+  void bhvSerialization117AProtobufDurationStringDecodesToAStandaloneDuration() {
+    Duration decoded = serializer.deserialize("\"3600s\"", Duration.class);
+
+    assertEquals(Duration.ofHours(1), decoded);
+  }
 }
