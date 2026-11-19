@@ -348,3 +348,17 @@ describe("ServerConfiguration misc substitution behaviours", () => {
     );
   });
 });
+
+describe("ServerConfiguration misc default substitution", () => {
+  it("bhv misc 278 a server URL with templated variables resolves to the default values when no overrides are given", () => {
+    const config = new ServerConfiguration(
+      "https://{env}.example.com/{version}",
+      null,
+      {
+        env: new ServerVariable("api", null, []),
+        version: new ServerVariable("v3", null, []),
+      },
+    );
+    expect(config.getUrl()).toBe("https://api.example.com/v3");
+  });
+});

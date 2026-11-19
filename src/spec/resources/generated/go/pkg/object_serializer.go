@@ -432,17 +432,17 @@ func toCookieValue(value any) string {
 }
 
 // encodeContentCookieValue percent-encodes the serialised JSON of a content
-// cookie parameter as UTF-8, keeping exactly the unreserved set A-Z a-z 0-9
-// - . _ ~ literal. Everything else, including * ! ' ( ) and every non-ASCII
-// byte, becomes %XX, so the bytes are identical in all twelve SDKs and always
-// satisfy the RFC 6265 cookie-octet check.
+// cookie parameter as UTF-8, keeping only A-Z a-z 0-9 - _ ~ literal. Everything
+// else, including the dot, the colon, * ! ' ( ) and every non-ASCII byte, becomes
+// %XX, so a JSON model is fully encoded and always satisfies the RFC 6265
+// cookie-octet check.
 func encodeContentCookieValue(raw []byte) string {
 	const hexDigits = "0123456789ABCDEF"
 	var sb strings.Builder
 	for _, c := range raw {
 		switch {
 		case c >= 'A' && c <= 'Z', c >= 'a' && c <= 'z', c >= '0' && c <= '9',
-			c == '-', c == '.', c == '_', c == '~':
+			c == '-', c == '_', c == '~':
 			sb.WriteByte(c)
 		default:
 			sb.WriteByte('%')

@@ -45,6 +45,15 @@ func TestBhvSerializationparam104_ObjectSerializer_EncodeContentCookieValue_Uses
 }
 
 
+// A content cookie carrying a JSON model is fully percent-encoded, including its colons and dots.
+func TestBhvMisc233_ObjectSerializer_AContentCookieCarryingAJsonModelIsFullyPercentEncoded(t *testing.T) {
+	t.Parallel()
+	got := encodeContentCookieValue([]byte(`{"a":1.5}`))
+	if want := "%7B%22a%22%3A1%2E5%7D"; got != want {
+		t.Errorf("expected %s, got %s", want, got)
+	}
+}
+
 func TestBhvSerializationparam118_ObjectSerializer_EncodeContentCookieValue_SpaceIsEncodedTildeKept(t *testing.T) {
 	t.Parallel()
 	if got := encodeContentCookieValue([]byte("a b~c")); got != "a%20b~c" {

@@ -285,6 +285,18 @@ describe('DefaultApiClient', () => {
     expect(error).toBeInstanceOf(NetworkError);
     expect((error as NetworkTimeoutError).statusCode).toBe(0);
     expect((error as NetworkTimeoutError).cause).toBeDefined();
+
+    test('bhv misc 268 a server presenting a certificate from a trusted CA is still rejected when the hostname does not match', async () => {
+      const url = await ipHttpsUrl();
+      const client = new DefaultApiClient(
+        TransportOptions.builder().verifySsl(true).caCertPath(process.env['CA_CERT_PATH']!).build(),
+      );
+      try {
+        await expect(client.sendRequest('GET', `${url}/test/echo`, {}, null)).rejects.toThrow();
+      } finally {
+        await client.close();
+      }
+    });
   });
 
   describe('redirect chain timeout is one budget', () => {

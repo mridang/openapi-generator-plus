@@ -611,6 +611,10 @@ describe Petstore::Client::ValueSerializer do
       _(encoded).must_equal('%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D')
     end
 
+    it 'bhv_misc_233 a content cookie carrying a JSON model is fully percent-encoded, including its colons and dots' do
+      _(Petstore::Client::ValueSerializer.encode_content_cookie('{"a":1.5}')).must_equal('%7B%22a%22%3A1%2E5%7D')
+    end
+
     it 'bhv_serializationparam_081 encodes the sub-delimiters and the asterisk' do
       _(Petstore::Client::ValueSerializer.encode_content_cookie("!'()*")).must_equal('%21%27%28%29%2A')
     end

@@ -1836,6 +1836,37 @@ async fn test_bhv_transport_030_al_content_encoding_lie_surfaces_api_error() {
     let _: &dyn OpenAPIError = api_err;
 }
 
+#[tokio::test]
+async fn test_bhv_transport_089_a_content_encoding_that_does_not_match_the_body_raises_the_api_error(
+) {
+    let base_url = start_content_encoding_lie_server();
+    let client = DefaultApiClient::new(None);
+    let headers = HashMap::new();
+
+    let err = client
+        .send_request("GET", &format!("{}/lie", base_url), &headers, None)
+        .await
+        .expect_err("Gap AL: a Content-Encoding: gzip lie over a plaintext body must error");
+    assert!(
+        err.downcast_ref::<NetworkError>().is_none(),
+        "Gap AL: a corrupt compressed body must not be a NetworkError, got: {}",
+        err
+    );
+    let api_err = err
+        .downcast_ref::<ApiError>()
+        .unwrap_or_else(|| panic!("Gap AL: expected ApiError, got: {}", err));
+    assert_eq!(
+        api_err.status_code(),
+        200,
+        "the real status code must be kept"
+    );
+    assert!(
+        std::error::Error::source(api_err).is_some(),
+        "the decompression error must be kept as source()"
+    );
+    let _: &dyn OpenAPIError = api_err;
+}
+
 /// Starts a server that advertises an unrecognised `Content-Encoding` the
 /// client cannot decode, over a non-empty plain body.
 /// Handles one connection then stops.
@@ -2292,6 +2323,56 @@ async fn test_bhv_transport_058_timeout_returns_network_timeout_error() {
     );
 }
 
+#[tokio::test]
+async fn test_bhv_transport_086_a_request_past_its_timeout_fails_within_its_budget() {
+    let started = std::time::Instant::now();
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    /* Accept the connection and never answer, so only the timeout ends it. */
+    thread::spawn(move || {
+        let _held: Vec<_> = listener.incoming().take(1).collect();
+        thread::sleep(std::time::Duration::from_secs(5));
+    });
+
+    let transport = TransportOptionsBuilder::new()
+        .timeout(Some(200))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let result = client
+        .send_request(
+            "GET",
+            &format!("http://{}/slow", addr),
+            &HashMap::new(),
+            None,
+        )
+        .await;
+
+    let err = result.expect_err("a request past the timeout must fail");
+    let timeout_err = err
+        .downcast_ref::<NetworkTimeoutError>()
+        .unwrap_or_else(|| panic!("expected NetworkTimeoutError, got: {}", err));
+    let _: &dyn OpenAPIError = timeout_err;
+    /* A NetworkTimeoutError is a NetworkError, which is an ApiError. */
+    let api_err = timeout_err.network_error().api_error();
+    assert_eq!(api_err.status_code(), 0, "a timeout has status 0");
+    assert!(
+        std::error::Error::source(api_err).is_some(),
+        "the timeout must keep the reqwest error as source()"
+    );
+    assert!(
+        matches!(
+            petstore::ApiErrorKind::from(api_err.clone()),
+            petstore::ApiErrorKind::NetworkTimeout(_)
+        ),
+        "a timeout must map to ApiErrorKind::NetworkTimeout"
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(4),
+        "the timeout must end the call within its budget"
+    );
+}
+
 /// The timeout is one end-to-end budget across every redirect hop: three
 /// 400 ms hops and a 400 ms final answer exceed a 1000 ms budget even though
 /// each single request is well inside it.
@@ -2525,6 +2606,38 @@ fn start_silent_server() -> String {
 /// the client stays usable for the next call.
 #[tokio::test]
 async fn test_bhv_transport_060_dropping_an_in_flight_call_cancels_it_without_a_timeout() {
+    let base_url = start_silent_server();
+    let client = DefaultApiClient::new(None);
+
+    let started = std::time::Instant::now();
+    let cancelled = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        client.send_request("GET", &format!("{}/slow", base_url), &HashMap::new(), None),
+    )
+    .await;
+
+    assert!(
+        cancelled.is_err(),
+        "the unanswered call must still be pending when it is dropped"
+    );
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "the drop must not wait for the server"
+    );
+    assert!(
+        !client.is_closed(),
+        "cancelling a call does not close the client"
+    );
+    let echo_url = start_echo_server();
+    let response = client
+        .send_request("GET", &format!("{}/after", echo_url), &HashMap::new(), None)
+        .await
+        .expect("the client is usable after a cancelled call");
+    assert_eq!(200, response.status_code());
+}
+
+#[tokio::test]
+async fn test_bhv_transport_084_dropping_an_in_flight_call_stops_it_at_once() {
     let base_url = start_silent_server();
     let client = DefaultApiClient::new(None);
 
@@ -2913,9 +3026,48 @@ async fn test_bhv_transport_032_connection_refused_raises_network_error() {
     );
 }
 
+#[tokio::test]
+async fn test_bhv_transport_087_a_connection_that_cannot_be_established_raises_the_network_error() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let addr = listener.local_addr().expect("local addr");
+    drop(listener);
+    let client = DefaultApiClient::new(None);
+
+    let err = client
+        .send_request(
+            "GET",
+            &format!("http://{}/refused", addr),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect_err("nothing listens on that port");
+
+    assert!(err.downcast_ref::<NetworkError>().is_some(), "got: {}", err);
+    assert!(
+        err.downcast_ref::<NetworkTimeoutError>().is_none(),
+        "got: {}",
+        err
+    );
+}
+
 /// A valid gzip-encoded body is decoded and the caller receives the plain payload.
 #[tokio::test]
 async fn test_bhv_transport_034_decompresses_a_valid_gzip_response_body() {
+    let (base_url, _) = start_encoded_body_server("gzip", compress_payload("gzip"));
+    let client = DefaultApiClient::new(None);
+
+    let resp = client
+        .send_request("GET", &format!("{}/enc", base_url), &HashMap::new(), None)
+        .await
+        .expect("a valid gzip body must decode");
+
+    assert_eq!(200, resp.status_code());
+    assert_eq!(ENCODED_PAYLOAD, resp.body());
+}
+
+#[tokio::test]
+async fn test_bhv_transport_088_a_gzip_encoded_body_is_decoded_before_it_is_returned() {
     let (base_url, _) = start_encoded_body_server("gzip", compress_payload("gzip"));
     let client = DefaultApiClient::new(None);
 
@@ -2947,6 +3099,36 @@ async fn test_bhv_transport_035_decompresses_a_zlib_wrapped_deflate_response() {
 /// User-Agent and X-Request-ID applied on top of it.
 #[tokio::test]
 async fn test_bhv_transport_040_injected_http_client_receives_the_request_with_sdk_defaults() {
+    let (base_url, head) = start_head_capture_server();
+    let http_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .expect("a plain reqwest client");
+    let transport = TransportOptionsBuilder::new()
+        .user_agent("SdkAgent/1.0")
+        .inject_request_id(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::with_client(http_client, Some(transport))
+        .expect("no setting conflicts with a supplied client");
+
+    client
+        .send_request("GET", &format!("{}/test", base_url), &HashMap::new(), None)
+        .await
+        .expect("unexpected error");
+
+    let head = head.recv().expect("no request captured");
+    assert_eq!(
+        Some("SdkAgent/1.0".to_string()),
+        head_header(&head, "User-Agent"),
+        "{}",
+        head
+    );
+    assert!(head_header(&head, "X-Request-ID").is_some(), "{}", head);
+}
+
+#[tokio::test]
+async fn test_bhv_transport_092_the_supplied_http_client_receives_the_request() {
     let (base_url, head) = start_head_capture_server();
     let http_client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
@@ -4534,6 +4716,150 @@ async fn test_bhv_misc_168_with_no_retry_setting_a_failing_request_is_sent_three
         "{:?}",
         started.elapsed()
     );
+}
+
+/// A redirect server whose every hop answers only after `hop_delay`, so a chain of
+/// hops spends the caller's timeout budget.
+fn start_slow_redirect_server(hop_delay: std::time::Duration) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let loc = format!("{}/hop", base_url);
+
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            let loc = loc.clone();
+            thread::spawn(move || {
+                let mut buf = [0u8; 4096];
+                let _ = stream.read(&mut buf);
+                thread::sleep(hop_delay);
+                let response = format!(
+                    "HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                    loc
+                );
+                let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+            });
+        }
+    });
+
+    thread::sleep(std::time::Duration::from_millis(50));
+    base_url
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_046_a_body_is_resent_unchanged_on_a_307_that_keeps_the_scheme() {
+    let (base_url, captured) = start_307_redirect_server("/next".to_string());
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = RequestBody::Bytes(b"{\"a\":1}".to_vec());
+
+    client
+        .send_request(
+            "POST",
+            &format!("{}/start", base_url),
+            &HashMap::new(),
+            Some(&body),
+        )
+        .await
+        .expect("the redirected request succeeds");
+
+    let calls = captured.lock().unwrap();
+    assert_eq!(2, calls.len(), "the 307 must be followed exactly once");
+    assert!(
+        calls[1].starts_with("POST /next"),
+        "the replay keeps the method: {}",
+        calls[1]
+    );
+    assert!(
+        calls[1].contains("{\"a\":1}"),
+        "the replay carries the body unchanged: {}",
+        calls[1]
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_054_a_chain_past_the_timeout_budget_fails_with_a_timeout() {
+    let base_url = start_slow_redirect_server(std::time::Duration::from_millis(500));
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .timeout(Some(1200))
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await;
+
+    let err = result
+        .expect_err("the redirect chain must run past the shared budget")
+        .to_string()
+        .to_lowercase();
+    assert!(
+        err.contains("timed out") || err.contains("timeout"),
+        "expected a timeout error, got: {err}"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_055_a_redirect_to_a_non_http_scheme_is_refused_with_an_error() {
+    let base_url = start_fixed_response_server(
+        "HTTP/1.1 302 Found\r\nLocation: ftp://example.com/file\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+    );
+    let transport = TransportOptionsBuilder::new()
+        .follow_redirects(true)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+
+    let result = client
+        .send_request("GET", &format!("{}/start", base_url), &HashMap::new(), None)
+        .await;
+
+    assert!(
+        result.is_err(),
+        "a redirect to a non-http scheme must be refused with an error"
+    );
+}
+
+#[tokio::test]
+async fn test_bhv_redirects_056_an_opted_out_request_sends_no_default_header_and_the_next_one_does()
+{
+    let (opted_out_url, opted_out_head) = start_head_capture_server();
+    let (next_url, next_head) = start_head_capture_server();
+    let transport = TransportOptionsBuilder::new()
+        .default_header("X-Default", "d")
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let body = RequestBody::Bytes(b"a=b".to_vec());
+
+    client
+        .send_request_with_options(
+            "POST",
+            &format!("{}/token", opted_out_url),
+            &HashMap::new(),
+            Some(&body),
+            &RequestOptions::new().no_redirect(true),
+        )
+        .await
+        .expect("the opted-out request succeeds");
+    client
+        .send_request("GET", &format!("{}/x", next_url), &HashMap::new(), None)
+        .await
+        .expect("the next request succeeds");
+
+    let first = opted_out_head
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("a captured request");
+    let second = next_head
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .expect("a captured request");
+    assert_eq!(None, head_header(&first, "X-Default"));
+    assert_eq!(Some("d".to_string()), head_header(&second, "X-Default"));
 }
 
 /* A transport failure while the request is running: close does not wait for it or cancel it. */
