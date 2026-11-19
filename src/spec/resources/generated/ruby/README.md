@@ -29,7 +29,7 @@ client.close
 
 ### Credentials
 
-A credential comes from the first of: the value you pass to the constructor, the environment variable of its security scheme, and, for a Bearer token, a token provider (`token_provider:`, called for every request). The variable is read once, when the authenticator is built, and an empty variable counts as unset. A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
+A credential comes from the first of: the value you pass to the constructor, for a Bearer token a token provider (`token_provider:`, called for every request), and the environment variable of its security scheme. The variable is read only when neither was passed, once, when the authenticator is built, and an empty variable counts as unset. A client whose required credential is missing is not built: the constructor raises `ArgumentError`.
 
 | Security scheme | Credential | Environment variable |
 |---|---|---|

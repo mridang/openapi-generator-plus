@@ -622,7 +622,9 @@ module Petstore::Client
         def invalidate_access_token: () -> void
         def mark_exchanged: () -> void
         def exchanged?: () -> bool
+        def stop: () -> void
         private
+        def raise_if_stopped: () -> void
         def token_still_valid?: () -> bool
         def try_refresh_token: (String, Hash[String, String], Hash[String, String]) -> bool
         def build_refresh_params: (String, Hash[String, String]) -> Hash[String, String]
@@ -686,6 +688,7 @@ module Petstore::Client
       def request_path_of: (String) -> String
       def merge_call_headers: (Hash[String, String], untyped) -> void
       def transport_call_options: (untyped) -> Hash[Symbol, untyped]
+      def remaining_deadline: (Hash[Symbol, untyped], Float) -> Hash[Symbol, untyped]
       def build_query_string: (Hash[String, untyped]) -> String
       def encode_query_value: (untyped, bool) -> String
       def serialize_body: (untyped, String?, ?raw_body: bool) -> untyped
@@ -694,6 +697,7 @@ module Petstore::Client
       def decode_success_data: (ApiHttpResponse, (String | Hash[Integer | String, String])?, String?) -> untyped
       def binary_return_type?: (String?) -> bool
       def text_response_content_type?: (String?) -> bool
+      def decode_carrier: (String) -> String
     end
   end
 end
