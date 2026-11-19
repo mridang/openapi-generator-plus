@@ -569,7 +569,7 @@ serializationobject011 | A non RFC 3339 date-time "$text" is rejected | multi
 serializationobject012 | A prefixItems tuple (Pet.location) keeps its mixed items in order
 serializationobject013 | A protobuf-JSON duration decodes, encodes back and keeps its sign | multi
 serializationobject014 | A readOnly property is decoded
-serializationobject015 | A uniqueItems array of strings is written in the defined sorted order, not in insertion order.
+serializationobject015 | A uniqueItems array of strings is written in sorted order, as misc111 settles for sets
 serializationobject016 | A uuid property is written lowercase and decoded from uppercase
 serializationobject017 | A writeOnly property is decoded
 serializationobject018 | A writeOnly property is serialized

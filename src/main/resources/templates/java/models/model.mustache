@@ -1188,7 +1188,9 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
      * @param value the property value
      * @return this builder
      */
+{{^vendorExtensions.additionalPropertiesValue.isString}}
     @com.fasterxml.jackson.annotation.JsonAnySetter
+{{/vendorExtensions.additionalPropertiesValue.isString}}
     public Builder putAdditionalProperty(String key, {{#additionalPropertiesType}}{{{additionalPropertiesType}}}{{/additionalPropertiesType}}{{^additionalPropertiesType}}Object{{/additionalPropertiesType}} value) {
 {{#vendorExtensions.additionalPropertiesValue}}
 {{^isNullable}}
@@ -1199,6 +1201,34 @@ public class {{classname}}{{#parent}} extends {{{.}}}{{/parent}} {
       this.additionalProperties.put(key, value);
       return this;
     }
+{{#vendorExtensions.additionalPropertiesValue.isString}}
+
+    /**
+     * Captures an undeclared JSON property whose value is a string. A null is kept only when the
+     * value schema is nullable; a number, a boolean, an object or an array is the wrong JSON type.
+     *
+     * @param key the property name
+     * @param value the JSON value
+     */
+    @com.fasterxml.jackson.annotation.JsonAnySetter
+    void absorbAdditionalProperty(String key, com.fasterxml.jackson.databind.JsonNode value) {
+      if (value.isNull()) {
+{{#vendorExtensions.additionalPropertiesValue}}
+{{#isNullable}}
+        this.additionalProperties.put(key, null);
+        return;
+{{/isNullable}}
+{{^isNullable}}
+        throw new IllegalArgumentException("additional property value must not be null");
+{{/isNullable}}
+{{/vendorExtensions.additionalPropertiesValue}}
+      }
+      if (!value.isTextual()) {
+        throw new IllegalArgumentException("additional property '" + key + "' must be a JSON string");
+      }
+      putAdditionalProperty(key, value.asText());
+    }
+{{/vendorExtensions.additionalPropertiesValue.isString}}
 
     /**
      * Adds every entry of the given map as an additional, undeclared property.
