@@ -434,31 +434,40 @@ void main() {
           PetStoreBearerAuthenticator(host: '/api/v3', token: token),
     };
 
-    builders.forEach((name, build) {
-      test('bhv authbearer 006 $name sends the token as a Bearer header', () {
-        expect(
-          build('xyz').authHeaders(),
-          equals({'Authorization': 'Bearer xyz'}),
-        );
-      });
+    test(
+      'bhv authbearer 006 every wrapper sends the token as a Bearer header',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            build('xyz').authHeaders(),
+            equals({'Authorization': 'Bearer xyz'}),
+            reason: name,
+          );
+        });
+      },
+    );
 
-      test(
-        'bhv authbearer 005 $name rejects an empty token at construction',
-        () {
-          expect(() => build(''), throwsArgumentError);
-        },
-      );
+    test(
+      'bhv authbearer 005 every wrapper rejects an empty token at construction',
+      () {
+        builders.forEach((name, build) {
+          expect(() => build(''), throwsArgumentError, reason: name);
+        });
+      },
+    );
 
-      test(
-        'bhv authbearer 001 $name prints its own name with the token masked',
-        () {
+    test(
+      'bhv authbearer 001 every wrapper prints its own name with the token masked',
+      () {
+        builders.forEach((name, build) {
           expect(
             build('xyz').toString(),
             equals('$name(host: /api/v3, token: ***)'),
+            reason: name,
           );
-        },
-      );
-    });
+        });
+      },
+    );
 
     test(
       'bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable',

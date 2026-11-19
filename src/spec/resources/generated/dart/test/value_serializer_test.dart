@@ -1146,10 +1146,10 @@ void main() {
       },
     );
 
-    for (final dots in ['.', '..']) {
-      test(
-        'bhv serializationparam 029 dot segment "$dots" path param throws ArgumentError',
-        () {
+    test(
+      'bhv serializationparam 029 the dot segments "." and ".." as a path param throw ArgumentError',
+      () {
+        for (final dots in ['.', '..']) {
           expect(
             () => serializeStyled(
               'id',
@@ -1167,10 +1167,11 @@ void main() {
                 "Path parameter 'id' must not be '.' or '..'",
               ),
             ),
+            reason: 'dot segment "$dots"',
           );
-        },
-      );
-    }
+        }
+      },
+    );
 
     test(
       'bhv serializationparam 072 a value merely containing dots is a normal path segment',
@@ -1374,17 +1375,18 @@ void main() {
       ',': 'comma',
       ':': 'colon',
     };
-    preserved.forEach((char, name) {
-      test(
-        'bhv serializationparam 071 the $name is kept literal in a path segment',
-        () {
+    test(
+      'bhv serializationparam 071 each path sub-delimiter is kept literal in a path segment',
+      () {
+        preserved.forEach((char, name) {
           expect(
             serializeValue('a${char}b', 'path', 'string', ''),
             equals('a${char}b'),
+            reason: 'the $name',
           );
-        },
-      );
-    });
+        });
+      },
+    );
 
     test(
       'bhv serializationparam 011 an array keeps an empty slot for a null element with multi',

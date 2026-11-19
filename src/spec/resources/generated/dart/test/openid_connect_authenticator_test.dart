@@ -812,14 +812,14 @@ void main() {
     /* A max-age beyond the one-year ceiling, including a digit run that
      * overflows an int, is clamped before the expiry arithmetic, so the
      * document stays cached instead of the Duration overflowing. */
-    for (final maxAge in <String>[
-      '9223372036854775807',
-      '18446744073709551615',
-      '31536001',
-    ]) {
-      test(
-        'bhv authoidc 001 Cache-Control max-age=$maxAge is clamped to one year and cached',
-        () async {
+    test(
+      'bhv authoidc 001 every oversized Cache-Control max-age is clamped to one year and cached',
+      () async {
+        for (final maxAge in <String>[
+          '9223372036854775807',
+          '18446744073709551615',
+          '31536001',
+        ]) {
           final client = _FakeApiClient();
           client.enqueue(
             document,
@@ -832,10 +832,10 @@ void main() {
           await auth.buildAuthorizationUrl();
           await auth.buildAuthorizationUrl();
 
-          expect(client.getCount, equals(1));
-        },
-      );
-    }
+          expect(client.getCount, equals(1), reason: 'max-age=$maxAge');
+        }
+      },
+    );
 
     test(
       'bhv auth 011 a Cache-Control header without max-age falls back to the default lifetime',

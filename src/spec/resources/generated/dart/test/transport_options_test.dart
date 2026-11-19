@@ -602,20 +602,24 @@ void main() {
           'Invalid proxy URL (must use http or https scheme)',
       'http://': 'Invalid proxy URL (missing host)',
     };
-    rejected.forEach((url, message) {
-      test('bhv options 031 proxy "$url" is rejected with "$message"', () {
-        expect(
-          () => TransportOptionsBuilder().proxy(url).build(),
-          throwsA(
-            isA<ArgumentError>().having(
-              (e) => e.message,
-              'message',
-              equals(message),
+    test(
+      'bhv options 031 every unusable proxy URL is rejected with its canonical message',
+      () {
+        rejected.forEach((url, message) {
+          expect(
+            () => TransportOptionsBuilder().proxy(url).build(),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                equals(message),
+              ),
             ),
-          ),
-        );
-      });
-    });
+            reason: 'proxy "$url"',
+          );
+        });
+      },
+    );
 
     test('bhv options 014 an upper-case proxy scheme is accepted', () {
       final opts = TransportOptionsBuilder()

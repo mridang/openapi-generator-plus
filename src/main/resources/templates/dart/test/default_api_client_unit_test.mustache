@@ -1696,8 +1696,8 @@ void main() {
       }
     });
 
-    for (final status in [300, 305]) {
-      test('bhv misc 133 a $status response is returned as it is, even when it carries a Location header', () async {
+    test('bhv misc 133 a 300 or 305 response is returned as it is, even when it carries a Location header', () async {
+      for (final status in [300, 305]) {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         server.listen((request) async {
           await request.drain<void>();
@@ -1717,12 +1717,12 @@ void main() {
             {},
             null,
           );
-          expect(resp.statusCode, equals(status));
+          expect(resp.statusCode, equals(status), reason: '$status');
         } finally {
           await server.close();
         }
-      });
-    }
+      }
+    });
 
     test('bhv misc 165 a request body is replayed across a 308 redirect that keeps the plain-text scheme', () async {
       String? landedBody;
@@ -4130,17 +4130,17 @@ void main() {
    * hop reaches it as an absolute-URI request and no listener has to bind
    * port 80. */
   group('Redirect origin with an explicit default port', () {
-    for (final hop in <List<Object>>[
-      ['http://a.test/x', 'http://a.test:80/y', true],
-      ['http://a.test:80/x', 'http://a.test/y', true],
-      ['http://a.test/x', 'http://A.TEST/y', true],
-      ['http://a.test/x', 'http://a.test:8080/y', false],
-      ['http://a.test:80/x', 'http://a.test:8080/y', false],
-    ]) {
-      final from = hop[0] as String;
-      final to = hop[1] as String;
-      final keeps = hop[2] as bool;
-      test('bhv redirects 024 $from to $to ${keeps ? 'keeps' : 'strips'} Authorization', () async {
+    test('bhv redirects 024 a default port, in either spelling, keeps Authorization and a different port strips it', () async {
+      for (final hop in <List<Object>>[
+        ['http://a.test/x', 'http://a.test:80/y', true],
+        ['http://a.test:80/x', 'http://a.test/y', true],
+        ['http://a.test/x', 'http://A.TEST/y', true],
+        ['http://a.test/x', 'http://a.test:8080/y', false],
+        ['http://a.test:80/x', 'http://a.test:8080/y', false],
+      ]) {
+        final from = hop[0] as String;
+        final to = hop[1] as String;
+        final keeps = hop[2] as bool;
         final second = <String, String?>{};
         final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         proxy.listen((request) {
@@ -4171,18 +4171,17 @@ void main() {
             {'Authorization': 'Bearer caller-secret', 'Cookie': 'session=abc'},
             null,
           );
-          expect(resp.statusCode, equals(200));
-          expect(second['path'], equals('/y'));
+          expect(resp.statusCode, equals(200), reason: '$from to $to');
+          expect(second['path'], equals('/y'), reason: '$from to $to');
           expect(
             second['authorization'],
-            keeps ? equals('Bearer caller-secret') : isNull,
-          );
-          expect(second['cookie'], keeps ? equals('session=abc') : isNull);
+            keeps ? equals('Bearer caller-secret') : isNull, reason: '$from to $to');
+          expect(second['cookie'], keeps ? equals('session=abc') : isNull, reason: '$from to $to');
         } finally {
           await proxy.close();
         }
-      });
-    }
+      }
+    });
   });
 
   group('Redirect origin and status rules', () {
@@ -4401,14 +4400,13 @@ void main() {
       }
     });
 
-    for (final target in <List<Object>>[
-      ['http://api.test/x', true],
-      ['https://api.test/x', false],
-    ]) {
-      final url = target[0] as String;
-      final sent = target[1] as bool;
-      test('bhv misc 031 $url ${sent ? 'carries' : 'does not carry'} the proxy credential',
-          () async {
+    test('bhv misc 031 the proxy credential is carried over http and not over https', () async {
+      for (final target in <List<Object>>[
+        ['http://api.test/x', true],
+        ['https://api.test/x', false],
+      ]) {
+        final url = target[0] as String;
+        final sent = target[1] as bool;
         Map<String, String>? seen;
         final stub = MockClient((request) async {
           seen = request.headers;
@@ -4419,9 +4417,9 @@ void main() {
             .where((e) => e.key.toLowerCase() == 'proxy-authorization')
             .map((e) => e.value)
             .toList();
-        expect(header, sent ? equals(['Basic dXNlcjpwYXNz']) : isEmpty);
-      });
-    }
+        expect(header, sent ? equals(['Basic dXNlcjpwYXNz']) : isEmpty, reason: url);
+      }
+    });
   });
 
   group('Response cookies', () {
@@ -4792,8 +4790,8 @@ void main() {
       );
     });
 
-    for (final text in <String>['', '0']) {
-      test('bhv misc 039 a gzip stream that decodes to ${text.isEmpty ? 'an empty string' : 'zero'} is returned as that content', () async {
+    test('bhv misc 039 a gzip stream that decodes to an empty string or to zero is returned as that content', () async {
+      for (final text in <String>['', '0']) {
         final mock = MockClient((request) async => http.Response.bytes(
               gzip.encode(utf8.encode(text)),
               200,
@@ -4805,9 +4803,9 @@ void main() {
         final response =
             await client.sendRequest('GET', 'http://example.com/data', {}, null);
 
-        expect(response.body, equals(text));
-      });
-    }
+        expect(response.body, equals(text), reason: '"$text"');
+      }
+    });
 
     test('bhv misc 040 response header names are returned in lower case', () async {
       final mock = MockClient((request) async =>

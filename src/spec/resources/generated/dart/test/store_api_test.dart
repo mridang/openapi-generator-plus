@@ -682,16 +682,16 @@ void main() {
     /* Strict containers: a container of primitives is checked element by
      * element like a single primitive; a quoted number, a fractional for an
      * integer or a null raises the SDK SerializationException. */
-    for (final bad in const [
-      '{"available":"abc"}',
-      '{"available":"5"}',
-      '{"available":1.9}',
-      '{"available":null}',
-      '{"available":true}',
-    ]) {
-      test(
-        'bhv langdart 006 getInventory rejects the wrong-typed element $bad',
-        () async {
+    test(
+      'bhv langdart 006 getInventory rejects each wrong-typed element',
+      () async {
+        for (final bad in const [
+          '{"available":"abc"}',
+          '{"available":"5"}',
+          '{"available":1.9}',
+          '{"available":null}',
+          '{"available":true}',
+        ]) {
           final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
           server.listen((request) {
             request.response
@@ -710,18 +710,19 @@ void main() {
             await expectLater(
               api.getInventory(null),
               throwsA(isA<SerializationException>()),
+              reason: bad,
             );
           } finally {
             await server.close();
           }
-        },
-      );
-    }
+        }
+      },
+    );
 
-    for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
-      test(
-        'bhv langdart 007 getMatrix rejects the wrong-typed element $bad',
-        () async {
+    test(
+      'bhv langdart 007 getMatrix rejects each wrong-typed element',
+      () async {
+        for (final bad in const ['[[1,"2"]]', '[[1.5]]', '[[null]]']) {
           final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
           server.listen((request) {
             request.response
@@ -740,13 +741,14 @@ void main() {
             await expectLater(
               api.getMatrix(null),
               throwsA(isA<SerializationException>()),
+              reason: bad,
             );
           } finally {
             await server.close();
           }
-        },
-      );
-    }
+        }
+      },
+    );
 
     /* recursive-container-deserialize: getSwatchGroups returns
      * List<Map<String, Swatch>> — an enum leaf. The leaf must go through the

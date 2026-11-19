@@ -461,8 +461,8 @@ void main() {
           'Invalid proxy URL (must use http or https scheme)',
       'http://': 'Invalid proxy URL (missing host)',
     };
-    rejected.forEach((url, message) {
-      test('bhv options 031 proxy "$url" is rejected with "$message"', () {
+    test('bhv options 031 every unusable proxy URL is rejected with its canonical message', () {
+      rejected.forEach((url, message) {
         expect(
           () => TransportOptionsBuilder().proxy(url).build(),
           throwsA(
@@ -472,6 +472,7 @@ void main() {
               equals(message),
             ),
           ),
+          reason: 'proxy "$url"',
         );
       });
     });

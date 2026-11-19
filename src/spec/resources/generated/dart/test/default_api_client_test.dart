@@ -421,13 +421,13 @@ void main() {
 
     /* A missing or unparseable Location is not a usable redirect: the 3xx
      * comes back untouched, body included, never a parse or network error. */
-    for (final row in [
-      ('no-location', 'no-location'),
-      ('malformed-location', 'malformed'),
-    ]) {
-      test(
-        'bhv redirects 010 a 302 with a ${row.$1} Location is returned as the 3xx',
-        () async {
+    test(
+      'bhv redirects 010 a 302 with a missing or unparseable Location is returned as the 3xx',
+      () async {
+        for (final row in [
+          ('no-location', 'no-location'),
+          ('malformed-location', 'malformed'),
+        ]) {
           final transport = TransportOptionsBuilder()
               .followRedirects(true)
               .build();
@@ -438,11 +438,15 @@ void main() {
             {},
             null,
           );
-          expect(resp.statusCode, equals(302));
-          expect(jsonDecode(resp.body), equals({'redirect': row.$2}));
-        },
-      );
-    }
+          expect(resp.statusCode, equals(302), reason: row.$1);
+          expect(
+            jsonDecode(resp.body),
+            equals({'redirect': row.$2}),
+            reason: row.$1,
+          );
+        }
+      },
+    );
 
     /* TransportOptions.proxy is the only proxy source: a client built with
      * default options ignores an ambient proxy pointing at a dead address.
@@ -1095,10 +1099,10 @@ Future<void> main(List<String> args) async {
       expect(resp.body, contains('compressed fixture body'));
     });
 
-    for (final coding in ['br', 'zstd']) {
-      test(
-        'bhv langdart 040 refuses a $coding response it cannot decode',
-        () async {
+    test(
+      'bhv langdart 040 refuses a br or zstd response it cannot decode',
+      () async {
+        for (final coding in ['br', 'zstd']) {
           final client = DefaultApiClient();
           await expectLater(
             client.sendRequest('GET', '$chasmHttpUrl/test/compressed/$coding', {
@@ -1113,10 +1117,11 @@ Future<void> main(List<String> args) async {
                     equals("Unsupported Content-Encoding '$coding'"),
                   ),
             ),
+            reason: coding,
           );
-        },
-      );
-    }
+        }
+      },
+    );
 
     test(
       'bhv transport 010 includes transport default headers from a map',

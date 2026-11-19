@@ -1499,10 +1499,10 @@ void main() {
             StrictTag.fromJson,
           ),
     };
-    wireShapeFailures.forEach((failure, decode) {
-      test(
-        'bhv serializationobject 077 throws exactly SerializationException, a root exception, for $failure',
-        () {
+    test(
+      'bhv serializationobject 077 every wire-shape failure throws exactly SerializationException, a root exception',
+      () {
+        wireShapeFailures.forEach((failure, decode) {
           expect(
             decode,
             throwsA(
@@ -1518,10 +1518,11 @@ void main() {
                     isA<OpenAPIException>(),
                   ),
             ),
+            reason: failure,
           );
-        },
-      );
-    });
+        });
+      },
+    );
 
     test(
       'bhv serializationobject 047 a model declaring unevaluatedProperties false decodes its declared keys',
@@ -3065,27 +3066,28 @@ void main() {
       },
     );
 
-    for (final text in [
-      '2024-01-01T10:00:00',
-      '01/02/2024 10:00',
-      'tomorrow',
-      '10:00',
-      '1700000000',
-      '2024-01-01',
-    ]) {
-      test(
-        'bhv serializationobject 011 a non RFC 3339 date-time "$text" is rejected',
-        () {
+    test(
+      'bhv serializationobject 011 every non RFC 3339 date-time is rejected',
+      () {
+        for (final text in [
+          '2024-01-01T10:00:00',
+          '01/02/2024 10:00',
+          'tomorrow',
+          '10:00',
+          '1700000000',
+          '2024-01-01',
+        ]) {
           expect(
             () => deserialize<Order>(
               jsonEncode({'shipDate': text}),
               Order.fromJson,
             ),
             throwsA(isA<SerializationException>()),
+            reason: '"$text"',
           );
-        },
-      );
-    }
+        }
+      },
+    );
 
     test(
       'bhv serializationobject 003 a date-time without an offset is rejected',
@@ -3111,20 +3113,27 @@ void main() {
       },
     );
 
-    for (final text in ['dGVzdA', 'dGVz dA==', 'dGVz\ndA==', '-_8=', '!!!!']) {
-      test(
-        'bhv serializationobject 207 a non-standard base64 value ${jsonEncode(text)} is rejected',
-        () {
+    test(
+      'bhv serializationobject 207 every non-standard base64 value is rejected',
+      () {
+        for (final text in [
+          'dGVzdA',
+          'dGVz dA==',
+          'dGVz\ndA==',
+          '-_8=',
+          '!!!!',
+        ]) {
           expect(
             () => deserialize<PetPassport>(
               jsonEncode({'thumbnail': text}),
               PetPassport.fromJson,
             ),
             throwsA(isA<SerializationException>()),
+            reason: jsonEncode(text),
           );
-        },
-      );
-    }
+        }
+      },
+    );
 
     test(
       'bhv serializationobject 185 a padded standard base64 value is accepted',
@@ -3137,19 +3146,19 @@ void main() {
       },
     );
 
-    for (final uri in [
-      'urn:isbn:0451450523',
-      'mailto:a@b.com',
-      'ftp://x.org/f',
-      'https://example.com/items/1',
-    ]) {
-      test(
-        'bhv serializationobject 021 an absolute URI $uri is accepted verbatim',
-        () {
-          expect(parseUri(uri), equals(uri));
-        },
-      );
-    }
+    test(
+      'bhv serializationobject 021 every absolute URI is accepted verbatim',
+      () {
+        for (final uri in [
+          'urn:isbn:0451450523',
+          'mailto:a@b.com',
+          'ftp://x.org/f',
+          'https://example.com/items/1',
+        ]) {
+          expect(parseUri(uri), equals(uri), reason: uri);
+        }
+      },
+    );
 
     test(
       'bhv serializationobject 008 a format: uri model field rejects a relative reference',
@@ -3177,11 +3186,15 @@ void main() {
       },
     );
 
-    for (final uri in ['/relative', 'not a uri', '']) {
-      test('bhv langdart 075 a non-absolute URI "$uri" is rejected', () {
-        expect(() => parseUri(uri), throwsA(isA<SerializationException>()));
-      });
-    }
+    test('bhv langdart 075 every non-absolute URI is rejected', () {
+      for (final uri in ['/relative', 'not a uri', '']) {
+        expect(
+          () => parseUri(uri),
+          throwsA(isA<SerializationException>()),
+          reason: '"$uri"',
+        );
+      }
+    });
 
     // parseJson parses a payload within the 1000-deep cap and rejects one past it.
     test(

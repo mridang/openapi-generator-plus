@@ -330,30 +330,46 @@ void main() {
       ),
     };
 
-    builders.forEach((name, build) {
-      test(
-        'bhv authbasic 002 $name sends the credentials as a Basic header',
-        () {
+    test(
+      'bhv authbasic 002 every wrapper sends the credentials as a Basic header',
+      () {
+        builders.forEach((name, build) {
           expect(
             build('alice', 's3cret').authHeaders()['Authorization'],
             equals(basic('alice:s3cret')),
+            reason: name,
           );
-        },
-      );
+        });
+      },
+    );
 
-      test('bhv auth 036 $name still rejects a colon in the username', () {
-        expect(() => build('ali:ce', 's3cret'), throwsArgumentError);
-      });
+    test(
+      'bhv auth 036 every wrapper still rejects a colon in the username',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            () => build('ali:ce', 's3cret'),
+            throwsArgumentError,
+            reason: name,
+          );
+        });
+      },
+    );
 
-      test('bhv misc 190 $name prints its own name with the password masked', () {
-        expect(
-          build('alice', 's3cret').toString(),
-          equals(
-            '$name(host: https://api.example.com, username: alice, password: ***)',
-          ),
-        );
-      });
-    });
+    test(
+      'bhv misc 190 every wrapper prints its own name with the password masked',
+      () {
+        builders.forEach((name, build) {
+          expect(
+            build('alice', 's3cret').toString(),
+            equals(
+              '$name(host: https://api.example.com, username: alice, password: ***)',
+            ),
+            reason: name,
+          );
+        });
+      },
+    );
 
     test(
       'bhv authscheme 004 the AdminBasic scheme authenticator treats an empty environment variable as unset and names it',

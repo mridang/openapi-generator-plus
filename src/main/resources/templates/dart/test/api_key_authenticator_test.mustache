@@ -209,9 +209,9 @@ void main() {
           location: location,
         );
 
-    for (final location in ApiKeyLocation.values) {
-      for (final key in ['', '   ', ' \t\n\r\f\v ']) {
-        test('bhv auth 034 ${location.name} rejects the blank key of ${key.length} characters', () {
+    test('bhv auth 034 every location rejects a blank key', () {
+      for (final location in ApiKeyLocation.values) {
+        for (final key in ['', '   ', ' \t\n\r\f\v ']) {
           expect(
             () => build(key, location),
             throwsA(
@@ -221,11 +221,15 @@ void main() {
                 equals("API key value for 'k' must not be empty"),
               ),
             ),
+            reason: '${location.name} with a blank key of ${key.length} characters',
           );
-        });
+        }
       }
-      for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
-        test('bhv authapikey 002 ${location.name} rejects CR, LF and NUL in ${key.codeUnits}', () {
+    });
+
+    test('bhv authapikey 002 every location rejects CR, LF and NUL in the key', () {
+      for (final location in ApiKeyLocation.values) {
+        for (final key in ['a\rb', 'a\nb', 'a\x00b']) {
           expect(
             () => build(key, location),
             throwsA(
@@ -237,10 +241,11 @@ void main() {
                 ),
               ),
             ),
+            reason: '${location.name} with ${key.codeUnits}',
           );
-        });
+        }
       }
-    }
+    });
 
     test('bhv authapikey 001 a Unicode space is not blank for the query and cookie locations', () {
       for (final location in [ApiKeyLocation.query, ApiKeyLocation.cookie]) {
@@ -491,17 +496,19 @@ void main() {
       }
     });
 
-    builders.forEach((name, build) {
-      test('bhv authapikey 005 $name rejects an empty key at construction', () {
-        expect(() => build(''), throwsArgumentError);
+    test('bhv authapikey 005 every wrapper rejects an empty key at construction', () {
+      builders.forEach((name, build) {
+        expect(() => build(''), throwsArgumentError, reason: name);
       });
+    });
 
-      test('bhv auth 033 $name masks the key in toString', () {
+    test('bhv auth 033 every wrapper masks the key in toString', () {
+      builders.forEach((name, build) {
         final repr = build('abc123').toString();
 
-        expect(repr, startsWith('$name(host: {{{basePath}}}, keyParamName: '));
-        expect(repr, contains('apiKey: ***'));
-        expect(repr, isNot(contains('abc123')));
+        expect(repr, startsWith('$name(host: {{{basePath}}}, keyParamName: '), reason: name);
+        expect(repr, contains('apiKey: ***'), reason: name);
+        expect(repr, isNot(contains('abc123')), reason: name);
       });
     });
 
