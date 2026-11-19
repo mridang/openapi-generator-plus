@@ -747,3 +747,5 @@ php | misc184 | PHP is single threaded and runs each request to completion befor
 php | misc128 | the proxy credential is set once as the Symfony HttpClient proxy option and the transport applies it to every request it sends, below the headers the redirect loop controls, and the MockHttpClient test transport never opens a proxy connection, so the credential cannot be observed on a redirected request
 rust | misc214 | A Rust JSON content value is a serde_json::Value tree with string keys and no cycles, so no value can be built that fails to serialize; the error path cannot be reached
 rust | misc217 | Streaming request bodies are not implemented yet (issue #114, deferred); only in-memory bytes are accepted
+ruby | misc043 | Net::HTTP writes its own User-Agent (Ruby) whenever a request carries none, so the header cannot be omitted from the wire
+ruby | misc242 | settled decision D56: readOnly and writeOnly properties have no wire effect, so a read-only property is sent as any other

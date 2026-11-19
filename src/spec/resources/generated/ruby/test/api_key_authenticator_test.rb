@@ -174,7 +174,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
       ['kéy', location::HEADER, "API key for header 'X-API-Key' must contain only printable ASCII characters (RFC 7230 §3.2.6)"]
     ]
     cases.each do |key, where, message|
-      err = _(-> { Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key, where) }).must_raise ArgumentError
+      err = _(-> { Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key.to_s, where.to_sym) }).must_raise ArgumentError
       _(err.message).must_equal message
     end
   end
@@ -296,7 +296,7 @@ describe Petstore::Client::Auth::ApiKeyAuthenticator do
     location = Petstore::Client::Auth::ApiKeyLocation
     [["abc\r\n", location::QUERY], ["abc\0def", location::COOKIE], ['kéy', location::HEADER]].each do |key, where|
       _(lambda {
-        Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key, where)
+        Petstore::Client::Auth::ApiKeyAuthenticator.new('https://api.example.com', 'X-API-Key', key.to_s, where.to_sym)
       }).must_raise ArgumentError
     end
   end

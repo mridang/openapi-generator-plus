@@ -10,6 +10,7 @@ module Petstore::Client::Models
     OPENAPI_DISCRIMINATOR_MAPPING: Hash[String, String]
     def self.build_subtype: (untyped) -> untyped
     def inspect: () -> String
+    def to_s: () -> String
     def with: (**untyped) -> Shape
     attr_reader shape_type: String
     attr_reader label: String?

@@ -314,8 +314,10 @@
 
   class DefaultApiClient < ApiClient
     EXTRA_SENSITIVE_HEADER_NAMES: Array[String]
+    IDEMPOTENT_METHODS: Array[String]
     STANDARD_METHODS: Array[Symbol]
     RETRYABLE_STATUS_CODES: Array[Integer]
+    def tls_failure?: (untyped) -> bool
     RETRY_BASE_DELAY_S: Float
     RETRY_MAX_DELAY_S: Float
     RETRY_JITTER: Float
@@ -426,6 +428,7 @@
     def self.check_ip_family: (IPAddr, Symbol?) -> IPAddr
     def self.parse_decimal_string: (untyped) -> BigDecimal
     def self.free_form_value: (untyped) -> untyped
+    def self.json_keys: (untyped) -> untyped
     IPV4_REGEX: Regexp
     IPV6_REGEX: Regexp
     def self.json_max_depth: (String) -> Integer
@@ -690,6 +693,7 @@
       def serialize_body: (untyped, String?, ?raw_body: bool) -> untyped
       def binary_part_from_form_body: (Hash[String, untyped]) -> untyped
       def return_type_for_status: ((String | Hash[Integer | String, String])?, Integer) -> String?
+      def decode_success_data: (ApiHttpResponse, (String | Hash[Integer | String, String])?, String?) -> untyped
       def binary_return_type?: (String?) -> bool
       def text_response_content_type?: (String?) -> bool
     end

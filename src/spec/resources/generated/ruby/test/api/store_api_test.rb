@@ -233,7 +233,7 @@ describe Petstore::Client::Api::StoreApi do
     end
 
     it 'bhv_misc_013 an operation with no parameters returns its result' do
-      api, server, thread, captured = capture_wire_request('{"available":3}')
+      api, server, thread, = capture_wire_request('{"available":3}')
       begin
         _(api.get_inventory['available']).must_equal 3
       ensure
@@ -243,7 +243,7 @@ describe Petstore::Client::Api::StoreApi do
     end
 
     it 'bhv_misc_014 a literal null success body raises an API error' do
-      api, server, thread, captured = capture_wire_request('null')
+      api, server, thread, = capture_wire_request('null')
       begin
         _(-> { api.get_inventory }).must_raise Petstore::Client::Errors::ApiError
       ensure
@@ -253,7 +253,7 @@ describe Petstore::Client::Api::StoreApi do
     end
 
     it 'bhv_misc_006 a bare null body through the with-http-info variant has no data and keeps the raw body' do
-      api, server, thread, captured = capture_wire_request('null')
+      api, server, thread, = capture_wire_request('null')
       begin
         result = api.get_order_by_id_with_http_info(1)
         _(result.data).must_be_nil

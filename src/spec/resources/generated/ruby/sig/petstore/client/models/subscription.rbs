@@ -14,6 +14,7 @@ module Petstore::Client::Models
     REQUIRED_NULLABLE: Hash[Symbol, bool]
     PASSWORD_ATTRIBUTES: Hash[Symbol, bool]
     def inspect: () -> String
+    def to_s: () -> String
     def with: (**untyped) -> Subscription
     attr_reader tier: Tier?
     attr_reader rank: Rank

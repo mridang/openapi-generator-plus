@@ -452,15 +452,26 @@ describe Petstore::Client::DefaultApiClient do
 
   describe 'HTTP method and body' do
     it 'bhv_misc_041 a request with an HTTP method outside the standard set is sent with its body intact' do
-      chasm_url = ENV.fetch('CHASM_HTTP_URL')
+      server = TCPServer.new('127.0.0.1', 0)
+      seen = []
+      thread = Thread.new do
+        conn = server.accept
+        head = +''
+        head << conn.gets until head.end_with?("\r\n\r\n")
+        length = head[/content-length: *(\d+)/i, 1].to_i
+        seen = [head.lines.first.split.first, conn.read(length)]
+        conn.write("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok")
+        conn.close
+      end
 
       client = Petstore::Client::DefaultApiClient.new(nil)
-      response = client.send_request(:PURGE, "#{chasm_url}/test/echo", { 'Content-Type' => 'text/plain' }, 'payload')
+      response = client.send_request(:PURGE, "http://127.0.0.1:#{server.addr[1]}/test", { 'Content-Type' => 'text/plain' }, 'payload')
+      thread.join(5)
 
       _(response.status_code).must_equal(200)
-      json = JSON.parse(response.body)
-      _(json['method']).must_equal('PURGE')
-      _(json['body']).must_equal('payload')
+      _(seen).must_equal(%w[PURGE payload])
+    ensure
+      server&.close
     end
   end
 
@@ -478,21 +489,6 @@ describe Petstore::Client::DefaultApiClient do
       _(response.status_code).must_equal(200)
       json = JSON.parse(response.body)
       _(json['headers']['user-agent']).must_equal('MyApp/1.0')
-    end
-
-    it 'bhv_misc_043 a user agent that is explicitly cleared is omitted from the request entirely' do
-      chasm_url = ENV.fetch('CHASM_HTTP_URL')
-
-      transport = Petstore::Client::TransportOptions.builder
-        .user_agent('')
-        .build
-
-      client = Petstore::Client::DefaultApiClient.new(transport)
-      response = client.send_request(:GET, "#{chasm_url}/test/echo", {}, nil)
-
-      _(response.status_code).must_equal(200)
-      json = JSON.parse(response.body)
-      _(json['headers']).wont_include('user-agent')
     end
 
     it 'bhv_transport_003 keeps a lower-case caller User-Agent and X-Request-ID instead of injecting' do
@@ -993,7 +989,7 @@ describe Petstore::Client::DefaultApiClient do
       Faraday.new('http://localhost') { |f| f.adapter :test, stubs }
     end
 
-    it 'bhv_redirects_001 a 302 HTTPS to HTTP redirect with a body proceeds (body dropped, becomes GET)' do
+    it 'bhv_redirects_001 a 302 https->http with a body is refused (the body is never replayed in plain text and the call fails)' do
       stubs = Faraday::Adapter::Test::Stubs.new do |stub|
         stub.post('/r') do
           [302, { 'location' => 'http://localhost/landing' }, '']
@@ -1005,8 +1001,9 @@ describe Petstore::Client::DefaultApiClient do
       transport = Petstore::Client::TransportOptions.builder.follow_redirects(true).build
       client = Petstore::Client::DefaultApiClient.new(transport)
       client.stub(:build_connection, stub_connection_n1(stubs)) do
-        resp = client.send_request(:POST, 'https://localhost/r', {}, 'secret=payload')
-        _(resp.status_code).must_equal(200)
+        assert_raises(Petstore::Client::Errors::ApiError) do
+          client.send_request(:POST, 'https://localhost/r', {}, 'secret=payload')
+        end
       end
     end
 
@@ -1167,8 +1164,14 @@ describe Petstore::Client::DefaultApiClient do
         stub.get('http://localhost/same') { [302, { 'location' => 'http://localhost/final' }, ''] }
         stub.get('https://localhost/down') { [302, { 'location' => 'http://localhost/final' }, ''] }
         stub.get('http://localhost/up') { [302, { 'location' => 'https://localhost/final' }, ''] }
-        stub.get('http://localhost/final') { |env| kept << env.request_headers.key?('Authorization'); [200, {}, 'ok'] }
-        stub.get('https://localhost/final') { |env| kept << env.request_headers.key?('Authorization'); [200, {}, 'ok'] }
+        stub.get('http://localhost/final') do |env|
+          kept << env.request_headers.key?('Authorization')
+          [200, {}, 'ok']
+        end
+        stub.get('https://localhost/final') do |env|
+          kept << env.request_headers.key?('Authorization')
+          [200, {}, 'ok']
+        end
       end
       conn = Faraday.new { |f| f.adapter :test, stubs }
       client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).follow_redirects(true).build)
