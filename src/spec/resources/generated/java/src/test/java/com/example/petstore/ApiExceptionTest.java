@@ -1121,7 +1121,7 @@ class ApiExceptionTest {
   void bhvMisc280ATruncatedBodyStatesHowManyBytesWereLeftOut() {
     ApiException ex = new ApiException(502, "bad gateway", Map.of(), "a".repeat(3000));
 
-    assertTrue(ex.getMessage().contains("1976 more bytes"), ex.getMessage());
+    assertTrue(ex.toString().contains("1976 more bytes"), ex.toString());
   }
 
   @Test
