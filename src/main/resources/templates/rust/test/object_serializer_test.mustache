@@ -1740,6 +1740,32 @@ fn test_bhv_serialization_088_bytes_are_written_as_base64_including_each_list_el
 
 
 
+fn test_bhv_misc_235_a_duration_with_fractional_seconds_keeps_its_fraction_when_serialized() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert_eq!("1.500s", proto_duration::format(&Duration::milliseconds(1500)));
+}
+
+#[test]
+fn test_bhv_misc_246_a_negative_whole_second_duration_string_parses_to_a_negative_duration() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert_eq!(Duration::seconds(-3), proto_duration::parse("-3s").expect("valid duration"));
+}
+
+#[test]
+fn test_bhv_misc_248_a_duration_with_days_is_formatted_as_a_duration_string() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert_eq!("86400s", proto_duration::format(&Duration::days(1)));
+}
+
+#[test]
+fn test_bhv_misc_251_a_duration_string_with_a_day_designator_is_rejected() {
+    use {{packageName}}::proto_duration;
+    use chrono::TimeDelta as Duration;
+    assert!(proto_duration::parse("1d").is_err());
+}
 
 // -- wire decoding and encoding of models and values (chunk 14) --
 

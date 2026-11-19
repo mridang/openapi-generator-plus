@@ -349,7 +349,7 @@ impl serde::ser::SerializeStructVariant for FiniteFloatCheck {
 pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> {
     if value.serialize(FiniteFloatCheck).is_err() {
         return Err(SerializationError::new(
-            "failed to serialize object to JSON: non-finite float (NaN or Infinity) \
+            "Failed to serialize object to JSON: non-finite float (NaN or Infinity) \
              is not permitted by RFC 8259"
                 .to_string(),
             None,
@@ -357,7 +357,7 @@ pub fn serialize<T: Serialize>(value: &T) -> Result<String, SerializationError> 
     }
     serde_json::to_string(value).map_err(|e| {
         SerializationError::new(
-            format!("failed to serialize object to JSON: {}", e),
+            format!("Failed to serialize object to JSON: {}", e),
             Some(Box::new(e)),
         )
     })
@@ -1056,7 +1056,7 @@ mod tests {
     ) {
         let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
         assert_eq!(
-            "failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
+            "Failed to serialize object to JSON: non-finite float (NaN or Infinity) is not permitted by RFC 8259",
             non_finite.message()
         );
 
@@ -1067,9 +1067,21 @@ mod tests {
         assert!(
             unwritable
                 .message()
-                .starts_with("failed to serialize object to JSON: "),
+                .starts_with("Failed to serialize object to JSON: "),
             "{}",
             unwritable.message()
+        );
+    }
+
+    #[test]
+    fn test_bhv_serialization_130_a_failed_serialize_reports_the_canonical_prefix() {
+        let non_finite = object_serializer::serialize(&f64::NAN).expect_err("NaN is refused");
+        assert!(
+            non_finite
+                .message()
+                .starts_with("Failed to serialize object to JSON: "),
+            "{}",
+            non_finite.message()
         );
     }
 

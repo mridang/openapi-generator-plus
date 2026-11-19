@@ -1631,3 +1631,39 @@ describe("ValueSerializer misc location behaviours", () => {
     );
   });
 });
+
+describe("ValueSerializer misc wire encoding behaviours", () => {
+  test("bhv misc 238 a number query parameter is serialized as a plain number", () => {
+    expect(ValueSerializer.serialize(42, "query", "integer")).toBe("42");
+  });
+
+  test("bhv misc 250 array items containing a comma keep the literal comma in the path style", () => {
+    expect(
+      ValueSerializer.serializeStyled(
+        "ids",
+        ["a,b", "c"],
+        "path",
+        "array",
+        null,
+        "simple",
+        false,
+      ),
+    ).toBe("a,b,c");
+  });
+
+  test("bhv misc 253 an allowReserved query value still percent-encodes hash and bracket characters", () => {
+    expect(ValueSerializer.encodeQueryAllowingReserved("a#b[c]")).toBe(
+      "a%23b%5Bc%5D",
+    );
+  });
+
+  test("bhv misc 254 an unmarked query value percent-encodes reserved characters such as slash and colon", () => {
+    expect(ValueSerializer.serialize("a/b:c", "query", "string")).toBe(
+      "a%2Fb%3Ac",
+    );
+  });
+
+  test("bhv misc 255 separate query parameters encode a space as %20", () => {
+    expect(ValueSerializer.encodeQueryComponent("a b")).toBe("a%20b");
+  });
+});
