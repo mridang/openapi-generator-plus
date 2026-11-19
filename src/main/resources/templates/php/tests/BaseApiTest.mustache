@@ -2686,3 +2686,32 @@ test('bhv misc 255 separate query parameters encode a space as percent 20', func
 
     expect($client->capturedUrl)->toBe('http://localhost/test/echo?a=x%20y&b=z');
 });
+
+test('bhv misc 264 each listed error status from the server raises the api error carrying that code', function (int $status, string $expectedClass): void {
+    try {
+        makeBaseApiTestableApi()->call(
+            'GET',
+            "/test/status/$status",
+            [],
+            [],
+            null,
+            ['application/json'],
+            'application/json',
+            null
+        );
+        test()->fail('Expected exception not thrown');
+    } catch (ApiException $e) {
+        expect($e::class)->toBe($expectedClass);
+        expect($e->getCode())->toBe($status);
+    }
+})->with([
+    [400, BadRequestException::class],
+    [401, UnauthorizedException::class],
+    [403, ForbiddenException::class],
+    [404, NotFoundException::class],
+    [409, ConflictException::class],
+    [422, UnprocessableEntityException::class],
+    [429, TooManyRequestsException::class],
+    [500, InternalServerErrorException::class],
+    [502, BadGatewayException::class],
+]);
