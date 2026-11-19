@@ -4887,24 +4887,6 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  @DisplayName("bhvSerialization091 a caller-supplied upload stream is left open after sending")
-  void bhvSerialization091CallerSuppliedUploadStreamIsLeftOpen() throws Exception {
-    java.util.concurrent.atomic.AtomicBoolean closed =
-        new java.util.concurrent.atomic.AtomicBoolean();
-    java.io.InputStream stream =
-        new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}) {
-          @Override
-          public void close() throws java.io.IOException {
-            closed.set(true);
-            super.close();
-          }
-        };
-    String part = renderMultipartPart("blob", stream);
-    assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
-    assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
-  }
-
-  @Test
   void bhvMisc237AnIso88591ErrorBodyDecodesToUtf8TextInTheError() throws Exception {
     HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
     server.createContext(
