@@ -11,8 +11,7 @@ import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart'
     show Category, SerializationException;
 import 'package:petstore_client/src/value_serializer.dart';
-import 'package:petstore_client/src/object_serializer.dart'
-    show encodeContentCookie, stringify;
+import 'package:petstore_client/src/object_serializer.dart' show stringify;
 
 void main() {
   group('ValueSerializer', () {
