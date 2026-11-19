@@ -4184,3 +4184,49 @@ describe("BaseApi misc response behaviours", () => {
     expect(result.data).toBeUndefined();
   });
 });
+
+describe("BaseApi misc query and status behaviours", () => {
+  test("bhv misc 239 an operation query parameter is serialized when no authenticator is configured", async () => {
+    const client = new CapturingApiClient();
+    const api = new TestableApi(
+      client,
+      new Configuration({ baseUrl: "http://localhost" }),
+    );
+    await api.call(
+      "GET",
+      "/test/echo",
+      { limit: 5 },
+      {},
+      null,
+      ["application/json"],
+      "application/json",
+      null,
+    );
+    expect(client.capturedUrl).toContain("limit=5");
+  });
+
+  test.each([400, 401, 403, 404, 409, 422, 429, 500, 502, 503])(
+    "bhv misc 264 a listed error status %i from the server raises the SDK error carrying that status code",
+    async (status) => {
+      const client = new CapturingApiClient();
+      client.responseStatus = status;
+      client.responseBody = "{}";
+      const api = new TestableApi(
+        client,
+        new Configuration({ baseUrl: "http://localhost" }),
+      );
+      await expect(
+        api.call(
+          "GET",
+          "/x",
+          {},
+          {},
+          null,
+          ["application/json"],
+          "application/json",
+          null,
+        ),
+      ).rejects.toMatchObject({ statusCode: status });
+    },
+  );
+});

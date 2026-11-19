@@ -354,3 +354,11 @@ describe('Metadata undeclared keys (misc)', () => {
     expect(second.additionalProperties).toEqual({ labels: { a: 'b' } });
   });
 });
+
+describe('Metadata misc free-form behaviours', () => {
+  test('bhv misc 249 a free-form object-valued field keeps its object and integer entries through a JSON round trip', () => {
+    const first = ObjectSerializer.deserialize({ labels: { a: 1, b: 'x' } }, Metadata) as Metadata;
+    const second = ObjectSerializer.deserialize(JSON.parse(ObjectSerializer.serialize(first)), Metadata) as Metadata;
+    expect(second.additionalProperties).toEqual({ labels: { a: 1, b: 'x' } });
+  });
+});

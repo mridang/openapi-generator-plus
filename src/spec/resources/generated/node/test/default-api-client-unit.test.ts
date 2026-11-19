@@ -5528,3 +5528,33 @@ describe("DefaultApiClient redirect and body misc behaviours", () => {
     expect(response.body).toBe("é");
   });
 });
+
+describe("DefaultApiClient multipart upload misc behaviours", () => {
+  it("bhv misc 240 a multipart form upload sends its file part with the file content echoed back in the request", async () => {
+    let received = Buffer.alloc(0);
+    const srv = http.createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (chunk: Buffer) => chunks.push(chunk));
+      req.on("end", () => {
+        received = Buffer.concat(chunks);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end('{"ok":true}');
+      });
+    });
+    await new Promise<void>((resolve) => srv.listen(0, "127.0.0.1", resolve));
+    const client = new DefaultApiClient();
+    try {
+      const port = (srv.address() as { port: number }).port;
+      await client.sendRequest(
+        "POST",
+        `http://127.0.0.1:${port}/upload`,
+        {},
+        { "avatar.png": Buffer.from("PNGDATA") },
+      );
+      expect(received.toString("binary")).toContain("PNGDATA");
+    } finally {
+      await client.close();
+      await new Promise<void>((resolve) => srv.close(() => resolve()));
+    }
+  });
+});

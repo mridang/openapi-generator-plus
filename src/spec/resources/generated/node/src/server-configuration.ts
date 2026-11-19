@@ -97,7 +97,13 @@ export class ServerConfiguration {
   getUrl(overrides: Record<string, string> = {}): string {
     const resolved = new Map<string, string>();
     for (const [varName, variable] of Object.entries(this.variables)) {
-      const value = overrides[varName] ?? variable.defaultValue;
+      const supplied = overrides[varName];
+      if (supplied === null && variable.enumValues.length > 0) {
+        throw new TypeError(
+          `Invalid null value for server variable '${varName}'. Allowed values: ${variable.enumValues.join(", ")}`,
+        );
+      }
+      const value = supplied ?? variable.defaultValue;
 
       if (
         variable.enumValues.length > 0 &&
