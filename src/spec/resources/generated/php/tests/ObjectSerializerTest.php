@@ -771,6 +771,18 @@ test('bhv misc 122 deserialize holds the exact string default literal for greeti
     expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
 });
 
+test('bhv misc 214 an unserializable query content value raises a serialization error before any request is sent', function (): void {
+    $cyclic = [];
+    $cyclic['self'] = &$cyclic;
+    expect(fn () => ObjectSerializer::serialize($cyclic))->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 215 an input object with no fields is filled with every declared default value', function (): void {
+    $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
+    \assert($defaults instanceof Defaults);
+    expect($defaults->greeting)->toBe("it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b");
+});
+
 test('bhv serializationobject 111 numeric schema defaults are exact typed values', function (): void {
     /** @var Defaults $defaults */
     $defaults = ObjectSerializer::deserialize('{}', Defaults::class);
@@ -2995,4 +3007,35 @@ test('bhv serialization 113 a string passes through unchanged without normalisin
 test('bhv serialization 114 numeric values keep every digit when serialized', function (): void {
     expect(ObjectSerializer::serialize(PHP_INT_MAX))->toBe('9223372036854775807');
     expect(ObjectSerializer::serialize(['n' => 1234567890123456789]))->toBe('{"n":1234567890123456789}');
+});
+
+test('bhv serialization 115 an integral json number decoded into a floating point field becomes a float', function (): void {
+    /** @var DryFood $food */
+    $food = ObjectSerializer::deserialize('{"foodType":"dry","weightKg":5}', DryFood::class);
+
+    expect($food->weightKg)->toBeFloat();
+    expect($food->weightKg)->toBe(5.0);
+});
+
+test('bhv serialization 116 a property named as a language keyword keeps its exact wire key', function (): void {
+    /** @var EdgeCases $model */
+    $model = ObjectSerializer::deserialize('{"class":"x"}', EdgeCases::class);
+
+    expect(json_decode(ObjectSerializer::serialize($model), true))->toHaveKey('class', 'x');
+});
+
+test('bhv serialization 121 a model sent as a part is serialized with its wire names and the sdk date time format', function (): void {
+    $out = json_decode(ObjectSerializer::serialize(new Metadata(createdAt: new \DateTime('2024-01-02T03:04:05+00:00'))), true);
+
+    expect($out)->toHaveKey('createdAt');
+    expect($out['createdAt'])->toStartWith('2024-01-02T03:04:05');
+});
+
+test('bhv serialization 129 a nanosecond precision duration is written with a nine digit fraction', function (): void {
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('0.000000001s')))->toBe('0.000000001s');
+});
+
+test('bhv serialization 130 a failed serialize reports its detail under the canonical serialize message prefix', function (): void {
+    expect(fn (): mixed => ObjectSerializer::serialize(['val' => NAN]))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Failed to serialize object to JSON: ');
 });
