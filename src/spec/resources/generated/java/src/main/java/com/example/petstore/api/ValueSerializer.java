@@ -103,6 +103,14 @@ final class ValueSerializer {
       if ("header".equals(location)) {
         return String.join(",", items);
       }
+      if ("path".equals(location)) {
+        return items.stream().map(ValueSerializer::encodePathItem).collect(Collectors.joining(","));
+      }
+    }
+
+    if ("query".equals(location) && value instanceof java.time.LocalTime time) {
+      /* A time-of-day query value is HH:mm:ss; the milliseconds are dropped. */
+      return String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
     }
 
     String str = ObjectSerializer.stringify(value);
@@ -110,8 +118,30 @@ final class ValueSerializer {
     if ("path".equals(location)) {
       return encodePathSegment(str);
     }
+    if ("cookie".equals(location)) {
+      return encodeCookieValue(str);
+    }
 
     return str;
+  }
+
+  /**
+   * Percent-encodes one item of a path array. The comma separates the items, so a comma inside an
+   * item is encoded too, unlike {@link #encodePathSegment}, which keeps it literal.
+   */
+  private static String encodePathItem(String item) {
+    return encodePathSegment(item).replace(",", "%2C");
+  }
+
+  /**
+   * Percent-encodes a cookie value completely, including its colons and dots, so a JSON model
+   * carried in a cookie cannot be split by the cookie header syntax.
+   */
+  private static String encodeCookieValue(String value) {
+    return URLEncoder.encode(value, StandardCharsets.UTF_8)
+        .replace("+", "%20")
+        .replace("*", "%2A")
+        .replace(".", "%2E");
   }
 
   /**
@@ -484,10 +514,12 @@ final class ValueSerializer {
       fields = decoded;
     }
     for (Map.Entry<?, ?> entry : fields.entrySet()) {
+      if (entry.getValue() == null) {
+        continue;
+      }
       String key = paramName + "[" + entry.getKey() + "]";
-      String val = ObjectSerializer.stringify(entry.getValue());
-      result.put(key, val);
+      result.put(key, ObjectSerializer.stringify(entry.getValue()));
     }
-    return result;
+    return new java.util.TreeMap<>(result);
   }
 }

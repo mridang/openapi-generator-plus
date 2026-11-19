@@ -422,7 +422,21 @@ class OAuth2ClientCredentialsAuthenticatorTest {
 
     @Test
     @DisplayName("bhvAuth041 a value passed to the constructor takes precedence over its environment variable")
-    fun bhvAuth041ArgumentWinsOverVariable() = generatedSchemeWrapperPrefersTheArgumentToItsVariable()
+    fun bhvAuth041ArgumentWinsOverVariable() {
+        val client = FakeApiClient()
+        client.enqueue("""{"access_token":"explicit","expires_in":3600}""")
+        val env =
+            mapOf(
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID" to "env-id",
+                "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET" to "env-" + "secret",
+            )
+        val auth =
+            withEnvironment(env) { MachineAuthClientCredentialsAuthenticator("https://api.example.com", "arg-id") }
+        auth.setApiClient(client)
+
+        runBlocking { auth.getAuthHeaders() }
+        assertTrue(client.lastBody!!.contains("client_id=arg-id"), client.lastBody)
+    }
 
     @Test
     @DisplayName("bhvAuth040 an empty environment variable is treated as unset and the missing one is named")

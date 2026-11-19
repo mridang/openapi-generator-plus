@@ -543,7 +543,7 @@ public final class DefaultApiClient implements ApiClient {
             /* A raw InputStream is a single-use, non-replayable source: once
              * the first send drains it, any re-subscription yields an empty
              * stream. The redirect loop (307/308 preserves the body) and
-             * sendWithRetry both re-subscribe the SAME publisher, so a
+             * the retry loop both re-subscribe the SAME publisher, so a
              * supplier capturing one InputStream instance —
              * `ofInputStream(() -> stream)` — would silently transmit an
              * empty/partial body on the replay. Buffer the stream eagerly
@@ -597,7 +597,12 @@ public final class DefaultApiClient implements ApiClient {
             if (body == null && "content-type".equalsIgnoreCase(header.getKey())) {
                 continue;
             }
-            builder.header(header.getKey(), header.getValue());
+            try {
+                builder.header(header.getKey(), header.getValue());
+            } catch (IllegalArgumentException refused) {
+                /* The JDK message quotes the refused value, so only the header name is named. */
+                throw new IllegalArgumentException("Invalid value for header '" + header.getKey() + "'");
+            }
         }
 
         try {
@@ -658,7 +663,7 @@ public final class DefaultApiClient implements ApiClient {
                      * request. 303 coerces to GET, so that case is safe. */
                     if (shouldRefuseHttpsToHttpBodyReplay(
                             originalUri, redirectUri, response.statusCode(),
-                            currentBody != NO_BODY)) {
+                            currentBody != NO_BODY && currentBody.contentLength() != 0)) {
                         throw new ApiException(
                                 response.statusCode(),
                                 "Refusing to replay request body across HTTPS->HTTP redirect: "
@@ -706,8 +711,12 @@ public final class DefaultApiClient implements ApiClient {
                                 DefaultApiClient::isEntityHeader);
                     }
 
-                    HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri)
-                            .method(nextMethod, nextBody);
+                    HttpRequest.Builder redirectBuilder = HttpRequest.newBuilder(redirectUri);
+                    if (nextBody == NO_BODY && "GET".equals(nextMethod)) {
+                        redirectBuilder.GET();
+                    } else {
+                        redirectBuilder.method(nextMethod, nextBody);
+                    }
                     if (timeoutMillis != null) {
                         long remainingNanos = deadlineNanos - System.nanoTime();
                         if (remainingNanos <= 0) {
@@ -852,11 +861,11 @@ public final class DefaultApiClient implements ApiClient {
             final int attempt = retries;
             HttpResponse<byte[]> response;
             try {
-                response = sendWithRetry(current, deadlineNanos);
+                response = sendBounded(current);
             } catch (HttpTimeoutException | javax.net.ssl.SSLException notRetried) {
                 throw notRetried;
             } catch (IOException e) {
-                if (attempt >= maxRetries || !isIdempotentMethod(current.method())) {
+                if (isTlsFailure(e) || attempt >= maxRetries || !isIdempotentMethod(current.method())) {
                     throw e;
                 }
                 HttpRequest next = waitAndRebuild(
@@ -995,39 +1004,16 @@ public final class DefaultApiClient implements ApiClient {
     }
 
     /**
-     * Send a request, retrying ONCE when the JDK HttpClient fails because it
-     * reused a keep-alive connection the server had already closed. That
-     * surfaces as {@code java.io.IOException: HTTP/1.1 header parser received
-     * no bytes}, which means the connection ended before any response bytes
-     * arrived. It does not prove the request was never processed, so only an
-     * idempotent method (RFC 9110 section 9.2.2) is replayed; a POST or PATCH
-     * could otherwise be applied twice. Any other IOException propagates
-     * unchanged.
+     * Whether a failure is a TLS or certificate failure anywhere in its cause chain. Such a
+     * failure is never retried, because the same handshake would fail again.
      */
-    private HttpResponse<byte[]> sendWithRetry(HttpRequest request, long deadlineNanos)
-            throws IOException, InterruptedException {
-        try {
-            return sendBounded(request);
-        } catch (IOException e) {
-            String message = e.getMessage();
-            if (message != null
-                    && message.contains("header parser received no bytes")
-                    && isIdempotentMethod(request.method())) {
-                if (request.timeout().isEmpty()) {
-                    return sendBounded(request);
-                }
-                /* The retry draws from the same end-to-end budget as the first
-                 * attempt, never a fresh full timeout. */
-                long remainingNanos = deadlineNanos - System.nanoTime();
-                if (remainingNanos <= 0) {
-                    throw new HttpTimeoutException("request timed out");
-                }
-                return sendBounded(HttpRequest.newBuilder(request, (name, value) -> true)
-                        .timeout(Duration.ofNanos(remainingNanos))
-                        .build());
+    static boolean isTlsFailure(Throwable failure) {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+            if (cause instanceof javax.net.ssl.SSLException) {
+                return true;
             }
-            throw e;
         }
+        return false;
     }
 
     /**
@@ -1218,12 +1204,10 @@ public final class DefaultApiClient implements ApiClient {
      * TRACE, PUT, DELETE and QUERY are safe to send again, while POST and PATCH are not.
      */
     static boolean isIdempotentMethod(String method) {
-        switch (method.toUpperCase(java.util.Locale.ROOT)) {
-            case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY":
-                return true;
-            default:
-                return false;
-        }
+        return switch (method.toUpperCase(java.util.Locale.ROOT)) {
+            case "GET", "HEAD", "OPTIONS", "TRACE", "PUT", "DELETE", "QUERY" -> true;
+            default -> false;
+        };
     }
 
     private static final Pattern CHARSET_PATTERN =

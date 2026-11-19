@@ -20,6 +20,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class DefaultApiClientTest {
 
     private static final String CA_CERT_PATH = "/app/src/test/resources/certs/ca.pem";
@@ -1232,8 +1233,12 @@ class DefaultApiClientTest {
         @Test
         @DisplayName("bhvMisc272 an authenticating proxy accepts credentials from the proxy URL")
         void bhvMisc272AnAuthenticatingProxyAcceptsCredentialsFromTheProxyUrl() throws Exception {
+            String authProxy = SquidContainer.getAuthProxyUrl();
+            if (!authProxy.contains("@")) {
+                authProxy = authProxy.replaceFirst("^(https?://)", "$1user:pass@");
+            }
             DefaultApiClient client = new DefaultApiClient(
-                    TransportOptions.builder().proxy(SquidContainer.getAuthProxyUrl()).build());
+                    TransportOptions.builder().proxy(authProxy).build());
             ApiHttpResponse response = client.sendRequest(
                     "GET", ChasmContainer.getInternalHttpUrl() + "/test/echo", new HashMap<>(), null);
             assertEquals(200, response.statusCode());
@@ -1293,7 +1298,7 @@ class DefaultApiClientTest {
     void bhvMisc285AnUndecodableContentEncodingIsRefusedWithTheExactMessage() throws Exception {
         String message = "Unsupported Content-Encoding 'x-unknown'";
         com.sun.net.httpserver.HttpServer server =
-                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/", exchange -> {
             exchange.getResponseHeaders().add("Content-Encoding", "x-unknown");
             exchange.sendResponseHeaders(200, 2);
@@ -1320,7 +1325,7 @@ class DefaultApiClientTest {
     void bhvMisc296ByDefaultAFailedRequestIsRetriedTwiceSoThreeRequestsReachTheWire() throws Exception {
         java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
         com.sun.net.httpserver.HttpServer server =
-                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+                com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
         server.createContext("/", exchange -> {
             hits.incrementAndGet();
             exchange.sendResponseHeaders(500, -1);
@@ -1363,7 +1368,7 @@ class DefaultApiClientTest {
 
         private String bodyWithContentType(String contentType, byte[] bytes) throws Exception {
             com.sun.net.httpserver.HttpServer server =
-                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
             server.createContext("/", exchange -> {
                 exchange.getResponseHeaders().add("Content-Type", contentType);
                 exchange.sendResponseHeaders(200, bytes.length);
@@ -1441,7 +1446,7 @@ class DefaultApiClientTest {
         @DisplayName("bhvTransport089 a content encoding that does not match the body raises the API error")
         void bhvTransport089MismatchedContentEncodingRaisesTheApiError() throws Exception {
             com.sun.net.httpserver.HttpServer server =
-                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
             server.createContext("/", exchange -> {
                 exchange.getResponseHeaders().add("Content-Encoding", "gzip");
                 exchange.sendResponseHeaders(200, 2);
@@ -1464,7 +1469,7 @@ class DefaultApiClientTest {
         @DisplayName("bhvTransport090 response headers repeated on the wire keep every value")
         void bhvTransport090RepeatedResponseHeadersKeepEveryValue() throws Exception {
             com.sun.net.httpserver.HttpServer server =
-                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
             server.createContext("/", exchange -> {
                 exchange.getResponseHeaders().add("X-Repeated", "one");
                 exchange.getResponseHeaders().add("X-Repeated", "two");
@@ -1489,7 +1494,7 @@ class DefaultApiClientTest {
         void bhvTransport092TheSuppliedHttpClientReceivesTheRequest() throws Exception {
             java.util.concurrent.atomic.AtomicInteger hits = new java.util.concurrent.atomic.AtomicInteger();
             com.sun.net.httpserver.HttpServer proxy =
-                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress("127.0.0.1", 0), 0);
+                    com.sun.net.httpserver.HttpServer.create(new java.net.InetSocketAddress(java.net.InetAddress.getLoopbackAddress(), 0), 0);
             proxy.createContext("/", exchange -> {
                 hits.incrementAndGet();
                 exchange.sendResponseHeaders(200, 2);

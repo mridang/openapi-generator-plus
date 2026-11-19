@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrowsExactly;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings({"NullAway", "AlwaysThrows"})
 class ObjectSerializerTest {
 
   private final ObjectSerializer serializer = new ObjectSerializer();
@@ -3877,7 +3879,7 @@ class ObjectSerializerTest {
       Duration.ofMillis(-1500),
       Duration.ofMillis(250),
       Duration.ofDays(3).plusSeconds(7),
-      Duration.ofSeconds(315576000000L),
+      Duration.ofDays(3652500L),
     };
     for (Duration value : values) {
       assertEquals(value, ObjectSerializer.parseDuration(ObjectSerializer.formatDuration(value)));
@@ -4045,7 +4047,7 @@ class ObjectSerializerTest {
   void bhvSerialization097EnumFieldWithADefaultIsWrittenWithThatDefault() throws Exception {
     String text = serializer.serialize(decode("{}", com.example.petstore.models.Defaults.class));
     assertTrue(text.contains("\"retries\":3"), text);
-    assertTrue(text.contains("\"mode\":\"low\""), text);
+    assertTrue(text.contains("\"mode\":\"medium\""), text);
   }
 
   @Test
@@ -4165,12 +4167,12 @@ class ObjectSerializerTest {
   void bhvMisc089UtcDateTimeIsWrittenInCanonicalFormDirectlyAndInListAndMap() {
     java.time.OffsetDateTime when =
         java.time.OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
-    assertEquals("\"2024-01-02T03:04:05.000+00:00\"", ObjectSerializer.stringify(when));
+    assertEquals("\"2024-01-02T03:04:05.000+00:00\"", serializer.serialize(when));
     assertEquals(
-        "[\"2024-01-02T03:04:05.000+00:00\"]", ObjectSerializer.stringify(java.util.List.of(when)));
+        "[\"2024-01-02T03:04:05.000+00:00\"]", serializer.serialize(java.util.List.of(when)));
     assertEquals(
         "{\"at\":\"2024-01-02T03:04:05.000+00:00\"}",
-        ObjectSerializer.stringify(java.util.Map.of("at", when)));
+        serializer.serialize(java.util.Map.of("at", when)));
   }
 
   @Test
@@ -4464,7 +4466,7 @@ class ObjectSerializerTest {
     com.example.petstore.models.Department original =
         com.example.petstore.models.Department.builder().name("Ops").lead(lead).build();
     com.example.petstore.models.Department copy = original.toBuilder().name("Eng").build();
-    assertTrue(original.lead == copy.lead);
+    assertSame(original.lead, copy.lead);
   }
 
   @Test

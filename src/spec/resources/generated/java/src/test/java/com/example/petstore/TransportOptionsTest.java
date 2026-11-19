@@ -25,6 +25,7 @@ import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class TransportOptionsTest {
 
   @Test
@@ -753,7 +754,7 @@ class TransportOptionsTest {
     IllegalArgumentException ex =
         assertThrows(
             IllegalArgumentException.class,
-            () -> TransportOptions.builder().proxy("socks5://proxy.example.com:1080"));
+            () -> TransportOptions.builder().proxy("socks5://proxy.example.com:1080").build());
     assertEquals(
         "Invalid proxy URL (must use http or https scheme): socks5://proxy.example.com:1080",
         ex.getMessage());

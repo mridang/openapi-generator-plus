@@ -66,6 +66,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+@SuppressWarnings("NullAway")
 class BaseApiTest {
 
   private static final java.lang.reflect.Type JSON_NODE_TYPE =

@@ -11,9 +11,12 @@ package com.example.petstore
 
 import com.example.petstore.errors.OpenAPIException
 import com.example.petstore.errors.SerializationException
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -1005,7 +1008,7 @@ class ObjectSerializerTest {
         fun bhvMisc122AStringDefaultIsAppliedAsTheExactLiteral() {
             assertEquals(
                 "it's \"quoted\" \\ back\tslash\nnext \$USD #{x} a*/b",
-                serializer.deserialize<com.example.petstore.models.Defaults>("{}").greeting,
+                serializer.deserialize<com.example.petstore.models.Defaults>("{}")?.greeting,
             )
         }
 
@@ -4167,7 +4170,7 @@ class ObjectSerializerTest {
         runBlocking<Unit> {
             val user =
                 com.example.petstore.models
-                    .User(password = "hunter2")
+                    .Account(username = "u", password = "hunter2")
             assertFalse(user.toString().contains("hunter2"), user.toString())
             assertTrue(serializer.serialize(user).contains("hunter2"))
         }
@@ -4217,7 +4220,7 @@ class ObjectSerializerTest {
     fun bhvMisc234ModelInAListKeepsItsExtrasThroughARoundTrip() {
         val items = serializer.deserialize<List<com.example.petstore.models.Metadata>>("[{\"extra\":\"y\"}]")
         val again = serializer.deserialize<List<com.example.petstore.models.Metadata>>(serializer.serialize(items))
-        assertEquals(mapOf<String, Any?>("extra" to "y"), again[0].additionalProperties)
+        assertEquals(mapOf<String, Any?>("extra" to "y"), again!![0].additionalProperties)
     }
 
     @Test
@@ -4242,7 +4245,7 @@ class ObjectSerializerTest {
     @DisplayName("bhvMisc244 a body with a leading byte-order mark decodes into the model")
     fun bhvMisc244BodyWithLeadingByteOrderMarkDecodes() {
         val category = serializer.deserialize<com.example.petstore.models.Category>("﻿{\"id\":1,\"name\":\"Dogs\"}")
-        assertEquals("Dogs", category.name)
+        assertEquals("Dogs", category?.name)
     }
 
     @Test

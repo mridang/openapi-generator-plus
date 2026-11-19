@@ -22,6 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+@SuppressWarnings("NullAway")
 class OAuth2PasswordAuthenticatorTest {
 
   private static OAuth2PasswordAuthenticator createAuthenticator() {
