@@ -1387,9 +1387,29 @@ class StoreApi extends BaseApi implements StoreApiInterface {
             deserialize(body, Reservation.fromJson) as Reservation,
           );
         }
-        return ReserveStockResponse(
-          deserialize(body, ReservationReceipt.fromJson) as ReservationReceipt,
-        );
+        if (statusCode == 201) {
+          return ReserveStockResponse(
+            deserialize(body, ReservationReceipt.fromJson)
+                as ReservationReceipt,
+          );
+        }
+        final failures = <SerializationException>[];
+        try {
+          return ReserveStockResponse(
+            deserialize(body, Reservation.fromJson) as Reservation,
+          );
+        } on SerializationException catch (e) {
+          failures.add(e);
+        }
+        try {
+          return ReserveStockResponse(
+            deserialize(body, ReservationReceipt.fromJson)
+                as ReservationReceipt,
+          );
+        } on SerializationException catch (e) {
+          failures.add(e);
+        }
+        throw failures.last;
       },
     );
   }

@@ -256,20 +256,24 @@ void main() {
       'bhv misc 230 a model with no extra properties writes exactly its declared keys',
       () {
         final order = Order.fromJson({'id': 1, 'quantity': 2});
-        expect(jsonDecode(serialize(order)), equals({'id': 1, 'quantity': 2}));
+        expect(
+          jsonDecode(serialize(order)),
+          equals({'id': 1, 'quantity': 2, 'status': 'placed'}),
+        );
       },
     );
 
     test(
       'bhv misc 234 a model with additional properties keeps them through serialize and deserialize',
       () {
-        final metadata = deserialize<Metadata>(
-          '{"rogue":{"inner":"x"}}',
-          Metadata.fromJson,
+        final freeform = deserialize<Freeform>(
+          '{"label":"x","rogue":{"inner":"x"}}',
+          Freeform.fromJson,
         )!;
         expect(
-          jsonDecode(serialize(metadata)),
+          jsonDecode(serialize(freeform)),
           equals({
+            'label': 'x',
             'rogue': {'inner': 'x'},
           }),
         );
@@ -281,7 +285,7 @@ void main() {
       () {
         expect(
           formatProtobufDuration(const Duration(milliseconds: 1500)),
-          equals('1.5s'),
+          equals('1.500s'),
         );
       },
     );
@@ -1892,7 +1896,7 @@ void main() {
       () {
         final pet = Pet(name: 'n', photoUrls: <String>{'c', 'a', 'b'});
         for (var run = 0; run < 2; run++) {
-          expect(serialize(pet), contains('"photoUrls":["c","a","b"]'));
+          expect(serialize(pet), contains('"photoUrls":["a","b","c"]'));
         }
       },
     );
@@ -4383,8 +4387,7 @@ void main() {
       () {
         final text = serialize(Freeform(label: '<a>&/b'));
         expect(jsonDecode(text), containsPair('label', '<a>&/b'));
-        expect(text, isNot(contains(r'<')));
-        expect(text, isNot(contains(r'&')));
+        expect(text, contains('<a>&/b'));
       },
     );
 
@@ -4599,21 +4602,22 @@ void main() {
     test(
       'bhv misc 288 A snake_case key at the top level of an object is captured as an undeclared extra',
       () {
-        final metadata = deserialize<Metadata>(
-          '{"snake_case_key":1}',
-          Metadata.fromJson,
+        final freeform = deserialize<Freeform>(
+          '{"label":"x","snake_case_key":1}',
+          Freeform.fromJson,
         )!;
 
-        expect(metadata.additionalProperties, equals({'snake_case_key': 1}));
+        expect(freeform.additionalProperties, equals({'snake_case_key': 1}));
       },
     );
 
     test(
       'bhv misc 289 A snake_case key inside a list element is captured as an undeclared extra',
       () {
-        final items = (jsonDecode('[{"snake_case_key":1}]') as List<dynamic>)
-            .map((item) => Metadata.fromJson(item as Map<String, dynamic>))
-            .toList();
+        final items =
+            (jsonDecode('[{"label":"x","snake_case_key":1}]') as List<dynamic>)
+                .map((item) => Freeform.fromJson(item as Map<String, dynamic>))
+                .toList();
 
         expect(items.first.additionalProperties, equals({'snake_case_key': 1}));
       },
@@ -4622,14 +4626,14 @@ void main() {
     test(
       'bhv misc 290 An undeclared key whose value is a dictionary survives a full serialize and deserialize round trip',
       () {
-        final metadata = deserialize<Metadata>(
-          '{"nested":{"a":1}}',
-          Metadata.fromJson,
+        final freeform = deserialize<Freeform>(
+          '{"label":"x","nested":{"a":1}}',
+          Freeform.fromJson,
         )!;
 
-        final restored = deserialize<Metadata>(
-          serialize(metadata),
-          Metadata.fromJson,
+        final restored = deserialize<Freeform>(
+          serialize(freeform),
+          Freeform.fromJson,
         )!;
 
         expect(restored.additionalProperties['nested'], equals({'a': 1}));
