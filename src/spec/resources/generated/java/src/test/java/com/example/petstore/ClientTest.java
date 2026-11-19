@@ -277,6 +277,35 @@ class ClientTest {
   }
 
   @Test
+  void bhvMisc204ClientWithoutHostOrTokenFailsAtOnce() {
+    assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", null));
+  }
+
+  @Test
+  void bhvMisc206ClientWithOnlyAnAuthenticatorTakesItsHost() throws Exception {
+    java.util.concurrent.atomic.AtomicReference<String> seenPath =
+        new java.util.concurrent.atomic.AtomicReference<>();
+    HttpServer server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+    server.createContext(
+        "/",
+        exchange -> {
+          seenPath.set(exchange.getRequestURI().getPath());
+          exchange.sendResponseHeaders(200, -1);
+          exchange.close();
+        });
+    server.start();
+    try {
+      String host = "http://localhost:" + server.getAddress().getPort();
+      try (Client client = new Client(new BearerAuthenticator(host, "test-token"))) {
+        client.store.deleteOrder(2L);
+      }
+    } finally {
+      server.stop(0);
+    }
+    assertEquals("/store/order/2", seenPath.get());
+  }
+
+  @Test
   void bhvLifecycle013WithTokenRefusesABlankTokenWhenNoVariableGivesOne() {
     IllegalArgumentException ex =
         assertThrows(IllegalArgumentException.class, () -> Client.withToken("/api/v3", "   "));
