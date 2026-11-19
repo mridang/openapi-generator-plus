@@ -288,7 +288,7 @@ describe Petstore::Client::Auth::OAuth::OAuth2TokenManager do
     [
       ['an empty string', { 'access_token' => '' }],
       ['a non-string value', { 'access_token' => 42 }]
-    ].each_case do |label, payload|
+    ].each_case do |_label, payload|
       client = FakeTokenClient.new([{ status: 200, body: payload }])
       manager = Petstore::Client::Auth::OAuth::OAuth2TokenManager.new
       manager.api_client = client

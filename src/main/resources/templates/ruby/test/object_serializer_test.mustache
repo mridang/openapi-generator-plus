@@ -361,7 +361,7 @@ describe {{moduleName}}::ObjectSerializer do
         'missing required field' => ['{"photoUrls":[]}', 'Pet'],
         'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
         'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
-      }.each_case do |failure, args|
+      }.each_case do |_failure, args|
         json = args.fetch(0)
         type = args.fetch(1)
         err = _(proc {

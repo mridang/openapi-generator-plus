@@ -90,7 +90,7 @@ describe Petstore::Client::TransportOptions do
 
   it 'bhv_options_027 rejects an invalid max_retries through the builder' do
     [-1, 1.5, '2', nil].each_case do |bad|
-      err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_retries(bad) } # steep:ignore ArgumentTypeMismatch
+      err = assert_raises(ArgumentError) { Petstore::Client::TransportOptions.builder.max_retries(bad) }
       _(err.message).must_include 'Invalid max_retries'
     end
   end
