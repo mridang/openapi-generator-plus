@@ -1510,7 +1510,7 @@ defmodule PetstoreClient.ValueSerializerTest do
     end
   end
 
-  describe "bhv misc wire behaviours" do
+  describe "misc wire behaviours" do
     test "bhv misc 082 an enum value is sent as its wire value in a path, a query and a header" do
       for location <- [:path, :query, :header] do
         assert PetstoreClient.ValueSerializer.serialize(:pending, location, "string") == "pending"
