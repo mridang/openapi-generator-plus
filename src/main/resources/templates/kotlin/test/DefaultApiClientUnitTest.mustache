@@ -2567,6 +2567,23 @@ class DefaultApiClientUnitTest {
                 assertTrue((System.nanoTime() - started) / 1_000_000L < 1400, "the call must give up near its own timeout")
             }
         }
+
+
+        @Test
+        @DisplayName("bhvRetries048 the default client retries a 503 over a real connection and returns the later success")
+        fun bhvRetries048DefaultClientRetriesA503OverARealConnection() {
+            var served = 0
+            withServer({ exchange ->
+                served++
+                exchange.sendResponseHeaders(if (served == 1) 503 else 200, -1)
+            }) { port ->
+                val apiClient = DefaultApiClient(TransportOptions.builder().build())
+                apiClient.sleeper = { }
+                val response = runBlocking { apiClient.sendRequest("GET", "http://127.0.0.1:$port/items", emptyMap(), null) }
+                assertEquals(200, response.statusCode)
+                assertEquals(2, served)
+            }
+        }
     }
 
     @Nested
@@ -3350,6 +3367,32 @@ class DefaultApiClientUnitTest {
 
             assertEquals(1, requestCount)
             assertTrue(sleeps.isEmpty(), "no wait may be taken: $sleeps")
+        }
+
+
+        @Test
+        @DisplayName("bhvRetries049 max retries n allows n retries after the first attempt and then returns the last failure")
+        fun bhvRetries049MaxRetriesAllowsThatManyRetriesThenReturnsTheLastFailure() {
+            val apiClient = retrying(listOf(503, 503, 503, 503), maxRetries = 2)
+
+            val ex = assertThrows(ApiException::class.java) { get(apiClient) }
+
+            assertEquals(503, ex.statusCode)
+            assertEquals(3, requestCount)
+        }
+
+        @Test
+        @DisplayName("bhvRetries050 a Retry-After HTTP date is honoured as the time left until that date")
+        fun bhvRetries050RetryAfterHttpDateIsHonoured() {
+            val date = java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME.format(
+                java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).plusSeconds(60),
+            )
+            val apiClient = retrying(listOf(503, 200), retryAfter = date)
+
+            get(apiClient)
+
+            assertEquals(2, requestCount)
+            assertTrue(sleeps.single() in 50_000L..60_000L, "the wait must be the time left until the date: $sleeps")
         }
     }
 

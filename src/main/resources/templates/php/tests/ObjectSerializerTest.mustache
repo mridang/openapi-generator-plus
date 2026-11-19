@@ -2735,7 +2735,7 @@ test('bhv misc 290 an undeclared key holding an object survives a full serialize
     $again = ObjectSerializer::deserialize(ObjectSerializer::serialize($metadata), \{{invokerPackage}}\Models\Metadata::class);
 
     expect($again->additionalProperties->toArray())->toBe(['extra' => ['k' => ['n' => 1]]]);
-||||||| 3712f2407
+});
 test('bhv misc 085 a non canonical uuid text is refused as a type error when the model is built', function (): void {
     expect(fn () => new \{{invokerPackage}}\Models\Order(trackingId: 'not-a-uuid'))->toThrow(\TypeError::class);
 });
