@@ -126,6 +126,30 @@ import FoundationNetworking
         #expect(error?.message == "Unsupported Content-Encoding 'compress'")
     }
 
+    /* An unsupported Content-Encoding surfaces as an ApiError. */
+    @Test func testBhvErrors042SurfacesApiErrorForAnUnsupportedContentEncoding() async throws {
+        let client = makeClient { _ in (Data("payload".utf8), 200, ["Content-Encoding": "compress"]) }
+        let error = await #expect(throws: ApiError.self) {
+            _ = try await client.sendRequest(
+                method: "GET", url: "http://localhost/compressed", headers: [:], body: nil)
+        }
+        #expect(error != nil)
+    }
+
+    /* A caller-supplied Accept-Encoding is sent as given and not replaced by the SDK default. */
+    @Test func testBhvTransport045KeepsACallerSuppliedAcceptEncoding() async throws {
+        var capturedRequest: URLRequest?
+        let client = makeClient { req in
+            capturedRequest = req
+            return (self.body(), 200, [:])
+        }
+        _ = try await client.sendRequest(
+            method: "GET", url: "https://example.com",
+            headers: ["Accept-Encoding": "identity"], body: nil)
+        let fields = capturedRequest?.allHTTPHeaderFields ?? [:]
+        #expect(fields["Accept-Encoding"] == "identity")
+    }
+
     /* Response header names are returned in lower case. */
     @Test func testBhvMisc040ResponseHeaderNamesAreLowerCase() async throws {
         let client = makeClient { _ in (Data("{}".utf8), 200, ["X-Custom-Thing": "v"]) }
