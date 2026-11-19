@@ -399,6 +399,26 @@ class OAuth2TokenManagerTest {
     }
 
     @Test
+    void bhvMisc198GrantWithoutExpiresInClearsThePreviousExpiry() {
+        AtomicInteger calls = new AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            int n = calls.incrementAndGet();
+            return n == 1
+                    ? new ApiHttpResponse(200, "{\"access_token\":\"a1\",\"expires_in\":60}", Map.of())
+                    : new ApiHttpResponse(200, "{\"access_token\":\"a2\"}", Map.of());
+        };
+        OAuth2TokenManager manager = new OAuth2TokenManager();
+        manager.setApiClient(client);
+        Map<String, String> params = new HashMap<>();
+        params.put("grant_type", "client_credentials");
+        manager.getAccessToken("https://auth.example.com/token", params);
+        manager.invalidateAccessToken();
+        assertEquals("a2", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals("a2", manager.getAccessToken("https://auth.example.com/token", params));
+        assertEquals(2, calls.get());
+    }
+
+    @Test
     void bhvAuthOauthTwoTokenMgr003RefreshResponseWithoutExpiresInKeepsNoExpiry() {
         /* A refresh answer without expires_in must not keep the lapsed expiry of
          * the first grant, or every following call would refresh again. */

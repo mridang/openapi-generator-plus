@@ -340,7 +340,20 @@ func TestBhvAuthscheme002_SchemeAuthenticator_{{className}}_WithProviderAsksTheP
 	}
 }
 
-func Test{{#firstBearer}}BhvLifecycle025_{{/firstBearer}}{{^firstBearer}}BhvAuthbearer025_{{/firstBearer}}BhvLanggo124_SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func Test{{#firstBearer}}BhvLifecycle025_{{/firstBearer}}{{^firstBearer}}BhvAuthbearer025_{{/firstBearer}}SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
+
+	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(scheme{{className}}Variables[0], "changed-after-build")
+
+	requireScheme{{className}}Credentials(t, a, schemeEnvValue)
+}
+
+func TestBhvLanggo124_SchemeAuthenticator_{{className}}_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, scheme{{className}}Variables, scheme{{className}}Fields, "", "")
 
 	a, err := {{package}}.New{{className}}(schemeHost{{#envVars}}, ""{{/envVars}})

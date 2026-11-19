@@ -504,7 +504,20 @@ func TestBhvAuthscheme002_SchemeAuthenticator_PetStoreBearerAuthenticator_WithPr
 	}
 }
 
-func TestBhvLifecycle025_BhvLanggo124_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func TestBhvLifecycle025_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
+
+	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(schemePetStoreBearerAuthenticatorVariables[0], "changed-after-build")
+
+	requireSchemePetStoreBearerAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func TestBhvLanggo124_SchemeAuthenticator_PetStoreBearerAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, schemePetStoreBearerAuthenticatorVariables, schemePetStoreBearerAuthenticatorFields, "", "")
 
 	a, err := auth.NewPetStoreBearerAuthenticator(schemeHost, "")
@@ -674,7 +687,20 @@ func TestBhvAuthscheme002_SchemeAuthenticator_ServiceTokenAuthenticator_WithProv
 	}
 }
 
-func TestBhvAuthbearer025_BhvLanggo124_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+func TestBhvAuthbearer025_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
+	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
+
+	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	t.Setenv(schemeServiceTokenAuthenticatorVariables[0], "changed-after-build")
+
+	requireSchemeServiceTokenAuthenticatorCredentials(t, a, schemeEnvValue)
+}
+
+func TestBhvLanggo124_SchemeAuthenticator_ServiceTokenAuthenticator_ReadsTheEnvironmentOnceWhenItIsBuilt(t *testing.T) {
 	setSchemeEnvironment(t, schemeServiceTokenAuthenticatorVariables, schemeServiceTokenAuthenticatorFields, "", "")
 
 	a, err := auth.NewServiceTokenAuthenticator(schemeHost, "")

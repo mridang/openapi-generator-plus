@@ -236,6 +236,18 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    void bhvMisc194ProviderTokenIsSentUnderTheBearerPrefix() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", () -> "tok-123");
+        assertEquals("Bearer tok-123", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvMisc195WhitespaceOnlyProviderTokenIsRejectedWhenRequested() {
+        BearerAuthenticator auth = new BearerAuthenticator("https://api.example.com", () -> "   ");
+        assertThrows(IllegalArgumentException.class, () -> auth.getAuthHeaders());
+    }
+
+    @Test
     void bhvAuth039PassingBothATokenAndATokenProviderIsRejected() {
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () ->
                 new BearerAuthenticator("https://api.example.com", "static-token", () -> "provided"));

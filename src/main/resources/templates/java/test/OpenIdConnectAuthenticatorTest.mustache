@@ -752,6 +752,54 @@ class OpenIdConnectAuthenticatorTest {
     }
 
     @Test
+    void bhvMisc199DiscoveryRunsAgainWhenMaxAgeIsZero() {
+        java.util.concurrent.atomic.AtomicInteger gets = new java.util.concurrent.atomic.AtomicInteger(0);
+        ApiClient client = (method, url, headers, body) -> {
+            String authorize = gets.incrementAndGet() == 1
+                    ? "https://auth.example.com/authorize"
+                    : "https://auth.example.com/authorize-v2";
+            return new ApiHttpResponse(200,
+                    "{\"issuer\":\"https://auth.example.com\",\"authorization_endpoint\":\"" + authorize
+                            + "\",\"token_endpoint\":\"https://auth.example.com/token\"}",
+                    Map.of("Cache-Control", "max-age=0"));
+        };
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+        auth.buildAuthorizationUrl(null);
+        String second = auth.buildAuthorizationUrl(null);
+        assertEquals(2, gets.get());
+        assertTrue(second.startsWith("https://auth.example.com/authorize-v2"), second);
+    }
+
+    @Test
+    void bhvMisc200DiscoveryIssuerOfAnotherServerIsRejected() {
+        ApiClient client = (method, url, headers, body) -> new ApiHttpResponse(200,
+                "{\"issuer\":\"https://evil.example.net\","
+                        + "\"authorization_endpoint\":\"https://auth.example.com/authorize\","
+                        + "\"token_endpoint\":\"https://auth.example.com/token\"}",
+                Map.of());
+        OpenIdConnectAuthenticator auth = createAuthenticator();
+        auth.setApiClient(client);
+        assertThrowsExactly(SerializationException.class, () -> auth.buildAuthorizationUrl(null));
+    }
+
+    @Test
+    void bhvMisc201FailedDiscoveryReportsPathWithoutQuery() {
+        ApiClient client = (method, url, headers, body) -> new ApiHttpResponse(500, "down", Map.of());
+        OpenIdConnectAuthenticator auth = new OpenIdConnectAuthenticator(
+                "https://api.example.com",
+                "https://auth.example.com/.well-known/openid-configuration?tenant=a",
+                "my-client-id",
+                "my-client-secret",
+                "https://app.example.com/callback",
+                List.of("openid"));
+        auth.setApiClient(client);
+        InternalServerErrorException thrown =
+                assertThrowsExactly(InternalServerErrorException.class, () -> auth.buildAuthorizationUrl(null));
+        assertEquals("/.well-known/openid-configuration", thrown.getRequestPath());
+    }
+
+    @Test
     void bhvMisc070ADiscoveryDocumentThatIsNotAnObjectKeepsNoCauseAndHidesItsBody() {
         ApiClient client = (method, url, headers, body) ->
                 new ApiHttpResponse(200, "[\"leaked-body\"]", Map.of());

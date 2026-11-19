@@ -3876,6 +3876,126 @@ class BaseApiTest {
             null));
   }
 
+  @Test
+  void bhvMisc197UnheldSchemeFallsBackToTheDefaultAuthenticator() throws ApiException {
+    var client = new CapturingApiClient();
+    var defaultAuth =
+        new TestAuthenticator(Map.of("Authorization", "Bearer default-token"), Map.of(), Map.of());
+    var testApi = new TestableApi(client, "http://localhost", defaultAuth);
+    testApi.call(
+        "GET",
+        "/test/echo",
+        new HashMap<>(),
+        new HashMap<>(),
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        null,
+        testApi.firstHeld("unheld"));
+    assertEquals("Bearer default-token", client.capturedHeaders.get("Authorization"));
+  }
+
+  @Test
+  void bhvMisc202TextBodyWithoutContentTypeIsSentAsJson() throws ApiException {
+    var client = new CapturingApiClient();
+    new TestableApi(client, "http://localhost")
+        .call(
+            "POST",
+            "/test/echo",
+            new HashMap<>(),
+            new HashMap<>(),
+            "hello",
+            new String[] {"application/json"},
+            "application/json",
+            null,
+            null);
+    assertEquals("application/json", client.capturedHeaders.get("Content-Type"));
+  }
+
+  @Test
+  void bhvMisc209VoidOperationIgnoresANonObjectSuccessBody() throws ApiException {
+    var textClient =
+        new CapturingApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            return new ApiHttpResponse(200, "Deleted", Map.of("Content-Type", "text/plain"));
+          }
+        };
+    assertNull(
+        new TestableApi(textClient, "http://localhost")
+            .call(
+                "DELETE",
+                "/test/echo",
+                new HashMap<>(),
+                new HashMap<>(),
+                null,
+                new String[] {"application/json"},
+                "application/json",
+                null,
+                null));
+    var jsonClient =
+        new CapturingApiClient() {
+          @Override
+          public ApiHttpResponse sendRequest(
+              String method, String url, Map<String, String> headers, @Nullable Object body) {
+            return new ApiHttpResponse(200, "42", Map.of("Content-Type", "application/json"));
+          }
+        };
+    assertNull(
+        new TestableApi(jsonClient, "http://localhost")
+            .call(
+                "DELETE",
+                "/test/echo",
+                new HashMap<>(),
+                new HashMap<>(),
+                null,
+                new String[] {"application/json"},
+                "application/json",
+                null,
+                null));
+  }
+
+  @Test
+  void bhvMisc210DateTimeFormFieldIsEncodedCanonically() throws ApiException {
+    var client = new CapturingApiClient();
+    var reminder = java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC);
+    new TestableApi(client, "http://localhost")
+        .call(
+            "POST",
+            "/test/echo",
+            new HashMap<>(),
+            new HashMap<>(),
+            Map.of("reminder", reminder),
+            new String[] {"application/json"},
+            "application/x-www-form-urlencoded",
+            null,
+            null);
+    assertTrue(
+        client.capturedBody.toString().contains("reminder=2024-01-15T10%3A30%3A00"),
+        client.capturedBody.toString());
+  }
+
+  @Test
+  void bhvMisc211DateTimeInJsonQueryParamKeepsItsWireForm() throws ApiException {
+    var client = new CapturingApiClient();
+    var since = java.time.OffsetDateTime.of(2024, 1, 15, 10, 30, 0, 0, java.time.ZoneOffset.UTC);
+    Map<String, Object> query = new HashMap<>();
+    query.put("since", since);
+    new TestableApi(client, "http://localhost")
+        .call(
+            "GET",
+            "/test/echo",
+            query,
+            new HashMap<>(),
+            null,
+            new String[] {"application/json"},
+            "application/json",
+            null,
+            null);
+    assertTrue(client.capturedUrl.contains("since=2024-01-15T10"), client.capturedUrl);
+  }
+
   @Nested
   @DisplayName("promised form and multipart serialization")
   class PromisedFormSerializationTests {

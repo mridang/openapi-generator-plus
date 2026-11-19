@@ -236,6 +236,38 @@ class SchemeAuthenticatorTest {
     }
 
     @Test
+    void bhvMisc196SchemeWrapperWithNoTokenFailsWithAnError() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new PetStoreBearerAuthenticator(HOST, null, Map.of()));
+    }
+
+    @Test
+    void bhvMisc205MissingCredentialErrorNamesTheVariable() {
+      IllegalArgumentException ex =
+          assertThrows(
+              IllegalArgumentException.class,
+              () -> new PetStoreBearerAuthenticator(HOST, null, Map.of()));
+      assertTrue(
+          java.util.Objects.requireNonNull(ex.getMessage()).contains(TOKEN_VARIABLE),
+          ex.getMessage());
+    }
+
+    @Test
+    void bhvMisc207TokenNotPassedIsReadFromItsEnvironmentVariable() {
+      PetStoreBearerAuthenticator auth =
+          new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "env-token"));
+      assertEquals("Bearer env-token", auth.getAuthHeaders().get("Authorization"));
+    }
+
+    @Test
+    void bhvMisc208EmptyEnvironmentVariableCountsAsUnset() {
+      assertThrows(
+          IllegalArgumentException.class,
+          () -> new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "")));
+    }
+
+    @Test
     void bhvAuthBearer010ItBuildsFromItsEnvironmentVariablesAlone() {
       PetStoreBearerAuthenticator auth =
           new PetStoreBearerAuthenticator(HOST, null, Map.of(TOKEN_VARIABLE, "env-token"));
