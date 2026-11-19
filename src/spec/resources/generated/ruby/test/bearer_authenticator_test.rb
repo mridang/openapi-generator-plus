@@ -135,6 +135,16 @@ describe Petstore::Client::Auth::BearerAuthenticator do
   describe 'credential sources' do
     let(:prefix) { Petstore::Client::Auth::BaseAuthenticator::ENV_PREFIX }
 
+    it 'bhv_misc_204 a missing bearer token fails at construction, before any request is made' do
+      _(-> { Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: {}) }).must_raise ArgumentError
+    end
+
+    it 'bhv_misc_207 a credential that is not passed is read from the matching environment variable' do
+      auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => 'from-env' })
+
+      _(auth.auth_headers['Authorization']).must_equal 'Bearer from-env'
+    end
+
     it 'bhv_misc_187 a credential not passed explicitly is taken from the environment' do
       auth = Petstore::Client::Auth::BearerAuthenticator.new('https://api.example.com', env: { "#{prefix}_TOKEN" => 'from-env' })
 
