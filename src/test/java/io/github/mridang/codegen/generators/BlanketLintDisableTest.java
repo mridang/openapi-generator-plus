@@ -99,6 +99,9 @@ class BlanketLintDisableTest {
         final List<String> lines;
         try {
           lines = Files.readAllLines(file);
+        } catch (java.nio.file.NoSuchFileException gone) {
+          /* A generator test rewrites the golden while this one walks it. */
+          continue;
         } catch (IOException e) {
           throw new UncheckedIOException(e);
         }
