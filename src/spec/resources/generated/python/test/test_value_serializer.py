@@ -101,7 +101,7 @@ class TestValueSerializerPath:
     def test_bhv_misc_211_a_date_time_inside_a_json_query_parameter_keeps_its_wire_form(
         self,
     ) -> None:
-        json_text = '{"takenAt":"2024-01-02T03:04:05+00:00"}'
+        json_text = '{"recordedAt":"2024-01-02T03:04:05+00:00"}'
 
         assert ValueSerializer.encode_content("filter", json_text, "query") == json_text
 

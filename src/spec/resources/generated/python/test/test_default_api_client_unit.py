@@ -101,7 +101,7 @@ class _EchoHandler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/partial-success":
-            payload = b'{"foodType":"dry","weightKg":2.5}'
+            payload = b'{"kindOf":"dry","massKg":2.5}'
             self.send_response(207)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(payload)))
@@ -230,7 +230,7 @@ class TestDefaultApiClientUnit:
                 None,
                 ["application/json"],
                 "application/json",
-                "PetFood",
+                "WidgetFood",
             )
         )
         assert isinstance(result.actual_instance, DryFood)

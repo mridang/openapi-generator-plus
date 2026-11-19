@@ -13,7 +13,7 @@ namespace {
 // -- path location --
 
     test('bhv misc 211 a date time inside a json query parameter keeps its wire date time form', function (): void {
-        $json = '{"takenAt":"2024-01-02T03:04:05+00:00"}';
+        $json = '{"recordedAt":"2024-01-02T03:04:05+00:00"}';
         $encoded = ValueSerializer::serialize($json, 'query', 'string');
         assert(is_string($encoded));
         expect(rawurldecode($encoded))->toBe($json);
