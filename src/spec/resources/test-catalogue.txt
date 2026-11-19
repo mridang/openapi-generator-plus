@@ -3156,3 +3156,47 @@ langcsharp071 | A oneOf without a discriminator throws when no member matches
 langcsharp072 | A token provider also serves the synchronous header getter
 langcsharp073 | A typed value carries its data unchanged
 langcsharp074 | Every HTTP status maps to the exception class for that status
+streaming001 | A binary stream call delivers the bytes in order and returns before the body has ended
+streaming002 | A JSON Lines stream yields one decoded item per line and skips blank lines
+streaming003 | A JSON Lines stream accepts CRLF line ends and a last line without a newline
+streaming004 | A JSON Lines line that does not decode raises a serialization error naming the 1-based line and ends the stream after the items before it
+streaming005 | A line or event longer than the limit raises a serialization error and ends the stream
+streaming006 | A gzip encoded stream is decoded incrementally, so the first item arrives before the body ends
+streaming007 | A corrupt compressed stream raises an API error with the real status and the decoder error as its cause, and is not retried
+streaming008 | A non-2xx streaming call raises the typed error with the status and the error body and never returns a stream
+streaming009 | A stream exposes the status and the lower-cased response headers
+streaming010 | The call timeout bounds only the wait for the response headers, not the body
+streaming011 | The idle timeout raises a network timeout error when the server stalls in the middle of the body
+streaming012 | A connection reset in the middle of the body raises a network error and is not retried
+streaming013 | A body shorter than its Content-Length raises a network error and is never a silent short success
+streaming014 | A streaming call retries a 503 before the headers and then streams the retried response
+streaming015 | A streaming call never retries after the first body byte was delivered
+streaming016 | A streaming call follows a redirect before the body and strips credentials across origins
+streaming017 | A streaming call sends the same User-Agent, request id, trace context and authentication headers as a buffered call
+streaming018 | A 401 on a streaming call authenticated by OAuth2 refreshes the token and replays once before the stream is returned
+streaming019 | Closing a stream twice is safe and aborts the connection
+streaming020 | Cancelling the call aborts the stream and is never raised as a timeout
+streaming021 | Closing the client waits for open streams like any request in flight and refuses new calls
+streaming022 | The string form of a stream and its options hides credentials, the query and the data
+streaming023 | A streamed upload of unknown length is sent chunked and arrives intact
+streaming024 | A streamed upload with a known length sends Content-Length
+streaming025 | A caller supplied upload stream is never closed by the SDK
+streaming026 | A seekable upload is rewound and retried after a 503, and a single use upload is not retried and surfaces the original error
+streaming027 | A 307 or 308 with a single use upload is refused and the body is never buffered
+streaming028 | An operation with a streaming media type gets a stream method, and an SSE or JSON Lines only operation gets no buffered method
+sse001 | An SSE stream yields the id, event, data and retry fields of each event, with message as the default event
+sse002 | An SSE stream joins consecutive data lines with a newline and skips comment lines
+sse003 | An SSE stream drops a leading byte order mark, accepts CR, LF and CRLF line ends and removes one space after the colon
+sse004 | An SSE event with an empty data buffer is not delivered but its id is kept
+sse005 | An SSE data payload is decoded as the declared schema, and a payload that does not decode raises a serialization error and ends the stream
+sse006 | An SSE request sends Accept text/event-stream, Cache-Control no-cache and identity encoding unless the caller set them
+sse007 | An SSE stream reconnects after the connection drops and sends the last event id in Last-Event-ID
+sse008 | An SSE reconnect waits the server retry value, else the reconnect delay doubling to a cap
+sse009 | An SSE stream stops after the maximum number of consecutive failed reconnects and raises the last failure
+sse010 | An SSE reconnect counter resets after an event is received
+sse011 | An SSE stream does not reconnect after a 204, a 4xx status or a response that is not text/event-stream
+sse012 | An SSE stream sends the initial last event id of the call on its first request
+sse013 | An SSE reconnect rebuilds the headers so a refreshed token is the one sent
+sse014 | An SSE retry field that is not digits and an id containing NUL are ignored
+sse015 | An idle timeout on an SSE stream counts as a lost connection and reconnects
+sse016 | An SSE request with a single use body is not reconnected

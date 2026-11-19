@@ -3930,6 +3930,103 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return created;
     }
 
+    /** Response media types that are server-sent events. */
+    private static final Set<String> SSE_MEDIA_TYPES = Set.of("text/event-stream");
+
+    /** Response media types that are JSON Lines (one kind, three spellings). */
+    private static final Set<String> JSON_LINES_MEDIA_TYPES =
+            Set.of("application/x-ndjson", "application/jsonl", "application/jsonlines");
+
+    /**
+     * Computes the streaming decorators of an operation from its spec signals: the 2xx
+     * response media types and the request body kind. Written under non-{@code x-} names:
+     * {@code streamKind} ({@code sse | jsonlines | binary | none}, the response side),
+     * {@code hasStreamMethod}, {@code streamOnly} (no buffered method is generated),
+     * {@code streamItemType} (the item or event schema type, null for binary),
+     * {@code streamEventIsText} (the event data is the raw string), {@code hasStreamRequestBody}
+     * and {@code streamMethodName}.
+     */
+    private void populateStreamDecorators(CodegenOperation op, Map<String, Object> d) {
+        String kind = "none";
+        boolean hasJsonSuccess = false;
+        boolean hasBinarySuccess = false;
+        org.openapitools.codegen.CodegenProperty itemSchema = null;
+        if (op.responses != null) {
+            for (final org.openapitools.codegen.CodegenResponse r : op.responses) {
+                if (r == null || r.code == null || !r.code.startsWith("2")
+                        || r.getContent() == null) {
+                    continue;
+                }
+                for (final Map.Entry<String, org.openapitools.codegen.CodegenMediaType> e
+                        : r.getContent().entrySet()) {
+                    final String mt = baseMediaType(e.getKey());
+                    final org.openapitools.codegen.CodegenProperty schema =
+                            e.getValue() == null ? null : e.getValue().getSchema();
+                    if (SSE_MEDIA_TYPES.contains(mt)) {
+                        if ("none".equals(kind) || "binary".equals(kind)) {
+                            kind = "sse";
+                            itemSchema = schema;
+                        }
+                    } else if (JSON_LINES_MEDIA_TYPES.contains(mt)) {
+                        if ("none".equals(kind) || "binary".equals(kind)) {
+                            kind = "jsonlines";
+                            itemSchema = schema;
+                        }
+                    } else if ("application/octet-stream".equals(mt)
+                            || (schema != null && schema.isBinary)) {
+                        hasBinarySuccess = true;
+                        if ("none".equals(kind)) {
+                            kind = "binary";
+                        }
+                    } else if (mt.contains("json")) {
+                        hasJsonSuccess = true;
+                    }
+                }
+            }
+        }
+        if (("sse".equals(kind) || "jsonlines".equals(kind)) && (hasJsonSuccess || hasBinarySuccess)) {
+            LOGGER.warn(
+                    "Operation {} mixes a streaming 2xx media type with another one; no stream"
+                            + " method is generated for it.",
+                    op.operationId);
+            kind = "none";
+            itemSchema = null;
+        }
+        final boolean requestBody = "binary".equals(deriveRequestBodyKind(op));
+        final boolean streamOnly = "sse".equals(kind) || "jsonlines".equals(kind);
+        final boolean textEvent =
+                "sse".equals(kind) && (itemSchema == null || (itemSchema.isString
+                        && !itemSchema.isModel && !itemSchema.isEnum));
+        d.put("streamKind", kind);
+        d.put("hasStreamMethod", !"none".equals(kind) || requestBody);
+        d.put("streamOnly", streamOnly);
+        d.put("streamItemType", streamOnly && itemSchema != null ? itemSchema.dataType : null);
+        d.put("streamEventIsText", textEvent);
+        d.put("hasStreamRequestBody", requestBody);
+        d.put("streamMethodName", streamMethodName(op));
+    }
+
+    private static String baseMediaType(String mediaType) {
+        if (mediaType == null) {
+            return "";
+        }
+        final int semicolon = mediaType.indexOf(';');
+        final String bare = semicolon < 0 ? mediaType : mediaType.substring(0, semicolon);
+        return bare.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** The stream method name: the method name of the operation plus the language's Stream suffix. */
+    private static String streamMethodName(CodegenOperation op) {
+        final String base = op.nickname == null ? op.operationId : op.nickname;
+        if (base == null || base.isEmpty()) {
+            return "";
+        }
+        if (base.contains("_")) {
+            return base + "_stream";
+        }
+        return base + "Stream";
+    }
+
     /**
      * Exposes the status-to-variant mapping recorded by
      * {@link MultipleSuccessResponsesRule}: {@code hasMultiple2xx},
@@ -4265,6 +4362,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // F1062 — per-status success variants for multi-2xx operations.
         populateSuccessResponses(op, d);
+
+        // Streaming (#114): which stream method, if any, the operation gets.
+        populateStreamDecorators(op, d);
 
         // Declared error responses: the status class and schema of each non-2xx response.
         populateErrorResponses(op, d);
