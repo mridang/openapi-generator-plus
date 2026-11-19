@@ -1214,7 +1214,7 @@ servers021 | A server URL with special characters in its default and enum values
 servers023 | A server variable value containing replacement patterns is substituted literally
 servers024 | A server variable freezes its enum values so they cannot be mutated
 redirects037 | A redirect to the explicit default port of the same origin keeps the Authorization header
-transport060 | Cancelling an in-flight call aborts the request without reporting a timeout
+transport060 | Cancelling an in-flight call aborts the request without reporting a timeout | multi
 transport061 | A caller-supplied stream is left open after the request body is sent
 transport062 | With TLS verification disabled a certificate that fails validation is accepted
 transport063 | A proxy that requires credentials answers 407 when none are sent
@@ -1259,8 +1259,8 @@ transport077 | A CA certificate path that cannot be read, names a directory, or 
 transport078 | A caller-supplied HTTP client or connection option is refused at construction when a proxy setting is also configured.
 transport079 | Turning off certificate verification fails at construction on a client that cannot honour it, rather than being silently ignored.
 transport080 | A proxy setting the client cannot apply makes construction fail rather than being silently dropped.
-transport081 | A caller-supplied HTTP client is the one every request of the SDK is sent through, with the URL and caller headers unchanged.
-transport082 | A request made through a client built with default configuration or with only a timeout completes and returns its response.
+transport081 | A caller-supplied HTTP client is the one every request of the SDK is sent through, with the URL and caller headers unchanged. | multi
+transport082 | A request made through a client built with default configuration or with only a timeout completes and returns its response. | multi
 unions036 | The response status code, not the shape of the body, selects which declared variant decodes a response; a body that does not fit the selected variant is refused with a serialization error.
 unions037 | A union wrapper built from one of its variants holds that exact value and returns it unchanged, and offers no way to replace the held variant.
 unions038 | A union body that cannot be decoded, whether its discriminator is not a string, its discriminator key differs in case and so is missing, it maps to a model the SDK does not contain, or any other decode failure, raises the SDK's serialization error.
@@ -1455,7 +1455,7 @@ mocking006 | Calling an operation without the per-call options reaches the fake'
 mocking007 | The top-level client interface exposes every group typed as its group interface, plus close, and the real client implements it
 mocking008 | A fake client built from fake groups never opens a connection, and closing it does nothing and does not fail
 mocking009 | The README has a section named "Testing your code" that names the group interface and the top-level interface and shows a fake
-hooks001 | Without a hook set a call sends the same headers and returns the same result as before
+hooks001 | Without a hook set a call sends the same headers and returns the same result as before | multi
 hooks002 | start is called once per operation call with the spec operation id, the upper-case method, the url template and the url without its query string | multi
 hooks003 | serverAddress is the host without port, and without the brackets of an IPv6 literal | multi
 hooks004 | A header the hook sets reaches the server
@@ -1744,7 +1744,7 @@ misc205 | When a credential is found nowhere, the missing-credential error names
 misc206 | A client built with only a default authenticator is constructed successfully and takes its host from that authenticator.
 misc207 | A credential that is not passed to the constructor or with_token call is read from the matching environment variable.
 misc208 | An environment variable set to an empty value is treated the same as an unset one when the implicit authenticator looks up its credential.
-misc209 | A void operation ignores a success response body whether it is text or a non-object JSON value, and returns no data.
+misc209 | A void operation ignores a success response body whether it is text or a non-object JSON value, and returns no data. | multi
 misc210 | A date-time form field is encoded in canonical form with its colons and plus sign percent-escaped on the wire.
 misc211 | A date-time inside a JSON query parameter keeps its wire date-time form.
 misc212 | A 404 or 500 response from a call raises the corresponding error through the API layer.
@@ -1884,7 +1884,7 @@ serialization086 | A duration is written as a protobuf seconds string: total sec
 serialization087 | A very small or very precise duration is written as fixed-point decimal digits, never in scientific notation.
 serialization088 | Byte values are written as base64 strings, including each element of a list of bytes.
 serialization089 | A base64 string on the wire decodes into a byte value.
-serialization090 | Base64 byte values decode only when they are strict RFC 4648 text, so malformed or non-strict input is rejected, including inside arrays and maps.
+serialization090 | Base64 byte values decode only when they are strict RFC 4648 text, so malformed or non-strict input is rejected, including inside arrays and maps. | multi
 serialization091 | Byte values, including bytes with the high bit set, survive an encode and decode round trip.
 serialization092 | A time of day round-trips through its string form and back to the same time.
 serialization093 | A date-time is written as ISO-8601 with a numeric UTC offset, never Z, and keeps its sub-second digits.
