@@ -1075,13 +1075,6 @@ public final class DefaultApiClient implements ApiClient {
     return headers.keySet().stream().anyMatch(key -> key.equalsIgnoreCase(name));
   }
 
-  static boolean isIdempotentMethod(String method) {
-    return switch (method.toUpperCase(Locale.ROOT)) {
-      case "GET", "HEAD", "OPTIONS", "PUT", "DELETE", "TRACE", "QUERY" -> true;
-      default -> false;
-    };
-  }
-
   private static boolean isRedirect(int statusCode) {
     return statusCode == 301
         || statusCode == 302

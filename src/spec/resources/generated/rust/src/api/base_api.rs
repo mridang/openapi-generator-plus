@@ -2958,4 +2958,27 @@ mod tests {
             .expect_err("a 404 is still the caller's own error");
         assert!(err.to_string().contains("404"), "{err}");
     }
+
+    /* -- form-urlencoded keys and values (chunk 15) -- */
+
+    #[test]
+    fn test_bhv_serialization_122_a_form_body_repeats_the_key_per_array_element_in_order() {
+        let json_bytes = encode_form_pairs(&[
+            ("tags", serde_json::json!(["a", "b"])),
+            ("n", serde_json::json!("1")),
+        ]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap()
+            .unwrap();
+        assert_eq!(String::from_utf8(result).unwrap(), "tags=a&tags=b&n=1");
+    }
+
+    #[test]
+    fn test_bhv_serialization_125_form_values_percent_encode_reserved_characters_and_plus_as_2b() {
+        let json_bytes = encode_form_pairs(&[("q", serde_json::json!("a+b&c"))]);
+        let result = serialize_body(Some(json_bytes), "application/x-www-form-urlencoded")
+            .unwrap()
+            .unwrap();
+        assert_eq!(String::from_utf8(result).unwrap(), "q=a%2Bb%26c");
+    }
 }
