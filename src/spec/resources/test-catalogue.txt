@@ -2011,7 +2011,7 @@ langswift068 | A server configuration description defaults to an empty string
 langswift069 | A server variable stores its default value
 langswift070 | A server variable with an enum default resolves to that default
 langswift071 | A caller-supplied session is kept by the transport options
-langswift072 | An empty proxy string clears a proxy set earlier
+langswift072 | A nil proxy clears a proxy set earlier and an empty proxy string is rejected
 langswift073 | Object fields are keyed by their wire names, sorted, and nulls are skipped
 langswift074 | Each documentation comment in the generated sources is one contiguous block above its attributes
 langswift075 | A redirect chain that finishes inside the timeout budget completes with its final response

@@ -393,13 +393,18 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(error == ProviderBoom())
   }
 
-  /* An empty token counts as not passed, so the environment supplies the credential. */
-  @Test func testBhvMisc068AnEmptyCredentialReadsTheEnvironment() async throws {
-    let client = try environmentClient(
-      host: "https://empty-068.example.com", token: "",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token"])
-    let auth = try #require(firstApiAuthenticator(of: client))
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  /* An empty environment variable counts as unset; an explicitly passed empty token is refused, never replaced by the environment. */
+  @Test func testBhvMisc068AnEmptyVariableIsUnsetAndAnEmptyArgumentIsRefused() throws {
+    #expect(throws: ConfigurationError.self) {
+      _ = try environmentClient(
+        host: "https://empty-068.example.com",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": ""])
+    }
+    #expect(throws: ConfigurationError.self) {
+      _ = try environmentClient(
+        host: "https://empty-068.example.com", token: "",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token"])
+    }
   }
 
   private struct ProviderBoom: Error, Equatable {}

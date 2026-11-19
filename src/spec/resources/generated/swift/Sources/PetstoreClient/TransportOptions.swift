@@ -195,18 +195,15 @@ public final class TransportOptionsBuilder {
     return self
   }
 
-  /// Set the HTTP/HTTPS proxy URL.
+  /// Set the HTTP/HTTPS proxy URL. Pass `nil` to clear a proxy set earlier;
+  /// an empty string is not a way to clear it and is rejected by ``build()``.
   ///
   /// Only HTTP and HTTPS proxy URLs are supported. The value is validated
   /// when ``build()`` runs, not here, so an invalid URL surfaces at the same
   /// point as every other configuration error.
   @discardableResult
   public func proxy(_ val: String?) -> TransportOptionsBuilder {
-    if let val = val, !val.isEmpty {
-      self.proxy = val
-    } else {
-      self.proxy = nil
-    }
+    self.proxy = val
     return self
   }
 
