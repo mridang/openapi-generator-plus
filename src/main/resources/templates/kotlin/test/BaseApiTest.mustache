@@ -3169,6 +3169,22 @@ class BaseApiTest {
     }
 
     @Test
+    @DisplayName("bhvMisc254 an unmarked query value percent-encodes reserved characters such as slash and colon")
+    fun bhvMisc254UnmarkedQueryValueEncodesSlashAndColon() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", mutableMapOf<String, Any?>("q" to "a/b:c"))
+        assertTrue(client.capturedUrl.contains("q=a%2Fb%3Ac"), client.capturedUrl)
+    }
+
+    @Test
+    @DisplayName("bhvMisc255 separate query parameters encode a space as %20")
+    fun bhvMisc255QueryParameterEncodesSpaceAsPercent20() = runBlocking<Unit> {
+        val client = CapturingApiClient()
+        TestableApiWithClient(client, "http://localhost").call("GET", "/test/echo", mutableMapOf<String, Any?>("q" to "a b"))
+        assertTrue(client.capturedUrl.contains("q=a%20b"), client.capturedUrl)
+    }
+
+    @Test
     @DisplayName("bhvMisc262 cancelling the call surfaces the cancellation to the caller without wrapping it")
     fun bhvMisc262CancellationIsSurfacedUnwrapped() {
         val client = object : ApiClient {
