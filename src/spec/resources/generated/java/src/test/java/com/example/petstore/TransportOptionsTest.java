@@ -709,7 +709,7 @@ class TransportOptionsTest {
         org.junit.jupiter.api.Assertions.assertThrows(
             IllegalArgumentException.class, () -> TransportOptions.builder().timeout(-1).build());
     org.junit.jupiter.api.Assertions.assertFalse(
-        ex instanceof com.example.petstore.errors.ApiException);
+        ((Object) ex) instanceof com.example.petstore.errors.ApiException);
   }
 
   @Test
@@ -723,7 +723,7 @@ class TransportOptionsTest {
     IllegalArgumentException thrown =
         assertThrowsExactly(
             IllegalArgumentException.class, () -> TransportOptions.builder().timeout(0));
-    assertFalse(thrown instanceof OpenAPIException);
+    assertFalse(((Object) thrown) instanceof OpenAPIException);
   }
 
   @Test
