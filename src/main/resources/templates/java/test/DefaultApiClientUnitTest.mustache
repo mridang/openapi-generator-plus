@@ -20,6 +20,8 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -4503,5 +4505,69 @@ class DefaultApiClientUnitTest {
     assertThrowsExactly(
         IllegalStateException.class,
         () -> client.sendRequest("GET", "http://example.test/ping", Map.of(), null));
+  }
+
+
+  @Test
+  @DisplayName("bhvSerialization120 a file part takes its type from its extension and falls back to octet-stream")
+  void bhvSerialization120FilePartTypeFollowsItsExtension() throws Exception {
+    assertTrue(renderMultipartPart("picture.png", new byte[] {1}).contains("Content-Type: image/png"));
+    assertTrue(renderMultipartPart("noextension", new byte[] {1}).contains("Content-Type: application/octet-stream"));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization121 a model part uses wire property names and the SDK date-time format")
+  void bhvSerialization121ModelPartUsesWireNamesAndDateTimeFormat() throws Exception {
+    MultipartModelPart metadata = new MultipartModelPart();
+    metadata.recordedAt = OffsetDateTime.of(2026, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
+    String part = renderMultipartPart("metadata", metadata);
+    assertTrue(part.contains("\"recordedAt\":\"2026-01-02T03:04:05"), part);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization123 a field name or filename with CR, LF or NUL is rejected")
+  void bhvSerialization123UnsafeMultipartNamesAreRejected() {
+    for (String name : List.of("a\r\nb", "a\nb", "a\0b")) {
+      assertThrows(IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFieldName(name));
+      assertThrows(IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename(name));
+    }
+  }
+
+  @Test
+  @DisplayName("bhvSerialization124 a non-ASCII filename keeps an RFC 5987 encoded form")
+  void bhvSerialization124NonAsciiFilenameKeepsAnRfc5987Form() throws Exception {
+    String part = renderMultipartPart("naïve.txt", new byte[] {1});
+    assertTrue(part.contains("filename*=UTF-8''na%C3%AFve.txt"), part);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization126 a non-ASCII multipart field name is preserved as UTF-8 in the header")
+  void bhvSerialization126NonAsciiFieldNameIsPreservedAsUtf8() throws Exception {
+    assertTrue(renderMultipartPart("nom-é", "x").contains("name=\"nom-é\""));
+  }
+
+  @Test
+  @DisplayName("bhvSerialization127 a primitive part is plain text and only a model part is JSON")
+  void bhvSerialization127PrimitivePartIsPlainTextAndModelPartIsJson() throws Exception {
+    String primitive = renderMultipartPart("n", 5);
+    assertTrue(primitive.contains("name=\"n\"\r\n\r\n5\r\n"), primitive);
+    assertFalse(primitive.contains("Content-Type: application/json"), primitive);
+  }
+
+  @Test
+  @DisplayName("bhvSerialization091 a caller-supplied upload stream is left open after sending")
+  void bhvSerialization091CallerSuppliedUploadStreamIsLeftOpen() throws Exception {
+    java.util.concurrent.atomic.AtomicBoolean closed = new java.util.concurrent.atomic.AtomicBoolean();
+    java.io.InputStream stream =
+        new java.io.ByteArrayInputStream(new byte[] {1, 2, 3}) {
+          @Override
+          public void close() throws java.io.IOException {
+            closed.set(true);
+            super.close();
+          }
+        };
+    String part = renderMultipartPart("blob", stream);
+    assertTrue(part.contains("name=\"blob\""), "stream part must be rendered, got: " + part);
+    assertFalse(closed.get(), "the caller owns the stream; the SDK must not close it");
   }
 }
