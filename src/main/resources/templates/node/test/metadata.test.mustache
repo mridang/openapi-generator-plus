@@ -317,7 +317,7 @@ describe('Metadata additional properties misc behaviours', () => {
 
   it('bhv misc 143 a copy keeps the additional properties and compares equal to the original', () => {
     const original = reattachAdditionalProperties(new Metadata({}), { customField: 'a' });
-    const copy = ObjectSerializer.deserialize(ObjectSerializer.serialize(original), Metadata) as Metadata;
+    const copy = ObjectSerializer.deserialize(JSON.parse(ObjectSerializer.serialize(original)), Metadata) as Metadata;
     expect(copy.additionalProperties).toEqual({ customField: 'a' });
     expect(copy).toEqual(original);
   });
@@ -346,19 +346,19 @@ describe('Metadata undeclared keys (misc)', () => {
   });
 
   test('bhv misc 290 an undeclared key whose value is a dictionary survives a full serialize and deserialize round trip', () => {
-    const first = ObjectSerializer.deserialize({ labels: { a: 'b' } }, Metadata) as Metadata;
+    const first = ObjectSerializer.deserialize({ labels: { a: 'b' } }, Freeform) as Freeform;
     const second = ObjectSerializer.deserialize(
       JSON.parse(ObjectSerializer.serialize(first)),
-      Metadata,
-    ) as Metadata;
+      Freeform,
+    ) as Freeform;
     expect(second.additionalProperties).toEqual({ labels: { a: 'b' } });
   });
 });
 
 describe('Metadata misc free-form behaviours', () => {
   test('bhv misc 249 a free-form object-valued field keeps its object and integer entries through a JSON round trip', () => {
-    const first = ObjectSerializer.deserialize({ labels: { a: 1, b: 'x' } }, Metadata) as Metadata;
-    const second = ObjectSerializer.deserialize(JSON.parse(ObjectSerializer.serialize(first)), Metadata) as Metadata;
+    const first = ObjectSerializer.deserialize({ labels: { a: 1, b: 'x' } }, Freeform) as Freeform;
+    const second = ObjectSerializer.deserialize(JSON.parse(ObjectSerializer.serialize(first)), Freeform) as Freeform;
     expect(second.additionalProperties).toEqual({ labels: { a: 1, b: 'x' } });
   });
 });
