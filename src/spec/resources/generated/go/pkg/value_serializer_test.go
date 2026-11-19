@@ -1605,7 +1605,7 @@ func TestBhvMisc250_ValueSerializer_ArrayItemCommaIsKeptAcrossPathStyles(t *test
 // An allowReserved query value still percent-encodes hash and bracket characters.
 func TestBhvMisc253_ValueSerializer_AllowReservedStillEncodesHashAndBrackets(t *testing.T) {
 	t.Parallel()
-	got := fmt.Sprint(maybeAllowReserved("a/b#[c]", true))
+	got := encodeQueryValue("a/b#[c]", true)
 	for _, want := range []string{"a/b", "%23", "%5B", "%5D"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("expected %q in %q", want, got)
