@@ -258,8 +258,8 @@ function fake(string $interface): object
             $params[] = ($param->getType() === null ? '' : $param->getType() . ' ') . '$' . $param->getName() . $default;
         }
         $returnType = $method->hasReturnType() ? ': ' . $method->getReturnType() : '';
-        $body = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new \\LogicException();';
-        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')' . $returnType . ' { ' . $body . ' }';
+        $stub = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new \\LogicException();';
+        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')' . $returnType . ' { ' . $stub . ' }';
     }
 
     return eval('return new class implements \\' . ltrim($interface, '\\') . ' { public array $calls = []; ' . $methods . ' };');
