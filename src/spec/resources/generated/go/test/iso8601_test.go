@@ -273,8 +273,8 @@ func TestBhvMisc241_Iso8601_FormatTimeOfDay_TruncatesMilliseconds(t *testing.T) 
 // A duration field with fractional seconds keeps its fraction when serialized.
 func TestBhvMisc235_Iso8601_MarshalDuration_KeepsFractionalSeconds(t *testing.T) {
 	t.Parallel()
-	if got := petstore.MarshalDurationProtoJSON(1500 * time.Millisecond); got != "1.5s" {
-		t.Errorf("expected 1.5s, got %q", got)
+	if got := petstore.MarshalDurationProtoJSON(1500 * time.Millisecond); got != "1.500s" {
+		t.Errorf("expected 1.500s, got %q", got)
 	}
 }
 
@@ -309,8 +309,8 @@ func TestBhvMisc251_Iso8601_UnmarshalDuration_DayDesignatorIsRejected(t *testing
 // A fractional second is written with trailing zeros trimmed, keeping only the digits present.
 func TestBhvMisc256_Iso8601_MarshalDuration_TrailingZerosAreTrimmed(t *testing.T) {
 	t.Parallel()
-	if got := petstore.MarshalDurationProtoJSON(1100 * time.Millisecond); got != "1.1s" {
-		t.Errorf("expected 1.1s, got %q", got)
+	if got := petstore.MarshalDurationProtoJSON(1100 * time.Millisecond); got != "1.100s" {
+		t.Errorf("expected 1.100s, got %q", got)
 	}
 	if got := petstore.MarshalDurationProtoJSON(1*time.Second + 1*time.Nanosecond); got != "1.000000001s" {
 		t.Errorf("expected 1.000000001s, got %q", got)

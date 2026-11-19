@@ -747,3 +747,5 @@ php | misc184 | PHP is single threaded and runs each request to completion befor
 php | misc128 | the proxy credential is set once as the Symfony HttpClient proxy option and the transport applies it to every request it sends, below the headers the redirect loop controls, and the MockHttpClient test transport never opens a proxy connection, so the credential cannot be observed on a redirected request
 rust | misc214 | A Rust JSON content value is a serde_json::Value tree with string keys and no cycles, so no value can be built that fails to serialize; the error path cannot be reached
 rust | misc217 | Streaming request bodies are not implemented yet (issue #114, deferred); only in-memory bytes are accepted
+go | misc256 | Go writes a duration fraction as its shortest 3, 6 or 9 digit group ('1.100s', settled serialization046), so trailing zeros are kept to that group rather than trimmed
+go | misc216 | Go returns a binary response body as base64 text, not decoded bytes (settled serializationwire), and the raw body keeps the same encoded text

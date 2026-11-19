@@ -188,6 +188,9 @@ func serializeDeepObject(paramName string, value any) (map[string]string, error)
 	switch m := value.(type) {
 	case map[string]any:
 		for key, val := range m {
+			if val == nil {
+				continue
+			}
 			if isNestedValue(val) {
 				return nil, nestedError(key)
 			}
