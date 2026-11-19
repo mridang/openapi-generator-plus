@@ -3458,4 +3458,22 @@ class BaseApiTest {
                 new String[] {"application/json"}, "application/json", null, null);
         assertEquals("http://localhost/test/echo?t=10%3A20%3A30", client.capturedUrl);
     }
+
+
+    static Stream<Integer> misc264ListedErrorStatuses() {
+        return Stream.of(400, 401, 403, 404, 409, 422, 429, 500, 502);
+    }
+
+    @ParameterizedTest
+    @MethodSource("misc264ListedErrorStatuses")
+    @DisplayName("bhvMisc264 each listed error status raises the API error with that code")
+    void bhvMisc264EachListedErrorStatusRaisesTheApiErrorWithThatCode(int status) {
+        ApiException ex =
+                assertThrows(
+                        ApiException.class,
+                        () -> api().call(
+                                "GET", "/test/status/" + status, new HashMap<>(), new HashMap<>(),
+                                null, new String[] {"application/json"}, "application/json", null, null));
+        assertEquals(status, ex.getStatusCode());
+    }
 }
