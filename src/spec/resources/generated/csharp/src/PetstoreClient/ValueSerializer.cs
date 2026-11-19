@@ -459,6 +459,10 @@ internal static class ValueSerializer
 
         foreach (KeyValuePair<string, object?> entry in value)
         {
+            if (entry.Value == null)
+            {
+                continue;
+            }
             result[$"{paramName}[{entry.Key}]"] = ObjectSerializer.Stringify(entry.Value);
         }
 

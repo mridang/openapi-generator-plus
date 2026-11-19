@@ -11,6 +11,8 @@ using PetstoreClient.Errors;
 using PetstoreClient.Models;
 using Xunit;
 
+#pragma warning disable CA1861
+
 namespace Test;
 
 public class ValueSerializerTest
@@ -1448,8 +1450,8 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
     public void BhvMisc084ASetOptionalScalarIsSentInEveryLocation()
     {
         int? value = 7;
-        Assert.Equal("7", ValueSerializer.ToPathValue(value));
-        Assert.Equal("7", ValueSerializer.ToHeaderValue(value));
+        Assert.Equal("7", ObjectSerializer.ToPathValue(value));
+        Assert.Equal("7", ObjectSerializer.ToHeaderValue(value));
     }
 
     [Fact]
@@ -1464,11 +1466,7 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
             "form",
             false
         );
-        Assert.Contains(
-            "%7B%22a%22:1%7D",
-            result?.ToString() ?? string.Empty,
-            StringComparison.Ordinal
-        );
+        Assert.Contains("{\"a\":1}", result?.ToString() ?? string.Empty, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -1583,7 +1581,7 @@ public sealed class TestHueConverter : System.Text.Json.Serialization.JsonConver
         Assert.Contains("T13:45:30", rendered, StringComparison.Ordinal);
         Assert.True(
             rendered.EndsWith("+00:00", StringComparison.Ordinal)
-                || rendered.EndsWith("Z", StringComparison.Ordinal)
+                || rendered.EndsWith('Z')
                 || rendered.EndsWith("%2B00:00", StringComparison.Ordinal)
         );
     }

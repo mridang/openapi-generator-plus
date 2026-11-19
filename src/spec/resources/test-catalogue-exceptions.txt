@@ -601,6 +601,9 @@ rust | misc101 | Rust multipart parts are byte buffers read before the call is m
 node | misc131 | The node client has no caller-supplied session object: every request goes through fetch with the SDK transport options, so no session can bypass the redirect rules.
 node | misc140 | TypeScript rejects a missing required constructor property at compile time, and the runtime constructor accepts partial data by design, so the check is a compile-time guarantee.
 csharp | misc149 | a C# with-expression accepts only the record's declared members, so an undeclared attribute is a compile-time error and cannot be named at run time
+csharp | misc241 | C# keeps the non-zero milliseconds of a time of day in a query value, as settled by operations139 and serialization078, so it does not truncate them to HH:mm:ss as this promise states
+csharp | misc242 | C# sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect), so this promise does not hold
+csharp | misc256 | Settled serialization046 writes a duration fraction in the shortest group of three, six or nine digits (1.100s, not 1.1s), so trailing zeros are kept
 go | misc202 | the petstore fixture declares no operation whose request body is text, so no call can send a text body whose content type was left undeclared
 go | misc211 | the petstore fixture declares no query parameter with a JSON content media type, so a date-time inside a JSON query parameter cannot be produced by any generated call
 go | misc214 | the petstore fixture declares no query parameter with a content media type, so no generated call can carry a query content value that fails to serialise
@@ -769,6 +772,7 @@ java | serialization128 | The Java transport carries a binary response as the ba
 kotlin | serialization123 | Kotlin backslash-escapes a quote in a multipart field name rather than refusing it, so the part header stays well formed (D89 in the kotlin AGENTS.md settled decisions, which the promise contradicts)
 kotlin | misc242 | Kotlin sends a readOnly or writeOnly property like any other, as decision D56 settles (readOnly and writeOnly have no wire effect in any SDK), so no property is left off the wire; pinned by serializationobject014 and serializationobject017
 kotlin | misc145 | Kotlin declares additionalProperties as a MutableMap field, the model own map (as python and php do), so a read hands back the stored map; a copy on read would change the model type, so the promise is not met by design
+csharp | misc081 | a binary response is carried as the base64 text of its bytes (bhv serializationwire017), so a base64 body under a binary content type is returned as that text and never decoded to a string
 java | misc128 | Java refuses a caller-supplied HttpClient combined with a proxy by design: the proxy credential is applied to the shared transport, so the SDK cannot keep it on a cross-origin hop without a second client, and the combination is rejected up front
 java | misc129 | Java refuses a caller-supplied HttpClient combined with a proxy by design, so the SDK never adds the proxy credential to a request it sends through a caller client; the redirect case cannot arise and is not tested
 java | misc083 | Java builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written; repeated keys are pinned by bhv misc083 on the wire

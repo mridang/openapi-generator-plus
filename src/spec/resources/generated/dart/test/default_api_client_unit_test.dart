@@ -14,9 +14,22 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 import 'package:petstore_client/petstore_client.dart';
+import 'package:petstore_client/src/api/base_api.dart';
 
 /* A transport-free client that holds a proxy credential, so the headers the
  * SDK builds can be read from a stub instead of a real proxy tunnel. */
+/// A [BaseApi] that retries without sleeping, so retry counts run fast.
+class _NoWaitRetryApi extends BaseApi {
+  _NoWaitRetryApi(ApiClient client, String baseUrl)
+    : super(
+        apiClient: client,
+        config: ConfigurationBuilder().baseUrl(baseUrl).build(),
+      );
+
+  @override
+  Future<void> sleepBeforeRetry(Duration delay) async {}
+}
+
 class _ProxyCredentialClient extends AbstractApiClient {
   _ProxyCredentialClient(http.Client inner)
     : super(
@@ -5746,7 +5759,7 @@ void main() {
       () async {
         http.Request? seen;
         final mock = MockClient((request) async {
-          seen = request as http.Request;
+          seen = request;
           return http.Response('ok', 200);
         });
         final client = DefaultApiClient(
@@ -6025,14 +6038,13 @@ void main() {
             ..close();
         });
 
-        final client = DefaultApiClient(
-          transportOptions: TransportOptionsBuilder().build(),
+        final api = _NoWaitRetryApi(
+          DefaultApiClient(transportOptions: TransportOptionsBuilder().build()),
+          'http://127.0.0.1:${server.port}',
         );
-        await client.sendRequest(
-          'GET',
-          'http://127.0.0.1:${server.port}/flaky',
-          {},
-          null,
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/flaky'),
+          throwsA(isA<ServerException>()),
         );
 
         expect(hits, equals(3));

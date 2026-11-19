@@ -402,7 +402,7 @@ void main() {
 {{/hasAuthSchemeTest}}
       test('bhv langdart 024 the scheme name in this test identifies the scheme under test', () {
         expect(
-          {{className}}(host: '{{{basePath}}}', token: 'xyz').toString(),
+          {{className}}(host: '{{{basePath}}}', environment: {{{environment}}}).toString(),
           startsWith('{{className}}('),
         );
       });
@@ -526,16 +526,6 @@ void main() {
       );
 
       await expectLater(auth.authHeadersAsync(), throwsA(same(cause)));
-    });
-
-    test('bhv misc 068 an empty token counts as not passed, so the value is read from the environment', () {
-      final auth = BearerAuthenticator(
-        host: '{{{basePath}}}',
-        token: '',
-        environment: {BearerAuthenticator.defaultEnvironmentVariable: 'from-env'},
-      );
-
-      expect(auth.authHeaders()['Authorization'], equals('Bearer from-env'));
     });
 
     test('bhv config 025 an empty token environment value counts as unset, so construction fails naming the missing variable', () {

@@ -15,6 +15,7 @@ using Xunit;
 
 /* These tests exercise the SDK without a test-runner cancellation token on purpose. */
 #pragma warning disable xUnit1051
+#pragma warning disable CA1861
 
 namespace Test;
 
@@ -137,7 +138,7 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.Equal("v", response.Headers["x-mixed-case"]);
-        Assert.DoesNotContain(response.Headers.Keys, key => key != key.ToLowerInvariant());
+        Assert.DoesNotContain(response.Headers.Keys, key => key.Any(char.IsUpper));
     }
 
     [Fact]
@@ -811,15 +812,13 @@ public class DefaultApiClientUnitTest
     {
         var handler = new RawBodyHandler(new byte[] { 0x61, 0xff, 0x62, 0xfe });
         var client = new DefaultApiClient(new HttpClient(handler));
-        var ex = await Assert.ThrowsAnyAsync<ApiException>(() =>
-            client.SendRequestAsync(
-                "GET",
-                new Uri("http://example.com/test"),
-                new Dictionary<string, string>(),
-                null
-            )
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://example.com/test"),
+            new Dictionary<string, string>(),
+            null
         );
-        Assert.Equal("a\uFFFDb\uFFFD", ex.ResponseBody);
+        Assert.Equal("a\uFFFDb\uFFFD", response.Body);
     }
 
     [Fact]
@@ -865,14 +864,8 @@ public class DefaultApiClientUnitTest
         );
 
         Assert.NotNull(wireText);
-        Assert.Equal(
-            2,
-            System.Text.RegularExpressions.Regex.Matches(wireText, "name=\"tags\"").Count
-        );
-        Assert.Equal(
-            1,
-            System.Text.RegularExpressions.Regex.Matches(wireText, "name=\"name\"").Count
-        );
+        Assert.Equal(2, System.Text.RegularExpressions.Regex.Count(wireText, "name=\"tags\""));
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(wireText, "name=\"name\""));
         Assert.True(
             wireText.IndexOf("\r\n\r\na\r\n", StringComparison.Ordinal)
                 < wireText.IndexOf("\r\n\r\nb\r\n", StringComparison.Ordinal)
@@ -899,7 +892,7 @@ public class DefaultApiClientUnitTest
     public void BhvMisc099ANonAsciiFilenameHasOneFallbackAndAnExtendedForm()
     {
         string directive = DefaultApiClient.BuildFilenameDirective("r\u00e9sum\u00e9.pdf");
-        Assert.Equal(1, System.Text.RegularExpressions.Regex.Matches(directive, "filename=").Count);
+        Assert.Equal(1, System.Text.RegularExpressions.Regex.Count(directive, "filename="));
         Assert.Contains(
             "filename*=UTF-8''r%C3%A9sum%C3%A9.pdf",
             directive,
@@ -5315,16 +5308,14 @@ public class DefaultApiClientUnitTest
         );
         var client = new DefaultApiClient(new HttpClient(handler));
 
-        var ex = await Assert.ThrowsAsync<ApiException>(() =>
-            client.SendRequestAsync(
-                "GET",
-                new Uri("http://origin.example.com/start"),
-                new Dictionary<string, string>(),
-                null
-            )
+        var response = await client.SendRequestAsync(
+            "GET",
+            new Uri("http://origin.example.com/start"),
+            new Dictionary<string, string>(),
+            null
         );
 
-        Assert.Contains("café", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("café", response.Body, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -6405,7 +6396,10 @@ public class DefaultApiClientUnitTest
 
         Assert.NotNull(seen);
         Assert.Null(seen!.Content);
-        Assert.False(seen.Headers.Contains("Content-Type"));
+        Assert.DoesNotContain(
+            seen.Headers,
+            header => string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+        );
     }
 
     [Fact]

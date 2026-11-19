@@ -64,6 +64,11 @@ class PetFood {
   /// Creates a [PetFood] from a JSON value.
   factory PetFood.fromJson(Map<String, dynamic> json) {
     final disc = json['foodType'];
+    if (disc == null) {
+      throw SerializationException(
+        "Missing discriminator property 'foodType' in payload for PetFood",
+      );
+    }
     switch (disc) {
       case 'dry':
         return PetFood._(DryFood.fromJson(json));
