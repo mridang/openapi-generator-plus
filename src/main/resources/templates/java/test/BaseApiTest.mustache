@@ -3389,4 +3389,45 @@ class BaseApiTest {
                         "POST", "/x", new HashMap<>(), new HashMap<>(), null,
                         new String[] {"application/json"}, "application/json", JSON_NODE_TYPE, null));
     }
+
+
+    @Nested
+    @DisplayName("promised form and multipart serialization")
+    class PromisedFormSerializationTests {
+
+        @Test
+        @DisplayName("bhvSerialization122 a form body repeats the key for each array element in declared order")
+        void bhvSerialization122FormBodyRepeatsKeysInOrder() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("tags", java.util.List.of("a", "b"));
+            formParams.put("z", "last");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertEquals("tags=a&tags=b&z=last", String.valueOf(client.capturedBody));
+        }
+
+        @Test
+        @DisplayName("bhvSerialization125 form values percent-encode a literal plus sign as %2B")
+        void bhvSerialization125FormValuesEncodeReservedCharacters() throws ApiException {
+            var client = new CapturingApiClient();
+            var testApi = new TestableApi(client, "http://localhost");
+            Map<String, Object> formParams = new java.util.LinkedHashMap<>();
+            formParams.put("q", "a+b&c");
+            testApi.call(
+                    "POST", "/test/echo",
+                    new HashMap<>(), new HashMap<>(),
+                    formParams,
+                    new String[] {"application/json"},
+                    "application/x-www-form-urlencoded",
+                    null, null);
+            assertEquals("q=a%2Bb%26c", String.valueOf(client.capturedBody));
+        }
+    }
 }
