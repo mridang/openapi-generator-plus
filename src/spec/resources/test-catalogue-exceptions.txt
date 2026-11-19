@@ -774,3 +774,4 @@ php | transport085 | PHP SDK has no cancellation token or signal API (its readme
 swift | serialization096 | Swift decodes an absent optional field to nil; the schema default is applied only by the generated initializer, so decoding an absent field does not yield the declared default
 swift | transport083 | Swift has no client-level cancellation token: cancellation is the calling Task, per call, and transport084 covers cancelling a call through its handle
 swift | transport093 | the Swift suite ships no second certificate authority, so a live TLS server signed by another CA cannot be built in a test
+swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists
