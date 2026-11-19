@@ -438,6 +438,23 @@ describe {{moduleName}}::ObjectSerializer do
       }).must_raise({{moduleName}}::Errors::SerializationError)
     end
 
+    it 'bhv_misc_230 a model with no extra properties writes exactly its declared keys, with no nested data key' do
+      parsed = JSON.parse({{moduleName}}::ObjectSerializer.serialize({{moduleName}}::Models::Category.new(name: 'x')))
+
+      _(parsed['name']).must_equal 'x'
+      _(parsed).wont_include 'data'
+      _(parsed).wont_include 'additionalProperties'
+    end
+
+    it 'bhv_misc_231 a model built in code keeps a value of the wrong type, while decoding that value from JSON raises' do
+      built = {{moduleName}}::Models::Category.new(name: 123)
+
+      _(built.name).must_equal 123
+      _(proc {
+        {{moduleName}}::ObjectSerializer.deserialize('{"name":123}', 'Category')
+      }).must_raise({{moduleName}}::Errors::SerializationError)
+    end
+
     it 'bhv_misc_087 a decimal in a loosely built body is written as a bare JSON number' do
       _({{moduleName}}::ObjectSerializer.serialize({ 'amount' => BigDecimal('1.5') })).must_equal('{"amount":1.5}')
     end
