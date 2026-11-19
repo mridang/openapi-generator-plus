@@ -2715,3 +2715,43 @@ test('bhv misc 264 each listed error status from the server raises the api error
     [500, InternalServerErrorException::class],
     [502, BadGatewayException::class],
 ]);
+
+test('bhv misc 159 a 401 is replayed once even when transport retries are turned off', function (): void {
+    /** @var \ArrayObject<int, array{url: string, headers: array<string, string>}> $requests */
+    $requests = new \ArrayObject();
+    $client = tokenRotatingApiClient($requests);
+    $auth = new \{{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator(
+        'https://api.example.com',
+        'id',
+        'secret',
+        'https://auth.example.com/token',
+        []
+    );
+    $auth->setApiClient($client);
+    $api = new TestableApi($client, new Configuration('http://localhost'), $auth);
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+
+    $apiCalls = array_values(array_filter(
+        $requests->getArrayCopy(),
+        static fn (array $r): bool => $r['url'] !== 'https://auth.example.com/token'
+    ));
+    expect($apiCalls)->toHaveCount(2);
+});
+
+test('bhv misc 176 a required cookie parameter is sent in the Cookie header with its value', function (): void {
+    $auth = new TestAuthenticator(cookies: ['session' => 'abc']);
+    $result = makeBaseApiTestableApi()->call(
+        'GET',
+        '/test/echo',
+        [],
+        [],
+        null,
+        ['application/json'],
+        'application/json',
+        'object',
+        $auth
+    );
+    /** @var array{headers: array<string, string>} $result */
+    expect($result['headers']['cookie'])->toBe('session=abc');
+});

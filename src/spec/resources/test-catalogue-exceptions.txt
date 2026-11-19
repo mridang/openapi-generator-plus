@@ -804,3 +804,4 @@ php | misc139 | PHP holds a model's collection by handle: a readonly property re
 php | misc145 | PHP returns the stored Ds\Map handle for the undeclared keys, and Ds has no frozen form, so a read cannot hand back a copy that the caller cannot change
 php | misc152 | PHP has no per-call cancellation (S7): a call takes no cancellation signal, so there is no already-aborted call to refuse before a request is sent
 php | misc153 | PHP has no per-call cancellation (S7): a call takes no cancellation signal and the client has none, so no signal can cancel an in-flight request
+php | misc184 | PHP is single threaded and runs each request to completion before it returns, so close cannot run while a request is in flight and there is no cancellation handle to leave alone (misc029, misc001)

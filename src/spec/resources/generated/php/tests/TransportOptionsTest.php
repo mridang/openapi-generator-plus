@@ -411,6 +411,32 @@ test('bhv options 068 a SOCKS proxy is refused at construction with the document
         ->toThrow(\InvalidArgumentException::class, 'Invalid proxy URL (must use http or https scheme): socks5://proxy:1080');
 });
 
+test('bhv misc 175 credential header names are redacted regardless of letter case', function (): void {
+    $options = TransportOptions::builder()
+        ->defaultHeader('AUTHORIZATION', 'Bearer hidden-one')
+        ->defaultHeader('X-Api-Key', 'hidden-two')
+        ->defaultHeader('Content-Type', 'text/plain')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->not->toContain('hidden-one');
+    expect($printed)->not->toContain('hidden-two');
+    expect($printed)->toContain('text/plain');
+});
+
+test('bhv misc 180 the printable form shows non sensitive default header values and hides sensitive ones', function (): void {
+    $options = TransportOptions::builder()
+        ->defaultHeader('X-Visible', 'shown-value')
+        ->defaultHeader('Authorization', 'Bearer hidden-secret')
+        ->build();
+
+    $printed = print_r($options, true);
+
+    expect($printed)->toContain('shown-value');
+    expect($printed)->not->toContain('hidden-secret');
+});
+
 test('bhv misc 134 a zero timeout is refused when the configuration is built, with an argument error', function (): void {
     expect(fn () => TransportOptions::builder()->timeout(0)->build())
         ->toThrow(\InvalidArgumentException::class, 'Invalid timeout: must be a positive number of milliseconds (got 0)');
