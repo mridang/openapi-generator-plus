@@ -99,6 +99,17 @@ class ComposedSchemaTest {
     }
 
     @Test
+    void bhvMisc047SerializingAUnionHoldingANonVariantNamesTheUnion() {
+      SerializationException ex =
+          assertThrows(
+              SerializationException.class,
+              () ->
+                  serializer.serialize(
+                      new com.example.petstore.models.PetTreatment((Object) "not a variant")));
+      assertThat(ex.getMessage()).contains("PetTreatment");
+    }
+
+    @Test
     void bhvUnions042EmptyWrapperHoldsNoInstance() {
       com.example.petstore.models.PetTreatment empty =
           new com.example.petstore.models.PetTreatment((Object) null);

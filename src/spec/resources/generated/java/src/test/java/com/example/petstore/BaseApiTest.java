@@ -174,6 +174,27 @@ public class BaseApiTest {
           urlTemplate);
     }
 
+    com.example.petstore.ApiResult<JsonNode> timed(
+        @Nullable Authenticator auth, int timeoutMillis) {
+      return this.<JsonNode>invokeApiForResult(
+          "echoOperation",
+          "GET",
+          "/echo",
+          new HashMap<>(),
+          new HashMap<>(),
+          null,
+          new String[] {"application/json"},
+          "application/json",
+          JSON_NODE_TYPE,
+          auth,
+          timeoutMillis,
+          null,
+          null,
+          null,
+          "echo_operation",
+          "/echo");
+    }
+
     <T> com.example.petstore.ApiResult<T> callForResult(
         String method,
         String path,
@@ -2551,7 +2572,7 @@ public class BaseApiTest {
             }
           };
       var testApi = new TestableApi(client, "http://localhost");
-      String resp =
+      byte[] decoded =
           testApi.call(
               "GET",
               "/api/binary",
@@ -2560,11 +2581,38 @@ public class BaseApiTest {
               null,
               new String[] {"application/octet-stream"},
               "application/json",
+              byte[].class,
+              null);
+      assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly");
+    }
+
+    @Test
+    @DisplayName("bhvMisc081 a string result under a binary content type is the decoded body")
+    void bhvMisc081AStringResultUnderABinaryContentTypeIsTheDecodedBody() throws ApiException {
+      String encoded =
+          java.util.Base64.getEncoder()
+              .encodeToString("hello".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+      var client =
+          new CapturingApiClient() {
+            @Override
+            public ApiHttpResponse sendRequest(
+                String method, String url, Map<String, String> headers, @Nullable Object body) {
+              return new ApiHttpResponse(200, encoded, Map.of("Content-Type", "application/pdf"));
+            }
+          };
+      var testApi = new TestableApi(client, "http://localhost");
+      String resp =
+          testApi.call(
+              "GET",
+              "/api/binary",
+              new HashMap<>(),
+              new HashMap<>(),
+              null,
+              new String[] {"application/pdf"},
+              "application/json",
               STRING_TYPE,
               null);
-      assertNotNull(resp);
-      byte[] decoded = java.util.Base64.getDecoder().decode(resp);
-      assertArrayEquals(original, decoded, "binary roundtrip must preserve bytes exactly");
+      assertEquals("hello", resp);
     }
 
     @Test
@@ -4028,6 +4076,44 @@ public class BaseApiTest {
   }
 
   @Test
+  @DisplayName(
+      "bhvMisc030 a deadline spent while the credential is obtained times out before the transport")
+  void bhvMisc030ASpentDeadlineTimesOutBeforeTheTransport() {
+    var client = new CapturingApiClient();
+    var testApi = new TestableApi(client, "http://localhost");
+    Authenticator slow =
+        new Authenticator() {
+          @Override
+          public String getHost() {
+            return "";
+          }
+
+          @Override
+          public Map<String, String> getAuthHeaders() {
+            try {
+              Thread.sleep(80);
+            } catch (InterruptedException e) {
+              Thread.currentThread().interrupt();
+            }
+            return Map.of("Authorization", "Bearer t");
+          }
+
+          @Override
+          public Map<String, String> getQueryParams() {
+            return Map.of();
+          }
+
+          @Override
+          public Map<String, String> getCookieParams() {
+            return Map.of();
+          }
+        };
+    assertThrows(
+        com.example.petstore.errors.NetworkTimeoutException.class, () -> testApi.timed(slow, 20));
+    assertEquals("", client.capturedUrl);
+  }
+
+  @Test
   @DisplayName("bhvMisc239 an operation query parameter is serialized with no authenticator")
   void bhvMisc239AnOperationQueryParameterIsSerializedWithNoAuthenticator() throws ApiException {
     var client = new CapturingApiClient();
@@ -4048,12 +4134,13 @@ public class BaseApiTest {
   }
 
   @Test
-  @DisplayName("bhvMisc241 a time-of-day query value is sent as HH:mm:ss with milliseconds dropped")
-  void bhvMisc241ATimeOfDayQueryValueIsSentAsHhMmSs() throws ApiException {
+  @DisplayName(
+      "bhvMisc241 a time-of-day query value keeps non-zero milliseconds and drops finer precision")
+  void bhvMisc241ATimeOfDayQueryValueKeepsMilliseconds() throws ApiException {
     var client = new CapturingApiClient();
     var testApi = new TestableApi(client, "http://localhost");
     Map<String, Object> query = new HashMap<>();
-    query.put("t", java.time.LocalTime.of(10, 20, 30, 999_000_000));
+    query.put("t", java.time.LocalTime.of(10, 20, 30, 999_999_000));
     testApi.call(
         "GET",
         "/test/echo",
@@ -4064,7 +4151,7 @@ public class BaseApiTest {
         "application/json",
         null,
         null);
-    assertEquals("http://localhost/test/echo?t=10%3A20%3A30", client.capturedUrl);
+    assertEquals("http://localhost/test/echo?t=10%3A20%3A30.999", client.capturedUrl);
   }
 
   static Stream<Integer> misc264ListedErrorStatuses() {

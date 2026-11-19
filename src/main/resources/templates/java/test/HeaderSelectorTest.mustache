@@ -129,6 +129,12 @@ class HeaderSelectorTest {
         }
 
         @Test
+        @DisplayName("bhvHeaders027 an empty accept array gives the empty string")
+        void bhvHeaders027AnEmptyAcceptArrayGivesTheEmptyString() {
+            assertEquals("", headerSelector.selectAcceptHeader(new String[] {}));
+        }
+
+        @Test
         @DisplayName("bhvHeaders004 should not set Accept header when accepts empty")
         void bhvHeaders004ShouldNotSetAcceptHeaderWhenAcceptsEmpty() {
             Map<String, String> headers = headerSelector.selectHeaders(

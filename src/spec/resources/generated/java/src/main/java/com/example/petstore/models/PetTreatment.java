@@ -72,6 +72,20 @@ public class PetTreatment {
     if (matchedInstances.isEmpty()) {
       return null;
     }
+    for (Object instance : matchedInstances) {
+      boolean isVariant = false;
+      for (Class<?> schema : ANY_OF_SCHEMAS) {
+        if (schema.isInstance(instance)) {
+          isVariant = true;
+          break;
+        }
+      }
+      if (!isVariant) {
+        throw new com.example.petstore.errors.SerializationException(
+            "PetTreatment holds a value that is not one of its variants: "
+                + instance.getClass().getName());
+      }
+    }
     if (matchedInstances.size() == 1) {
       return matchedInstances.get(0);
     }

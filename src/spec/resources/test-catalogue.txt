@@ -2199,7 +2199,6 @@ langcsharp018 | A duplicate key inside a nested object keeps the last value
 langcsharp019 | A copy with changed fields keeps every other field of the source model
 langcsharp020 | A copy of a model keeps its concrete type when held through its base type
 langjava014 | An empty service token is rejected when the authenticator is built, before any request is made.
-langjava015 | An empty explicit argument counts as not passed, so the value from the environment is used.
 langjava016 | A control character in a credential read from the environment is rejected when the authenticator is built.
 langjava017 | Each wrapper authenticator emits its key at the location its security scheme declares.
 langjava018 | Each wrapper kind reads only its own environment variable, so one kind never sees another kind's value.
@@ -2251,7 +2250,6 @@ langjava063 | A 3xx response with an unusable or missing Location is returned to
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
 langjava065 | A key made only of control characters reports as empty, not as a control-character failure.
 langjava066 | A client credentials wrapper reads both of its credentials from its own environment variables when none are passed.
-langjava067 | An explicit client id is kept while an empty client secret counts as not passed, so the environment secret is used.
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text

@@ -52,7 +52,6 @@ php | serializationobject030 | schema bounds such as nickname minLength and quan
 php | authoauthtwotokenmgr019 | PHP runs one call at a time in one process, so no caller can race another caller's refetch after an invalidate; the refetch after an invalidate is bhv authoauthtwotokenmgr 018
 php | authoauthtwotokenmgr027 | PHP runs one call at a time in one process, so concurrent callers cannot arrive while a refresh is in flight; a later caller served from the cache is bhv authoauthtwotokenmgr 025
 java | lifecycle014 | The Java client takes built authenticator objects and never reads the environment itself; the per-scheme authenticator reads it when built with no credential, and that behaviour is pinned by bhv authbearer 010 (same promise)
-java | headers027 | HeaderSelector.selectAcceptHeader is private, so the empty string it returns for an empty list is not reachable from a test; the observable outcome, that no Accept header is sent, is bhv headers 004
 python | operations111 | the trackingId parameter is typed uuid.UUID, which refuses a malformed value when the caller builds it, so the SDK never receives one it must reject; a plain str bypasses that type and is sent unchecked
 dart | serializationobject002 | Dart decodes a bare type: number to double, a binary float (D83, FD-11), so it cannot be exact and written in plain notation the way the java, csharp and kotlin BigDecimal decoders are
 go | authintegration013 | Go per-call request options (WithTimeout, WithHeaders, WithMaxRetries, WithRequestContentType) carry no authenticator, so there is no per-call :auth to override; a scheme credential replacing the client-level authenticator is bhv authintegration 003
@@ -163,7 +162,6 @@ go | auth008 | the PKCE verifier is made inside the unexported oauth package and
 go | models014 | Go models expose their fields as plain struct fields that a caller can assign, so the language does not freeze a built model; changes are made on a copy through the With methods
 go | models020 | Go models that hold map or slice fields are not comparable and cannot key a Go map or set, so equality is the Equal method alone and there is no hash to make equal models hash alike
 java | auth001 | The java header accessor is synchronous and performs any token fetch itself, so no asynchronous step exists for a synchronous call to refuse; a failed fetch returns headers without an Authorization entry instead
-java | auth023 | The per-scheme wrapper reads its variable when a credential is null or empty (settled: an empty argument is unset), so an explicitly passed empty credential is never kept and refused in java
 java | errors077 | Java records only the request path in error diagnostics (bhvErrors026 and bhvErrors036 pin it), so the scheme, host and port are never kept and the query, userinfo and fragment are dropped with the rest
 java | options059 | The only injectable transport in java is the HttpClient (S9), so there is no separate transport hook that could be left unset or kept on the built options
 kotlin | auth001 | Kotlin has no synchronous header call: getAuthHeaders is a suspend function for every authenticator, so there is no sync path that could return unauthenticated headers
@@ -226,7 +224,6 @@ elixir | unions039 | The union value is the variant struct itself and there is n
 go | redirects045 | Go wraps a supplied *http.Client or RoundTripper and applies the SDK redirect policy around its transport (decision S9), so a supplied transport that follows redirects is accepted rather than refused; the policy governs its redirects instead
 go | serialization021 | Go has no hashing protocol, and a model with map or slice fields is not comparable, so it cannot be a map key or a Set member; Equal compares the canonical JSON, pinned by the ModelEqual tests
 java | auth015 | java's getAuthHeaders throws the token endpoint's error instead of returning headers, so no header call can return without an Authorization entry on failure
-java | auth022 | the per-scheme credential wrapper takes a String and falls back from the argument to the environment variable only; the token provider is the separate BearerAuthenticator(host, Supplier) constructor, so the chain has no provider step (bhvAuthScheme009 and bhvAuthScheme010 pin argument-first and the empty variable)
 java | errors079 | java sets the request method and path once, in the exception constructor, and there is no later attach call to keep or ignore; an incomplete pair renders no request line (anErrorWithoutARequestRendersNoRequestLine)
 kotlin | auth015 | The kotlin token flows have no header call that returns headers when the token request fails: getAuthHeaders is suspend and raises (D12, kotlin raises), so the failed request is pinned by bhv auth 026 instead
 kotlin | serialization044 | A date parameter is typed LocalDate in the generated signature, so a date-time value cannot reach it: the compiler refuses the call, and the date-only rule is the typed LocalDate form of the same wire value
@@ -287,7 +284,6 @@ go | mocking007 | Go interfaces carry methods and not fields, so there is no cli
 elixir | mocking008 | There is no client behaviour to implement, so no fake client exists; a fake group module opens no connection by construction
 dart | hooks015 | Dart has no per-call cancellation (S7), so there is no cancelled call to report to finish; the timeout path is bhv hooks 014
 php | hooks015 | PHP has no per-call cancellation (S7) and runs one request at a time, so there is no cancelled call to observe; the timeout path is bhv hooks 014
-java | auth038 | the generated scheme wrappers take one static token and no token provider, so there is no provider to rank above an environment variable; a provider is covered by bhv auth 037 on BearerAuthenticator
 python | retries045 | python has no streamed request body: the SDK materialises a body as a dict, bytes, bytearray, memoryview or str before the call, so a replay after a 401 never has a stream to exhaust
 python | serialization129 | python datetime.timedelta stores microseconds at most, so a nanosecond-precision duration cannot be represented; the duration test pins the refusal of a nanosecond argument instead
 ruby | transport083 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no client-level signal can abort a request in flight
@@ -386,7 +382,6 @@ kotlin | misc033 | the HTTPS fixture server presents only its leaf certificate, 
 go | misc135 | Go has no client-level cancellation handle: cancellation is the context.Context each call takes, so the ConfigurationBuilder has no field to store one
 node | misc030 | Node's per-call timeout is a duration, not an absolute deadline, so there is no past deadline to pass; a timeout of zero or less is refused before any request is sent (bhv options 056).
 node | misc034 | Node's only caller-supplied HTTP hook is the fetch implementation and there is no separate transport object, so there is no client and transport pair to refuse at build.
-java | misc030 | Java has no caller deadline API: the only bound is the transport timeout, which starts when the request is sent, so no call can arrive with a deadline already past
 java | misc033 | The JDK exposes no public API to issue a certificate, so a server presenting a root-linked intermediate cannot be built in-process to test a root-only CA file
 elixir | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
@@ -448,7 +443,6 @@ swift | misc052 | Swift's per-call options are struct initializers that take eac
 swift | misc059 | the token response decodes expires_in as a whole Int, so NaN, Infinity or an overflowing lifetime never reaches the expiry computation as a value to cache
 swift | misc060 | Swift's BearerAuthenticator has a token initializer and a separate token provider initializer, so one construction cannot pass both
 swift | misc061 | the Swift Authenticator protocol takes no call-context argument and the SDK has no caller-context API, so an authenticator receives no caller cancellation or context value to test
-java | misc047 | A Java union wrapper never validates the value it holds (bhvUnions039), so serializing a non-variant value writes it without failing and no error names the union
 java | misc051 | Java per-call options are typed classes, so an unknown key or a server setting on an operation without servers is a compile error rather than a runtime refusal
 java | misc060 | Java's ApiKeyAuthenticator takes no key provider, so an API key and a key provider cannot be supplied together; the bearer case is bhv auth 039
 java | misc061 | The Java Authenticator receives only the ApiClient and no cancellation or context value, so the caller's cancellation and context cannot reach it
@@ -549,7 +543,6 @@ kotlin | misc149 | Kotlin copy() accepts only the declared parameters as named a
 ruby | misc267 | ruby's DefaultApiClient builds its own HTTP connection from TransportOptions and accepts no caller-supplied HTTP client, so there are no caller client default headers to send (default headers come from TransportOptions, see bhv_transport_011)
 ruby | misc268 | The fixture certificate names every host the test helpers reach it by (localhost, 127.0.0.1, chasm and the host gateway), so no reachable address is missing from its names and a hostname mismatch cannot be produced
 dart | misc231 | Dart's typed constructor takes an int for quantity, so a fractional number cannot be passed in code and the compiler refuses it before any run-time check
-java | misc176 | The Java petstore fixture declares no operation with a required cookie parameter, only the optional api_key cookie on deletePet, which bhvOperations030 already covers
 java | misc178 | The Java SDK takes no declared multipart subtype and always sends a multipart body as multipart/form-data, so a declared non-form-data type cannot reach the transport
 php | misc068 | php takes credentials only as constructor arguments and never reads an environment variable, so an empty argument has no environment fallback
 php | misc083 | php takes query parameters as name and value pairs that the client always encodes, so there is no raw query text input to keep as written
@@ -619,7 +612,6 @@ python | misc254 | an unmarked query value is percent-encoded on the wire (urlen
 python | misc255 | a space in a query value is percent-encoded as %20 on the wire; the unit serializer returns the raw value, the same settled behaviour as misc254
 python | misc085 | building a model never validates (serialization068), so an invalid UUID is kept as given on construction; the wire decode still refuses it (serializationobject048)
 node | misc139 | a model constructor assigns its data and never copies or freezes a collection (settled F868 in the node AGENTS.md: there is no runtime freeze and the constructor checks nothing); the decode path freezes a copy of decoded collections instead, which the decode tests pin
-java | misc116 | The Java models do not enforce declared integer minimum and maximum bounds: schema constraints such as range are not enforced by the client (settled decision S3, D55, pinned by bhv misc091), so an out-of-range value decodes like any other integer
 java | serialization128 | The Java transport carries a binary response as the base64 text of its bytes (settled: binary bodies as base64 text, bhv serializationwire017 and misc081), so a sendRequest body under image/png is that base64 text and the raw text is returned only through the typed call path
 kotlin | misc145 | Kotlin declares additionalProperties as a MutableMap field, the model own map (as python and php do), so a read hands back the stored map; a copy on read would change the model type, so the promise is not met by design
 php | misc245 | PHP has no time-of-day type: a time of day is a DateTimeImmutable and serialises as a full date-time

@@ -1424,6 +1424,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
             constructorParams.add(param);
         }
         ctx.put("constructorParams", constructorParams);
+        ctx.put("isBearerWrapper", "BearerAuthenticator".equals(spec.baseClass()));
         ctx.put("schemeNameLiteral", escapeJavaLiteral(spec.schemeName()));
         ctx.put("superArgs", schemeSuperArgs(spec, envNameByField));
         return renderOptionsTemplate("auth/scheme_authenticator.mustache", ctx);
