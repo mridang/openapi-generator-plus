@@ -351,20 +351,16 @@ test('bhv errors 202 an error exposes the x-request-id response header as its re
     [null, null],
 ]);
 
-test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default', function (int $status, string $expected): void {
+test('bhv errors 203 the error factory of an operation is chosen by exact status, then range, then default, and a status without a factory keeps the status exception', function (): void {
     $factory = static fn (string $name): \Closure =>
         /** @param array<string, string>|null $h */
         static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, $name, $h, $b);
     $factories = ['404' => $factory('exact'), '4XX' => $factory('range'), 'default' => $factory('default')];
 
-    expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
-})->with([
-    [404, 'exact'],
-    [418, 'range'],
-    [502, 'default'],
-]);
+    foreach ([[404, 'exact'], [418, 'range'], [502, 'default']] as [$status, $expected]) {
+        expect(ApiException::fromResponse($status, [], '{}', 'GET', '/x', $factories)->getMessage())->toBe($expected);
+    }
 
-test('bhv errors 203 a status without a factory keeps the status exception', function (): void {
     /** @param array<string, string>|null $h */
     $other = static fn (int $s, ?array $h, ?string $b): ApiException => new ApiException($s, 'other', $h, $b);
 
@@ -373,6 +369,7 @@ test('bhv errors 203 a status without a factory keeps the status exception', fun
     expect(ApiException::fromResponse(404, [], '{}', 'GET', '/x', [])::class)
         ->toBe(\{{invokerPackage}}\Errors\NotFoundException::class);
 });
+
 {{#hasErrorSchemas}}
 {{#errorSchemas}}
 {{#-first}}

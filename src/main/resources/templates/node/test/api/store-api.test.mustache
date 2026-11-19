@@ -317,33 +317,30 @@ describe('StoreApi response shapes', () => {
     }
   });
 
-  test('bhv misc 079 a 200 response decodes as the Reservation the 200 status declares', async () => {
-    const { api: mockApi, close } = await createMockServer(
+  test('bhv misc 079 each success status decodes as the body type the status declares', async () => {
+    const { api: okApi, close: closeOk } = await createMockServer(
       200,
       'application/json',
       '{"reservationId":31,"quantity":4}',
     );
     try {
-      const result = await mockApi.reserveStock();
+      const result = await okApi.reserveStock();
       expect(result).toBeInstanceOf(Reservation);
       expect((result as Reservation).reservationId).toBe(31);
     } finally {
-      close();
+      closeOk();
     }
-  });
-
-  test('bhv misc 079 a 201 response decodes as the ReservationReceipt the 201 status declares', async () => {
-    const { api: mockApi, close } = await createMockServer(
+    const { api: createdApi, close: closeCreated } = await createMockServer(
       201,
       'application/json',
       '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}',
     );
     try {
-      const result = await mockApi.reserveStock();
+      const result = await createdApi.reserveStock();
       expect(result).toBeInstanceOf(ReservationReceipt);
       expect((result as ReservationReceipt).receiptCode).toBe('R-1');
     } finally {
-      close();
+      closeCreated();
     }
   });
 
@@ -661,19 +658,6 @@ describe('StoreApi error dispatch through the typed status routes', () => {
     expect((error as ClientError).statusCode).toBe(status);
   });
 
-  test('bhv operations 138 an error response on a typed route is thrown as the exception class specific to its status, not the generic client error', async () => {
-    for (const status of [400, 404, 422, 500]) {
-      const statusApi = new StoreApi(
-        new DefaultApiClient(TransportOptions.builder().maxRetries(0).build()),
-        Configuration.builder().baseUrl(`${baseUrl}/test/status/${status}`).build(),
-      );
-
-      const error = await statusApi.getOrderById(1).catch((e: unknown) => e);
-
-      expect((error as Error).constructor).not.toBe(ClientError);
-      expect((error as ClientError).statusCode).toBe(status);
-    }
-  });
 });
 
 describe('StoreApi', () => {

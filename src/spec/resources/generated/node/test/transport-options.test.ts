@@ -145,18 +145,6 @@ describe("TransportOptions", () => {
     expect(() => TransportOptions.builder().timeout(0)).toThrow(TypeError);
   });
 
-  test("bhv options 008 a proxy URL error never carries the user-info", () => {
-    const proxy = "ftp://user:hunter2@proxy.example.com:21";
-    expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
-    let message = "";
-    try {
-      TransportOptions.builder().proxy(proxy);
-    } catch (e) {
-      message = (e as Error).message;
-    }
-    expect(message).not.toContain("hunter2");
-  });
-
   test("bhv misc 298 a client built with a malformed proxy URL fails with an invalid proxy URL error", () => {
     expect(() =>
       TransportOptions.builder().proxy("not-a-valid-url").build(),
@@ -254,6 +242,11 @@ describe("TransportOptions", () => {
       "Invalid proxy URL (must use http or https scheme): socks5://***@h:1",
     ],
     [
+      "an ftp scheme",
+      "ftp://user:hunter2@proxy.example.com:21",
+      "Invalid proxy URL (must use http or https scheme): ftp://***@proxy.example.com:21",
+    ],
+    [
       "an unparseable value",
       "http://u:p@",
       "Invalid proxy URL (unparseable): http://***@",
@@ -261,6 +254,7 @@ describe("TransportOptions", () => {
   ])(
     "bhv options 008 the proxy error for %s never prints the userinfo",
     (_label, proxy, message) => {
+      expect(() => TransportOptions.builder().proxy(proxy)).toThrow(TypeError);
       expect(() => TransportOptions.builder().proxy(proxy)).toThrow(message);
       expect(() => new TransportOptions({ ...directOptions, proxy })).toThrow(
         message,

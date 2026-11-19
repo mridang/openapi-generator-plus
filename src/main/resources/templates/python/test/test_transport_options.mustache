@@ -462,15 +462,11 @@ class TestTransportOptionsBehaviours:
 
 
 class TestCredentialHeaderNames:
-    def test_bhv_misc_175_credential_header_names_are_recognised_in_any_letter_case(self) -> None:
+    def test_bhv_misc_175_credential_header_names_are_recognised_in_any_letter_case_and_ordinary_names_are_not(self) -> None:
         from {{packageName}}.transport_options import _is_sensitive_header
 
         assert _is_sensitive_header('X-API-KEY') is True
         assert _is_sensitive_header('x-auth-TOKEN') is True
         assert _is_sensitive_header('Authorization') is True
-
-    def test_bhv_misc_175_ordinary_header_names_are_not_credential_bearing(self) -> None:
-        from {{packageName}}.transport_options import _is_sensitive_header
-
         assert _is_sensitive_header('Accept') is False
         assert _is_sensitive_header('X-Request-Id') is False

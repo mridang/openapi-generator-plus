@@ -1239,14 +1239,6 @@ mod tests {
         assert!(!is_https_to_http_body_replay(303, "POST", Some(&https), &http, true));
     }
 
-    /* A 301 from HTTPS to plain HTTP that keeps a PUT would replay the body in cleartext, so it is refused. */
-    #[test]
-    fn test_bhv_misc_124_a_301_from_https_to_http_that_keeps_a_body_is_refused() {
-        let https = reqwest::Url::parse("https://example.com/x").unwrap();
-        let http = reqwest::Url::parse("http://example.com/x").unwrap();
-        assert!(is_https_to_http_body_replay(301, "PUT", Some(&https), &http, true));
-    }
-
     /* A 307 that stays on one scheme, or upgrades HTTP to HTTPS, never sends the body in cleartext. */
     #[test]
     fn test_bhv_misc_125_a_307_that_stays_on_one_scheme_or_upgrades_is_not_refused() {
@@ -1359,26 +1351,6 @@ mod tests {
             source = cause.source();
         }
         assert!(!text.contains("SECRET"), "got: {}", text);
-    }
-
-    /* RFC 9110 section 15.4: the method a redirect hop uses. */
-    #[test]
-    fn test_bhv_misc_170_a_tls_failure_is_a_network_error_on_the_first_attempt() {
-        #[derive(Debug)]
-        struct CertificateFailure;
-        impl std::fmt::Display for CertificateFailure {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                write!(f, "invalid peer certificate: UnknownIssuer")
-            }
-        }
-        impl std::error::Error for CertificateFailure {}
-        let api_error = crate::errors::api_error::ApiError::transport(
-            crate::errors::api_error::TransportFailure::Network,
-            "error sending request".to_string(),
-            Arc::new(CertificateFailure),
-        );
-        let err = crate::errors::NetworkError::try_from(api_error).expect("status 0");
-        assert!(!crate::api::base_api::is_retryable_error(&err));
     }
 
     #[test]

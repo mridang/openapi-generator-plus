@@ -605,15 +605,6 @@ describe('OpenIdConnectAuthenticator', () => {
       expect(urls.every((url) => url.startsWith('https://auth.example.com/authorize-1?'))).toBe(true);
     });
 
-    test.each(['public', 'max-age=abc'])(
-      'bhv auth 011 a Cache-Control of %p without a usable max-age caches the document for a day',
-      async (cacheControl) => {
-        await urlsAfter(86399, cacheControl);
-
-        expect(mockClient.callCount).toBe(1);
-      }
-    );
-
     test('bhv auth 029 after the cached document expires, the exchange uses the endpoints of the new document', async () => {
       const document = (n: number): ApiHttpResponse => ({
         statusCode: 200,
@@ -637,10 +628,12 @@ describe('OpenIdConnectAuthenticator', () => {
     });
 
     test.each([
-      [86399, 1],
-      [86401, 2]
-    ])('bhv auth 011 without Cache-Control the document is cached for a day (%i seconds later: %i fetches)', async (seconds, fetches) => {
-      await urlsAfter(seconds);
+      ['public', 86399, 1],
+      ['max-age=abc', 86399, 1],
+      [undefined, 86399, 1],
+      [undefined, 86401, 2]
+    ])('bhv auth 011 a document with no usable max-age (Cache-Control %p) is cached for a day (%i seconds later: %i fetches)', async (cacheControl, seconds, fetches) => {
+      await urlsAfter(seconds, cacheControl);
 
       expect(mockClient.callCount).toBe(fetches);
     });

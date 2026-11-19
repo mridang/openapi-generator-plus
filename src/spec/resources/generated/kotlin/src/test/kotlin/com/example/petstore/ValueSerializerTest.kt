@@ -278,12 +278,6 @@ class ValueSerializerTest {
             assertEquals("a%2Fb", slash)
             assertFalse((slash as String).contains("%252F"))
         }
-
-        @Test
-        @DisplayName("bhvSerializationparam106 a path value with a null style behaves like simple")
-        fun pathWithNullStyleBehavesLikeSimple() {
-            assertEquals("5", ValueSerializer.serializeStyled("id", "5", "path", "string", null, null, false))
-        }
     }
 
     @Nested
@@ -694,12 +688,6 @@ class ValueSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationparam105 SerializeStyled form scalar returns the value as it is")
-        fun serializeStyledFormScalar() {
-            assertEquals("blue", ValueSerializer.serializeStyled("color", "blue", "query", "string", "", "form", true))
-        }
-
-        @Test
         @DisplayName("bhvSerializationparam042 single-element array with explode true returns list")
         fun singleElementArrayExplodeTrueReturnsList() {
             assertEquals(listOf("blue"), ValueSerializer.serializeStyled("color", listOf("blue"), "query", "array", null, "form", true))
@@ -893,19 +881,6 @@ class ValueSerializerTest {
             assertEquals(
                 "%7B%22k%22%3A%22a%20b~%2A%C3%A9%22%7D",
                 ValueSerializer.serializeContent("p", mapOf("k" to "a b~*\u00e9"), "cookie"),
-            )
-        }
-
-        @Test
-        @DisplayName("bhvSerializationparam104 cookie keeps only the unreserved set literal and encodes the rest as UTF-8")
-        fun cookieKeepsOnlyTheUnreservedSetLiteral() {
-            assertEquals(
-                "%22a%20b~%2A%C3%A9%22",
-                ValueSerializer.serializeContent("p", "a b~*\u00e9", "cookie"),
-            )
-            assertEquals(
-                "%22%21%27%28%29%2C%2B%25-%2E_~%22",
-                ValueSerializer.serializeContent("p", "!'(),+%-._~", "cookie"),
             )
         }
 

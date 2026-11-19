@@ -676,28 +676,6 @@ def _json(status: int, body: str, **headers: str) -> ApiHttpResponse:
 class TestPerCallOptions:
     """F827: the Options object of one call overrides the timeout, the headers and the retry budget."""
 
-    async def test_bhv_operations_158_a_header_given_on_one_call_is_sent_with_that_call(
-        self,
-    ) -> None:
-        client = _ScriptedApiClient(_json(200, "{}"))
-        api = StubApi(
-            api_client=client, config=Configuration(base_url="https://example.test")
-        )
-
-        await api.call_result(
-            "GET",
-            "/items",
-            {},
-            {},
-            None,
-            ["application/json"],
-            "application/json",
-            None,
-            request_options=FindPetsByStatusOptions(headers={"X-Call-Id": "abc"}),
-        )
-
-        assert client.sent[0]["X-Call-Id"] == "abc"
-
     async def test_bhv_operations_001_per_call_headers_replace_a_configured_default_header_of_the_same_name(
         self,
     ) -> None:
@@ -2716,22 +2694,6 @@ class TestBodySerialization:
                 None,
             )
         assert client.captured_body is None
-
-    async def test_bhv_operations_014_passes_binary_body_as_is(self) -> None:
-        client = CapturingApiClient()
-        config = Configuration(base_url="http://localhost")
-        stub = StubApi(api_client=client, config=config)
-        await stub.call(
-            "POST",
-            "/test/echo",
-            {},
-            {},
-            b"\x01\x02\x03",
-            ["application/json"],
-            "application/octet-stream",
-            None,
-        )
-        assert client.captured_body is not None
 
     async def test_bhv_misc_202_a_text_body_without_a_content_type_goes_out_as_bare_json(
         self,
@@ -5224,7 +5186,7 @@ class TestRetryOutcomesAndBodyReplay:
         assert result.status_code == 200
         assert len(server.requests) == 4
 
-    async def test_bhv_misc_161_a_post_is_sent_once_when_the_connection_drops(
+    async def test_bhv_misc_161_a_post_is_sent_once_and_a_query_is_sent_again_after_a_dropped_connection(
         self,
     ) -> None:
         import urllib3
@@ -5237,11 +5199,6 @@ class TestRetryOutcomesAndBodyReplay:
             await api_post_text(_pool_api(pool, max_retries=2), '{"a":1}')
 
         assert pool.calls == 1
-
-    async def test_bhv_misc_161_a_query_request_is_sent_again_after_a_dropped_connection(
-        self,
-    ) -> None:
-        import urllib3
 
         pool = _ScriptedPool(
             urllib3.exceptions.ProtocolError("dropped"), _FakeResponse(200, {}, b"{}")

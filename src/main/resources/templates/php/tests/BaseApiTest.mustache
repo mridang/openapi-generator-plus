@@ -2433,26 +2433,22 @@ test('bhv operations 161 a text plain response is returned as the raw text even 
     expect($result)->toBe('aGVsbG8=');
 });
 
-test('bhv misc 053 a per call retry budget of zero is accepted', function (): void {
+test('bhv misc 053 a per call retry budget of zero is accepted, and a negative or non whole budget is refused', function (): void {
     $client = new CapturingApiClient();
     $api = new PetApi($client, new Configuration('http://localhost'));
 
     $api->deletePet(7, new DeletePetOptions(maxRetries: 0));
 
     expect($client->capturedUrl)->toBe('http://localhost/pet/7');
-});
 
-test('bhv misc 053 a negative per call retry budget is refused before any request is sent', function (): void {
-    $client = new CapturingApiClient();
-    $api = new PetApi($client, new Configuration('http://localhost'));
+    $refused = new CapturingApiClient();
+    $refusedApi = new PetApi($refused, new Configuration('http://localhost'));
 
-    expect(function () use ($api): void {
-        $api->deletePet(7, new DeletePetOptions(maxRetries: -1));
+    expect(function () use ($refusedApi): void {
+        $refusedApi->deletePet(7, new DeletePetOptions(maxRetries: -1));
     })->toThrow(\InvalidArgumentException::class, 'Invalid maxRetries');
-    expect($client->capturedUrl)->toBe('');
-});
+    expect($refused->capturedUrl)->toBe('');
 
-test('bhv misc 053 a non whole per call retry budget is refused by its type', function (): void {
     expect(fn () => newUnchecked(DeletePetOptions::class, ['maxRetries' => 1.5]))->toThrow(\TypeError::class);
 });
 
