@@ -2852,3 +2852,110 @@ test('bhv serialization 074 nested arrays serialize back to the same nested shap
 test('bhv serialization 075 an enum value decodes from its wire string to its member', function (): void {
     expect(ObjectSerializer::deserialize('"placed"', OrderStatusEnum::class))->toBe(OrderStatusEnum::PLACED);
 });
+
+test('bhv serialization 077 a duration round trips for zero, negative, sub second, multi day and extreme values', function (): void {
+    foreach (['0s', '-90.25s', '259205s', '315576000000s'] as $wire) {
+        expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration($wire)))->toBe($wire);
+    }
+});
+
+test('bhv serialization 078 a time of day is zero padded with a fraction only when it has a sub second value', function (): void {
+    expect(ObjectSerializer::formatTime(ObjectSerializer::parseTime('09:05:03')))->toBe('09:05:03');
+    expect(ObjectSerializer::formatTime(ObjectSerializer::parseTime('09:05:03.500')))->toBe('09:05:03.500');
+});
+
+test('bhv serialization 079 a copy with named changes leaves the original untouched and keeps the other fields', function (): void {
+    $tag = new Tag(id: 1, name: 'Fido');
+
+    $copy = clone $tag;
+    $copy->name = 'Rex';
+
+    expect($copy)->not->toBe($tag);
+    expect($copy->name)->toBe('Rex');
+    expect($tag->name)->toBe('Fido');
+    expect($copy->id)->toBe(1);
+});
+
+test('bhv serialization 080 a protobuf duration spans the full range and rejects one second past it', function (): void {
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('315576000000s')))->toBe('315576000000s');
+    expect(fn (): mixed => ObjectSerializer::parseProtobufDuration('315576000001s'))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 081 a value of the wrong json type raises an error and is never coerced', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":"abc","name":"x"}', Tag::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 083 a serialization error is the library error type and carries a message', function (): void {
+    expect(fn (): mixed => ObjectSerializer::deserialize('{', Tag::class))
+        ->toThrow(function (\{{invokerPackage}}\Errors\SerializationException $e): void {
+            expect($e->getMessage())->not->toBe('');
+        });
+});
+
+test('bhv serialization 084 protobuf fractions parse to their exact value and keep their padding', function (): void {
+    foreach (['1.5s', '0.1s', '1.000001s'] as $wire) {
+        expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration($wire)))->toBe($wire);
+    }
+});
+
+test('bhv serialization 085 a date time field decodes from its iso string', function (): void {
+    /** @var Metadata $metadata */
+    $metadata = ObjectSerializer::deserialize('{"createdAt":"2024-01-01T00:00:00Z"}', Metadata::class);
+
+    expect($metadata->createdAt)->toBeInstanceOf(\DateTime::class);
+});
+
+test('bhv serialization 086 a duration is written as protobuf seconds with days folded in', function (): void {
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('86405s')))->toBe('86405s');
+    expect(ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('2s')))->toBe('2s');
+});
+
+test('bhv serialization 087 a tiny duration is fixed point and never scientific', function (): void {
+    $out = ObjectSerializer::formatProtobufDuration(ObjectSerializer::parseProtobufDuration('0.000001s'));
+
+    expect($out)->toBe('0.000001s');
+    expect(strtolower($out))->not->toContain('e');
+});
+
+test('bhv serialization 089 a base64 wire string decodes into bytes', function (): void {
+    expect(ObjectSerializer::decodeByteOneOfScalar('aGk='))->toBe('hi');
+});
+
+test('bhv serialization 091 bytes with the high bit set survive an encode and decode round trip', function (): void {
+    $data = "\xff\x80\x00";
+    $encoded = ObjectSerializer::encodeBase64Param($data);
+
+    expect(ObjectSerializer::decodeByteOneOfScalar($encoded))->toBe($data);
+});
+
+test('bhv serialization 092 a time of day round trips through its string form', function (): void {
+    $original = '23:59:59';
+
+    expect(ObjectSerializer::formatTime(ObjectSerializer::parseTime(ObjectSerializer::formatTime(ObjectSerializer::parseTime($original)))))->toBe($original);
+});
+
+test('bhv serialization 093 a date time keeps its sub seconds and a numeric utc offset and never a Z', function (): void {
+    $moment = new \DateTimeImmutable('2024-01-02T03:04:05.005+00:00');
+
+    $out = ObjectSerializer::stringify($moment);
+
+    expect($out)->toEndWith('+00:00');
+    expect($out)->toContain('.005');
+});
+
+test('bhv serialization 094 html characters ampersands and slashes in a model field are written verbatim', function (): void {
+    $text = ObjectSerializer::serialize(new Tag(name: '<a>&/b'));
+
+    expect(json_decode($text, true)['name'])->toBe('<a>&/b');
+    expect($text)->not->toContain('\\u003c');
+    expect($text)->not->toContain('\\u0026');
+});
+
+test('bhv serialization 095 an explicit null on the wire replaces the schema default', function (): void {
+    /** @var Defaults $decoded */
+    $decoded = ObjectSerializer::deserialize('{"label":null}', Defaults::class);
+
+    expect($decoded->label)->toBeNull();
+});
