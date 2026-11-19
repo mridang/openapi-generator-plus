@@ -605,6 +605,13 @@ namespace {
     'sub millisecond only' => ['2024-01-01T10:30:00.0004+00:00', '10:30:00'],
     ]);
 
+    test('bhv misc 241 a time of day query value keeps non zero milliseconds and drops finer precision', function (): void {
+        $time = new \DateTimeImmutable('2024-01-01T10:20:30.999999+00:00');
+        expect(ValueSerializer::serialize($time, 'query', '\\DateTimeImmutable'))->toBe('10:20:30.999');
+        $whole = new \DateTimeImmutable('2024-01-01T10:20:30.000+00:00');
+        expect(ValueSerializer::serialize($whole, 'query', '\\DateTimeImmutable'))->toBe('10:20:30');
+    });
+
     test('bhv serialization 043 format time path param is never a full date-time', function (): void {
         $time = new \DateTimeImmutable('2024-01-01T10:30:00.5+00:00');
         expect(ValueSerializer::serialize($time, 'path', '\\DateTimeImmutable'))->toBe('10%3A30%3A00.500');

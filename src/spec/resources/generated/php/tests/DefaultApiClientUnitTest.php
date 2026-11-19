@@ -458,6 +458,18 @@ test('bhv serializationwire 032 decodes iso 8859 1 body to utf 8 when charset de
     expect($response->body)->toBe("\xC3\xA9"); // UTF-8 'é'
 });
 
+test('bhv misc 095 a body with bytes invalid in its charset replaces each bad byte with U+FFFD', function (): void {
+    $mockResponse = new MockResponse("a\xFFb\xFE", [
+        'http_code' => 200,
+        'response_headers' => ['Content-Type' => 'text/plain; charset=utf-8'],
+    ]);
+    $client = new StubbedDefaultApiClient(new MockHttpClient($mockResponse));
+
+    $response = $client->sendRequest('GET', 'http://example.com/bad-bytes', [], null);
+
+    expect($response->body)->toBe("a\u{FFFD}b\u{FFFD}");
+});
+
 test('bhv serializationwire 033 decodes response body using declared charset', function (): void {
     $body = "\xE9"; // ISO-8859-1 'é'
     $mockResponse = new MockResponse($body, [
@@ -3021,6 +3033,95 @@ test('bhv lifecycle 008 a closed client rejects further requests', function (): 
         ->toThrow(\LogicException::class);
 });
 
+/**
+ * Builds a client whose transport closes the client while the request is in flight.
+ *
+ * @param list<int> $statuses the status each attempt answers with
+ * @param \ArrayObject<int, string> $log one entry per attempt
+ */
+function closingTransportClient(array $statuses, \ArrayObject $log, int &$closes): StubbedDefaultApiClient
+{
+    /** @var StubbedDefaultApiClient|null $client */
+    $client = null;
+    $mock = new MockHttpClient(function () use ($statuses, $log, &$client, &$closes): MockResponse {
+        $status = $statuses[min(count($log), count($statuses) - 1)];
+        $log[] = 'attempt';
+        $client?->close();
+        $closes++;
+
+        return new MockResponse('{"done":true}', ['http_code' => $status]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
+
+    return $client;
+}
+
+test('bhv lifecycle 019 close lets an in flight request finish and refuses a new one', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $closes = 0;
+    $client = closingTransportClient([200], $log, $closes);
+
+    $response = $client->sendRequest('GET', 'http://example.com/running', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/new', [], null))
+        ->toThrow(\LogicException::class);
+});
+
+test('bhv lifecycle 021 closing the client lets a running request finish', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $closes = 0;
+    $client = closingTransportClient([200], $log, $closes);
+
+    $response = $client->sendRequest('GET', 'http://example.com/running', [], null);
+
+    expect($response->body)->toBe('{"done":true}');
+    expect($closes)->toBe(1);
+});
+
+test('bhv lifecycle 037 closing while a request runs releases the client once and the request still completes', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $closes = 0;
+    $client = closingTransportClient([200], $log, $closes);
+
+    $response = $client->sendRequest('GET', 'http://example.com/running', [], null);
+    $client->close();
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(1);
+    expect(fn (): mixed => $client->sendRequest('GET', 'http://example.com/new', [], null))
+        ->toThrow(\LogicException::class);
+});
+
+test('bhv lifecycle 044 a request in flight when the client is closed still completes through its retries', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $closes = 0;
+    $client = closingTransportClient([503, 200], $log, $closes);
+
+    $response = $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect(count($log))->toBe(2);
+});
+
+test('bhv misc 030 a request whose deadline has already passed raises a timeout error and never reaches the transport', function (): void {
+    $sent = 0;
+    $mock = new MockHttpClient(function () use (&$sent): MockResponse {
+        $sent++;
+
+        return new MockResponse('{}', ['http_code' => 200]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
+
+    expect(fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/late', static fn (): array => [], null, 0))
+        ->toThrow(\PetstoreClient\Errors\NetworkTimeoutException::class);
+    expect($sent)->toBe(0);
+});
+
 test('bhv errors 057 a network failure error carries the request method and the path without its query', function (): void {
     $refused = static function (): never {
         throw new \Symfony\Component\HttpClient\Exception\TransportException('Connection refused');
@@ -3564,6 +3665,12 @@ test('bhv serialization 120 a multipart file with an unknown extension falls bac
 test('bhv serialization 123 a multipart filename containing a NUL byte is rejected', function (): void {
     expect(fn () => DefaultApiClient::validateMultipartFilename("a\x00b.pdf"))
         ->toThrow(\InvalidArgumentException::class);
+    $validate = new \ReflectionMethod(DefaultApiClient::class, 'validateMultipartFieldName');
+    foreach (["a\rb", "a\nb", "a\0b"] as $name) {
+        expect(fn () => $validate->invoke(null, $name))->toThrow(\InvalidArgumentException::class);
+    }
+    $escape = new \ReflectionMethod(DefaultApiClient::class, 'escapeMultipartFieldName');
+    expect($escape->invoke(null, 'a"b'))->toBe('a\\"b');
 });
 
 test('bhv transport 086 a timeout is not retried', function (): void {

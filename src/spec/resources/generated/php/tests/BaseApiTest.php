@@ -1115,6 +1115,35 @@ test('bhv errors 035 rejects a text plain body for a model return with a seriali
         );
 })->with([\PetstoreClient\Models\Pet::class, 'int', 'array<string>']);
 
+test('bhv errors 054 an unexpected content type error names the operation rather than the HTTP verb', function (): void {
+    $client = new class implements ApiClient {
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            return new ApiHttpResponse(200, 'hello', ['Content-Type' => 'text/plain']);
+        }
+    };
+    $testApi = new TestableApi($client, new Configuration('http://localhost'));
+
+    try {
+        $testApi->callOperation('testOperation', '/test/echo', 'GET', '/test/echo', returnType: 'int');
+        test()->fail('Expected exception not thrown');
+    } catch (\PetstoreClient\Errors\SerializationException $e) {
+        expect($e->getMessage())->toContain('for TestableApi.testOperation:');
+        expect($e->getMessage())->not->toContain('GET');
+    }
+});
+
 test('bhv serializationwire 060 a binary return type gets the raw bytes of a JSON body', function (): void {
     $client = new class implements ApiClient {
         public function close(): void

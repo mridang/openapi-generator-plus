@@ -1562,6 +1562,12 @@ test('bhv operations 132 an options object missing a required field names that f
         ->toThrow(\ArgumentCountError::class, 'Argument #1 ($category) not passed');
 });
 
+test('bhv operations 125 get pet by name raises the argument error naming a required query param that is null', function (): void {
+    /* Built by reflection: the static analyser would reject the null argument. */
+    expect(fn (): object => (new \ReflectionClass(GetPetByNameOptions::class))->newInstanceArgs(['category' => null, 'xCorrelationId' => 'abc']))
+        ->toThrow(\TypeError::class, '$category');
+});
+
 test('bhv operations 052 get pet by name throws when required path param is empty', function (): void {
     [$api] = newBodyCapturingPetApi();
 

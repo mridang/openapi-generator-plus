@@ -28,22 +28,22 @@ class HeaderSelector
     /**
      * Select headers for an API request.
      *
-     * @param string[] $accept       array of acceptable MIME types for the response
-     * @param string   $contentType  the Content-Type for the request body
+     * @param string[]|null $accept       array of acceptable MIME types for the response, null for none
+     * @param string|null   $contentType  the Content-Type for the request body, null for the default
      * @param bool     $isMultipart  whether this is a multipart request
      * @return array<string, string> map of header names to values
      */
-    public function selectHeaders(array $accept, string $contentType, bool $isMultipart): array
+    public function selectHeaders(?array $accept, ?string $contentType, bool $isMultipart): array
     {
         $headers = [];
 
-        $acceptHeader = $this->selectAcceptHeader($accept);
+        $acceptHeader = $this->selectAcceptHeader($accept ?? []);
         if ($acceptHeader !== '') {
             $headers['Accept'] = $acceptHeader;
         }
 
         if (!$isMultipart) {
-            if ($contentType === '') {
+            if ($contentType === null || $contentType === '') {
                 $contentType = 'application/json';
             }
             $headers['Content-Type'] = $contentType;
@@ -76,11 +76,14 @@ class HeaderSelector
     /**
      * Detects whether a string contains a valid JSON mime type.
      *
-     * @param string $searchString the MIME type string to check
+     * @param string|null $searchString the MIME type string to check, null is not JSON
      * @return bool true if the string represents a JSON MIME type
      */
-    public function isJsonMime(string $searchString): bool
+    public function isJsonMime(?string $searchString): bool
     {
+        if ($searchString === null) {
+            return false;
+        }
         return preg_match(self::JSON_MIME_PATTERN, $searchString) === 1;
     }
 }

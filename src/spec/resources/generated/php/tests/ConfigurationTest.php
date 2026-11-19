@@ -267,6 +267,17 @@ test('bhv options 044 the README names the builder setter that rejects a SOCKS p
     expect(substr($readme, (int) $section, 400))->toContain('`TransportOptions::builder()->proxy()`');
 });
 
+test('bhv mocking 009 the README has a Testing your code section naming both interfaces and showing a fake', function (): void {
+    $readme = (string) file_get_contents(__DIR__ . '/../README.md');
+    $section = strpos($readme, '### Testing your code');
+
+    expect($section)->not->toBeFalse();
+    $text = substr($readme, (int) $section, 3000);
+    expect($text)->toContain('ClientInterface');
+    expect($text)->toContain('Interface');
+    expect($text)->toContain('function fake(');
+});
+
 test('bhv config 015 debug output masks credential default headers', function (): void {
     $config = Configuration::builder()
         ->defaultHeader('Authorization', 'Bearer s3cr3t')
