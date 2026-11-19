@@ -1941,7 +1941,11 @@ impl StoreApi {
         let mut query_params: Vec<(String, String, bool)> = Vec::new();
         if let Some(opts) = options {
             if let Some(ref val) = opts.q {
-                query_params.push(("q".to_string(), object_serializer::serialize(val)?, false));
+                query_params.push((
+                    "q".to_string(),
+                    value_serializer::serialize_query_content(val)?,
+                    false,
+                ));
             }
         }
         if let Some(opts) = options {
