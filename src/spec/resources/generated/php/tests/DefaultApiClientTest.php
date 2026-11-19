@@ -858,3 +858,16 @@ test('bhv misc 050 per call headers override the options object and an unset hea
     expect(json_decode($overridden->body, true)['headers']['accept'] ?? null)->toBe('application/json');
     expect(json_decode($fallThrough->body, true)['headers']['accept'] ?? null)->toBe('text/plain');
 });
+
+test('bhv misc 226 a 302 is followed to its target and the final 200 is returned', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $client = new DefaultApiClient(TransportOptions::builder()->followRedirects(true)->maxRedirects(5)->build());
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/redirect/302', [], null);
+    expect($response->statusCode)->toBe(200);
+});
+
+test('bhv misc 240 a multipart file part is echoed back with its content', function (): void {
+    $chasmUrl = (string) getenv('CHASM_HTTP_URL');
+    $response = (new DefaultApiClient())->sendRequest('POST', $chasmUrl . '/test/echo', [], ['file' => 'file content']);
+    expect($response->body)->toContain('file content');
+});

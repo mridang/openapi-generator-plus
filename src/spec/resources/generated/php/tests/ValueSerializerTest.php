@@ -714,4 +714,18 @@ namespace {
     test('bhv misc 107 a scalar form query parameter keeps its own name and value', function (): void {
         expect(ValueSerializer::putQueryParam([], 'filter', 'x'))->toBe(['filter' => 'x']);
     });
+    test('bhv misc 232 a string path parameter in simple style percent encodes slashes', function (): void {
+        expect(ValueSerializer::serialize('a/b', 'path', 'string'))->toBe('a%2Fb');
+    });
+
+    test('bhv misc 233 a cookie parameter carrying a json model is fully percent encoded', function (): void {
+        $rendered = ValueSerializer::serialize('{"a":1.5}', 'cookie', 'string');
+        expect($rendered)->toContain('%7B');
+        expect($rendered)->toContain('%3A');
+        expect($rendered)->not->toContain(':');
+    });
+
+    test('bhv misc 238 a number query parameter is serialized as a plain number', function (): void {
+        expect(ValueSerializer::serialize(2.5, 'query', 'number'))->toBe('2.5');
+    });
 }

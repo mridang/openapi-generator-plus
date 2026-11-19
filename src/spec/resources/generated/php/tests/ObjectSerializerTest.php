@@ -3008,3 +3008,32 @@ test('bhv serialization 114 numeric values keep every digit when serialized', fu
     expect(ObjectSerializer::serialize(PHP_INT_MAX))->toBe('9223372036854775807');
     expect(ObjectSerializer::serialize(['n' => 1234567890123456789]))->toBe('{"n":1234567890123456789}');
 });
+
+test('bhv misc 230 a model with no extra properties writes exactly its declared keys', function (): void {
+    $json = ObjectSerializer::serialize(new \PetstoreClient\Models\Category(name: 'x'));
+    expect($json)->not->toContain('"data"');
+    expect($json)->not->toContain('additionalProperties');
+});
+
+test('bhv misc 234 a model in a list keeps its additional properties through a round trip', function (): void {
+    $items = ObjectSerializer::deserialize('[{"label":"x","extra":"y"}]', 'Ds\Vector<Freeform>');
+    $restored = ObjectSerializer::deserialize(ObjectSerializer::serialize($items), 'Ds\Vector<Freeform>');
+    expect($restored->get(0))->toBeInstanceOf(\PetstoreClient\Models\Freeform::class);
+    expect($restored->get(0)->additionalProperties->get('extra'))->toBe('y');
+});
+
+test('bhv misc 242 a read only property is not sent in the serialized body', function (): void {
+    expect(ObjectSerializer::serialize(new \PetstoreClient\Models\Account(username: 'u', id: 7)))->not->toContain('"id"');
+});
+
+test('bhv misc 243 an absent optional array field decodes to null, not to an empty list', function (): void {
+    $model = ObjectSerializer::deserialize('{}', \PetstoreClient\Models\NativeValues::class);
+    \assert($model instanceof \PetstoreClient\Models\NativeValues);
+    expect($model->addresses)->toBeNull();
+});
+
+test('bhv misc 235 a duration with fractional seconds keeps its fraction when serialized', function (): void {
+    $interval = new \DateInterval('PT1S');
+    $interval->f = 0.5;
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('1.5s');
+});
