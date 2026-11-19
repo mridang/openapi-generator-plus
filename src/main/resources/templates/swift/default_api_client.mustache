@@ -647,6 +647,25 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
             .last
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() } ?? ""
         let callerManagedEncoding = merged.keys.contains { $0.lowercased() == "accept-encoding" }
+        /* Refuse any coding the SDK cannot decode rather than handing the caller
+           bytes still in that encoding. Every token of a comma list must be one
+           the SDK decodes or the identity coding. A caller-managed encoding is
+           left alone, as above. */
+        let declaredCodings = (respHeaders["content-encoding"] ?? "")
+            .trimmingCharacters(in: .whitespaces)
+            .lowercased()
+        let decodableCodings: Set<String> = ["", "identity", "gzip", "x-gzip", "deflate"]
+        if !callerManagedEncoding,
+           declaredCodings.split(separator: ",").contains(where: {
+               !decodableCodings.contains($0.trimmingCharacters(in: .whitespaces))
+           }) {
+            throw ApiError(
+                statusCode: httpResponse.statusCode,
+                message: "Unsupported Content-Encoding '\(declaredCodings)'",
+                responseHeaders: respHeaders,
+                underlyingError: nil
+            )
+        }
         if !callerManagedEncoding,
            residualEncoding == "gzip" || residualEncoding == "x-gzip",
            DefaultApiClient.hasGzipMagic(data) {

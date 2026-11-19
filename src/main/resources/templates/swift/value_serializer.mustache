@@ -74,11 +74,11 @@ internal enum ValueSerializer {
 
     /// Percent-encodes a value for use as a cookie value.
     ///
-    /// Only the RFC 3986 unreserved characters stay literal, so the quotes,
-    /// commas, semicolons and spaces of a JSON text never reach the `Cookie`
-    /// header, where RFC 6265 forbids them.
+    /// Only the letters, digits, hyphen, underscore and tilde stay literal, so the
+    /// quotes, commas, colons, dots, semicolons and spaces of a JSON text never reach
+    /// the `Cookie` header, where RFC 6265 forbids them.
     static func encodeCookieValue(_ value: String) -> String {
-        /* Byte-wise so only ASCII A-Z a-z 0-9 - . _ ~ stay literal; the
+        /* Byte-wise so only ASCII A-Z a-z 0-9 - _ ~ stay literal (a dot is encoded too); the
          * Unicode letters CharacterSet.alphanumerics admits are encoded as
          * UTF-8 like every other character. */
         let hex = Array("0123456789ABCDEF")
@@ -86,7 +86,7 @@ internal enum ValueSerializer {
         for byte in value.utf8 {
             let literal =
                 (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x5A)
-                || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D || byte == 0x2E
+                || (byte >= 0x61 && byte <= 0x7A) || byte == 0x2D
                 || byte == 0x5F || byte == 0x7E
             if literal {
                 out.unicodeScalars.append(Unicode.Scalar(byte))

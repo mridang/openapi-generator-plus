@@ -869,7 +869,7 @@ import Testing
     #expect(
       ValueSerializer.encodeCookieValue("{\"a\": \"b;c,d\"}")
         == "%7B%22a%22%3A%20%22b%3Bc%2Cd%22%7D")
-    #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b._~9")
+    #expect(ValueSerializer.encodeCookieValue("a-b._~9") == "a-b%2E_~9")
   }
 
   @Test func testBhvSerializationparam104EncodeCookieValueKeepsOnlyTheUnreservedSetLiteral() {
@@ -1012,11 +1012,13 @@ import Testing
     #expect(ValueSerializer.encodePathSegment("a/b") == "a%2Fb")
   }
 
-  /* A cookie carrying a JSON model percent-encodes its colons, so none is sent literally. */
+  /* A cookie carrying a JSON model percent-encodes its colons and dots, so none is sent literally. */
   @Test func testBhvMisc233ACookieCarryingAJsonModelPercentEncodesItsColons() throws {
     let cookie = ValueSerializer.encodeCookieValue("{\"label\":\"a.b:c\"}")
     #expect(!cookie.contains(":"))
     #expect(cookie.contains("%3A"))
+    #expect(!cookie.contains("."))
+    #expect(cookie.contains("%2E"))
   }
 
   /* An array item containing a comma keeps the literal comma across the simple, label and matrix path styles. */
