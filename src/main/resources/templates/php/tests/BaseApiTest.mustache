@@ -287,6 +287,37 @@ test('bhv options 054 an operation accepts per call options alongside its other 
     expect($headers['x-trace'] ?? null)->toBe('abc');
 });
 
+test('bhv misc 229 a per call max retries value overrides the client setting so a call can retry when the client has none', function (): void {
+    /** @var \ArrayObject<int, string> $attempts */
+    $attempts = new \ArrayObject();
+    $mock = new \Symfony\Component\HttpClient\MockHttpClient(
+        function (string $method, string $url, array $options) use ($attempts): \Symfony\Component\HttpClient\Response\MockResponse {
+            $attempts[] = $url;
+            $status = count($attempts) <= 2 ? 503 : 200;
+
+            return new \Symfony\Component\HttpClient\Response\MockResponse(
+                '{"ok":true}',
+                ['http_code' => $status, 'response_headers' => ['Content-Type' => 'application/json']]
+            );
+        }
+    );
+    $client = new StubbedDefaultApiClient($mock, TransportOptions::builder()->maxRetries(0)->build());
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object', null, maxRetries: 2);
+
+    expect(count($attempts))->toBe(3);
+});
+
+test('bhv misc 239 an operation query parameter is serialized when no authenticator is configured', function (): void {
+    $client = new CapturingApiClient();
+    $api = new TestableApi($client, new Configuration('http://localhost'));
+
+    $api->call('GET', '/test/echo', ['q' => 'a b'], [], null, ['application/json'], null);
+
+    expect($client->capturedUrl)->toBe('http://localhost/test/echo?q=a%20b');
+});
+
 test('bhv options 057 a per call timeout below one millisecond is refused before any request is sent', function (): void {
     $client = new CapturingApiClient();
     $api = new PetApi($client, new Configuration('http://localhost'));
