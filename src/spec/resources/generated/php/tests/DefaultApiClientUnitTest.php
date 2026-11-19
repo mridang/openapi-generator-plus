@@ -1285,6 +1285,82 @@ test('bhv misc 124 a 301 or 302 from https to http with a body is refused and th
     expect(count($seen))->toBe(1);
 })->with([301, 302]);
 
+test('bhv misc 125 a 307 that stays on one scheme or upgrades http to https is followed with its body', function (string $start, string $location): void {
+    $hop = new MockResponse('', ['http_code' => 307, 'response_headers' => ['Location' => $location]]);
+    $final = new MockResponse('ok', ['http_code' => 200]);
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient(new MockHttpClient([$hop, $final]), $transport);
+
+    $response = $client->sendRequest('POST', $start, [], 'k=v');
+
+    expect($response->statusCode)->toBe(200);
+})->with([
+    'same scheme' => ['https://api.example.com/start', 'https://api.example.com/final'],
+    'http upgraded to https' => ['http://api.example.com/start', 'https://api.example.com/final'],
+]);
+
+test('bhv misc 127 a location that holds only a query keeps the redirected path and replaces its query', function (): void {
+    $urls = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url) use (&$urls): MockResponse {
+            $urls[] = $url;
+            return count($urls) === 1
+                ? new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => '?y=2']])
+                : new MockResponse('ok', ['http_code' => 200]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/a/b?x=1', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($urls)->toBe(['https://api.example.com/a/b?x=1', 'https://api.example.com/a/b?y=2']);
+});
+
+test('bhv misc 130 a credential removed by a cross origin hop is not restored when a later hop returns to the origin', function (): void {
+    $hopHeaders = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$hopHeaders): MockResponse {
+            $hopHeaders[] = $options['headers'] ?? [];
+            if ($url === 'https://api.example.com/start') {
+                return new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => 'https://other.example.com/mid']]);
+            }
+            if ($url === 'https://other.example.com/mid') {
+                return new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => 'https://api.example.com/end']]);
+            }
+            return new MockResponse('ok', ['http_code' => 200]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => 'Bearer abc'], null);
+
+    $last = array_map(static fn (string $line): string => strtolower(explode(':', $line, 2)[0]), end($hopHeaders));
+    expect($last)->not->toContain('authorization');
+});
+
+test('bhv misc 132 a per call header whose name holds a credential word is dropped on a cross origin redirect', function (): void {
+    $hopHeaders = [];
+    $mockClient = new MockHttpClient(
+        function (string $method, string $url, array $options) use (&$hopHeaders): MockResponse {
+            $hopHeaders[] = $options['headers'] ?? [];
+            if ($url === 'https://api.example.com/start') {
+                return new MockResponse('', ['http_code' => 302, 'response_headers' => ['Location' => 'https://other.example.com/final']]);
+            }
+            return new MockResponse('ok', ['http_code' => 200]);
+        }
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = new StubbedDefaultApiClient($mockClient, $transport);
+
+    $client->sendRequest('GET', 'https://api.example.com/start', ['X-Call-Token' => 'abc'], null);
+
+    $last = array_map(static fn (string $line): string => strtolower(explode(':', $line, 2)[0]), end($hopHeaders));
+    expect($last)->not->toContain('x-call-token');
+});
+
 test('bhv retries 011 N1: 308 https to http downgrade with body throws', function (): void {
     $downgrade = new MockResponse('', [
         'http_code' => 308,

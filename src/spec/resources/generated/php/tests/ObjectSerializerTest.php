@@ -2752,6 +2752,72 @@ test('bhv misc 106 a null element in an array body is kept in its position when 
     expect(ObjectSerializer::serialize(['a', null, 'b']))->toBe('["a",null,"b"]');
 });
 
+test('bhv misc 108 a model built with a valid integer enum member keeps that member\'s wire value', function (): void {
+    $item = new StockItem(priority: Priority::NUMBER_2);
+
+    expect(json_decode(ObjectSerializer::serialize($item), true)['priority'])->toBe(2);
+});
+
+test('bhv misc 109 decoding an object validates its nested objects with the same rules that apply to the outer object', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"value":"a","child":{"value":null}}', TreeNode::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 110 a list of dates is refused with a type error when an element is not a calendar date', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('["2020-01-01","nope"]', 'Ds\Vector<DateTime>'))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 111 a unique collection is written in code point order for strings and numeric order for numbers', function (): void {
+    expect(ObjectSerializer::serialize(new \Ds\Set(['b', 'B', 'a'])))->toBe('["B","a","b"]');
+    expect(ObjectSerializer::serialize(new \Ds\Set([10, 9, 2])))->toBe('[2,9,10]');
+});
+
+test('bhv misc 112 a repeated element of a unique array keeps one copy of each', function (): void {
+    $set = ObjectSerializer::deserialize('["a","b","a"]', 'Ds\Set<string>');
+
+    expect($set->count())->toBe(2);
+});
+
+test('bhv misc 115 a bare string serializes as a quoted json string', function (): void {
+    expect(ObjectSerializer::serialize('abc'))->toBe('"abc"');
+});
+
+test('bhv misc 116 an int32 additional property accepts its maximum and refuses one past it', function (): void {
+    $counters = ObjectSerializer::deserialize('{"a":2147483647}', \PetstoreClient\Models\Counters::class);
+    \assert($counters instanceof \PetstoreClient\Models\Counters);
+
+    expect($counters->additionalProperties->toArray())->toBe(['a' => 2147483647]);
+    expect(fn () => ObjectSerializer::deserialize('{"a":2147483648}', \PetstoreClient\Models\Counters::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv misc 117 an absent value serializes as the json literal null', function (): void {
+    expect(ObjectSerializer::serialize(null))->toBe('null');
+});
+
+test('bhv misc 118 when a payload carries a name and a differently cased duplicate, the exact case value is decoded', function (): void {
+    $defaults = ObjectSerializer::deserialize('{"Retries":1,"retries":2}', Defaults::class);
+    \assert($defaults instanceof Defaults);
+
+    expect($defaults->retries)->toBe(2);
+});
+
+test('bhv misc 119 two object keys that differ only by an escape sequence are one key and the last value wins', function (): void {
+    $defaults = ObjectSerializer::deserialize('{"retries":1,"\\u0072etries":2}', Defaults::class);
+    \assert($defaults instanceof Defaults);
+
+    expect($defaults->retries)->toBe(2);
+});
+
+test('bhv misc 121 an object with no declared schema is written as a json object of its properties', function (): void {
+    expect(ObjectSerializer::serialize(['name' => 'x', 'n' => 2]))->toBe('{"name":"x","n":2}');
+});
+
+test('bhv misc 123 a cookie value the caller has already percent encoded reaches the wire unchanged', function (): void {
+    expect(ObjectSerializer::toCookieValue('a%20b'))->toBe('a%20b');
+});
+
 test('bhv serialization 067 extra properties are written as top level keys beside the declared fields', function (): void {
     $metadata = new Metadata(createdAt: new \DateTime('2024-01-01T00:00:00+00:00'));
     $metadata->additionalProperties = new \Ds\Map(['region' => 'eu']);

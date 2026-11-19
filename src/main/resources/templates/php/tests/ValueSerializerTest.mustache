@@ -394,6 +394,12 @@ test('bhv serializationparam 017 deep object basic map returns bracketed keys', 
     expect($result['filter[size]'])->toBe('large');
 });
 
+test('bhv misc 120 an object parameter becomes name and value pairs keyed by wire name, sorted by name, with absent values left out', function (): void {
+    $result = ValueSerializer::serializeDeepObject('filter', ['b' => '2', 'c' => null, 'a' => '1']);
+
+    expect(array_keys($result))->toBe(['filter[a]', 'filter[b]']);
+});
+
 test('bhv serializationparam 061 deep object null returns empty array', function (): void {
     $result = ValueSerializer::serializeDeepObject('filter', null);
     expect($result)->toBe([]);

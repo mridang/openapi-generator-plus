@@ -825,3 +825,17 @@ test('bhv redirects 053 psr18 authorization is kept on a same origin redirect an
         ->sendRequest('GET', 'https://api.example.com/start', ['Authorization' => 'Bearer secret'], null);
     expect($downgrade->requests[1]->hasHeader('Authorization'))->toBeFalse();
 });
+
+test('bhv misc 131 a supplied session follows redirects under the sdk redirect rules', function (): void {
+    $stub = new StubPsr18Client(
+        psr18Response(302, '', ['Location' => 'https://api.example.com/landing']),
+        psr18Response(200, 'landed')
+    );
+    $transport = TransportOptions::builder()->followRedirects(true)->build();
+    $client = newPsr18Client($stub, $transport);
+
+    $response = $client->sendRequest('GET', 'https://api.example.com/start', [], null);
+
+    expect($response->statusCode)->toBe(200);
+    expect($stub->requests)->toHaveCount(2);
+});
