@@ -452,6 +452,12 @@ describe('StoreApi content-encoded query parameters', () => {
     }
   }
 
+  test('bhv misc 211 a date-time inside the JSON q parameter keeps its wire date-time form', async () => {
+    const url = await captureSearch(new PhotoMetadata({ takenAt: new Date('2024-01-02T03:04:05Z') }));
+
+    expect(decodeURIComponent(url)).toContain('"takenAt":"2024-01-02T03:04:05.000+00:00"');
+  });
+
   test('bhv operations 097 searchStore sends q as the ObjectSerializer JSON, unescaped and percent-encoded', async () => {
     const url = await captureSearch(new PhotoMetadata({ caption: 'a/b<\u00e9' }));
 
@@ -520,6 +526,16 @@ describe('StoreApi content-encoded query parameters', () => {
     const url = await captureRequest((s) => s.searchStore({ at: Temporal.PlainTime.from('10:30:00.25') }));
 
     expect(url).toContain('at=10%3A30%3A00.250');
+  });
+
+  test('bhv misc 214 an unserializable query content value raises SerializationError before any request is sent', async () => {
+    hits = 0;
+    const call = captureRequest((s) =>
+      s.searchStore({ q: new PhotoMetadata({ location: new PhotoMetadataLocation({ lng: Number.POSITIVE_INFINITY }) }) }),
+    );
+
+    await expect(call).rejects.toBeInstanceOf(SerializationError);
+    expect(hits).toBe(0);
   });
 
   test('bhv operations 128 searchStore with an unserializable content query raises SerializationError and sends no request', async () => {

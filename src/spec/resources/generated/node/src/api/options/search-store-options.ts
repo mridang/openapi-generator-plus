@@ -1,5 +1,5 @@
-import type { PhotoMetadata } from "../../models/index.js";
-import type { Temporal } from "temporal-polyfill";
+import type { PhotoMetadata } from '../../models/index.js';
+import type { Temporal } from 'temporal-polyfill';
 
 /**
  * Options for the searchStore operation.

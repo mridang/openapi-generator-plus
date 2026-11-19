@@ -203,6 +203,12 @@ export class {{clientClassName}} implements {{clientClassName}}Interface {
     const authenticator = isAuthenticator(credentials) ? credentials : credentials.authenticator;
     const schemes: Record<string, Authenticator> = {};
     if (!isAuthenticator(credentials)) {
+      const declared = new Set<string>(['authenticator', ...SCHEMES.map(([name]) => name)]);
+      for (const key of Object.keys(credentials)) {
+        if (!declared.has(key)) {
+          throw new TypeError(`Unknown credential '${key}': the API declares no security scheme with that name`);
+        }
+      }
       for (const [name, scheme] of SCHEMES) {
         const credential = credentials[name];
         if (credential != null) {

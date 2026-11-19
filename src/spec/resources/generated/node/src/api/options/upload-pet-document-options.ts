@@ -1,4 +1,4 @@
-import type { Swatch } from "../../models/index.js";
+import type { Swatch } from '../../models/index.js';
 
 /**
  * Options for the uploadPetDocument operation.

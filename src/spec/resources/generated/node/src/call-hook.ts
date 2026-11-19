@@ -96,8 +96,8 @@ export function chain(...hooks: CallHook[]): CallHook {
               /* A failing observer never stops the others. */
             }
           }
-        },
+        }
       };
-    },
+    }
   };
 }

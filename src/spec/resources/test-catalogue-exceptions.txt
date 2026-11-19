@@ -94,7 +94,6 @@ java | authscheme008 | The SsoAuth scheme is openIdConnect, for which the Java g
 kotlin | lifecycle030 | The scheme constructor takes the base URL as its required first argument (F857), so no scheme credential can supply it; the default authenticator supplies it through the authenticator constructor
 kotlin | options046 | TransportOptions has a private constructor, so a caller cannot build one directly and the scheme check runs only in the builder, where the refusal is pinned by bhv options 051
 kotlin | retries032 | Kotlin request bodies are a String, a ByteArray or a multipart map, all held in memory, and no public body type is a one-shot stream that a retry would have to refuse to resend (bhv retries 034 covers the string body)
-node | authscheme008 | the OpenID Connect authenticator behind SsoAuth takes every credential as an explicit constructor argument and reads no environment variable, so there is no variable to be empty
 node | authbearer026 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal
 node | serializationobject191 | JS numbers are binary doubles and JSON.parse rounds an int64 above 2^53 before the SDK sees it, so the digits are lost on decode; only a Decimal keeps its text, and the exact digits of the largest safe integer are pinned by serializationobject190
 python | authscheme003 | python generates one authenticator class per security scheme and runs the empty-variable check for all of them in one parametrised test (bhv authbasic 012), so there is no per-scheme test to carry this id; the rule is pinned there
@@ -178,7 +177,6 @@ node | misc001 | Node runs JavaScript on one thread, so a synchronous read of th
 node | serialization049 | Schema format constraints are not enforced at run time (settled decision S3), so a relative or empty URI-format string is accepted rather than refused
 node | serialization036 | JavaScript has one number type, so 1.0 and 1 are the same value and JSON.stringify writes a whole number without a decimal point; no float-typed value exists that could carry the point
 node | serialization040 | the fixture's only form-urlencoded operation declares string fields, so no generated operation can send a date-time, duration, number, integer or boolean as a form field; their wire text is pinned by the serializationparam tests
-node | redirects044 | the proxy credential is set on the undici ProxyAgent dispatcher, which a stubbed fetch never sees, so only the caller-header removal half is observable and that is covered by redirects 011 and 012
 php | transport068 | PHP has no per-call cancellation (S7): a call takes no cancellation signal, so there is no already-cancelled call to refuse before a request is sent
 php | transport069 | PHP has no per-call cancellation (S7): a call takes no cancellation signal or context, so no signal can reach the transport request
 php | auth013 | PHP has no per-call cancellation (S7): a token request takes no cancellation signal, so cancelling a call cannot stop the token request it started
@@ -284,7 +282,6 @@ ruby | tracing014 | the call is blocking and builds the headers on the caller's 
 go | tracing014 | the caller's context is passed as an explicit argument, so no ambient scope can be lost before the span is read; tracing013 covers the path
 kotlin | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 python | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
-node | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 swift | mocking009 | This language has no README test yet (#118); the section is pinned by the regenerated golden
 go | mocking007 | Go interfaces carry methods and not fields, so there is no client interface; the Client struct holds group-interface fields and mocking008 covers a client built from fakes
 elixir | mocking008 | There is no client behaviour to implement, so no fake client exists; a fake group module opens no connection by construction
@@ -335,7 +332,6 @@ go | misc092 | encoding/json matches a key to a field by case-folding the tag, s
 kotlin | operations164 | a required parameter is a non-null Kotlin type, so a nil argument is rejected by the compiler and cannot reach the call; a missing required Options field is refused with an argument error by bhv operations 132
 python | misc068 | python keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 ruby | misc061 | The SDK has no cancellation API of its own (readme and skills: Ruby's native mechanisms apply), so no caller cancellation or context value reaches an authenticator
-node | auth042 | the Node Basic and OAuth2 wrappers keep an explicit empty username, password or secret as given and do not refuse it at construction, while the bearer and API-key wrappers refuse it; the refusal is therefore tested for those two only, by the existing authbearer and authapikey tests
 swift | operations161 | the fixture has no operation whose success response is text/plain, so no generated call returns a raw text body to test
 swift | operations162 | the fixture has no date-only (format: date) parameter in form, query, header or path positions; its only temporal values are date-time fields
 swift | serialization078 | Swift maps format: time to String, as the idiom table in the swift AGENTS file records, so the SDK never formats a time of day itself and there is no zero-padding or fraction rule to test
@@ -505,10 +501,7 @@ python | misc145 | python exposes additional_properties as the model's own dict 
 python | misc149 | python copies a model with pydantic's model_copy, which does not refuse an undeclared key, so there is no refusal to observe
 python | misc153 | python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so a cancel set on the client cannot exist
 node | misc074 | BaseApi resolves one credential, the first listed scheme the client holds, so an alternative naming two schemes applies a single credential and never both
-node | misc075 | the credentials object is typed with one optional field per declared scheme, so TypeScript refuses an undeclared key at compile time and the client reads only declared schemes
 csharp | serialization129 | TimeSpan stores 100-nanosecond ticks, so a duration with nanosecond precision cannot be held by the model
-node | misc211 | the node fixture has no operation that sends a query parameter as JSON content, so a date-time inside one has no wire form to keep (bhv serialization covers date-time query values)
-node | misc214 | the node fixture has no query parameter with a content media type, so no query value can fail to serialize as content; object-valued query parameters use the deepObject or form styles
 rust | misc101 | Rust multipart parts are byte buffers read before the call is made, so no part can fail to read while the request is sent and the call has no source to fail on
 node | misc131 | The node client has no caller-supplied session object: every request goes through fetch with the SDK transport options, so no session can bypass the redirect rules.
 node | misc140 | TypeScript rejects a missing required constructor property at compile time, and the runtime constructor accepts partial data by design, so the check is a compile-time guarantee.
@@ -631,7 +624,6 @@ python | misc254 | an unmarked query value is percent-encoded on the wire (urlen
 python | misc255 | a space in a query value is percent-encoded as %20 on the wire; the unit serializer returns the raw value, the same settled behaviour as misc254
 python | misc085 | building a model never validates (serialization068), so an invalid UUID is kept as given on construction; the wire decode still refuses it (serializationobject048)
 node | misc139 | a model constructor assigns its data and never copies or freezes a collection (settled F868 in the node AGENTS.md: there is no runtime freeze and the constructor checks nothing); the decode path freezes a copy of decoded collections instead, which the decode tests pin
-node | misc090 | a duration's fractional seconds are written as the shortest 3, 6 or 9 digit group, so 1.5 seconds is written as 1.500s (settled decision, pinned by bhv misc 090 variants that expect 1.500s)
 java | misc116 | The Java models do not enforce declared integer minimum and maximum bounds: schema constraints such as range are not enforced by the client (settled decision S3, D55, pinned by bhv misc091), so an out-of-range value decodes like any other integer
 java | serialization128 | The Java transport carries a binary response as the base64 text of its bytes (settled: binary bodies as base64 text, bhv serializationwire017 and misc081), so a sendRequest body under image/png is that base64 text and the raw text is returned only through the typed call path
 kotlin | misc145 | Kotlin declares additionalProperties as a MutableMap field, the model own map (as python and php do), so a read hands back the stored map; a copy on read would change the model type, so the promise is not met by design

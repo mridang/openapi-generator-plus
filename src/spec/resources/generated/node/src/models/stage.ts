@@ -7,9 +7,9 @@
 
 export const Stage = {
   /** Waiting. */
-  OnHold: "paused",
-  Active: "active",
+  OnHold: 'paused',
+  Active: 'active',
   /** Running. */
-  Active2: "live",
+  Active2: 'live',
 } as const;
 export type Stage = (typeof Stage)[keyof typeof Stage];

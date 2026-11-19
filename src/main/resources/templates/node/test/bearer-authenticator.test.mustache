@@ -154,6 +154,11 @@ describe('BearerAuthenticator', () => {
       );
     });
 
+    it('bhv auth 042 an explicitly passed empty token is rejected by its own validation and not replaced by the environment', () => {
+      process.env[variable] = 'from-env';
+      expect(() => new BearerAuthenticator('https://api.example.com', '')).toThrow('Bearer token must not be empty');
+    });
+
     it('bhv authbearer 002 validates a token read from the environment like an explicit one', () => {
       process.env[variable] = 'tok\r\nInjected: yes';
       expect(() => new BearerAuthenticator('https://api.example.com')).toThrow(TypeError);
