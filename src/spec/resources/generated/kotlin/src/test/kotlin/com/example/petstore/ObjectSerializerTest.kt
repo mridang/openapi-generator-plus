@@ -4012,6 +4012,14 @@ class ObjectSerializerTest {
                 serializer.deserialize<java.time.Duration>("\"315576000001s\"")
             }
         }
+
+    @Test
+    @DisplayName("bhvMisc230 a model with no extra properties writes exactly its declared keys with no nested data key")
+    fun bhvMisc230ModelWithNoExtraPropertiesWritesOnlyItsDeclaredKeys() {
+        val json = serializer.stringify(MetadataHolder(label = "x"))
+        assertFalse(json.contains("\"data\""), json)
+        assertFalse(json.contains("additionalProperties"), json)
+    }
 }
 
 // File-scoped fixture: a property whose wire name begins with a digit.

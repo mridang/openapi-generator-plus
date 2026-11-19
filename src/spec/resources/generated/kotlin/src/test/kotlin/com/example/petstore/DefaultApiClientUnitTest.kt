@@ -4698,4 +4698,89 @@ class DefaultApiClientUnitTest {
         org.junit.jupiter.api.Assertions
             .assertDoesNotThrow { apiClient.close() }
     }
+
+    @Test
+    @DisplayName("bhvMisc223 a redirect that turns the follow-up into a GET drops the request body and its Content-Length")
+    fun bhvMisc223SeeOtherDropsTheBodyWhenTheFollowUpBecomesAGet() =
+        runBlocking<Unit> {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine =
+                MockEngine { request ->
+                    seen.add(request)
+                    if (seen.size == 1) {
+                        respond("", HttpStatusCode.SeeOther, headersOf(io.ktor.http.HttpHeaders.Location, "https://target.example.net/"))
+                    } else {
+                        respond("", HttpStatusCode.OK)
+                    }
+                }
+            val options = TransportOptions.builder().followRedirects(true).build()
+            DefaultApiClient(HttpClient(engine) { followRedirects = false }, options)
+                .sendRequest("POST", "http://origin.example.com/", emptyMap(), "payload")
+            assertEquals(io.ktor.http.HttpMethod.Get, seen[1].method)
+            assertNull(seen[1].headers[io.ktor.http.HttpHeaders.ContentLength])
+        }
+
+    @Test
+    @DisplayName("bhvMisc224 transport default headers are not sent on a request that goes to another origin after a redirect")
+    fun bhvMisc224TransportDefaultHeadersAreNotSentAfterACrossOriginRedirect() =
+        runBlocking<Unit> {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine =
+                MockEngine { request ->
+                    seen.add(request)
+                    if (seen.size == 1) {
+                        respond(
+                            "",
+                            HttpStatusCode.TemporaryRedirect,
+                            headersOf(io.ktor.http.HttpHeaders.Location, "https://target.example.net/"),
+                        )
+                    } else {
+                        respond("", HttpStatusCode.OK)
+                    }
+                }
+            val options =
+                TransportOptions
+                    .builder()
+                    .followRedirects(true)
+                    .defaultHeader("X-Default-Header", "transport-default")
+                    .build()
+            DefaultApiClient(HttpClient(engine) { followRedirects = false }, options)
+                .sendRequest("GET", "http://origin.example.com/", emptyMap(), null)
+            assertEquals(2, seen.size)
+            assertNull(seen[1].headers["X-Default-Header"])
+        }
+
+    @Test
+    @DisplayName("bhvMisc225 a 3xx response without a Location header is returned to the caller as the final response")
+    fun bhvMisc225RedirectWithoutLocationIsReturnedAsTheFinalResponse() =
+        runBlocking<Unit> {
+            val engine = MockEngine { _ -> respond("", HttpStatusCode.Found) }
+            val options = TransportOptions.builder().followRedirects(true).build()
+            val response =
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }, options)
+                    .sendRequest("POST", "http://origin.example.com/", emptyMap(), null)
+            assertEquals(302, response.statusCode)
+        }
+
+    @Test
+    @DisplayName("bhvMisc226 with redirect following enabled a 302 response is followed to its target and the final 200 is returned")
+    fun bhvMisc226FoundRedirectIsFollowedToItsTarget() =
+        runBlocking<Unit> {
+            val seen = mutableListOf<io.ktor.client.request.HttpRequestData>()
+            val engine =
+                MockEngine { request ->
+                    seen.add(request)
+                    if (seen.size == 1) {
+                        respond("", HttpStatusCode.Found, headersOf(io.ktor.http.HttpHeaders.Location, "https://target.example.net/"))
+                    } else {
+                        respond("", HttpStatusCode.OK)
+                    }
+                }
+            val options = TransportOptions.builder().followRedirects(true).build()
+            val response =
+                DefaultApiClient(HttpClient(engine) { followRedirects = false }, options)
+                    .sendRequest("GET", "http://origin.example.com/", emptyMap(), null)
+            assertEquals(200, response.statusCode)
+            assertEquals(2, seen.size)
+        }
 }
