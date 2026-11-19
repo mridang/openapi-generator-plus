@@ -117,7 +117,7 @@ public final class ServerConfiguration {
             String value       = overrides.getOrDefault(varName, var.getDefaultValue());
 
             List<String> enumValues = var.getEnumValues();
-            if (!enumValues.isEmpty() && !enumValues.contains(value)) {
+            if (!enumValues.isEmpty() && (value == null || !enumValues.contains(value))) {
                 throw new IllegalArgumentException(
                         "Invalid value '" + value + "' for server variable '" + varName
                                 + "'. Allowed values: " + enumValues);

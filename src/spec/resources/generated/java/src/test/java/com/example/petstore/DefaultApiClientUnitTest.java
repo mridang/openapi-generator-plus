@@ -4535,7 +4535,7 @@ class DefaultApiClientUnitTest {
   void bhvMisc168WithNoRetrySettingAFailingRequestIsSentThreeTimesWithBackoffBetween()
       throws Exception {
     var hits = new java.util.concurrent.atomic.AtomicInteger();
-    HttpServer scripted = scriptedServer(n -> new Reply(503, "0"), hits);
+    HttpServer scripted = scriptedServer(n -> new Reply(503, ""), hits);
     try {
       long started = System.nanoTime();
       new DefaultApiClient().sendRequest("GET", urlOf(scripted), Map.of(), null);

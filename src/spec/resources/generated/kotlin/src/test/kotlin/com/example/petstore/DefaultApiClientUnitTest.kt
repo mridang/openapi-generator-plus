@@ -13,11 +13,13 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.engine.mock.toByteArray
+import io.ktor.client.plugins.defaultRequest
 import io.ktor.http.Headers
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.utils.io.writeStringUtf8
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.*
@@ -4898,15 +4900,12 @@ class DefaultApiClientUnitTest {
                 }
             val apiClient =
                 DefaultApiClient(
+                    HttpClient(engine) { followRedirects = false },
                     TransportOptions
                         .builder()
                         .timeout(200L)
                         .maxRetries(0)
                         .build(),
-                    HttpClient(engine) {
-                        followRedirects =
-                            false
-                    },
                 )
             assertThrowsExactly(com.example.petstore.errors.NetworkTimeoutException::class.java) {
                 runBlocking { apiClient.sendRequest("GET", "http://localhost/timeout", emptyMap(), null) }
@@ -5072,8 +5071,7 @@ class DefaultApiClientUnitTest {
             }
         val client =
             HttpClient(engine) {
-                io.ktor.client.plugins
-                    .defaultRequest { headers.append("X-Client-Default", "kept") }
+                defaultRequest { headers.append("X-Client-Default", "kept") }
             }
         runBlocking { DefaultApiClient(client).sendRequest("GET", "http://localhost/test", emptyMap(), null) }
         assertEquals("kept", seen)

@@ -4167,12 +4167,12 @@ class ObjectSerializerTest {
   void bhvMisc089UtcDateTimeIsWrittenInCanonicalFormDirectlyAndInListAndMap() {
     java.time.OffsetDateTime when =
         java.time.OffsetDateTime.of(2024, 1, 2, 3, 4, 5, 0, ZoneOffset.UTC);
-    assertEquals("\"2024-01-02T03:04:05.000+00:00\"", ObjectSerializer.stringify(when));
+    assertEquals("\"2024-01-02T03:04:05.000+00:00\"", serializer.serialize(when));
     assertEquals(
-        "[\"2024-01-02T03:04:05.000+00:00\"]", ObjectSerializer.stringify(java.util.List.of(when)));
+        "[\"2024-01-02T03:04:05.000+00:00\"]", serializer.serialize(java.util.List.of(when)));
     assertEquals(
         "{\"at\":\"2024-01-02T03:04:05.000+00:00\"}",
-        ObjectSerializer.stringify(java.util.Map.of("at", when)));
+        serializer.serialize(java.util.Map.of("at", when)));
   }
 
   @Test

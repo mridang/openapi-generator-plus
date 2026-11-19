@@ -2093,7 +2093,7 @@ class PetApiTest {
     ApiClient recording =
         (method, url, headers, body) -> {
           sent.putAll(headers);
-          return new ApiHttpResponse(200, "", Map.of());
+          return new ApiHttpResponse(200, "{}", Map.of());
         };
     PetStoreBearerAuthenticator bearer =
         new PetStoreBearerAuthenticator("http://localhost", "test-token");
@@ -2101,7 +2101,7 @@ class PetApiTest {
         new StoreApi(
             recording, Configuration.builder().baseUrl("http://localhost").build(), bearer);
 
-    mockedApi.deleteOrder(3L);
+    mockedApi.getOrderByTrackingId(java.util.UUID.randomUUID());
 
     assertThat(sent.get("Authorization")).isNull();
   }
