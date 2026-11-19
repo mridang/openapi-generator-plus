@@ -80,6 +80,8 @@ class ValueSerializer:
         """
         if isinstance(value, (set, frozenset, tuple)):
             value = list(value)
+        if isinstance(value, AllowReservedValue) and isinstance(value.value, str):
+            return cls.encode_query_allowing_reserved(value.value)
         value = cls._narrow_to_date(value, schema_type)
 
         if value is None:
@@ -88,6 +90,12 @@ class ValueSerializer:
             return ""
 
         if isinstance(value, list):
+            if location == "path":
+                # Each item is encoded on its own, so a comma inside an item
+                # stays literal data while the list separator stays a comma.
+                return ",".join(
+                    quote(ObjectSerializer.stringify(v), safe="") for v in value
+                )
             if location == "query":
                 if collection_format == "multi":
                     return [ObjectSerializer.stringify(v) for v in value]

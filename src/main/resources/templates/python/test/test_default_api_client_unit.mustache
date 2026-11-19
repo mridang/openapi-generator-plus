@@ -8,7 +8,7 @@ import urllib3
 from urllib3._collections import HTTPHeaderDict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from {{packageName}}.default_api_client import (
     DefaultApiClient,
@@ -20,6 +20,7 @@ from {{packageName}}.default_api_client import (
     _sanitize_multipart_field_name,
     _sanitize_multipart_filename,
 )
+from {{packageName}}.errors import ApiException, NetworkException
 from {{packageName}}.transport_options import TransportOptions
 
 
@@ -586,7 +587,7 @@ class TestDefaultApiClientUnit:
 
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
-                raise urllib3.exceptions.ReadTimeoutError(None, 'https://example.com/x', 'timed out')
+                raise urllib3.exceptions.ReadTimeoutError(cast(Any, None), 'https://example.com/x', 'timed out')
 
         handle = RequestHandle()
         client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=_Pool())
@@ -1051,7 +1052,7 @@ class _FakeResp:
     standing up a real HTTP server. ``read``/``release_conn`` mirror the
     urllib3 contract the loop relies on."""
 
-    def __init__(self, status: int, headers: dict[str, Any]) -> None:
+    def __init__(self, status: int, headers: Any) -> None:
         self.status = status
         self.headers = HTTPHeaderDict(headers)
         self.released = False
@@ -2095,7 +2096,7 @@ class TestPastDeadline:
         client = DefaultApiClient(TransportOptions.builder().max_retries(0).build(), pool_manager=pool)
 
         with pytest.raises(NetworkTimeoutException):
-            client.send_request('GET', 'http://127.0.0.1:1/echo', {}, None, False, time.monotonic() - 1)
+            client.send_request('GET', 'http://127.0.0.1:1/echo', {}, None, False, deadline=time.monotonic() - 1)
 
         pool.request.assert_not_called()
 
@@ -2299,12 +2300,12 @@ class TestRedirectToNonHttpScheme:
     def test_bhv_misc_285_an_undecodable_content_encoding_is_refused_with_the_exact_message(self) -> None:
         class _Pool:
             def request(self, method: str, url: str, **kwargs: Any) -> Any:
-                return _FakeResp(200, {"content-encoding": "br"})
+                return _FakeResp(200, {"content-encoding": "x-custom"})
 
         client = DefaultApiClient(TransportOptions.builder().build(), pool_manager=_Pool())
         with pytest.raises(ValueError) as excinfo:
             client.send_request("GET", "https://example.com/x", {}, None)
-        assert str(excinfo.value) == "Unsupported Content-Encoding 'br'"
+        assert str(excinfo.value) == "Unsupported Content-Encoding 'x-custom'"
 
 
 class TestZstdDecompression:
@@ -2538,7 +2539,7 @@ class TestRedirectHopsAndStatuses:
         )
         response = client.send_request("GET", "https://example.com/start", {}, None)
         assert len(pool.calls) == 1
-        assert response.status == status
+        assert response.status_code == status
 
     def test_bhv_misc_130_a_credential_removed_by_a_cross_origin_hop_is_not_restored_on_return(self) -> None:
         pool = _ScriptedPool((302, "https://other.example.com/hop"), (302, "https://example.com/back"))
@@ -2557,7 +2558,7 @@ class TestRedirectHopsAndStatuses:
         )
         response = client.send_request("GET", "https://example.com/start", {}, None)
         assert len(pool.calls) == 2
-        assert response.status == 200
+        assert response.status_code == 200
 
     def test_bhv_misc_132_a_per_call_header_with_a_credential_word_is_dropped_on_cross_origin_redirect(self) -> None:
         pool = _ScriptedPool((302, "https://other.example.com/end"))

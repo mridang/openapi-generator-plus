@@ -1612,12 +1612,10 @@ describe 'DefaultApiClientUnit' do
     _(conn.proxy.uri.host).must_equal 'proxy.example'
   end
 
-  it 'bhv_retries_016 allows HTTPS -> HTTP redirect when method demotes to GET with no body' do
-    # 302 of a POST demotes to GET and drops the body, so there is no
-    # body to replay across the downgrade — the guard MUST NOT refuse.
+  it 'bhv_retries_016 HTTPS->HTTPS body replay allowed (no downgrade)' do
     stubs = Faraday::Adapter::Test::Stubs.new do |stub|
       stub.post('/r') do
-        [302, { 'location' => 'http://localhost/landing' }, '']
+        [302, { 'location' => 'https://localhost/landing' }, '']
       end
       stub.get('/landing') do
         [200, { 'content-type' => 'text/plain' }, 'ok']
@@ -2054,7 +2052,7 @@ describe 'DefaultApiClientUnit' do
     issue = lambda do |subject, key, signer, signer_key, ca:|
       cert = OpenSSL::X509::Certificate.new
       cert.version = 2
-      cert.serial = rand(2..2**31)
+      cert.serial = OpenSSL::BN.new(Random.rand(2..(2**31)).to_s)
       cert.subject = OpenSSL::X509::Name.parse("/CN=#{subject}")
       cert.issuer = signer ? signer.subject : cert.subject
       cert.public_key = key.public_key

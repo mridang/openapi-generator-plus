@@ -4281,17 +4281,26 @@ describe('DefaultApiClient transport misc behaviours', () => {
   });
 
   it('bhv misc 272 credentials embedded in the proxy URL are accepted by an authenticating proxy end to end', async () => {
+    /* undici tunnels every http:// origin through CONNECT: the proxy checks the
+     * credential on the tunnel and serves the origin request inside it. */
     const seen: Array<string | undefined> = [];
-    const proxy = http.createServer((req, res) => {
-      seen.push(req.headers['proxy-authorization']);
-      const expected = 'Basic ' + Buffer.from('user:pass').toString('base64');
-      if (req.headers['proxy-authorization'] !== expected) {
-        res.writeHead(407, { 'Proxy-Authenticate': 'Basic realm="proxy"' });
-        res.end();
-        return;
-      }
+    const expected = 'Basic ' + Buffer.from('user:pass').toString('base64');
+    const origin = http.createServer((_req, res) => {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end('{"via":"proxy"}');
+    });
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(400);
+      res.end();
+    });
+    proxy.on('connect', (req, socket) => {
+      seen.push(req.headers['proxy-authorization']);
+      if (req.headers['proxy-authorization'] !== expected) {
+        socket.end('HTTP/1.1 407 Proxy Authentication Required\r\nProxy-Authenticate: Basic realm="proxy"\r\n\r\n');
+        return;
+      }
+      socket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+      origin.emit('connection', socket);
     });
     await new Promise<void>((resolve) => proxy.listen(0, '127.0.0.1', resolve));
     const port = (proxy.address() as { port: number }).port;
@@ -4303,7 +4312,7 @@ describe('DefaultApiClient transport misc behaviours', () => {
       const response = await client.sendRequest('GET', 'http://target.example.invalid/x', {}, null);
       expect(response.statusCode).toBe(200);
       expect(response.body).toContain('proxy');
-      expect(seen[0]).toBe('Basic ' + Buffer.from('user:pass').toString('base64'));
+      expect(seen[0]).toBe(expected);
     } finally {
       await client.close();
       await new Promise<void>((resolve) => proxy.close(() => resolve()));

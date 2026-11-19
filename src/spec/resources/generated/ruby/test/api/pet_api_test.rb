@@ -110,7 +110,7 @@ describe Petstore::Client::Api::PetApi do
     end
 
     it 'bhv_misc_005 a bare null list body raises an API error' do
-      api, server, thread, captured = capture_wire_request('null')
+      api, server, thread, = capture_wire_request('null')
       begin
         _(-> { api.find_pets_by_status }).must_raise Petstore::Client::Errors::ApiError
       ensure
@@ -249,7 +249,8 @@ describe Petstore::Client::Api::PetApi do
       config = Petstore::Client::Configuration.new(base_url: 'http://127.0.0.1:1', default_headers: {})
       api = Petstore::Client::Api::PetApi.new(client, config)
 
-      err = assert_raises(ArgumentError) { api.get_pet_by_name(nil, nil) }
+      operation = :get_pet_by_name
+      err = assert_raises(ArgumentError) { api.public_send(operation, nil, nil) }
       _(err.message).must_include "'name'"
       _(client.calls).must_equal(0)
     end

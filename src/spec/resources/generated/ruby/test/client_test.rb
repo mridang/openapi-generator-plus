@@ -278,8 +278,9 @@ describe 'Client' do
 
   it 'bhv_misc_075 a credential keyed to a scheme the API does not declare is refused when the client is built' do
     credential = Petstore::Client::Auth::BearerAuthenticator.new('http://127.0.0.1:1', 'scheme-token')
+    constructor = :new
 
-    _ { Petstore::Client::Petstore.new(nil, nil, undeclared_scheme: credential) }.must_raise ArgumentError
+    _ { Petstore::Client::Petstore.public_send(constructor, nil, nil, undeclared_scheme: credential) }.must_raise ArgumentError
   end
 
   it 'bhv_misc_071 hands the client transport to a credential that needs HTTP' do

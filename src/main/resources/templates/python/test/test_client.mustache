@@ -198,7 +198,7 @@ class TestClientCredentials:
         monkeypatch.setenv('{{envPrefix}}_BASE_URL', 'https://env.example.com')
         monkeypatch.setenv('{{envPrefix}}_ACCESS_TOKEN', 'env-token')
 
-        client = {{clientClassName}}()
+        client = {{clientClassName}}.with_token()
 
         assert _host(client) == 'https://env.example.com'
         assert _authorization(client) == 'Bearer env-token'
@@ -285,7 +285,8 @@ class TestClientSchemeCredentials:
 
     def test_bhv_misc_075_a_credential_keyed_to_an_undeclared_scheme_is_refused_at_build(self) -> None:
         with pytest.raises(TypeError):
-            {{clientClassName}}(**{'undeclaredScheme': BearerAuthenticator('https://api.example.com', 'tok')})
+            undeclared: Any = {'undeclaredScheme': BearerAuthenticator('https://api.example.com', 'tok')}
+            {{clientClassName}}(**undeclared)
 
     def test_bhv_lang_python_049_the_call_hook_reaches_every_api_group(self) -> None:
         class _Hook:

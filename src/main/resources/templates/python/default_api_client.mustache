@@ -719,9 +719,12 @@ class DefaultApiClient:
         # A no_redirect request is a credential-bearing auth call (the OAuth2
         # token POST): the caller's default headers meant for the API, such as
         # an Authorization or API-key header, must never reach the token endpoint.
-        merged_headers: Dict[str, str] = (
-            {} if no_redirect else dict(self._transport_options.default_headers)
-        )
+        # A caller-supplied pool manager's own default headers are sent too:
+        # urllib3 replaces them when a request passes headers of its own.
+        merged_headers: Dict[str, str] = {}
+        if not no_redirect:
+            merged_headers.update(dict(self._pool_manager.headers or {}))
+            merged_headers.update(self._transport_options.default_headers)
         _merge_headers(merged_headers, headers)
 
         # Header names are case-insensitive (RFC 9110 section 5.1): any case

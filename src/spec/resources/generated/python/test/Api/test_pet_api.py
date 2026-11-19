@@ -1282,7 +1282,7 @@ class TestPetApi:
         self,
     ) -> None:
         with pytest.raises(ValueError, match="pet"):
-            await self.api.add_pet(None)
+            await self.api.add_pet(None)  # type: ignore[arg-type]
 
 
 def _create_mock_server(

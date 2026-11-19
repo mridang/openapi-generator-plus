@@ -633,6 +633,7 @@ class TestApiErrorRendering:
     ) -> None:
         err = ApiException.from_response(503, {"retry-after": "5"}, "{}")
 
+        assert err.response_headers is not None
         assert err.response_headers["retry-after"] == "5"
 
     def test_bhv_misc_286_an_oauth_error_message_names_its_status_and_error_code(

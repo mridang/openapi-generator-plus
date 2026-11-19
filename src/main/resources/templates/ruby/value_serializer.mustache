@@ -346,7 +346,9 @@ module {{moduleName}}
 
       # @type var acc: Hash[String, String]
       acc = {}
-      fields.each_with_object(acc) do |(key, val), result|
+      fields.sort_by { |key, _val| key.to_s }.each_with_object(acc) do |(key, val), result|
+        next if val.nil?
+
         result["#{param_name}[#{key}]"] = ObjectSerializer.stringify(val)
       end
     end

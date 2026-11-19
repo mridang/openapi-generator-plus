@@ -1114,19 +1114,29 @@ describe("DefaultApiClient redirect misc behaviours", () => {
   });
 
   it("bhv misc 128 a cross-origin redirect keeps the proxy credential on every request through the shared transport", async () => {
-    const seen: Array<{ url: string; auth: string | undefined }> = [];
-    const proxy = http.createServer((req, res) => {
-      seen.push({
-        url: String(req.url),
-        auth: req.headers["proxy-authorization"],
-      });
-      if (req.url === "http://origin-a.example/start") {
+    /* undici tunnels every http:// origin through CONNECT, so the proxy answers each
+     * tunnel and serves the origin request inside it. */
+    const seen: Array<{ target: string; auth: string | undefined }> = [];
+    const origin = http.createServer((req, res) => {
+      if (req.headers.host === "origin-a.example") {
         res.writeHead(302, { Location: "http://origin-b.example/hop" });
         res.end();
         return;
       }
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end('{"ok":true}');
+    });
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(400);
+      res.end();
+    });
+    proxy.on("connect", (req, socket) => {
+      seen.push({
+        target: String(req.url),
+        auth: req.headers["proxy-authorization"],
+      });
+      socket.write("HTTP/1.1 200 Connection Established\r\n\r\n");
+      origin.emit("connection", socket);
     });
     await new Promise<void>((resolve) => proxy.listen(0, "127.0.0.1", resolve));
     try {
@@ -1144,9 +1154,9 @@ describe("DefaultApiClient redirect misc behaviours", () => {
         null,
       );
       expect(response.statusCode).toBe(200);
-      expect(seen.map((s) => s.url)).toEqual([
-        "http://origin-a.example/start",
-        "http://origin-b.example/hop",
+      expect(seen.map((s) => s.target)).toEqual([
+        "origin-a.example:80",
+        "origin-b.example:80",
       ]);
       expect(seen.every((s) => s.auth !== undefined)).toBe(true);
     } finally {
