@@ -45,6 +45,8 @@ type StoreApiInterface interface {
 	CreateAccountWithHTTPInfo(ctx context.Context, account Account, callOptions ...RequestOption) (*ApiResult[Account], error)
 	DeleteOrder(ctx context.Context, orderId int64, callOptions ...RequestOption) error
 	DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (*ApiResult[any], error)
+	GetAuditTrail(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (*ApiResponse, error)
+	GetAuditTrailWithHTTPInfo(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error)
 	GetBySwatch(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions, callOptions ...RequestOption) (*Category, error)
 	GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions, callOptions ...RequestOption) (*ApiResult[Category], error)
 	GetDefaults(ctx context.Context, callOptions ...RequestOption) (*Defaults, error)
@@ -287,6 +289,140 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 	return &ApiResult[any]{
 		StatusCode: response.StatusCode,
 		Data:       nil,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// GetAuditTrail Read the audit trail, which needs a bearer token and an API key together
+// One security requirement that names two schemes, so a request carries both credentials.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for this operation; it has no parameters of its own, so pass nil.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /store/audit
+func (a *StoreApi) GetAuditTrail(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (*ApiResponse, error) {
+	result, err := a.GetAuditTrailWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetAuditTrail", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetAuditTrailWithHTTPInfo performs the GetAuditTrail operation and returns the full API result.
+func (a *StoreApi) GetAuditTrailWithHTTPInfo(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (_ *ApiResult[ApiResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/store/audit"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "getAuditTrail",
+		urlTemplate:  "/store/audit",
+		call:         call,
+		order:        []string{},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "ApiResponse",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer", "apiKeyHeader"},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data ApiResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ApiResponse
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ApiResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetAuditTrail: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[ApiResponse]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
 		RawBody:    response.Body,
 		Headers:    response.Headers,
 	}, nil

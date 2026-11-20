@@ -309,6 +309,30 @@ defmodule PetstoreClient.Api.PetApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback attach_pet_files(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.AttachPetFilesOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+
+  @callback attach_pet_files!(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.AttachPetFilesOptions.t(),
+              keyword()
+            ) ::
+              PetstoreClient.Models.ApiResponse.t()
+
+  @callback attach_pet_files_with_http_info(
+              PetstoreClient.Api.PetApi.t(),
+              integer(),
+              PetstoreClient.Api.Options.AttachPetFilesOptions.t(),
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback delete_pet(
               PetstoreClient.Api.PetApi.t(),
               integer(),
@@ -1347,6 +1371,158 @@ defmodule PetstoreClient.Api.PetApi do
       "PetTreatment",
       auth,
       Keyword.put(call, :operation, {"addPetTreatment", "/pet/{petId}/treatment"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Attach files in a multipart/mixed request
+
+  Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+
+  ## Parameters
+    * `pet_id` - integer()
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, ApiResponse}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec attach_pet_files(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.AttachPetFilesOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+  @impl true
+  def attach_pet_files(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case attach_pet_files_with_http_info(api, pet_id, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for attach_pet_files but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `attach_pet_files`. Raises on error.
+  """
+  @spec attach_pet_files!(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.AttachPetFilesOptions.t(),
+          keyword()
+        ) ::
+          PetstoreClient.Models.ApiResponse.t()
+  @impl true
+  def attach_pet_files!(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    case attach_pet_files(api, pet_id, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `attach_pet_files` but returns the full `ApiResult`.
+  """
+  @spec attach_pet_files_with_http_info(
+          t(),
+          integer(),
+          PetstoreClient.Api.Options.AttachPetFilesOptions.t(),
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def attach_pet_files_with_http_info(%__MODULE__{} = api, pet_id, options, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBasic", "petStoreBearer"])
+
+    if is_nil(pet_id) do
+      raise ArgumentError,
+            "Missing the required parameter 'pet_id' when calling PetApi.attach_pet_files"
+    end
+
+    if is_nil(options) or is_nil(options.file) or options.file == "" do
+      raise ArgumentError,
+            "Missing the required parameter 'file' when calling PetApi.attach_pet_files"
+    end
+
+    path = "/pet/{petId}/attachments"
+
+    path =
+      String.replace(
+        path,
+        "{petId}",
+        PetstoreClient.ValueSerializer.serialize_styled(
+          "petId",
+          pet_id,
+          :path,
+          "integer()",
+          nil,
+          "simple",
+          false
+        )
+        |> to_string()
+      )
+
+    query_params = []
+    header_params = %{}
+    request_body = []
+    request_body = request_body ++ [{"file", {:raw, options.file}}]
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.caption),
+        do: request_body ++ [{"caption", options.caption}],
+        else: request_body
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :POST,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "multipart/mixed",
+      "ApiResponse",
+      auth,
+      Keyword.put(call, :operation, {"attachPetFiles", "/pet/{petId}/attachments"}),
       %{}
     )
   end
@@ -4854,6 +5030,26 @@ defmodule PetstoreClient.Api.PetApi do
     request_body =
       if not is_nil(options) and not is_nil(options.reminder),
         do: request_body ++ [{"reminder", options.reminder}],
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.interval_days),
+        do: request_body ++ [{"intervalDays", options.interval_days}],
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.ratio),
+        do: request_body ++ [{"ratio", options.ratio}],
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.urgent),
+        do: request_body ++ [{"urgent", options.urgent}],
+        else: request_body
+
+    request_body =
+      if not is_nil(options) and not is_nil(options.snooze),
+        do: request_body ++ [{"snooze", options.snooze}],
         else: request_body
 
     PetstoreClient.Api.BaseApi.invoke_api_for_result(

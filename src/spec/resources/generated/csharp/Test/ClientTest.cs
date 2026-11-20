@@ -602,6 +602,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("AddPetPhotosWithHttpInfoAsync", PetListed);
         Assert.Contains("AddPetTreatmentAsync", PetListed);
         Assert.Contains("AddPetTreatmentWithHttpInfoAsync", PetListed);
+        Assert.Contains("AttachPetFilesAsync", PetListed);
+        Assert.Contains("AttachPetFilesWithHttpInfoAsync", PetListed);
         Assert.Contains("DeletePetAsync", PetListed);
         Assert.Contains("DeletePetWithHttpInfoAsync", PetListed);
         Assert.Contains("DownloadPetDocumentAsync", PetListed);
@@ -666,6 +668,8 @@ public sealed class ClientTest : IDisposable
         Assert.Contains("CreateAccountWithHttpInfoAsync", StoreListed);
         Assert.Contains("DeleteOrderAsync", StoreListed);
         Assert.Contains("DeleteOrderWithHttpInfoAsync", StoreListed);
+        Assert.Contains("GetAuditTrailAsync", StoreListed);
+        Assert.Contains("GetAuditTrailWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetBySwatchAsync", StoreListed);
         Assert.Contains("GetBySwatchWithHttpInfoAsync", StoreListed);
         Assert.Contains("GetDefaultsAsync", StoreListed);

@@ -353,6 +353,76 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: PetTreatment.self)
   }
 
+  /// Attach files in a multipart/mixed request
+  /// Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+  ///
+  /// - Parameters:
+  ///   - petId: The petId path parameter.
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResponse
+  {
+    let result = try await attachPetFilesWithHTTPInfo(petId: petId, options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for attachPetFiles but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the attachPetFiles operation and returns the full API result.
+  public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResult<ApiResponse>
+  {
+
+    var path = "/pet/{petId}/attachments"
+    path = path.replacingOccurrences(
+      of: "{" + "petId" + "}",
+      with:
+        "\(ValueSerializer.serializeStyled("petId", value: petId, location: "path", schemaType: "Int64", collectionFormat: "", style: "simple", explode: false) ?? "")"
+    )
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    /* Form fields are stored as `Any` so array values survive as arrays
+     * (rather than being stringified to a Swift "[a, b]" description) and
+     * can be emitted as repeated keys by the form/multipart encoder.
+     * Optional nil fields are omitted entirely — never sent as an empty
+     * `name=` pair. */
+    var formBody: OrderedParams<Any> = [:]
+    formBody["file"] = options.file
+    if let val = options.caption {
+      formBody["caption"] = val
+    }
+
+    let requestBody: Any? = formBody
+    let params = InvokeAPIParams(
+      method: "POST",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "multipart/mixed",
+      returnType: "ApiResponse",
+      auth: schemeAuthenticator(["petStoreBasic", "petStoreBearer"]),
+      operation: "PetApi.attachPetFiles",
+      operationId: "attachPetFiles",
+      urlTemplate: "/pet/{petId}/attachments",
+      timeout: options.timeout,
+      requestHeaders: options.headers,
+      maxRetries: options.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: ApiResponse.self)
+  }
+
   /// Deletes a pet
   ///
   /// - Parameters:
@@ -1797,6 +1867,18 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     }
     if let val = options.reminder {
       formBody["reminder"] = val
+    }
+    if let val = options.intervalDays {
+      formBody["intervalDays"] = val
+    }
+    if let val = options.ratio {
+      formBody["ratio"] = val
+    }
+    if let val = options.urgent {
+      formBody["urgent"] = val
+    }
+    if let val = options.snooze {
+      formBody["snooze"] = val
     }
 
     let requestBody: Any? = formBody

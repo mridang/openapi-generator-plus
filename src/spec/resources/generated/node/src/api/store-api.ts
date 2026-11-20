@@ -16,7 +16,7 @@ import { ObjectSerializer } from '../object-serializer.js';
 import { ValueSerializer } from '../value-serializer.js';
 import type { DeepInput } from '../deep-input.js';
 import type { UUID } from '../brand.js';
-import { Account, Category, Defaults, Department, NativeValues, Order, ReserveStockResponse, StockItem, Swatch, TreeNode, Reservation, ReservationReceipt } from '../models/index.js';
+import { Account, ApiResponse, Category, Defaults, Department, NativeValues, Order, ReserveStockResponse, StockItem, Swatch, TreeNode, Reservation, ReservationReceipt } from '../models/index.js';
 import type { GetBySwatchOptions } from './options/get-by-swatch-options.js';
 import type { GetNativeValuesOptions } from './options/get-native-values-options.js';
 import type { GetStockItemOptions } from './options/get-stock-item-options.js';
@@ -32,6 +32,8 @@ export interface StoreApiInterface {
   createAccountWithHttpInfo(account: DeepInput<Account>, requestOptions?: RequestOptions): Promise<ApiResult<Account>>;
   deleteOrder(orderId: number, requestOptions?: RequestOptions): Promise<void>;
   deleteOrderWithHttpInfo(orderId: number, requestOptions?: RequestOptions): Promise<ApiResult<void>>;
+  getAuditTrail(requestOptions?: RequestOptions): Promise<ApiResponse>;
+  getAuditTrailWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>;
   getBySwatch(pathSwatch: Swatch, options?: GetBySwatchOptions, requestOptions?: RequestOptions): Promise<Category>;
   getBySwatchWithHttpInfo(pathSwatch: Swatch, options?: GetBySwatchOptions, requestOptions?: RequestOptions): Promise<ApiResult<Category>>;
   getDefaults(requestOptions?: RequestOptions): Promise<Defaults>;
@@ -182,6 +184,59 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       'deleteOrder',
       '/store/order/{orderId}'
+    );
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together
+   * One security requirement that names two schemes, so a request carries both credentials.
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return ApiResponse
+   * @throws {ApiError} if fails to make API call
+   */
+  async getAuditTrail(requestOptions?: RequestOptions): Promise<ApiResponse> {
+    const getAuditTrailResult = await this.getAuditTrailWithHttpInfo(requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (getAuditTrailResult.data == null) {
+      throw new ApiError(
+        getAuditTrailResult.statusCode,
+        'Expected a response body for getAuditTrail but received none',
+        getAuditTrailResult.headers,
+        getAuditTrailResult.rawBody,
+        null
+      );
+    }
+    return getAuditTrailResult.data as ApiResponse;
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async getAuditTrailWithHttpInfo(requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>> {
+    const path = `/store/audit`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      'GET',
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ['application/json'],
+      'application/json',
+            (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
+      this.resolveSchemeAuth(['petStoreBearer', 'apiKeyHeader']),
+      false,
+      'model',
+      'getAuditTrail',
+      requestOptions,
+      undefined,
+      'getAuditTrail',
+      '/store/audit'
     );
   }
 

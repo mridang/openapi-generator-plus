@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Mapping, Optional, Protocol
 from pydantic import AwareDatetime, StrictInt
 
 from petstore_client.models.account import Account
+from petstore_client.models.api_response import ApiResponse
 from petstore_client.models.category import Category
 from petstore_client.models.defaults import Defaults
 from petstore_client.models.department import Department
@@ -32,6 +33,7 @@ from ..auth.authenticator import Authenticator
 from ..errors import ApiException
 from .options.create_account_options import CreateAccountOptions
 from .options.delete_order_options import DeleteOrderOptions
+from .options.get_audit_trail_options import GetAuditTrailOptions
 from .options.get_by_swatch_options import GetBySwatchOptions
 from .options.get_defaults_options import GetDefaultsOptions
 from .options.get_department_options import GetDepartmentOptions
@@ -87,6 +89,20 @@ class StoreApiProtocol(Protocol):
         options: Optional[DeleteOrderOptions] = None,
     ) -> "ApiResult[None]":
         """The ``delete_order`` operation with its status code, headers and body."""
+        ...
+
+    async def get_audit_trail(
+        self,
+        options: Optional[GetAuditTrailOptions] = None,
+    ) -> ApiResponse:
+        """The ``get_audit_trail`` operation."""
+        ...
+
+    async def get_audit_trail_with_http_info(
+        self,
+        options: Optional[GetAuditTrailOptions] = None,
+    ) -> "ApiResult[ApiResponse]":
+        """The ``get_audit_trail`` operation with its status code, headers and body."""
         ...
 
     async def get_by_swatch(
@@ -479,6 +495,64 @@ class StoreApi(BaseApi):
             operation_name="delete_order",
             operation_id="deleteOrder",
             url_template="/store/order/{orderId}",
+            request_options=options,
+        )
+
+    async def get_audit_trail(
+        self,
+        options: Optional[GetAuditTrailOptions] = None,
+    ) -> ApiResponse:
+        """Read the audit trail, which needs a bearer token and an API key together
+        One security requirement that names two schemes, so a request carries both credentials.
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResponse
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.get_audit_trail_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for get_audit_trail but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def get_audit_trail_with_http_info(
+        self,
+        options: Optional[GetAuditTrailOptions] = None,
+    ) -> "ApiResult[ApiResponse]":
+        """Read the audit trail, which needs a bearer token and an API key together (with HTTP info)
+        One security requirement that names two schemes, so a request carries both credentials.
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/audit"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "application/json",
+            "ApiResponse",
+            self._scheme_authenticator("petStoreBearer", "apiKeyHeader"),
+            operation_name="get_audit_trail",
+            operation_id="getAuditTrail",
+            url_template="/store/audit",
             request_options=options,
         )
 

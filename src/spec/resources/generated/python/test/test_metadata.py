@@ -585,6 +585,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.pet_api",
             "PetApi",
+            "attach_pet_files",
+            "AttachPetFilesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
             "delete_pet",
             "DeletePetOptions",
             False,
@@ -791,6 +798,13 @@ class TestEveryOperationTakesOptions:
             "delete_order",
             "DeleteOrderOptions",
             True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_audit_trail",
+            "GetAuditTrailOptions",
+            False,
         ),
         (
             "petstore_client.api.store_api",

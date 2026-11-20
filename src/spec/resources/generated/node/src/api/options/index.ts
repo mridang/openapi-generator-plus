@@ -1,4 +1,5 @@
 export * from './add-pet-photos-options.js';
+export * from './attach-pet-files-options.js';
 export * from './delete-pet-options.js';
 export * from './find-pets-by-status-options.js';
 export * from './get-pet-by-name-options.js';

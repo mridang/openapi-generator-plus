@@ -9,7 +9,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from petstore_client._duration import ProtobufDuration
+from petstore_client._types import LaxFloat
 from pydantic import AwareDatetime
+from pydantic import StrictBool
+from pydantic import StrictInt
 from pydantic import StrictStr
 from typing import Optional, Mapping, List
 from petstore_client.transport_options import _validated_call_headers
@@ -33,6 +37,10 @@ class SetPetPreferencesOptions:
     note: Optional[StrictStr] = None
     renewal_date: Optional[date] = None
     reminder: Optional[AwareDatetime] = None
+    interval_days: Optional[StrictInt] = None
+    ratio: Optional[LaxFloat] = None
+    urgent: Optional[StrictBool] = None
+    snooze: Optional[ProtobufDuration] = None
     timeout: Optional[int] = None
     headers: Optional[Mapping[str, str]] = None
     max_retries: Optional[int] = None

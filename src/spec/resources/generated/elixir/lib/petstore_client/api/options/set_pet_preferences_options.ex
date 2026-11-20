@@ -17,6 +17,10 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
           note: String.t() | nil,
           renewal_date: Date.t() | nil,
           reminder: DateTime.t() | nil,
+          interval_days: integer() | nil,
+          ratio: float() | nil,
+          urgent: boolean() | nil,
+          snooze: Duration.t() | nil,
           timeout: pos_integer() | nil,
           headers: %{optional(String.t()) => String.t()} | nil,
           max_retries: non_neg_integer() | nil
@@ -27,6 +31,10 @@ defmodule PetstoreClient.Api.Options.SetPetPreferencesOptions do
             note: nil,
             renewal_date: nil,
             reminder: nil,
+            interval_days: nil,
+            ratio: nil,
+            urgent: nil,
+            snooze: nil,
             # Per-call settings: milliseconds for this call (replacing the transport's
             # timeout), headers added to this call, and how many times it is retried
             # (0 for none, replacing the transport's `max_retries`). nil keeps the

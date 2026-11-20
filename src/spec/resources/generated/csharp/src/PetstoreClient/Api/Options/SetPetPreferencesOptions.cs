@@ -17,6 +17,14 @@ public sealed class SetPetPreferencesOptions
 
     public DateTimeOffset? Reminder { get; init; }
 
+    public int? IntervalDays { get; init; }
+
+    public double? Ratio { get; init; }
+
+    public bool? Urgent { get; init; }
+
+    public TimeSpan? Snooze { get; init; }
+
     /// <summary>
     /// End-to-end timeout in milliseconds for this call only: it replaces
     /// <see cref="TransportOptions.Timeout"/> and must be greater than zero.

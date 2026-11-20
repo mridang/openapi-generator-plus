@@ -1,6 +1,7 @@
 from .add_pet_options import AddPetOptions as AddPetOptions
 from .add_pet_photos_options import AddPetPhotosOptions as AddPetPhotosOptions
 from .add_pet_treatment_options import AddPetTreatmentOptions as AddPetTreatmentOptions
+from .attach_pet_files_options import AttachPetFilesOptions as AttachPetFilesOptions
 from .delete_pet_options import DeletePetOptions as DeletePetOptions
 from .download_pet_document_options import (
     DownloadPetDocumentOptions as DownloadPetDocumentOptions,
@@ -51,6 +52,7 @@ from .get_upstream_options import GetUpstreamOptions as GetUpstreamOptions
 from .take_lock_options import TakeLockOptions as TakeLockOptions
 from .create_account_options import CreateAccountOptions as CreateAccountOptions
 from .delete_order_options import DeleteOrderOptions as DeleteOrderOptions
+from .get_audit_trail_options import GetAuditTrailOptions as GetAuditTrailOptions
 from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions
 from .get_defaults_options import GetDefaultsOptions as GetDefaultsOptions
 from .get_department_options import GetDepartmentOptions as GetDepartmentOptions

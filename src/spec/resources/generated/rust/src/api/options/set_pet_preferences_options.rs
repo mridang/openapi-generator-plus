@@ -9,6 +9,10 @@ pub struct SetPetPreferencesOptions {
     pub note: Option<String>,
     pub renewal_date: Option<chrono::NaiveDate>,
     pub reminder: Option<crate::date_time::DateTime>,
+    pub interval_days: Option<i32>,
+    pub ratio: Option<f64>,
+    pub urgent: Option<bool>,
+    pub snooze: Option<chrono::TimeDelta>,
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
     pub timeout: Option<Duration>,
@@ -34,6 +38,10 @@ impl SetPetPreferencesOptions {
             note: None,
             renewal_date: None,
             reminder: None,
+            interval_days: None,
+            ratio: None,
+            urgent: None,
+            snooze: None,
             timeout: None,
             max_retries: None,
             headers: HashMap::new(),
@@ -61,6 +69,30 @@ impl SetPetPreferencesOptions {
     /// Sets the reminder field.
     pub fn reminder(mut self, reminder: crate::date_time::DateTime) -> Self {
         self.reminder = Some(reminder);
+        self
+    }
+
+    /// Sets the interval_days field.
+    pub fn interval_days(mut self, interval_days: i32) -> Self {
+        self.interval_days = Some(interval_days);
+        self
+    }
+
+    /// Sets the ratio field.
+    pub fn ratio(mut self, ratio: f64) -> Self {
+        self.ratio = Some(ratio);
+        self
+    }
+
+    /// Sets the urgent field.
+    pub fn urgent(mut self, urgent: bool) -> Self {
+        self.urgent = Some(urgent);
+        self
+    }
+
+    /// Sets the snooze field.
+    pub fn snooze(mut self, snooze: chrono::TimeDelta) -> Self {
+        self.snooze = Some(snooze);
         self
     }
 

@@ -12,6 +12,7 @@ package com.example.petstore.api
 import com.example.petstore.ApiResult
 import com.example.petstore.api.options.CreateAccountOptions
 import com.example.petstore.api.options.DeleteOrderOptions
+import com.example.petstore.api.options.GetAuditTrailOptions
 import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetDefaultsOptions
 import com.example.petstore.api.options.GetDepartmentOptions
@@ -30,6 +31,7 @@ import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
 import com.example.petstore.models.Account
+import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
@@ -74,6 +76,12 @@ interface StoreApiInterface {
         orderId: Long,
         options: DeleteOrderOptions? = null,
     ): ApiResult<Unit>
+
+    /** The `getAuditTrail` operation. */
+    suspend fun getAuditTrail(options: GetAuditTrailOptions? = null): ApiResponse
+
+    /** The `getAuditTrail` operation with its status code, headers and body. */
+    suspend fun getAuditTrailWithHttpInfo(options: GetAuditTrailOptions? = null): ApiResult<ApiResponse>
 
     /** The `getBySwatch` operation. */
     suspend fun getBySwatch(

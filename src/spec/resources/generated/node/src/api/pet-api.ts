@@ -16,6 +16,7 @@ import { ValueSerializer } from '../value-serializer.js';
 import type { DeepInput } from '../deep-input.js';
 import { ApiResponse, Pet, PetPassport, PetTreatment, Photo, SetPetAvatarThumbnailRequest } from '../models/index.js';
 import type { AddPetPhotosOptions } from './options/add-pet-photos-options.js';
+import type { AttachPetFilesOptions } from './options/attach-pet-files-options.js';
 import type { DeletePetOptions } from './options/delete-pet-options.js';
 import type { FindPetsByStatusOptions } from './options/find-pets-by-status-options.js';
 import type { GetPetByNameOptions } from './options/get-pet-by-name-options.js';
@@ -186,6 +187,8 @@ export interface PetApiInterface {
   addPetPhotosWithHttpInfo(petId: number, options: AddPetPhotosOptions, requestOptions?: RequestOptions): Promise<ApiResult<Array<Photo>>>;
   addPetTreatment(petId: number, petTreatment: DeepInput<PetTreatment>, requestOptions?: RequestOptions): Promise<PetTreatment>;
   addPetTreatmentWithHttpInfo(petId: number, petTreatment: DeepInput<PetTreatment>, requestOptions?: RequestOptions): Promise<ApiResult<PetTreatment>>;
+  attachPetFiles(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResponse>;
+  attachPetFilesWithHttpInfo(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>>;
   deletePet(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions): Promise<void>;
   deletePetWithHttpInfo(petId: number, options?: DeletePetOptions, requestOptions?: RequestOptions): Promise<ApiResult<void>>;
   downloadPetDocument(petId: number, documentId: number, requestOptions?: RequestOptions): Promise<Buffer>;
@@ -445,6 +448,78 @@ export class PetApi extends BaseApi implements PetApiInterface {
       undefined,
       'addPetTreatment',
       '/pet/{petId}/treatment'
+    );
+  }
+
+  /**
+   * Attach files in a multipart/mixed request
+   * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+   * @param petId  (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.file  (required)
+   * @param options.caption  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return ApiResponse
+   * @throws {ApiError} if fails to make API call
+   */
+  async attachPetFiles(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResponse> {
+    const attachPetFilesResult = await this.attachPetFilesWithHttpInfo(petId, options, requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (attachPetFilesResult.data == null) {
+      throw new ApiError(
+        attachPetFilesResult.statusCode,
+        'Expected a response body for attachPetFiles but received none',
+        attachPetFilesResult.headers,
+        attachPetFilesResult.rawBody,
+        null
+      );
+    }
+    return attachPetFilesResult.data as ApiResponse;
+  }
+
+  /**
+   * Attach files in a multipart/mixed request (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async attachPetFilesWithHttpInfo(petId: number, options: AttachPetFilesOptions, requestOptions?: RequestOptions): Promise<ApiResult<ApiResponse>> {
+    if (petId == null) {
+      throw new TypeError("Missing the required parameter 'petId' when calling PetApi.attachPetFiles");
+    }
+    if (options?.file == null) {
+      throw new TypeError("Missing the required parameter 'file' when calling PetApi.attachPetFiles");
+    }
+    let path = `/pet/{petId}/attachments`;
+    path = path.replace(`{${'petId'}}`, () => ValueSerializer.serializeStyled('petId', petId, 'path', 'number', null, 'simple', false) as string);
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    const formBody: Record<string, unknown> = {};
+    if (options?.file != null) {
+      formBody['file'] = options.file;
+    }
+    if (options?.caption != null) {
+      formBody['caption'] = options.caption;
+    }
+
+    return await this.invokeApiForResult(
+      'POST',
+      path,
+      queryParams,
+      headerParams,
+      formBody,
+      ['application/json'],
+      'multipart/mixed',
+            (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
+      this.resolveSchemeAuth(['petStoreBasic', 'petStoreBearer']),
+      false,
+      'model',
+      'attachPetFiles',
+      requestOptions,
+      undefined,
+      'attachPetFiles',
+      '/pet/{petId}/attachments'
     );
   }
 
@@ -1666,6 +1741,10 @@ export class PetApi extends BaseApi implements PetApiInterface {
    * @param options.note  (optional)
    * @param options.renewalDate  (optional)
    * @param options.reminder  (optional)
+   * @param options.intervalDays  (optional)
+   * @param options.ratio  (optional)
+   * @param options.urgent  (optional)
+   * @param options.snooze  (optional)
    * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
    * @return ApiResponse
    * @throws {ApiError} if fails to make API call
@@ -1720,6 +1799,18 @@ export class PetApi extends BaseApi implements PetApiInterface {
     }
     if (options?.reminder != null) {
       formBody['reminder'] = options.reminder;
+    }
+    if (options?.intervalDays != null) {
+      formBody['intervalDays'] = options.intervalDays;
+    }
+    if (options?.ratio != null) {
+      formBody['ratio'] = options.ratio;
+    }
+    if (options?.urgent != null) {
+      formBody['urgent'] = options.urgent;
+    }
+    if (options?.snooze != null) {
+      formBody['snooze'] = options.snooze;
     }
 
     return await this.invokeApiForResult(

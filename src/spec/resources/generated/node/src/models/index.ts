@@ -7,6 +7,7 @@
 
 export * from './account.js';
 export * from './api-response.js';
+export * from './attach-pet-files-request.js';
 export * from './availability.js';
 export * from './binary-vault.js';
 export * from './blobs.js';

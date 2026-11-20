@@ -62,6 +62,20 @@ public interface IPetApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>AttachPetFiles</c> operation.</summary>
+    Task<ApiResponse> AttachPetFilesAsync(
+        long petId,
+        AttachPetFilesOptions options,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>AttachPetFiles</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<ApiResponse>> AttachPetFilesWithHttpInfoAsync(
+        long petId,
+        AttachPetFilesOptions options,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>DeletePet</c> operation.</summary>
     Task DeletePetAsync(
         long petId,

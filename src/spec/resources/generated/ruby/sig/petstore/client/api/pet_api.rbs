@@ -75,6 +75,8 @@ module Petstore::Client
       def add_pet_photos_with_http_info: (Integer pet_id, Options::AddPetPhotosOptions options) -> ::Petstore::Client::ApiResult[Array[Models::Photo]]
       def add_pet_treatment: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> Models::PetTreatment
       def add_pet_treatment_with_http_info: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> ::Petstore::Client::ApiResult[Models::PetTreatment]
+      def attach_pet_files: (Integer pet_id, Options::AttachPetFilesOptions options) -> Models::ApiResponse
+      def attach_pet_files_with_http_info: (Integer pet_id, Options::AttachPetFilesOptions options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def delete_pet: (Integer pet_id, ?Options::DeletePetOptions? options) -> void
       def delete_pet_with_http_info: (Integer pet_id, ?Options::DeletePetOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def download_pet_document: (Integer pet_id, Integer document_id, ?Options::DownloadPetDocumentOptions? options) -> ::StringIO
@@ -128,6 +130,8 @@ module Petstore::Client
       def add_pet_photos_with_http_info: (Integer pet_id, Options::AddPetPhotosOptions options) -> ::Petstore::Client::ApiResult[Array[Models::Photo]]
       def add_pet_treatment: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> Models::PetTreatment
       def add_pet_treatment_with_http_info: (Integer pet_id, Models::PetTreatment pet_treatment, ?Options::AddPetTreatmentOptions? options) -> ::Petstore::Client::ApiResult[Models::PetTreatment]
+      def attach_pet_files: (Integer pet_id, Options::AttachPetFilesOptions options) -> Models::ApiResponse
+      def attach_pet_files_with_http_info: (Integer pet_id, Options::AttachPetFilesOptions options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def delete_pet: (Integer pet_id, ?Options::DeletePetOptions? options) -> void
       def delete_pet_with_http_info: (Integer pet_id, ?Options::DeletePetOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def download_pet_document: (Integer pet_id, Integer document_id, ?Options::DownloadPetDocumentOptions? options) -> ::StringIO

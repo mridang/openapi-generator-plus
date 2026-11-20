@@ -18,6 +18,10 @@ public protocol StoreApiProtocol: Sendable {
   func deleteOrder(orderId: Int64, options: DeleteOrderOptions?) async throws
   func deleteOrderWithHTTPInfo(orderId: Int64, options: DeleteOrderOptions?) async throws
     -> ApiResult<Void>
+  func getAuditTrail(options: GetAuditTrailOptions?) async throws -> ApiResponse
+  func getAuditTrailWithHTTPInfo(options: GetAuditTrailOptions?) async throws -> ApiResult<
+    ApiResponse
+  >
   func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws -> Category
   func getBySwatchWithHTTPInfo(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws
     -> ApiResult<Category>
@@ -93,6 +97,16 @@ extension StoreApiProtocol {
   /// The `deleteOrderWithHTTPInfo` operation with every optional parameter left out.
   public func deleteOrderWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Void> {
     try await deleteOrderWithHTTPInfo(orderId: orderId, options: nil)
+  }
+
+  /// The `getAuditTrail` operation with every optional parameter left out.
+  public func getAuditTrail() async throws -> ApiResponse {
+    try await getAuditTrail(options: nil)
+  }
+
+  /// The `getAuditTrailWithHTTPInfo` operation with every optional parameter left out.
+  public func getAuditTrailWithHTTPInfo() async throws -> ApiResult<ApiResponse> {
+    try await getAuditTrailWithHTTPInfo(options: nil)
   }
 
   /// The `getBySwatch` operation with every optional parameter left out.

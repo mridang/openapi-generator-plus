@@ -1,6 +1,7 @@
 
 package com.example.petstore.api.options
 
+import java.time.Duration
 import java.time.LocalDate
 import java.time.OffsetDateTime
 
@@ -13,6 +14,10 @@ class SetPetPreferencesOptions(
     val note: String? = null,
     val renewalDate: LocalDate? = null,
     val reminder: OffsetDateTime? = null,
+    val intervalDays: Int? = null,
+    val ratio: Double? = null,
+    val urgent: Boolean? = null,
+    val snooze: Duration? = null,
     /**
      * The end-to-end timeout of this call in milliseconds, in place of the client's
      * `TransportOptions.timeout`; null keeps the client's setting.

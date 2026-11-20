@@ -1,5 +1,6 @@
 package com.example.petstore.api.options;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -13,6 +14,10 @@ public final class SetPetPreferencesOptions {
   @Nullable private String note;
   @Nullable private LocalDate renewalDate;
   @Nullable private OffsetDateTime reminder;
+  @Nullable private Integer intervalDays;
+  @Nullable private Double ratio;
+  @Nullable private Boolean urgent;
+  @Nullable private Duration snooze;
   @Nullable private Integer timeout;
   @Nullable private Integer maxRetries;
   @Nullable private Map<String, String> headers;
@@ -117,6 +122,90 @@ public final class SetPetPreferencesOptions {
   @Nullable
   public OffsetDateTime reminder() {
     return reminder;
+  }
+
+  /**
+   * Sets the {@code intervalDays} parameter.
+   *
+   * @param intervalDays the {@code intervalDays} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions intervalDays(Integer intervalDays) {
+    this.intervalDays = intervalDays;
+    return this;
+  }
+
+  /**
+   * Returns the {@code intervalDays} parameter.
+   *
+   * @return the {@code intervalDays} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public Integer intervalDays() {
+    return intervalDays;
+  }
+
+  /**
+   * Sets the {@code ratio} parameter.
+   *
+   * @param ratio the {@code ratio} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions ratio(Double ratio) {
+    this.ratio = ratio;
+    return this;
+  }
+
+  /**
+   * Returns the {@code ratio} parameter.
+   *
+   * @return the {@code ratio} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public Double ratio() {
+    return ratio;
+  }
+
+  /**
+   * Sets the {@code urgent} parameter.
+   *
+   * @param urgent the {@code urgent} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions urgent(Boolean urgent) {
+    this.urgent = urgent;
+    return this;
+  }
+
+  /**
+   * Returns the {@code urgent} parameter.
+   *
+   * @return the {@code urgent} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public Boolean urgent() {
+    return urgent;
+  }
+
+  /**
+   * Sets the {@code snooze} parameter.
+   *
+   * @param snooze the {@code snooze} parameter
+   * @return this options instance for chaining
+   */
+  public SetPetPreferencesOptions snooze(Duration snooze) {
+    this.snooze = snooze;
+    return this;
+  }
+
+  /**
+   * Returns the {@code snooze} parameter.
+   *
+   * @return the {@code snooze} parameter, or {@code null} if unset
+   */
+  @Nullable
+  public Duration snooze() {
+    return snooze;
   }
 
   /**

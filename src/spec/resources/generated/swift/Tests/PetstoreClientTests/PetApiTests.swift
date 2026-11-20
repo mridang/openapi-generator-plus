@@ -2149,6 +2149,28 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResponse
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "attachPetFiles(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResult<ApiResponse>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "attachPetFilesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func deletePet(petId: Int64, options: DeletePetOptions?) async throws {
     var parts: [String] = []
     parts.append(String(describing: petId))

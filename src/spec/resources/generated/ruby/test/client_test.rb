@@ -454,6 +454,10 @@ describe 'Client' do
     _(listed).must_include 'add_pet_treatment_with_http_info'
     _(group).must_respond_to :add_pet_treatment
     _(group).must_respond_to :add_pet_treatment_with_http_info
+    _(listed).must_include 'attach_pet_files'
+    _(listed).must_include 'attach_pet_files_with_http_info'
+    _(group).must_respond_to :attach_pet_files
+    _(group).must_respond_to :attach_pet_files_with_http_info
     _(listed).must_include 'delete_pet'
     _(listed).must_include 'delete_pet_with_http_info'
     _(group).must_respond_to :delete_pet
@@ -580,6 +584,10 @@ describe 'Client' do
     _(listed).must_include 'delete_order_with_http_info'
     _(group).must_respond_to :delete_order
     _(group).must_respond_to :delete_order_with_http_info
+    _(listed).must_include 'get_audit_trail'
+    _(listed).must_include 'get_audit_trail_with_http_info'
+    _(group).must_respond_to :get_audit_trail
+    _(group).must_respond_to :get_audit_trail_with_http_info
     _(listed).must_include 'get_by_swatch'
     _(listed).must_include 'get_by_swatch_with_http_info'
     _(group).must_respond_to :get_by_swatch

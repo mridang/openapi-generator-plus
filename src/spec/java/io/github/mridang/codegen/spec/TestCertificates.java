@@ -71,6 +71,28 @@ final class TestCertificates {
         "-genkeypair", "-alias", "ca", "-keyalg", "RSA", "-keysize", "2048", "-dname", "CN=Test CA",
         "-ext", "bc:c", "-ext", "ku:c=keyCertSign,cRLSign", "-validity", "3650", "-keystore",
         store.toString(), "-storetype", "PKCS12", "-storepass", PASSWORD);
+    Path interRequest = dir.resolve("intermediate.csr");
+    Path interSigned = dir.resolve("intermediate.pem");
+    keytool(
+        "-genkeypair", "-alias", "inter", "-keyalg", "RSA", "-keysize", "2048", "-dname",
+        "CN=Test Intermediate CA", "-validity", "3650", "-keystore", store.toString(),
+        "-storetype", "PKCS12", "-storepass", PASSWORD);
+    keytool(
+        "-certreq", "-alias", "inter", "-file", interRequest.toString(), "-keystore",
+        store.toString(), "-storepass", PASSWORD);
+    keytool(
+        "-gencert", "-alias", "ca", "-infile", interRequest.toString(), "-outfile",
+        interSigned.toString(), "-rfc", "-validity", "3650", "-ext", "bc:c", "-ext",
+        "ku:c=keyCertSign,cRLSign", "-keystore", store.toString(), "-storepass", PASSWORD);
+    keytool(
+        "-exportcert", "-alias", "ca", "-rfc", "-file", dir.resolve("ca.pem").toString(),
+        "-keystore", store.toString(), "-storepass", PASSWORD);
+    keytool(
+        "-importcert", "-noprompt", "-alias", "root", "-file", dir.resolve("ca.pem").toString(),
+        "-keystore", store.toString(), "-storepass", PASSWORD);
+    keytool(
+        "-importcert", "-noprompt", "-alias", "inter", "-file", interSigned.toString(),
+        "-keystore", store.toString(), "-storepass", PASSWORD);
     keytool(
         "-genkeypair", "-alias", "server", "-keyalg", "RSA", "-keysize", "2048", "-dname",
         "CN=chasm", "-validity", "3650", "-keystore", store.toString(), "-storetype", "PKCS12",
@@ -79,14 +101,14 @@ final class TestCertificates {
         "-certreq", "-alias", "server", "-file", request.toString(), "-keystore",
         store.toString(), "-storepass", PASSWORD);
     keytool(
-        "-gencert", "-alias", "ca", "-infile", request.toString(), "-outfile", signed.toString(),
-        "-rfc", "-validity", "3650", "-ext", SAN, "-ext", "eku=serverAuth", "-ext",
-        "ku:c=digitalSignature,keyEncipherment", "-keystore", store.toString(), "-storepass",
-        PASSWORD);
-    keytool(
-        "-exportcert", "-alias", "ca", "-rfc", "-file", dir.resolve("ca.pem").toString(),
-        "-keystore", store.toString(), "-storepass", PASSWORD);
-
+        "-gencert", "-alias", "inter", "-infile", request.toString(), "-outfile",
+        signed.toString(), "-rfc", "-validity", "3650", "-ext", SAN, "-ext", "eku=serverAuth",
+        "-ext", "ku:c=digitalSignature,keyEncipherment", "-keystore", store.toString(),
+        "-storepass", PASSWORD);
+    /* The server presents its leaf and the intermediate linking it to the pinned root. */
+    Files.writeString(signed, Files.readString(signed) + Files.readString(interSigned));
+    Files.delete(interRequest);
+    Files.delete(interSigned);
     KeyStore keyStore = KeyStore.getInstance("PKCS12");
     try (java.io.InputStream in = Files.newInputStream(store)) {
       keyStore.load(in, PASSWORD.toCharArray());
@@ -99,7 +121,7 @@ final class TestCertificates {
             + "\n-----END PRIVATE KEY-----\n";
     Files.writeString(dir.resolve("server-key.pem"), pem);
 
-    /* The signed certificate is the leaf alone; the mock server only needs that. */
+    /* server.pem holds the leaf followed by the intermediate. */
     for (String name : List.of("ca.pem", "server.pem", "server-key.pem")) {
       dir.resolve(name).toFile().setReadable(true, false);
     }

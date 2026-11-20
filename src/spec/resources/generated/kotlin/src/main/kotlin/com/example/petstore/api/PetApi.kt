@@ -16,6 +16,7 @@ import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
+import com.example.petstore.api.options.AttachPetFilesOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.DownloadPetDocumentOptions
 import com.example.petstore.api.options.FindPetsBornOnOptions
@@ -375,6 +376,74 @@ class PetApi :
             callMaxRetries = callMaxRetries,
             operationId = "addPetTreatment",
             urlTemplate = "/pet/{petId}/treatment",
+        )
+    }
+
+    /**
+     * Attach files in a multipart/mixed request
+     * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+     * @param petId  (required)
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return ApiResponse
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun attachPetFiles(
+        petId: Long,
+        options: AttachPetFilesOptions,
+    ): ApiResponse =
+        attachPetFilesWithHttpInfo(petId, options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for attachPetFiles but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [attachPetFiles] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun attachPetFilesWithHttpInfo(
+        petId: Long,
+        options: AttachPetFilesOptions,
+    ): ApiResult<ApiResponse> {
+        val callTimeout: Long? = options.timeout
+        val callHeaders: Map<String, String>? = options.headers
+        val callMaxRetries: Int? = options.maxRetries
+        requireNotNull(petId) {
+            "Missing the required parameter 'petId' when calling PetApi.attachPetFiles"
+        }
+        requireNotNull(options._file) {
+            "Missing the required parameter '_file' when calling PetApi.attachPetFiles"
+        }
+        var path =
+            "/pet/{petId}/attachments"
+                .replace(
+                    "{" + "petId" + "}",
+                    ValueSerializer.serializeStyled("petId", petId, "path", "Long", null, "simple", false) as String,
+                )
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+        val formBody = mutableMapOf<String, Any?>()
+        formBody["file"] = options._file
+        if (options.caption != null) {
+            formBody["caption"] = options.caption
+        }
+
+        return invokeApiForResult<ApiResponse>(
+            "POST",
+            path,
+            queryParams,
+            headerParams,
+            formBody,
+            arrayOf("application/json"),
+            "multipart/mixed",
+            schemeAuthenticator("petStoreBasic", "petStoreBearer"),
+            "PetApi.attachPetFiles",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "attachPetFiles",
+            urlTemplate = "/pet/{petId}/attachments",
         )
     }
 
@@ -1793,6 +1862,18 @@ class PetApi :
         }
         if (options.reminder != null) {
             formBody["reminder"] = options.reminder
+        }
+        if (options.intervalDays != null) {
+            formBody["intervalDays"] = options.intervalDays
+        }
+        if (options.ratio != null) {
+            formBody["ratio"] = options.ratio
+        }
+        if (options.urgent != null) {
+            formBody["urgent"] = options.urgent
+        }
+        if (options.snooze != null) {
+            formBody["snooze"] = options.snooze
         }
 
         return invokeApiForResult<ApiResponse>(

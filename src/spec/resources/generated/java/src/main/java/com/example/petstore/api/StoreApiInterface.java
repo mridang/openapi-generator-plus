@@ -11,6 +11,7 @@ package com.example.petstore.api;
 import com.example.petstore.ApiResult;
 import com.example.petstore.api.options.CreateAccountOptions;
 import com.example.petstore.api.options.DeleteOrderOptions;
+import com.example.petstore.api.options.GetAuditTrailOptions;
 import com.example.petstore.api.options.GetBySwatchOptions;
 import com.example.petstore.api.options.GetDefaultsOptions;
 import com.example.petstore.api.options.GetDepartmentOptions;
@@ -30,6 +31,7 @@ import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Account;
+import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
@@ -159,6 +161,54 @@ public interface StoreApiInterface {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   ApiResult<Void> deleteOrderWithHttpInfo(Long orderId, @Nullable DeleteOrderOptions options);
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResponse getAuditTrail() {
+    return getAuditTrail(null);
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<ApiResponse> getAuditTrailWithHttpInfo() {
+    return getAuditTrailWithHttpInfo(null);
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together One security
+   * requirement that names two schemes, so a request carries both credentials.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResponse getAuditTrail(@Nullable GetAuditTrailOptions options);
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together One security
+   * requirement that names two schemes, so a request carries both credentials.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<ApiResponse> getAuditTrailWithHttpInfo(@Nullable GetAuditTrailOptions options);
 
   /**
    * Echoes a swatch supplied via path, query and header parameters.

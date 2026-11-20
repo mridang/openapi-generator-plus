@@ -14,6 +14,7 @@ import com.example.petstore.Configuration;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.AddPetTreatmentOptions;
+import com.example.petstore.api.options.AttachPetFilesOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.DownloadPetDocumentOptions;
 import com.example.petstore.api.options.FindPetsBornOnOptions;
@@ -69,6 +70,9 @@ public class PetApi extends BaseApi implements PetApiInterface {
 
   private static final java.lang.reflect.Type addPetTreatmentTypeRef =
       new TypeReference<PetTreatment>() {}.getType();
+
+  private static final java.lang.reflect.Type attachPetFilesTypeRef =
+      new TypeReference<ApiResponse>() {}.getType();
 
   private static final java.lang.reflect.Type downloadPetDocumentTypeRef =
       new TypeReference<InputStream>() {}.getType();
@@ -679,6 +683,80 @@ public class PetApi extends BaseApi implements PetApiInterface {
         null,
         "addPetTreatment",
         "/pet/{petId}/treatment");
+  }
+
+  /**
+   * Attach files in a multipart/mixed request Declares multipart/mixed so a declared multipart
+   * subtype other than form-data must reach the transport.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResponse attachPetFiles(Long petId, AttachPetFilesOptions options) {
+    return requireBody(attachPetFilesWithHttpInfo(petId, options), "attachPetFiles");
+  }
+
+  /**
+   * Attach files in a multipart/mixed request Declares multipart/mixed so a declared multipart
+   * subtype other than form-data must reach the transport.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<ApiResponse> attachPetFilesWithHttpInfo(
+      Long petId, AttachPetFilesOptions options) {
+    if (petId == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'petId' when calling PetApi.attachPetFiles");
+    }
+    if (java.util.Objects.isNull(options) || options.file() == null) {
+      throw new IllegalArgumentException(
+          "Missing the required parameter 'file' when calling PetApi.attachPetFiles");
+    }
+    String path =
+        "/pet/{petId}/attachments"
+            .replace(
+                "{" + "petId" + "}",
+                (String)
+                    ValueSerializer.serializeStyled(
+                        "petId", petId, "path", "Long", null, "simple", false));
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Map<String, Object> formBody = new LinkedHashMap<>();
+    formBody.put("file", options.file());
+    if (options.caption() != null) {
+      formBody.put("caption", options.caption());
+    }
+
+    Integer callTimeout = options.timeout();
+    Integer callMaxRetries = options.maxRetries();
+    Map<String, String> callHeaders = options.headers();
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "attachPetFiles",
+        "POST",
+        path,
+        queryParams,
+        headerParams,
+        formBody,
+        new String[] {"application/json"},
+        "multipart/mixed",
+        attachPetFilesTypeRef,
+        resolveSchemeAuth("petStoreBasic", "petStoreBearer"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "attachPetFiles",
+        "/pet/{petId}/attachments");
   }
 
   /**
@@ -2956,6 +3034,18 @@ public class PetApi extends BaseApi implements PetApiInterface {
     }
     if (options.reminder() != null) {
       formBody.put("reminder", options.reminder());
+    }
+    if (options.intervalDays() != null) {
+      formBody.put("intervalDays", options.intervalDays());
+    }
+    if (options.ratio() != null) {
+      formBody.put("ratio", options.ratio());
+    }
+    if (options.urgent() != null) {
+      formBody.put("urgent", options.urgent());
+    }
+    if (options.snooze() != null) {
+      formBody.put("snooze", options.snooze());
     }
 
     Integer callTimeout = options.timeout();

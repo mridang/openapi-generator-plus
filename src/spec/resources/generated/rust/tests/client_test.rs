@@ -554,6 +554,34 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn attach_pet_files(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "attach_pet_files({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn attach_pet_files_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "attach_pet_files_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn delete_pet(
         &self,
         pet_id: i64,
@@ -1480,6 +1508,30 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn get_audit_trail(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("get_audit_trail( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_audit_trail_with_http_info(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_audit_trail_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn get_by_swatch(
         &self,
         path_swatch: Swatch,
@@ -1982,6 +2034,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(pet_listed.contains(&"add_pet_photos_with_http_info".to_string()));
     assert!(pet_listed.contains(&"add_pet_treatment".to_string()));
     assert!(pet_listed.contains(&"add_pet_treatment_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"attach_pet_files".to_string()));
+    assert!(pet_listed.contains(&"attach_pet_files_with_http_info".to_string()));
     assert!(pet_listed.contains(&"delete_pet".to_string()));
     assert!(pet_listed.contains(&"delete_pet_with_http_info".to_string()));
     assert!(pet_listed.contains(&"download_pet_document".to_string()));
@@ -2048,6 +2102,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"create_account_with_http_info".to_string()));
     assert!(store_listed.contains(&"delete_order".to_string()));
     assert!(store_listed.contains(&"delete_order_with_http_info".to_string()));
+    assert!(store_listed.contains(&"get_audit_trail".to_string()));
+    assert!(store_listed.contains(&"get_audit_trail_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_by_swatch".to_string()));
     assert!(store_listed.contains(&"get_by_swatch_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_defaults".to_string()));
