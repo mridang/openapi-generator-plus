@@ -67,6 +67,28 @@ final class OAuth2TokenManager
     /** @var bool Whether an authorization code has been exchanged into this session. */
     private bool $exchanged = false;
 
+    /** @var bool Whether the manager has been stopped. */
+    private bool $stopped = false;
+
+    /**
+     * Stop the manager: the tokens it holds are dropped and every later token request fails with an
+     * {@see OAuth2TokenException}. Stopping again does nothing.
+     */
+    public function stop(): void
+    {
+        $this->stopped = true;
+        $this->accessToken = null;
+        $this->refreshToken = null;
+        $this->tokenExpiry = null;
+    }
+
+    private function assertNotStopped(): void
+    {
+        if ($this->stopped) {
+            throw new OAuth2TokenException('The token manager has been stopped.');
+        }
+    }
+
     /**
      * Get a valid access token, fetching or refreshing as necessary.
      *
@@ -96,6 +118,7 @@ final class OAuth2TokenManager
         array $extraHeaders = [],
         ?string $refreshUrl = null
     ): string {
+        $this->assertNotStopped();
         $stillFresh = $this->tokenExpiry === null
             || microtime(true) < $this->tokenExpiry;
         if ($this->accessToken !== null && $stillFresh) {
@@ -153,6 +176,7 @@ final class OAuth2TokenManager
      */
     public function exchange(string $tokenUrl, array $params, array $extraHeaders = []): string
     {
+        $this->assertNotStopped();
         $previousAccessToken = $this->accessToken;
         $previousRefreshToken = $this->refreshToken;
         $previousExpiry = $this->tokenExpiry;

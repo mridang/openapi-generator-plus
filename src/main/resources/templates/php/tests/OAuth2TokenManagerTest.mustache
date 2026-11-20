@@ -1123,3 +1123,156 @@ test('bhv misc 286 an OAuth server error message names both its HTTP status and 
         'Token request failed with status 502: <html>bad gateway</html>',
     ],
 ]);
+
+/**
+ * A token endpoint that answers the scripted responses and then stays in flight until the fiber that
+ * runs the call is resumed or cancelled (Fiber::throw), PHP's native way to cancel waiting work.
+ *
+ * @param \ArrayObject<int, string> $requests the URL of every token request started
+ */
+function inFlightTokenClient(\ArrayObject $requests, ApiHttpResponse ...$answers): \{{invokerPackage}}\ApiClient
+{
+    return new class ($requests, array_values($answers)) implements \{{invokerPackage}}\ApiClient {
+        /**
+         * @param \ArrayObject<int, string> $requests
+         * @param list<ApiHttpResponse>     $answers
+         */
+        public function __construct(private \ArrayObject $requests, private array $answers)
+        {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->requests->append($url);
+            $next = array_shift($this->answers);
+            if ($next !== null) {
+                return $next;
+            }
+            \Fiber::suspend('in flight');
+
+            return makeOAuth2TokenManagerResponse('late');
+        }
+    };
+}
+
+test('bhv auth 013 cancelling a call stops the token request it started', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $client = inFlightTokenClient($requests);
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $fiber = new \Fiber(
+        static fn (): string => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials'])
+    );
+    $fiber->start();
+    expect($fiber->isSuspended())->toBeTrue();
+    $cancel = new \RuntimeException('cancelled by the caller');
+    $caught = null;
+
+    try {
+        $fiber->throw($cancel);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($cancel);
+    expect($fiber->isTerminated())->toBeTrue();
+    expect($requests)->toHaveCount(1);
+});
+
+test('bhv auth 027 a cancelled token refresh is rethrown and the original grant is not run as a fallback', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $client = inFlightTokenClient($requests, makeOAuth2TokenManagerResponse('old_access', 0, 'old_refresh'));
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password']);
+    $fiber = new \Fiber(
+        static fn (): string => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'password'])
+    );
+    $fiber->start();
+    expect($fiber->isSuspended())->toBeTrue();
+    $cancel = new \RuntimeException('cancelled by the caller');
+    $caught = null;
+
+    try {
+        $fiber->throw($cancel);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($cancel);
+    /* The first grant and the cancelled refresh: no fallback grant was started. */
+    expect($requests)->toHaveCount(2);
+});
+
+test('bhv misc 185 stopping a token manager twice is a no-op and a token request after stop fails with a typed error', function (): void {
+    $client = new MockTokenApiClient();
+    $client->enqueueResponse(makeOAuth2TokenManagerResponse('tok'));
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $manager->stop();
+    $manager->stop();
+
+    try {
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+        test()->fail('Expected OAuth2TokenException');
+    } catch (OAuth2TokenException $e) {
+        expect($e->getMessage())->toBe('The token manager has been stopped.');
+    }
+    expect($client->capturedRequests)->toBe([]);
+});
+
+test('bhv misc 001 replacing the access token while a read is in flight leaves each read one complete token that was set', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $client = inFlightTokenClient($requests);
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $reader = new \Fiber(
+        static fn (): string => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials'])
+    );
+    $reader->start();
+    expect($reader->isSuspended())->toBeTrue();
+
+    $manager->setAccessToken('replacement');
+    $reader->resume();
+
+    $read = $reader->getReturn();
+    expect(['replacement', 'late'])->toContain($read);
+    expect($manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']))->toBe($read);
+});
+
+test('bhv auth 030 setting and reading token state from interleaved tasks only ever observes a token that was set', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $client = inFlightTokenClient($requests);
+    $manager = new OAuth2TokenManager();
+    $manager->setApiClient($client);
+    $slowReader = new \Fiber(
+        static fn (): string => $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials'])
+    );
+    $slowReader->start();
+
+    $manager->setAccessToken('first');
+    $quickRead = $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials']);
+    $manager->setAccessToken('second');
+    $slowReader->resume();
+
+    expect($quickRead)->toBe('first');
+    expect(['first', 'second', 'late'])->toContain($slowReader->getReturn());
+    expect(['first', 'second', 'late'])->toContain(
+        $manager->getAccessToken('https://auth.example.com/token', ['grant_type' => 'client_credentials'])
+    );
+});

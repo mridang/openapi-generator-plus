@@ -2399,6 +2399,13 @@ test('bhv serializationobject 021 uri field is a plain string that is re-emitted
     'https' => ['https://example.com/items/1'],
 ]);
 
+test('bhv misc 104 a string field declared with the email format decodes to a plain string without validation', function (): void {
+    /** @var NativeValues $item */
+    $item = ObjectSerializer::deserialize('{"contact":"not-an-email"}', NativeValues::class);
+    \assert($item instanceof NativeValues);
+    expect($item->contact)->toBe('not-an-email');
+});
+
 test('bhv serializationobject 173 uri-reference field still accepts a relative reference', function (): void {
     $json = '{"name":"n","photoUrls":[],"thumbnailRef":"/assets/thumb.png"}';
     /** @var Pet $item */
