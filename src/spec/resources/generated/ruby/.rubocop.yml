@@ -116,3 +116,9 @@ Style/Documentation:
 # nested module or outside one.
 Style/RedundantConstantBase:
   Enabled: false
+
+# A security requirement is written as an array of the quoted scheme ids it names
+# together, and an id may hold characters a `%w[]` word array cannot carry, so
+# the generator keeps one form for every id.
+Style/WordArray:
+  Enabled: false

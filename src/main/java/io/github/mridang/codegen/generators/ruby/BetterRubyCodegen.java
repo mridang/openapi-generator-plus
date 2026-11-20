@@ -360,6 +360,14 @@ public class BetterRubyCodegen extends AbstractBetterCodegen implements WithType
             new SupportingFileSpec("default_api_client.mustache", libPath, "default_api_client.rb"),
             new SupportingFileSpec("base_api.mustache", Path.of(libPath, "api").toString(), "base_api.rb"),
             new SupportingFileSpec("authenticator.mustache", Path.of(libPath, "auth").toString(), "authenticator.rb"),
+            new SupportingFileSpec(
+                    "auth/all_of_authenticator.mustache",
+                    Path.of(libPath, "auth").toString(),
+                    "all_of_authenticator.rb"),
+            new SupportingFileSpec(
+                    "auth/all_of_http_aware_authenticator.mustache",
+                    Path.of(libPath, "auth").toString(),
+                    "all_of_http_aware_authenticator.rb"),
             new SupportingFileSpec("gemfile.mustache", "", "Gemfile"),
             new SupportingFileSpec("gemspec.mustache", "", resolvedGemName + ".gemspec"),
             new SupportingFileSpec("rubocop.mustache", "", ".rubocop.yml"),

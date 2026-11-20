@@ -64,6 +64,8 @@ require '{{modulePath}}/api/base_api'
 require '{{modulePath}}/auth/authenticator'
 require '{{modulePath}}/auth/base_authenticator'
 require '{{modulePath}}/auth/http_aware_authenticator'
+require '{{modulePath}}/auth/all_of_authenticator'
+require '{{modulePath}}/auth/all_of_http_aware_authenticator'
 {{#hasBasicAuth}}
 require '{{modulePath}}/auth/basic_authenticator'
 {{/hasBasicAuth}}

@@ -109,10 +109,10 @@ public abstract class BaseApi
     /// </summary>
     /// <param name="groups">The requirements in the spec's order, each the scheme names it needs together.</param>
     /// <returns>The authenticator to send, or null.</returns>
-    protected IAuthenticator? ResolveRequirementAuth(params string[][] groups)
+    protected IAuthenticator? ResolveRequirementAuth(params IReadOnlyList<string>[] groups)
     {
         List<IAuthenticator>? partial = null;
-        foreach (string[] group in groups)
+        foreach (IReadOnlyList<string> group in groups)
         {
             var held = new List<IAuthenticator>();
             foreach (string scheme in group)
@@ -126,7 +126,7 @@ public abstract class BaseApi
             {
                 continue;
             }
-            if (held.Count == group.Length)
+            if (held.Count == group.Count)
             {
                 return held.Count == 1 ? held[0] : AllOfAuthenticator.Of(held);
             }

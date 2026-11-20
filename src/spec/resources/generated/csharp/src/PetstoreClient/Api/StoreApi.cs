@@ -395,7 +395,7 @@ public class StoreApi : BaseApi, IStoreApi
                 GetAuditTrailAccepts,
                 "application/json",
                 typeof(ApiResponse),
-                ResolveRequirementAuth(new[] { "petStoreBearer", "apiKeyHeader" }),
+                ResolveRequirementAuth(new List<string> { "petStoreBearer", "apiKeyHeader" }),
                 cancellationToken: cancellationToken,
                 operationName: "StoreApi.GetAuditTrail",
                 operationId: "getAuditTrail",
