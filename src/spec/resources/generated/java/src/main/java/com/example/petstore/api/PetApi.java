@@ -1988,7 +1988,7 @@ public class PetApi extends BaseApi implements PetApiInterface {
           queryParams,
           "rank",
           ValueSerializer.serializeStyled(
-              "rank", options.rank(), "query", "Integer", null, "form", true),
+              "rank", options.rank(), "query", "Long", null, "form", true),
           false);
     }
     Map<String, String> headerParams = new HashMap<>();

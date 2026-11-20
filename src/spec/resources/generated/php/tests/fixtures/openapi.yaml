@@ -1057,6 +1057,19 @@ paths:
             type:
               - integer
               - "null"
+        - name: Accept
+          in: header
+          schema:
+            type: string
+        - name: content-type
+          in: header
+          schema:
+            type: string
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: OK
@@ -2642,6 +2655,18 @@ components:
       additionalProperties:
         type: integer
         format: int32
+
+    Ledger:
+      type: object
+      required:
+        - entryId
+      properties:
+        entryId:
+          type: integer
+        entryIds:
+          type: array
+          items:
+            type: integer
 
     Roster:
       type: object

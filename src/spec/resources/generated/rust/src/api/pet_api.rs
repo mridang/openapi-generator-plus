@@ -2227,7 +2227,7 @@ impl PetApi {
                     Some(&object_serializer::stringify_param(val, "form", true)?),
                     None,
                     "query",
-                    "i32",
+                    "i64",
                     "",
                     "form",
                     true,

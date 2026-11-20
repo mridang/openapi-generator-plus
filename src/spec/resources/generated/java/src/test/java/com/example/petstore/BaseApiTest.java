@@ -2002,6 +2002,28 @@ public class BaseApiTest {
       }
       assertEquals("api-key-cred", client.capturedHeaders.get("X-Credential"));
     }
+
+    @Test
+    @DisplayName("bhvMisc074 an alternative naming two schemes sends both credentials")
+    void bhvMisc074AnAlternativeNamingTwoSchemesSendsBothCredentials() {
+      var client = new CapturingApiClient();
+      var bearerAuth = new TestAuthenticator(Map.of("X-Bearer", "bearer-cred"), Map.of(), Map.of());
+      var apiKeyAuth = new TestAuthenticator(Map.of("X-Key", "api-key-cred"), Map.of(), Map.of());
+      var config = new Configuration("http://localhost", Map.of());
+      var storeApi =
+          new StoreApi(
+              client,
+              config,
+              null,
+              Map.of("petStoreBearer", bearerAuth, "apiKeyHeader", apiKeyAuth));
+      try {
+        storeApi.getAuditTrail();
+      } catch (Exception ignored) {
+        // Response shape is irrelevant; only the outbound headers are asserted.
+      }
+      assertEquals("bearer-cred", client.capturedHeaders.get("X-Bearer"));
+      assertEquals("api-key-cred", client.capturedHeaders.get("X-Key"));
+    }
   }
 
   @Nested

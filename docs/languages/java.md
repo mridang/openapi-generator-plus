@@ -28,7 +28,7 @@ Java 21 is a long-term-support release, and it is the floor because the generate
 | `string`, `format: decimal` | `BigDecimal` | read from a JSON string only and written as a JSON string |
 | `integer`, `format: int32` | `Integer` | |
 | `integer`, `format: int64` | `Long` | |
-| `integer`, no format | `Integer` | 32 bits; see Known limits |
+| `integer`, no format | `Long` | 64 bits, the same as `int64` |
 | `number`, `format: float` | `Float` | |
 | `number`, `format: double` | `Double` | binary floating point, so not for money |
 | `number`, no format, or `format: decimal` | `java.math.BigDecimal` | exact; the serializer round-trips the JSON number so no precision is lost |
@@ -160,7 +160,6 @@ try {
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - Request and response bodies are read whole into memory. There is no streaming and no server-sent events API.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked on the client; the server validates them.
 - `dependentRequired` and `dependentSchemas` are not enforced.
@@ -170,6 +169,10 @@ try {
 - A header sent on several lines is joined into one string with `, `.
 - The SDK writes no logs and has no logging hook.
 - No `LICENSE` file is generated next to the pom.
+- Operations are blocking only, as a plain method call that blocks the calling thread, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
 
 ## Under review
 

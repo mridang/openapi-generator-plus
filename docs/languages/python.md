@@ -143,7 +143,6 @@ except ApiException as e:
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a pydantic `StrictInt`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - The transport is urllib3, not httpx. A session decision named httpx, but the generated code, its dependencies and its tests use urllib3. The generated `Client` does not yet forward a transport; only `DefaultApiClient` accepts one.
 - Large downloads and uploads are held in memory.
 - Constructors accept the attribute name, but mypy reports `Metadata(created_at=...)` because pydantic types `__init__` by alias.
@@ -151,6 +150,10 @@ except ApiException as e:
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 and 3.2 support is tracked in the epics #96 and #49.
 - The generated documentation build (`make docs`) exists but no test runs it, and the Makefile type-check target is named `typecheck`.
 - No `LICENSE` file is generated.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `async def` coroutines, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
 
 ## Under review
 

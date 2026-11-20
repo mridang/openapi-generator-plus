@@ -1016,6 +1016,14 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerialization131 an integer with no format is 64-bit")
+        void bhvSerialization131AnIntegerWithNoFormatIsSixtyFourBit() {
+            {{modelPackage}}.Ledger ledger =
+                    serializer.deserialize("{\"entryId\":3000000000,\"entryIds\":[4000000000]}", {{modelPackage}}.Ledger.class);
+            assertEquals(3000000000L, ledger.entryId.longValue());
+        }
+
+        @Test
         @DisplayName("bhvMisc116 an int32 field accepts its bounds and refuses overflow and fractions")
         void bhvMisc116AnInt32FieldAcceptsItsBoundsAndRefusesOverflowAndFractions() {
             {{modelPackage}}.Order high =

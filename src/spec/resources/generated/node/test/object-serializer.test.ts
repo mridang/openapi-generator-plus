@@ -49,6 +49,7 @@ import {
   Metadata,
   PetWithOwner,
   StrictTag,
+  Ledger,
   Tag,
   RequiredNullable,
   Tier,
@@ -4552,6 +4553,15 @@ describe("ObjectSerializer misc decoding and duration behaviours", () => {
     for (const value of ["P1D", "1d"]) {
       expect(() => durationFromProtoJson(value)).toThrow();
     }
+  });
+
+  test("bhv serialization 131 an integer with no format is 64-bit", () => {
+    const ledger = ObjectSerializer.deserialize(
+      { entryId: 3000000000, entryIds: [4000000000] },
+      Ledger,
+    )!;
+    expect(ledger.entryId).toBe(3000000000);
+    expect(ledger.entryIds).toEqual([4000000000]);
   });
 
   test("bhv misc 252 an enum wire value containing separators round-trips unchanged", () => {

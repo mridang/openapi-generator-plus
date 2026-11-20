@@ -1,0 +1,27 @@
+# frozen_string_literal: true
+
+{{>api_info}}
+
+module {{moduleName}}
+  module Auth
+    # The composite of a requirement that includes a token authenticator.
+    class AllOfHttpAwareAuthenticator < AllOfAuthenticator
+      include HttpAwareAuthenticator
+
+      # @param client [ApiClient]
+      # @return [void]
+      def api_client=(client)
+        parts.each { |part| part.api_client = client if part.is_a?(HttpAwareAuthenticator) }
+      end
+
+      # @return [void]
+      def invalidate_access_token
+        parts.each do |part|
+          next unless part.is_a?(HttpAwareAuthenticator) && part.respond_to?(:invalidate_access_token)
+
+          part.invalidate_access_token
+        end
+      end
+    end
+  end
+end

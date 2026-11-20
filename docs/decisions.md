@@ -62,9 +62,93 @@ Every API group has an interface (an interface, protocol, trait or behaviour, wh
 
 ## Optional and nullable are not told apart on the way out
 
-A property that is optional and nullable is the language's own optional type, and an absent value and an explicit `null` are sent the same way, as absent, in every language except TypeScript. A property that is required and nullable is always written, as `null` when it has no value. A three-state type for PATCH-style APIs may come later.
+A property that is optional and nullable is the language's own optional type, and an absent value and an explicit `null` are sent the same way, as absent, in every language except TypeScript. A property that is required and nullable is always written, as `null` when it has no value. A three-state type (absent, `null`, value) for PATCH-style APIs stays declined for now (decision [D112](#d112-the-three-state-optional-stays-declined)).
 
 A query parameter that is required and nullable is kept the same way: when its value is `null` the key is still sent, with an empty value (`?note=`), never dropped, in every language. Its Options field is the language's nullable type with no default, so the caller must still state it. An empty string for a required nullable string parameter is still refused, and a required parameter that is not nullable still refuses `null`. Header, cookie, form, `content` and `deepObject` parameters keep their current behaviour.
+
+## D110: Rust does not target the browser
+
+**Context.** The Rust SDK is built on `reqwest` with `rustls-tls-native-roots`, Tokio, and native compression crates. The progenitor comparison ([#134](https://github.com/mridang/openapi-generator-plus/issues/134)) asked whether the crate should also build for `wasm32-unknown-unknown`. Go builds for `wasip1` (a different target, covered by `GoWasmSpec`) and Dart has a web transport; Rust had no stated position.
+
+**Options considered.** (1) Support the browser target: it needs `cfg` branches for the transport, the TLS stack, the timers and the proxy and redirect options (none of which exist in a browser `fetch`), and a separate test harness. (2) Declare it unsupported and say so. (3) Say nothing.
+
+**What was compared.** The progenitor comparison (#134) and `docs/comparisons/ogen.md` do not show a peer that promises browser support for a native-HTTP client. No browser build was benchmarked, because every transport option the SDK promises (proxy, CA, redirects, retries per socket) has no browser equivalent.
+
+**Decision.** The `wasm32-unknown-unknown` browser target is not supported (owner decision of 2026-11-20). No code changes.
+
+**Consequences.** Documented in [the Rust page](languages/rust.md#known-limits), the Rust `AGENTS.md` and the generated Rust README. Nobody adds `cfg` branches for the browser. A browser user calls the API through a server-side process.
+
+## D111: Each SDK keeps the call style of its language
+
+**Context.** ogen and progenitor each expose one style (ogen: blocking calls with a `context`; progenitor: `async`). Our twelve SDKs follow their language today, and the question was whether to add the other variant.
+
+**Options considered.** (1) Offer a blocking and an async variant of every operation in every language. (2) Offer both only in languages with a split ecosystem (Rust, Python). (3) Keep one style per language, the style its developers expect.
+
+**What was compared.** `docs/comparisons/ogen.md` (Go, blocking with `context.Context`), progenitor (Rust, async over `reqwest`) and swift-openapi-generator (`async throws` only). Doubling the operations would double the public surface of every SDK and every test suite, and the parity rules require the same shape in all twelve.
+
+**Decision.** There are no sync and async variants. Node.js, Python, Dart, Rust, Swift, Kotlin and C# are asynchronous only; Java, PHP, Ruby, Go and Elixir are blocking only (owner decision of 2026-11-20). No code changes.
+
+**Consequences.** Each language page lists its style under known limits. A caller who wants the other style wraps the call in its language's own machinery (a thread, a task or a runtime `block_on`).
+
+## D112: The three-state optional stays declined
+
+**Context.** ogen models optional and nullable values as `OptT`, `NilT` and `OptNilT` with `Set` and `Null` flags, so a PATCH-style call can send an absent key, an explicit `null` or a value ([docs/comparisons/ogen.md](comparisons/ogen.md), row "Optional and nullable"). Our SDKs use the language's own optional type and send absent and `null` the same way (F834).
+
+**Options considered.** (1) A generator-owned wrapper type in all twelve languages. (2) Native three-state types where a language has one (TypeScript `undefined` versus `null`) and a wrapper elsewhere. (3) Keep the native optional and decline.
+
+**What was compared.** ogen's `OptNil` types in Go, and the reference SDKs named in the root `AGENTS.md`, which keep the native optional. A wrapper changes every model signature in all twelve SDKs, and the shape must be identical across languages; no design was found that is idiomatic in each.
+
+**Decision.** The three-state optional stays declined for now (owner decision of 2026-11-20). An optional and nullable property keeps the language's own optional type, and absent and `null` encode the same. A required nullable property is still written as `null`.
+
+**Consequences.** A PATCH API that needs to clear a field with `null` cannot do so through a model; it needs a raw request. Revisit only with one design that works in all twelve languages. Documented in every language page's known limits.
+
+## D113: An integer with no format is 64-bit
+
+**Context.** An unformatted `type: integer` was 32-bit in all twelve SDKs (D54), so a server value above 2,147,483,647, such as a large identifier, failed to decode. The ogen comparison ([docs/comparisons/ogen.md](comparisons/ogen.md), row "Integer without format") found ogen maps it to `int`, which is 64-bit on the platforms that matter, and the progenitor comparison ([#134](https://github.com/mridang/openapi-generator-plus/issues/134)) found the same question. OpenAPI treats an integer without a format as unbounded.
+
+**Options considered.** (1) Keep 32-bit and tell users to declare `int64`. (2) Widen it only where the language's native integer is already 64-bit. (3) Widen it everywhere.
+
+**What was compared.** Option 2 leaves Java, Kotlin, C#, Go, Rust and Swift with a different type from Python, Ruby, PHP, Dart, Elixir and Node for the same schema, which the parity rules forbid. Option 3 changes the public type of every such field in six SDKs (`Integer` to `Long`, `int32` to `int64`, `i32` to `i64`, `Int` to `Int64` and so on), but the other six already hold 64-bit values.
+
+**Decision.** An unformatted `integer` is 64-bit in all twelve SDKs (owner decision of 2026-11-20, supersedes D54 for the unformatted case). The generator writes `format: int64` on the schema before generation, so the range check and the error for a value outside the range are the ones `int64` already has. `format: int32` stays 32-bit.
+
+**Consequences.** This is a breaking change to the type of every unformatted integer field, parameter and response in Java, Kotlin, C#, Go, Rust and Swift. A test in every language decodes a value above 2^31 (serialization131). In Node a value above 2^53 loses precision, as for `int64`. [docs/types.md](types.md) and each language page state the rule.
+
+## D114: Go operations take the context as their first argument
+
+**Context.** Issue [#146](https://github.com/mridang/openapi-generator-plus/issues/146) asked whether Go operations should take the cancellation context as the first argument, as Go code and ogen do, instead of inside the per-call options. [docs/comparisons/ogen.md](comparisons/ogen.md) lists the difference between the two clients.
+
+**Options considered.** (1) Keep the context inside the options and default to a background context. (2) Take `ctx context.Context` as the first parameter of every operation.
+
+**What was compared.** The reference clients named in the root `AGENTS.md` (the AWS SDK for Go v2, client-go, Stainless Go SDKs) and ogen all take the context first. Settled decision S7 (cancellation) already chose option 2 for the Go SDK, and the generated operations and every Go test already have the shape `api.AddPet(ctx, pet, options, callOptions...)`; the issue text described an older shape.
+
+**Decision.** Go operations take `ctx` first, before the path parameters, the body and the options. No code changes were needed; the issue is answered by S7 and this record.
+
+**Consequences.** A caller that has no context passes `context.Background()`. The trace context comes from the same argument (D101).
+
+## D115: Header parameters named Accept, Content-Type or Authorization are ignored
+
+**Context.** The OpenAPI specification says a header parameter named `Accept`, `Content-Type` or `Authorization` shall be ignored, because those headers are defined by the media-type and security objects. The SDKs turned such a parameter into an option that overrode the negotiated header ([#125](https://github.com/mridang/openapi-generator-plus/issues/125)).
+
+**Options considered.** (1) Keep the override. (2) Ignore the parameter in every generator and let the SDK own the three headers. (3) Fail generation on such a parameter.
+
+**What was compared.** ogen and the other generators that follow the specification drop these parameters; failing generation would block specs that exist in the wild.
+
+**Decision.** `IgnoreReservedHeadersRule` removes a header parameter with one of the three names, in any case, from every operation and path item, whether it is written inline or by `$ref`, and the generation log warns about each one. The SDK negotiates `Accept` and `Content-Type` and the authenticators write `Authorization`. A caller who must send a different value still passes a per-call header.
+
+**Consequences.** The Options type of an operation no longer has such a field, a breaking change for a caller that set one. The fixture operation `getPetByNote` declares the three parameters, so the petstore tests in all twelve languages prove they are gone: its generated signature and tests are unchanged.
+
+## D116: A security requirement that names several schemes sends all of their credentials
+
+**Context.** An operation's `security` is an OR of requirement objects, and each object is an AND of schemes: `security: [{bearer: [], apiKey: []}]` means one request must carry both credentials. Only the Rust, Dart, Go and PHP SDKs sent both; the other eight used the first scheme they held and sent a single credential (fixture operation `getAuditTrail`, catalogue id misc074). [docs/comparisons/ogen-source-review.md](comparisons/ogen-source-review.md) lists the question as a user need.
+
+**Options considered.** (1) Keep one credential per operation and document it. (2) Send every credential of the requirement, with the same selection rule everywhere.
+
+**What was compared.** The four SDKs that already did it share one rule, and the other eight had only a missing feature, no language reason: each has a per-scheme credential table and a composite is a small class over the language's own authenticator interface.
+
+**Decision.** Every SDK picks the first requirement whose every scheme the client holds and sends the headers, query parameters and cookies of all of them; when no requirement is complete it uses the first one the client holds in part; when none matches it falls back to the client-level authenticator. A composite that includes a token authenticator hands the transport to it and drops its cached token on a 401, as a single token authenticator does. The shape is the same in each language: a requirement-aware resolver next to the existing scheme resolver (`resolveRequirementAuth`, `requirementAuthenticator`, `requirement_authenticator`, `requirement_auth`) and a composite authenticator class.
+
+**Consequences.** An operation whose requirement names two schemes now sends both credentials in all twelve languages, with a tagged test per language (misc074). The exceptions for misc074 are removed.
 
 ## Models are not validated when you build them
 
@@ -114,13 +198,12 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **A typed error from Rust operations (#113).** Every Rust operation returns `Box<dyn Error>`. A concrete error type is a public API break for that SDK alone.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
-* **Header parameters named `Accept`, `Content-Type` or `Authorization` (#125).** OpenAPI says to ignore them; the SDKs treat them as an override today, and the rule has to be chosen once for all twelve.
 * **A date type for Go (#126), keep-alive connections in the Ruby client (#127) and escaping of reserved property names in Swift and Elixir (#128).** Each is one language and waits for an owner decision on the shape.
 
 ### Settled differences between languages
 
 * **Cookie parameters.** A value is sent as given when every character is allowed in a cookie, and an illegal character fails before the request is sent. Nothing is percent-encoded for you, because the shared parameter model cannot tell an explicit `style: form` from the default.
-* **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first scheme it lists that you set. A per-call override of the scheme is deferred, and Rust has no such override.
+* **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first requirement the client holds in full (D116); a requirement that names several schemes sends all of their credentials. A per-call override of the scheme is deferred, and Rust has no such override.
 * **Test TLS keys.** No private key is committed. The test CA and the server key are generated once per test run by the shared harness and mounted into the containers that run the generated tests. The Dart and Swift standard libraries cannot create X.509 certificates, so the generated SDK tests only read the material and do not create it.
 * **Trace context comes from the caller's context (#136).** A request carries the span active in the context of the call. Go takes the context as the `ctx` argument; the other eleven read the ambient OpenTelemetry context in the caller's thread, task, fiber, process or zone. No SDK builds a context of its own, and a failure to inject never fails a call.
 * **A response that lies about its encoding is an error.** When the server declares `Content-Encoding: gzip` (or another compression) and the body is not that encoding, the call fails with the SDK's API error. The body is never returned as if it were plain text, because that hides a broken server behind a success.
@@ -154,7 +237,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#122](https://github.com/mridang/openapi-generator-plus/issues/122): guard the public API surface of every SDK and stop internals from leaking.
 * [#123](https://github.com/mridang/openapi-generator-plus/issues/123): generate a typed error hierarchy per status and per declared error schema.
 * [#124](https://github.com/mridang/openapi-generator-plus/issues/124): sweep the build, lint, format, test and docs logs of every SDK for warnings.
-* [#125](https://github.com/mridang/openapi-generator-plus/issues/125): ignore header parameters named Accept, Content-Type or Authorization and decide how a per-call Accept is set.
 * [#126](https://github.com/mridang/openapi-generator-plus/issues/126): type `format: date` values in the Go SDK.
 * [#127](https://github.com/mridang/openapi-generator-plus/issues/127): keep connections alive in the Ruby client.
 * [#128](https://github.com/mridang/openapi-generator-plus/issues/128): stop escaping reserved property names that need no escape in the Swift and Elixir SDKs.

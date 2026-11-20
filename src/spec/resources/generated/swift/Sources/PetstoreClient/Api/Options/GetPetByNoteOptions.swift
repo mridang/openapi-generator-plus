@@ -3,7 +3,7 @@ import Foundation
 /// Options for the getPetByNote operation.
 public struct GetPetByNoteOptions: Sendable {
   public let note: String?
-  public let rank: Int?
+  public let rank: Int64?
   /// Per-call timeout in milliseconds, greater than zero. Replaces the
   /// transport's timeout for this call; nil keeps it.
   public let timeout: Int?
@@ -15,7 +15,7 @@ public struct GetPetByNoteOptions: Sendable {
   public let maxRetries: Int?
 
   public init(
-    note: String?, rank: Int?, timeout: Int? = nil, headers: [String: String]? = nil,
+    note: String?, rank: Int64?, timeout: Int? = nil, headers: [String: String]? = nil,
     maxRetries: Int? = nil
   ) {
     self.note = note

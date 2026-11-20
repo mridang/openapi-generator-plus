@@ -23,7 +23,7 @@ A cell with a name in backticks is the type as it appears in the generated code.
 | `string` `ipv6` | `String` | `String` | `System.Net.IPAddress` | `string` | `Ipv6Address` (an `ipaddress.IPv6Address`) | `IPAddr` | `string` | `String` | `netip.Addr` | `std::net::Ipv6Addr` | `String` | `:inet.ip6_address()` |
 | `integer` `int32` | `Integer` | `Int` | `int` | `int` | `StrictInt` | `Integer` | `number` | `int` | `int32` | `i32` | `Int` | `integer()` |
 | `integer` `int64` | `Long` | `Long` | `long` | `int` | `StrictInt` | `Integer` | `number` | `int` | `int64` | `i64` | `Int64` | `integer()` |
-| `integer`, no format | `Integer` | `Int` | `int` | `int` | `StrictInt` | `Integer` | `number` | `int` | `int32` | `i32` | `Int` | `integer()` |
+| `integer`, no format | `Long` | `Long` | `long` | `int` | `StrictInt` | `Integer` | `number` | `int` | `int64` | `i64` | `Int64` | `integer()` |
 | `number` `float` | `Float` | `Float` | `float` | `float` | `LaxFloat` | `Float` | `number` | `double` | `float32` | `f32` | `Float` | `float()` |
 | `number` `double` | `Double` | `Double` | `double` | `float` | `LaxFloat` | `Float` | `number` | `double` | `float64` | `f64` | `Double` | `float()` |
 | `number`, no format, and `decimal` | `BigDecimal` | `BigDecimal` | `decimal` | `float` | `JsonNumber` (a `Decimal`) | `BigDecimal` | `Decimal` (branded string) | `double` | `float64` | `f64` | `Double` (`Decimal` for `format: decimal`) | `float()` |
@@ -68,7 +68,7 @@ A `duration` is written and read in the protobuf JSON form, seconds with an `s` 
 
 `int32` and `int64` map to the size they name in every language that has sized integers. Python, Ruby, Dart and PHP use their one integer type, and Node uses `number` for both, which is exact only up to 2^53. An `int64` above that in Node loses precision.
 
-An `integer` with no format is 32 bits in all twelve SDKs, decided on purpose ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). The OpenAPI specification treats it as unbounded, but every SDK maps it the way it maps `int32` (Java `Integer`, Kotlin `Int`, C# `int`, Go `int32`, Rust `i32`, Swift `Int`, and the single integer type elsewhere). The rule is that a value outside the 32-bit range is refused on decode with a `SerializationError` and is never wrapped or truncated, so a spec that sends a larger number without declaring `int64` fails loudly instead of corrupting data. Declare `format: int64` for such a field. The rule is the same for fields, for elements of arrays and maps and for a top-level value. Java, Kotlin, C#, Go, Rust, Node and Dart enforce the range today. Python, Ruby, PHP, Swift and Elixir decode into an integer wider than 32 bits (`StrictInt`, `Integer`, `int`, `Int`, `integer()`) and accept a larger value today; that is a gap against the rule, not an exception to it, and closing it is implementation work that does not change any public type.
+An `integer` with no format is 64 bits in all twelve SDKs (decision D113, [#159](https://github.com/mridang/openapi-generator-plus/issues/159)), the same as `int64`, because the OpenAPI specification treats it as unbounded and a server identifier above 2^31 is common. The generator writes `format: int64` on such a schema before any language sees it, so every SDK uses the path it already has for `int64`, including the range check on decode. Use `format: int32` where a 32-bit field is wanted. In Node an integer above 2^53 loses precision, as for `int64`.
 
 ## Decimals and floats
 

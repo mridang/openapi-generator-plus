@@ -74,6 +74,7 @@ __all__ = [
     "Employee",
     "Error",
     "Freeform",
+    "Ledger",
     "Medication",
     "MemberNotFound",
     "Metadata",
@@ -240,6 +241,9 @@ from petstore_client.models.error import (
 )
 from petstore_client.models.freeform import (
     Freeform as Freeform,
+)
+from petstore_client.models.ledger import (
+    Ledger as Ledger,
 )
 from petstore_client.models.medication import (
     Medication as Medication,

@@ -3195,3 +3195,4 @@ langcsharp077 | The README Usage fence and the quickstart hold the same statemen
 langcsharp078 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langcsharp079 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langcsharp080 | The SDK Makefile has an examples target that builds every file under examples
+serialization131 | An integer with no format is 64-bit: a value above 2^31 decodes exactly into its field.

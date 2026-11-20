@@ -145,6 +145,9 @@ try {
 - SOCKS proxies are rejected.
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope; the generated README lists them under "Not supported". OpenAPI 3.1 support is tracked in epic #96, and 3.2 in epic #49.
 - The warnings-fatal `make docs` target is in the generated Makefile but no test runs it.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `Future`s, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 
 ## Under review
 

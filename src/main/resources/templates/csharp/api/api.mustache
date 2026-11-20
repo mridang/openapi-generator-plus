@@ -611,7 +611,7 @@ public class {{classname}} : BaseApi, I{{classname}}
     (security: []) is explicitly unauthenticated: pass the NoAuth sentinel so
     BaseApi suppresses the client-level authenticator and attaches no credential
     (passing null here would WRONGLY re-acquire it and leak the credential). }}
-                {{#hasAuthMethods}}ResolveSchemeAuth({{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}}){{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
+                {{#hasAuthMethods}}{{#vendorExtensions.op.hasAllOfGroup}}ResolveRequirementAuth({{#vendorExtensions.op.securityAlternatives}}new List<string> { {{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}} }{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}){{/vendorExtensions.op.hasAllOfGroup}}{{^vendorExtensions.op.hasAllOfGroup}}ResolveSchemeAuth({{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}}){{/vendorExtensions.op.hasAllOfGroup}}{{/hasAuthMethods}}{{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}NoAuth.Instance{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}null{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{^hasFormParams}}{{#bodyParam}}{{#isBinary}},
                 rawBody: true{{/isBinary}}{{/bodyParam}}{{/hasFormParams}},
                 cancellationToken: cancellationToken,
                 operationName: "{{classname}}.{{operationId}}",

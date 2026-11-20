@@ -16,6 +16,7 @@ from typing import (
     Optional,
     ParamSpec,
     Protocol,
+    Sequence,
     TypeVar,
     Union,
 )
@@ -229,6 +230,32 @@ class BaseApi:
             if found is not None:
                 return found
         return None
+
+    def _requirement_authenticator(self, *groups: Sequence[str]) -> Optional[Authenticator]:
+        """The credential for an operation whose security block lists alternatives.
+
+        Each group is one requirement: a group that names several schemes needs
+        the credentials of all of them and a request carries every one. The
+        first group the client holds every credential of wins, else the first
+        group it holds at least one credential of; ``None`` when it holds none,
+        which leaves the call to the client-level authenticator.
+        """
+        partial: Optional[List[Authenticator]] = None
+        for group in groups:
+            held = [
+                self._scheme_authenticators[scheme_id]
+                for scheme_id in group
+                if scheme_id in self._scheme_authenticators
+            ]
+            if not held:
+                continue
+            if len(held) == len(group):
+                return held[0] if len(held) == 1 else _all_of(held)
+            if partial is None:
+                partial = held
+        if partial is None:
+            return None
+        return partial[0] if len(partial) == 1 else _all_of(partial)
 
     @_tracked
     async def _invoke_api_for_result(
@@ -890,3 +917,53 @@ class BaseApi:
             request_path,
             error_schemas,
         )
+
+
+class _AllOfAuthenticator(Authenticator):
+    """The credentials of every scheme one security requirement names together: all are sent."""
+
+    def __init__(self, parts: List[Authenticator]) -> None:
+        self._parts = parts
+
+    def get_host(self) -> str:
+        return self._parts[0].get_host()
+
+    def get_auth_headers(self) -> Dict[str, str]:
+        merged: Dict[str, str] = {}
+        for part in self._parts:
+            merged.update(part.get_auth_headers())
+        return merged
+
+    def get_query_params(self) -> Dict[str, str]:
+        merged: Dict[str, str] = {}
+        for part in self._parts:
+            merged.update(part.get_query_params())
+        return merged
+
+    def get_cookie_params(self) -> Dict[str, str]:
+        merged: Dict[str, str] = {}
+        for part in self._parts:
+            merged.update(part.get_cookie_params())
+        return merged
+
+
+class _AllOfHttpAwareAuthenticator(_AllOfAuthenticator, HttpAwareAuthenticator):
+    """The composite of requirements that include a token authenticator."""
+
+    def set_api_client(self, api_client: ApiClient) -> None:
+        for part in self._parts:
+            if isinstance(part, HttpAwareAuthenticator):
+                part.set_api_client(api_client)
+
+    def invalidate_access_token(self) -> None:
+        for part in self._parts:
+            invalidate = getattr(part, 'invalidate_access_token', None)
+            if callable(invalidate):
+                invalidate()
+
+
+def _all_of(parts: List[Authenticator]) -> Authenticator:
+    """The composite of ``parts``; one with a token authenticator can drop a cached token."""
+    if any(isinstance(part, HttpAwareAuthenticator) for part in parts):
+        return _AllOfHttpAwareAuthenticator(parts)
+    return _AllOfAuthenticator(parts)

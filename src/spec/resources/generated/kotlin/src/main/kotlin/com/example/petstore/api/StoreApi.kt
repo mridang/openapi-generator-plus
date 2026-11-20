@@ -264,7 +264,7 @@ class StoreApi :
             null,
             arrayOf("application/json"),
             "application/json",
-            schemeAuthenticator("petStoreBearer", "apiKeyHeader"),
+            requirementAuthenticator(arrayOf("petStoreBearer", "apiKeyHeader")),
             "StoreApi.getAuditTrail",
             callTimeout = callTimeout,
             callHeaders = callHeaders,

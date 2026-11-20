@@ -504,6 +504,22 @@ public class BetterPythonCodegen extends AbstractBetterCodegen implements Barrel
                     "schemeLiteral",
                     pythonStringBody(Objects.requireNonNull((String) scheme.get("schemeId"))));
         }
+        final Object alternatives = ((Map<String, Object>) decorator).get("securityAlternatives");
+        if (alternatives instanceof List) {
+            for (final Object alternative : (List<Object>) alternatives) {
+                final Object schemes = ((Map<String, Object>) alternative).get("schemes");
+                if (!(schemes instanceof List)) {
+                    continue;
+                }
+                for (final Object entry : (List<Object>) schemes) {
+                    final Map<String, Object> scheme = (Map<String, Object>) entry;
+                    scheme.put(
+                            "schemeLiteral",
+                            pythonStringBody(
+                                    Objects.requireNonNull((String) scheme.get("schemeId"))));
+                }
+            }
+        }
     }
 
     /**

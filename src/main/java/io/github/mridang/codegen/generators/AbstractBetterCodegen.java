@@ -71,7 +71,9 @@ import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
 import io.github.mridang.codegen.rules.InlinePathItemReferencesRule;
+import io.github.mridang.codegen.rules.IgnoreReservedHeadersRule;
 import io.github.mridang.codegen.rules.NormalizeConstRule;
+import io.github.mridang.codegen.rules.NormalizeIntegerWidthRule;
 import io.github.mridang.codegen.rules.NormalizeNullTypeRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
 import io.github.mridang.codegen.rules.NormalizeTypeArrayRule;
@@ -793,6 +795,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         new NormalizeConstRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new IgnoreReservedHeadersRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeIntegerWidthRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         // Gap AZ — degrade OAS 3.1 `prefixItems` tuple arrays to plain
         // array-of-Object before the rest of the pipeline inspects schemas.
         // See NormalizePrefixItemsRule for the chosen cross-language strategy.

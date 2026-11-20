@@ -2552,6 +2552,26 @@ describe("SecurityNoneSuppressesClientAuth", () => {
     }
   });
 
+  test("bhv misc 074 an alternative naming two schemes sends both credentials", async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = "{}";
+    const config = new Configuration({ baseUrl: "http://localhost" });
+    const credential = (headers: Record<string, string>): Authenticator => ({
+      getHost: () => "",
+      getAuthHeaders: () => headers,
+      getAuthHeadersAsync: () => Promise.resolve(headers),
+      getQueryParams: () => ({}),
+      getCookieParams: () => ({}),
+    });
+    const storeApi = new StoreApi(client, config, null, {
+      petStoreBearer: credential({ "X-Bearer": "bearer-cred" }),
+      apiKeyHeader: credential({ "X-Key": "api-key-cred" }),
+    });
+    await storeApi.getAuditTrail();
+    expect(client.capturedHeaders["X-Bearer"]).toBe("bearer-cred");
+    expect(client.capturedHeaders["X-Key"]).toBe("api-key-cred");
+  });
+
   test("bhv authintegration 015 security:[] op suppresses a configured api-key (header, query, cookie)", async () => {
     // Header-located api key.
     const headerClient = new CapturingApiClient();

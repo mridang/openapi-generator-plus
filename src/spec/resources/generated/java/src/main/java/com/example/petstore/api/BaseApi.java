@@ -174,6 +174,126 @@ public abstract class BaseApi {
   }
 
   /**
+   * Returns the credential for an operation whose security block lists alternative requirements.
+   * Each group is one requirement: a group that names several schemes needs the credentials of all
+   * of them and a request carries every one. The first group the client holds every credential of
+   * wins, else the first group it holds at least one credential of; {@code null} when it holds
+   * none, which leaves the call to the default authenticator.
+   *
+   * @param groups the requirements, in the spec's order, each the scheme names it needs together
+   * @return the authenticator to send, or null
+   */
+  @Nullable
+  protected Authenticator resolveRequirementAuth(String[]... groups) {
+    java.util.List<Authenticator> partial = null;
+    for (String[] group : groups) {
+      java.util.List<Authenticator> held = new java.util.ArrayList<>();
+      for (String scheme : group) {
+        Authenticator found = schemeAuthenticators.get(scheme);
+        if (found != null) {
+          held.add(found);
+        }
+      }
+      if (held.isEmpty()) {
+        continue;
+      }
+      if (held.size() == group.length) {
+        return held.size() == 1 ? held.get(0) : AllOfAuthenticator.of(held);
+      }
+      if (partial == null) {
+        partial = held;
+      }
+    }
+    if (partial == null) {
+      return null;
+    }
+    return partial.size() == 1 ? partial.get(0) : AllOfAuthenticator.of(partial);
+  }
+
+  /** The credentials of every scheme one requirement names together: all of them are sent. */
+  private static class AllOfAuthenticator implements Authenticator {
+    private final java.util.List<Authenticator> parts;
+
+    AllOfAuthenticator(java.util.List<Authenticator> parts) {
+      this.parts = parts;
+    }
+
+    /**
+     * The composite of {@code parts}; one holding a token authenticator can drop a cached token on
+     * a 401.
+     */
+    static Authenticator of(java.util.List<Authenticator> parts) {
+      for (Authenticator part : parts) {
+        if (part instanceof HttpAwareAuthenticator) {
+          return new AllOfHttpAwareAuthenticator(parts);
+        }
+      }
+      return new AllOfAuthenticator(parts);
+    }
+
+    @Override
+    public String getHost() {
+      return parts.get(0).getHost();
+    }
+
+    @Override
+    public Map<String, String> getAuthHeaders() {
+      Map<String, String> merged = new java.util.LinkedHashMap<>();
+      for (Authenticator part : parts) {
+        merged.putAll(part.getAuthHeaders());
+      }
+      return merged;
+    }
+
+    @Override
+    public Map<String, String> getQueryParams() {
+      Map<String, String> merged = new java.util.LinkedHashMap<>();
+      for (Authenticator part : parts) {
+        merged.putAll(part.getQueryParams());
+      }
+      return merged;
+    }
+
+    @Override
+    public Map<String, String> getCookieParams() {
+      Map<String, String> merged = new java.util.LinkedHashMap<>();
+      for (Authenticator part : parts) {
+        merged.putAll(part.getCookieParams());
+      }
+      return merged;
+    }
+
+    java.util.List<Authenticator> parts() {
+      return parts;
+    }
+  }
+
+  private static final class AllOfHttpAwareAuthenticator extends AllOfAuthenticator
+      implements HttpAwareAuthenticator {
+    AllOfHttpAwareAuthenticator(java.util.List<Authenticator> parts) {
+      super(parts);
+    }
+
+    @Override
+    public void setApiClient(ApiClient apiClient) {
+      for (Authenticator part : parts()) {
+        if (part instanceof HttpAwareAuthenticator httpAware) {
+          httpAware.setApiClient(apiClient);
+        }
+      }
+    }
+
+    @Override
+    public void invalidateAccessToken() {
+      for (Authenticator part : parts()) {
+        if (part instanceof HttpAwareAuthenticator httpAware) {
+          httpAware.invalidateAccessToken();
+        }
+      }
+    }
+  }
+
+  /**
    * Invoke an API operation and return the full result including status code, headers, and raw body
    * alongside the deserialized data.
    *

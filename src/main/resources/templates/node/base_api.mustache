@@ -88,6 +88,37 @@ export abstract class BaseApi {
   }
 
   /**
+   * Returns the credential for an operation whose security block lists alternative
+   * requirements. Each group is one requirement: a group that names several schemes needs
+   * the credentials of all of them and a request carries every one. The first group the
+   * client holds every credential of wins, else the first group it holds at least one
+   * credential of; `undefined` when it holds none (the operation then uses the
+   * client-level authenticator).
+   *
+   * @param groups the requirements, in the spec's order, each the scheme names it needs together
+   * @returns the authenticator to send, or `undefined`
+   */
+  protected resolveRequirementAuth(groups: ReadonlyArray<readonly string[]>): Authenticator | undefined {
+    let partial: Authenticator[] | undefined;
+    for (const group of groups) {
+      const held = group
+        .filter((scheme) => Object.prototype.hasOwnProperty.call(this.schemeAuthenticators, scheme))
+        .map((scheme) => this.schemeAuthenticators[scheme] as Authenticator);
+      if (held.length === 0) {
+        continue;
+      }
+      if (held.length === group.length) {
+        return held.length === 1 ? held[0] : allOfAuthenticator(held);
+      }
+      partial ??= held;
+    }
+    if (partial === undefined) {
+      return undefined;
+    }
+    return partial.length === 1 ? partial[0] : allOfAuthenticator(partial);
+  }
+
+  /**
    * Invoke an API operation and return the full result including status code,
    * headers, and raw body alongside the deserialized data.
    *
@@ -810,4 +841,45 @@ export abstract class BaseApi {
     }
     return ObjectSerializer.serialize(body);
   }
+}
+
+/**
+ * The credentials of every scheme one security requirement names together: the headers, query
+ * parameters and cookies of all of them are sent. One holding a token authenticator also hands
+ * the transport to it and drops its cached token on a 401.
+ */
+function allOfAuthenticator(parts: readonly Authenticator[]): Authenticator {
+  const merge = (read: (part: Authenticator) => Record<string, string>): Record<string, string> =>
+    Object.assign({}, ...parts.map(read)) as Record<string, string>;
+  const composite: Authenticator & {
+    setApiClient?: (apiClient: ApiClient) => void;
+    invalidateAccessToken?: () => void;
+  } = {
+    getHost: () => (parts[0] as Authenticator).getHost(),
+    getAuthHeaders: () => merge((part) => part.getAuthHeaders()),
+    getAuthHeadersAsync: async () => {
+      const merged: Record<string, string> = {};
+      for (const part of parts) {
+        Object.assign(merged, await part.getAuthHeadersAsync());
+      }
+      return merged;
+    },
+    getQueryParams: () => merge((part) => part.getQueryParams()),
+    getCookieParams: () => merge((part) => part.getCookieParams()),
+  };
+  if (parts.some((part) => isHttpAwareAuthenticator(part))) {
+    composite.setApiClient = (apiClient: ApiClient): void => {
+      for (const part of parts) {
+        if (isHttpAwareAuthenticator(part)) {
+          part.setApiClient(apiClient);
+        }
+      }
+    };
+    composite.invalidateAccessToken = (): void => {
+      for (const part of parts) {
+        (part as Authenticator & { invalidateAccessToken?: () => void }).invalidateAccessToken?.();
+      }
+    };
+  }
+  return composite;
 }

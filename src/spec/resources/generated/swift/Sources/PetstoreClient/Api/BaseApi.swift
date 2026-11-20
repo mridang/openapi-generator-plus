@@ -97,6 +97,34 @@ public class BaseApi: @unchecked Sendable {
     return nil
   }
 
+  /// Returns the credential for an operation whose security block lists
+  /// alternative requirements. Each group is one requirement: a group that
+  /// names several schemes needs the credentials of all of them and a request
+  /// carries every one. The first group the client holds every credential of
+  /// wins, else the first group it holds at least one credential of; nil when
+  /// it holds none, which leaves the call to the client-level authenticator.
+  ///
+  /// - Parameter groups: The requirements in the spec's order, each the scheme names it needs together.
+  func requirementAuthenticator(_ groups: [[String]]) -> Authenticator? {
+    var partial: [Authenticator]?
+    for group in groups {
+      let held = group.compactMap { schemeAuthenticators[$0] }
+      if held.isEmpty {
+        continue
+      }
+      if held.count == group.count {
+        return held.count == 1 ? held[0] : AllOfAuthenticator.of(held)
+      }
+      if partial == nil {
+        partial = held
+      }
+    }
+    guard let rest = partial else {
+      return nil
+    }
+    return rest.count == 1 ? rest[0] : AllOfAuthenticator.of(rest)
+  }
+
   /// Parameters for an API invocation: HTTP method, URL path (with path
   /// params already substituted), query parameters, custom header parameters,
   /// request body (model object or nil), acceptable response content types,
@@ -1108,6 +1136,91 @@ struct OrderedParams<Value>: ExpressibleByDictionaryLiteral, Sequence {
     return AnyIterator {
       guard let key = remaining.popFirst(), let value = values[key] else { return nil }
       return (key: key, value: value)
+    }
+  }
+}
+
+/// The credentials of every scheme one security requirement names together:
+/// the headers, query parameters and cookies of all of them are sent.
+class AllOfAuthenticator: Authenticator, @unchecked Sendable {
+  fileprivate let parts: [Authenticator]
+
+  fileprivate init(_ parts: [Authenticator]) {
+    self.parts = parts
+  }
+
+  /// The composite of `parts`; one holding a token authenticator also hands
+  /// the transport to it and drops its cached token on a 401.
+  static func of(_ parts: [Authenticator]) -> Authenticator {
+    if parts.contains(where: { $0 is AccessTokenInvalidating }) {
+      return AllOfInvalidatingAuthenticator(parts)
+    }
+    if parts.contains(where: { $0 is HttpAwareAuthenticator }) {
+      return AllOfHttpAwareAuthenticator(parts)
+    }
+    return AllOfAuthenticator(parts)
+  }
+
+  func host() -> String {
+    return parts[0].host()
+  }
+
+  func authHeaders() async throws -> [String: String] {
+    var merged: [String: String] = [:]
+    for part in parts {
+      merged.merge(try await part.authHeaders()) { _, new in new }
+    }
+    return merged
+  }
+
+  func queryParams() -> [String: String] {
+    var merged: [String: String] = [:]
+    for part in parts {
+      merged.merge(part.queryParams()) { _, new in new }
+    }
+    return merged
+  }
+
+  func cookieParams() -> [String: String] {
+    var merged: [String: String] = [:]
+    for part in parts {
+      merged.merge(part.cookieParams()) { _, new in new }
+    }
+    return merged
+  }
+}
+
+final class AllOfHttpAwareAuthenticator: AllOfAuthenticator, HttpAwareAuthenticator,
+  @unchecked Sendable
+{
+  fileprivate override init(_ parts: [Authenticator]) {
+    super.init(parts)
+  }
+
+  func setApiClient(_ client: ApiClient) {
+    for part in parts {
+      (part as? HttpAwareAuthenticator)?.setApiClient(client)
+    }
+  }
+}
+
+final class AllOfInvalidatingAuthenticator: AllOfAuthenticator, HttpAwareAuthenticator,
+  AccessTokenInvalidating,
+  @unchecked Sendable
+{
+  fileprivate override init(_ parts: [Authenticator]) {
+    super.init(parts)
+  }
+
+  func setApiClient(_ client: ApiClient) {
+    for part in parts {
+      (part as? HttpAwareAuthenticator)?.setApiClient(client)
+    }
+  }
+
+  func invalidateAccessToken() {
+    for part in parts {
+      (part as? AccessTokenInvalidating)?.invalidateAccessToken()
     }
   }
 }

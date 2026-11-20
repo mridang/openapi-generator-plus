@@ -102,6 +102,7 @@ export 'src/models/dry_food.dart';
 export 'src/models/edge_cases.dart';
 export 'src/models/employee.dart';
 export 'src/models/freeform.dart';
+export 'src/models/ledger.dart';
 export 'src/models/medication.dart';
 export 'src/models/member_not_found.dart';
 export 'src/models/metadata.dart';

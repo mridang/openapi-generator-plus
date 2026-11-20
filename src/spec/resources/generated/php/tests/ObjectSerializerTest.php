@@ -2880,6 +2880,13 @@ test('bhv misc 115 a bare string serializes as a quoted json string', function (
     expect(ObjectSerializer::serialize('abc'))->toBe('"abc"');
 });
 
+test('bhv serialization 131 an integer with no format is 64-bit', function (): void {
+    $ledger = ObjectSerializer::deserialize('{"entryId":3000000000}', \PetstoreClient\Models\Ledger::class);
+    \assert($ledger instanceof \PetstoreClient\Models\Ledger);
+
+    expect($ledger->entryId)->toBe(3000000000);
+});
+
 test('bhv misc 116 an int32 additional property accepts its maximum and refuses one past it', function (): void {
     $counters = ObjectSerializer::deserialize('{"a":2147483647}', \PetstoreClient\Models\Counters::class);
     \assert($counters instanceof \PetstoreClient\Models\Counters);

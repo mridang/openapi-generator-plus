@@ -342,6 +342,13 @@ import Testing
 
     /* An int32 field accepts exactly the values from its minimum to its maximum and refuses overflow and fractional
        values. */
+    /* An integer with no format is 64-bit, so a value above 2^31 decodes exactly. */
+    @Test func testBhvSerialization131AnIntegerWithNoFormatIsSixtyFourBit() throws {
+        let ledger = try ObjectSerializer.deserialize("{\"entryId\":3000000000,\"entryIds\":[4000000000]}", as: Ledger.self)
+        #expect(ledger?.entryId == 3_000_000_000)
+        #expect(ledger?.entryIds == [4_000_000_000])
+    }
+
     @Test func testBhvMisc116AnInt32FieldAcceptsExactlyItsRangeAndRefusesOverflowAndFractions() throws {
         #expect(try ObjectSerializer.deserialize("{\"retries\":2147483647}", as: Defaults.self)?.retries == 2_147_483_647)
         #expect(try ObjectSerializer.deserialize("{\"retries\":-2147483648}", as: Defaults.self)?.retries == -2_147_483_648)

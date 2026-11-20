@@ -24,7 +24,7 @@ The module also builds for `GOOS=wasip1 GOARCH=wasm`.
 | `string` / `uri` | `string` | |
 | `integer` / `int32` | `int32` | |
 | `integer` / `int64` | `int64` | |
-| `integer` with no format | `int32` | |
+| `integer` with no format | `int64` | |
 | `number` / `float` | `float32` | |
 | `number` / `double`, `number` with no format | `float64` | |
 | `number` / `decimal` | `float64` | Lossy for exact decimal values such as money. This is documented in the generated README. |
@@ -141,7 +141,6 @@ if errors.As(err, &apiErr) {
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - `format: date` and `format: time` are plain strings, so they are not validated.
 - `format: decimal` and `number` are `float64` and lose exactness.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
@@ -149,13 +148,15 @@ if errors.As(err, &apiErr) {
 - Responses are buffered in full. Streaming a download is not supported.
 - SOCKS proxies are not supported.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
+- Operations are blocking only, as a plain function call that blocks until the call finishes or the context ends, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 
 ## Under review
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
 - Add SDK-owned `models.Date` and `models.TimeOfDay` types so `date` and `time` are validated. This needs agreement with the other SDKs because it adds public API.
-- Map an unformatted `integer` to `int64`, because OpenAPI treats it as unbounded. This changes a public type and would be decided together with the other languages.
 - `url.URL` for `uri`, once it is shown to keep the text unchanged.
 - Replace `google/uuid` with the `uuid` package the review says Go 1.27 adds. The review could not confirm its API, and using it would raise the floor to 1.27, so it is not before Go 1.26 reaches end of life.
 - Run the full golden suite on Go 1.27 before moving the floor or the toolchain. The review notes that `encoding/json` is backed by json/v2 in that release, which is stricter and may change error text the SDK's tests assert on.

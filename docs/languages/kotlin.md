@@ -28,7 +28,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `string`, `format: email`, `hostname`, `ipv4`, `ipv6`, and plain `string` | `String` | no dedicated type |
 | `integer`, `format: int32` | `Int` | |
 | `integer`, `format: int64` | `Long` | |
-| `integer`, no format | `Int` | 32 bits; see Known limits |
+| `integer`, no format | `Long` | 64 bits, the same as `int64` |
 | `number`, `format: float` | `Float` | |
 | `number`, `format: double` | `Double` | binary floating point, so not for money |
 | `number`, no format, or `format: decimal` | `java.math.BigDecimal` | exact; serialized through a precision-preserving serializer |
@@ -146,7 +146,6 @@ try {
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - Request and response bodies are held in memory; there is no streaming. To stream, inject your own Ktor `HttpClient`.
 - Date, time and decimal types are `java.time` and `java.math` types, so the generated code compiles only for the JVM target even though the project uses the Multiplatform plugin.
 - When no proxy is configured, the Ktor CIO engine asks the JVM's default `ProxySelector`, so `http.proxyHost` and the system proxy settings apply. Set your own `ProxySelector` to override this.
@@ -158,6 +157,10 @@ try {
 - A header sent on several lines is joined with `, `.
 - The SDK writes no logs; install the Ktor `Logging` plugin on your own `HttpClient`.
 - No `LICENSE` file is generated.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `suspend` functions, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
 
 ## Under review
 

@@ -3859,6 +3859,13 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvSerialization131AnIntegerWithNoFormatIsSixtyFourBit()
+        {
+            var ledger = _serializer.Deserialize<Ledger>("{\"entryId\":3000000000,\"entryIds\":[4000000000]}");
+            Assert.Equal(3000000000L, ledger!.EntryId);
+        }
+
+        [Fact]
         public void BhvMisc116AnInt32AcceptsItsBoundsAndRefusesOverflowAndFractions()
         {
             Assert.Equal(int.MaxValue, _serializer.Deserialize<int?>("2147483647"));

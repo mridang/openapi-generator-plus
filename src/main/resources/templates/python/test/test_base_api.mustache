@@ -1182,6 +1182,21 @@ class TestSchemeCredentials:
         assert client.captured_headers['X-API-Key'] == 'k'
         assert 'Authorization' not in client.captured_headers
 
+    async def test_bhv_misc_074_an_alternative_naming_two_schemes_sends_both_credentials(self) -> None:
+        schemes = {
+            'petStoreBearer': StubAuthenticator(headers={'X-Bearer': 'bearer-cred'}),
+            'apiKeyHeader': StubAuthenticator(headers={'X-Key': 'api-key-cred'}),
+        }
+        client = JsonReplyApiClient('{}')
+        api = StoreApi(
+            api_client=client, config=Configuration(base_url='http://localhost'), scheme_authenticators=schemes
+        )
+
+        await api.get_audit_trail()
+
+        assert client.captured_headers['X-Bearer'] == 'bearer-cred'
+        assert client.captured_headers['X-Key'] == 'api-key-cred'
+
     async def test_bhv_misc_197_the_default_authenticator_serves_an_operation_no_scheme_matches(self) -> None:
         client = JsonReplyApiClient(_PET_REPLY)
         api = self._api(

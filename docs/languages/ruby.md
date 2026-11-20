@@ -136,7 +136,6 @@ end
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a Ruby `Integer`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - A model never validates when it is constructed: a value of the wrong type, or an inline enum string the spec does not list, is held as given (a required property still has to be present and not `nil`). Decoding is where the check happens: a wrong type or an unknown enum value fails the decode loudly with `SerializationError`. See the type mapping above.
 - A `BigDecimal` keeps no trailing zero, so a decimal read as `12.50` is written back as `12.5`.
 - An overflowing double literal such as `1e400` decodes to Infinity.
@@ -144,6 +143,10 @@ end
 - SOCKS proxies are not supported; `proxy` accepts `http://` and `https://` only.
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 and 3.2 support is tracked in the epics #96 and #49.
 - The YARD documentation build (`yard --fail-on-warning`) is in the generated Makefile but no test runs it. No `LICENSE` file is generated.
+- Operations are blocking only, as a plain method call, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
+- A security requirement that names several schemes together (for example a bearer token and an API key) sends the credentials of all of them, by decision D116. The client must hold every credential of the requirement; an alternative the client holds only in part is used only when no other alternative is complete. A requirement that names one scheme works as before.
 
 ## Under review
 

@@ -76,6 +76,24 @@ module Petstore::Client
         nil
       end
 
+      # The credential for an operation whose security block lists alternative
+      # requirements. Each group is one requirement: a group that names several
+      # schemes needs the credentials of all of them and a request carries every
+      # one. The first group the client holds every credential of wins, else the
+      # first group it holds at least one credential of; nil when it holds none,
+      # which leaves the call to the default authenticator.
+      #
+      # @param groups [Array<Array<String>>] the requirements, in the spec's order
+      # @return [Authenticator, nil]
+      def requirement_authenticator(*groups)
+        helds = groups.map { |group| group.filter_map { |name| @scheme_authenticators[name] } }
+        complete = groups.each_index.find { |i| !helds[i].empty? && helds[i].size == groups[i].size }
+        chosen = complete ? helds[complete] : helds.find { |held| !held.empty? }
+        return nil if chosen.nil?
+
+        chosen.one? ? chosen.first : ::Petstore::Client::Auth::AllOfAuthenticator.of(chosen)
+      end
+
       # Invoke an API operation and return the full result including status
       # code, headers, and raw body alongside the deserialized data.
       #

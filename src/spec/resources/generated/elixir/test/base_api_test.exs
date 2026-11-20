@@ -2086,6 +2086,28 @@ defmodule PetstoreClient.Api.BaseApiTest do
     assert PetstoreClient.Api.BaseApi.scheme_auth(api, ["first", "second"]) == first
   end
 
+  test "bhv misc 074 an alternative naming two schemes sends both credentials" do
+    bearer = %TestAuthenticator{
+      host_url: "https://one.invalid",
+      headers: %{"X-Bearer" => "bearer-cred"}
+    }
+
+    key = %TestAuthenticator{
+      host_url: "https://one.invalid",
+      headers: %{"X-Key" => "api-key-cred"}
+    }
+
+    api = %{scheme_authenticators: %{"petStoreBearer" => bearer, "apiKeyHeader" => key}}
+
+    combined =
+      PetstoreClient.Api.BaseApi.requirement_auth(api, [["petStoreBearer", "apiKeyHeader"]])
+
+    assert PetstoreClient.Auth.AllOfAuthenticator.auth_headers(combined) == %{
+             "X-Bearer" => "bearer-cred",
+             "X-Key" => "api-key-cred"
+           }
+  end
+
   test "bhv auth 047 scheme_auth returns nil when the client holds none of the listed schemes" do
     held = %{
       scheme_authenticators: %{"first" => %TestAuthenticator{host_url: "https://one.invalid"}}

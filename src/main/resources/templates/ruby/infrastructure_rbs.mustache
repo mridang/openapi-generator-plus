@@ -490,6 +490,22 @@
 
     module HttpAwareAuthenticator
       def api_client=: (ApiClient) -> void
+      def invalidate_access_token: () -> void
+    end
+
+    class AllOfAuthenticator < Authenticator
+      def self.of: (Array[Authenticator]) -> Authenticator
+      def initialize: (Array[Authenticator]) -> void
+
+      private
+
+      attr_reader parts: Array[untyped]
+    end
+
+    class AllOfHttpAwareAuthenticator < AllOfAuthenticator
+      include HttpAwareAuthenticator
+      def api_client=: (ApiClient) -> void
+      def invalidate_access_token: () -> void
     end
 {{#hasApiKeyAuth}}
 
@@ -670,6 +686,7 @@
       attr_reader config: Configuration
       def initialize: (?ApiClient?, ?Configuration, ?Auth::Authenticator?, ?Hash[String, Auth::Authenticator]) -> void
       def scheme_authenticator: (*String) -> Auth::Authenticator?
+      def requirement_authenticator: (*Array[String]) -> Auth::Authenticator?
       def invoke_api_for_result: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, (String | Hash[Integer | String, String])?, ?(Auth::Authenticator | Object)?, ?raw_body: bool, ?operation_id: String?, ?request_options: untyped, ?error_schemas: Hash[String, untyped]?, ?spec_operation_id: String?, ?url_template: String?) -> ApiResult[untyped]
       def invoke_api: (Symbol, String, Hash[String, untyped], Hash[String, String], untyped, Array[String], String?, String?, ?(Auth::Authenticator | Object)?, ?operation_id: String?) -> untyped
       private
