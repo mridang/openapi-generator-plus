@@ -171,6 +171,8 @@ try {
 - A header repeated by the server is joined into one value with `, `.
 - The SDK does not log; wrap your own PSR-18 client with a PSR-3 logging decorator.
 - No `LICENSE` file is generated.
+- Operations are blocking only, as a plain method call, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 
 ## Under review
 

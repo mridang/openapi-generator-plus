@@ -171,6 +171,8 @@ catch (ApiException e)
 - A header repeated by the server is joined into one value with `, `.
 - The SDK writes no logs; wrap the transport with a `DelegatingHandler` to log.
 - No `LICENSE` file is generated.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `Task`-returning `...Async` methods, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 
 ## Under review
 

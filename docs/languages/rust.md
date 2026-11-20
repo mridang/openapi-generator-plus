@@ -183,6 +183,9 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 - A number such as `1e400` that overflows is rejected, where several other SDKs accept it as infinity.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- The `wasm32-unknown-unknown` browser target is not supported, by decision D110. The client is built on a native HTTP stack and a Tokio runtime, and nothing in the build or the tests targets the browser.
+- Operations are asynchronous only, as `async fn` futures, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 
 ## Under review
 

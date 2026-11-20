@@ -158,6 +158,8 @@ try {
 - A header sent on several lines is joined with `, `.
 - The SDK writes no logs; install the Ktor `Logging` plugin on your own `HttpClient`.
 - No `LICENSE` file is generated.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `suspend` functions, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 
 ## Under review
 

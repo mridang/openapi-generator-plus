@@ -146,6 +146,8 @@ result.raw_body
 - `allOf` with a discriminator is not implemented yet.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
+- Operations are blocking only, as a plain function call that blocks the calling process, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 
 ## Under review
 

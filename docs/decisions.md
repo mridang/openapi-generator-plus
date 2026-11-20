@@ -62,9 +62,45 @@ Every API group has an interface (an interface, protocol, trait or behaviour, wh
 
 ## Optional and nullable are not told apart on the way out
 
-A property that is optional and nullable is the language's own optional type, and an absent value and an explicit `null` are sent the same way, as absent, in every language except TypeScript. A property that is required and nullable is always written, as `null` when it has no value. A three-state type for PATCH-style APIs may come later.
+A property that is optional and nullable is the language's own optional type, and an absent value and an explicit `null` are sent the same way, as absent, in every language except TypeScript. A property that is required and nullable is always written, as `null` when it has no value. A three-state type (absent, `null`, value) for PATCH-style APIs stays declined for now (decision [D112](#d112-the-three-state-optional-stays-declined)).
 
 A query parameter that is required and nullable is kept the same way: when its value is `null` the key is still sent, with an empty value (`?note=`), never dropped, in every language. Its Options field is the language's nullable type with no default, so the caller must still state it. An empty string for a required nullable string parameter is still refused, and a required parameter that is not nullable still refuses `null`. Header, cookie, form, `content` and `deepObject` parameters keep their current behaviour.
+
+## D110: Rust does not target the browser
+
+**Context.** The Rust SDK is built on `reqwest` with `rustls-tls-native-roots`, Tokio, and native compression crates. The progenitor comparison ([#134](https://github.com/mridang/openapi-generator-plus/issues/134)) asked whether the crate should also build for `wasm32-unknown-unknown`. Go builds for `wasip1` (a different target, covered by `GoWasmSpec`) and Dart has a web transport; Rust had no stated position.
+
+**Options considered.** (1) Support the browser target: it needs `cfg` branches for the transport, the TLS stack, the timers and the proxy and redirect options (none of which exist in a browser `fetch`), and a separate test harness. (2) Declare it unsupported and say so. (3) Say nothing.
+
+**What was compared.** The progenitor comparison (#134) and `docs/comparisons/ogen.md` do not show a peer that promises browser support for a native-HTTP client. No browser build was benchmarked, because every transport option the SDK promises (proxy, CA, redirects, retries per socket) has no browser equivalent.
+
+**Decision.** The `wasm32-unknown-unknown` browser target is not supported (owner decision of 2026-11-20). No code changes.
+
+**Consequences.** Documented in [the Rust page](languages/rust.md#known-limits), the Rust `AGENTS.md` and the generated Rust README. Nobody adds `cfg` branches for the browser. A browser user calls the API through a server-side process.
+
+## D111: Each SDK keeps the call style of its language
+
+**Context.** ogen and progenitor each expose one style (ogen: blocking calls with a `context`; progenitor: `async`). Our twelve SDKs follow their language today, and the question was whether to add the other variant.
+
+**Options considered.** (1) Offer a blocking and an async variant of every operation in every language. (2) Offer both only in languages with a split ecosystem (Rust, Python). (3) Keep one style per language, the style its developers expect.
+
+**What was compared.** `docs/comparisons/ogen.md` (Go, blocking with `context.Context`), progenitor (Rust, async over `reqwest`) and swift-openapi-generator (`async throws` only). Doubling the operations would double the public surface of every SDK and every test suite, and the parity rules require the same shape in all twelve.
+
+**Decision.** There are no sync and async variants. Node.js, Python, Dart, Rust, Swift, Kotlin and C# are asynchronous only; Java, PHP, Ruby, Go and Elixir are blocking only (owner decision of 2026-11-20). No code changes.
+
+**Consequences.** Each language page lists its style under known limits. A caller who wants the other style wraps the call in its language's own machinery (a thread, a task or a runtime `block_on`).
+
+## D112: The three-state optional stays declined
+
+**Context.** ogen models optional and nullable values as `OptT`, `NilT` and `OptNilT` with `Set` and `Null` flags, so a PATCH-style call can send an absent key, an explicit `null` or a value ([docs/comparisons/ogen.md](comparisons/ogen.md), row "Optional and nullable"). Our SDKs use the language's own optional type and send absent and `null` the same way (F834).
+
+**Options considered.** (1) A generator-owned wrapper type in all twelve languages. (2) Native three-state types where a language has one (TypeScript `undefined` versus `null`) and a wrapper elsewhere. (3) Keep the native optional and decline.
+
+**What was compared.** ogen's `OptNil` types in Go, and the reference SDKs named in the root `AGENTS.md`, which keep the native optional. A wrapper changes every model signature in all twelve SDKs, and the shape must be identical across languages; no design was found that is idiomatic in each.
+
+**Decision.** The three-state optional stays declined for now (owner decision of 2026-11-20). An optional and nullable property keeps the language's own optional type, and absent and `null` encode the same. A required nullable property is still written as `null`.
+
+**Consequences.** A PATCH API that needs to clear a field with `null` cannot do so through a model; it needs a raw request. Revisit only with one design that works in all twelve languages. Documented in every language page's known limits.
 
 ## Models are not validated when you build them
 

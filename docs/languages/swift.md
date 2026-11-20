@@ -158,6 +158,8 @@ do {
 - A `default` written beside a `$ref` is applied only when the reference points at a string enum; for any other referenced type the property stays `nil` until it is set.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client.
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `async throws` methods, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 
 ## Under review
 

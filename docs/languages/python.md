@@ -151,6 +151,8 @@ except ApiException as e:
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 and 3.2 support is tracked in the epics #96 and #49.
 - The generated documentation build (`make docs`) exists but no test runs it, and the Makefile type-check target is named `typecheck`.
 - No `LICENSE` file is generated.
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as `async def` coroutines, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 
 ## Under review
 

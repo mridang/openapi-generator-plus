@@ -145,6 +145,8 @@ try {
 - Downloads are fully buffered into a `Buffer`; there is no streaming.
 - An optional nullable property cannot tell "absent" from "null" on the way out: both are left out of the request body.
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 support is tracked in epic #96, and 3.2 in epic #49 (the pinned swagger-parser rejects 3.2 documents, #50).
+- An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- Operations are asynchronous only, as Promises, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
 
 ## Under review
 

@@ -413,6 +413,12 @@ HTTP library in every one of the 12 SDKs we generate, with non-trivial
 API divergence; we explicitly chose not to. If you need SOCKS, route
 through a local HTTP-CONNECT bridge or configure it at the OS level.
 
+### WebAssembly in the browser
+
+The `wasm32-unknown-unknown` browser target is not supported. The SDK is built
+on `reqwest` with a Tokio runtime, and neither the build nor the tests target
+the browser. Use the SDK from a native process.
+
 ### `LICENSE` file is not auto-emitted
 
 The package manifest declares MIT, but no `LICENSE` / `LICENSE.md` file

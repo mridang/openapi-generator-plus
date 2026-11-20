@@ -462,3 +462,8 @@ Where: `errors/api_error.mustache`, `errors/schema_error.mustache`, `errors/root
 - **Two schemes in one requirement (misc074).** The shared generator hands each operation `vendorExtensions.op.securityAlternatives` (one entry per requirement, each with its held `schemes`). `BaseApi::authenticator_for_alternatives` takes the first alternative whose schemes the client holds in full; an alternative that names several schemes becomes a `CombinedAuthenticator` that merges their headers, query parameters and cookies. A token provider passed to `BearerAuthenticator::with_token_provider` never reads the environment, so it outranks the environment variable (D108).
 - **Declared multipart subtype (misc178).** `BaseApi` hands a declared `multipart/<subtype>` other than form-data to the client, which keeps the subtype and appends the boundary (misc100).
 - **Token manager stop (misc185).** `OAuth2TokenManager::stop` is idempotent; a token request afterwards fails with an `OAuth2TokenError` ("The token manager has been stopped.").
+
+## Settled by the owner (2026-11-20)
+- **D110 wasm32 browser target is not supported.** The crate depends on reqwest with `rustls-tls-native-roots`, Tokio and `flate2`/`brotli`/`zstd`; no build or spec targets `wasm32-unknown-unknown`. Do not add cfg branches or a browser transport. Documented in `docs/languages/rust.md` and the generated README ("Not supported").
+- **D111 async only.** Operations are `async fn`; there is no blocking variant.
+- **D112 no three-state optional.** An optional nullable property is `Option<T>`; absent and `null` are both `None`.
