@@ -13,7 +13,7 @@ public struct Medication: Codable, Sendable, Equatable, Hashable {
   public let dosage: String?
   public let notes: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case drugName = "drugName"
     case dosage = "dosage"
     case notes = "notes"
@@ -61,8 +61,8 @@ public struct Medication: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(drugName, forKey: .drugName)
-    try container.encodeIfPresent(dosage, forKey: .dosage)
-    try container.encodeIfPresent(notes, forKey: .notes)
+    try container.encode(ObjectSerializer.ordered(drugName), forKey: .drugName)
+    try container.encodeIfPresent(ObjectSerializer.ordered(dosage), forKey: .dosage)
+    try container.encodeIfPresent(ObjectSerializer.ordered(notes), forKey: .notes)
   }
 }

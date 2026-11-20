@@ -386,7 +386,9 @@ internal enum ValueSerializer {
       return nil
     }
     var pairs: [(name: String, value: String)] = []
-    for name in fields.keys.sorted() {
+    /* A model's fields keep the order it declares them in; the keys of a map have no position and are sorted. */
+    let written = ObjectSerializer.topLevelKeyOrder(json)
+    for name in written.filter({ fields[$0] != nil }) {
       guard let leaf = fields[name]?.value else { continue }
       switch leaf {
       case is NSNull:

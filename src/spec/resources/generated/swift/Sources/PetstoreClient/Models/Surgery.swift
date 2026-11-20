@@ -13,7 +13,7 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   public let durationMinutes: Int?
   public let notes: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case procedureName = "procedureName"
     case durationMinutes = "durationMinutes"
     case notes = "notes"
@@ -62,8 +62,9 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(procedureName, forKey: .procedureName)
-    try container.encodeIfPresent(durationMinutes, forKey: .durationMinutes)
-    try container.encodeIfPresent(notes, forKey: .notes)
+    try container.encode(ObjectSerializer.ordered(procedureName), forKey: .procedureName)
+    try container.encodeIfPresent(
+      ObjectSerializer.ordered(durationMinutes), forKey: .durationMinutes)
+    try container.encodeIfPresent(ObjectSerializer.ordered(notes), forKey: .notes)
   }
 }

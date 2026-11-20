@@ -12,7 +12,7 @@ public struct Department: Codable, Sendable, Equatable, Hashable {
   public let name: String
   @Indirect public private(set) var lead: Employee?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case name = "name"
     case lead = "lead"
   }
@@ -53,7 +53,7 @@ public struct Department: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(name, forKey: .name)
-    try container.encodeIfPresent(lead, forKey: .lead)
+    try container.encode(ObjectSerializer.ordered(name), forKey: .name)
+    try container.encodeIfPresent(ObjectSerializer.ordered(lead), forKey: .lead)
   }
 }

@@ -356,6 +356,30 @@ import Testing
         }
     }
 
+    /* Model keys are written in the order the schema declares them, never sorted. */
+    @Test func testBhvSerialization011ModelKeysAreWrittenInDeclaredOrder() throws {
+        let json = try ObjectSerializer.serialize(
+            Pet(name: "Rex", photoUrls: ["u"], id: 1, category: Category(id: 2, name: "dogs")))
+        let id = try #require(json.range(of: "\"id\":1"))
+        let name = try #require(json.range(of: "\"name\":\"Rex\""))
+        let category = try #require(json.range(of: "\"category\""))
+        let photos = try #require(json.range(of: "\"photoUrls\""))
+        #expect(id.lowerBound < name.lowerBound)
+        #expect(name.lowerBound < category.lowerBound)
+        #expect(category.lowerBound < photos.lowerBound)
+    }
+
+    /* A uniqueItems collection is written in order: code point order for strings. */
+    @Test func testBhvSerializationobject015AUniqueItemsArrayOfStringsIsWrittenInSortedOrder() throws {
+        let json = try ObjectSerializer.serialize(Pet(name: "Rex", photoUrls: ["b", "c", "a", "B"]))
+        #expect(json.contains("\"photoUrls\":[\"B\",\"a\",\"b\",\"c\"]"))
+    }
+
+    @Test func testBhvMisc111ACollectionOfUniqueStringsIsWrittenInCodePointOrder() throws {
+        let json = try ObjectSerializer.serialize(Pet(name: "Rex", photoUrls: ["z", "y", "x"]))
+        #expect(json.contains("\"photoUrls\":[\"x\",\"y\",\"z\"]"))
+    }
+
     /* An absent field decodes to its declared schema default. */
     @Test func testBhvSerialization096AnAbsentFieldDecodesToItsDeclaredDefault() throws {
         let defaults = try ObjectSerializer.deserialize("{}", as: Defaults.self)
@@ -773,7 +797,11 @@ import Testing
         #expect(decoded?._true == true)
         #expect(decoded?._false == false)
         let value = try #require(decoded)
-        #expect(try ObjectSerializer.serialize(value) == json)
+        /* Keys are written in the order the schema declares them. */
+        #expect(
+            try ObjectSerializer.serialize(value)
+                == "{\"and\":true,\"or\":false,\"not\":true,\"class\":\"c\",\"return\":\"r\","
+                + "\"null\":\"n\",\"true\":true,\"false\":false}")
     }
 
     /* The digit-leading property 2fa keeps its wire key. */

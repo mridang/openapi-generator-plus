@@ -107,7 +107,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/isAdditionalPropertiesTrue}}
 
 {{^isAdditionalPropertiesTrue}}
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
 {{#vars}}
         case {{name}} = "{{baseName}}"
 {{/vars}}
@@ -304,10 +304,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/vendorExtensions.isUuidCollection}}
 {{^vendorExtensions.isUuidCollection}}
 {{#required}}
-        try container.encode({{name}}, forKey: .{{name}})
+        try container.encode(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{^required}}
-        try container.encodeIfPresent({{name}}, forKey: .{{name}})
+        try container.encodeIfPresent(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{/vendorExtensions.isUuidCollection}}
 {{/isUuid}}
@@ -488,10 +488,10 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/vendorExtensions.isUuidCollection}}
 {{^vendorExtensions.isUuidCollection}}
 {{#required}}
-        try container.encode({{name}}, forKey: .{{name}})
+        try container.encode(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{^required}}
-        try container.encodeIfPresent({{name}}, forKey: .{{name}})
+        try container.encodeIfPresent(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{/vendorExtensions.isUuidCollection}}
 {{/isUuid}}

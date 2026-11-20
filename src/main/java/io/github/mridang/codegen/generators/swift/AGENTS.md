@@ -118,9 +118,9 @@ Why: structs cannot inherit. Status (#104): the classic base is realised as the 
 Where: `models/model.mustache`, `BetterSwiftCodegen.postProcessAllModels`.
 Test: `ComposedSchemaTests` template.
 
-### No schema-constraint enforcement and unspecified uniqueItems order (S3 S6)
-Rule: the client does not enforce `pattern`, length, range, `multipleOf` or item-count constraints (README section on constraint validation); `Set` members go out in Swift's natural order and are not sorted.
-Why: the server owns validation; sorting a hash set would invent an order the schema never promised. This supersedes the earlier proposal D69 (sorted) and D55.
+### No schema-constraint enforcement (S3); uniqueItems order is sorted (S6 reversed)
+Rule: the client does not enforce `pattern`, length, range, `multipleOf` or item-count constraints (README section on constraint validation); `Set` members of strings or numbers are written sorted, as the other SDKs do (`ObjectSerializer.ordered`).
+Why: the server owns validation; a hash order is seeded per process, so it would put different bytes on the wire for one value.
 Where: `readme.mustache`, `models/model.mustache`.
 Test: none by design.
 
@@ -215,7 +215,7 @@ Where: `base_api.mustache`, `value_serializer.mustache`.
 Test: `ValueSerializerTests`, `BaseApiTests` templates (Linux wire test).
 
 ### JSON encoding and decoding limits (D82, D84, D85, D86, D87, forced)
-Rule: request JSON keys are sorted (`.sortedKeys`), slashes are not escaped, `format: double` is judged by JSON number equality not bytes, `JSONDecoder` refuses nesting beyond about 512 levels and keeps the first duplicate key, and a `Set` parameter expands like an array.
+Rule: request JSON keys of a model are written in declaration order (the encoder sorts them, so a position prefix on each `CodingKeys` key carries the order and `removeOrderMarks` strips it; a map's keys stay sorted) and a `Set` of strings or numbers is written sorted, slashes are not escaped, `format: double` is judged by JSON number equality not bytes, `JSONDecoder` refuses nesting beyond about 512 levels and keeps the first duplicate key, and a `Set` parameter expands like an array.
 Why: `JSONEncoder` has no declared-order mode and `JSONDecoder` is not configurable; the SDK's own 1000-level cap still applies first.
 Where: `object_serializer.mustache` (comments at the top), `value_serializer.mustache`.
 Test: `ObjectSerializerTests` template.

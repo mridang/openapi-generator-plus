@@ -14,7 +14,7 @@ public struct PhotoMetadata: Codable, Sendable, Equatable, Hashable {
   public let takenAt: Date?
   public let location: PhotoMetadataLocation?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case caption = "caption"
     case isPrimary = "isPrimary"
     case takenAt = "takenAt"
@@ -69,9 +69,9 @@ public struct PhotoMetadata: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(caption, forKey: .caption)
-    try container.encodeIfPresent(isPrimary, forKey: .isPrimary)
-    try container.encodeIfPresent(takenAt, forKey: .takenAt)
-    try container.encodeIfPresent(location, forKey: .location)
+    try container.encodeIfPresent(ObjectSerializer.ordered(caption), forKey: .caption)
+    try container.encodeIfPresent(ObjectSerializer.ordered(isPrimary), forKey: .isPrimary)
+    try container.encodeIfPresent(ObjectSerializer.ordered(takenAt), forKey: .takenAt)
+    try container.encodeIfPresent(ObjectSerializer.ordered(location), forKey: .location)
   }
 }

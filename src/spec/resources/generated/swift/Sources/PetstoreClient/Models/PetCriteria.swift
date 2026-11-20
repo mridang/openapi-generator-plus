@@ -12,7 +12,7 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   public let breed: String?
   public let minAge: Int?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case breed = "breed"
     case minAge = "min_age"
   }
@@ -54,7 +54,7 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(breed, forKey: .breed)
-    try container.encodeIfPresent(minAge, forKey: .minAge)
+    try container.encodeIfPresent(ObjectSerializer.ordered(breed), forKey: .breed)
+    try container.encodeIfPresent(ObjectSerializer.ordered(minAge), forKey: .minAge)
   }
 }

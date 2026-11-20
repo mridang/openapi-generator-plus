@@ -12,7 +12,7 @@ public struct DryFood: Codable, Sendable, Equatable, Hashable {
   public let foodType: String
   public let weightKg: Double
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case foodType = "foodType"
     case weightKg = "weightKg"
   }
@@ -58,7 +58,7 @@ public struct DryFood: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(foodType, forKey: .foodType)
-    try container.encode(weightKg, forKey: .weightKg)
+    try container.encode(ObjectSerializer.ordered(foodType), forKey: .foodType)
+    try container.encode(ObjectSerializer.ordered(weightKg), forKey: .weightKg)
   }
 }

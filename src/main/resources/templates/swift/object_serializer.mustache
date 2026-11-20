@@ -100,6 +100,94 @@ internal enum ObjectSerializer {
         return dateFormatter.string(from: Date(timeIntervalSince1970: millis / 1000))
     }
 
+    /* Two private-use characters that open a key which carries its position. */
+    private static let orderMark = "\u{E000}\u{E001}"
+
+    private struct OrderedKey: CodingKey {
+        let stringValue: String
+        var intValue: Int? { return nil }
+        init(stringValue: String) { self.stringValue = stringValue }
+        init?(intValue: Int) { return nil }
+    }
+
+    /// The position of a key among the cases of the model's `CodingKeys`.
+    private static func declarationIndex(of key: CodingKey) -> Int? {
+        func position<K: CaseIterable & CodingKey>(_ known: K) -> Int? {
+            return K.allCases.enumerated().first { $0.element.stringValue == known.stringValue }?.offset
+        }
+        guard let known = key as? any (CaseIterable & CodingKey) else { return nil }
+        return position(known)
+    }
+
+    /// Removes the position prefix from every key of encoded JSON.
+    private static func removeOrderMarks(_ data: Data) -> Data {
+        let mark = [UInt8](("\"" + orderMark).utf8)
+        let bytes = [UInt8](data)
+        var out = [UInt8]()
+        out.reserveCapacity(bytes.count)
+        var i = 0
+        while i < bytes.count {
+            if bytes[i] == mark[0], i + mark.count + 5 <= bytes.count,
+                Array(bytes[i..<(i + mark.count)]) == mark,
+                bytes[(i + mark.count)..<(i + mark.count + 5)].allSatisfy({ $0 >= 0x30 && $0 <= 0x39 })
+            {
+                out.append(0x22)
+                i += mark.count + 5
+            } else {
+                out.append(bytes[i])
+                i += 1
+            }
+        }
+        return Data(out)
+    }
+
+    /// A set of strings or numbers is written in order (code point order for
+    /// strings, numeric order for numbers); any other value is written as it is.
+    static func ordered<T: Hashable & Comparable>(_ set: Set<T>) -> [T] {
+        return set.sorted()
+    }
+
+    static func ordered<T: Hashable & Comparable>(_ set: Set<T>?) -> [T]? {
+        return set?.sorted()
+    }
+
+    static func ordered<T>(_ value: T) -> T {
+        return value
+    }
+
+    /// The keys of the top-level object in `json`, in the order they are written.
+    static func topLevelKeyOrder(_ json: String) -> [String] {
+        var keys: [String] = []
+        var depth = 0
+        let scalars = Array(json.unicodeScalars)
+        var i = 0
+        while i < scalars.count {
+            let c = scalars[i]
+            if c == "\"" {
+                var j = i + 1
+                var text = String.UnicodeScalarView()
+                while j < scalars.count, scalars[j] != "\"" {
+                    if scalars[j] == "\\", j + 1 < scalars.count {
+                        text.append(scalars[j + 1])
+                        j += 2
+                    } else {
+                        text.append(scalars[j])
+                        j += 1
+                    }
+                }
+                var k = j + 1
+                while k < scalars.count, scalars[k] == " " { k += 1 }
+                if depth == 1, k < scalars.count, scalars[k] == ":" { keys.append(String(text)) }
+                i = j + 1
+                continue
+            }
+            if c == "{" || c == "[" { depth += 1 }
+            if c == "}" || c == "]" { depth -= 1 }
+            i += 1
+        }
+        return keys
+    }
+
     private static let encoder: JSONEncoder = {
         let encoder = JSONEncoder()
         /* Write '/' literally (the other SDKs never escape it) and emit keys in
@@ -107,6 +195,15 @@ internal enum ObjectSerializer {
            per process, so two runs would otherwise put different bytes on the
            wire for the same value. */
         encoder.outputFormatting = [.withoutEscapingSlashes, .sortedKeys]
+        /* Keys are sorted, so a model's declared order is carried by a prefix
+           that sorts in declaration order and is removed again once the JSON
+           is written (see `removeOrderMarks`). Keys of a map have no declared
+           position and stay sorted by name. */
+        encoder.keyEncodingStrategy = .custom { path in
+            guard let key = path.last else { return OrderedKey(stringValue: "") }
+            guard let index = declarationIndex(of: key) else { return key }
+            return OrderedKey(stringValue: orderMark + String(format: "%05d", index) + key.stringValue)
+        }
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
             try container.encode(formatDateTime(date))
@@ -134,7 +231,7 @@ internal enum ObjectSerializer {
     /// round-trip a parsed payload through the same date-time wire format as
     /// every other model.
     static func encodeToData<T: Encodable>(_ object: T) throws -> Data {
-        return try encoder.encode(object)
+        return removeOrderMarks(try encoder.encode(object))
     }
 
     /// Decodes a Decodable value from JSON `Data` using the shared,
@@ -151,7 +248,7 @@ internal enum ObjectSerializer {
     /// SDK never leaks `Foundation` encoding types out of its public surface.
     static func serialize<T: Encodable>(_ object: T) throws -> String {
         do {
-            let data = try encoder.encode(object)
+            let data = removeOrderMarks(try encoder.encode(object))
             guard let string = String(data: data, encoding: .utf8) else {
                 throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
             }

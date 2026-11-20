@@ -13,7 +13,7 @@ public struct Car: Codable, Sendable, Equatable, Hashable {
   public let plate: String
   public let doorCount: Int
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case vehicleType = "vehicleType"
     case plate = "plate"
     case doorCount = "doorCount"
@@ -65,8 +65,8 @@ public struct Car: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(vehicleType, forKey: .vehicleType)
-    try container.encode(plate, forKey: .plate)
-    try container.encode(doorCount, forKey: .doorCount)
+    try container.encode(ObjectSerializer.ordered(vehicleType), forKey: .vehicleType)
+    try container.encode(ObjectSerializer.ordered(plate), forKey: .plate)
+    try container.encode(ObjectSerializer.ordered(doorCount), forKey: .doorCount)
   }
 }

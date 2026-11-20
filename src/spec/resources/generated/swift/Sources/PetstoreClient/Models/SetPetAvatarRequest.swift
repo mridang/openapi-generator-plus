@@ -14,7 +14,7 @@ public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
   /// Example: image/jpeg
   public let mimeType: String
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case data = "data"
     case mimeType = "mimeType"
   }
@@ -55,7 +55,7 @@ public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(data, forKey: .data)
-    try container.encode(mimeType, forKey: .mimeType)
+    try container.encode(ObjectSerializer.ordered(data), forKey: .data)
+    try container.encode(ObjectSerializer.ordered(mimeType), forKey: .mimeType)
   }
 }

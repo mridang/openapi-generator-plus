@@ -19,7 +19,7 @@ public struct PetPassport: Codable, Sendable, Equatable, Hashable {
   /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
   public let biometricChip: Data?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case pet = "pet"
     case thumbnail = "thumbnail"
     case scans = "scans"
@@ -77,10 +77,10 @@ public struct PetPassport: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(pet, forKey: .pet)
-    try container.encodeIfPresent(thumbnail, forKey: .thumbnail)
-    try container.encodeIfPresent(scans, forKey: .scans)
-    try container.encodeIfPresent(issuedAt, forKey: .issuedAt)
-    try container.encodeIfPresent(biometricChip, forKey: .biometricChip)
+    try container.encodeIfPresent(ObjectSerializer.ordered(pet), forKey: .pet)
+    try container.encodeIfPresent(ObjectSerializer.ordered(thumbnail), forKey: .thumbnail)
+    try container.encodeIfPresent(ObjectSerializer.ordered(scans), forKey: .scans)
+    try container.encodeIfPresent(ObjectSerializer.ordered(issuedAt), forKey: .issuedAt)
+    try container.encodeIfPresent(ObjectSerializer.ordered(biometricChip), forKey: .biometricChip)
   }
 }

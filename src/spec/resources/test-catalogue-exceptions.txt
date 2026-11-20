@@ -42,7 +42,6 @@ node | errors042 | FORCED D-FORCED-1: the fetch layer owns Content-Encoding and 
 python | serializationobject015 | Python has no set order to keep: a uniqueItems array decodes to a set, which the SDK writes sorted (TestSetSanitization), so no insertion order exists to pin
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
 swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
-swift | serializationobject015 | Swift Set members have no insertion order (S6, unspecified uniqueItems order) and Pet.photoUrls is a Set, so the schema promises no order
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
 swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert
@@ -215,7 +214,6 @@ rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generate
 rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
 rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
 rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists
-swift | serialization011 | Swift writes model keys sorted through JSONEncoder with sortedKeys, a forced divergence recorded as D85, so model keys are not in declaration order
 swift | serialization041 | Swift maps format time to String with no time-of-day type in Foundation, so the wire string is the value and is never parsed into a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
 csharp | auth007 | the generic csharp authenticators take their credential as a required constructor argument, so an authenticator built without credentials does not compile; environment reading exists only in the per-scheme wrappers and FromEnvironment, which the authscheme and lifecycle rows cover
@@ -251,7 +249,6 @@ rust | auth024 | the rust scheme test template builds only all-explicit or all-e
 rust | redirects045 | reqwest Client exposes no getter for its redirect policy, so DefaultApiClient::with_client cannot tell a client that follows redirects and cannot refuse one; the Policy::none requirement is documented on with_client instead
 swift | auth015 | Swift has no synchronous header accessor on token flows: authHeaders() is async throws (the D12 matrix row), so a failed token request always throws and no call returns headers without the Authorization entry
 swift | redirects045 | URLSession follows redirects by default and exposes no redirect setting, and a delegate cannot be inspected for redirect handling, so a supplied session that follows redirects on its own cannot be told from any other; the SDK attaches its own delegate to every task instead
-swift | serialization017 | Object-valued parameters are decoded into a [String: AnyCodable] dictionary, which has no order, and JSONEncoder has no declared-order mode, so the wire fields are sorted by name (documented forced divergence in the swift AGENTS)
 php | authscheme008 | The SsoAuth scheme is an OpenID Connect authenticator, which takes its credentials as constructor arguments and reads no environment variable (the README says so), so the SsoAuthAuthenticator has no variable to leave empty
 java | serializationobject407 | ipv4 and ipv6 are plain strings in java: the JDK has no literal-only address parser below Java 22, so nothing is checked and no error can be raised
 kotlin | serializationobject407 | ipv4 and ipv6 are plain strings in kotlin: the JVM has no literal-only address parser below Java 22, so nothing is checked and no error can be raised
@@ -520,7 +517,6 @@ swift | misc088 | A decimal schema value is stored as a Double (documented in th
 swift | misc091 | The Swift generator emits no schema constraint or pattern checks into its models, so decoding never checks a declared constraint
 swift | misc100 | The Swift client always sends multipart/form-data with its own boundary and ignores a declared multipart subtype, so the declared subtype is never kept
 swift | misc110 | The Swift decoder reads a calendar-date field as a plain String and has no list-of-dates type whose elements are refused when they are not dates
-swift | misc111 | The Swift client writes uniqueItems collections in their natural order and never sorts them (documented in the readme)
 java | misc068 | java keeps an explicitly passed empty credential and rejects it in its own validation (auth042, the constructor's contract), so an empty string never falls back to the environment
 java | misc074 | BaseApi.resolveSchemeAuth returns the credential of the first listed scheme the client holds, so an alternative naming two schemes applies one credential and never both
 java | misc075 | Java's client Builder takes one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists

@@ -14,7 +14,7 @@ public struct Reservation: Codable, Sendable, Equatable, Hashable {
   /// Example: 4
   public let quantity: Int
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case reservationId = "reservationId"
     case quantity = "quantity"
   }
@@ -57,7 +57,7 @@ public struct Reservation: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(reservationId, forKey: .reservationId)
-    try container.encode(quantity, forKey: .quantity)
+    try container.encode(ObjectSerializer.ordered(reservationId), forKey: .reservationId)
+    try container.encode(ObjectSerializer.ordered(quantity), forKey: .quantity)
   }
 }

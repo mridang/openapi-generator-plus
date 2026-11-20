@@ -54,7 +54,7 @@ public struct Metadata: Codable, Sendable, Equatable, Hashable {
 
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(createdAt, forKey: .createdAt)
+    try container.encodeIfPresent(ObjectSerializer.ordered(createdAt), forKey: .createdAt)
 
     /* Encode additional properties */
     var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)

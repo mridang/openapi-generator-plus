@@ -12,7 +12,7 @@ public struct PhotoMetadataLocation: Codable, Sendable, Equatable, Hashable {
   public let lat: Double?
   public let lng: Double?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case lat = "lat"
     case lng = "lng"
   }
@@ -53,7 +53,7 @@ public struct PhotoMetadataLocation: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(lat, forKey: .lat)
-    try container.encodeIfPresent(lng, forKey: .lng)
+    try container.encodeIfPresent(ObjectSerializer.ordered(lat), forKey: .lat)
+    try container.encodeIfPresent(ObjectSerializer.ordered(lng), forKey: .lng)
   }
 }

@@ -29,7 +29,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Example: a@example.com
   public let contact: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case address4 = "address4"
     case address6 = "address6"
     case addresses = "addresses"
@@ -110,16 +110,16 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(address4, forKey: .address4)
-    try container.encodeIfPresent(address6, forKey: .address6)
-    try container.encodeIfPresent(addresses, forKey: .addresses)
-    try container.encodeIfPresent(homepage, forKey: .homepage)
-    try container.encodeIfPresent(amount, forKey: .amount)
-    try container.encodeIfPresent(ledger, forKey: .ledger)
+    try container.encodeIfPresent(ObjectSerializer.ordered(address4), forKey: .address4)
+    try container.encodeIfPresent(ObjectSerializer.ordered(address6), forKey: .address6)
+    try container.encodeIfPresent(ObjectSerializer.ordered(addresses), forKey: .addresses)
+    try container.encodeIfPresent(ObjectSerializer.ordered(homepage), forKey: .homepage)
+    try container.encodeIfPresent(ObjectSerializer.ordered(amount), forKey: .amount)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ledger), forKey: .ledger)
     try container.encodeIfPresent(
       try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)
-    try container.encodeIfPresent(since, forKey: .since)
-    try container.encodeIfPresent(host, forKey: .host)
-    try container.encodeIfPresent(contact, forKey: .contact)
+    try container.encodeIfPresent(ObjectSerializer.ordered(since), forKey: .since)
+    try container.encodeIfPresent(ObjectSerializer.ordered(host), forKey: .host)
+    try container.encodeIfPresent(ObjectSerializer.ordered(contact), forKey: .contact)
   }
 }

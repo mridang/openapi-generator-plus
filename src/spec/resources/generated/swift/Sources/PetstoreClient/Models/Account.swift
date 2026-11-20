@@ -16,7 +16,7 @@ public struct Account: Codable, Sendable, Equatable, Hashable {
   /// - Note: This property is write-only; it is still sent and received.
   public let password: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case id = "id"
     case username = "username"
     case password = "password"
@@ -63,9 +63,9 @@ public struct Account: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(id, forKey: .id)
-    try container.encode(username, forKey: .username)
-    try container.encodeIfPresent(password, forKey: .password)
+    try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
+    try container.encode(ObjectSerializer.ordered(username), forKey: .username)
+    try container.encodeIfPresent(ObjectSerializer.ordered(password), forKey: .password)
   }
 }
 

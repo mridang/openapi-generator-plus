@@ -52,7 +52,7 @@ public struct Blobs: Codable, Sendable, Equatable, Hashable {
 
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(label, forKey: .label)
+    try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
 
     /* Encode additional properties */
     var dynamicContainer = encoder.container(keyedBy: DynamicCodingKey.self)

@@ -432,6 +432,12 @@ import Testing
         #expect(fields.map { $0.value } == ["true", "lab", "3"])
     }
 
+    /* An object-valued parameter built from a model is written under each property's wire name in declaration order. */
+    @Test func testBhvSerialization017AnObjectParameterFromAModelKeepsDeclarationOrder() throws {
+        let fields = try #require(try? ValueSerializer.objectFields(Defaults())?.get())
+        #expect(fields.map { $0.name }.prefix(4) == ["retries", "mode", "label", "greeting"])
+    }
+
     @Test func testBhvSerializationparam048ScalarsAndDatesAreNotObjects() {
         #expect(ValueSerializer.objectFields("text") == nil)
         #expect(ValueSerializer.objectFields(5) == nil)

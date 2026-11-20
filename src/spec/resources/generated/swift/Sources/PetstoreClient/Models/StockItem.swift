@@ -14,7 +14,7 @@ public struct StockItem: Codable, Sendable, Equatable, Hashable {
   /// Quantity grid as an array of integer arrays
   public let matrix: [[Int]]?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case priority = "priority"
     case availability = "availability"
     case matrix = "matrix"
@@ -69,8 +69,8 @@ public struct StockItem: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(priority, forKey: .priority)
-    try container.encodeIfPresent(availability, forKey: .availability)
-    try container.encodeIfPresent(matrix, forKey: .matrix)
+    try container.encode(ObjectSerializer.ordered(priority), forKey: .priority)
+    try container.encodeIfPresent(ObjectSerializer.ordered(availability), forKey: .availability)
+    try container.encodeIfPresent(ObjectSerializer.ordered(matrix), forKey: .matrix)
   }
 }
