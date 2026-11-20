@@ -4,7 +4,7 @@ import Foundation
 public struct GetNativeValuesOptions: Sendable {
   public let address4: String?
   public let delay: TimeInterval?
-  public let amount: Double?
+  public let amount: Decimal?
   public let xAddress6: String?
   /// Per-call timeout in milliseconds, greater than zero. Replaces the
   /// transport's timeout for this call; nil keeps it.
@@ -17,7 +17,7 @@ public struct GetNativeValuesOptions: Sendable {
   public let maxRetries: Int?
 
   public init(
-    address4: String? = nil, delay: TimeInterval? = nil, amount: Double? = nil,
+    address4: String? = nil, delay: TimeInterval? = nil, amount: Decimal? = nil,
     xAddress6: String? = nil, timeout: Int? = nil, headers: [String: String]? = nil,
     maxRetries: Int? = nil
   ) {

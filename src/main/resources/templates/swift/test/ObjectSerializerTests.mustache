@@ -380,6 +380,31 @@ import Testing
         #expect(json.contains("\"photoUrls\":[\"x\",\"y\",\"z\"]"))
     }
 
+    /* A type: number, format: decimal field keeps all 25 digits from decode to encode and writes them as a bare number. */
+    @Test func testBhvSerializationobject410ANumberDecimalKeepsAll25DigitsAsABareNumber() throws {
+        let json = "{\"amount\":12.345678901234567890123}"
+        let value = try #require(try ObjectSerializer.deserialize(json, as: NativeValues.self))
+        #expect(value.amount == Decimal(string: "12.345678901234567890123"))
+        #expect(try ObjectSerializer.serialize(value) == json)
+    }
+
+    /* A string-typed decimal is read from a quoted number, written back as a JSON string, and refuses a bare number. */
+    @Test func testBhvSerializationobject411AStringDecimalIsReadAndWrittenAsAJsonString() throws {
+        let value = try #require(try ObjectSerializer.deserialize("{\"ledger\":\"12.50\"}", as: NativeValues.self))
+        #expect(value.ledger == Decimal(string: "12.5"))
+        #expect(try ObjectSerializer.serialize(value) == "{\"ledger\":\"12.5\"}")
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"ledger\":12.5}", as: NativeValues.self)
+        }
+    }
+
+    /* A decimal in a loosely built request body is written as a bare JSON number, not a string. */
+    @Test func testBhvMisc087ADecimalInALooseBodyIsWrittenAsABareNumber() throws {
+        let amount = try #require(Decimal(string: "12.5"))
+        let json = try ObjectSerializer.serialize(["amount": amount] as [String: Any])
+        #expect(json == "{\"amount\":12.5}")
+    }
+
     /* An absent field decodes to its declared schema default. */
     @Test func testBhvSerialization096AnAbsentFieldDecodesToItsDeclaredDefault() throws {
         let defaults = try ObjectSerializer.deserialize("{}", as: Defaults.self)

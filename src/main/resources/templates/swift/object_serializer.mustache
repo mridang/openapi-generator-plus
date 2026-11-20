@@ -876,3 +876,17 @@ extension KeyedDecodingContainer {
         return try decodeIfPresent(Int32.self, forKey: key).map { Int($0) }
     }
 }
+
+extension ObjectSerializer {
+    /// Reads a decimal written as a JSON string. Text that is not a plain
+    /// decimal number is refused, never read as zero or rounded.
+    static func decodeDecimalString(_ text: String) throws -> Decimal {
+        guard text.range(of: "^-?[0-9]+(\\.[0-9]+)?$", options: .regularExpression) != nil,
+            let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX"))
+        else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: [], debugDescription: "Not a decimal number: \(text)"))
+        }
+        return value
+    }
+}

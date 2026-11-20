@@ -87,7 +87,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         typeMapping.put("float", "Float");
         typeMapping.put("double", "Double");
         typeMapping.put("number", "Double");
-        typeMapping.put("decimal", "Double");
+        typeMapping.put("decimal", "Decimal");
         typeMapping.put("date", "String");
         typeMapping.put("DateTime", "Date");
         // 4.8: format:time and format:duration. Foundation has no civil-time
@@ -456,6 +456,10 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("rawtypes")
     public String getSchemaType(Schema schema) {
         final String type = super.getSchemaType(schema);
+        /* A number written as a decimal is an exact Decimal, the same as the string form. */
+        if ("Double".equals(type) && schema != null && "decimal".equals(schema.getFormat())) {
+            return "Decimal";
+        }
         if ("Error".equals(type) || "Result".equals(type)) {
             return "Model" + type;
         }
@@ -518,6 +522,9 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        property.vendorExtensions.put(
+                "isDecimalString",
+                "Decimal".equals(property.dataType) && "string".equals(property.openApiType));
         property.vendorExtensions.put(
                 "isNarrowInt", !property.isEnum && !property.isContainer && "Int".equals(property.dataType));
         /* UUID encodes itself in uppercase; arrays and maps of UUIDs are

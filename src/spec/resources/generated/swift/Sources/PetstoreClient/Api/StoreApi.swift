@@ -491,7 +491,7 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     if let options = options, let val = options.amount {
       queryParams["amount"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
-          "amount", value: val, location: "query", schemaType: "Double", collectionFormat: "",
+          "amount", value: val, location: "query", schemaType: "Decimal", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     }
 

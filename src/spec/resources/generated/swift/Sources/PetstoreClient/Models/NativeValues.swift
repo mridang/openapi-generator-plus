@@ -17,9 +17,9 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Example: https://example.com/a
   public let homepage: String?
   /// Example: 12.345678901234567
-  public let amount: Double?
+  public let amount: Decimal?
   /// Example: 12.50
-  public let ledger: Double?
+  public let ledger: Decimal?
   /// Example: 3600s
   public let wait: TimeInterval?
   /// Example: 2024-02-29
@@ -45,7 +45,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Creates a new NativeValues instance.
   public init(
     address4: String? = nil, address6: String? = nil, addresses: [String]? = nil,
-    homepage: String? = nil, amount: Double? = nil, ledger: Double? = nil,
+    homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil,
     wait: TimeInterval? = nil, since: String? = nil, host: String? = nil, contact: String? = nil
   ) {
     self.address4 = address4
@@ -65,7 +65,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// `.some(nil)`, since a bare `nil` also means "keep".
   public func copy(
     address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none,
-    homepage: String?? = .none, amount: Double?? = .none, ledger: Double?? = .none,
+    homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none,
     wait: TimeInterval?? = .none, since: String?? = .none, host: String?? = .none,
     contact: String?? = .none
   ) -> NativeValues {
@@ -92,8 +92,10 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.address6 = try container.decodeIfPresent(String.self, forKey: .address6)
     self.addresses = try container.decodeIfPresent([String].self, forKey: .addresses)
     self.homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
-    self.amount = try container.decodeIfPresent(Double.self, forKey: .amount)
-    self.ledger = try container.decodeIfPresent(Double.self, forKey: .ledger)
+    self.amount = try container.decodeIfPresent(Decimal.self, forKey: .amount)
+    self.ledger = try container.decodeIfPresent(String.self, forKey: .ledger).map {
+      try ObjectSerializer.decodeDecimalString($0)
+    }
     self.wait = try container.decodeIfPresent(String.self, forKey: .wait).map {
       try ObjectSerializer.decodeDuration($0)
     }
@@ -115,7 +117,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     try container.encodeIfPresent(ObjectSerializer.ordered(addresses), forKey: .addresses)
     try container.encodeIfPresent(ObjectSerializer.ordered(homepage), forKey: .homepage)
     try container.encodeIfPresent(ObjectSerializer.ordered(amount), forKey: .amount)
-    try container.encodeIfPresent(ObjectSerializer.ordered(ledger), forKey: .ledger)
+    try container.encodeIfPresent(ledger.map { $0.description }, forKey: .ledger)
     try container.encodeIfPresent(
       try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)
     try container.encodeIfPresent(ObjectSerializer.ordered(since), forKey: .since)
