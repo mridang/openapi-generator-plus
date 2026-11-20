@@ -245,7 +245,7 @@ func (c *DefaultApiClient) SendRequestWithOptions(method, url string, headers ma
 		return nil, ErrClientClosed
 	}
 	merged := make(map[string]string)
-	if opts == nil || opts.Context == nil || opts.Context.Value(authRequestContextKey{}) == nil {
+	if opts == nil || (!opts.NoDefaultHeaders && (opts.Context == nil || opts.Context.Value(authRequestContextKey{}) == nil)) {
 		mergeHeaders(merged, c.transportOptions.DefaultHeaders())
 	}
 	mergeHeaders(merged, headers)

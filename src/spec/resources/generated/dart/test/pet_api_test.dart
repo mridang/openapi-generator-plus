@@ -1280,6 +1280,107 @@ void main() {
     );
 
     test(
+      'bhv misc 176 a required cookie parameter is sent in the Cookie header with its value',
+      () async {
+        String? cookie;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          cookie = request.headers.value('cookie');
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('done')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetSummary(
+            7,
+            DateTime.utc(2024, 1, 5),
+            GetPetSummaryOptions(session: 'xyz'),
+          );
+
+          expect(cookie, equals('session=xyz'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 162 a date-only parameter is sent as a bare date in the path and in the query',
+      () async {
+        String? target;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          target = request.uri.toString();
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.text
+            ..write('done')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetSummary(
+            1,
+            DateTime.utc(2024, 1, 15, 13, 45, 30),
+            GetPetSummaryOptions(
+              session: 'abc',
+              days: [DateTime.utc(2024, 1, 15, 10, 30)],
+            ),
+          );
+
+          expect(target, contains('/pet/1/summary/'));
+          expect(target, contains('2024-01-15'));
+          expect(target, isNot(contains('13')));
+          expect(target, contains('days=2024-01-15'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
+      'bhv operations 165 a path parameter is written using the serialization style the operation declares',
+      () async {
+        String? path;
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        server.listen((request) {
+          path = request.uri.path;
+          request.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write('{"id":5,"name":"Rex","photoUrls":[]}')
+            ..close();
+        });
+
+        try {
+          final config = ConfigurationBuilder()
+              .baseUrl('http://localhost:${server.port}')
+              .build();
+          final api = PetApi(apiClient: DefaultApiClient(), config: config);
+
+          await api.getPetTag(5, 'cute', null);
+
+          expect(path, equals('/pet/;petId=5/tag/.cute'));
+        } finally {
+          await server.close();
+        }
+      },
+    );
+
+    test(
       'bhv misc 008 a supplied required cookie is sent in the cookie header',
       () async {
         String? cookie;
@@ -2865,6 +2966,161 @@ void main() {
         expect(line, isNot(contains(r'\"')));
       }
     });
+  });
+
+  group('calls the type system rejects are refused at run time', () {
+    /* The analyzer already refuses these at compile time; a dynamic call
+     * reaches the same check the VM makes, so each refusal is observable and
+     * nothing is sent. */
+    Matcher refusedNaming(String name) => throwsA(
+      isA<Error>().having((e) => e.toString(), 'message', contains(name)),
+    );
+
+    final api = PetApi(
+      apiClient: DefaultApiClient(),
+      config: ConfigurationBuilder().baseUrl('http://127.0.0.1:1').build(),
+    );
+
+    test(
+      'bhv operations 125 a nil required query option is refused and names the option',
+      () {
+        expect(
+          () => Function.apply(GetPetByNameOptions.new, [], {
+            #category: null,
+            #xCorrelationId: 'x',
+          }),
+          refusedNaming('category'),
+        );
+      },
+    );
+
+    test(
+      'bhv operations 132 a missing required option names the first required field',
+      () {
+        expect(
+          () => Function.apply(GetPetByNameOptions.new, [], {
+            #xCorrelationId: 'x',
+          }),
+          refusedNaming('category'),
+        );
+      },
+    );
+
+    test(
+      'bhv operations 164 a nil required parameter is refused before any request is sent',
+      () async {
+        await expectLater(
+          () => (api as dynamic).getPetByName(null, null),
+          throwsA(isA<TypeError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 012 a nil required argument is refused and names that argument',
+      () {
+        expect(
+          () => (api as dynamic).getPetTag(1, null, null),
+          refusedNaming('tagName'),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 010 a call that omits the options of an operation with required fields is refused',
+      () {
+        expect(
+          () => Function.apply((api as dynamic).addPetPhotos as Function, [7]),
+          throwsA(isA<NoSuchMethodError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 051 an option the operation does not declare is refused rather than ignored',
+      () {
+        expect(
+          () => Function.apply(GetPetByNameOptions.new, [], {
+            #category: 'c',
+            #xCorrelationId: 'x',
+            #bogusOption: 1,
+          }),
+          throwsA(isA<NoSuchMethodError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 075 a credential keyed to a scheme the API does not declare is refused when the client is built',
+      () {
+        expect(
+          () => Function.apply(Client.new, [], {
+            #undeclaredScheme: BearerAuthenticator(host: 'h', token: 't'),
+          }),
+          throwsA(isA<NoSuchMethodError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 149 copying a model with an attribute it does not declare is refused and names it',
+      () {
+        final pet = Pet(name: 'Fido', photoUrls: <String>{'a'});
+        expect(
+          () => (pet as dynamic).copyWith(bogusAttribute: 1),
+          refusedNaming('bogusAttribute'),
+        );
+      },
+    );
+
+    test('bhv models 014 a built model has no way to reassign a property', () {
+      final pet = Pet(name: 'Fido', photoUrls: <String>{'a'});
+      expect(
+        () => (pet as dynamic).name = 'Rex',
+        throwsA(isA<NoSuchMethodError>()),
+      );
+    });
+
+    test(
+      'bhv options 063 a built per-call options object has no way to change a field',
+      () {
+        const options = GetPetByNameOptions(category: 'c', xCorrelationId: 'x');
+        expect(
+          () => (options as dynamic).timeout = 5,
+          throwsA(isA<NoSuchMethodError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv servers 020 a per-operation server variable value outside its enum is refused',
+      () {
+        expect(
+          () => Function.apply(GetStagingPetInfoServerStagingServer.new, [
+            'bogus',
+            GetStagingPetInfoServerVersion.V2,
+          ]),
+          throwsA(isA<TypeError>()),
+        );
+      },
+    );
+
+    test(
+      'bhv misc 260 nil for a server variable is refused instead of being substituted',
+      () {
+        expect(
+          () => (server1 as dynamic).url({'environment': null}),
+          throwsA(isA<TypeError>()),
+        );
+        expect(
+          () => Function.apply(GetStagingPetInfoServerStagingServer.new, [
+            null,
+            GetStagingPetInfoServerVersion.V2,
+          ]),
+          throwsA(isA<TypeError>()),
+        );
+      },
+    );
   });
 
   group('operation-level server variants', () {

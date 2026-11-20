@@ -75,11 +75,16 @@ public final class UserAuthAuthorizationCodeAuthenticator
         "https://auth.example.com/oauth/refresh");
   }
 
-  /* A credential comes from the caller first, then from its environment variable; an explicit
-   * empty value counts as not passed, so the environment is consulted; a credential found nowhere is refused. */
+  /* A credential comes from the caller first, then from its environment variable (empty counts as
+   * unset); an explicit empty value is refused and never replaced by the environment (auth023);
+   * a credential found nowhere is refused. */
   private static String resolveCredential(
       @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-    if (explicit != null && !explicit.isEmpty()) {
+    if (explicit != null) {
+      if (explicit.isEmpty()) {
+        throw new IllegalArgumentException(
+            "The '" + field + "' credential of the 'userAuth' security scheme must not be empty");
+      }
       return explicit;
     }
     String fromEnvironment = environment.get(envName);

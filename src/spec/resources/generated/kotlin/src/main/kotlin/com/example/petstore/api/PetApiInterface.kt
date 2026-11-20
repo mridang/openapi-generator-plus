@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult
 import com.example.petstore.api.options.AddPetOptions
 import com.example.petstore.api.options.AddPetPhotosOptions
 import com.example.petstore.api.options.AddPetTreatmentOptions
+import com.example.petstore.api.options.AttachPetFilesOptions
 import com.example.petstore.api.options.DeletePetOptions
 import com.example.petstore.api.options.DownloadPetDocumentOptions
 import com.example.petstore.api.options.FindPetsBornOnOptions
@@ -88,6 +89,18 @@ interface PetApiInterface {
         petTreatment: PetTreatment,
         options: AddPetTreatmentOptions? = null,
     ): ApiResult<PetTreatment>
+
+    /** The `attachPetFiles` operation. */
+    suspend fun attachPetFiles(
+        petId: Long,
+        options: AttachPetFilesOptions,
+    ): ApiResponse
+
+    /** The `attachPetFiles` operation with its status code, headers and body. */
+    suspend fun attachPetFilesWithHttpInfo(
+        petId: Long,
+        options: AttachPetFilesOptions,
+    ): ApiResult<ApiResponse>
 
     /** The `deletePet` operation. */
     suspend fun deletePet(

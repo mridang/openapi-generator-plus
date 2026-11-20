@@ -947,6 +947,12 @@ describe('client credentials and API groups', () => {
     expect(received[0]).toBeInstanceOf(DefaultApiClient);
   });
 
+  it('bhv misc 075 a credential keyed to a scheme the API does not declare is refused when the client is built', () => {
+    const credentials = { authenticator: new BearerAuthenticator(host, 'tok'), noSuchScheme: new BearerAuthenticator(host, 'x') };
+
+    expect(() => new {{clientClassName}}(credentials as unknown as ClientCredentials)).toThrow(/noSuchScheme/);
+  });
+
   it('bhv misc 065 scheme credentials are copied when the client is built', () => {
     const held = new BearerAuthenticator(host, 'first');
     const credentials: { serviceToken?: BearerAuthenticator } = { serviceToken: held };

@@ -7,10 +7,10 @@
 
 export const Tier = {
   /** The smallest tier. */
-  Small: "s",
+  Small: 's',
   /** The medium tier. */
-  Medium: "m",
+  Medium: 'm',
   /** The largest tier. Ends with *\/ and #{x} and $x. */
-  Large: "l",
+  Large: 'l',
 } as const;
 export type Tier = (typeof Tier)[keyof typeof Tier];

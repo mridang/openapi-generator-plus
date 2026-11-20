@@ -511,6 +511,18 @@ void main() {
     );
 
     test(
+      'bhv misc 145 reading the undeclared keys returns a copy, so changing it leaves the instance unchanged',
+      () {
+        final freeform = Freeform.fromJson({'a': 1});
+
+        freeform.additionalProperties['b'] = 2;
+        freeform.additionalProperties.remove('a');
+
+        expect(freeform.additionalProperties, equals({'a': 1}));
+      },
+    );
+
+    test(
       'bhv models 029 a free-form additionalProperties keeps every JSON value as it arrives',
       () {
         final freeform = Freeform.fromJson({

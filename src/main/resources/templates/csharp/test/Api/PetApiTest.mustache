@@ -1165,6 +1165,18 @@ public class PetApiTest
     }
 
     [Fact]
+    public async Task BhvMisc010AnOperationWithRequiredOptionsRefusesACallThatOmitsThem()
+    {
+        var client = new DateWireCapturingApiClient();
+        var api = new PetApi(client, Configuration.Builder().BaseUrl("http://localhost").Build());
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() => api.AddPetPhotosAsync(7L, null!));
+
+        Assert.StartsWith("Missing the required parameter 'files'", ex.Message, StringComparison.Ordinal);
+        Assert.Null(client.CapturedUrl);
+    }
+
+    [Fact]
     public async Task BhvOperations164ACallMissingARequiredParameterIsRefusedBeforeAnyRequest()
     {
         var client = new DateWireCapturingApiClient();

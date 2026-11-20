@@ -12,6 +12,7 @@ import '../object_serializer.dart';
 import '../value_serializer.dart';
 import '../errors/api_exception.dart';
 import '../models/account.dart';
+import '../models/api_response.dart';
 import '../models/category.dart';
 import '../models/defaults.dart';
 import '../models/department.dart';
@@ -26,6 +27,7 @@ import '../models/reservation_receipt.dart';
 import 'options/create_account_options.dart';
 import 'options/delete_order_options.dart';
 import 'options/export_orders_options.dart';
+import 'options/get_audit_trail_options.dart';
 import 'options/get_by_swatch_options.dart';
 import 'options/get_defaults_options.dart';
 import 'options/get_department_options.dart';
@@ -68,6 +70,11 @@ abstract interface class StoreApiInterface {
 
   Future<ApiResult<Order>> exportOrdersWithHttpInfo(
     ExportOrdersOptions? options,
+  );
+  Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? options);
+
+  Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(
+    GetAuditTrailOptions? options,
   );
   Future<Category> getBySwatch(Swatch pathSwatch, GetBySwatchOptions? options);
 
@@ -359,6 +366,68 @@ class StoreApi extends BaseApi implements StoreApiInterface {
       maxRetries: options?.maxRetries,
 
       deserialize: (body) => deserialize(body, Order.fromJson) as Order,
+    );
+  }
+
+  /// Read the audit trail, which needs a bearer token and an API key together
+  /// One security requirement that names two schemes, so a request carries both credentials.
+  /// `options` options carrying the per-call timeout, headers and retry budget
+  @override
+  Future<ApiResponse> getAuditTrail(GetAuditTrailOptions? options) async {
+    final result = await getAuditTrailWithHttpInfo(options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as ApiResponse` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message: 'Expected a response body for getAuditTrail but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the getAuditTrail operation and returns the full API result.
+  @override
+  Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(
+    GetAuditTrailOptions? options,
+  ) async {
+    final Authenticator? auth = requirementAuthenticator(const <List<String>>[
+      ['petStoreBearer', 'apiKeyHeader'],
+    ]);
+
+    var path = '/store/audit';
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    final Object? requestBody = null;
+
+    return invokeApiForResult<ApiResponse>(
+      method: 'GET',
+      operation: 'StoreApi.getAuditTrail',
+      operationId: 'getAuditTrail',
+      urlTemplate: '/store/audit',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'application/json',
+      returnType: 'ApiResponse',
+      auth: auth,
+      timeout: options?.timeout,
+      callHeaders: options?.headers,
+      maxRetries: options?.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
   }
 

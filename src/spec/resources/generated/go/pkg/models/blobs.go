@@ -74,6 +74,18 @@ func (o Blobs) WithAdditionalProperties(value map[string][]byte) Blobs {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Blobs) GetAdditionalProperties() map[string][]byte {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string][]byte, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewBlobs creates a new Blobs instance.
 func NewBlobs() *Blobs {
 	return &Blobs{

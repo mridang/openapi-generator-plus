@@ -705,6 +705,19 @@ defmodule {{moduleName}}.ClientTest do
 {{/apiInfo}}
   end
 
+  test "bhv mocking 007 the client holds every group and can be closed" do
+    keys = Map.keys(struct({{moduleName}}.{{clientClassName}}))
+
+{{#apiInfo}}
+{{#apis}}
+{{#operations}}
+    assert :{{clientPropertyName}} in keys
+{{/operations}}
+{{/apis}}
+{{/apiInfo}}
+    assert function_exported?({{moduleName}}.{{clientClassName}}, :close, 1)
+  end
+
   test "bhv langelixir 024 a call hook given to the client reaches the configuration of every API" do
     authenticator = {{moduleName}}.Auth.BearerAuthenticator.new("{{{basePath}}}", "test-token")
     hook = {{moduleName}}.CallHook.chain([])

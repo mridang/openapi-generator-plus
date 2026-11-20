@@ -1104,7 +1104,7 @@ config020 | A configuration builder chain sets the base URL and default headers 
 config021 | A server URL template resolves its variables to their defaults
 config022 | Mutating the returned default headers does not change the configuration
 config023 | Repeated calls to the default configuration factory return the same configuration with the same base URL
-config024 | Setting the process-wide default configuration makes the default lookup return that configuration
+config024 | There is no process-wide default configuration to set: the default lookup returns a fresh configuration on every call.
 errors050 | Response headers render in the error text as compact JSON with sorted keys and unescaped slashes
 errors051 | An empty error message falls back to the generic error line
 errors052 | A typed client error is caught by a base API error catch and chains to the API error root
@@ -1305,7 +1305,7 @@ auth018 | A secret passed to an authenticator, or rejected at construction, neve
 auth019 | The authorization URL and token request bodies list their parameters in one fixed order and encoding, so the exact string is the same on every build.
 auth020 | A PKCE code verifier is sent with the first successful code exchange and never with a refresh or any later exchange.
 auth021 | A request made with no client-level or operation-level credential is sent with no Authorization header and is not refused.
-auth022 | An explicit argument is used first, then the environment variable, then the token provider, and the provider is used when the variable is unset or empty.
+auth022 | An explicit argument is used first, then the token provider, then the environment variable, which fills only a credential that was not passed.
 auth023 | An explicitly passed empty credential is kept as given and refused, and is not replaced by the environment value.
 auth024 | Each credential field takes its passed value or else its own environment variable, independently of the other fields.
 auth025 | A credential that needs to send HTTP requests is given the client's transport when the client is built.
@@ -1497,7 +1497,7 @@ auth034 | An API-key authenticator rejects an empty or blank key when it is cons
 auth035 | A credential or header value containing a control, NUL or non-ASCII character is rejected with an error.
 auth036 | A Basic authenticator rejects a username containing a colon with an error.
 auth037 | A token or credentials provider is asked again for each request and its current value is sent.
-auth038 | A token provider takes precedence over the same token read from the environment.
+auth038 | A token provider passed to an authenticator is used even when the environment variable holds a token; the environment only fills a credential that was not passed.
 auth039 | Passing both a token and a token provider is rejected with an error.
 auth040 | An environment variable that is set but empty is treated as unset.
 auth041 | A value passed explicitly to a constructor takes precedence over the same environment variable.
@@ -1579,7 +1579,6 @@ misc040 | Response header names are returned in lower case.
 misc041 | A request with an HTTP method outside the standard set is sent with its body intact.
 misc042 | Supplying a custom HTTP connection together with disabled TLS verification is refused when the transport options are built, and the error names the verification setting.
 misc043 | A user agent that is explicitly cleared is omitted from the request entirely.
-misc044 | A response that declares gzip encoding but lacks the gzip signature is returned as its plain body.
 misc045 | A payload that does not satisfy a variant's schema, whether a required field is missing, a field has the wrong type, or a field is type-invalid, is not accepted as that variant, and the SDK reports a failure rather than a match.
 misc046 | Two unions holding equal content compare equal and hash equally even when their underlying buffers differ, and unions holding different content compare unequal.
 misc047 | Serializing a union that holds a value which is not one of its variants fails with an error that names the union.
@@ -1591,7 +1590,7 @@ misc052 | When the same kind of per-call option is given more than once, the las
 misc053 | A per-call retry budget of zero is accepted, and a negative or non-whole budget is refused.
 misc054 | Per-call headers are a read-only copy that later changes to the caller's own map do not reach.
 misc055 | A per-call timeout, retry count or header set that is not valid is refused with an argument error.
-misc056 | Setting the proxy to an empty string removes a proxy set earlier.
+misc056 | Clearing the proxy with no value removes a proxy set earlier; an empty string is never a way to clear it (options031 rejects it).
 misc057 | An API key configured for one location is never sent at another location, such as a header or cookie.
 misc058 | The configured authorization endpoint and redirect URI reach the authorization URL exactly as configured, with no added trailing slash, no dropped default port and no changed host case.
 misc059 | A token whose lifetime is not a finite number, including one that overflows, is not cached, so the next call fetches a new token.
@@ -1603,7 +1602,7 @@ misc064 | An operation that declares no security never sends the client's defaul
 misc065 | Scheme credentials are copied when the API is built, so later changes to the caller's map do not affect the API.
 misc066 | A token provider's value is sent as the bearer credential on the authenticated request.
 misc067 | When a token provider raises an error, the request fails with that same error.
-misc068 | An empty string passed for a credential counts as not passed, so the value is read from its environment variable instead.
+misc068 | A credential environment variable that is set but empty counts as unset; an explicitly passed empty value is refused (auth023), never replaced by the environment.
 misc069 | A token response whose access token is empty or not a string, or whose body is not a JSON object, is refused as an error that names the problem.
 misc070 | A discovery document that is not a JSON object raises the serialization error with the canonical message, keeps no cause, and does not repeat the response body.
 misc071 | A client-level credential that needs the HTTP transport receives the client's own transport.
@@ -1616,7 +1615,7 @@ misc077 | A generated PKCE verifier is 43 characters from the unreserved set and
 misc078 | An OpenID Connect authorization URL carries an S256 PKCE challenge and omits any nonce.
 misc079 | When an operation declares different body types for several success statuses, each response is decoded as the type declared for the status it arrived with.
 misc080 | A response body is decoded with the schema of its own status code, so a body that fits another status's schema is refused with an error.
-misc081 | A body sent as base64 text under a binary content type is decoded before it is returned to the caller as a string.
+misc081 | A string result whose response arrives under a binary content type is the decoded body, never the transport's base64 text.
 misc082 | An enum value given in a path, query or header parameter is sent as its wire value.
 misc083 | A query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written.
 misc084 | A set optional scalar parameter sends its value in every location and style.
@@ -1626,7 +1625,6 @@ misc087 | A decimal field in a loosely built request body is written as a bare J
 misc088 | A decimal decoded from text keeps the number of decimal places it was written with.
 misc089 | A date-time is written in its canonical form whether it sits directly in a field or inside an optional, list, set or map.
 misc090 | A duration field of a record writes its fractional seconds in the wire form.
-misc091 | Decoding refuses a value that breaks a constraint or pattern the schema declares.
 misc092 | Properties are read and matched only by their wire name, never by the SDK's own attribute name.
 misc093 | Additional properties with numeric names are written as members of a JSON object, alone or beside named fields.
 misc094 | A free-form JSON object is written with its members and their values unchanged.
@@ -1776,8 +1774,8 @@ misc237 | An ISO-8859-1 error response body decodes to UTF-8 text in the error.
 misc238 | A number query parameter is serialized as a plain number in the request.
 misc239 | An operation's query parameter is serialized when no authenticator is configured.
 misc240 | A multipart form upload sends its file part with the file content echoed back in the request.
-misc241 | A time-of-day query value is sent as HH:mm:ss with milliseconds truncated.
-misc242 | Read-only properties are not sent and write-only properties are not returned, so they have no wire effect.
+misc241 | A time of day written into a query keeps non-zero milliseconds and drops any finer precision, so 10:20:30.999999 is sent as 10:20:30.999 and 10:20:30.000 as 10:20:30.
+misc242 | A readOnly or writeOnly property has no wire effect: it is written to a request and decoded from a response like any other property.
 misc243 | An absent optional array field decodes to null, not to an empty list.
 misc244 | A body with a leading byte-order mark decodes into the model.
 misc245 | A time of day in a plain object is serialized as a JSON string.
@@ -1791,7 +1789,7 @@ misc252 | An enum wire value containing separators round-trips unchanged.
 misc253 | An allowReserved query value still percent-encodes hash and bracket characters.
 misc254 | An unmarked query value percent-encodes reserved characters such as slash and colon.
 misc255 | Separate query parameters encode a space as %20.
-misc256 | A fractional second is written with trailing zeros trimmed, keeping only the digits present up to its precision.
+misc256 | A duration fraction is never trimmed below three digits, so 1.5 seconds is written 1.500s and never 1.5s.
 misc257 | A variable declared with an empty enum accepts any value, and the URL is built from that value.
 misc258 | When no override is supplied for a variable, its default value is used in the URL.
 misc259 | A placeholder in the template with no declared variable stays in the URL exactly as written.
@@ -1917,7 +1915,7 @@ serialization119 | A response body is decoded using its declared charset label, 
 serialization120 | A multipart file part takes its Content-Type from its file extension, and uses application/octet-stream when the extension is missing or unknown.
 serialization121 | A model sent as a multipart part is serialized with its wire property names and the SDK's date-time format.
 serialization122 | A form-urlencoded body repeats the key for each element of an array property and keeps the order of its pairs.
-serialization123 | Multipart field names and filenames containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header.
+serialization123 | A multipart field name or filename containing a carriage return, line feed or NUL is rejected before any request is sent, and a double quote is backslash-escaped, so the part header stays well formed.
 serialization124 | A non-ASCII multipart filename is sent with an ASCII fallback plus an RFC 5987 encoded form that keeps only unreserved characters literal.
 serialization125 | Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B.
 serialization126 | A non-ASCII multipart field name is preserved as UTF-8 in the part header.
@@ -2013,7 +2011,7 @@ langswift068 | A server configuration description defaults to an empty string
 langswift069 | A server variable stores its default value
 langswift070 | A server variable with an enum default resolves to that default
 langswift071 | A caller-supplied session is kept by the transport options
-langswift072 | An empty proxy string clears a proxy set earlier
+langswift072 | A nil proxy clears a proxy set earlier and an empty proxy string is rejected
 langswift073 | Object fields are keyed by their wire names, sorted, and nulls are skipped
 langswift074 | Each documentation comment in the generated sources is one contiguous block above its attributes
 langswift075 | A redirect chain that finishes inside the timeout budget completes with its final response
@@ -2207,7 +2205,6 @@ langcsharp018 | A duplicate key inside a nested object keeps the last value
 langcsharp019 | A copy with changed fields keeps every other field of the source model
 langcsharp020 | A copy of a model keeps its concrete type when held through its base type
 langjava014 | An empty service token is rejected when the authenticator is built, before any request is made.
-langjava015 | An empty explicit argument counts as not passed, so the value from the environment is used.
 langjava016 | A control character in a credential read from the environment is rejected when the authenticator is built.
 langjava017 | Each wrapper authenticator emits its key at the location its security scheme declares.
 langjava018 | Each wrapper kind reads only its own environment variable, so one kind never sees another kind's value.
@@ -2259,7 +2256,6 @@ langjava063 | A 3xx response with an unusable or missing Location is returned to
 langjava064 | A null path parameter beside a null required options object is the first violation reported.
 langjava065 | A key made only of control characters reports as empty, not as a control-character failure.
 langjava066 | A client credentials wrapper reads both of its credentials from its own environment variables when none are passed.
-langjava067 | An explicit client id is kept while an empty client secret counts as not passed, so the environment secret is used.
 langnode001 | An HTTP date in Retry-After is read as the seconds left until that moment
 langnode002 | An error constructor accepts an optional cause
 langnode003 | Reading an error's message property returns the rendered text
@@ -2410,7 +2406,6 @@ langphp015 | A JSON body is sent with a POST request through the PSR-18 client w
 langphp016 | Response header names are returned lowercased whatever case the server sent them in.
 langphp017 | No request-id header is sent when request ids are disabled.
 langphp018 | A relative redirect Location is resolved against the request URL per RFC 3986.
-langphp019 | A 302 redirect that downgrades https to http with a body is followed as a GET.
 langphp020 | A PUT with a body that a 301 downgrades from https to http is refused rather than replayed.
 langphp021 | A transport failure raises the SDK network error type.
 langphp022 | A stream part is sent as a file part carrying the bytes of the stream.
@@ -2867,6 +2862,8 @@ langpython212 | The README Usage fence and the quickstart hold the same statemen
 langpython213 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
 langpython214 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
 langpython215 | The SDK Makefile has an examples target that builds every file under examples
+langpython216 | Python rejects a value outside the declared constraints at decode (native enforcement, S3).
+langpython217 | A canonical uuid given as a string to a uuid parameter is written in lower case.
 langruby001 | The generated YARD documentation shows operation prose without literal escape sequences
 langruby002 | The generated YARD options documentation shows prose without literal escape sequences
 langruby003 | A generated server class built from enum-valued variables resolves its URL from those values

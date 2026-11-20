@@ -13,10 +13,16 @@ import '../object_serializer.dart';
 class Metadata {
   final DateTime? createdAt;
 
-  /// Additional properties not defined in the schema.
-  final Map<String, String> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, String> get additionalProperties => Map.of(_additionalProperties);
 
-  const Metadata({this.createdAt, this.additionalProperties = const {}});
+  final Map<String, String> _additionalProperties;
+
+  const Metadata({
+    this.createdAt,
+    Map<String, String> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
 
   /// Creates a [Metadata] from a JSON map.
   factory Metadata.fromJson(Map<String, dynamic> json) {

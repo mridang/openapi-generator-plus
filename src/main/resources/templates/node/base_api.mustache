@@ -528,8 +528,18 @@ export abstract class BaseApi {
     const isJson = respContentType === '' || this.headerSelector.isJsonMime(respContentType);
     if (returnKind === 'string') {
       /* A declared string return is the body text whatever its content type:
-       * a JSON document is not parsed into a value (it stays as written). */
-      return body as unknown as T;
+       * a JSON document is not parsed into a value (it stays as written). Under
+       * a binary content type the transport carries the bytes as base64 text, an
+       * internal carrier that never reaches the caller: the string is the
+       * decoded body. */
+      const stringMediaType = respContentType.toLowerCase();
+      const carriesText =
+        isJson ||
+        stringMediaType.startsWith('text/') ||
+        stringMediaType === 'application/xml' ||
+        stringMediaType === 'application/javascript' ||
+        stringMediaType.endsWith('+xml');
+      return (carriesText ? body : Buffer.from(body, 'base64').toString('utf8')) as unknown as T;
     } else if (returnKind === 'binary' && isJson) {
       /* A binary return takes the body bytes even when the server answered
        * with a JSON document (content negotiation): the transport keeps JSON

@@ -330,6 +330,96 @@ impl StoreApi {
         self.base.invoke_api_for_result::<Order>(params).await
     }
 
+    /// Read the audit trail, which needs a bearer token and an API key together
+    /// One security requirement that names two schemes, so a request carries both credentials.
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn get_audit_trail(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.get_audit_trail_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for get_audit_trail but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the get_audit_trail operation and returns the full API result.
+    pub async fn get_audit_trail_with_http_info(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.get_audit_trail_invoke(options, "application/json")
+            .await
+    }
+
+    /// Shared implementation for the get_audit_trail operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn get_audit_trail_invoke(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["petStoreBearer", "apiKeyHeader"]]);
+        let auth: Option<&dyn Authenticator> = credential.as_deref();
+
+        let mut path = "/store/audit".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.get_audit_trail",
+            method: "GET",
+            path: &path,
+            operation_id: "getAuditTrail",
+            url_template: "/store/audit",
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "ApiResponse",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* Secured operation: pass the resolved per-call authenticator (or
+             * None for no override, which lets BaseApi fall back to the
+             * client-level authenticator). */
+            auth,
+        };
+
+        self.base.invoke_api_for_result::<ApiResponse>(params).await
+    }
+
     /// Echoes a swatch supplied via path, query and header parameters.
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_by_swatch(
@@ -2353,6 +2443,14 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&ExportOrdersOptions>,
     ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_audit_trail(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    fn get_audit_trail_with_http_info(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_by_swatch(
         &self,
         path_swatch: Swatch,
@@ -2602,6 +2700,20 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
     {
         StoreApi::export_orders_with_http_info(self, options)
+    }
+    fn get_audit_trail(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::get_audit_trail(self, options)
+    }
+
+    fn get_audit_trail_with_http_info(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::get_audit_trail_with_http_info(self, options)
     }
     fn get_by_swatch(
         &self,

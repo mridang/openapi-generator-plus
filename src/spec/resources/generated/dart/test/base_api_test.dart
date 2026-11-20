@@ -24,6 +24,7 @@ import 'testcontainers_helper.dart';
 /// Records the body of every request as text, for the multipart and form tests.
 class _BodyCapturingApiClient implements ApiClient {
   String capturedBody = '';
+  Map<String, String> capturedHeaders = const {};
 
   @override
   Future<ApiHttpResponse> sendRequest(
@@ -38,6 +39,7 @@ class _BodyCapturingApiClient implements ApiClient {
     capturedBody = body is List<int>
         ? utf8.decode(body, allowMalformed: true)
         : '$body';
+    capturedHeaders = headers;
     return ApiHttpResponse(
       statusCode: 200,
       body: '{}',
@@ -3899,17 +3901,93 @@ void main() {
     );
 
     test(
-      'bhv serialization 123 a multipart field name containing a NUL character is rejected',
-      () {
-        expect(
-          _RecordingApi(_BodyCapturingApiClient()).invokeApi(
-            method: 'POST',
-            path: '/test/echo',
-            body: {'a\x00b': 'x'},
-            contentType: 'multipart/form-data',
-          ),
-          throwsArgumentError,
+      'bhv serialization 123 a multipart name with NUL, CR or LF is rejected and a double quote is backslash-escaped',
+      () async {
+        for (final name in ['a\x00b', 'a\rb', 'a\nb']) {
+          expect(
+            _RecordingApi(_BodyCapturingApiClient()).invokeApi(
+              method: 'POST',
+              path: '/test/echo',
+              body: {name: 'x'},
+              contentType: 'multipart/form-data',
+            ),
+            throwsArgumentError,
+          );
+        }
+        final client = _BodyCapturingApiClient();
+        await _RecordingApi(client).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'a"b': 'x'},
+          contentType: 'multipart/form-data',
         );
+        expect(client.capturedBody, contains(r'name="a\"b"'));
+      },
+    );
+
+    test(
+      'bhv misc 100 a declared multipart subtype keeps its boundary and an unsafe value falls back to form-data',
+      () async {
+        final kept = _BodyCapturingApiClient();
+        await _RecordingApi(kept).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'caption': 'x'},
+          contentType: 'multipart/related',
+        );
+        final keptType = kept.capturedHeaders['Content-Type']!;
+        expect(keptType, startsWith('multipart/related; boundary='));
+        expect(
+          kept.capturedBody,
+          contains('--${keptType.split('boundary=').last}'),
+        );
+
+        final unsafe = _BodyCapturingApiClient();
+        await _RecordingApi(unsafe).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'caption': 'x'},
+          contentType: 'multipart/mixed\r\nX-Injected: 1',
+        );
+        expect(
+          unsafe.capturedHeaders['Content-Type'],
+          startsWith('multipart/form-data; boundary='),
+        );
+        expect(unsafe.capturedHeaders.keys, isNot(contains('X-Injected')));
+      },
+    );
+
+    test(
+      'bhv misc 030 a deadline that passed before the request is built is a timeout and never reaches the transport',
+      () async {
+        final client = _ScriptedApiClient([_reply(200)]);
+        final api = _RecordingApi(client, authenticator: _SlowAuth());
+
+        await expectLater(
+          api.invokeApi(method: 'GET', path: '/api/x', timeout: 1),
+          throwsA(isA<NetworkTimeoutException>()),
+        );
+        expect(client.sentHeaders, isEmpty);
+      },
+    );
+
+    test(
+      'bhv misc 081 a string result under a binary content type is the decoded body',
+      () async {
+        final client = _ScriptedApiClient([
+          ApiHttpResponse(
+            statusCode: 200,
+            body: 'aGVsbG8=',
+            headers: {'content-type': 'application/pdf'},
+          ),
+        ]);
+        final result = await _RecordingApi(client).invokeApiForResult<String>(
+          method: 'GET',
+          path: '/api/doc',
+          accepts: const ['application/pdf'],
+          returnType: 'String',
+        );
+        expect(result.data, equals('hello'));
       },
     );
 

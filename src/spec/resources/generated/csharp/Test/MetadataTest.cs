@@ -366,6 +366,19 @@ public class MetadataTest
     }
 
     [Fact]
+    public void BhvMocking009TestingYourCodeNamesTheGroupInterfaceAndTheClientInterface()
+    {
+        var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));
+        int start = readme.IndexOf("\n### Testing your code\n", StringComparison.Ordinal);
+        Assert.True(start >= 0);
+        int end = readme.IndexOf("\n### ", start + 4, StringComparison.Ordinal);
+        string section = end < 0 ? readme[start..] : readme[start..end];
+
+        Assert.Contains("IPetApi", section, StringComparison.Ordinal);
+        Assert.Contains("IClient", section, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void BhvLangcsharp034ReadmeNamesTheSemanticVersioningPolicy()
     {
         var readme = File.ReadAllText(Path.Combine(ProjectRoot().FullName, "README.md"));

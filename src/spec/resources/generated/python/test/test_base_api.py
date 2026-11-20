@@ -261,6 +261,70 @@ class TestExceptionDispatch:
 
         assert exc_info.value.status_code == status
 
+    async def test_bhv_misc_274_a_non_2xx_response_reaches_the_caller_with_its_status_code_intact(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(_json(418, "{}"))
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        with pytest.raises(ApiException) as exc_info:
+            await api.call(
+                "GET",
+                "/items",
+                {},
+                {},
+                None,
+                ["application/json"],
+                "application/json",
+                None,
+            )
+
+        assert exc_info.value.status_code == 418
+
+    async def test_bhv_misc_254_an_unmarked_query_value_percent_encodes_slash_and_colon(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.call(
+            "GET",
+            "/test/echo",
+            {"q": "a/b:c"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert "q=a%2Fb%3Ac" in client.captured_url
+
+    async def test_bhv_misc_255_a_space_in_a_query_value_is_encoded_as_percent_20(
+        self,
+    ) -> None:
+        client = CapturingApiClient()
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="http://localhost")
+        )
+
+        await api.call(
+            "GET",
+            "/test/echo",
+            {"q": "a b"},
+            {},
+            None,
+            ["application/json"],
+            "application/json",
+            None,
+        )
+
+        assert "q=a%20b" in client.captured_url
+
     async def test_bhv_misc_284_a_generated_call_raises_the_typed_error_for_each_listed_status(
         self,
     ) -> None:
@@ -3012,6 +3076,35 @@ class TestByteOverJsonResponse:
         )
 
         assert result == b'{"a":1}'
+
+
+class TestStringResultUnderBinaryContentType:
+    async def test_bhv_misc_081_a_string_result_under_a_binary_content_type_is_the_decoded_body(
+        self,
+    ) -> None:
+        client = _ScriptedApiClient(
+            ApiHttpResponse(
+                status_code=200,
+                body="aGVsbG8=",
+                headers={"Content-Type": "application/pdf"},
+            )
+        )
+        api = StubApi(
+            api_client=client, config=Configuration(base_url="https://example.test")
+        )
+
+        result = await api.call(
+            "GET",
+            "/items",
+            {},
+            {},
+            None,
+            ["application/pdf"],
+            "application/json",
+            "str",
+        )
+
+        assert result == "hello"
 
 
 class TestDateOnlyParamsSerializeWithoutTime:

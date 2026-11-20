@@ -74,6 +74,18 @@ func (o Metadata) WithAdditionalProperties(value map[string]string) Metadata {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Metadata) GetAdditionalProperties() map[string]string {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]string, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewMetadata creates a new Metadata instance.
 func NewMetadata() *Metadata {
 	return &Metadata{

@@ -73,6 +73,18 @@ func (o Freeform) WithAdditionalProperties(value map[string]any) Freeform {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Freeform) GetAdditionalProperties() map[string]any {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]any, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewFreeform creates a new Freeform instance.
 func NewFreeform() *Freeform {
 	return &Freeform{

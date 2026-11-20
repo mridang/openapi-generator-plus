@@ -326,6 +326,17 @@ class TestReadmeAndSkillsText:
     ) -> None:
         assert f"pip install {self._manifest_name()}\n" in self._read("SKILLS.md")
 
+    def test_bhv_mocking_009_readme_testing_section_names_both_interfaces_and_shows_a_fake(
+        self,
+    ) -> None:
+        readme = self._read("README.md")
+        start = readme.index("\n### Testing your code\n")
+        end = readme.index("\n### ", start + 5)
+        section = readme[start:end]
+        assert "ApiProtocol" in section
+        assert "ClientProtocol" in section
+        assert "class Fake" in section
+
     def test_bhv_lang_python_091_readme_opens_with_installation_and_usage_that_link_the_skills(
         self,
     ) -> None:
@@ -656,6 +667,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.pet_api",
             "PetApi",
+            "attach_pet_files",
+            "AttachPetFilesOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.pet_api",
+            "PetApi",
             "delete_pet",
             "DeletePetOptions",
             False,
@@ -869,6 +887,13 @@ class TestEveryOperationTakesOptions:
             "export_orders",
             "ExportOrdersOptions",
             True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "get_audit_trail",
+            "GetAuditTrailOptions",
+            False,
         ),
         (
             "petstore_client.api.store_api",

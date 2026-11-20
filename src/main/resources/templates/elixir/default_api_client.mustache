@@ -1280,14 +1280,14 @@ defmodule {{moduleName}}.DefaultApiClient do
 
   # Validate/escape a multipart form field name before
   # interpolating it into a Content-Disposition header. Rejects
-  # CR/LF/NUL (header-injection) and quotes, and backslash-escapes
-  # any backslash.
+  # CR/LF/NUL (header-injection), and backslash-escapes a quote
+  # and any backslash.
   defp sanitize_multipart_field_name(name) do
     str = to_string(name)
 
-    if String.contains?(str, ["\r", "\n", <<0>>, "\""]) do
+    if String.contains?(str, ["\r", "\n", <<0>>]) do
       raise ArgumentError,
-            "multipart field name must not contain CR, LF, NUL or quote characters (got: #{inspect(str)})"
+            "multipart field name must not contain CR, LF or NUL characters (got: #{inspect(str)})"
     end
 
     escape_quoted(str)

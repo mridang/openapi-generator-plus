@@ -2422,6 +2422,68 @@ func TestBhvSerializationobject163_ObjectSerializer_EdgeCases_CutoffTimeRoundTri
 	}
 }
 
+// A UUID whose text is not in canonical form is refused with a serialization error when it is decoded.
+func TestBhvMisc085_ObjectSerializer_ANonCanonicalUuidIsRefusedOnDecode(t *testing.T) {
+	t.Parallel()
+	for _, text := range []string{
+		"{550e8400-e29b-41d4-a716-446655440000}",
+		"urn:uuid:550e8400-e29b-41d4-a716-446655440000",
+		"550e8400e29b41d4a716446655440000",
+	} {
+		var order models.Order
+		err := deserialize([]byte(`{"trackingId":"`+text+`"}`), &order)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", text, err, err)
+		}
+	}
+	var ok models.Order
+	if err := deserialize([]byte(`{"trackingId":"550e8400-e29b-41d4-a716-446655440000"}`), &ok); err != nil {
+		t.Errorf("the canonical form must decode, got %v", err)
+	}
+}
+
+// Rejecting undeclared keys on one strict model leaves other models accepting and ignoring them.
+func TestBhvMisc103_ObjectSerializer_StrictRejectionIsPerModel(t *testing.T) {
+	t.Parallel()
+	var strict models.StrictTag
+	if err := deserialize([]byte(`{"rogue":"x"}`), &strict); err == nil {
+		t.Error("the strict model must reject an undeclared key")
+	}
+	var loose models.Category
+	if err := deserialize([]byte(`{"rogue":"x"}`), &loose); err != nil {
+		t.Errorf("another model must keep ignoring an undeclared key, got %v", err)
+	}
+	var open models.Metadata
+	if err := deserialize([]byte(`{"rogue":"x"}`), &open); err != nil {
+		t.Errorf("a model with additional properties must accept an undeclared key, got %v", err)
+	}
+}
+
+// Properties are read and matched only by their wire name, never by the SDK's own attribute name.
+func TestBhvMisc092_ObjectSerializer_AKeyThatIsTheGoFieldNameDoesNotPopulateTheField(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"PhotoUrls":["bad"]}`), &pet); err != nil {
+		t.Fatalf("an unknown key must be ignored, got %v", err)
+	}
+	if len(pet.PhotoUrls) != 0 {
+		t.Errorf("the Go field name must not match a wire key, got %v", pet.PhotoUrls)
+	}
+}
+
+// An input object with no fields is filled with every declared default value.
+func TestBhvMisc215_ObjectSerializer_AnEmptyObjectIsFilledWithItsDeclaredDefaults(t *testing.T) {
+	t.Parallel()
+	var defaults models.Defaults
+	if err := deserialize([]byte(`{}`), &defaults); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if defaults.Retries == nil || *defaults.Retries != 3 {
+		t.Errorf("expected the declared retries default of 3, got %v", defaults.Retries)
+	}
+}
+
 // F1111: unevaluatedProperties:false refuses an undeclared key as a
 // *SerializationError, still decodes the declared keys, and does not leak onto
 // a model that does not declare it.
@@ -5102,22 +5164,23 @@ func TestBhvMisc247_ObjectSerializer_UuidWithWrongSegmentLengthsIsRejected(t *te
 	}
 }
 
-// A read-only property is decoded and a write-only property is written, and neither is sent in the wrong direction.
-func TestBhvMisc242_ObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffectInTheOtherDirection(t *testing.T) {
+// A readOnly or writeOnly property has no wire effect: it is written and decoded like any other.
+func TestBhvMisc242_ObjectSerializer_ReadOnlyAndWriteOnlyPropertiesHaveNoWireEffect(t *testing.T) {
 	t.Parallel()
 	var decoded models.Account
 	if err := json.Unmarshal([]byte(`{"id":7,"username":"u","password":"p"}`), &decoded); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if decoded.Id == nil || *decoded.Id != 7 {
-		t.Errorf("expected the read-only id 7 to be decoded, got %v", decoded.Id)
+	if decoded.Id == nil || *decoded.Id != 7 || decoded.Password == nil || *decoded.Password != "p" {
+		t.Errorf("expected the readOnly id and the writeOnly password to be decoded, got %+v", decoded)
 	}
+	id := int64(7)
 	password := "p"
-	data, err := json.Marshal(models.Account{Username: "u", Password: &password})
+	data, err := json.Marshal(models.Account{Id: &id, Username: "u", Password: &password})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if want := `{"username":"u","password":"p"}`; string(data) != want {
+	if want := `{"id":7,"username":"u","password":"p"}`; string(data) != want {
 		t.Errorf("expected %s, got %s", want, data)
 	}
 }

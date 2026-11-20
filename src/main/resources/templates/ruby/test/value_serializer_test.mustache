@@ -794,8 +794,11 @@ describe {{moduleName}}::ValueSerializer do
     _({{moduleName}}::ValueSerializer.serialize(2.5, :query, 'number')).must_equal('2.5')
   end
 
-  it 'bhv_misc_241 a time-of-day query value is sent as HH:MM:SS' do
-    _({{moduleName}}::ValueSerializer.serialize(Tod::TimeOfDay.new(10, 20, 30), :query, 'string')).must_equal('10:20:30')
+  it 'bhv_misc_241 a time-of-day query value keeps non-zero milliseconds and drops finer precision' do
+    fine = {{moduleName}}::ObjectSerializer.parse_time_of_day('10:20:30.999999')
+    _({{moduleName}}::ValueSerializer.serialize(fine, :query, 'string')).must_equal('10:20:30.999')
+    whole = {{moduleName}}::ObjectSerializer.parse_time_of_day('10:20:30.000')
+    _({{moduleName}}::ValueSerializer.serialize(whole, :query, 'string')).must_equal('10:20:30')
   end
 
   it 'bhv_misc_250 an array item containing a comma keeps its comma encoded on a path' do

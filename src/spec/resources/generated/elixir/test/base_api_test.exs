@@ -2313,11 +2313,10 @@ defmodule PetstoreClient.Api.BaseApiTest do
                "String"
              )
 
-    assert {:ok, decoded} = Base.decode64(result)
-    assert decoded == original
+    assert result == original
   end
 
-  test "bhv serializationwire 018 an octet-stream response is returned as the base64 of its bytes" do
+  test "bhv serializationwire 018 an octet-stream response is returned as its decoded bytes" do
     original = <<0x00, 0xFF, 0x42>>
     config = PetstoreClient.Configuration.new(base_url: "http://localhost")
     state = %{config: config, api_client: OctetStreamApiClient}
@@ -2335,7 +2334,61 @@ defmodule PetstoreClient.Api.BaseApiTest do
                "String"
              )
 
-    assert result == Base.encode64(original)
+    assert result == original
+  end
+
+  test "bhv misc 216 a binary response is returned as decoded bytes while the raw body keeps the encoded text" do
+    original = <<0x00, 0xFF, 0x42>>
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: OctetStreamApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api_for_result(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/octet-stream"],
+               "application/octet-stream",
+               "binary()"
+             )
+
+    assert result.data == original
+    assert result.raw_body == Base.encode64(original)
+  end
+
+  test "bhv misc 081 a string result under a binary content type is the decoded body, never the base64 carrier" do
+    original = "hello"
+
+    defmodule PdfApiClient do
+      def send_request(_method, _url, _headers, _body) do
+        %PetstoreClient.ApiHttpResponse{
+          status_code: 200,
+          body: Base.encode64("hello"),
+          headers: %{"Content-Type" => "application/pdf"}
+        }
+      end
+    end
+
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: PdfApiClient}
+
+    assert {:ok, result} =
+             PetstoreClient.Api.BaseApi.invoke_api(
+               state,
+               :get,
+               "/test/echo",
+               %{},
+               %{},
+               nil,
+               ["application/pdf"],
+               "application/pdf",
+               "String"
+             )
+
+    assert result == original
   end
 
   test "bhv operations 012 image/png binary response roundtrips exactly via base64 decode" do
@@ -2356,8 +2409,7 @@ defmodule PetstoreClient.Api.BaseApiTest do
                "String"
              )
 
-    assert {:ok, decoded} = Base.decode64(result)
-    assert decoded == original
+    assert result == original
   end
 
   test "bhv serializationwire 003 application/json response is deserialized to map" do
@@ -2590,12 +2642,15 @@ defmodule PetstoreClient.Api.BaseApiTest do
     end
   end
 
-  test "bhv serialization 123 a multipart field name or filename with CR, LF, NUL or a quote is refused rather than written" do
-    for name <- ["a\rb", "a\nb", "a\0b", "a\"b"] do
+  test "bhv serialization 123 a multipart field name or filename with CR, LF or NUL is refused and a quote is escaped" do
+    for name <- ["a\rb", "a\nb", "a\0b"] do
       assert_raise ArgumentError, fn ->
         PetstoreClient.DefaultApiClient.build_multipart_body(%{name => "value"}, "BOUNDARY")
       end
     end
+
+    assert PetstoreClient.DefaultApiClient.build_multipart_body(%{"a\"b" => "value"}, "BOUNDARY") =~
+             ~s(name="a\\"b")
 
     for bad <- ["a\r\nb.txt", "a\nb.txt", "a\0b.txt"] do
       assert_raise ArgumentError, fn ->
@@ -5046,6 +5101,57 @@ defmodule PetstoreClient.Api.BaseApiTest do
       headers = echo_headers()
       assert headers["traceparent"] == base_api_traceparent(Tracer.current_span_ctx())
     end
+  end
+
+  defmodule SlowAuthenticator do
+    use PetstoreClient.Auth.BaseAuthenticator
+
+    defstruct [:host_url]
+
+    @impl true
+    def host(%__MODULE__{} = self), do: self.host_url
+
+    @impl true
+    def auth_headers(%__MODULE__{}) do
+      Process.sleep(50)
+      %{"Authorization" => "Bearer slow"}
+    end
+
+    @impl true
+    def query_params(%__MODULE__{}), do: %{}
+
+    @impl true
+    def cookie_params(%__MODULE__{}), do: %{}
+  end
+
+  test "bhv tracing 014 the span still reaches traceparent when building the headers first waits on the credentials" do
+    start_tracing()
+    {:ok, name} = CapturingHeadersApiClient.start()
+    config = PetstoreClient.Configuration.new(base_url: "http://localhost")
+    state = %{config: config, api_client: CapturingHeadersApiClient}
+    auth = %SlowAuthenticator{host_url: ""}
+
+    Tracer.with_span "caller" do
+      _ =
+        PetstoreClient.Api.BaseApi.invoke_api(
+          state,
+          :get,
+          "/test/echo",
+          %{},
+          %{},
+          nil,
+          ["application/json"],
+          "application/json",
+          nil,
+          auth
+        )
+
+      headers = CapturingHeadersApiClient.captured_headers(name)
+      assert headers["traceparent"] == base_api_traceparent(Tracer.current_span_ctx())
+      assert headers["Authorization"] == "Bearer slow"
+    end
+
+    Agent.stop(name)
   end
 
   test "bhv tracing 015 concurrent operations each send the traceparent of their own caller span" do

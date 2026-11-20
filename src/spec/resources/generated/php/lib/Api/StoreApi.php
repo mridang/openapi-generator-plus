@@ -23,6 +23,7 @@ use PetstoreClient\Auth\NoAuth;
 use PetstoreClient\Api\Options\CreateAccountOptions;
 use PetstoreClient\Api\Options\DeleteOrderOptions;
 use PetstoreClient\Api\Options\ExportOrdersOptions;
+use PetstoreClient\Api\Options\GetAuditTrailOptions;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
 use PetstoreClient\Api\Options\GetDefaultsOptions;
 use PetstoreClient\Api\Options\GetDepartmentOptions;
@@ -270,6 +271,78 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'exportOrders',
             urlTemplate: '/store/orders/export',
+        );
+        return $result;
+    }
+
+    /**
+     * Read the audit trail, which needs a bearer token and an API key together
+     * One security requirement that names two schemes, so a request carries both credentials.
+     * @param GetAuditTrailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function getAuditTrail(?GetAuditTrailOptions $options = null): \PetstoreClient\Models\ApiResponse
+    {
+        $apiResult = $this->getAuditTrailWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for getAuditTrail but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\ApiResponse $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param GetAuditTrailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function getAuditTrailWithHttpInfo(?GetAuditTrailOptions $options = null): ApiResult
+    {
+        $path = '/store/audit';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'application/json',
+            \PetstoreClient\Models\ApiResponse::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [['petStoreBearer', 'apiKeyHeader']],
+            operationId: 'getAuditTrail',
+            urlTemplate: '/store/audit',
         );
         return $result;
     }

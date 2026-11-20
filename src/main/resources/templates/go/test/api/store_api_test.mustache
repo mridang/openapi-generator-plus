@@ -885,3 +885,45 @@ func TestBhvMisc114_StoreApi_ReserveStockDecodesA201AsTheReceipt(t *testing.T) {
 		t.Errorf("expected the receipt for a 201, got %T", result.ActualInstance())
 	}
 }
+
+// A date-time inside a JSON query parameter keeps its wire date-time form.
+func TestBhvMisc211_StoreApi_SearchStoreKeepsTheWireFormOfADateTimeInsideTheContentQuery(t *testing.T) {
+	t.Parallel()
+	var query string
+	server := jsonStoreServer(`[]`, func(r *http.Request) {
+		query = r.URL.RawQuery
+	})
+	defer server.Close()
+
+	takenAt := models.DateTime(time.Date(2024, 1, 2, 3, 4, 5, 0, time.UTC))
+	if _, err := newStoreApiForMock(t, server).SearchStore(context.Background(), &options.SearchStoreOptions{Q: &models.PhotoMetadata{TakenAt: &takenAt}}); err != nil {
+		t.Fatalf("SearchStore failed: %v", err)
+	}
+	decoded, err := url.QueryUnescape(query)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `q={"takenAt":"2024-01-02T03:04:05.000+00:00"}`; decoded != want {
+		t.Errorf("expected %q, got %q", want, decoded)
+	}
+}
+
+// An unserializable query content value raises a serialization error before any request is sent.
+func TestBhvMisc214_StoreApi_SearchStoreRefusesAnInfiniteNumberInTheContentQuery(t *testing.T) {
+	t.Parallel()
+	requests := 0
+	server := jsonStoreServer(`[]`, func(r *http.Request) { requests++ })
+	defer server.Close()
+
+	lat := math.Inf(1)
+	_, err := newStoreApiForMock(t, server).SearchStore(context.Background(), &options.SearchStoreOptions{
+		Q: &models.PhotoMetadata{Location: &models.PhotoMetadataLocation{Lat: &lat}},
+	})
+	var serErr *pkgerrors.SerializationError
+	if !errors.As(err, &serErr) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if requests != 0 {
+		t.Errorf("expected no request, got %d", requests)
+	}
+}

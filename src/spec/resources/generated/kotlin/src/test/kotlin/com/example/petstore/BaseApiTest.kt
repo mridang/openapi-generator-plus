@@ -781,6 +781,7 @@ class BaseApiTest {
             callTimeout: Long? = null,
             callHeaders: Map<String, String>? = null,
             callMaxRetries: Int? = null,
+            auth: Authenticator? = null,
         ): ApiHttpResponse =
             invokeApi(
                 method,
@@ -790,7 +791,7 @@ class BaseApiTest {
                 null,
                 arrayOf("application/json"),
                 "application/json",
-                null,
+                auth,
                 callTimeout,
                 callHeaders,
                 callMaxRetries,
@@ -961,6 +962,25 @@ class BaseApiTest {
             assertEquals("1", client.capturedHeaders["X-Extra"])
             assertNull(client.capturedHeaders["X-Layer"])
             assertNull(client.capturedHeaders["x-param"])
+        }
+
+        @Test
+        @DisplayName("bhvMisc030 a deadline already spent before the request is sent raises the timeout and skips the transport")
+        fun bhvMisc030SpentDeadlineNeverReachesTheTransport() {
+            val (client, seen) = statusClient(200)
+            val slowAuth =
+                object : Authenticator {
+                    override fun getHost(): String = "http://localhost"
+
+                    override suspend fun getAuthHeaders(): Map<String, String> {
+                        Thread.sleep(50)
+                        return mapOf("Authorization" to "Bearer t")
+                    }
+                }
+            assertThrows(NetworkTimeoutException::class.java) {
+                runBlocking { PerCallApi(client).call(callTimeout = 1L, auth = slowAuth) }
+            }
+            assertTrue(seen.isEmpty())
         }
 
         @Test
@@ -3584,6 +3604,41 @@ class BaseApiTest {
             noRedirect: Boolean,
         ): ApiHttpResponse = response
     }
+
+    @Test
+    @DisplayName("bhvMisc216 a binary response is returned as decoded bytes while the raw body keeps the encoded text")
+    fun bhvMisc216BinaryResponseIsDecodedAndRawBodyKeepsTheText() =
+        runBlocking<Unit> {
+            val client =
+                FixedAnswerApiClient(
+                    ApiHttpResponse(200, "AQID", mapOf("Content-Type" to "application/octet-stream")),
+                )
+            val result =
+                TestableApiWithClient(client, "http://localhost")
+                    .callForResult<ByteArray>("GET", "/test/echo", accepts = arrayOf("application/octet-stream"))
+            assertArrayEquals(byteArrayOf(1, 2, 3), result.data)
+            assertEquals("AQID", result.rawBody)
+        }
+
+    @Test
+    @DisplayName("bhvMisc081 a string result under a binary content type is the decoded body")
+    fun bhvMisc081StringResultUnderBinaryTypeIsDecoded() =
+        runBlocking<Unit> {
+            val client =
+                FixedAnswerApiClient(
+                    ApiHttpResponse(
+                        200,
+                        java.util.Base64
+                            .getEncoder()
+                            .encodeToString("hello".toByteArray()),
+                        mapOf("Content-Type" to "application/pdf"),
+                    ),
+                )
+            val result =
+                TestableApiWithClient(client, "http://localhost")
+                    .callForResult<String>("GET", "/test/echo", accepts = arrayOf("application/pdf"))
+            assertEquals("hello", result.data)
+        }
 
     @Test
     @DisplayName("bhvMisc236 a date-only query value is written as yyyy-mm-dd with no time")

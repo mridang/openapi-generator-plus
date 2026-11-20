@@ -182,11 +182,11 @@ path only, never the query string), and the message names them:
 
 ### Credentials
 
-Each credential comes from, in order: the argument you pass, then an
-environment variable read once when the authenticator is built (an empty value
-counts as unset). A bearer token or API key can also come from a callback that
-is called on every request, which suits a rotating or short-lived credential;
-passing both an argument and a callback is refused. A credential found nowhere
+Each credential comes from, in order: the argument you pass or a callback (a
+bearer token or API key can come from a callback that is called on every
+request, which suits a rotating or short-lived credential; passing both is
+refused), then an environment variable read once when the authenticator is
+built (an empty value counts as unset). A credential found nowhere
 fails when the authenticator (and so the client) is built.
 {{#hasCredentialEnvVars}}
 The authenticator of each security scheme reads its own variables:

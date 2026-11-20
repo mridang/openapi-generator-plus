@@ -66,6 +66,9 @@ public class ReserveStockResponse(object value)
         return ActualInstance is ReservationReceipt variant ? variant : null;
     }
 
+    bool global::PetstoreClient.IOneOfWrapper.HoldsVariant =>
+        false || ActualInstance is Reservation || ActualInstance is ReservationReceipt;
+
     /// <summary>Value equality on the wrapped variant.</summary>
     public bool Equals(ReserveStockResponse? other)
     {
@@ -131,6 +134,12 @@ public class ReserveStockResponse(object value)
             JsonSerializerOptions options
         )
         {
+            if (!((global::PetstoreClient.IOneOfWrapper)value).HoldsVariant)
+            {
+                throw new JsonException(
+                    $"A value of type {value.ActualInstance?.GetType().Name ?? "null"} is not a variant of the ReserveStockResponse union"
+                );
+            }
             JsonSerializer.Serialize(writer, value.ActualInstance, options);
         }
     }

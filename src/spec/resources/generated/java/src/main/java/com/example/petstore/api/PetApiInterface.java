@@ -12,6 +12,7 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.api.options.AddPetOptions;
 import com.example.petstore.api.options.AddPetPhotosOptions;
 import com.example.petstore.api.options.AddPetTreatmentOptions;
+import com.example.petstore.api.options.AttachPetFilesOptions;
 import com.example.petstore.api.options.DeletePetOptions;
 import com.example.petstore.api.options.DownloadPetDocumentOptions;
 import com.example.petstore.api.options.FindPetsBornOnOptions;
@@ -188,6 +189,28 @@ public interface PetApiInterface {
    */
   ApiResult<PetTreatment> addPetTreatmentWithHttpInfo(
       Long petId, PetTreatment petTreatment, @Nullable AddPetTreatmentOptions options);
+
+  /**
+   * Attach files in a multipart/mixed request Declares multipart/mixed so a declared multipart
+   * subtype other than form-data must reach the transport.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResponse attachPetFiles(Long petId, AttachPetFilesOptions options);
+
+  /**
+   * Attach files in a multipart/mixed request Declares multipart/mixed so a declared multipart
+   * subtype other than form-data must reach the transport.
+   *
+   * @param petId (required)
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<ApiResponse> attachPetFilesWithHttpInfo(Long petId, AttachPetFilesOptions options);
 
   /**
    * Deletes a pet

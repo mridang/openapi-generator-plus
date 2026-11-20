@@ -22,6 +22,7 @@ import '../models/set_pet_avatar_thumbnail_request.dart';
 import 'options/add_pet_options.dart';
 import 'options/add_pet_photos_options.dart';
 import 'options/add_pet_treatment_options.dart';
+import 'options/attach_pet_files_options.dart';
 import 'options/delete_pet_options.dart';
 import 'options/download_pet_document_options.dart';
 import 'options/find_pets_born_on_options.dart';
@@ -249,6 +250,12 @@ abstract interface class PetApiInterface {
     int petId,
     PetTreatment petTreatment,
     AddPetTreatmentOptions? options,
+  );
+  Future<ApiResponse> attachPetFiles(int petId, AttachPetFilesOptions options);
+
+  Future<ApiResult<ApiResponse>> attachPetFilesWithHttpInfo(
+    int petId,
+    AttachPetFilesOptions options,
   );
   Future<void> deletePet(int petId, DeletePetOptions? options);
 
@@ -717,6 +724,108 @@ class PetApi extends BaseApi implements PetApiInterface {
 
       deserialize: (body) =>
           deserialize(body, PetTreatment.fromJson) as PetTreatment,
+    );
+  }
+
+  /// Attach files in a multipart/mixed request
+  /// Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+  /// `options` options for query, header, form, and cookie parameters
+  @override
+  Future<ApiResponse> attachPetFiles(
+    int petId,
+    AttachPetFilesOptions options,
+  ) async {
+    final result = await attachPetFilesWithHttpInfo(petId, options);
+    final data = result.data;
+    if (data == null) {
+      /* Cross-cutting `convenience-empty-body-handling`: a body-returning
+       * operation received an empty/undecodable body. Surface the uniform
+       * typed ApiException (matching C#/Swift) instead of the Dart runtime
+       * TypeError that `null as ApiResponse` would otherwise throw, so
+       * callers can catch the empty-body condition the same way across SDKs. */
+      throw ApiException(
+        statusCode: result.statusCode,
+        message:
+            'Expected a response body for attachPetFiles but received none',
+        responseBody: result.rawBody,
+        responseHeaders: result.headers,
+      );
+    }
+    return data;
+  }
+
+  /// Performs the attachPetFiles operation and returns the full API result.
+  @override
+  Future<ApiResult<ApiResponse>> attachPetFilesWithHttpInfo(
+    int petId,
+    AttachPetFilesOptions options,
+  ) async {
+    ArgumentError.checkNotNull(options.file, 'file');
+
+    var path = '/pet/{petId}/attachments';
+    /* Cross-cutting `path-double-encoding`: serializeStyled already
+     * percent-encodes each path segment via encodePathSegment, so wrapping
+     * the result in a second encoder would encode it twice (a space would
+     * become %2520, `a/b` would become a%252Fb). Substitute the styled
+     * value directly — it is encoded exactly once. A `format: date`
+     * parameter is a `DateTime`, which stringifyDate renders as YYYY-MM-DD
+     * before it flows through serializeStyled. */
+    path = path.replaceAll(
+      '{'
+      'petId'
+      '}',
+      serializeStyled(
+        'petId',
+        petId,
+        'path',
+        'int',
+        '',
+        'simple',
+        false,
+      ).toString(),
+    );
+
+    final queryParams = <String, Object?>{};
+
+    final headerParams = <String, String>{};
+
+    /* The form body is a `Map<String, Object?>` (NOT `Map<String, String>`)
+     * so values reach the serializer in their native shape:
+     *   - a `List` stays a list, which the form-urlencoded encoder expands
+     *     into repeated keys (`tags=a&tags=b`) and the multipart builder
+     *     emits as repeated parts (form-array-repeated-keys);
+     *   - a binary file (`Uint8List`/`List<int>`) stays bytes so the
+     *     multipart builder routes it through the binary branch with a
+     *     filename-derived Content-Type instead of stringifying the bytes;
+     *   - a scalar is stringified at the edge by the serializer.
+     * Optional null/absent fields are never added, so they are omitted on
+     * the wire (form-optional-null-omitted). */
+    final formBody = <String, Object?>{};
+    formBody['file'] = options.file;
+    if (options.caption != null) {
+      formBody['caption'] = options.caption;
+    }
+    final Object requestBody = formBody;
+
+    return invokeApiForResult<ApiResponse>(
+      method: 'POST',
+      operation: 'PetApi.attachPetFiles',
+      operationId: 'attachPetFiles',
+      urlTemplate: '/pet/{petId}/attachments',
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ['application/json'],
+      contentType: 'multipart/mixed',
+      returnType: 'ApiResponse',
+      auth: null,
+      timeout: options.timeout,
+      callHeaders: options.headers,
+      maxRetries: options.maxRetries,
+
+      deserialize: (body) =>
+          deserialize(body, ApiResponse.fromJson) as ApiResponse,
     );
   }
 
@@ -2718,6 +2827,18 @@ class PetApi extends BaseApi implements PetApiInterface {
     }
     if (options.reminder != null) {
       formBody['reminder'] = options.reminder;
+    }
+    if (options.intervalDays != null) {
+      formBody['intervalDays'] = options.intervalDays;
+    }
+    if (options.ratio != null) {
+      formBody['ratio'] = options.ratio;
+    }
+    if (options.urgent != null) {
+      formBody['urgent'] = options.urgent;
+    }
+    if (options.snooze != null) {
+      formBody['snooze'] = options.snooze;
     }
     final Object requestBody = formBody;
 

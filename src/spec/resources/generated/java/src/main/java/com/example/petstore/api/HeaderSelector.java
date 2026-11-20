@@ -66,7 +66,7 @@ final class HeaderSelector {
    * @param accept Array of acceptable media types
    * @return the Accept header value, or an empty string if there is nothing to send
    */
-  private String selectAcceptHeader(@Nullable String[] accept) {
+  String selectAcceptHeader(@Nullable String[] accept) {
     if (accept == null) {
       return "";
     }

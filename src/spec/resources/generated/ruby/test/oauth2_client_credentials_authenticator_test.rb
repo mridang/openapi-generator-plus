@@ -48,6 +48,23 @@ class ConfigurableClientCredentialsClient
   end
 end
 
+# A token endpoint that never answers; records that the request was interrupted.
+class BlockingClientCredentialsClient
+  attr_reader :started, :interrupted
+
+  def initialize
+    @started = Queue.new
+    @interrupted = false
+  end
+
+  def send_request(_method, _url, _headers, _body, **_kwargs)
+    @started << true
+    sleep
+  ensure
+    @interrupted = true
+  end
+end
+
 describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
   parallelize_me!
 
@@ -343,5 +360,21 @@ describe Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator do
     _(err.status_code).must_equal 401
     _(err.code).must_equal 'invalid_client'
     _(fallback_client.call_count).must_equal 3
+  end
+
+  it 'bhv_auth_013 cancelling a call stops the token request it started and reports the cancellation without waiting' do
+    cancelled = Class.new(StandardError)
+    blocking = BlockingClientCredentialsClient.new
+    authenticator = Petstore::Client::Auth::OAuth::OAuth2ClientCredentialsAuthenticator.new(
+      'https://api.example.com', 'my_client_id', 'my_client_secret', 'https://auth.example.com/token', %w[read]
+    )
+    authenticator.api_client = blocking
+    worker = Thread.new { authenticator.auth_headers }
+    worker.report_on_exception = false
+    blocking.started.pop
+    worker.raise(cancelled.new('stop'))
+
+    _(assert_raises(cancelled) { worker.join(10) }.message).must_equal 'stop'
+    _(blocking.interrupted).must_equal true
   end
 end

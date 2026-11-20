@@ -1080,6 +1080,12 @@ test('bhv serializationobject 179 serialize DateInterval trims fraction to three
     expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('0.500s');
 });
 
+test('bhv misc 256 a duration fraction is never trimmed below three digits', function (): void {
+    $interval = new \DateInterval('PT1S');
+    $interval->f = 0.5;
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('1.500s');
+});
+
 test('bhv serializationobject 212 a sub ten thousandth or negative duration is written without scientific notation', function (float $fraction, int $invert, string $wire): void {
     $interval = new \PetstoreClient\PreciseDuration();
     $interval->f = $fraction;
@@ -2223,6 +2229,17 @@ test('bhv serializationobject 230 a time value survives a stringify and parse ro
     expect($restored->format('H:i:s'))->toBe('07:30:15');
 });
 
+test('bhv misc 242 a readOnly property is written and a writeOnly property is decoded like any other', function (): void {
+    $json = ObjectSerializer::serialize(new Account('ada', 7, 'hunter2'));
+    expect($json)->toContain('"id":7');
+    expect($json)->toContain('"password":"hunter2"');
+
+    $account = ObjectSerializer::deserialize($json, Account::class);
+    \assert($account instanceof Account);
+    expect($account->id)->toBe(7);
+    expect($account->password)->toBe('hunter2');
+});
+
 test('bhv serializationobject 018 a writeOnly property is serialized', function (): void {
     $json = ObjectSerializer::serialize(new Account('ada', null, 'hunter2'));
 
@@ -2323,6 +2340,59 @@ test('bhv serializationobject 021 uri field is a plain string that is re-emitted
     'mailto' => ['mailto:a@b.com'],
     'ftp' => ['ftp://x.org/f'],
     'https' => ['https://example.com/items/1'],
+]);
+
+test('bhv misc 104 a string field declared with the email format decodes to a plain string without validation', function (): void {
+    /** @var NativeValues $item */
+    $item = ObjectSerializer::deserialize('{"contact":"not-an-email"}', NativeValues::class);
+    expect($item->contact)->toBe('not-an-email');
+});
+
+test('bhv serializationobject 008 a format uri model field rejects a relative reference', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"homepageUrl":"/pets/fido"}', Pet::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+});
+
+test('bhv serialization 049 a uri format value must be absolute and a relative, empty or non uri string is refused', function (string $value, bool $accepted): void {
+    $json = '{"name":"n","photoUrls":[],"homepageUrl":' . json_encode($value) . '}';
+    if ($accepted) {
+        /** @var Pet $pet */
+        $pet = ObjectSerializer::deserialize($json, Pet::class);
+        expect($pet->homepageUrl)->toBe($value);
+
+        return;
+    }
+    expect(fn () => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+})->with([
+    'absolute https' => ['https://example.com/pets/fido', true],
+    'relative path' => ['/pets/fido', false],
+    'empty' => ['', false],
+    'not a uri' => ['not a uri', false],
+]);
+
+test('bhv serializationobject 407 an ipv4 or ipv6 value with a leading zero, prefix, zone, brackets, whitespace or the wrong family fails decode', function (string $field, string $value, bool $accepted): void {
+    $json = '{"' . $field . '":' . json_encode($value) . '}';
+    if ($accepted) {
+        /** @var NativeValues $decoded */
+        $decoded = ObjectSerializer::deserialize($json, NativeValues::class);
+        expect($decoded->$field)->toBe($value);
+
+        return;
+    }
+    expect(fn () => ObjectSerializer::deserialize($json, NativeValues::class))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+})->with([
+    'ipv4 plain' => ['address4', '192.0.2.1', true],
+    'ipv4 leading zero' => ['address4', '192.0.2.01', false],
+    'ipv4 prefix length' => ['address4', '192.0.2.1/24', false],
+    'ipv4 surrounding whitespace' => ['address4', ' 192.0.2.1', false],
+    'ipv4 holding an ipv6 address' => ['address4', '2001:db8::1', false],
+    'ipv6 plain' => ['address6', '2001:db8::1', true],
+    'ipv6 zone id' => ['address6', 'fe80::1%eth0', false],
+    'ipv6 brackets' => ['address6', '[2001:db8::1]', false],
+    'ipv6 prefix length' => ['address6', '2001:db8::/32', false],
+    'ipv6 holding an ipv4 address' => ['address6', '192.0.2.1', false],
 ]);
 
 test('bhv serializationobject 173 uri-reference field still accepts a relative reference', function (): void {

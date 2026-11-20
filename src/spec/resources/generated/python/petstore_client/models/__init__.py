@@ -8,6 +8,9 @@
 # import models into model package
 from petstore_client.models.account import Account as Account
 from petstore_client.models.api_response import ApiResponse as ApiResponse
+from petstore_client.models.attach_pet_files_request import (
+    AttachPetFilesRequest as AttachPetFilesRequest,
+)
 from petstore_client.models.availability import Availability as Availability
 from petstore_client.models.binary_vault import BinaryVault as BinaryVault
 from petstore_client.models.blobs import Blobs as Blobs

@@ -48,6 +48,8 @@ pub struct OAuth2TokenManager {
      * the tokens, so it survives anything that rebuilds the authenticator
      * around this manager (OIDC rediscovery). */
     exchanged: AtomicBool,
+    /* Set by `stop`; a token request after that fails with a typed error. */
+    stopped: AtomicBool,
     /* PKCE code verifier of the last authorization URL, kept here with the
      * session so rebuilding the authenticator (OIDC rediscovery) keeps it. */
     pkce_verifier: std::sync::Mutex<Option<String>>,
@@ -80,6 +82,7 @@ impl OAuth2TokenManager {
                 token_expiry: None,
             }),
             exchanged: AtomicBool::new(false),
+            stopped: AtomicBool::new(false),
             pkce_verifier: std::sync::Mutex::new(None),
         }
     }
@@ -89,13 +92,11 @@ impl OAuth2TokenManager {
     /// challenge.
     pub(crate) fn begin_pkce(&self) -> String {
         use base64::Engine as _;
-        use sha2::{Digest, Sha256};
         let mut random = Vec::with_capacity(32);
         random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
         random.extend_from_slice(uuid::Uuid::new_v4().as_bytes());
         let verifier = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&random[..32]);
-        let challenge = base64::engine::general_purpose::URL_SAFE_NO_PAD
-            .encode(Sha256::digest(verifier.as_bytes()));
+        let challenge = pkce_s256_challenge(&verifier);
         *self.pkce_verifier.lock().unwrap() = Some(verifier);
         challenge
     }
@@ -121,6 +122,12 @@ impl OAuth2TokenManager {
     /// Records that an authorization code has been exchanged for this session.
     pub(crate) fn mark_exchanged(&self) {
         self.exchanged.store(true, Ordering::SeqCst);
+    }
+
+    /// Stops the manager. Stopping again is a no-op; any token request after
+    /// this fails with an `OAuth2TokenError`.
+    pub fn stop(&self) {
+        self.stopped.store(true, Ordering::SeqCst);
     }
 
     /// Returns `true` once an authorization code has been exchanged.
@@ -200,6 +207,11 @@ impl OAuth2TokenManager {
         params: &HashMap<String, String>,
         extra_headers: &HashMap<String, String>,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        if self.stopped.load(Ordering::SeqCst) {
+            return Err(Box::new(OAuth2TokenError::new(
+                "The token manager has been stopped.".to_string(),
+            )));
+        }
         /* Hold the mutex across the network call so concurrent callers
          * collapse onto a single refresh (single-flight). The first caller
          * performs the exchange; subsequent callers re-check the cache and
@@ -572,4 +584,25 @@ fn is_plain_decimal(s: &str) -> bool {
         }
     }
     digits > 0 && dots <= 1
+}
+
+/// The S256 PKCE code challenge of `verifier` (RFC 7636 section 4.2): the
+/// base64url encoding, without padding, of the SHA-256 of the verifier.
+pub(crate) fn pkce_s256_challenge(verifier: &str) -> String {
+    use base64::Engine as _;
+    use sha2::{Digest, Sha256};
+    base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
+#[cfg(test)]
+mod pkce_tests {
+    use super::*;
+
+    #[test]
+    fn test_bhv_auth_008_the_s256_challenge_matches_the_rfc_7636_appendix_b_vector() {
+        assert_eq!(
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            pkce_s256_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
+        );
+    }
 }

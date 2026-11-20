@@ -481,26 +481,28 @@ class ApiKeyAuthenticatorTest {
 
     @Test
     @DisplayName("bhvAuthscheme009 a credential passed explicitly wins over its environment variable")
-    fun precedenceIsArgumentThenEnvironmentThenProvider() =
+    fun explicitArgumentWinsOverEnvironment() =
         runBlocking {
-            val provider: suspend () -> String = { "from-provider" }
             val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "from-env")
             val explicit =
                 withEnvironment(env) {
-                    ApiKeyAuthenticator("https://api.example.com", "k", "explicit", ApiKeyLocation.HEADER, provider)
+                    ApiKeyAuthenticator("https://api.example.com", "k", "explicit", ApiKeyLocation.HEADER)
                 }
             assertEquals("explicit", explicit.getAuthHeaders()["k"])
             val fromEnv =
                 withEnvironment(env) {
-                    ApiKeyAuthenticator("https://api.example.com", "k", location = ApiKeyLocation.HEADER, apiKeyProvider = provider)
+                    ApiKeyAuthenticator("https://api.example.com", "k", location = ApiKeyLocation.HEADER)
                 }
             assertEquals("from-env", fromEnv.getAuthHeaders()["k"])
-            val fromProvider =
-                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY" to "")) {
-                    ApiKeyAuthenticator("https://api.example.com", "k", location = ApiKeyLocation.HEADER, apiKeyProvider = provider)
-                }
-            assertEquals("from-provider", fromProvider.getAuthHeaders()["k"])
         }
+
+    @Test
+    @DisplayName("bhvMisc060 an API key and an API key provider passed together are refused")
+    fun keyAndProviderTogetherAreRefused() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ApiKeyAuthenticator("https://api.example.com", "k", "x", ApiKeyLocation.HEADER, { "y" })
+        }
+    }
 
     @Test
     @DisplayName("bhvLangkotlin001 F862: a security scheme's authenticator reads the variable of its own scheme")

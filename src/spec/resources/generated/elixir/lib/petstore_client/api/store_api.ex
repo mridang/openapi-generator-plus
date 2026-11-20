@@ -83,6 +83,27 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback get_audit_trail(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+
+  @callback get_audit_trail!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.ApiResponse.t()
+
+  @callback get_audit_trail_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback get_by_swatch(
               PetstoreClient.Api.StoreApi.t(),
               PetstoreClient.Models.Swatch.t(),
@@ -905,6 +926,116 @@ defmodule PetstoreClient.Api.StoreApi do
       "Order",
       auth,
       Keyword.put(call, :operation, {"exportOrders", "/store/orders/export"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Read the audit trail, which needs a bearer token and an API key together
+
+  One security requirement that names two schemes, so a request carries both credentials.
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, ApiResponse}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec get_audit_trail(t(), PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil, keyword()) ::
+          {:ok, PetstoreClient.Models.ApiResponse.t()} | {:error, Exception.t()}
+  @impl true
+  def get_audit_trail(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_audit_trail_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for get_audit_trail but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `get_audit_trail`. Raises on error.
+  """
+  @spec get_audit_trail!(
+          t(),
+          PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil,
+          keyword()
+        ) ::
+          PetstoreClient.Models.ApiResponse.t()
+  @impl true
+  def get_audit_trail!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case get_audit_trail(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `get_audit_trail` but returns the full `ApiResult`.
+  """
+  @spec get_audit_trail_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def get_audit_trail_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # The credential of the first scheme in this operation's own security
+    # order that the client holds; nil when it holds none of them, which
+    # leaves the call to the client-level authenticator. There is no per-call
+    # credential.
+    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBearer", "apiKeyHeader"])
+    path = "/store/audit"
+    query_params = []
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/json"],
+      "application/json",
+      "ApiResponse",
+      auth,
+      Keyword.put(call, :operation, {"getAuditTrail", "/store/audit"}),
       %{}
     )
   end

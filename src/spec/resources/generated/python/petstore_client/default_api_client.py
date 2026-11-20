@@ -758,6 +758,12 @@ class DefaultApiClient:
             merged_headers, "User-Agent"
         ):
             merged_headers["User-Agent"] = self._transport_options.user_agent
+        elif self._transport_options.user_agent is None and not _has_header(
+            merged_headers, "User-Agent"
+        ):
+            # urllib3 adds its own User-Agent to a request that carries none; the
+            # skip marker is how a cleared user agent is left off the wire.
+            merged_headers["User-Agent"] = str(getattr(urllib3.util, "SKIP_HEADER"))
 
         if self._transport_options.inject_request_id and not _has_header(
             merged_headers, "X-Request-ID"

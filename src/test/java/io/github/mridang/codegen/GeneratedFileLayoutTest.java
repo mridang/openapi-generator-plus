@@ -106,6 +106,12 @@ class GeneratedFileLayoutTest {
         "the mock seam: IClient is the interface a fake implements, declared in its own file beside"
             + " the Client class that implements it");
 
+    allow(ALLOWED_EXTRA, "go", "doc", "a go package description can only live in a package comment file");
+    allow(
+        ALLOWED_EXTRA,
+        "php",
+        "wireformat",
+        "the attribute that names the wire format of a uri or ip property is its own class in php");
     for (String language : Arrays.asList("csharp", "dart", "elixir", "java", "php", "ruby", "swift")) {
       allow(
           ALLOWED_EXTRA,

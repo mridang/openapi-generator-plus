@@ -230,8 +230,7 @@ public sealed class Client : IClient
     /// Creates a client from explicit options first and the environment second.
     /// The host is the <paramref name="host"/> argument, else the environment
     /// variable <c>SWAGGER_PETSTORE_OPEN_API_3_0_HOST</c>; the credential is the
-    /// <paramref name="tokenProvider"/> callback, else the <paramref name="token"/>
-    /// argument, else <c>SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN</c>. The environment is read once, here,
+    /// <paramref name="token"/> argument, else the <paramref name="tokenProvider"/> callback, else <c>SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN</c>. The environment is read once, here,
     /// and an empty value counts as unset. A missing host or credential fails the
     /// call that builds the client, not a later request.
     /// </summary>
@@ -242,6 +241,7 @@ public sealed class Client : IClient
     /// <param name="callHook">The hook that runs around every operation call, or null for none.</param>
     /// <returns>Configured client instance.</returns>
     /// <exception cref="InvalidOperationException">Thrown when no host or no credential is available.</exception>
+    /// <exception cref="ArgumentException">Thrown when both a token and a token provider are passed.</exception>
     public static Client FromEnvironment(
         string? host = null,
         string? token = null,
@@ -257,14 +257,21 @@ public sealed class Client : IClient
                 "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable"
             );
         }
-        /* Order: the explicit token is kept as given (an empty one is refused by the
-         * authenticator, never replaced by the environment), then the environment
-         * variable, then the token provider. */
-        string? resolvedToken = token ?? FirstSet(null, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
-        if (resolvedToken is not null)
+        /* A token together with a provider is refused. Otherwise the explicit token is kept as
+         * given (an empty one is refused by the authenticator, never replaced by the environment),
+         * then the token provider, which is an explicit argument and outranks the environment
+         * variable (D108), then the environment variable. */
+        if (token is not null && tokenProvider is not null)
+        {
+            throw new ArgumentException(
+                "Pass a token or a tokenProvider, not both",
+                nameof(tokenProvider)
+            );
+        }
+        if (token is not null)
         {
             return new Client(
-                new BearerAuthenticator(resolvedHost, resolvedToken),
+                new BearerAuthenticator(resolvedHost, token),
                 transportOptions,
                 callHook
             );
@@ -273,6 +280,15 @@ public sealed class Client : IClient
         {
             return new Client(
                 new BearerAuthenticator(resolvedHost, tokenProvider),
+                transportOptions,
+                callHook
+            );
+        }
+        string? fromEnvironment = FirstSet(null, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN");
+        if (fromEnvironment is not null)
+        {
+            return new Client(
+                new BearerAuthenticator(resolvedHost, fromEnvironment),
                 transportOptions,
                 callHook
             );

@@ -2567,6 +2567,16 @@ describe('BaseApi body and response encoding behaviours', () => {
 });
 
 describe('BaseApi misc response behaviours', () => {
+  test('bhv misc 081 a string result under a binary content type is the decoded body, not the transport base64 text', async () => {
+    const client = new CapturingApiClient();
+    client.responseBody = Buffer.from('hello').toString('base64');
+    client.responseHeaders = { 'content-type': 'application/pdf' };
+    const api = new TestableApi(client, new Configuration({ baseUrl: 'http://localhost' }));
+    const result = await api.call('GET', '/api/doc', {}, {}, null,
+      ['application/pdf'], 'application/json', (json) => json as string, undefined, 'string');
+    expect(result).toBe('hello');
+  });
+
   test('bhv misc 216 a binary response is returned as decoded bytes while the raw body keeps the encoded text', async () => {
     const client = new CapturingApiClient();
     client.responseBody = 'AQI=';

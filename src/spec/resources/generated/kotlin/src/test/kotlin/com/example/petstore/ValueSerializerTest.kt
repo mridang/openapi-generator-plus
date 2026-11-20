@@ -1314,9 +1314,16 @@ class ValueSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvMisc241 a time-of-day query value is sent as HH:mm:ss")
-    fun bhvMisc241TimeOfDayQueryValueIsHhMmSs() {
-        assertEquals("10:20:30", ValueSerializer.serialize(java.time.LocalTime.of(10, 20, 30), "query", "string", null))
+    @DisplayName("bhvMisc241 a time-of-day query value keeps non-zero milliseconds and drops finer precision")
+    fun bhvMisc241TimeOfDayQueryValueKeepsMilliseconds() {
+        assertEquals(
+            "10:20:30.999",
+            ValueSerializer.serialize(java.time.LocalTime.of(10, 20, 30, 999_999_000), "query", "string", null),
+        )
+        assertEquals(
+            "10:20:30",
+            ValueSerializer.serialize(java.time.LocalTime.of(10, 20, 30), "query", "string", null),
+        )
     }
 
     @Test

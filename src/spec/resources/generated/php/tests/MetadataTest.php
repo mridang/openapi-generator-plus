@@ -268,9 +268,38 @@ test('bhv models 018 models whose decimal fields differ only in trailing zeros c
         ->toEqual(ObjectSerializer::deserialize('{"weightKg":1.5}', DryFood::class));
 });
 
+test('bhv models 005 equality includes the additional properties', function (): void {
+    /** @var Metadata $one */
+    $one = ObjectSerializer::deserialize('{"extra":"a"}', Metadata::class);
+    /** @var Metadata $same */
+    $same = ObjectSerializer::deserialize('{"extra":"a"}', Metadata::class);
+    /** @var Metadata $other */
+    $other = ObjectSerializer::deserialize('{"extra":"b"}', Metadata::class);
+
+    expect($one->equals($same))->toBeTrue();
+    expect($one->equals($other))->toBeFalse();
+});
+
 test('bhv models 019 two models with a different value in any field compare unequal', function (): void {
     expect(new Category(id: 1, name: 'Dogs'))->not->toEqual(new Category(id: 1, name: 'Cats'));
     expect(new Category(id: 1, name: 'Dogs'))->not->toEqual(new Category(id: 2, name: 'Dogs'));
+});
+
+test('bhv models 020 models with the same field values compare equal and hash alike so a set or map stores them once', function (): void {
+    $one = new Category(id: 1, name: 'Dogs');
+    $same = new Category(id: 1, name: 'Dogs');
+    $other = new Category(id: 2, name: 'Cats');
+
+    expect($one->equals($same))->toBeTrue();
+    expect($one->hash())->toBe($same->hash());
+    expect($one)->toBeInstanceOf(\Ds\Hashable::class);
+    $set = new \Ds\Set([$one, $same, $other]);
+    expect($set)->toHaveCount(2);
+    $map = new \Ds\Map();
+    $map->put($one, 'first');
+    $map->put($same, 'second');
+    expect($map)->toHaveCount(1);
+    expect($map->get($one))->toBe('second');
 });
 
 test('bhv models 021 each member of an integer backed enum carries its declared number as its value', function (Priority $member, int $declared): void {

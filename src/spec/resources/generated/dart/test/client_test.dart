@@ -699,6 +699,23 @@ void main() {
     );
 
     test(
+      'bhv lifecycle 040 the standard disposal hook closes the client',
+      () async {
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+        );
+
+        client.close();
+
+        await expectLater(
+          client.pet.getPetById(1, null, null),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
+
+    test(
       'bhv lifecycle 037 closing a client while a request is in flight lets that request finish',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -787,6 +804,8 @@ void main() {
         expect(petInterface, contains(' addPetPhotosWithHttpInfo('));
         expect(petInterface, contains(' addPetTreatment('));
         expect(petInterface, contains(' addPetTreatmentWithHttpInfo('));
+        expect(petInterface, contains(' attachPetFiles('));
+        expect(petInterface, contains(' attachPetFilesWithHttpInfo('));
         expect(petInterface, contains(' deletePet('));
         expect(petInterface, contains(' deletePetWithHttpInfo('));
         expect(petInterface, contains(' downloadPetDocument('));
@@ -869,6 +888,8 @@ void main() {
         expect(storeInterface, contains(' deleteOrderWithHttpInfo('));
         expect(storeInterface, contains(' exportOrders('));
         expect(storeInterface, contains(' exportOrdersWithHttpInfo('));
+        expect(storeInterface, contains(' getAuditTrail('));
+        expect(storeInterface, contains(' getAuditTrailWithHttpInfo('));
         expect(storeInterface, contains(' getBySwatch('));
         expect(storeInterface, contains(' getBySwatchWithHttpInfo('));
         expect(storeInterface, contains(' getDefaults('));

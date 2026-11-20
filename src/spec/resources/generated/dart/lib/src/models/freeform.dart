@@ -13,10 +13,17 @@ import '../object_serializer.dart';
 class Freeform {
   final String? label;
 
-  /// Additional properties not defined in the schema.
-  final Map<String, dynamic> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, dynamic> get additionalProperties =>
+      Map.of(_additionalProperties);
 
-  const Freeform({this.label, this.additionalProperties = const {}});
+  final Map<String, dynamic> _additionalProperties;
+
+  const Freeform({
+    this.label,
+    Map<String, dynamic> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
 
   /// Creates a [Freeform] from a JSON map.
   factory Freeform.fromJson(Map<String, dynamic> json) {

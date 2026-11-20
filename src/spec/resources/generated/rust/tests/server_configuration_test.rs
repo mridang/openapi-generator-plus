@@ -635,3 +635,19 @@ fn test_bhv_servers_030_a_value_not_in_the_declared_enum_is_rejected_with_an_err
         result.map(|b| b.build().base_url().to_string())
     );
 }
+
+/* A copy of the variables map can be edited without changing the configuration. */
+#[test]
+fn test_bhv_misc_154_editing_the_variables_map_does_not_change_the_configuration() {
+    let server = server_with_vars();
+    let mut copy = server.variables().clone();
+    copy.insert(
+        "extra".to_string(),
+        ServerVariable::new("x".to_string(), String::new(), vec![]),
+    );
+    copy.remove("env");
+
+    assert_eq!(2, server.variables().len());
+    assert!(server.variables().contains_key("env"));
+    assert!(!server.variables().contains_key("extra"));
+}

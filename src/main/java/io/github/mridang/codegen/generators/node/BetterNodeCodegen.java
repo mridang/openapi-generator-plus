@@ -1874,7 +1874,12 @@ public class BetterNodeCodegen extends AbstractBetterCodegen implements BarrelFi
                 }
                 if (Boolean.TRUE.equals(modelMap.get("hasBufferImport"))
                         && model.vars.stream()
-                                .anyMatch(v -> v.dataType != null && v.dataType.contains("Buffer"))) {
+                                .anyMatch(
+                                v ->
+                                        v.dataType != null
+                                                && v.dataType.contains("Buffer")
+                                                && !v.isBinary
+                                                && !(v.items != null && v.items.isBinary))) {
                     serializerImports.add("decodeBase64");
                 }
                 if (nestsModel) {

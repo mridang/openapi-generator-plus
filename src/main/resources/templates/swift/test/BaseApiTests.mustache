@@ -1465,6 +1465,28 @@ import Testing
         #expect(result.data == Data(json.utf8))
     }
 
+    /* A string result whose response arrives under a binary content type is the decoded body, never the transport's base64 text. */
+    @Test func testBhvMisc081AStringResultUnderABinaryContentTypeIsTheDecodedBody() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = Data("hello".utf8).base64EncodedString()
+        mockClient.responseHeaders = ["Content-Type": "application/pdf"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = PetApi(apiClient: mockClient, config: config)
+        let params = BaseApi.InvokeAPIParams(
+            method: "GET", path: "/items", queryParams: [:],
+            headerParams: [:], body: nil,
+            accepts: ["application/pdf"], contentType: "application/json",
+            returnType: "String", auth: BaseApi.noAuthSentinel)
+        let result = try await api.invokeAPIForResult(params, as: String.self)
+        #expect(result.data == "hello")
+    }
+
+    /* A duration fraction is never trimmed below three digits, so 1.5 seconds is written 1.500s and never 1.5s. */
+    @Test func testBhvMisc256AFractionIsNeverTrimmedBelowThreeDigits() throws {
+        #expect(try ObjectSerializer.encodeDuration(1.5) == "1.500s")
+        #expect(try ObjectSerializer.encodeDuration(1.1) == "1.100s")
+    }
+
     @Test func testBhvRetries003MultipartPartsKeepDeclarationOrder() throws {
         var fields: OrderedParams<Any> = [:]
         let names = ["zulu", "alpha", "mike", "bravo", "yankee", "charlie", "x", "delta", "kilo"]
@@ -2575,12 +2597,17 @@ import Testing
         #expect(text.contains("tags=a&tags=b"))
     }
 
-    /* Multipart field names containing carriage returns, line feeds, NUL or quote characters are rejected rather than written into the header. */
-    @Test(arguments: ["a\r\nb", "a\nb", "a\u{0}b"])
-    func testBhvSerialization123AMultipartNameWithAControlCharacterOrQuoteIsRejected(name: String) {
-        #expect(throws: Error.self) {
-            _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
+    /* A multipart field name containing a carriage return, line feed or NUL is rejected before any request is sent, and a double quote is backslash-escaped. */
+    @Test func testBhvSerialization123AMultipartNameWithAControlCharacterIsRejectedAndAQuoteEscaped() throws {
+        for name in ["a\r\nb", "a\nb", "a\u{0}b"] {
+            #expect(throws: Error.self) {
+                _ = try BaseApi.buildMultipartBody([name: "x"], boundary: "b")
+            }
         }
+        let data = try BaseApi.buildMultipartBody(["a\"b": "x"], boundary: "b")
+        let text = String(decoding: data, as: UTF8.self)
+
+        #expect(text.contains("name=\"a\\\"b\""))
     }
 
     /* Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B. */

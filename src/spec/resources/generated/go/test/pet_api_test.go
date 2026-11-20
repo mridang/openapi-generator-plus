@@ -1099,6 +1099,31 @@ func TestBhvOperations063_PetApi_GetPetAvatarThumbnailRejectsMalformedBase64(t *
 	}
 }
 
+// Per-call options override the options object, and an option that is unset falls through to the object's value.
+func TestBhvMisc050_PetApi_PerCallHeadersOverrideTheOptionsObjectAndUnsetFallsThrough(t *testing.T) {
+	t.Parallel()
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("X-Correlation-Id"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+	object := &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "from-object"}
+
+	if _, err := api.GetPetByName(context.Background(), "rex", object, petstore.WithHeaders(map[string]string{"X-Correlation-Id": "per-call"})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := api.GetPetByName(context.Background(), "rex", object); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen[0] != "per-call" || seen[1] != "from-object" {
+		t.Errorf("expected the per-call value then the object's value, got %v", seen)
+	}
+}
+
 // A name made only of dots is not a dot segment, so it is kept as the path segment.
 func TestBhvOperations064_PetApi_GetPetByNameKeepsANameThatOnlyContainsDots(t *testing.T) {
 	t.Parallel()
@@ -1923,6 +1948,98 @@ func TestBhvOperations080_PetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(
 	}
 	if gotKey != "header-key" || gotAuth != "" {
 		t.Errorf("expected only the api key header, got key %q and authorization %q", gotKey, gotAuth)
+	}
+}
+
+// Each API group of a client holds the default credential and the scheme credentials the client was built with.
+func TestBhvMisc072_PetApi_EveryGroupOfAClientHoldsItsSchemeCredentials(t *testing.T) {
+	t.Parallel()
+	var petKey, storeAuth, storeKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		if strings.HasPrefix(r.URL.Path, "/store/audit") {
+			storeAuth, storeKey = r.Header.Get("Authorization"), r.Header.Get("X-API-Key")
+			_, _ = w.Write([]byte(`{"code":1}`))
+			return
+		}
+		petKey = r.Header.Get("X-API-Key")
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	header, _ := auth.NewApiKeyHeaderAuthenticator(server.URL, "header-key")
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer, ApiKeyHeader: header}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.AddPet(context.Background(), *models.NewPet("Dog", models.Set[string]{"http://example.com/a.jpg"}), nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if _, err := client.Store.GetAuditTrail(context.Background(), nil); err != nil {
+		t.Fatalf("GetAuditTrail failed: %v", err)
+	}
+	if petKey != "header-key" || storeAuth != "Bearer bearer-token" || storeKey != "header-key" {
+		t.Errorf("expected both groups to carry their credentials, got pet key %q, store authorization %q and store key %q", petKey, storeAuth, storeKey)
+	}
+}
+
+// An alternative whose requirement names two schemes sends the credentials of both.
+func TestBhvMisc074_PetApi_ARequirementNamingTwoSchemesSendsBothCredentials(t *testing.T) {
+	t.Parallel()
+	var gotAuth, gotKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotKey = r.Header.Get("Authorization"), r.Header.Get("X-API-Key")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"code":1}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	header, _ := auth.NewApiKeyHeaderAuthenticator(server.URL, "header-key")
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer, ApiKeyHeader: header}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Store.GetAuditTrail(context.Background(), nil); err != nil {
+		t.Fatalf("GetAuditTrail failed: %v", err)
+	}
+	if gotAuth != "Bearer bearer-token" || gotKey != "header-key" {
+		t.Errorf("expected both credentials, got authorization %q and api key %q", gotAuth, gotKey)
+	}
+}
+
+// A declared multipart content type other than form-data reaches the transport unchanged.
+func TestBhvMisc178_PetApi_AMultipartMixedBodyKeepsItsDeclaredType(t *testing.T) {
+	t.Parallel()
+	var gotType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotType = r.Header.Get("Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"code":1}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	caption := "c"
+	if _, err := client.Pet.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{File: strings.NewReader("data"), Caption: &caption}); err != nil {
+		t.Fatalf("AttachPetFiles failed: %v", err)
+	}
+	mediaType, params, err := mime.ParseMediaType(gotType)
+	if err != nil {
+		t.Fatalf("unparsable Content-Type %q: %v", gotType, err)
+	}
+	if mediaType != "multipart/mixed" || params["boundary"] == "" {
+		t.Errorf("expected multipart/mixed with a boundary, got %q", gotType)
 	}
 }
 

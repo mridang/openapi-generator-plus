@@ -625,6 +625,19 @@ paths:
                 reminder:
                   type: string
                   format: date-time
+                # Typed scalar form fields: integer, number, boolean and duration
+                # must each serialize in their canonical wire text.
+                intervalDays:
+                  type: integer
+                  format: int32
+                ratio:
+                  type: number
+                  format: double
+                urgent:
+                  type: boolean
+                snooze:
+                  type: string
+                  format: duration
       responses:
         '200':
           description: Successful operation
@@ -634,6 +647,42 @@ paths:
                 $ref: '#/components/schemas/ApiResponse'
         '404':
           description: Pet not found
+
+  /pet/{petId}/attachments:
+    post:
+      tags:
+        - pet
+      summary: Attach files in a multipart/mixed request
+      description: Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+      operationId: attachPetFiles
+      parameters:
+        - name: petId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/mixed:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                caption:
+                  type: string
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
 
   # ─── Vet documents ───────────────────────────────────────────────────────────
   # Case 2: binary request,  octet-stream  (POST application/octet-stream)
@@ -1373,6 +1422,24 @@ paths:
                 $ref: '#/components/schemas/Order'
         '400':
           description: Invalid Order
+
+  /store/audit:
+    get:
+      tags:
+        - store
+      summary: Read the audit trail, which needs a bearer token and an API key together
+      description: One security requirement that names two schemes, so a request carries both credentials.
+      operationId: getAuditTrail
+      security:
+        - petStoreBearer: []
+          apiKeyHeader: []
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
 
   /store/reservation:
     post:

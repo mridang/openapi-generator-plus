@@ -7,6 +7,8 @@ module Petstore::Client
       def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def export_orders: (?Options::ExportOrdersOptions? options) -> Models::Order
       def export_orders_with_http_info: (?Options::ExportOrdersOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
+      def get_audit_trail: (?Options::GetAuditTrailOptions? options) -> Models::ApiResponse
+      def get_audit_trail_with_http_info: (?Options::GetAuditTrailOptions? options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
       def get_by_swatch_with_http_info: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Category]
       def get_defaults: (?Options::GetDefaultsOptions? options) -> Models::Defaults
@@ -54,6 +56,8 @@ module Petstore::Client
       def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
       def export_orders: (?Options::ExportOrdersOptions? options) -> Models::Order
       def export_orders_with_http_info: (?Options::ExportOrdersOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
+      def get_audit_trail: (?Options::GetAuditTrailOptions? options) -> Models::ApiResponse
+      def get_audit_trail_with_http_info: (?Options::GetAuditTrailOptions? options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
       def get_by_swatch_with_http_info: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Category]
       def get_defaults: (?Options::GetDefaultsOptions? options) -> Models::Defaults

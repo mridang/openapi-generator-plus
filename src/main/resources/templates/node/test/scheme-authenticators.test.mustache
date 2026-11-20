@@ -167,6 +167,14 @@ describe('SchemeAuthenticators', () => {
     expectEmptyVariableNamed('SessionCookieAuthenticator');
   });
 
+  it('bhv authscheme 008 the SsoAuth scheme authenticator treats an empty environment variable as unset and names it', () => {
+    const names = schemeClassesOf('OpenIdConnectAuthenticator').filter((name) => environmentSchemes.some(([known]) => known === name));
+    expect(names.length).toBeGreaterThan(0);
+    for (const name of names) {
+      expectEmptyVariableNamed(name);
+    }
+  });
+
   it('bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable', () => {
     const names = schemeClassesOf('BearerAuthenticator').filter((name) => environmentSchemes.some(([known]) => known === name));
     expect(names.length).toBeGreaterThan(0);

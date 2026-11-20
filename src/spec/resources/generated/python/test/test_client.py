@@ -769,6 +769,8 @@ class TestMocking:
         assert "add_pet_photos_with_http_info" in pet_listed
         assert "add_pet_treatment" in pet_listed
         assert "add_pet_treatment_with_http_info" in pet_listed
+        assert "attach_pet_files" in pet_listed
+        assert "attach_pet_files_with_http_info" in pet_listed
         assert "delete_pet" in pet_listed
         assert "delete_pet_with_http_info" in pet_listed
         assert "download_pet_document" in pet_listed
@@ -837,6 +839,8 @@ class TestMocking:
         assert "delete_order_with_http_info" in store_listed
         assert "export_orders" in store_listed
         assert "export_orders_with_http_info" in store_listed
+        assert "get_audit_trail" in store_listed
+        assert "get_audit_trail_with_http_info" in store_listed
         assert "get_by_swatch" in store_listed
         assert "get_by_swatch_with_http_info" in store_listed
         assert "get_defaults" in store_listed

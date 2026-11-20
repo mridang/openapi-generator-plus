@@ -388,6 +388,33 @@ func TestBhvTracing013_BaseApi_OperationSendsTheTraceparentOfTheCallersSpan(t *t
 	}
 }
 
+// slowAuth builds its headers only after a delay, as an authenticator does while it waits on a token.
+type slowAuth struct{ delay time.Duration }
+
+func (a *slowAuth) Host() string { return "" }
+func (a *slowAuth) AuthHeaders() map[string]string {
+	time.Sleep(a.delay)
+	return map[string]string{"Authorization": "Bearer slow"}
+}
+func (a *slowAuth) QueryParams() map[string]string  { return map[string]string{} }
+func (a *slowAuth) CookieParams() map[string]string { return map[string]string{} }
+
+// The span still reaches traceparent when building the headers first waits on the credentials.
+func TestBhvTracing014_BaseApi_TheSpanReachesTraceparentWhenTheCredentialsAreSlow(t *testing.T) {
+	registerW3CTracePropagator(t)
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, &slowAuth{delay: 50 * time.Millisecond}, {{packageName}}.Credentials{})
+
+	ctx, want := startCallerSpan(t, context.Background())
+	if _, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := client.capturedHeaders["traceparent"]; got != want {
+		t.Errorf("traceparent header = %q, want %q", got, want)
+	}
+}
+
 // Concurrent operations each send the traceparent of their own caller's span.
 func TestBhvTracing015_BaseApi_ConcurrentOperationsSendTheirOwnCallersTraceparent(t *testing.T) {
 	registerW3CTracePropagator(t)
@@ -1413,6 +1440,24 @@ func TestBhvSerializationwire018_BaseApi_BinaryResponse_OctetStreamDecodedFromBa
 	}
 }
 
+// A binary return type gets the raw bytes of a JSON body.
+func TestBhvSerializationwire060_BaseApi_BinaryReturnGetsTheRawBytesOfAJsonBody(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        `{"a":1}`,
+		responseContentType: "application/json",
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	got, err := api.GetPetAvatarThumbnail(context.Background(), int64(1))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(got) != `{"a":1}` {
+		t.Errorf("expected the raw JSON bytes, got %q", got)
+	}
+}
+
 // encodeBase64 encodes bytes to a standard base64 string.
 // Query names and values percent-encode reserved characters, so a value cannot add
 // a parameter of its own.
@@ -1608,6 +1653,41 @@ func TestBhvErrors035_BaseApi_BinaryResponse_TextPlainBodyForModelReturnIsASeria
 	}
 	if got != nil {
 		t.Errorf("expected no model for a plain-text body, got %+v", got)
+	}
+}
+
+func TestBhvMisc081_BaseApi_StringResultUnderBinaryContentTypeIsTheDecodedBody(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "aGVsbG8=",
+		responseContentType: "application/pdf",
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	got, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{Session: "s"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "hello" {
+		t.Errorf("expected the decoded body hello, got %q", got)
+	}
+}
+
+// A text/plain response is returned as the raw text and is never decoded, even when the text looks like base64.
+func TestBhvOperations161_BaseApi_TextPlainResponseIsReturnedRaw(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "aGVsbG8=",
+		responseContentType: "text/plain",
+	}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+	got, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{Session: "s"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "aGVsbG8=" {
+		t.Errorf("expected the raw text, got %q", got)
 	}
 }
 
@@ -2276,6 +2356,41 @@ func TestBhvAuthintegration001_BaseApi_AFailedReauthenticationLeavesTheOriginal4
 	}
 	if got := srv.apiHits.Load(); got != 1 {
 		t.Errorf("expected no replay without a new token, got %d requests", got)
+	}
+}
+
+// A streamed request body is sent only once: after a 401 that invalidates the token, the request is not replayed.
+func TestBhvRetries045_BaseApi_AStreamedBodyIsNotReplayedAfterA401(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	_, err := client.Pet.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{File: strings.NewReader("streamed")})
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 1 {
+		t.Errorf("expected the streamed body to be sent once, got %d requests", got)
+	}
+}
+
+// A call whose required argument is nil raises an argument error that names that argument, and nothing is sent.
+func TestBhvMisc012_BaseApi_ANilRequiredFileNamesTheArgumentAndSendsNothing(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+
+	_, err := api.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{})
+	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "'file'") {
+		t.Errorf("expected the error to name the file argument, got %q", err.Error())
+	}
+	if client.capturedURL != "" {
+		t.Errorf("expected nothing to be sent, got a request to %q", client.capturedURL)
 	}
 }
 

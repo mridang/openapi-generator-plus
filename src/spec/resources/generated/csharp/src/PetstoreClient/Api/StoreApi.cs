@@ -23,6 +23,8 @@ public class StoreApi : BaseApi, IStoreApi
 
     private static readonly string[] ExportOrdersAccepts = ["application/x-ndjson"];
 
+    private static readonly string[] GetAuditTrailAccepts = ["application/json"];
+
     private static readonly string[] GetBySwatchAccepts = ["application/json"];
 
     private static readonly string[] GetDefaultsAccepts = ["application/json"];
@@ -317,6 +319,87 @@ public class StoreApi : BaseApi, IStoreApi
                 operationName: "StoreApi.ExportOrders",
                 operationId: "exportOrders",
                 urlTemplate: "/store/orders/export",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Read the audit trail, which needs a bearer token and an API key together
+    /// </summary>
+    /// <remarks>One security requirement that names two schemes, so a request carries both credentials.</remarks>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[ApiResponse]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResponse> GetAuditTrailAsync(
+        GetAuditTrailOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<ApiResponse>> task = GetAuditTrailWithHttpInfoAsync(
+            options,
+            cancellationToken
+        );
+        ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for GetAuditTrail but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Read the audit trail, which needs a bearer token and an API key together (with HTTP info)
+    /// </summary>
+    /// <remarks>One security requirement that names two schemes, so a request carries both credentials.</remarks>
+    /// <param name="options">Options carrying the per-call timeout, headers and retry budget.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<ApiResponse>> GetAuditTrailWithHttpInfoAsync(
+        GetAuditTrailOptions? options = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        string path = "/store/audit";
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+
+        return await InvokeApiForResultAsync<ApiResponse>(
+                "GET",
+                path,
+                queryParams,
+                headerParams,
+                null,
+                GetAuditTrailAccepts,
+                "application/json",
+                typeof(ApiResponse),
+                ResolveSchemeAuth("petStoreBearer", "apiKeyHeader"),
+                cancellationToken: cancellationToken,
+                operationName: "StoreApi.GetAuditTrail",
+                operationId: "getAuditTrail",
+                urlTemplate: "/store/audit",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries

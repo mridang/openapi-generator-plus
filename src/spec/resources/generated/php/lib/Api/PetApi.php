@@ -22,6 +22,7 @@ use PetstoreClient\ValueSerializer;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
+use PetstoreClient\Api\Options\AttachPetFilesOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\DownloadPetDocumentOptions;
 use PetstoreClient\Api\Options\FindPetsBornOnOptions;
@@ -311,6 +312,101 @@ class PetApi extends BaseApi implements PetApiInterface
             securityRequirements: [['petstore_auth']],
             operationId: 'addPetTreatment',
             urlTemplate: '/pet/{petId}/treatment',
+        );
+        return $result;
+    }
+
+    /**
+     * Attach files in a multipart/mixed request
+     * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+     * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function attachPetFiles(int $petId, AttachPetFilesOptions $options): \PetstoreClient\Models\ApiResponse
+    {
+        $apiResult = $this->attachPetFilesWithHttpInfo($petId, $options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for attachPetFiles but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\ApiResponse $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function attachPetFilesWithHttpInfo(int $petId, AttachPetFilesOptions $options): ApiResult
+    {
+        $path = '/pet/{petId}/attachments';
+        /** @var string $pathValue */
+        $pathValue = ValueSerializer::serializeStyled(
+            'petId',
+            $petId,
+            'path',
+            'int',
+            null,
+            'simple',
+            false,
+        );
+        /* URL-encode the styled value for use as a URL path segment, preserving
+         * sub-delimiters used by OAS 3.0 matrix/label/simple styles. */
+        $pathValue = strtr(rawurlencode($pathValue), [
+            '%3B' => ';', '%3D' => '=', '%2C' => ',', '%3A' => ':',
+            '%40' => '@', '%21' => '!', '%24' => '$', '%26' => '&',
+            '%27' => "'", '%28' => '(', '%29' => ')', '%2A' => '*',
+            '%2B' => '+',
+        ]);
+        $path = str_replace('{' . 'petId' . '}', $pathValue, $path);
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = [];
+        $requestBody['file'] = $options->file;
+        if ($options->caption !== null) {
+            $requestBody['caption'] = $options->caption;
+        }
+
+        /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */
+        $result = $this->invokeApiForResult(
+            'POST',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/json'],
+            'multipart/mixed',
+            \PetstoreClient\Models\ApiResponse::class,
+            /* The security requirement is passed below as scheme ids; null lets
+             * BaseApi pick the credential of the scheme the operation requires. */
+            null,
+            $allowReservedKeys,
+            timeout: $options->timeout,
+            headers: $options->headers,
+            maxRetries: $options->maxRetries,
+            securityRequirements: [['petStoreBasic'], ['petStoreBearer']],
+            operationId: 'attachPetFiles',
+            urlTemplate: '/pet/{petId}/attachments',
         );
         return $result;
     }
@@ -2333,6 +2429,18 @@ class PetApi extends BaseApi implements PetApiInterface
         }
         if ($options->reminder instanceof \DateTime) {
             $requestBody['reminder'] = $options->reminder;
+        }
+        if ($options->intervalDays !== null) {
+            $requestBody['intervalDays'] = $options->intervalDays;
+        }
+        if ($options->ratio !== null) {
+            $requestBody['ratio'] = $options->ratio;
+        }
+        if ($options->urgent !== null) {
+            $requestBody['urgent'] = $options->urgent;
+        }
+        if ($options->snooze instanceof \DateInterval) {
+            $requestBody['snooze'] = $options->snooze;
         }
 
         /** @var ApiResult<\PetstoreClient\Models\ApiResponse> $result */

@@ -799,6 +799,31 @@ async fn test_bhv_authoauthtwotokenmgr_034_token_post_uses_no_redirect() {
     );
 }
 
+/// misc185: stopping twice is a no-op, and a token request after stop fails with a typed error
+/// and a fixed message.
+#[tokio::test(flavor = "multi_thread")]
+async fn test_bhv_misc_185_stopping_twice_is_a_no_op_and_a_token_request_after_stop_fails_with_a_typed_error() {
+    let client = Arc::new(FakeApiClient::new());
+    client.enqueue(r#"{"access_token":"tok","expires_in":3600}"#, 200);
+    let manager = OAuth2TokenManager::new();
+    manager.set_api_client(client.clone());
+    manager.stop();
+    manager.stop();
+
+    let mut params = HashMap::new();
+    params.insert("grant_type".to_string(), "client_credentials".to_string());
+    let err = manager
+        .get_access_token("https://auth.example.com/token", &params)
+        .await
+        .expect_err("a stopped manager must refuse a token request");
+
+    let typed = err
+        .downcast_ref::<OAuth2TokenError>()
+        .expect("an OAuth2TokenError");
+    assert!(typed.to_string().contains("The token manager has been stopped."), "{}", typed);
+    assert_eq!(0, client.requests().len());
+}
+
 /// misc172: a token request is sent once, even when the token endpoint answers 503,
 /// which a retrying call would repeat.
 #[tokio::test(flavor = "multi_thread")]

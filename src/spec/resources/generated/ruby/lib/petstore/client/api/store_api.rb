@@ -159,6 +159,51 @@ module Petstore::Client
         )
       end
 
+      # Read the audit trail, which needs a bearer token and an API key together
+      # One security requirement that names two schemes, so a request carries both credentials.
+      # @param options [GetAuditTrailOptions] per-call options: the optional timeout, headers and max_retries
+      # @return [ApiResponse]
+      # @raise [ApiError] if fails to make API call
+      def get_audit_trail(options = nil)
+        result = get_audit_trail_with_http_info(options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for get_audit_trail but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def get_audit_trail_with_http_info(options = nil)
+        path = '/store/audit'
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        request_body = nil
+        invoke_api_for_result(
+          :GET, path, query_params, header_params, request_body,
+          ['application/json'],
+          'application/json',
+          'ApiResponse',
+          scheme_authenticator('petStoreBearer', 'apiKeyHeader'),
+          operation_id: 'StoreApi.get_audit_trail',
+          spec_operation_id: 'getAuditTrail',
+          url_template: '/store/audit',
+          request_options: options
+        )
+      end
+
       # Echoes a swatch supplied via path, query and header parameters.
       # @param path_swatch [Swatch]
       # @param options [GetBySwatchOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters

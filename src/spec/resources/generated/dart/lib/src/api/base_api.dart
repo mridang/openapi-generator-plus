@@ -92,6 +92,34 @@ class BaseApi {
     return null;
   }
 
+  /// The authenticator for an operation whose security block lists [groups]:
+  /// each group is one requirement, so a group of several schemes needs the
+  /// credentials of all of them and a request carries every one. The first
+  /// group the client holds every credential of wins, else the first group it
+  /// holds at least one credential of; null when it holds none.
+  Authenticator? requirementAuthenticator(List<List<String>> groups) {
+    List<Authenticator>? partial;
+    for (final group in groups) {
+      final held = <Authenticator>[
+        for (final name in group)
+          if (_schemes[name] != null) _schemes[name]!,
+      ];
+      if (held.isEmpty) {
+        continue;
+      }
+      if (held.length == group.length) {
+        return held.length == 1 ? held.first : _AllOfAuthenticator.of(held);
+      }
+      partial ??= held;
+    }
+    if (partial == null) {
+      return null;
+    }
+    return partial.length == 1
+        ? partial.first
+        : _AllOfAuthenticator.of(partial);
+  }
+
   /// Optional authenticator for request-level auth when not passed per-call.
   final Authenticator? _authenticator;
 
@@ -202,6 +230,7 @@ class BaseApi {
       );
     }
     final targetUrl = _urlFor(config.baseUrl, path);
+    final multipartType = _multipartTypeOf(contentType);
     /* The path the errors name: the base path prefix and the operation path,
      * with no scheme, host, query or fragment. */
     final requestPath = _requestPathOf(targetUrl);
@@ -236,6 +265,10 @@ class BaseApi {
     /* Only the first attempt rides on that admission. A retry or a replay is
      * a new send, so it is refused once the client has been closed. */
     var first = true;
+    final client = apiClient;
+    final budgetMs =
+        timeout ?? (client is RetryingApiClient ? client.timeoutMillis : null);
+    final clock = Stopwatch()..start();
     /* One attempt: everything that depends on the credentials (query
      * parameters, headers, cookies) is built afresh, so a replay or a retry
      * is a new request that carries current authentication, never a copy of
@@ -255,7 +288,7 @@ class BaseApi {
         requestUrl = '$requestUrl?$queryString';
       }
 
-      final isMultipart = contentType == 'multipart/form-data';
+      final isMultipart = multipartType != null && body is Map<String, Object?>;
       final headers = _headerSelector.selectHeaders(
         accepts,
         contentType,
@@ -322,10 +355,9 @@ class BaseApi {
       run.beforeSend(method, targetUrl, headers, authNames);
 
       final Uint8List? serializedBody;
-      if (contentType == 'multipart/form-data' &&
-          body is Map<String, Object?>) {
+      if (multipartType != null && body is Map<String, Object?>) {
         final boundary = _generateUuid();
-        headers['Content-Type'] = 'multipart/form-data; boundary=$boundary';
+        headers['Content-Type'] = '$multipartType; boundary=$boundary';
         serializedBody = _buildMultipartBody(body, boundary);
       } else {
         serializedBody = _serializeBody(body, contentType, rawBody: rawBody);
@@ -334,6 +366,13 @@ class BaseApi {
         headers.removeWhere((name, _) => name.toLowerCase() == 'content-type');
       }
 
+      /* A deadline that passed while the credentials were being obtained is a
+       * timeout, and the request never reaches the transport. */
+      if (budgetMs != null && clock.elapsedMilliseconds >= budgetMs) {
+        throw NetworkTimeoutException(
+          message: 'Request timed out after $budgetMs ms',
+        );
+      }
       final send = first && admitting != null
           ? admitting.sendAdmittedRequest
           : apiClient.sendRequest;
@@ -346,14 +385,10 @@ class BaseApi {
       );
     }
 
-    final client = apiClient;
     final maxRetriesLeft =
         maxRetries ?? (client is RetryingApiClient ? client.maxRetries : 0);
-    final budgetMs =
-        timeout ?? (client is RetryingApiClient ? client.timeoutMillis : null);
     /* A multipart body is never sent twice. */
-    final replayable = contentType != 'multipart/form-data';
-    final clock = Stopwatch()..start();
+    final replayable = multipartType == null;
     var retries = 0;
     var reauthenticated = false;
     final Object? credential = effectiveAuth;
@@ -753,6 +788,17 @@ class BaseApi {
         } else if (returnType == 'String' &&
             _isTextContentType(responseContentType)) {
           data = response.body as T?;
+        } else if (returnType == 'String') {
+          /* A string result under a binary content type: the transport carries
+           * the bytes as base64 text, which is an internal carrier and never
+           * reaches the caller; return the decoded bytes as text. */
+          try {
+            data =
+                utf8.decode(base64Decode(response.body), allowMalformed: true)
+                    as T?;
+          } on FormatException {
+            data = response.body as T?;
+          }
         } else if (responseContentType.isEmpty ||
             _headerSelector.isJsonMime(responseContentType)) {
           /* A JSON body with no deserializer supplied leaves data null;
@@ -866,6 +912,19 @@ class BaseApi {
         : encodeRfc3986QueryComponent(value);
   }
 
+  /// The media type a multipart request goes out under, or null when
+  /// [contentType] is not a multipart type. A declared subtype such as
+  /// `multipart/mixed` is kept; a value that is not a plain `multipart/<token>`
+  /// falls back to `multipart/form-data` so it can never reach a header.
+  static String? _multipartTypeOf(String contentType) {
+    if (!contentType.startsWith('multipart/')) {
+      return null;
+    }
+    return RegExp(r"^multipart/[A-Za-z0-9!#$&^_.+-]+$").hasMatch(contentType)
+        ? contentType
+        : 'multipart/form-data';
+  }
+
   /// Serialize the request body based on content type.
   ///
   /// Binary content types (image/* or application/octet-stream) pass the body
@@ -892,7 +951,9 @@ class BaseApi {
       if (body is String) return Uint8List.fromList(utf8.encode(body));
     }
 
-    if (contentType == 'multipart/form-data') {
+    if (contentType == 'multipart/form-data' ||
+        (_multipartTypeOf(contentType) != null &&
+            body is Map<String, Object?>)) {
       return null;
     }
 
@@ -1214,4 +1275,74 @@ class _CallRun {
         for (final entry in headers.entries)
           entry.key.toLowerCase(): entry.value,
       });
+}
+
+/* The credentials of every scheme one security requirement names together:
+ * headers, query parameters and cookies of all of them are sent. */
+class _AllOfAuthenticator implements Authenticator, HttpAwareAuthenticator {
+  _AllOfAuthenticator(this._parts);
+
+  /// The composite of [parts]; one that can drop a cached access token is
+  /// returned as such, so a 401 replays the request only when a part holds one.
+  static Authenticator of(List<Authenticator> parts) => parts.any(_invalidates)
+      ? _AllOfInvalidatingAuthenticator(parts)
+      : _AllOfAuthenticator(parts);
+
+  static bool _invalidates(Authenticator part) {
+    final Object candidate = part;
+    return candidate is AccessTokenInvalidating;
+  }
+
+  final List<Authenticator> _parts;
+
+  @override
+  String host() => _parts.first.host();
+
+  @override
+  Map<String, String> authHeaders() => {
+    for (final part in _parts) ...part.authHeaders(),
+  };
+
+  @override
+  Future<Map<String, String>> authHeadersAsync() async {
+    final merged = <String, String>{};
+    for (final part in _parts) {
+      merged.addAll(await part.authHeadersAsync());
+    }
+    return merged;
+  }
+
+  @override
+  Map<String, String> queryParams() => {
+    for (final part in _parts) ...part.queryParams(),
+  };
+
+  @override
+  Map<String, String> cookieParams() => {
+    for (final part in _parts) ...part.cookieParams(),
+  };
+
+  @override
+  void setApiClient(ApiClient client) {
+    for (final part in _parts) {
+      if (part is HttpAwareAuthenticator) {
+        part.setApiClient(client);
+      }
+    }
+  }
+}
+
+class _AllOfInvalidatingAuthenticator extends _AllOfAuthenticator
+    implements AccessTokenInvalidating {
+  _AllOfInvalidatingAuthenticator(super.parts);
+
+  @override
+  void invalidateAccessToken() {
+    for (final part in _parts) {
+      final Object candidate = part;
+      if (candidate is AccessTokenInvalidating) {
+        candidate.invalidateAccessToken();
+      }
+    }
+  }
 }

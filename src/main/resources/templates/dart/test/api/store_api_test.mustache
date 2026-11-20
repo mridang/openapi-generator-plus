@@ -47,6 +47,45 @@ void main() {
   });
 
   group('StoreApi', () {
+    test('bhv misc 074 an alternative that names two schemes sends the credentials of both', () async {
+      final received = <String, String>{};
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.headers.forEach((name, values) => received[name] = values.join(','));
+        request.response
+          ..statusCode = 200
+          ..headers.contentType = ContentType.json
+          ..write('{}')
+          ..close();
+      });
+
+      try {
+        final config =
+            ConfigurationBuilder().baseUrl('http://localhost:${server.port}').build();
+        final api = StoreApi(
+          apiClient: DefaultApiClient(),
+          config: config,
+          schemeAuthenticators: {
+            'petStoreBearer':
+                BearerAuthenticator(host: 'localhost', token: 'bearer-token'),
+            'apiKeyHeader': ApiKeyAuthenticator(
+              host: 'localhost',
+              keyParamName: 'X-API-Key',
+              apiKey: 'key-token',
+              location: ApiKeyLocation.header,
+            ),
+          },
+        );
+
+        await api.getAuditTrail(null);
+
+        expect(received['authorization'], equals('Bearer bearer-token'));
+        expect(received['x-api-key'], equals('key-token'));
+      } finally {
+        await server.close();
+      }
+    });
+
     test('bhv langdart 004 searchStore expands a uniqueItems query array into repeated pairs', () async {
       String? query;
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

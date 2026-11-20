@@ -58,6 +58,18 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>GetAuditTrail</c> operation.</summary>
+    Task<ApiResponse> GetAuditTrailAsync(
+        GetAuditTrailOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>GetAuditTrail</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<ApiResponse>> GetAuditTrailWithHttpInfoAsync(
+        GetAuditTrailOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>GetBySwatch</c> operation.</summary>
     Task<Category> GetBySwatchAsync(
         Swatch pathSwatch,

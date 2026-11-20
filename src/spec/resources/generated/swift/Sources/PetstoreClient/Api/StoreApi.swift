@@ -179,6 +179,57 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     return try await invokeAPIForResult(params, as: Order.self)
   }
 
+  /// Read the audit trail, which needs a bearer token and an API key together
+  /// One security requirement that names two schemes, so a request carries both credentials.
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func getAuditTrail(options: GetAuditTrailOptions? = nil) async throws -> ApiResponse {
+    let result = try await getAuditTrailWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for getAuditTrail but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the getAuditTrail operation and returns the full API result.
+  public func getAuditTrailWithHTTPInfo(options: GetAuditTrailOptions? = nil) async throws
+    -> ApiResult<ApiResponse>
+  {
+
+    let path = "/store/audit"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/json"],
+      contentType: "application/json",
+      returnType: "ApiResponse",
+      auth: schemeAuthenticator(["petStoreBearer", "apiKeyHeader"]),
+      operation: "StoreApi.getAuditTrail",
+      operationId: "getAuditTrail",
+      urlTemplate: "/store/audit",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: ApiResponse.self)
+  }
+
   /// Echoes a swatch supplied via path, query and header parameters.
   ///
   /// - Parameters:

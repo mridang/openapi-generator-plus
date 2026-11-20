@@ -2194,6 +2194,24 @@ defmodule PetstoreClient.Api.PetApiTest do
     end
 
     @impl true
+    def attach_pet_files(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :attach_pet_files, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
+    def attach_pet_files!(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :attach_pet_files!, [pet_id]})
+      raise failure()
+    end
+
+    @impl true
+    def attach_pet_files_with_http_info(_api, pet_id, _options, _opts \\ []) do
+      send(self(), {:called, :attach_pet_files_with_http_info, [pet_id]})
+      {:error, failure()}
+    end
+
+    @impl true
     def delete_pet(_api, pet_id, _options \\ nil, _opts \\ []) do
       send(self(), {:called, :delete_pet, [pet_id]})
       {:error, failure()}
@@ -2836,5 +2854,12 @@ defmodule PetstoreClient.Api.PetApiTest do
 
     refute PetstoreClient.Errors.ApiError.api_error?(error)
     Agent.stop(name)
+  end
+
+  test "bhv misc 010 an operation whose options have required fields refuses a call that omits the options argument",
+       %{api: api} do
+    assert_raise UndefinedFunctionError, fn ->
+      apply(PetstoreClient.Api.PetApi, :get_pet_by_note, [api])
+    end
   end
 end

@@ -109,8 +109,8 @@ final class ValueSerializer {
     }
 
     if ("query".equals(location) && value instanceof java.time.LocalTime time) {
-      /* A time-of-day query value is HH:mm:ss; the milliseconds are dropped. */
-      return String.format("%02d:%02d:%02d", time.getHour(), time.getMinute(), time.getSecond());
+      /* A time-of-day query value keeps non-zero milliseconds and drops finer precision. */
+      return ObjectSerializer.formatTime(time);
     }
 
     String str = ObjectSerializer.stringify(value);

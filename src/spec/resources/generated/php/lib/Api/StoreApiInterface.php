@@ -17,6 +17,7 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Api\Options\CreateAccountOptions;
 use PetstoreClient\Api\Options\DeleteOrderOptions;
 use PetstoreClient\Api\Options\ExportOrdersOptions;
+use PetstoreClient\Api\Options\GetAuditTrailOptions;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
 use PetstoreClient\Api\Options\GetDefaultsOptions;
 use PetstoreClient\Api\Options\GetDepartmentOptions;
@@ -92,6 +93,21 @@ interface StoreApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function exportOrdersWithHttpInfo(?ExportOrdersOptions $options = null): ApiResult;
+
+    /**
+     * Read the audit trail, which needs a bearer token and an API key together
+     * One security requirement that names two schemes, so a request carries both credentials.
+     * @param GetAuditTrailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getAuditTrail(?GetAuditTrailOptions $options = null): \PetstoreClient\Models\ApiResponse;
+
+    /**
+     * @param GetAuditTrailOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function getAuditTrailWithHttpInfo(?GetAuditTrailOptions $options = null): ApiResult;
 
     /**
      * Echoes a swatch supplied via path, query and header parameters.

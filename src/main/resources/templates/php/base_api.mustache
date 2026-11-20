@@ -402,7 +402,7 @@ class BaseApi
             }
 
             try {
-                $data = $this->decodeSuccessBody($response, $returnType, $successTypes);
+                $data = $this->decodeSuccessBody($response, $returnType, $successTypes, $operationId);
             } catch (SerializationException $e) {
                 throw $e->withResponse(
                     $response->statusCode,
@@ -509,11 +509,12 @@ class BaseApi
      * @param string|null               $returnType   the return type of the operation
      * @param array<int|string, string> $successTypes the model type of each success status
      *                                                of an operation with several 2xx responses
+     * @param string|null               $operationId  the operation id, named in an unexpected-content-type error
      *
      * @return mixed the decoded body, or null for an empty body
      * @throws SerializationException when the body cannot be decoded as the return type
      */
-    private function decodeSuccessBody(ApiHttpResponse $response, ?string $returnType, array $successTypes): mixed
+    private function decodeSuccessBody(ApiHttpResponse $response, ?string $returnType, array $successTypes, ?string $operationId = null): mixed
     {
         $data = null;
         if (trim($response->body) !== '') {
@@ -536,8 +537,9 @@ class BaseApi
                  * non-JSON text body, and handing back the raw string in its
                  * place would give the caller the wrong type. */
                 throw new SerializationException(
-                    "Cannot deserialize a response with Content-Type '" . $respContentType
-                        . "' as " . $returnType . '; expected a JSON body'
+                    "Unexpected response Content-Type '" . $respContentType
+                        . "' for " . (new \ReflectionClass($this))->getShortName() . '.' . ($operationId ?? '')
+                        . ': expected a JSON body'
                 );
             }
             /* A void operation has no return type and ignores a non-JSON success body. */

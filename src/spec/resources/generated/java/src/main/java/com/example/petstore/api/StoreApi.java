@@ -14,6 +14,7 @@ import com.example.petstore.Configuration;
 import com.example.petstore.api.options.CreateAccountOptions;
 import com.example.petstore.api.options.DeleteOrderOptions;
 import com.example.petstore.api.options.ExportOrdersOptions;
+import com.example.petstore.api.options.GetAuditTrailOptions;
 import com.example.petstore.api.options.GetBySwatchOptions;
 import com.example.petstore.api.options.GetDefaultsOptions;
 import com.example.petstore.api.options.GetDepartmentOptions;
@@ -36,6 +37,7 @@ import com.example.petstore.api.options.WatchOrdersOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Account;
+import com.example.petstore.models.ApiResponse;
 import com.example.petstore.models.Category;
 import com.example.petstore.models.Defaults;
 import com.example.petstore.models.Department;
@@ -62,6 +64,9 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
 
   private static final java.lang.reflect.Type exportOrdersTypeRef =
       new TypeReference<Order>() {}.getType();
+
+  private static final java.lang.reflect.Type getAuditTrailTypeRef =
+      new TypeReference<ApiResponse>() {}.getType();
 
   private static final java.lang.reflect.Type getBySwatchTypeRef =
       new TypeReference<Category>() {}.getType();
@@ -430,6 +435,87 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         "exportOrders",
         "/store/orders/export");
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResponse getAuditTrail() {
+    return getAuditTrail(null);
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<ApiResponse> getAuditTrailWithHttpInfo() {
+    return getAuditTrailWithHttpInfo(null);
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together One security
+   * requirement that names two schemes, so a request carries both credentials.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResponse getAuditTrail(@Nullable GetAuditTrailOptions options) {
+    return requireBody(getAuditTrailWithHttpInfo(options), "getAuditTrail");
+  }
+
+  /**
+   * Read the audit trail, which needs a bearer token and an API key together One security
+   * requirement that names two schemes, so a request carries both credentials.
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code ApiResponse}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<ApiResponse> getAuditTrailWithHttpInfo(@Nullable GetAuditTrailOptions options) {
+    String path = "/store/audit";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "getAuditTrail",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/json"},
+        "application/json",
+        getAuditTrailTypeRef,
+        resolveSchemeAuth("petStoreBearer", "apiKeyHeader"),
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "getAuditTrail",
+        "/store/audit");
   }
 
   /**

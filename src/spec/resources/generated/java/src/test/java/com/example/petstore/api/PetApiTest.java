@@ -1711,6 +1711,20 @@ class PetApiTest {
   }
 
   @Test
+  void bhvMisc176ARequiredCookieParameterIsSentInTheCookieHeaderWithItsValue() throws Exception {
+    SummaryRecording recording = new SummaryRecording();
+    PetApi petApi =
+        new PetApi(recording, Configuration.builder().baseUrl("http://localhost").build());
+
+    petApi.getPetSummary(
+        7L,
+        LocalDate.of(2024, 1, 15),
+        new com.example.petstore.api.options.GetPetSummaryOptions("tok"));
+
+    assertThat(recording.capturedHeaders).containsEntry("Cookie", "session=tok");
+  }
+
+  @Test
   void bhvOperations056GetPetSummaryRefusesAnEmptyRequiredCookieBeforeSending() throws Exception {
     SummaryRecording recording = new SummaryRecording();
     PetApi petApi =

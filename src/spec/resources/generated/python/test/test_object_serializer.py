@@ -843,6 +843,14 @@ class TestSetSanitization:
         assert '"values":[1,2,3]' in result
         assert "{1, 2, 3}" not in result
 
+    def test_bhv_serializationobject_015_a_unique_items_array_of_strings_is_written_sorted(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer().serialize({"tags": {"zebra", "apple", "mango"}})
+            == '{"tags":["apple","mango","zebra"]}'
+        )
+
     def test_bhv_lang_python_121_frozenset_serializes_as_json_array(self) -> None:
         result = ObjectSerializer().serialize({"values": frozenset({"b", "a"})})
         assert '"values":["a","b"]' in result
@@ -2255,7 +2263,7 @@ class TestDecodeValidates:
                 '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
             )
 
-    def test_bhv_misc_091_a_value_outside_the_declared_constraints_is_rejected(
+    def test_bhv_lang_python_216_a_value_outside_the_declared_constraints_is_rejected(
         self,
     ) -> None:
         with pytest.raises(SerializationException):
@@ -2419,6 +2427,15 @@ class TestTimeFormat:
         assert (
             ObjectSerializer.stringify(datetime.time(9, 5, 3, 500000)) == "09:05:03.500"
         )
+
+    def test_bhv_misc_241_a_time_of_day_query_value_keeps_milliseconds_and_drops_finer_precision(
+        self,
+    ) -> None:
+        assert (
+            ObjectSerializer.stringify(datetime.time(10, 20, 30, 999999))
+            == "10:20:30.999"
+        )
+        assert ObjectSerializer.stringify(datetime.time(10, 20, 30)) == "10:20:30"
 
     def test_bhv_lang_python_148_stringify_time_drops_a_sub_millisecond_part(
         self,
@@ -3666,6 +3683,24 @@ class TestPasswordFormatSendsTheRealValue:
         )
 
         assert '"password":"p"' in out
+
+    def test_bhv_misc_242_read_only_and_write_only_properties_have_no_wire_effect(
+        self,
+    ) -> None:
+        from petstore_client.models.account import Account
+
+        written = ObjectSerializer().serialize(
+            Account(id=7, username="u", password=SecretStr("p"))
+        )
+        assert '"id":7' in written
+        assert '"password":"p"' in written
+
+        decoded = ObjectSerializer().deserialize(
+            '{"id":7,"username":"u","password":"p"}', Account
+        )
+        assert decoded is not None
+        assert decoded.id == 7
+        assert decoded.password is not None
 
     def test_bhv_lang_python_183_repr_still_masks_the_password(self) -> None:
         from petstore_client.models.account import Account

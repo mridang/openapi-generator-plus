@@ -8,9 +8,13 @@ import (
 
 // SetPetPreferencesOptions carries the parameters for the SetPetPreferences operation.
 type SetPetPreferencesOptions struct {
-	Nickname    string
-	Tags        *[]string
-	Note        *string
-	RenewalDate *string
-	Reminder    *DateTime
+	Nickname     string
+	Tags         *[]string
+	Note         *string
+	RenewalDate  *string
+	Reminder     *DateTime
+	IntervalDays *int32
+	Ratio        *float64
+	Urgent       *bool
+	Snooze       *Duration
 }

@@ -178,6 +178,13 @@ public class {{classname}}(object value) : IEquatable<{{classname}}>, global::{{
     }
 {{/composedSchemas.oneOf}}
 
+    bool global::{{packageName}}.IOneOfWrapper.HoldsVariant =>
+        false
+{{#composedSchemas.oneOf}}
+        || ActualInstance is {{{dataType}}}
+{{/composedSchemas.oneOf}}
+        ;
+
     /// <summary>Value equality on the wrapped variant.</summary>
     public bool Equals({{classname}}? other)
     {
@@ -219,6 +226,11 @@ public class {{classname}}(object value) : IEquatable<{{classname}}>, global::{{
 
         public override void Write(Utf8JsonWriter writer, {{classname}} value, JsonSerializerOptions options)
         {
+            if (!((global::{{packageName}}.IOneOfWrapper)value).HoldsVariant)
+            {
+                throw new JsonException(
+                    $"A value of type {value.ActualInstance?.GetType().Name ?? "null"} is not a variant of the {{classname}} union");
+            }
             JsonSerializer.Serialize(writer, value.ActualInstance, options);
         }
     }

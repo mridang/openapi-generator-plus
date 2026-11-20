@@ -44,7 +44,21 @@ test('bhv headers 014 should return false for empty string', function (): void {
     expect($this->headerSelector->isJsonMime(''))->toBeFalse();
 });
 
+test('bhv headers 015 should return false for null', function (): void {
+    expect($this->headerSelector->isJsonMime(null))->toBeFalse();
+});
+
 // selectHeaders tests
+
+test('bhv headers 002 should default content type to application json when null', function (): void {
+    $headers = $this->headerSelector->selectHeaders(['application/json'], null, false);
+    expect($headers['Content-Type'])->toEqual('application/json');
+});
+
+test('bhv headers 005 should not set accept header for null accepts', function (): void {
+    $headers = $this->headerSelector->selectHeaders(null, 'application/json', false);
+    expect($headers)->not->toHaveKey('Accept');
+});
 
 test('bhv headers 024 should set accept header when accepts provided', function (): void {
     $headers = $this->headerSelector->selectHeaders(

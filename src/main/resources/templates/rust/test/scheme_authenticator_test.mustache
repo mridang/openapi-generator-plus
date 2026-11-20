@@ -107,6 +107,21 @@ mod {{module}} {
     }
 {{/explicitWinsOnce}}
 
+{{#mixedOnce}}
+    #[test]
+    fn test_bhv_auth_024_each_credential_field_takes_its_passed_value_or_its_own_variable() {
+        let rest: Vec<(&str, Option<&str>)> = vec![{{#restEnvParams}}("{{envName}}", Some("value-{{name}}")), {{/restEnvParams}}];
+        with_variables(&rest, || {
+            assert!({{className}}::new({{{mixedArgs}}}).is_ok());
+        });
+        let rest_unset: Vec<(&str, Option<&str>)> = vec![{{#restEnvParams}}("{{envName}}", None), {{/restEnvParams}}];
+        with_variables(&rest_unset, || {
+            let text = invalid_argument_text({{className}}::new({{{mixedArgs}}}));
+            assert!(text.contains("{{secondEnvName}}"), "{}", text);
+        });
+    }
+{{/mixedOnce}}
+
 {{#bearerIdOnce}}
     #[test]
     fn test_bhv_authscheme_010_an_empty_environment_variable_is_unset_and_the_error_names_it() {

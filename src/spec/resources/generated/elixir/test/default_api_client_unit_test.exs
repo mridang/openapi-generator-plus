@@ -2384,6 +2384,124 @@ defmodule PetstoreClient.DefaultApiClientUnitTest do
     :gen_tcp.close(socket)
   end
 
+  # A server that reads the request, reports it and then reports whether the peer hung up.
+  defp start_watching_server do
+    {:ok, socket} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(socket)
+    test_pid = self()
+
+    spawn(fn ->
+      {:ok, conn} = :gen_tcp.accept(socket)
+      {:ok, _request} = :gen_tcp.recv(conn, 0, 5_000)
+      send(test_pid, :request_received)
+      send(test_pid, {:peer, :gen_tcp.recv(conn, 0, 5_000)})
+    end)
+
+    {socket, port}
+  end
+
+  defp start_caller(port, timeout) do
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(timeout: timeout, max_retries: 0)
+      )
+
+    spawn(fn ->
+      PetstoreClient.DefaultApiClient.send_request(
+        client,
+        :get,
+        "http://127.0.0.1:#{port}/slow",
+        %{},
+        nil
+      )
+    end)
+  end
+
+  test "bhv transport 084 ending the calling process stops the in-flight request at once" do
+    {socket, port} = start_watching_server()
+    pid = start_caller(port, 30_000)
+    ref = Process.monitor(pid)
+
+    assert_receive :request_received, 5_000
+    Process.exit(pid, :kill)
+    assert_receive {:DOWN, ^ref, :process, ^pid, :killed}, 1_000
+    assert_receive {:peer, {:error, :closed}}, 5_000
+    :gen_tcp.close(socket)
+  end
+
+  test "bhv transport 083 a cancellation of the owning process aborts a request already in flight" do
+    {socket, port} = start_watching_server()
+    pid = start_caller(port, 30_000)
+
+    assert_receive :request_received, 5_000
+    Process.exit(pid, :shutdown)
+    assert_receive {:peer, {:error, :closed}}, 5_000
+    :gen_tcp.close(socket)
+  end
+
+  test "bhv misc 262 cancelling the pending request surfaces as the process exit and is never wrapped" do
+    {socket, port} = start_watching_server()
+    pid = start_caller(port, 30_000)
+    ref = Process.monitor(pid)
+
+    assert_receive :request_received, 5_000
+    Process.exit(pid, :kill)
+    assert_receive {:DOWN, ^ref, :process, ^pid, reason}, 1_000
+    assert reason == :killed
+    :gen_tcp.close(socket)
+  end
+
+  test "bhv transport 085 a timeout still raises the network timeout error when nothing ever cancels the call" do
+    {socket, port} = start_watching_server()
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(timeout: 300, max_retries: 0)
+      )
+
+    task =
+      Task.async(fn ->
+        try do
+          PetstoreClient.DefaultApiClient.send_request(
+            client,
+            :get,
+            "http://127.0.0.1:#{port}/slow",
+            %{},
+            nil
+          )
+        rescue
+          error -> error
+        end
+      end)
+
+    assert %PetstoreClient.Errors.NetworkTimeoutError{} = Task.await(task, 5_000)
+    :gen_tcp.close(socket)
+  end
+
+  test "bhv misc 029 a deadline the caller sets around the call is the caller's own timeout, never an SDK error" do
+    {socket, port} = start_watching_server()
+
+    client =
+      PetstoreClient.DefaultApiClient.new(
+        PetstoreClient.TransportOptions.new(timeout: 30_000, max_retries: 0)
+      )
+
+    task =
+      Task.async(fn ->
+        PetstoreClient.DefaultApiClient.send_request(
+          client,
+          :get,
+          "http://127.0.0.1:#{port}/slow",
+          %{},
+          nil
+        )
+      end)
+
+    assert {:timeout, _} = catch_exit(Task.await(task, 200))
+    Task.shutdown(task, :brutal_kill)
+    :gen_tcp.close(socket)
+  end
+
   # The one `:timeout` option arms four separate deadlines, and each of them
   # must classify as NetworkTimeoutError. Three are Mint/Req timeouts that
   # arrive as `%Req.TransportError{reason: :timeout}`; the pool checkout is a

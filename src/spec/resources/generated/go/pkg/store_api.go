@@ -47,6 +47,8 @@ type StoreApiInterface interface {
 	DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, callOptions ...RequestOption) (*ApiResult[any], error)
 	ExportOrders(ctx context.Context, callOptions ...RequestOption) (*Order, error)
 	ExportOrdersWithHTTPInfo(ctx context.Context, callOptions ...RequestOption) (*ApiResult[Order], error)
+	GetAuditTrail(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (*ApiResponse, error)
+	GetAuditTrailWithHTTPInfo(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error)
 	GetBySwatch(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions, callOptions ...RequestOption) (*Category, error)
 	GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatch, options *opts.GetBySwatchOptions, callOptions ...RequestOption) (*ApiResult[Category], error)
 	GetDefaults(ctx context.Context, callOptions ...RequestOption) (*Defaults, error)
@@ -145,6 +147,7 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 		returnType:   "Account",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -196,6 +199,15 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -251,7 +263,13 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", serializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("orderId", orderId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "orderId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -276,6 +294,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 		returnType:   "",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -345,6 +364,7 @@ func (a *StoreApi) ExportOrdersWithHTTPInfo(ctx context.Context, callOptions ...
 		returnType:   "Order",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -396,6 +416,15 @@ func (a *StoreApi) ExportOrdersWithHTTPInfo(ctx context.Context, callOptions ...
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -405,6 +434,141 @@ func (a *StoreApi) ExportOrdersWithHTTPInfo(ctx context.Context, callOptions ...
 	}
 
 	return &ApiResult[Order]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// GetAuditTrail Read the audit trail, which needs a bearer token and an API key together
+// One security requirement that names two schemes, so a request carries both credentials.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for this operation; it has no parameters of its own, so pass nil.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// GET /store/audit
+func (a *StoreApi) GetAuditTrail(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (*ApiResponse, error) {
+	result, err := a.GetAuditTrailWithHTTPInfo(ctx, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("GetAuditTrail", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// GetAuditTrailWithHTTPInfo performs the GetAuditTrail operation and returns the full API result.
+func (a *StoreApi) GetAuditTrailWithHTTPInfo(ctx context.Context, options *opts.GetAuditTrailOptions, callOptions ...RequestOption) (_ *ApiResult[ApiResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	path := "/store/audit"
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	var requestBody any
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "getAuditTrail",
+		urlTemplate:  "/store/audit",
+		call:         call,
+		order:        []string{},
+		method:       "GET",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "application/json",
+		returnType:   "ApiResponse",
+		auth:         nil,
+		schemes:      []string{"petStoreBearer", "apiKeyHeader"},
+		schemeGroups: [][]string{{"petStoreBearer", "apiKeyHeader"}},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data ApiResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ApiResponse
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ApiResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "GET", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for StoreApi.GetAuditTrail: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "GET", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[ApiResponse]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,
@@ -452,16 +616,34 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "pathSwatch", fmt.Sprintf("%v", serializeStyled("pathSwatch", pathSwatch, "path", "Swatch", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("pathSwatch", pathSwatch, "path", "Swatch", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "pathSwatch", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 	if options != nil && options.QuerySwatch != nil {
-		queryParams["querySwatch"] = maybeAllowReserved(serializeStyled("querySwatch", options.QuerySwatch, "query", "Swatch", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("querySwatch", options.QuerySwatch, "query", "Swatch", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["querySwatch"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
 	if options != nil && options.PreferredSwatch != nil {
-		headerParams["Preferred-Swatch"] = fmt.Sprintf("%v", serializeStyled("Preferred-Swatch", options.PreferredSwatch, "header", "Swatch", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("Preferred-Swatch", options.PreferredSwatch, "header", "Swatch", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["Preferred-Swatch"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 
 	var requestBody any
@@ -483,6 +665,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 		returnType:   "Category",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -534,6 +717,15 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -606,6 +798,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 		returnType:   "Defaults",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -657,6 +850,15 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -729,6 +931,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 		returnType:   "Department",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -780,6 +983,15 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -853,6 +1065,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 		returnType:   "[]map[string]Category",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -904,6 +1117,15 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -977,6 +1199,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 		returnType:   "map[string]int32",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1028,6 +1251,15 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1101,6 +1333,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 		returnType:   "[][]int32",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1152,6 +1385,15 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1204,18 +1446,42 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Address4 != nil {
-		queryParams["address4"] = maybeAllowReserved(serializeStyled("address4", options.Address4, "query", "netip.Addr", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("address4", options.Address4, "query", "netip.Addr", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["address4"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Delay != nil {
-		queryParams["delay"] = maybeAllowReserved(serializeStyled("delay", options.Delay, "query", "Duration", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("delay", options.Delay, "query", "Duration", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["delay"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Amount != nil {
-		queryParams["amount"] = maybeAllowReserved(serializeStyled("amount", options.Amount, "query", "float64", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("amount", options.Amount, "query", "float64", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["amount"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
 	if options != nil && options.XAddress6 != nil {
-		headerParams["X-Address6"] = fmt.Sprintf("%v", serializeStyled("X-Address6", options.XAddress6, "header", "netip.Addr", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("X-Address6", options.XAddress6, "header", "netip.Addr", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["X-Address6"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 
 	var requestBody any
@@ -1237,6 +1503,7 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 		returnType:   "NativeValues",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1288,6 +1555,15 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1348,7 +1624,13 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", serializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("orderId", orderId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "orderId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1373,6 +1655,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 		returnType:   "Order",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1424,6 +1707,15 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1479,7 +1771,13 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "trackingId", fmt.Sprintf("%v", serializeStyled("trackingId", trackingId, "path", "uuid.UUID", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("trackingId", trackingId, "path", "uuid.UUID", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "trackingId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1504,6 +1802,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 		returnType:   "Order",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1555,6 +1854,15 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1607,7 +1915,13 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 
 	queryParams := make(map[string]any)
 	if options != nil && options.AsOf != nil {
-		queryParams["asOf"] = maybeAllowReserved(serializeStyled("asOf", options.AsOf, "query", "DateTime", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("asOf", options.AsOf, "query", "DateTime", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["asOf"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -1631,6 +1945,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 		returnType:   "StockItem",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1682,6 +1997,15 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1754,6 +2078,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 		returnType:   "Swatch",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1805,6 +2130,15 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1878,6 +2212,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 		returnType:   "[]map[string]Swatch",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1929,6 +2264,15 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2002,6 +2346,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 		returnType:   "[]map[string]DateTime",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2053,6 +2398,15 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2125,6 +2479,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 		returnType:   "TreeNode",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2176,6 +2531,15 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2251,6 +2615,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 		returnType:   "Order",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2302,6 +2667,15 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2378,6 +2752,7 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 		returnType:   "ReserveStockResponse",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2452,6 +2827,15 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2515,10 +2899,22 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 		queryParams["q"] = string(jsonBytes)
 	}
 	if options != nil && options.Labels != nil {
-		queryParams["labels"] = maybeAllowReserved(serializeStyled("labels", options.Labels, "query", "[]string", "multi", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("labels", options.Labels, "query", "[]string", "multi", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["labels"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.At != nil {
-		queryParams["at"] = maybeAllowReserved(serializeStyled("at", options.At, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("at", options.At, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["at"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -2549,6 +2945,7 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 		returnType:   "[]Order",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2600,6 +2997,15 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2673,6 +3079,7 @@ func (a *StoreApi) WatchNoticesWithHTTPInfo(ctx context.Context, callOptions ...
 		returnType:   "string",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2724,6 +3131,15 @@ func (a *StoreApi) WatchNoticesWithHTTPInfo(ctx context.Context, callOptions ...
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2776,7 +3192,13 @@ func (a *StoreApi) WatchOrdersWithHTTPInfo(ctx context.Context, options *opts.Wa
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Status != nil {
-		queryParams["status"] = maybeAllowReserved(serializeStyled("status", options.Status, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("status", options.Status, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["status"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -2800,6 +3222,7 @@ func (a *StoreApi) WatchOrdersWithHTTPInfo(ctx context.Context, options *opts.Wa
 		returnType:   "Order",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2851,6 +3274,15 @@ func (a *StoreApi) WatchOrdersWithHTTPInfo(ctx context.Context, options *opts.Wa
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */

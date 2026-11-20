@@ -17,6 +17,7 @@ use PetstoreClient\ApiResult;
 use PetstoreClient\Api\Options\AddPetOptions;
 use PetstoreClient\Api\Options\AddPetPhotosOptions;
 use PetstoreClient\Api\Options\AddPetTreatmentOptions;
+use PetstoreClient\Api\Options\AttachPetFilesOptions;
 use PetstoreClient\Api\Options\DeletePetOptions;
 use PetstoreClient\Api\Options\DownloadPetDocumentOptions;
 use PetstoreClient\Api\Options\FindPetsBornOnOptions;
@@ -96,6 +97,21 @@ interface PetApiInterface
      * @throws \PetstoreClient\Errors\ApiException
      */
     public function addPetTreatmentWithHttpInfo(int $petId, \PetstoreClient\Models\PetTreatment $petTreatment, ?AddPetTreatmentOptions $options = null): ApiResult;
+
+    /**
+     * Attach files in a multipart/mixed request
+     * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+     * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function attachPetFiles(int $petId, AttachPetFilesOptions $options): \PetstoreClient\Models\ApiResponse;
+
+    /**
+     * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\ApiResponse>
+     * @throws \PetstoreClient\Errors\ApiException
+     */
+    public function attachPetFilesWithHttpInfo(int $petId, AttachPetFilesOptions $options): ApiResult;
 
     /**
      * Deletes a pet

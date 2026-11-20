@@ -104,6 +104,12 @@ defmodule PetstoreClient.TransportOptionsTest do
     assert client.transport_options.max_retries == 0
   end
 
+  test "bhv options 013 an invalid proxy URL is rejected when the options are built" do
+    assert_raise ArgumentError, fn ->
+      PetstoreClient.TransportOptions.new(proxy: "not a proxy url")
+    end
+  end
+
   test "bhv options 010 a proxy URL with an unterminated IPv6 literal is rejected with its reason" do
     error =
       assert_raise ArgumentError, fn ->

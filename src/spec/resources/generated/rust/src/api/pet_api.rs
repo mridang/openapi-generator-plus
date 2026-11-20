@@ -317,12 +317,13 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
         let credential = self
             .base
-            .authenticator_for(&["apiKeyHeader", "petStoreBearer"]);
+            .authenticator_for_alternatives(&[&["apiKeyHeader"], &["petStoreBearer"]]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet".to_string();
@@ -554,12 +555,11 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
-        let credential = self
-            .base
-            .authenticator_for(&["petStoreBasic", "petStoreBearer"]);
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self.base.authenticator_for_alternatives(&[]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}/treatment".to_string();
@@ -615,6 +615,139 @@ impl PetApi {
             .await
     }
 
+    /// Attach files in a multipart/mixed request
+    /// Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn attach_pet_files(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self
+            .attach_pet_files_with_http_info(pet_id, options)
+            .await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for attach_pet_files but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the attach_pet_files operation and returns the full API result.
+    pub async fn attach_pet_files_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * multipart/mixed, is the default
+         * and this operation declares no alternative to select. */
+        self.attach_pet_files_invoke(pet_id, options, "multipart/mixed")
+            .await
+    }
+
+    /// Shared implementation for the attach_pet_files operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn attach_pet_files_invoke(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/pet/{petId}/attachments".to_string();
+        if let Some(SerializedValue::Single(v)) = value_serializer::serialize_styled(
+            "petId",
+            Some(&object_serializer::stringify_param(
+                &pet_id, "simple", false,
+            )?),
+            None,
+            "path",
+            "i64",
+            "",
+            "simple",
+            false,
+        ) {
+            /* `serialize_styled` already percent-encodes path segments (preserving
+             * the OAS 3.0 matrix/label/simple sub-delimiters), so substitute the
+             * serializer output directly — re-encoding here would double-encode
+             * (a space would become %2520, a slash %252F). */
+            path = path.replace("{petId}", &v);
+        }
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        /* multipart/form-data. Each form param is mapped to a MultipartValue so
+         * the API client's serialize_multipart_body owns the wire format:
+         *   - file params (Vec<u8>)      -> Bytes (one file part; its part
+         *     Content-Type is derived from the field-name extension, falling
+         *     back to application/octet-stream);
+         *   - arrays of files           -> List(Bytes ...) (repeated parts);
+         *   - text arrays               -> List(Text ...) (repeated parts);
+         *   - objects / scalars         -> Text;
+         *   - absent optional fields    -> omitted entirely.
+         * Field names are emitted as UTF-8 by the client (non-ASCII preserved). */
+        let mut multipart: Vec<(String, MultipartValue)> = Vec::new();
+        /* Required multipart request body: the parts come from the Options
+         * struct, so a missing Options would emit a body-less request. Reject it
+         * up front (matching the required path/query/header param validation)
+         * instead of silently sending an empty body. */
+        let opts = options.ok_or_else(|| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(
+                crate::errors::configuration_error::ConfigurationError::InvalidArgument(format!(
+                    "Missing the required parameter '{}' when calling PetApi.attach_pet_files",
+                    "file"
+                )),
+            )
+        })?;
+        multipart.push(("file".to_string(), MultipartValue::Bytes(opts.file.clone())));
+        if let Some(ref val) = opts.caption {
+            multipart.push((
+                "caption".to_string(),
+                MultipartValue::Text(object_serializer::stringify(val)),
+            ));
+        }
+        let request_body: Option<Vec<u8>> = None;
+        let multipart = Some(multipart);
+
+        let params = InvokeApiParams {
+            operation: "PetApi.attach_pet_files",
+            method: "POST",
+            path: &path,
+            operation_id: "attachPetFiles",
+            url_template: "/pet/{petId}/attachments",
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/json"],
+            content_type: request_content_type,
+            return_type: "ApiResponse",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* This operation inherits the global security requirement; pass
+             * None so BaseApi falls back to the client-level authenticator. */
+            auth: None,
+        };
+
+        self.base.invoke_api_for_result::<ApiResponse>(params).await
+    }
+
     /// Deletes a pet
     /// * `pet_id`: Pet id to delete
     /// * `api_key`: Session cookie used for authentication
@@ -658,10 +791,13 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
-        let credential = self.base.authenticator_for(&["adminBasic", "machineAuth"]);
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["adminBasic"], &["machineAuth"]]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}".to_string();
@@ -3441,6 +3577,18 @@ impl PetApi {
             if let Some(ref val) = opts.reminder {
                 form_pairs.push(("reminder".to_string(), serde_json::to_value(val)?));
             }
+            if let Some(ref val) = opts.interval_days {
+                form_pairs.push(("intervalDays".to_string(), serde_json::to_value(val)?));
+            }
+            if let Some(ref val) = opts.ratio {
+                form_pairs.push(("ratio".to_string(), serde_json::to_value(val)?));
+            }
+            if let Some(ref val) = opts.urgent {
+                form_pairs.push(("urgent".to_string(), serde_json::to_value(val)?));
+            }
+            if let Some(ref val) = opts.snooze {
+                form_pairs.push(("snooze".to_string(), serde_json::to_value(val)?));
+            }
         }
         let request_body = Some(serde_json::to_vec(&form_pairs)?);
         let multipart: Option<Vec<(String, MultipartValue)>> = None;
@@ -3951,6 +4099,16 @@ pub trait PetApiTrait {
         pet_treatment: PetTreatment,
         options: Option<&AddPetTreatmentOptions>,
     ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn attach_pet_files(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>>;
+    fn attach_pet_files_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>;
     fn delete_pet(
         &self,
         pet_id: i64,
@@ -4253,6 +4411,22 @@ impl PetApiTrait for PetApi {
     ) -> impl Future<Output = Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>>>
     {
         PetApi::add_pet_treatment_with_http_info(self, pet_id, pet_treatment, options)
+    }
+    fn attach_pet_files(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        PetApi::attach_pet_files(self, pet_id, options)
+    }
+
+    fn attach_pet_files_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        PetApi::attach_pet_files_with_http_info(self, pet_id, options)
     }
     fn delete_pet(
         &self,

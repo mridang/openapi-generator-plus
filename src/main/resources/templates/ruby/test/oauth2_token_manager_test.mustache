@@ -100,6 +100,61 @@ describe {{moduleName}}::Auth::OAuth::OAuth2TokenManager do
     _(token).must_equal 'tok_abc'
   end
 
+  it 'bhv_auth_027 a cancelled token refresh is rethrown and the original grant is not run as a fallback' do
+    cancelled = Class.new(StandardError)
+    client = Class.new do
+      attr_reader :count
+
+      def initialize(cancelled) # steep:ignore MethodParameterMismatch
+        @cancelled = cancelled
+        @count = 0
+      end
+
+      def send_request(_method, _url, _headers, _body, **_kwargs)
+        @count += 1
+        if @count == 1
+          return {{moduleName}}::ApiHttpResponse.new(
+            status_code: 200, headers: { 'content-type' => 'application/json' },
+            body: { 'access_token' => 'tok_one', 'refresh_token' => 'ref_one', 'expires_in' => 0 }.to_json
+          )
+        end
+        raise @cancelled, 'cancelled'
+      end
+    end.new(cancelled)
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'password', 'client_id' => 'cid' }
+    manager.get_access_token('https://auth.example.com/token', params)
+
+    _ { manager.get_access_token('https://auth.example.com/token', params) }.must_raise cancelled
+    _(client.count).must_equal 2
+  end
+
+  it 'bhv_misc_185 stopping twice is a no-op and a token request after stop fails with a typed error' do
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = FakeTokenClient.new([{ status: 200, body: { 'access_token' => 'tok', 'expires_in' => 3600 } }])
+    manager.stop
+    manager.stop
+
+    error = _ { manager.get_access_token('https://auth.example.com/token', { 'grant_type' => 'client_credentials' }) }
+            .must_raise {{moduleName}}::Errors::OAuth2TokenError
+    _(error.message).must_equal 'The token manager has been stopped.'
+  end
+
+  it 'bhv_misc_059 a token whose lifetime is not a finite number is not cached' do
+    client = FakeTokenClient.new([
+      { status: 200, body: '{"access_token":"tok_one","expires_in":1e999}' },
+      { status: 200, body: { 'access_token' => 'tok_two', 'expires_in' => 3600 } }
+    ])
+    manager = {{moduleName}}::Auth::OAuth::OAuth2TokenManager.new
+    manager.api_client = client
+    params = { 'grant_type' => 'client_credentials' }
+
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'tok_one'
+    _(manager.get_access_token('https://auth.example.com/token', params)).must_equal 'tok_two'
+    _(client.call_count).must_equal 2
+  end
+
   it 'bhv_authoauthtwotokenmgr_028 stores refresh token' do
     client = FakeTokenClient.new([
       { status: 200, body: { 'access_token' => 'tok_abc', 'refresh_token' => 'ref_xyz', 'expires_in' => 3600 } }

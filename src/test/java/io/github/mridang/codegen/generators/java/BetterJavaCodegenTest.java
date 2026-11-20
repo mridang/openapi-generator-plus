@@ -420,7 +420,8 @@ class BetterJavaCodegenTest {
                 source.contains("resolveCredential(token, \"token\", \"ACME_SDK_TOKEN\", environment)"),
                 source);
         assertTrue(source.contains("@Nullable String token"), source);
-        assertTrue(!source.contains("Supplier"), source);
+        assertTrue(
+                source.contains("(String host, java.util.function.Supplier<String> tokenProvider)"), source);
     }
 
     /* F862 - the OAuth wrappers resolve every credential before the base constructor runs. */

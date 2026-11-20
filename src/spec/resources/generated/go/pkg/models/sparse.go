@@ -73,6 +73,18 @@ func (o Sparse) WithAdditionalProperties(value map[string]*string) Sparse {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Sparse) GetAdditionalProperties() map[string]*string {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]*string, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewSparse creates a new Sparse instance.
 func NewSparse() *Sparse {
 	return &Sparse{

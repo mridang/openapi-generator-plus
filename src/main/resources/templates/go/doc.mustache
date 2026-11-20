@@ -1,0 +1,8 @@
+{{>api_info}}
+
+// Package {{packageName}} is the Go client for {{#appName}}{{{.}}}{{/appName}}{{^appName}}the API{{/appName}}.
+{{#appDescription}}
+//
+// {{#lambda.unescapeDocComment}}{{{.}}}{{/lambda.unescapeDocComment}}
+{{/appDescription}}
+package {{packageName}}

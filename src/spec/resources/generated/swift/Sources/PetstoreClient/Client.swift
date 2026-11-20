@@ -273,6 +273,11 @@ public final class Client: ClientProtocol, Sendable {
       throw ConfigurationError.invalidArgument(
         "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
     }
+    if let token = token, token.isEmpty {
+      throw ConfigurationError.invalidArgument(
+        "The token passed is empty: pass a non-empty token, or leave it out to read the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
+      )
+    }
     if let tokenProvider = tokenProvider {
       return try Client(
         authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),

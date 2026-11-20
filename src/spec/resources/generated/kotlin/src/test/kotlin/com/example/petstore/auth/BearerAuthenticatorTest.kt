@@ -35,6 +35,14 @@ class BearerAuthenticatorTest {
     }
 
     @Test
+    @DisplayName("bhvAuth038 a token provider that is passed is used even when the environment holds a token")
+    fun bhvAuth038ProviderWinsOverEnvironment() {
+        val env = mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN" to "from-env")
+        val auth = withEnvironment(env) { BearerAuthenticator("https://api.example.com", tokenProvider = { "from-provider" }) }
+        assertEquals("Bearer from-provider", runBlocking { auth.getAuthHeaders() }["Authorization"])
+    }
+
+    @Test
     @DisplayName("bhvAuthbearer028 a bearer token containing CRLF is rejected at construction")
     fun bhvAuthbearer028ABearerTokenContainingCrlfIsRejectedAtConstruction() =
         runBlocking<Unit> {
@@ -380,7 +388,7 @@ class BearerAuthenticatorTest {
         }
 
     @Test
-    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the variable, then the provider")
+    @DisplayName("bhvAuth022 F862: a scheme's authenticator takes the argument first, then the provider, then the variable")
     fun schemeWrapperPrecedence() =
         runBlocking {
             val provider: suspend () -> String = { "from-provider" }
@@ -388,14 +396,11 @@ class BearerAuthenticatorTest {
             val explicit =
                 withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", "explicit") }
             assertEquals("Bearer explicit", explicit.getAuthHeaders()["Authorization"])
-            val fromEnv =
+            val fromProvider =
                 withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider) }
+            assertEquals("Bearer from-provider", fromProvider.getAuthHeaders()["Authorization"])
+            val fromEnv = withEnvironment(env) { PetStoreBearerAuthenticator("https://api.example.com") }
             assertEquals("Bearer from-env", fromEnv.getAuthHeaders()["Authorization"])
-            val empty =
-                withEnvironment(mapOf("SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN" to "")) {
-                    PetStoreBearerAuthenticator("https://api.example.com", tokenProvider = provider)
-                }
-            assertEquals("Bearer from-provider", empty.getAuthHeaders()["Authorization"])
         }
 
     @Test

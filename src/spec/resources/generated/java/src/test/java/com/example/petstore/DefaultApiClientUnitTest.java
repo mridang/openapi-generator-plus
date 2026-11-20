@@ -4873,7 +4873,9 @@ class DefaultApiClientUnitTest {
   }
 
   @Test
-  @DisplayName("bhvSerialization123 a field name or filename with CR, LF or NUL is rejected")
+  @DisplayName(
+      "bhvSerialization123 a field name or filename with CR, LF or NUL is rejected and a quote is"
+          + " escaped")
   void bhvSerialization123UnsafeMultipartNamesAreRejected() {
     for (String name : List.of("a\r\nb", "a\nb", "a\0b")) {
       assertThrows(
@@ -4881,6 +4883,7 @@ class DefaultApiClientUnitTest {
       assertThrows(
           IllegalArgumentException.class, () -> DefaultApiClient.validateMultipartFilename(name));
     }
+    assertEquals("a\\\"b", DefaultApiClient.escapeMultipartFieldName("a\"b"));
   }
 
   @Test

@@ -32,6 +32,7 @@ from ..errors import ApiException
 from .options.add_pet_options import AddPetOptions
 from .options.add_pet_photos_options import AddPetPhotosOptions
 from .options.add_pet_treatment_options import AddPetTreatmentOptions
+from .options.attach_pet_files_options import AttachPetFilesOptions
 from .options.delete_pet_options import DeletePetOptions
 from .options.download_pet_document_options import DownloadPetDocumentOptions
 from .options.find_pets_born_on_options import FindPetsBornOnOptions
@@ -251,6 +252,22 @@ class PetApiProtocol(Protocol):
         options: Optional[AddPetTreatmentOptions] = None,
     ) -> "ApiResult[PetTreatment]":
         """The ``add_pet_treatment`` operation with its status code, headers and body."""
+        ...
+
+    async def attach_pet_files(
+        self,
+        pet_id: StrictInt,
+        options: AttachPetFilesOptions,
+    ) -> ApiResponse:
+        """The ``attach_pet_files`` operation."""
+        ...
+
+    async def attach_pet_files_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: AttachPetFilesOptions,
+    ) -> "ApiResult[ApiResponse]":
+        """The ``attach_pet_files`` operation with its status code, headers and body."""
         ...
 
     async def delete_pet(
@@ -886,6 +903,91 @@ class PetApi(BaseApi):
             operation_name="add_pet_treatment",
             operation_id="addPetTreatment",
             url_template="/pet/{petId}/treatment",
+            request_options=options,
+        )
+
+    async def attach_pet_files(
+        self,
+        pet_id: StrictInt,
+        options: AttachPetFilesOptions,
+    ) -> ApiResponse:
+        """Attach files in a multipart/mixed request
+        Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+        :param pet_id:  (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResponse
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.attach_pet_files_with_http_info(
+            pet_id,
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for attach_pet_files but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def attach_pet_files_with_http_info(
+        self,
+        pet_id: StrictInt,
+        options: AttachPetFilesOptions,
+    ) -> "ApiResult[ApiResponse]":
+        """Attach files in a multipart/mixed request (with HTTP info)
+        Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+        :param pet_id:  (required)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        if pet_id is None:
+            raise ValueError(
+                "Missing the required parameter 'pet_id' when calling PetApi.attach_pet_files"
+            )
+
+        if options is None or options.file is None:
+            raise ValueError(
+                "Missing the required parameter 'file' when calling PetApi.attach_pet_files"
+            )
+
+        path = "/pet/{petId}/attachments"
+        path = path.replace(
+            "{" + "petId" + "}",
+            str(
+                ValueSerializer.serialize_styled(
+                    "petId", pet_id, "path", "StrictInt", None, "simple", False
+                )
+            ),
+        )
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body: Dict[str, Any] = {}
+        if options is not None:
+            body["file"] = options.file
+        if options is not None and options.caption is not None:
+            body["caption"] = options.caption
+
+        return await self._invoke_api_for_result(
+            "POST",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/json"],
+            "multipart/mixed",
+            "ApiResponse",
+            self._scheme_authenticator("petStoreBasic", "petStoreBearer"),
+            operation_name="attach_pet_files",
+            operation_id="attachPetFiles",
+            url_template="/pet/{petId}/attachments",
             request_options=options,
         )
 
@@ -2833,6 +2935,14 @@ class PetApi(BaseApi):
             body["renewalDate"] = options.renewal_date
         if options is not None and options.reminder is not None:
             body["reminder"] = options.reminder
+        if options is not None and options.interval_days is not None:
+            body["intervalDays"] = options.interval_days
+        if options is not None and options.ratio is not None:
+            body["ratio"] = options.ratio
+        if options is not None and options.urgent is not None:
+            body["urgent"] = options.urgent
+        if options is not None and options.snooze is not None:
+            body["snooze"] = options.snooze
 
         return await self._invoke_api_for_result(
             "POST",
