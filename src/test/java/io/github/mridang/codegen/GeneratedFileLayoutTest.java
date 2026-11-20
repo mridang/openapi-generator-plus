@@ -131,6 +131,16 @@ class GeneratedFileLayoutTest {
           "callobserver",
           "the call hook's observer is its own interface where the other languages return a closure or a state");
     }
+    allow(
+        ALLOWED_EXTRA,
+        "ruby",
+        "allofauthenticator",
+        "Ruby declares one class per file and the requirement composite must load after the authenticator base class, so it cannot sit in the base API file as in the other languages");
+    allow(
+        ALLOWED_EXTRA,
+        "ruby",
+        "allofhttpawareauthenticator",
+        "the token-aware variant of the requirement composite, in its own file for the same reason");
     allow(ALLOWED_EXTRA, "php", "callhookchain", "PHP chains hooks in one class, as it does for authenticators");
     allow(ALLOWED_EXTRA, "csharp", "chainedcallhook", "C# chains hooks in one class behind ICallHook.Chain");
     for (String language : Arrays.asList("csharp", "java", "kotlin", "node", "php", "python", "rust")) {
