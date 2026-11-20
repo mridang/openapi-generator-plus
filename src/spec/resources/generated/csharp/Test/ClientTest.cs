@@ -499,6 +499,28 @@ public sealed class ClientTest : IDisposable
     }
 
     [Fact]
+    public void BhvMisc068AnEmptyEnvironmentTokenCountsAsUnsetAndAnExplicitEmptyOneIsRefused()
+    {
+        WithEnvironment(
+            "http://localhost",
+            "",
+            () =>
+            {
+                var ex = Assert.Throws<InvalidOperationException>(() => Client.FromEnvironment());
+                Assert.Contains(TokenVariable, ex.Message, StringComparison.Ordinal);
+            }
+        );
+        WithEnvironment(
+            "http://localhost",
+            "env-token",
+            () =>
+            {
+                Assert.Throws<ArgumentException>(() => Client.FromEnvironment(token: ""));
+            }
+        );
+    }
+
+    [Fact]
     public async Task BhvAuth022TheTokenProviderIsUsedBeforeTheEnvironmentToken()
     {
         using var handler = new RecordingHandler();

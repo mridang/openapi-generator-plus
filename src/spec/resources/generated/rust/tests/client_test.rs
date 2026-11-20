@@ -254,6 +254,18 @@ fn test_bhv_config_025_client_with_token_treats_an_empty_variable_as_unset() {
 }
 
 #[test]
+fn test_bhv_misc_068_an_empty_variable_is_unset_and_an_explicit_empty_token_is_refused() {
+    with_environment(Some("/api/v3"), Some(""), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, Some(""), None));
+        assert!(!text.is_empty());
+    });
+}
+
+#[test]
 fn test_bhv_lifecycle_016_client_with_token_provider_needs_a_host_but_no_token_variable() {
     with_environment(Some("/api/v3"), None, || {
         let provider: TokenProvider = std::sync::Arc::new(|| "provider-token".to_string());

@@ -6548,27 +6548,20 @@ public class DefaultApiClientUnitTest
     }
 
     [Fact]
-    public async Task BhvSerialization123AFieldNameWithANulCharacterIsRejectedBeforeAnyRequest()
+    public async Task BhvSerialization123ANulCrOrLfInAFieldNameIsRejectedAndAQuoteIsBackslashEscaped()
     {
-        var handler = new SequenceHandler(_ => Respond(200, null));
-        var client = new DefaultApiClient(new HttpClient(handler));
-        var formData = new Dictionary<string, object> { { "a\0b", "value" } };
-
+        var rejecting = new SequenceHandler(_ => Respond(200, null));
+        var rejectingClient = new DefaultApiClient(new HttpClient(rejecting));
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            client.SendRequestAsync(
+            rejectingClient.SendRequestAsync(
                 "POST",
                 new Uri("http://example.com/resource/1/files"),
                 new Dictionary<string, string>(),
-                formData
+                new Dictionary<string, object> { { "a\0b", "value" } }
             )
         );
+        Assert.Empty(rejecting.Requests);
 
-        Assert.Empty(handler.Requests);
-    }
-
-    [Fact]
-    public async Task BhvSerialization123AQuoteInAFieldNameIsBackslashEscapedAndCrLfAreRejected()
-    {
         string? wireText = null;
         var handler = new CapturingHandler(async req =>
         {
