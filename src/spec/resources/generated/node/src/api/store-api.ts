@@ -432,7 +432,7 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       ["application/json"],
       "application/json",
       (json: unknown) => ObjectSerializer.deserialize(json, ApiResponse)!,
-      this.resolveSchemeAuth(["petStoreBearer", "apiKeyHeader"]),
+      this.resolveRequirementAuth([["petStoreBearer", "apiKeyHeader"]]),
       false,
       "model",
       "getAuditTrail",

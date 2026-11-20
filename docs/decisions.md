@@ -138,6 +138,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** The Options type of an operation no longer has such a field, a breaking change for a caller that set one. The fixture operation `getPetByNote` declares the three parameters, so the petstore tests in all twelve languages prove they are gone: its generated signature and tests are unchanged.
 
+## D116: A security requirement that names several schemes sends all of their credentials
+
+**Context.** An operation's `security` is an OR of requirement objects, and each object is an AND of schemes: `security: [{bearer: [], apiKey: []}]` means one request must carry both credentials. Only the Rust, Dart, Go and PHP SDKs sent both; the other eight used the first scheme they held and sent a single credential (fixture operation `getAuditTrail`, catalogue id misc074). [docs/comparisons/ogen-source-review.md](comparisons/ogen-source-review.md) lists the question as a user need.
+
+**Options considered.** (1) Keep one credential per operation and document it. (2) Send every credential of the requirement, with the same selection rule everywhere.
+
+**What was compared.** The four SDKs that already did it share one rule, and the other eight had only a missing feature, no language reason: each has a per-scheme credential table and a composite is a small class over the language's own authenticator interface.
+
+**Decision.** Every SDK picks the first requirement whose every scheme the client holds and sends the headers, query parameters and cookies of all of them; when no requirement is complete it uses the first one the client holds in part; when none matches it falls back to the client-level authenticator. A composite that includes a token authenticator hands the transport to it and drops its cached token on a 401, as a single token authenticator does. The shape is the same in each language: a requirement-aware resolver next to the existing scheme resolver (`resolveRequirementAuth`, `requirementAuthenticator`, `requirement_authenticator`, `requirement_auth`) and a composite authenticator class.
+
+**Consequences.** An operation whose requirement names two schemes now sends both credentials in all twelve languages, with a tagged test per language (misc074). The exceptions for misc074 are removed.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -191,7 +203,7 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 ### Settled differences between languages
 
 * **Cookie parameters.** A value is sent as given when every character is allowed in a cookie, and an illegal character fails before the request is sent. Nothing is percent-encoded for you, because the shared parameter model cannot tell an explicit `style: form` from the default.
-* **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first scheme it lists that you set. A per-call override of the scheme is deferred, and Rust has no such override.
+* **One credential per security scheme.** Where a client takes one credential per scheme, an operation uses the credential of the first requirement the client holds in full (D116); a requirement that names several schemes sends all of their credentials. A per-call override of the scheme is deferred, and Rust has no such override.
 * **Test TLS keys.** No private key is committed. The test CA and the server key are generated once per test run by the shared harness and mounted into the containers that run the generated tests. The Dart and Swift standard libraries cannot create X.509 certificates, so the generated SDK tests only read the material and do not create it.
 * **Trace context comes from the caller's context (#136).** A request carries the span active in the context of the call. Go takes the context as the `ctx` argument; the other eleven read the ambient OpenTelemetry context in the caller's thread, task, fiber, process or zone. No SDK builds a context of its own, and a failure to inject never fails a call.
 * **A response that lies about its encoding is an error.** When the server declares `Content-Encoding: gzip` (or another compression) and the body is not that encoding, the call fails with the SDK's API error. The body is never returned as if it were plain text, because that hides a broken server behind a success.

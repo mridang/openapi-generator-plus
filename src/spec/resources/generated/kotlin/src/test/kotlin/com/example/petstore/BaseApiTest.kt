@@ -1728,6 +1728,23 @@ class BaseApiTest {
         }
 
         @Test
+        @DisplayName("bhvMisc074 an alternative naming two schemes sends both credentials")
+        fun bhvMisc074AnAlternativeNamingTwoSchemesSendsBothCredentials() {
+            val client = CapturingApiClient()
+            val config = Configuration.builder().baseUrl("http://localhost").build()
+            val bearer = TestAuthenticator(mapOf("X-Bearer" to "bearer-cred"), emptyMap(), emptyMap())
+            val apiKey = TestAuthenticator(mapOf("X-Key" to "api-key-cred"), emptyMap(), emptyMap())
+            val api = StoreApi(client, config, null, mapOf("petStoreBearer" to bearer, "apiKeyHeader" to apiKey))
+            try {
+                runBlocking { api.getAuditTrail() }
+            } catch (_: Exception) {
+                // The response shape is irrelevant; only the outbound headers are asserted.
+            }
+            assertEquals("bearer-cred", client.capturedHeaders["X-Bearer"])
+            assertEquals("api-key-cred", client.capturedHeaders["X-Key"])
+        }
+
+        @Test
         @DisplayName("bhvMisc064 an operation that declares no security never sends the client default credential")
         fun bhvMisc064ANoSecurityOperationNeverSendsTheClientDefaultCredential() {
             val client = CapturingApiClient()

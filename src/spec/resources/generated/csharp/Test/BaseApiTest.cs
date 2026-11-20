@@ -1756,6 +1756,41 @@ public class BaseApiTest
     }
 
     [Fact]
+    public async Task BhvMisc074AnAlternativeNamingTwoSchemesSendsBothCredentials()
+    {
+        var client = new CapturingApiClient();
+        var bearer = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Bearer", "bearer-cred" } }
+        );
+        var apiKey = new TestAuthenticator(
+            headers: new Dictionary<string, string> { { "X-Key", "api-key-cred" } }
+        );
+        var config = new Configuration("http://localhost");
+        var api = new StoreApi(
+            client,
+            config,
+            null,
+            new Dictionary<string, IAuthenticator>
+            {
+                ["petStoreBearer"] = bearer,
+                ["apiKeyHeader"] = apiKey,
+            }
+        );
+
+        try
+        {
+            await api.GetAuditTrailAsync();
+        }
+        catch (OpenAPIException)
+        {
+            // The captured request is asserted regardless of the response shape.
+        }
+
+        Assert.Equal("bearer-cred", client.CapturedHeaders["X-Bearer"]);
+        Assert.Equal("api-key-cred", client.CapturedHeaders["X-Key"]);
+    }
+
+    [Fact]
     public async Task BhvAuthintegration009FallsBackToClientLevelAuthenticator()
     {
         var client = new CapturingApiClient();

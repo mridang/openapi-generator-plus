@@ -576,6 +576,24 @@ describe Petstore::Client::Api::BaseApi do
       _(client.captured_headers['X-Credential']).must_equal 'key'
     end
 
+    it 'bhv_misc_074 an alternative naming two schemes sends both credentials' do
+      client = CapturingApiClient.new
+      config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+      schemes = {
+        'petStoreBearer' => TestAuthenticator.new(headers: { 'X-Bearer' => 'bearer-cred' }),
+        'apiKeyHeader' => TestAuthenticator.new(headers: { 'X-Key' => 'api-key-cred' })
+      }
+      api = Petstore::Client::Api::StoreApi.new(client, config, nil, schemes)
+      begin
+        api.get_audit_trail
+      rescue StandardError
+        # Response handling is irrelevant; the assertions read the captured request.
+      end
+
+      _(client.captured_headers['X-Bearer']).must_equal 'bearer-cred'
+      _(client.captured_headers['X-Key']).must_equal 'api-key-cred'
+    end
+
     it 'bhv_misc_197 an operation whose named schemes the client does not hold is served by the default authenticator' do
       api, client = api_with({ 'adminBasic' => credential('admin') }, credential('default'))
 

@@ -218,7 +218,7 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
       accepts: ["application/json"],
       contentType: "application/json",
       returnType: "ApiResponse",
-      auth: schemeAuthenticator(["petStoreBearer", "apiKeyHeader"]),
+      auth: requirementAuthenticator([["petStoreBearer", "apiKeyHeader"]]),
       operation: "StoreApi.getAuditTrail",
       operationId: "getAuditTrail",
       urlTemplate: "/store/audit",

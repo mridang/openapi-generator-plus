@@ -1018,7 +1018,7 @@ defmodule PetstoreClient.Api.StoreApi do
     # order that the client holds; nil when it holds none of them, which
     # leaves the call to the client-level authenticator. There is no per-call
     # credential.
-    auth = PetstoreClient.Api.BaseApi.scheme_auth(api, ["petStoreBearer", "apiKeyHeader"])
+    auth = PetstoreClient.Api.BaseApi.requirement_auth(api, [["petStoreBearer", "apiKeyHeader"]])
     path = "/store/audit"
     query_params = []
     header_params = %{}

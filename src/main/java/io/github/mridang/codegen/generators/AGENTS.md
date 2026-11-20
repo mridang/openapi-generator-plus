@@ -423,6 +423,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D113 | An unformatted `type: integer` is 64-bit in all twelve languages: `NormalizeIntegerWidthRule` writes `format: int64` on it before generation. Supersedes the 32-bit half of D54. Test: serialization131. | Owner decision of 2026-11-20 (#159); a server identifier above 2^31 must decode everywhere. |
 | D114 | Go operations take `ctx context.Context` as their first argument (S7 already did; #146 answered). | Go convention; no code change. |
 | D115 | Header parameters named Accept, Content-Type or Authorization (any case, inline or by `$ref`) are removed by `IgnoreReservedHeadersRule`; the SDK owns those headers and a per-call header still overrides. Test: getPetByNote declares them. | The OpenAPI specification says to ignore them (#125). |
+| D116 | A security requirement that names several schemes sends the credentials of all of them in every SDK: the first requirement the client holds in full wins, else the first held in part, else the client-level authenticator. Test: misc074 in all twelve. | The AND half of the OR-of-AND security model; was only in rust, dart, go and php. |
 
 ### Forced divergences (FD): do not align these away
 

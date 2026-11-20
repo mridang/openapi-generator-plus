@@ -137,6 +137,34 @@ abstract class BaseApi {
     }
 
     /**
+     * The credential for an operation whose security block lists alternative requirements. Each
+     * group is one requirement: a group that names several schemes needs the credentials of all of
+     * them and a request carries every one. The first group the client holds every credential of
+     * wins, else the first group it holds at least one credential of; `null` when it holds none,
+     * which leaves the call to the default [authenticator].
+     *
+     * @param groups the requirements, in the spec's order, each the scheme ids it needs together
+     * @return the credential to authenticate the call with, or `null`
+     */
+    protected fun requirementAuthenticator(vararg groups: Array<String>): Authenticator? {
+        var partial: List<Authenticator>? = null
+        for (group in groups) {
+            val held = group.mapNotNull { schemeAuthenticators[it] }
+            if (held.isEmpty()) {
+                continue
+            }
+            if (held.size == group.size) {
+                return if (held.size == 1) held[0] else AllOfAuthenticator.of(held)
+            }
+            if (partial == null) {
+                partial = held
+            }
+        }
+        val rest = partial ?: return null
+        return if (rest.size == 1) rest[0] else AllOfAuthenticator.of(rest)
+    }
+
+    /**
      * Invoke an API operation and return the raw response after error checking.
      *
      * Builds the full URL from the configured base URL and path, merges
@@ -901,4 +929,62 @@ abstract class BaseApi {
      * @return URL-encoded string
      */
     internal fun encodeQuery(value: String): String = value.encodeURLParameter(spaceToPlus = false)
+}
+
+/** The credentials of every scheme one security requirement names together: all of them are sent. */
+private open class AllOfAuthenticator(
+    protected val parts: List<Authenticator>,
+) : Authenticator {
+    override fun getHost(): String = parts.first().getHost()
+
+    override suspend fun getAuthHeaders(): Map<String, String> {
+        val merged = LinkedHashMap<String, String>()
+        for (part in parts) {
+            merged.putAll(part.getAuthHeaders())
+        }
+        return merged
+    }
+
+    override fun getQueryParams(): Map<String, String> {
+        val merged = LinkedHashMap<String, String>()
+        for (part in parts) {
+            merged.putAll(part.getQueryParams())
+        }
+        return merged
+    }
+
+    override fun getCookieParams(): Map<String, String> {
+        val merged = LinkedHashMap<String, String>()
+        for (part in parts) {
+            merged.putAll(part.getCookieParams())
+        }
+        return merged
+    }
+
+    companion object {
+        /** The composite of [parts]; one holding a token authenticator can drop a cached token on a 401. */
+        fun of(parts: List<Authenticator>): Authenticator =
+            if (parts.any { it is HttpAwareAuthenticator }) AllOfHttpAwareAuthenticator(parts) else AllOfAuthenticator(parts)
+    }
+}
+
+private class AllOfHttpAwareAuthenticator(
+    parts: List<Authenticator>,
+) : AllOfAuthenticator(parts),
+    HttpAwareAuthenticator {
+    override fun setApiClient(apiClient: ApiClient) {
+        for (part in parts) {
+            if (part is HttpAwareAuthenticator) {
+                part.setApiClient(apiClient)
+            }
+        }
+    }
+
+    override fun invalidateAccessToken() {
+        for (part in parts) {
+            if (part is HttpAwareAuthenticator) {
+                part.invalidateAccessToken()
+            }
+        }
+    }
 }

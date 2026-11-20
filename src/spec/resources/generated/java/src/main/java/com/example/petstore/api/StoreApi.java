@@ -509,7 +509,7 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         new String[] {"application/json"},
         "application/json",
         getAuditTrailTypeRef,
-        resolveSchemeAuth("petStoreBearer", "apiKeyHeader"),
+        resolveRequirementAuth(new String[] {"petStoreBearer", "apiKeyHeader"}),
         callTimeout,
         callMaxRetries,
         null,

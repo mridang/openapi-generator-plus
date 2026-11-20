@@ -71,6 +71,31 @@ module {{moduleName}}
         nil
       end
 
+      # The credential for an operation whose security block lists alternative
+      # requirements. Each group is one requirement: a group that names several
+      # schemes needs the credentials of all of them and a request carries every
+      # one. The first group the client holds every credential of wins, else the
+      # first group it holds at least one credential of; nil when it holds none,
+      # which leaves the call to the default authenticator.
+      #
+      # @param groups [Array<Array<String>>] the requirements, in the spec's order
+      # @return [Authenticator, nil]
+      def requirement_authenticator(*groups)
+        partial = nil
+        groups.each do |group|
+          held = group.filter_map { |name| @scheme_authenticators[name] }
+          next if held.empty?
+          if held.size == group.size
+            return held.one? ? held.first : ::{{moduleName}}::Auth::AllOfAuthenticator.of(held)
+          end
+
+          partial ||= held
+        end
+        return nil if partial.nil?
+
+        partial.one? ? partial.first : ::{{moduleName}}::Auth::AllOfAuthenticator.of(partial)
+      end
+
       # Invoke an API operation and return the full result including status
       # code, headers, and raw body alongside the deserialized data.
       #

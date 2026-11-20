@@ -196,7 +196,7 @@ module Petstore::Client
           ['application/json'],
           'application/json',
           'ApiResponse',
-          scheme_authenticator('petStoreBearer', 'apiKeyHeader'),
+          requirement_authenticator(['petStoreBearer', 'apiKeyHeader']),
           operation_id: 'StoreApi.get_audit_trail',
           spec_operation_id: 'getAuditTrail',
           url_template: '/store/audit',

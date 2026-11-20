@@ -1865,6 +1865,22 @@ import Testing
     #expect(headers["Authorization"] == "Bearer scheme-level")
   }
 
+  /* A requirement that names two schemes together sends both credentials. */
+  @Test func testBhvMisc074AnAlternativeNamingTwoSchemesSendsBothCredentials() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "{}"
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = StoreApi(
+      apiClient: mockClient, config: config,
+      schemeAuthenticators: [
+        "petStoreBearer": MockAuth(headers: ["X-Bearer": "bearer-cred"]),
+        "apiKeyHeader": MockAuth(headers: ["X-Key": "api-key-cred"]),
+      ])
+    _ = try await api.getAuditTrail()
+    #expect(mockClient.lastHeaders["X-Bearer"] == "bearer-cred")
+    #expect(mockClient.lastHeaders["X-Key"] == "api-key-cred")
+  }
+
   private func multipartSend(_ contentType: String, _ body: [String: Any]) async throws
     -> MockApiClient
   {

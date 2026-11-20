@@ -650,7 +650,12 @@ class StoreApi(BaseApi):
             ["application/json"],
             "application/json",
             "ApiResponse",
-            self._scheme_authenticator("petStoreBearer", "apiKeyHeader"),
+            self._requirement_authenticator(
+                (
+                    "petStoreBearer",
+                    "apiKeyHeader",
+                )
+            ),
             operation_name="get_audit_trail",
             operation_id="getAuditTrail",
             url_template="/store/audit",

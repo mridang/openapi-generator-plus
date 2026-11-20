@@ -57,6 +57,35 @@ defmodule PetstoreClient.Api.BaseApi do
   end
 
   @doc false
+  # The credential for an operation whose security block lists alternative
+  # requirements. Each group is one requirement: a group that names several
+  # schemes needs the credentials of all of them and a request carries every
+  # one. The first group the client holds every credential of wins, else the
+  # first group it holds at least one credential of; nil when it holds none,
+  # which leaves the call to the client-level authenticator.
+  @spec requirement_auth(map(), [[String.t()]]) :: term() | nil
+  def requirement_auth(state, groups) do
+    held = Map.get(state, :scheme_authenticators) || %{}
+
+    {complete, partial} =
+      Enum.reduce_while(groups, {nil, nil}, fn group, {_complete, partial} ->
+        found = Enum.flat_map(group, fn scheme_id -> List.wrap(Map.get(held, scheme_id)) end)
+
+        cond do
+          found == [] -> {:cont, {nil, partial}}
+          length(found) == length(group) -> {:halt, {found, partial}}
+          true -> {:cont, {nil, partial || found}}
+        end
+      end)
+
+    case complete || partial do
+      nil -> nil
+      [one] -> one
+      parts -> PetstoreClient.Auth.AllOfAuthenticator.of(parts)
+    end
+  end
+
+  @doc false
   # Stops the processes the given authenticators started (the OAuth2 token
   # managers and the OpenID Connect discovery cache). An authenticator that
   # starts nothing is left alone; stopping is idempotent.
@@ -1347,4 +1376,113 @@ defmodule PetstoreClient.Api.BaseApi do
   end
 
   defp ensure_form_scalar!(_key, _value), do: :ok
+end
+
+defmodule PetstoreClient.Auth.AllOfAuthenticator do
+  @moduledoc """
+  The credentials of every scheme one security requirement names together: the
+  headers, query parameters and cookies of all of them are sent.
+  """
+
+  @behaviour PetstoreClient.Auth.Authenticator
+
+  defstruct [:parts]
+
+  @type t :: %__MODULE__{parts: [term()]}
+
+  @doc """
+  The composite of `parts`; one holding a token authenticator also hands the
+  transport to it and drops its cached token on a 401.
+  """
+  @spec of([term()]) :: term()
+  def of(parts) do
+    if Enum.any?(parts, &token_authenticator?/1) do
+      %{__struct__: PetstoreClient.Auth.AllOfTokenAuthenticator, parts: parts}
+    else
+      %__MODULE__{parts: parts}
+    end
+  end
+
+  @doc false
+  def token_authenticator?(%{__struct__: mod}) do
+    Code.ensure_loaded?(mod) and
+      (function_exported?(mod, :invalidate_access_token, 1) or
+         function_exported?(mod, :set_api_client, 2))
+  end
+
+  def token_authenticator?(_other), do: false
+
+  @impl true
+  def host(%{parts: [first | _]}), do: call(first, :host)
+
+  @impl true
+  def auth_headers(%{parts: parts}), do: merge(parts, :auth_headers)
+
+  @impl true
+  def query_params(%{parts: parts}), do: merge(parts, :query_params)
+
+  @impl true
+  def cookie_params(%{parts: parts}), do: merge(parts, :cookie_params)
+
+  @doc false
+  def merge(parts, callback) do
+    Enum.reduce(parts, %{}, fn part, merged -> Map.merge(merged, call(part, callback) || %{}) end)
+  end
+
+  @doc false
+  def call(%{__struct__: mod} = part, callback) do
+    if function_exported?(mod, callback, 1), do: apply(mod, callback, [part]), else: nil
+  end
+
+  def call(part, callback), do: Map.get(part, callback)
+end
+
+defmodule PetstoreClient.Auth.AllOfTokenAuthenticator do
+  @moduledoc false
+
+  @behaviour PetstoreClient.Auth.Authenticator
+
+  alias PetstoreClient.Auth.AllOfAuthenticator
+
+  defstruct [:parts]
+
+  @impl true
+  def host(self), do: AllOfAuthenticator.host(self)
+
+  @impl true
+  def auth_headers(self), do: AllOfAuthenticator.auth_headers(self)
+
+  @impl true
+  def query_params(self), do: AllOfAuthenticator.query_params(self)
+
+  @impl true
+  def cookie_params(self), do: AllOfAuthenticator.cookie_params(self)
+
+  @doc false
+  def set_api_client(%{parts: parts} = self, client) do
+    %{self | parts: Enum.map(parts, &each_part(&1, :set_api_client, [client]))}
+  end
+
+  @doc false
+  def invalidate_access_token(%{parts: parts}) do
+    Enum.each(parts, &each_part(&1, :invalidate_access_token, []))
+    :ok
+  end
+
+  @doc false
+  def close(%{parts: parts}) do
+    Enum.each(parts, &each_part(&1, :close, []))
+    :ok
+  end
+
+  defp each_part(%{__struct__: mod} = part, function, args) do
+    if function_exported?(mod, function, length(args) + 1) do
+      result = apply(mod, function, [part | args])
+      if function == :set_api_client, do: result, else: part
+    else
+      part
+    end
+  end
+
+  defp each_part(part, _function, _args), do: part
 end

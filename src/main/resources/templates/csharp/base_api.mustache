@@ -101,6 +101,45 @@ public abstract class BaseApi
     }
 
     /// <summary>
+    /// Returns the credential for an operation whose security block lists alternative requirements.
+    /// Each group is one requirement: a group that names several schemes needs the credentials of
+    /// all of them and a request carries every one. The first group the client holds every
+    /// credential of wins, else the first group it holds at least one credential of; null when it
+    /// holds none, which leaves the call to the client-level authenticator.
+    /// </summary>
+    /// <param name="groups">The requirements in the spec's order, each the scheme names it needs together.</param>
+    /// <returns>The authenticator to send, or null.</returns>
+    protected IAuthenticator? ResolveRequirementAuth(params string[][] groups)
+    {
+        List<IAuthenticator>? partial = null;
+        foreach (string[] group in groups)
+        {
+            var held = new List<IAuthenticator>();
+            foreach (string scheme in group)
+            {
+                if (_schemeAuthenticators.TryGetValue(scheme, out IAuthenticator? found))
+                {
+                    held.Add(found);
+                }
+            }
+            if (held.Count == 0)
+            {
+                continue;
+            }
+            if (held.Count == group.Length)
+            {
+                return held.Count == 1 ? held[0] : AllOfAuthenticator.Of(held);
+            }
+            partial ??= held;
+        }
+        if (partial is null)
+        {
+            return null;
+        }
+        return partial.Count == 1 ? partial[0] : AllOfAuthenticator.Of(partial);
+    }
+
+    /// <summary>
     /// Invoke an API operation and return the full result including status code,
     /// headers, and raw body alongside the deserialized data.
     /// </summary>
@@ -1185,5 +1224,124 @@ public abstract class BaseApi
             }
         }
         return true;
+    }
+}
+
+/// <summary>The credentials of every scheme one security requirement names together: all of them are sent.</summary>
+internal class AllOfAuthenticator : IAuthenticator
+{
+    /// <summary>The credentials, in the order the requirement names their schemes.</summary>
+    protected IReadOnlyList<IAuthenticator> Parts { get; }
+
+    protected AllOfAuthenticator(IReadOnlyList<IAuthenticator> parts)
+    {
+        Parts = parts;
+    }
+
+    /// <summary>The composite of <paramref name="parts"/>; one holding a token authenticator can drop a cached token on a 401.</summary>
+    public static IAuthenticator Of(IReadOnlyList<IAuthenticator> parts)
+    {
+        if (parts.Any(part => part is IInvalidatableAuthenticator))
+        {
+            return new AllOfInvalidatingAuthenticator(parts);
+        }
+        return parts.Any(part => part is IHttpAwareAuthenticator)
+            ? new AllOfHttpAwareAuthenticator(parts)
+            : new AllOfAuthenticator(parts);
+    }
+
+    public string GetHost() => Parts[0].GetHost();
+
+    public Dictionary<string, string> GetAuthHeaders()
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            foreach (KeyValuePair<string, string> entry in part.GetAuthHeaders())
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+
+    public async Task<Dictionary<string, string>> GetAuthHeadersAsync()
+    {
+        return await GetAuthHeadersAsync(CancellationToken.None).ConfigureAwait(false);
+    }
+
+    public async Task<Dictionary<string, string>> GetAuthHeadersAsync(CancellationToken cancellationToken)
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            Dictionary<string, string> headers = await part.GetAuthHeadersAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (KeyValuePair<string, string> entry in headers)
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+
+    public Dictionary<string, string> GetQueryParams()
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            foreach (KeyValuePair<string, string> entry in part.GetQueryParams())
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+
+    public Dictionary<string, string> GetCookieParams()
+    {
+        var merged = new Dictionary<string, string>();
+        foreach (IAuthenticator part in Parts)
+        {
+            foreach (KeyValuePair<string, string> entry in part.GetCookieParams())
+            {
+                merged[entry.Key] = entry.Value;
+            }
+        }
+        return merged;
+    }
+}
+
+internal class AllOfHttpAwareAuthenticator : AllOfAuthenticator, IHttpAwareAuthenticator
+{
+    public AllOfHttpAwareAuthenticator(IReadOnlyList<IAuthenticator> parts)
+        : base(parts) { }
+
+    public void SetApiClient(IApiClient apiClient)
+    {
+        foreach (IAuthenticator part in Parts)
+        {
+            if (part is IHttpAwareAuthenticator httpAware)
+            {
+                httpAware.SetApiClient(apiClient);
+            }
+        }
+    }
+}
+
+internal sealed class AllOfInvalidatingAuthenticator : AllOfHttpAwareAuthenticator, IInvalidatableAuthenticator
+{
+    public AllOfInvalidatingAuthenticator(IReadOnlyList<IAuthenticator> parts)
+        : base(parts) { }
+
+    public void InvalidateAccessToken()
+    {
+        foreach (IAuthenticator part in Parts)
+        {
+            if (part is IInvalidatableAuthenticator invalidatable)
+            {
+                invalidatable.InvalidateAccessToken();
+            }
+        }
     }
 }

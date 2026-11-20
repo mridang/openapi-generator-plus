@@ -279,7 +279,12 @@ defmodule {{moduleName}}.Api.{{classname}} do
     # order that the client holds; nil when it holds none of them, which
     # leaves the call to the client-level authenticator. There is no per-call
     # credential.
+{{#vendorExtensions.op.hasAllOfGroup}}
+    auth = {{moduleName}}.Api.BaseApi.requirement_auth(api, [{{#vendorExtensions.op.securityAlternatives}}[{{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityAlternatives}}])
+{{/vendorExtensions.op.hasAllOfGroup}}
+{{^vendorExtensions.op.hasAllOfGroup}}
     auth = {{moduleName}}.Api.BaseApi.scheme_auth(api, [{{#vendorExtensions.op.securitySchemeOrder}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/vendorExtensions.op.securitySchemeOrder}}])
+{{/vendorExtensions.op.hasAllOfGroup}}
 {{/vendorExtensions.op.hasSecuritySchemes}}
 {{^vendorExtensions.op.hasSecuritySchemes}}
 {{#vendorExtensions.op.securityNone}}
