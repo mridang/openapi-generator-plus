@@ -825,3 +825,28 @@ test('bhv misc 131 a supplied session follows redirects under the sdk redirect r
     expect($response->statusCode)->toBe(200);
     expect($stub->requests)->toHaveCount(2);
 });
+
+test('bhv misc 267 the default headers of a caller supplied http client are sent on the wire with each request', function (): void {
+    $stub = new StubPsr18Client(psr18Response(200, '{}'), psr18Response(200, '{}'));
+    $withDefaults = new class ($stub) implements ClientInterface {
+        public function __construct(private readonly ClientInterface $inner)
+        {
+        }
+
+        public function sendRequest(RequestInterface $request): ResponseInterface
+        {
+            return $this->inner->sendRequest($request->withHeader('X-Caller-Default', 'on'));
+        }
+    };
+    $factory = new Psr17Factory();
+    $client = new Psr18ApiClient($withDefaults, $factory, $factory);
+
+    $client->sendRequest('GET', 'http://example.com/one', ['X-Sdk' => 'a'], null);
+    $client->sendRequest('GET', 'http://example.com/two', ['X-Sdk' => 'b'], null);
+
+    expect($stub->requests)->toHaveCount(2);
+    foreach ($stub->requests as $request) {
+        expect($request->getHeaderLine('X-Caller-Default'))->toBe('on');
+        expect($request->hasHeader('X-Sdk'))->toBeTrue();
+    }
+});

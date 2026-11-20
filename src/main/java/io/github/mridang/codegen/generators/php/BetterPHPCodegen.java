@@ -460,6 +460,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("call_observer.mustache", invokerFolder, "CallObserver.php"),
             new SupportingFileSpec("call_info.mustache", invokerFolder, "CallInfo.php"),
             new SupportingFileSpec("call_outcome.mustache", invokerFolder, "CallOutcome.php"),
+            new SupportingFileSpec("wire_format.mustache", invokerFolder, "WireFormat.php"),
             new SupportingFileSpec("call_hook_chain.mustache", invokerFolder, "CallHookChain.php"),
             new SupportingFileSpec(
                 "open_telemetry_call_hook.mustache", invokerFolder, "OpenTelemetryCallHook.php"),

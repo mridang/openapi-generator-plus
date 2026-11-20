@@ -741,7 +741,10 @@ class ObjectSerializer
             if (is_string($data)) {
                 self::assertJsonDepth($data);
             }
-            return self::deserializeInternal($data, $class, $httpHeaders);
+            $decoded = self::deserializeInternal($data, $class, $httpHeaders);
+            self::assertWireFormats($decoded, 0);
+
+            return $decoded;
         } catch (SerializationException $e) {
             throw $e;
         } catch (
@@ -757,6 +760,72 @@ class ObjectSerializer
                 $e
             );
         }
+    }
+
+    /** @var array<class-string, array<string, string>> the wire format of each marked property, by class */
+    private static array $wireFormatsByClass = [];
+
+    /**
+     * Refuses a decoded model that holds a string which is not what the schema declared for it: an
+     * absolute URI, an IPv4 address or an IPv6 address (the properties marked with {@see WireFormat}).
+     * Models inside lists, maps and other models are checked as well.
+     *
+     * @throws \InvalidArgumentException when a marked property holds a value that is not of its format
+     */
+    private static function assertWireFormats(mixed $value, int $depth): void
+    {
+        if ($depth > self::MAX_JSON_DEPTH) {
+            return;
+        }
+        if (is_array($value) || $value instanceof \Ds\Collection) {
+            foreach ($value as $item) {
+                self::assertWireFormats($item, $depth + 1);
+            }
+
+            return;
+        }
+        if (!is_object($value) || !str_starts_with($value::class, '{{modelPackage}}\\')) {
+            return;
+        }
+        $class = $value::class;
+        if (!isset(self::$wireFormatsByClass[$class])) {
+            $formats = [];
+            foreach ((new \ReflectionClass($class))->getProperties() as $property) {
+                $marks = $property->getAttributes(WireFormat::class);
+                if ($marks !== []) {
+                    $formats[$property->getName()] = $marks[0]->newInstance()->format;
+                }
+            }
+            self::$wireFormatsByClass[$class] = $formats;
+        }
+        foreach (get_object_vars($value) as $name => $item) {
+            $format = self::$wireFormatsByClass[$class][$name] ?? null;
+            if ($format !== null && is_string($item) && !self::isWireFormat($format, $item)) {
+                throw new \InvalidArgumentException(
+                    "Value for $name is not a valid $format: " . self::describeValue($item)
+                );
+            }
+            self::assertWireFormats($item, $depth + 1);
+        }
+    }
+
+    /**
+     * Whether $text is a value of the wire format: an absolute URI, an IPv4 address in dotted decimal
+     * with no leading zero, or an IPv6 address, none with whitespace, brackets, a prefix length or a
+     * zone identifier.
+     */
+    private static function isWireFormat(string $format, string $text): bool
+    {
+        if ($text === '' || $text !== trim($text)) {
+            return false;
+        }
+
+        return match ($format) {
+            'uri' => preg_match('/^[A-Za-z][A-Za-z0-9+.\-]*:[^\s]*$/', $text) === 1 && parse_url($text) !== false,
+            'ipv4' => filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) !== false,
+            'ipv6' => filter_var($text, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6) !== false,
+            default => true,
+        };
     }
 
     /**

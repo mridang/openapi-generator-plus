@@ -75,6 +75,23 @@ test('bhv transport 066 a CA bundle file trusts every certificate it contains', 
     }
 });
 
+test('bhv misc 033 a pinned root accepts a server that also sends the intermediate linking its leaf to the root', function (): void {
+    /* The CA file holds only the root; the fixture server presents its leaf and the intermediate. */
+    $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
+    $caCertPath = getenv('CA_CERT_PATH') ?: '';
+    expect(substr_count((string) file_get_contents($caCertPath), 'BEGIN CERTIFICATE'))->toBe(1);
+
+    $transport = TransportOptions::builder()
+        ->verifySsl(true)
+        ->caCertPath($caCertPath)
+        ->build();
+
+    $client = new DefaultApiClient($transport);
+    $response = $client->sendRequest('GET', $chasmUrl . '/test/echo', [], null);
+
+    expect($response->statusCode)->toBe(200);
+});
+
 test('bhv transport 017 makes https request with custom ca cert', function (): void {
     $chasmUrl = getenv('CHASM_HTTPS_URL') ?: '';
     $caCertPath = getenv('CA_CERT_PATH') ?: null;

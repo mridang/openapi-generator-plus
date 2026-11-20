@@ -3096,6 +3096,21 @@ test('bhv lifecycle 037 closing while a request runs releases the client once an
         ->toThrow(\LogicException::class);
 });
 
+test('bhv misc 184 closing a client returns without waiting for the running request and does not cancel it', function (): void {
+    /** @var \ArrayObject<int, string> $log */
+    $log = new \ArrayObject();
+    $closes = 0;
+    $client = closingTransportClient([200], $log, $closes);
+
+    $response = $client->sendRequest('GET', 'http://example.com/running', [], null);
+
+    /* The transport callback closed the client from inside the request: close() returned, the code
+     * after it ran, and the request still delivered its response. */
+    expect($closes)->toBe(1);
+    expect($response->statusCode)->toBe(200);
+    expect($response->body)->toBe('{"done":true}');
+});
+
 test('bhv lifecycle 044 a request in flight when the client is closed still completes through its retries', function (): void {
     /** @var \ArrayObject<int, string> $log */
     $log = new \ArrayObject();
@@ -3106,6 +3121,35 @@ test('bhv lifecycle 044 a request in flight when the client is closed still comp
 
     expect($response->statusCode)->toBe(200);
     expect(count($log))->toBe(2);
+});
+
+test('bhv retries 028 cancelling the caller during the retry wait stops the retrying', function (): void {
+    $sent = 0;
+    $mock = new MockHttpClient(function () use (&$sent): MockResponse {
+        $sent++;
+
+        return new MockResponse('{}', ['http_code' => 503]);
+    });
+    $client = new StubbedDefaultApiClient($mock);
+    $client->onPause = static function (float $seconds): void {
+        \Fiber::suspend('waiting to retry');
+    };
+    $fiber = new \Fiber(
+        static fn (): mixed => $client->sendWithRetries('GET', 'http://example.com/flaky', static fn (): array => [], null)
+    );
+    $fiber->start();
+    expect($fiber->isSuspended())->toBeTrue();
+    $cancel = new \RuntimeException('cancelled by the caller');
+    $caught = null;
+
+    try {
+        $fiber->throw($cancel);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($cancel);
+    expect($sent)->toBe(1);
 });
 
 test('bhv misc 030 a request whose deadline has already passed raises a timeout error and never reaches the transport', function (): void {

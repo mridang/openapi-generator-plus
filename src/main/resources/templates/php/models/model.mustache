@@ -116,7 +116,7 @@ enum {{classname}}: string
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-class {{classname}}
+class {{classname}} implements \Ds\Hashable
 {
 {{^discriminator}}
 {{#hasByteVariants}}
@@ -306,7 +306,7 @@ class {{classname}}
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-class {{classname}}
+class {{classname}} implements \Ds\Hashable
 {
     /** @return array<callable> */
     private static function anyOfCandidates(): array
@@ -444,7 +444,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 {{/externalDocumentation}}
 {{/description}}
 {{/isDeprecated}}
-class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
+class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}} implements \Ds\Hashable
 {
 {{#vendorExtensions.x-allof-base}}
 {{#discriminator}}
@@ -723,6 +723,15 @@ class {{classname}}{{#parentSchema}} extends {{{parent}}}{{/parentSchema}}
 {{/isContainer}}
 {{/isByteArray}}
 {{/description}}
+{{#vendorExtensions.isIpv4}}
+    #[\{{invokerPackage}}\WireFormat('ipv4')]
+{{/vendorExtensions.isIpv4}}
+{{#vendorExtensions.isIpv6}}
+    #[\{{invokerPackage}}\WireFormat('ipv6')]
+{{/vendorExtensions.isIpv6}}
+{{#isUri}}
+    #[\{{invokerPackage}}\WireFormat('uri')]
+{{/isUri}}
     #[SerializedName('{{{baseName}}}')]
     public readonly {{>model_var_type}} ${{name}};
 {{^-last}}

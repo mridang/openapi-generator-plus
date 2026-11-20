@@ -42,9 +42,15 @@ final class StubbedDefaultApiClient extends DefaultApiClient
         return $this->stubClient;
     }
 
+    /** Called with every wait the retry loop asks for, so a test can interrupt the wait. */
+    public ?\Closure $onPause = null;
+
     protected function pause(float $seconds): void
     {
         $this->pauses[] = $seconds;
+        if ($this->onPause instanceof \Closure) {
+            ($this->onPause)($seconds);
+        }
     }
 
     protected function jitter(): float
