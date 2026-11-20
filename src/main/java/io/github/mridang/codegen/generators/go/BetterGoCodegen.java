@@ -633,6 +633,7 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
         return List.of(
                 new SupportingFileSpec("readme.mustache", "", "README.md"),
                 new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
+                new SupportingFileSpec("doc.mustache", "pkg", "doc.go"),
                 new SupportingFileSpec("configuration.mustache", "pkg", "configuration.go"),
                 new SupportingFileSpec(
                         "transport_options.mustache", "pkg", "transport_options.go"),

@@ -54,10 +54,8 @@ dart | serializationobject002 | Dart decodes a bare type: number to double, a bi
 go | authintegration013 | Go per-call request options (WithTimeout, WithHeaders, WithMaxRetries, WithRequestContentType) carry no authenticator, so there is no per-call :auth to override; a scheme credential replacing the client-level authenticator is bhv authintegration 003
 go | headers002 | HeaderSelector.selectHeaders takes a string content type, so a nil value cannot be passed; the empty-string default is bhv headers 001
 go | headers015 | HeaderSelector.isJSONMIME takes a string, so a nil value cannot be passed; the empty string is bhv headers 014
-go | models002 | A Go module manifest (go.mod) has no description field, so there is no manifest description to declare
 go | options027 | Go builds TransportOptions only through NewTransportOptionsBuilder and has no constructor taking max retries; the builder setter and the 0 that disables retries are bhv options 026
-go | operations111 | The trackingId parameter is typed uuid.UUID, so a malformed value cannot be passed to GetOrderByTrackingId; a malformed wire value is refused by the decoder
-go | transport031 | net/http has one client Timeout covering connect, headers and body and no connect-only deadline, so the one deadline is the one bhv transport 058 tests
+go | operations111 | the trackingId path parameter is typed uuid.UUID, so a non-canonical value cannot be passed to GetOrderByTrackingId; a non-canonical wire value is refused when a model is decoded (misc085)
 rust | serializationobject009 | Rust types a list of byte arrays (Vec<Vec<u8>>) and a map of byte arrays (HashMap<String, Vec<u8>>) as different types with no equality between them, so they cannot be compared for equality at all
 rust | unions011 | rust models derive PartialEq but never Hash, and a member model can hold a format: number field (f64, D83) which has no Eq or Hash, so a matching hash cannot be derived for every anyOf wrapper
 swift | serializationobject107 | A Swift Date is an absolute instant with no zone, so the input offset (-08:00) is not kept; formatDateTime always writes +00:00 (the UTC pin on dateFormatter)
@@ -279,14 +277,11 @@ swift | operations164 | Swift required parameters are non-optional typed argumen
 elixir | auth039 | Elixir has one credential argument that is either a string or a zero-arity function, so a token and a token provider cannot be passed together (the same reason as authbearer026)
 elixir | auth052 | Elixir has no async accessor: auth_headers/1 is the only way to read headers and it is synchronous, so the asynchronous refusal the promise names cannot exist; the synchronous refusal is asserted by bhv auth 001
 go | serialization080 | Go's time.Duration is int64 nanoseconds, about 292 years, so the protobuf range of 315576000000 seconds cannot be held and a duration past about 292 years is refused as out of range; serializationobject223 pins that limit
-go | retries045 | the Go client reads every body into memory before the first send, so a 401 replays any body including one the caller streamed; TestBaseApi_A401OnOAuthRequestRenewsTheTokenAndReplaysOnce pins the replay
 go | transport083 | the Go client has no client-level cancellation: Close is graceful and lets requests in flight finish (F1078), and cancellation is per call through its context.Context, which transport084 pins
-go | misc012 | the petstore declares no required argument that Go can pass as nil: every required parameter is a value type (int64, string, Account) that cannot be nil, and PlaceOrder's body is optional in the spec, so a nil order is no body by design; operations164 covers the empty required string
 go | misc049 | the petstore declares no oneOf between a single binary value and a list of binary values, so the list-of-bytes choice has no generated union to test
 go | misc051 | Go's Options structs and call options are typed, so an unknown key or a server setting on an operation without servers cannot be passed to compile at all
 go | misc060 | the API-key authenticator takes a fixed key (NewApiKeyAuthenticator) or a provider (NewApiKeyAuthenticatorWithProvider) through separate constructors, so no call can pass both; the same reason as authbearer026
 go | misc075 | Go's Credentials struct has one typed field per scheme, so a credential keyed to an undeclared scheme cannot be passed to compile
-go | misc085 | the trackingId parameter is typed uuid.UUID, so a non-canonical value cannot be passed to the call or built into an Order; a malformed wire value is refused by the decoder (operations111)
 go | misc087 | Go's number is float64 and documented lossy (serializationobject002), so a decimal field is a bare JSON number by float64 formatting, and the exact-decimal writing this promise needs is not the Go contract
 go | misc088 | Go's number is float64 (no stdlib decimal, documented lossy), so the decimal places a value was written with are not kept, as serializationobject002 records
 kotlin | operations164 | a required parameter is a non-null Kotlin type, so a nil argument is rejected by the compiler and cannot reach the call; a missing required Options field is refused with an argument error by bhv operations 132

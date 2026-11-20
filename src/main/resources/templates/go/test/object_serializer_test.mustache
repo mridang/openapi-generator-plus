@@ -2416,6 +2416,27 @@ func TestBhvSerializationobject163_ObjectSerializer_EdgeCases_CutoffTimeRoundTri
 	}
 }
 
+// A UUID whose text is not in canonical form is refused with a serialization error when it is decoded.
+func TestBhvMisc085_ObjectSerializer_ANonCanonicalUuidIsRefusedOnDecode(t *testing.T) {
+	t.Parallel()
+	for _, text := range []string{
+		"{550e8400-e29b-41d4-a716-446655440000}",
+		"urn:uuid:550e8400-e29b-41d4-a716-446655440000",
+		"550e8400e29b41d4a716446655440000",
+	} {
+		var order models.Order
+		err := deserialize([]byte(`{"trackingId":"`+text+`"}`), &order)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", text, err, err)
+		}
+	}
+	var ok models.Order
+	if err := deserialize([]byte(`{"trackingId":"550e8400-e29b-41d4-a716-446655440000"}`), &ok); err != nil {
+		t.Errorf("the canonical form must decode, got %v", err)
+	}
+}
+
 // Rejecting undeclared keys on one strict model leaves other models accepting and ignoring them.
 func TestBhvMisc103_ObjectSerializer_StrictRejectionIsPerModel(t *testing.T) {
 	t.Parallel()

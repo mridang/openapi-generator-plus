@@ -395,6 +395,27 @@ func TestBhvMisc083_DefaultApiClient_ARawQueryIsSentExactlyAsWritten(t *testing.
 	}
 }
 
+// dialTimeoutRoundTripper fails the way a connect that outlives its deadline does.
+type dialTimeoutRoundTripper struct{}
+
+func (dialTimeoutRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, &net.OpError{Op: "dial", Net: "tcp", Err: os.ErrDeadlineExceeded}
+}
+
+// A connect deadline raises the network timeout error.
+func TestBhvTransport031_DefaultApiClient_ADialTimeoutIsANetworkTimeoutError(t *testing.T) {
+	t.Parallel()
+	transport, err := NewTransportOptionsBuilder().RoundTripper(dialTimeoutRoundTripper{}).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("GET", "http://203.0.113.1/", map[string]string{}, nil)
+	var timeout *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeout) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
+	}
+}
+
 func TestBhvTransport010_DefaultApiClient_IncludesTransportDefaultHeaders(t *testing.T) {
 	t.Parallel()
 	transport, buildErr := NewTransportOptionsBuilder().

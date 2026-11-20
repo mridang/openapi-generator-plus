@@ -2359,6 +2359,41 @@ func TestBhvAuthintegration001_BaseApi_AFailedReauthenticationLeavesTheOriginal4
 	}
 }
 
+// A streamed request body is sent only once: after a 401 that invalidates the token, the request is not replayed.
+func TestBhvRetries045_BaseApi_AStreamedBodyIsNotReplayedAfterA401(t *testing.T) {
+	t.Parallel()
+	srv := newOAuthReplayServer(t, "tok2", 0)
+	client := replayClient(t, srv)
+
+	_, err := client.Pet.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{File: strings.NewReader("streamed")})
+	var unauthorized *apierrors.UnauthorizedError
+	if !errors.As(err, &unauthorized) {
+		t.Fatalf("expected *UnauthorizedError, got %T: %v", err, err)
+	}
+	if got := srv.apiHits.Load(); got != 1 {
+		t.Errorf("expected the streamed body to be sent once, got %d requests", got)
+	}
+}
+
+// A call whose required argument is nil raises an argument error that names that argument, and nothing is sent.
+func TestBhvMisc012_BaseApi_ANilRequiredFileNamesTheArgumentAndSendsNothing(t *testing.T) {
+	t.Parallel()
+	client := &capturingApiClient{}
+	config := {{packageName}}.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := {{packageName}}.NewPetApi(client, config, nil, {{packageName}}.Credentials{})
+
+	_, err := api.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{})
+	if !errors.Is(err, {{packageName}}.ErrMissingRequiredParameter) {
+		t.Fatalf("expected ErrMissingRequiredParameter, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "'file'") {
+		t.Errorf("expected the error to name the file argument, got %q", err.Error())
+	}
+	if client.capturedURL != "" {
+		t.Errorf("expected nothing to be sent, got a request to %q", client.capturedURL)
+	}
+}
+
 func TestBhvRetries002_BaseApi_ABearerRequestIsNeverReplayedOnA401(t *testing.T) {
 	t.Parallel()
 	srv := newOAuthReplayServer(t, "never", 0)
