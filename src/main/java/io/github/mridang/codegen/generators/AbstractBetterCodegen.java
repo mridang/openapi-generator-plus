@@ -6038,7 +6038,56 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final Map<String, Object> opDecorator = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
         opDecorator.put("securitySchemeOrder", schemeOrder);
         opDecorator.put("hasSecuritySchemes", !schemeOrder.isEmpty());
+        opDecorator.put("securityAlternatives", securityAlternatives(operation, openAPI));
         return op;
+    }
+
+    /**
+     * The security alternatives an operation accepts: one entry per requirement object, in
+     * order, each listing {@code schemes} (the {@code schemeId}s the requirement names that the
+     * client holds a credential for, in the order it names them). A requirement that names two
+     * schemes is one alternative that needs both credentials at once. Requirements that name no
+     * scheme the client holds are left out.
+     *
+     * @param operation the operation being converted
+     * @param spec the parsed document
+     * @return the alternatives, each as a map with a {@code schemes} list of {@code schemeId}
+     *     entries
+     */
+    final List<Map<String, Object>> securityAlternatives(
+            final Operation operation, final OpenAPI spec) {
+        final List<io.swagger.v3.oas.models.security.SecurityRequirement> requirements =
+                operation != null && operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (spec != null ? spec.getSecurity() : null);
+        final List<Map<String, Object>> alternatives = new ArrayList<>();
+        if (requirements == null) {
+            return alternatives;
+        }
+        final Set<String> held = new HashSet<>();
+        for (final Map<String, Object> scheme : schemeCredentials(spec)) {
+            held.add((String) scheme.get("schemeId"));
+        }
+        for (final io.swagger.v3.oas.models.security.SecurityRequirement requirement :
+                requirements) {
+            if (requirement == null) {
+                continue;
+            }
+            final List<Map<String, Object>> schemes = new ArrayList<>();
+            for (final String schemeId : requirement.keySet()) {
+                if (held.contains(schemeId)) {
+                    final Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("schemeId", schemeId);
+                    schemes.add(entry);
+                }
+            }
+            if (!schemes.isEmpty()) {
+                final Map<String, Object> alternative = new LinkedHashMap<>();
+                alternative.put("schemes", schemes);
+                alternatives.add(alternative);
+            }
+        }
+        return alternatives;
     }
 
     /**

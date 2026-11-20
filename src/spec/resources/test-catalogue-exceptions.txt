@@ -385,7 +385,6 @@ rust | misc065 | Rust moves each credential into Credentials by value, so the ca
 rust | misc067 | the Rust token provider returns a plain String and cannot fail, so there is no provider error for the request to surface
 rust | misc071 | Rust exposes no accessor for a client's transport, so the transport an authenticator is given cannot be compared with the client's own from outside the client
 rust | misc072 | Rust clients take either one default credential or per-scheme credentials, never both, so no API group is built holding the default and the scheme credentials together
-rust | misc074 | Rust operations send the credential of the first scheme the specification requires that is set, so an alternative naming two schemes sends one credential, not both
 rust | misc075 | Credentials has one typed setter per declared scheme, so naming an undeclared scheme is refused by the compiler and no construction-time error exists
 dart | misc051 | Dart rejects an unknown named option and a server setting on an operation without servers at compile time, since the generated options classes and constructors declare only their own fields, so no run-time refusal can be observed
 dart | misc052 | Dart rejects a repeated named argument at compile time and per-call options fields are final, so the same kind of option cannot be given twice at run time
@@ -523,7 +522,6 @@ dart | misc260 | url takes its overrides as Map<String, String>, so a null value
 dart | misc262 | The SDK always wraps an http.ClientException from a cancelled request in NetworkException (abstract_api_client), so a cancellation is never surfaced to the caller unwrapped
 node | serialization102 | A JS Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; stringify always writes +00:00 (the UTC pin in ObjectSerializer.stringify)
 kotlin | misc283 | Kotlin keeps the error tree only in its errors subpackage: the SDK defines no package-root module that re-exports the error types, so each one is named by its errors import
-rust | misc178 | the Rust SDK sends a multipart body only when the declared content type is exactly multipart/form-data and builds no other multipart type, so no declared subtype other than form-data reaches the transport
 rust | misc185 | the Rust OAuth2 token manager has no stop operation and no stopped state, so a second stop and a token request after stop cannot be expressed
 
 java | transport083 | Java has no client-level cancellation handle: TransportOptions carries no cancellation token, and a call is cancelled by interrupting the calling thread, which transport084 covers
