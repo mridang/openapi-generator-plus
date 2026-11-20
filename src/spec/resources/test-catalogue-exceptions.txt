@@ -46,7 +46,6 @@ swift | models002 | a SwiftPM manifest (Package.swift) has no description field,
 csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject
 java | operations111 | The uuid parameter is typed java.util.UUID, so a malformed value cannot reach the method; UUID.fromString rejects it before the call
 kotlin | operations111 | Kotlin types the tracking id as kotlin.uuid.Uuid, so a malformed value cannot be built; Uuid.parse refuses it in the caller before any call is made, and Java (typed UUID) has the same gap
-php | serializationobject008 | format: uri is a plain string in php and schema constraints are not enforced client-side (S3, D55), so a relative reference is accepted (bhv serializationobject 173)
 php | serializationobject030 | schema bounds such as nickname minLength and quantity maximum are not enforced client-side (S3, D55); a typed int32 overflow is bhv serializationobject 089
 php | authoauthtwotokenmgr019 | PHP runs one call at a time in one process, so no caller can race another caller's refetch after an invalidate; the refetch after an invalidate is bhv authoauthtwotokenmgr 018
 php | authoauthtwotokenmgr027 | PHP runs one call at a time in one process, so concurrent callers cannot arrive while a refresh is in flight; a later caller served from the cache is bhv authoauthtwotokenmgr 025
@@ -212,7 +211,6 @@ node | unions041 | A non-discriminated oneOf of a byte scalar and an array of by
 php | options058 | TransportOptions holds no HTTP client field: the injected PSR-18 client is a constructor argument of Psr18ApiClient and is not stored on the built options, so there is no value to read back as the same instance or as unset
 php | options059 | TransportOptions holds no transport hook field: the caller's transport is the PSR-18 client constructor argument, so there is no option to read back as unset or kept
 php | redirects045 | the PSR-18 interface exposes no redirect policy, so the SDK cannot detect that an injected client follows redirects itself; the contract is documented on Psr18ApiClient instead
-php | serialization049 | format: uri is a plain string on the PHP 8.3 floor (the native URI type needs 8.5), so a relative value is not refused at decode
 python | auth015 | python has no infallible header accessor: get_auth_headers may raise the token error (D12 python row raises), so a failed token request raises and never returns headers without Authorization; only go and rust have the empty-map accessor (forced by their interface)
 ruby | auth015 | Ruby's auth_headers raises the token error rather than returning a header map, so the header map without an Authorization entry that rust returns cannot exist in ruby; the failure surfacing is asserted by bhv_authoauthtwoclientcred_015
 ruby | errors079 | Ruby sets the request method and path once, at construction through from_response or NetworkError.new; there is no second attachment call, so no later or incomplete attachment exists to ignore
@@ -228,7 +226,6 @@ php | authscheme008 | The SsoAuth scheme is an OpenID Connect authenticator, whi
 java | serializationobject407 | ipv4 and ipv6 are plain strings in java: the JDK has no literal-only address parser below Java 22, so nothing is checked and no error can be raised
 kotlin | serializationobject407 | ipv4 and ipv6 are plain strings in kotlin: the JVM has no literal-only address parser below Java 22, so nothing is checked and no error can be raised
 node | serializationobject407 | ipv4 and ipv6 are plain strings in node: the standard library has no address value type, so nothing is checked and no error can be raised
-php | serializationobject407 | ipv4 and ipv6 are plain strings in php: the language has no address class, so nothing is checked and no error can be raised
 dart | serializationobject407 | ipv4 and ipv6 are plain Strings in dart: InternetAddress lives in dart:io, which the models cannot import because the SDK also builds for the web
 swift | serializationobject407 | ipv4 and ipv6 are plain Strings in swift: the Network framework is not available on Linux, so nothing is checked and no error can be raised
 swift | serializationobject404 | swift keeps a duration as a TimeInterval (a Double of seconds, FD-2) because Swift.Duration needs macOS 13 and raising the platform floor is the owner's call (F1087), so digits below a double are not kept

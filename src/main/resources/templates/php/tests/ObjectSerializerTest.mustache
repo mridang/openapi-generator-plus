@@ -2406,6 +2406,53 @@ test('bhv misc 104 a string field declared with the email format decodes to a pl
     expect($item->contact)->toBe('not-an-email');
 });
 
+test('bhv serializationobject 008 a format uri model field rejects a relative reference', function (): void {
+    expect(fn () => ObjectSerializer::deserialize('{"name":"n","photoUrls":[],"homepageUrl":"/pets/fido"}', Pet::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+});
+
+test('bhv serialization 049 a uri format value must be absolute and a relative, empty or non uri string is refused', function (string $value, bool $accepted): void {
+    $json = '{"name":"n","photoUrls":[],"homepageUrl":' . json_encode($value) . '}';
+    if ($accepted) {
+        /** @var Pet $pet */
+        $pet = ObjectSerializer::deserialize($json, Pet::class);
+        expect($pet->homepageUrl)->toBe($value);
+
+        return;
+    }
+    expect(fn () => ObjectSerializer::deserialize($json, Pet::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'absolute https' => ['https://example.com/pets/fido', true],
+    'relative path' => ['/pets/fido', false],
+    'empty' => ['', false],
+    'not a uri' => ['not a uri', false],
+]);
+
+test('bhv serializationobject 407 an ipv4 or ipv6 value with a leading zero, prefix, zone, brackets, whitespace or the wrong family fails decode', function (string $field, string $value, bool $accepted): void {
+    $json = '{"' . $field . '":' . json_encode($value) . '}';
+    if ($accepted) {
+        /** @var NativeValues $decoded */
+        $decoded = ObjectSerializer::deserialize($json, NativeValues::class);
+        expect($decoded->$field)->toBe($value);
+
+        return;
+    }
+    expect(fn () => ObjectSerializer::deserialize($json, NativeValues::class))
+        ->toThrow(\{{invokerPackage}}\Errors\SerializationException::class);
+})->with([
+    'ipv4 plain' => ['address4', '192.0.2.1', true],
+    'ipv4 leading zero' => ['address4', '192.0.2.01', false],
+    'ipv4 prefix length' => ['address4', '192.0.2.1/24', false],
+    'ipv4 surrounding whitespace' => ['address4', ' 192.0.2.1', false],
+    'ipv4 holding an ipv6 address' => ['address4', '2001:db8::1', false],
+    'ipv6 plain' => ['address6', '2001:db8::1', true],
+    'ipv6 zone id' => ['address6', 'fe80::1%eth0', false],
+    'ipv6 brackets' => ['address6', '[2001:db8::1]', false],
+    'ipv6 prefix length' => ['address6', '2001:db8::/32', false],
+    'ipv6 holding an ipv4 address' => ['address6', '192.0.2.1', false],
+]);
+
 test('bhv serializationobject 173 uri-reference field still accepts a relative reference', function (): void {
     $json = '{"name":"n","photoUrls":[],"thumbnailRef":"/assets/thumb.png"}';
     /** @var Pet $item */

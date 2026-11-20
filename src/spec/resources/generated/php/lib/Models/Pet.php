@@ -54,6 +54,7 @@ class Pet implements \Ds\Hashable, \Stringable
      * Absolute URL to the pet's public profile page
      * @example https://example.com/pets/fido
      */
+    #[\PetstoreClient\WireFormat('uri')]
     #[SerializedName('homepageUrl')]
     public readonly ?string $homepageUrl;
 

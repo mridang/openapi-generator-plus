@@ -18,10 +18,12 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 class NativeValues implements \Ds\Hashable, \Stringable
 {
     /** @example 192.0.2.1 */
+    #[\PetstoreClient\WireFormat('ipv4')]
     #[SerializedName('address4')]
     public readonly ?string $address4;
 
     /** @example 2001:db8::1 */
+    #[\PetstoreClient\WireFormat('ipv6')]
     #[SerializedName('address6')]
     public readonly ?string $address6;
 
@@ -30,6 +32,7 @@ class NativeValues implements \Ds\Hashable, \Stringable
     public readonly ?\Ds\Vector $addresses;
 
     /** @example https://example.com/a */
+    #[\PetstoreClient\WireFormat('uri')]
     #[SerializedName('homepage')]
     public readonly ?string $homepage;
 
