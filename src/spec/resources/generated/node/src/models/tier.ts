@@ -12,5 +12,7 @@ export const Tier = {
   Medium: "m",
   /** The largest tier. Ends with *\/ and #{x} and $x. */
   Large: "l",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type Tier = (typeof Tier)[keyof typeof Tier];

@@ -22,6 +22,9 @@ public enum Priority
     Number2 = 2,
 
     Number3 = 3,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi = int.MinValue,
 }
 
 /// <summary>
@@ -50,7 +53,7 @@ internal sealed class PriorityConverter : JsonConverter<Priority>
             1 => Priority.Number1,
             2 => Priority.Number2,
             3 => Priority.Number3,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Priority."),
+            _ => Priority.UnknownDefaultOpenApi,
         };
     }
 

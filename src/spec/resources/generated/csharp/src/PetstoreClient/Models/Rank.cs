@@ -25,6 +25,9 @@ public enum Rank
     /// The highest rank.
     /// </summary>
     HIGH = 3,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi = int.MinValue,
 }
 
 /// <summary>
@@ -53,7 +56,7 @@ internal sealed class RankConverter : JsonConverter<Rank>
             1 => Rank.LOW,
             2 => Rank.MEDIUM,
             3 => Rank.HIGH,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Rank."),
+            _ => Rank.UnknownDefaultOpenApi,
         };
     }
 

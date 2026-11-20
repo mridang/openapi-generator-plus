@@ -11,23 +11,20 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
 /** A standalone, reusable colour enumeration */
-@Serializable
+@Serializable(with = Color.Serializer::class)
 enum class Color(
     val value: String,
 ) {
-    @SerialName("red")
     RED("red"),
-
-    @SerialName("green")
     GREEN("green"),
-
-    @SerialName("blue")
     BLUE("blue"),
+
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(""),
     ;
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -36,6 +33,26 @@ enum class Color(
     companion object {
         fun fromValue(value: String): Color =
             entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException("Unexpected value '$value'")
+                ?: UNKNOWN_DEFAULT_OPEN_API
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<Color> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                "Color",
+                kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+            )
+
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: Color,
+        ) {
+            if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+            }
+            encoder.encodeString(value.value)
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Color = fromValue(decoder.decodeString())
     }
 }

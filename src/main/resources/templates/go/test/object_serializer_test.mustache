@@ -1575,15 +1575,16 @@ func TestBhvSerializationobject103_ObjectSerializer_Deserialize_MalformedUUIDIsS
 	}
 }
 
-// A value of the referenced enum type outside its wire values is rejected
-// through the enclosing model.
-func TestBhvSerializationobject119_ObjectSerializer_Deserialize_ReferencedEnumRejectsUnknownWireValue(t *testing.T) {
+// A value of the referenced enum type outside its wire values decodes to the
+// catch-all member through the enclosing model.
+func TestBhvSerializationobject119_ObjectSerializer_Deserialize_ReferencedEnumGivesTheCatchAllMemberForAnUnknownWireValue(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem
-	err := deserialize([]byte(`{"priority":1,"availability":"banana"}`), &item)
-	var serErr *SerializationError
-	if !errors.As(err, &serErr) {
-		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	if err := deserialize([]byte(`{"priority":1,"availability":"banana"}`), &item); err != nil {
+		t.Fatalf("expected the unknown value to decode, got %v", err)
+	}
+	if item.Availability == nil || *item.Availability != models.AvailabilityUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %v", item.Availability)
 	}
 }
 
@@ -2046,6 +2047,14 @@ func TestBhvSerializationobject172_ObjectSerializer_Serialize_UndeclaredEnumValu
 	_, err = serialize(models.Swatch("bogus"))
 	if err == nil || !strings.Contains(err.Error(), "unexpected value bogus for enum Swatch") {
 		t.Fatalf("expected the undeclared enum value to be rejected, got %v", err)
+	}
+}
+
+// The catch-all member has no wire value, so writing it is an error.
+func TestBhvEnums012_ObjectSerializer_Serialize_TheCatchAllMemberCannotBeWritten(t *testing.T) {
+	t.Parallel()
+	if _, err := serialize(models.SwatchUnknownDefaultOpenApi); err == nil {
+		t.Fatal("expected the catch-all member to be refused on write")
 	}
 }
 
@@ -2956,14 +2965,15 @@ func TestBhvSerializationobject030_ObjectSerializer_Deserialize_IntegerFormatBou
 	}
 }
 
-// An enum string the spec does not declare fails when it is decoded.
-func TestBhvSerializationobject192_ObjectSerializer_UnknownEnumStringFailsAtDecode(t *testing.T) {
+// An enum string the spec does not declare decodes to the catch-all member.
+func TestBhvSerializationobject192_ObjectSerializer_UnknownEnumStringDecodesToTheCatchAllMember(t *testing.T) {
 	t.Parallel()
 	var a models.Availability
-	err := deserialize([]byte("\"teleported\""), &a)
-	var serErr *SerializationError
-	if !errors.As(err, &serErr) {
-		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	if err := deserialize([]byte("\"teleported\""), &a); err != nil {
+		t.Fatalf("expected the unknown value to decode, got %v", err)
+	}
+	if a != models.AvailabilityUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %q", a)
 	}
 }
 

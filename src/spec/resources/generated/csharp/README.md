@@ -204,9 +204,10 @@ written as `null`. A required nullable query parameter is kept the same way: whe
 
 ### Unknown enum values and discriminators
 
-An enum value, or a `oneOf` discriminator value, that the SDK does not know fails loudly with
-a `SerializationException` instead of being kept as a raw string. Regenerate the SDK when the
-API adds a value.
+An enum value the spec does not list decodes to the enum's catch-all member (`UnknownDefaultOpenApi`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationException`. A discriminator value that maps to no variant still fails
+loudly with `SerializationException`.
 
 ### Response headers
 

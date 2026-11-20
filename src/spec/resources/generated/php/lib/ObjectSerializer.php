@@ -97,7 +97,74 @@ class ObjectSerializer
             );
 
             self::$serializer = new Serializer([
-                new BackedEnumNormalizer(),
+                /* An enum value this SDK does not list decodes to the enum's
+                 * catch-all case, and the catch-all case cannot be written. */
+                new class () implements NormalizerInterface, DenormalizerInterface {
+                    private BackedEnumNormalizer $inner;
+
+                    public function __construct()
+                    {
+                        $this->inner = new BackedEnumNormalizer();
+                    }
+
+                    /**
+                     * @param array<string, mixed> $context
+                     * @return array<mixed>|string|int|float|bool|\ArrayObject<mixed, mixed>|null
+                     */
+                    public function normalize(mixed $data, ?string $format = null, array $context = []): mixed
+                    {
+                        if ($data instanceof \UnitEnum && $data->name === 'UNKNOWN_DEFAULT_OPEN_API') {
+                            throw new \InvalidArgumentException(
+                                'The catch-all enum case UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written'
+                            );
+                        }
+
+                        return $this->inner->normalize($data, $format, $context);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsNormalization(
+                        mixed $data,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return $this->inner->supportsNormalization($data, $format, $context);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function denormalize(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): mixed {
+                        if (is_subclass_of($type, \BackedEnum::class)) {
+                            $backing = (string) (new \ReflectionEnum($type))->getBackingType();
+                            $fits = ($backing === 'int' && is_int($data)) || ($backing === 'string' && is_string($data));
+                            if ($fits && $type::tryFrom($data) === null && defined($type . '::UNKNOWN_DEFAULT_OPEN_API')) {
+                                return constant($type . '::UNKNOWN_DEFAULT_OPEN_API');
+                            }
+                        }
+
+                        return $this->inner->denormalize($data, $type, $format, $context);
+                    }
+
+                    /** @param array<string, mixed> $context */
+                    public function supportsDenormalization(
+                        mixed $data,
+                        string $type,
+                        ?string $format = null,
+                        array $context = []
+                    ): bool {
+                        return $this->inner->supportsDenormalization($data, $type, $format, $context);
+                    }
+
+                    /** @return array<string, bool> */
+                    public function getSupportedTypes(?string $format): array
+                    {
+                        return $this->inner->getSupportedTypes($format);
+                    }
+                },
                 /* 4.8: register the protobuf-JSON DurationNormalizer BEFORE
                  * any \DateInterval handling (Symfony's built-in
                  * DateIntervalNormalizer would otherwise emit ISO-8601, which

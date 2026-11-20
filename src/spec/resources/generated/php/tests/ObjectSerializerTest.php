@@ -181,7 +181,7 @@ test('bhv serializationobject 104 models named Error and Result nest and round t
     expect($back->outcome?->ok)->toBeTrue();
 });
 
-test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values, and an unknown value inside a container is rejected', function (): void {
+test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values, and an unknown value inside a container decodes to the catch-all case', function (): void {
     $cases = [
         [\PetstoreClient\Models\EdgeCasesPhaseEnum::IN_STOCK, 'In-Stock'],
         [\PetstoreClient\Models\EdgeCasesPhaseEnum::ON_HOLD, 'on-hold'],
@@ -197,12 +197,18 @@ test('bhv serializationobject 024 an inline enum keeps its mixed-case wire value
         expect($back->phase)->toBe($case);
     }
 
-    expect(fn (): mixed => ObjectSerializer::deserialize('{"a":"purple"}', 'Ds\Map<Swatch>'))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    $swatches = ObjectSerializer::deserialize('{"a":"purple"}', 'Ds\Map<Swatch>');
+    \assert($swatches instanceof \Ds\Map);
+    expect($swatches->get('a'))->toBe(\PetstoreClient\Models\Swatch::UNKNOWN_DEFAULT_OPEN_API);
 });
 
 test('bhv serializationobject 022 every member of the inline enum round trips its wire value', function (): void {
-    foreach (\PetstoreClient\Models\EdgeCasesPhaseEnum::cases() as $case) {
+    foreach (
+        array_filter(
+            \PetstoreClient\Models\EdgeCasesPhaseEnum::cases(),
+            fn (\PetstoreClient\Models\EdgeCasesPhaseEnum $case): bool => $case !== \PetstoreClient\Models\EdgeCasesPhaseEnum::UNKNOWN_DEFAULT_OPEN_API
+        ) as $case
+    ) {
         $json = ObjectSerializer::serialize(new EdgeCases(phase: $case));
 
         /** @var EdgeCases $back */
@@ -549,41 +555,35 @@ test('bhv serializationobject 191 an int64 above 2^53 keeps every digit when dec
     expect(ObjectSerializer::serialize($order))->toContain('"id":9007199254740993');
 });
 
-test('bhv serializationobject 192 an unknown enum string fails at decode', function (): void {
-    expect(fn (): mixed => ObjectSerializer::deserialize('{"id":1,"status":"teleporting"}', Order::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+test('bhv serializationobject 192 an unknown enum string decodes to the catch-all case', function (): void {
+    $order = ObjectSerializer::deserialize('{"id":1,"status":"teleporting"}', Order::class);
+    \assert($order instanceof Order);
+    expect($order->status)->toBe(OrderStatusEnum::UNKNOWN_DEFAULT_OPEN_API);
 });
 
-test('bhv serializationobject 172 unknown enum value on deserialize throws SerializationException', function (): void {
+test('bhv serializationobject 172 an unknown enum value on deserialize decodes to the catch-all case', function (): void {
     // Pet::$status is a PetStatusEnum; "teleporting" is not a declared case.
     $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';
 
-    expect(fn (): mixed => ObjectSerializer::deserialize($json, Pet::class))
-        ->toThrow(function (\Exception $e): void {
-            expect($e::class)->toBe(\PetstoreClient\Errors\SerializationException::class);
-            expect($e)->toBeInstanceOf(\PetstoreClient\Errors\OpenAPIException::class);
-        });
+    $pet = ObjectSerializer::deserialize($json, Pet::class);
+    \assert($pet instanceof Pet);
+    expect($pet->status)->toBe(\PetstoreClient\Models\PetStatusEnum::UNKNOWN_DEFAULT_OPEN_API);
 });
 
-test('bhv serializationobject 182 unknown enum value on deserialize throws', function (): void {
-    expect(fn (): mixed => ObjectSerializer::deserialize('"teleporting"', OrderStatusEnum::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+test('bhv serializationobject 182 an unknown enum value on deserialize gives the catch-all case', function (): void {
+    expect(ObjectSerializer::deserialize('"teleporting"', OrderStatusEnum::class))
+        ->toBe(OrderStatusEnum::UNKNOWN_DEFAULT_OPEN_API);
 });
 
-test('bhv serialization 004 unknown enum value does not silently fall back to a default member', function (): void {
-    // Guard against a regression where the unknown value is swallowed and a
-    // valid Pet (with some default/first enum case) is returned instead of
-    // throwing. The deserialize call MUST raise — never return a Pet.
+test('bhv serialization 004 unknown enum value does not silently fall back to a declared member', function (): void {
+    // The unknown value decodes to the catch-all case, never to a declared
+    // case such as the first one or the schema default.
     $json = '{"id":1,"name":"Rex","photoUrls":[],"status":"teleporting"}';
 
-    $threw = false;
-    try {
-        ObjectSerializer::deserialize($json, Pet::class);
-    } catch (\PetstoreClient\Errors\SerializationException) {
-        $threw = true;
-    }
+    $pet = ObjectSerializer::deserialize($json, Pet::class);
+    \assert($pet instanceof Pet);
 
-    expect($threw)->toBeTrue();
+    expect($pet->status)->toBe(\PetstoreClient\Models\PetStatusEnum::UNKNOWN_DEFAULT_OPEN_API);
 });
 
 test('bhv serializationobject 162 thrown exception has message', function (): void {
@@ -1482,9 +1482,10 @@ test('bhv serializationobject 049 an explicit null for the property is kept and 
     expect($item->availability)->toBeNull();
 });
 
-test('bhv serializationobject 193 an unknown integer enum value is rejected on deserialize', function (): void {
-    expect(fn (): mixed => ObjectSerializer::deserialize('{"priority":99}', StockItem::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+test('bhv serializationobject 193 an unknown integer enum value decodes to the catch-all case', function (): void {
+    $item = ObjectSerializer::deserialize('{"priority":99}', StockItem::class);
+    \assert($item instanceof StockItem);
+    expect($item->priority)->toBe(\PetstoreClient\Models\Priority::UNKNOWN_DEFAULT_OPEN_API);
 });
 
 // -- Canonical #2: non-lowercase string enum preserves wire casing --
@@ -1526,11 +1527,12 @@ test('bhv serializationobject 194 a hyphenated enum wire value is serialized exa
     expect($json)->toContain('"availability":"on-hold"');
 });
 
-test('bhv serializationobject 059 unknown availability wire value is rejected on deserialize', function (): void {
+test('bhv serializationobject 059 unknown availability wire value decodes to the catch-all case', function (): void {
     // "available" (lowercase) is NOT a declared case; only "Available" is.
     $json = '{"priority":1,"availability":"available"}';
-    expect(fn (): mixed => ObjectSerializer::deserialize($json, StockItem::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+    $item = ObjectSerializer::deserialize($json, StockItem::class);
+    \assert($item instanceof StockItem);
+    expect($item->availability)->toBe(\PetstoreClient\Models\Availability::UNKNOWN_DEFAULT_OPEN_API);
 });
 
 test('bhv serializationobject 208 hostile availability wire strings are kept exactly through decode and serialize', function (string $wire, Availability $member): void {
@@ -2447,9 +2449,10 @@ test('bhv serializationobject 103 a malformed uuid string raises SerializationEx
         ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
-test('bhv serializationobject 119 a referenced enum field rejects an unknown wire value', function (): void {
-    expect(fn () => ObjectSerializer::deserialize('{"id":1,"petId":1,"quantity":1,"complete":false,"status":"bogus"}', Order::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+test('bhv serializationobject 119 a referenced enum field decodes an unknown wire value to the catch-all case', function (): void {
+    $order = ObjectSerializer::deserialize('{"id":1,"petId":1,"quantity":1,"complete":false,"status":"bogus"}', Order::class);
+    \assert($order instanceof Order);
+    expect($order->status)->toBe(OrderStatusEnum::UNKNOWN_DEFAULT_OPEN_API);
 });
 
 test('bhv serializationobject 134 a date is stringified as an ISO 8601 date-time with a T separator', function (): void {
@@ -2713,10 +2716,16 @@ test('bhv enums 007 a default on a referenced enum property starts at the member
     expect($item->tier)->toBe(\PetstoreClient\Models\Tier::MEDIUM);
 });
 
-test('bhv enums 008 encoding writes the wire value and decoding rejects a supplied name', function (): void {
+test('bhv enums 008 encoding writes the wire value and decoding a supplied name gives the catch-all case', function (): void {
     expect(ObjectSerializer::serialize(\PetstoreClient\Models\Tier::MEDIUM))->toBe('"m"');
-    expect(fn () => ObjectSerializer::deserialize('{"rank":1,"tier":"Medium"}', \PetstoreClient\Models\Subscription::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class, 'Medium');
+    $subscription = ObjectSerializer::deserialize('{"rank":1,"tier":"Medium"}', \PetstoreClient\Models\Subscription::class);
+    \assert($subscription instanceof \PetstoreClient\Models\Subscription);
+    expect($subscription->tier)->toBe(\PetstoreClient\Models\Tier::UNKNOWN_DEFAULT_OPEN_API);
+});
+
+test('bhv enums 012 the catch-all case of an enum has no wire value and cannot be written', function (): void {
+    expect(fn (): mixed => ObjectSerializer::serialize(\PetstoreClient\Models\Tier::UNKNOWN_DEFAULT_OPEN_API))
+        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
 });
 
 test('bhv enums 009 a member with a description carries it as the one-line comment directly above it', function (): void {
@@ -3159,9 +3168,9 @@ test('bhv serialization 102 a zulu timestamp decodes to the same instant as its 
     expect($metadata->createdAt?->getTimestamp())->toBe(1704067200);
 });
 
-test('bhv serialization 105 an enum value with the wrong case raises a serialization error', function (): void {
-    expect(fn (): mixed => ObjectSerializer::deserialize('"PLACED"', OrderStatusEnum::class))
-        ->toThrow(\PetstoreClient\Errors\SerializationException::class);
+test('bhv serialization 105 an enum value with the wrong case gives the catch-all case', function (): void {
+    expect(ObjectSerializer::deserialize('"PLACED"', OrderStatusEnum::class))
+        ->toBe(OrderStatusEnum::UNKNOWN_DEFAULT_OPEN_API);
 });
 
 test('bhv serialization 107 an exploded array query parameter repeats its key once per element', function (): void {

@@ -20,6 +20,9 @@ public record Order
         Approved,
 
         Delivered,
+
+        /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+        UnknownDefaultOpenApi,
     }
 
     /// <summary>
@@ -48,9 +51,7 @@ public record Order
                 "placed" => StatusEnum.Placed,
                 "approved" => StatusEnum.Approved,
                 "delivered" => StatusEnum.Delivered,
-                _ => throw new System.Text.Json.JsonException(
-                    $"Unknown value '{value}' for enum StatusEnum."
-                ),
+                _ => StatusEnum.UnknownDefaultOpenApi,
             };
         }
 

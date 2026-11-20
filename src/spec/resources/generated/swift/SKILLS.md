@@ -337,7 +337,7 @@ Models are generated as Swift structs in the `Models` directory.
 let model = Account(username: "example")
 ```
 
-Building a model never validates or throws (an unknown enum string builds no enum); a payload is checked when it is decoded, and an unknown enum string, a missing required property or a `format: uri` that is not an absolute URI throws `SerializationError`. A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.
+Building a model never validates or throws (an unknown enum string builds no enum); a payload is checked when it is decoded, an unknown enum string decodes to the catch-all case `.unknownDefaultOpenApi`, and a missing required property or a `format: uri` that is not an absolute URI throws `SerializationError`. A model is immutable: its properties are `let`. `model.copy(name: "x")` returns a copy with the given properties replaced (pass `.some(nil)` to clear an optional one). A `oneOf` union is built with `Union.fromVariant(value)` and read with `isVariant` and `asVariant`; an operation with several 2xx schemas returns such a union, decoded by the status that arrived.
 
 ## Binary / File Uploads
 

@@ -52,6 +52,9 @@ module Petstore::Client
     # payload would exhaust it. All twelve SDKs use the same cap.
     MAX_JSON_DEPTH = 1000
 
+    # The values the catch-all member of a generated enum holds; neither has a wire form.
+    CATCH_ALL_ENUM_VALUES = ['__unknown_default_open_api__', -9_223_372_036_854_775_808].freeze
+
     # Parse a JSON text into a plain Ruby value, refusing payloads that
     # exceed the MAX_JSON_DEPTH nesting cap (DoS guard for malicious
     # deeply-nested payloads). A single leading U+FEFF byte-order mark is
@@ -62,6 +65,7 @@ module Petstore::Client
     # @return [Object] the parsed value
     # @raise [Errors::SerializationError] if the depth limit is exceeded or
     #   parsing fails
+
     def self.parse_json(json_string, symbolize_names: false, decimal: false)
       # RFC 8259 §8.1 forbids a UTF-8 BOM at the start of JSON text,
       # but Windows-generated payloads often include one and Ruby's
@@ -420,6 +424,8 @@ module Petstore::Client
       when nil
         nil
       when String, Integer, Float, TrueClass, FalseClass
+        raise Errors::SerializationError, 'The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written' if CATCH_ALL_ENUM_VALUES.include?(object)
+
         object
       when Time, DateTime
         # Before the Date arm: DateTime is a Date subclass and would otherwise
@@ -688,9 +694,12 @@ module Petstore::Client
           deserialize_model(data, klass)
         elsif klass.const_defined?(:VALUES)
           values = klass.const_get(:VALUES)
-          raise ArgumentError, "Unknown enum value for #{return_type}: #{data.inspect} (allowed: #{values.inspect})" unless values.include?(data)
+          return data if values.include?(data)
 
-          data
+          catch_all = klass.const_get(:UNKNOWN_DEFAULT_OPEN_API)
+          raise ArgumentError, "Unknown enum value for #{return_type}: #{data.inspect} (allowed: #{values.inspect})" unless data.instance_of?(catch_all.class)
+
+          catch_all
         else
           klass.new(data)
         end

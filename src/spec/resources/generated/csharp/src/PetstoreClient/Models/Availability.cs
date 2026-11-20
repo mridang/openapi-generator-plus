@@ -30,6 +30,9 @@ public enum Availability
     Eq,
 
     X,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi,
 }
 
 /// <summary>
@@ -64,7 +67,7 @@ internal sealed class AvailabilityConverter : JsonConverter<Availability>
             "a\\b" => Availability.AB,
             "$eq" => Availability.Eq,
             "#{x}" => Availability.X,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Availability."),
+            _ => Availability.UnknownDefaultOpenApi,
         };
     }
 

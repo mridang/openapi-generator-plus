@@ -38,7 +38,7 @@ The build does not pin a JVM toolchain: it uses whichever JDK is on the `PATH`, 
 | `object` with `additionalProperties` | `Map` | `T` is the declared value type; a free-form bucket keeps the any-type |
 | free-form `object` | `@Contextual Any?` | |
 | nullable or optional property | `T?` | an absent key and an explicit `null` read the same; a required and nullable property keeps its key and is written as `null` when unset |
-| `enum` | `enum class` | an unknown value fails with `SerializationException`; a `$ref` to an enum with a `default` next to it starts at that member, whether the model is built or decoded without the key |
+| `enum` | `enum class` | an unknown value decodes to `UNKNOWN_DEFAULT_OPEN_API` (D117), which cannot be written; a `$ref` to an enum with a `default` next to it starts at that member, whether the model is built or decoded without the key |
 | `oneOf`, `anyOf` | a wrapper class | see Idioms |
 | file upload and download | `ByteArray` | |
 

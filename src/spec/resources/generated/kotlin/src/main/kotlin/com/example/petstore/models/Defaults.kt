@@ -70,18 +70,16 @@ data class Defaults(
     @Serializable(with = com.example.petstore.StrictLongSerializer::class)
     val ceiling: Long? = 9000000000L,
 ) {
-    @Serializable
+    @Serializable(with = ModeEnum.Serializer::class)
     enum class ModeEnum(
         val value: String,
     ) {
-        @SerialName("low")
         LOW("low"),
-
-        @SerialName("medium")
         MEDIUM("medium"),
-
-        @SerialName("high")
         HIGH("high"),
+
+        /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+        UNKNOWN_DEFAULT_OPEN_API(""),
         ;
 
         /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -90,7 +88,27 @@ data class Defaults(
         companion object {
             fun fromValue(value: String): ModeEnum =
                 entries.firstOrNull { it.value == value }
-                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+                    ?: UNKNOWN_DEFAULT_OPEN_API
+        }
+
+        internal object Serializer : kotlinx.serialization.KSerializer<ModeEnum> {
+            override val descriptor =
+                kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                    "ModeEnum",
+                    kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+                )
+
+            override fun serialize(
+                encoder: kotlinx.serialization.encoding.Encoder,
+                value: ModeEnum,
+            ) {
+                if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                    throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+                }
+                encoder.encodeString(value.value)
+            }
+
+            override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): ModeEnum = fromValue(decoder.decodeString())
         }
     }
 

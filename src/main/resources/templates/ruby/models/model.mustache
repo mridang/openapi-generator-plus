@@ -34,6 +34,9 @@ module {{moduleName}}
 {{/enumDescription}}
       {{{name}}} = {{{value}}}{{/enumVars}}
 
+      # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+      UNKNOWN_DEFAULT_OPEN_API = {{#isInteger}}-9_223_372_036_854_775_808{{/isInteger}}{{#isLong}}-9_223_372_036_854_775_808{{/isLong}}{{^isInteger}}{{^isLong}}'__unknown_default_open_api__'{{/isLong}}{{/isInteger}}
+
       # Frozen set of all allowed values, used for validation.
       VALUES = [{{#enumVars}}{{{name}}}{{^-last}}, {{/-last}}{{/enumVars}}].freeze
 {{/allowableValues}}
@@ -467,6 +470,9 @@ module {{moduleName}}
         # {{#lambda.singleLine}}{{#lambda.rubyDocComment}}{{{.}}}{{/lambda.rubyDocComment}}{{/lambda.singleLine}}
 {{/enumDescription}}
         {{{name}}} = {{{value}}}{{/enumVars}}
+
+        # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+        UNKNOWN_DEFAULT_OPEN_API = {{#isInteger}}-9_223_372_036_854_775_808{{/isInteger}}{{#isLong}}-9_223_372_036_854_775_808{{/isLong}}{{^isInteger}}{{^isLong}}'__unknown_default_open_api__'{{/isLong}}{{/isInteger}}
 
         # Frozen set of all allowed values, used for validation.
         VALUES = [{{#enumVars}}{{{name}}}{{^-last}}, {{/-last}}{{/enumVars}}].freeze

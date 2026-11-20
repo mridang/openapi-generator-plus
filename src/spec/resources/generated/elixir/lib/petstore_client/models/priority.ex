@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.Priority do
   """
 
   @typedoc "One of the allowed enum atoms for Priority."
-  @type t :: :number_1 | :number_2 | :number_3
+  @type t :: :number_1 | :number_2 | :number_3 | :unknown_default_open_api
   @doc "Enum value `number_1`"
   def number_1, do: :number_1
 
@@ -25,7 +25,10 @@ defmodule PetstoreClient.Models.Priority do
   @doc "Enum value `number_3`"
   def number_3, do: :number_3
 
-  @doc "All allowed values as atoms."
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
   @spec all_values() :: [t(), ...]
   def all_values do
     [number_1(), number_2(), number_3()]

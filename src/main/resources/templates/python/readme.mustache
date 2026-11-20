@@ -179,7 +179,7 @@ When an operation declares more than one 2xx response with different schemas, it
 
 ### Constructing and decoding models
 
-Constructing a model never validates and never raises on a value: a value that fits its field is coerced as usual (a list given for a set field becomes a set), and one that does not, such as a wrong type, an unknown enum string or a value outside a constraint, is kept exactly as given and sent to the server. Only a required field you leave out raises `TypeError`. Validation happens when a document is decoded, which raises `SerializationException`, and an unknown enum value fails there loudly.
+Constructing a model never validates and never raises on a value: a value that fits its field is coerced as usual (a list given for a set field becomes a set), and one that does not, such as a wrong type, an unknown enum string or a value outside a constraint, is kept exactly as given and sent to the server. Only a required field you leave out raises `TypeError`. Validation happens when a document is decoded, which raises `SerializationException`, and an unknown enum value decodes there to the catch-all member.
 
 ### Models are immutable
 
@@ -234,7 +234,7 @@ The package version follows semantic versioning; the clients, Options objects, m
 ### Behaviours to know
 
 - Optional and nullable: an optional property that is absent and one that is `null` both read as `None`, and `None` is left out when a model is encoded, so a decoded `null` is not sent again. A required, nullable property is the exception: the key must be present, `null` is kept, and encoding writes it. A required nullable query parameter is kept the same way: when its value is `None` the key is still sent, with an empty value (`?key=`).
-- Unknown values fail loudly: an enum value or a discriminator value the SDK does not know raises `SerializationException` and names the value; it is never coerced to a default.
+- Unknown enum values decode to the catch-all member `UNKNOWN_DEFAULT_OPEN_API`, which has no wire value, so writing it raises `SerializationException`; a discriminator value the SDK does not know still raises `SerializationException` and names the value.
 - Repeated response headers are joined into one value with `, ` in `headers` and `response_headers` (so repeated `Set-Cookie` or `Link` lines arrive as one string).
 - Streaming is not supported: a response is read whole before it is decoded, so server-sent events and JSON Lines are out of scope. Supply your own `ApiClient` or `urllib3.PoolManager` for those calls.
 - `Configuration` (base URL, default headers) and `TransportOptions` (timeout, proxy, TLS, retries) stay separate objects: the client builds the first from the authenticator's host and takes the second as an argument.

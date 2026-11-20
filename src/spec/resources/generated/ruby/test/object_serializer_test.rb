@@ -16,6 +16,7 @@ module Petstore::Client
     unless const_defined?(:TestStatusEnumDeserialize)
       module TestStatusEnumDeserialize
         VALUES = %w[placed approved delivered].freeze
+        UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
       end
     end
 
@@ -357,7 +358,6 @@ describe Petstore::Client::ObjectSerializer do
       {
         'malformed JSON' => ['{', 'Category'],
         'wrong primitive type' => ['{"id":"abc","name":"doggie","photoUrls":[]}', 'Pet'],
-        'unknown enum value' => ['{"name":"doggie","photoUrls":[],"status":"banana"}', 'Pet'],
         'missing required field' => ['{"photoUrls":[]}', 'Pet'],
         'malformed duration' => ['{"retryAfter":"soon"}', 'EdgeCases'],
         'malformed date-time' => ['{"expiresAt":"not-a-date"}', 'EdgeCases']
@@ -899,13 +899,14 @@ describe Petstore::Client::ObjectSerializer do
       _(mode::VALUES).must_equal(%w[low medium high])
       _(mode.validate!('high')).must_equal('high')
       _ { mode.validate!('nope') }.must_raise(ArgumentError)
+      _(mode::UNKNOWN_DEFAULT_OPEN_API).must_equal('__unknown_default_open_api__')
 
       phase = Petstore::Client::Models::EdgeCases::PhaseEnum
       _(phase::VALUES).must_equal(%w[In-Stock on-hold OUT_OF_STOCK])
       _ { phase.validate!('bogus') }.must_raise(ArgumentError)
       edge = Petstore::Client::ObjectSerializer.deserialize('{"phase":"on-hold"}', 'EdgeCases')
       _(edge.phase).must_equal('on-hold')
-      _ { Petstore::Client::ObjectSerializer.deserialize('{"phase":"bogus"}', 'EdgeCases') }.must_raise(StandardError)
+      _(Petstore::Client::ObjectSerializer.deserialize('{"phase":"bogus"}', 'EdgeCases').phase).must_equal(phase::UNKNOWN_DEFAULT_OPEN_API)
 
       status = Petstore::Client::Models::Order::StatusEnum
       _(status::PLACED).must_equal('placed')
@@ -1143,31 +1144,22 @@ describe Petstore::Client::ObjectSerializer do
 
   describe 'enum unknown value detection' do
     it 'bhv_serialization_083 a serialization error is the library error type and carries a non-empty message' do
-      # An unknown standalone-enum value is a schema-validation failure, the
-      # same class as a missing required field or a strict type mismatch.
-      # deserialize wraps all of them uniformly as SerializationError so a
-      # caller can catch every bad-payload case with one rescue, rather than
-      # this path leaking a raw stdlib ArgumentError.
+      # A malformed document is a decode failure; deserialize wraps every such
+      # failure uniformly as SerializationError so a caller can catch every
+      # bad-payload case with one rescue.
       assert_raises(Petstore::Client::Errors::SerializationError) do
-        Petstore::Client::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
+        Petstore::Client::ObjectSerializer.deserialize('{', 'Pet')
       end
     end
 
-    it 'bhv_serializationobject_172 raises SerializationError when deserializing unknown enum value' do
-      # An unknown standalone-enum value is a schema-validation failure, the
-      # same class as a missing required field or a strict type mismatch.
-      # deserialize wraps all of them uniformly as SerializationError so a
-      # caller can catch every bad-payload case with one rescue, rather than
-      # this path leaking a raw stdlib ArgumentError.
-      assert_raises(Petstore::Client::Errors::SerializationError) do
-        Petstore::Client::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
-      end
+    it 'bhv_serializationobject_172 decodes an unknown standalone enum value to the catch-all member' do
+      result = Petstore::Client::ObjectSerializer.deserialize('"shipped"', 'TestStatusEnumDeserialize')
+      _(result).must_equal '__unknown_default_open_api__'
     end
 
-    it 'bhv_serializationobject_192 fails loudly at decode for an unknown enum string' do
-      assert_raises(Petstore::Client::Errors::SerializationError) do
-        Petstore::Client::ObjectSerializer.deserialize('"banana"', 'TestStatusEnumDeserialize')
-      end
+    it 'bhv_serializationobject_192 decodes an unknown enum string to the catch-all member' do
+      result = Petstore::Client::ObjectSerializer.deserialize('"banana"', 'TestStatusEnumDeserialize')
+      _(result).must_equal '__unknown_default_open_api__'
     end
 
     it 'bhv_serialization_075 an enum value decodes from its wire casing to the matching member' do
@@ -1185,26 +1177,22 @@ describe Petstore::Client::ObjectSerializer do
     # Types::String.enum. An unknown wire value must surface the SDK
     # (de)serialization error rather than silently coercing to a default or
     # an "unknown" sentinel.
-    it 'bhv_serialization_105 an enum value outside the members, including a wrong-case match, raises a serialization error' do
-      json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
-      _(proc {
-        Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::Errors::SerializationError)
+    it 'bhv_serialization_105 an enum value outside the members, including a wrong-case match, gives the catch-all member' do
+      json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"BANANA"}'
+      pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.status).must_equal Petstore::Client::Models::Pet::StatusEnum::UNKNOWN_DEFAULT_OPEN_API
     end
 
-    it 'bhv_serializationobject_182 raises SerializationError for an unknown inline enum value on deserialize' do
+    it 'bhv_serializationobject_182 gives the catch-all member for an unknown inline enum value on deserialize' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
-      _(proc {
-        Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
-      }).must_raise(Petstore::Client::Errors::SerializationError)
+      pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.status).must_equal Petstore::Client::Models::Pet::StatusEnum::UNKNOWN_DEFAULT_OPEN_API
     end
 
-    it 'bhv_serializationobject_024 names the enum and the unknown value when an inline model enum fails to decode' do
+    it 'bhv_serializationobject_024 decodes an unknown inline model enum value to the catch-all member' do
       json = '{"name":"doggie","photoUrls":["http://x/p.jpg"],"status":"banana"}'
-      error = _(proc { Petstore::Client::ObjectSerializer.deserialize(json, 'Pet') }).must_raise(
-        Petstore::Client::Errors::SerializationError
-      )
-      _(error.message).must_include 'Unknown enum value for Pet::StatusEnum: "banana"'
+      pet = Petstore::Client::ObjectSerializer.deserialize(json, 'Pet')
+      _(pet.status).must_equal '__unknown_default_open_api__'
     end
 
     # F316: building a model never validates. An unknown enum string and a value
@@ -2494,11 +2482,14 @@ describe Petstore::Client::ObjectSerializer do
       _(deserialize.call('{"rank":1}').tier).must_equal(Petstore::Client::Models::Tier::MEDIUM)
     end
 
-    it 'bhv_enums_008 encoding writes the wire value and decoding rejects a supplied name' do
+    it 'bhv_enums_008 encoding writes the wire value and decoding a supplied name gives the catch-all member' do
       _(JSON.parse(Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Tier::MEDIUM))).must_equal('m')
-      error = _ { deserialize.call('{"rank":1,"tier":"Medium"}') }
-              .must_raise(Petstore::Client::Errors::SerializationError)
-      _(error.message).must_include('Medium')
+      _(deserialize.call('{"rank":1,"tier":"Medium"}').tier).must_equal(Petstore::Client::Models::Tier::UNKNOWN_DEFAULT_OPEN_API)
+    end
+
+    it 'bhv_enums_012 the catch-all member has no wire value and cannot be written' do
+      _ { Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Tier::UNKNOWN_DEFAULT_OPEN_API) }
+        .must_raise(Petstore::Client::Errors::SerializationError)
     end
 
     it 'bhv_enums_009 a description is the one-line comment directly above the member' do

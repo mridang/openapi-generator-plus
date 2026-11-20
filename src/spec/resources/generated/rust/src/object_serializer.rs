@@ -1612,8 +1612,8 @@ mod tests {
     }
 
     /// Every wire-shape failure is a `SerializationError` and part of the
-    /// `OpenAPIError` hierarchy: malformed JSON, a wrong primitive type, an
-    /// unknown enum value, a missing required field, and a malformed
+    /// `OpenAPIError` hierarchy: malformed JSON, a wrong primitive type,
+    /// a missing required field, and a malformed
     /// date-time or duration.
     #[test]
     fn test_bhv_serializationobject_077_wire_shape_failures_are_serialization_errors() {
@@ -1629,7 +1629,6 @@ mod tests {
         assert_serialization_error::<Pet>("malformed JSON", b"{");
         assert_serialization_error::<Pet>("wrong primitive type", br#"{"name":7,"photoUrls":[]}"#);
         assert_serialization_error::<Pet>("missing required field", br#"{"photoUrls":[]}"#);
-        assert_serialization_error::<crate::models::Order>("unknown enum", br#"{"status":"lost"}"#);
         assert_serialization_error::<crate::models::Order>(
             "malformed date-time",
             br#"{"shipDate":"not-a-date"}"#,
@@ -2534,20 +2533,21 @@ mod tests {
     }
 
     #[test]
-    fn test_bhv_serializationobject_172_unknown_enum_value_raises_serialization_error() {
-        assert!(
-            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#).is_err(),
-            "an enum value outside the schema must be refused"
+    fn test_bhv_serializationobject_172_unknown_enum_value_decodes_to_the_catch_all_variant() {
+        assert_eq!(
+            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#)
+                .expect("decodes"),
+            crate::models::Separator::UnknownDefaultOpenApi
         );
     }
 
     #[test]
-    fn test_bhv_serializationobject_182_unknown_enum_value_on_deserialize_is_a_serialization_error()
-    {
-        let err: crate::errors::SerializationError =
-            object_serializer::deserialize::<crate::models::Separator>(br#""banana""#)
-                .expect_err("an enum value outside the schema must be refused");
-        assert!(!err.to_string().is_empty());
+    fn test_bhv_serializationobject_182_unknown_enum_value_on_deserialize_gives_the_catch_all_variant(
+    ) {
+        let decoded =
+            object_serializer::deserialize::<crate::models::Separator>(br#""teleported""#)
+                .expect("an enum value outside the schema decodes to the catch-all variant");
+        assert_eq!(decoded, crate::models::Separator::UnknownDefaultOpenApi);
     }
 
     #[test]

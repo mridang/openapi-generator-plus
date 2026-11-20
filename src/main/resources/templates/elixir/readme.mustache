@@ -211,7 +211,7 @@ A model is a struct, and a struct never changes in place. Make a changed copy wi
 ### Behaviours that differ from what you may expect
 
 - An optional property that is absent and a property that is `null` both decode to `nil`; the model cannot tell them apart. A required property that is also nullable must be present, and an explicit `null` is kept. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
-- An enum value or a discriminator value the SDK does not know raises a `SerializationError` instead of passing through, so a spec that is out of date fails loudly.
+- An enum value the SDK does not know decodes to the catch-all member `:unknown_default_open_api`, which has no wire value, so writing it raises a `SerializationError`; a discriminator value the SDK does not know still raises a `SerializationError`.
 - A response header that repeats arrives as one entry in `headers`, its values joined with `, ` and its name in lower case.
 - Request and response bodies are held in memory. Streaming a body is not supported; to stream, pass your own transport through `req_options`.
 - `Configuration` (the base URL and the headers of API calls) and `TransportOptions` (proxy, TLS, timeouts, retries) stay separate structs on purpose: the first describes the API, the second the connection.
@@ -259,7 +259,7 @@ natively. Elixir structs and typespecs carry no constraint checking, so this
 SDK enforces none of them: the model layer only checks, when a response is decoded,
 that required properties are present and that values have the declared type.
 Building a struct never validates: a wrong-typed value or an unknown enum
-atom builds fine, and the unknown enum string fails loudly only when it is decoded. The server is
+atom builds fine, and an unknown enum string is checked only when it is decoded. The server is
 the authoritative validator. If you want fast-fail validation before the
 network round trip, plug in a JSON Schema validator library.
 

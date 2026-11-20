@@ -26,7 +26,10 @@ enum Availability {
   eq('\$eq'),
 
   /// Represents the value '#{x}'.
-  x('#{x}');
+  x('#{x}'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const Availability(this.value);
@@ -35,11 +38,18 @@ enum Availability {
   static Availability fromJson(String value) {
     return Availability.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown Availability value: $value'),
+      orElse: () => Availability.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == Availability.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value Availability.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

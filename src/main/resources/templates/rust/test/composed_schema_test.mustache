@@ -566,7 +566,7 @@ fn test_bhv_unions_017_pet_with_owner_round_trip() {
 // deserialization.
 
 #[test]
-fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
+fn test_bhv_unions_016_enum_unknown_value_on_deserialize_gives_the_catch_all_variant() {
     // `Pet.status` is a `PetStatusEnum` whose only values are
     // available/pending/sold. A `status` of "teleported" is not in the schema.
     let payload = r#"{
@@ -574,17 +574,17 @@ fn test_bhv_unions_016_enum_unknown_value_on_deserialize_is_rejected() {
         "photoUrls": ["http://example.com/rex.jpg"],
         "status": "teleported"
     }"#;
-    let result: Result<Pet, _> = serde_json::from_str(payload);
-    assert!(
-        result.is_err(),
-        "deserializing an unknown enum value must fail, not fall back to a default variant"
-    );
+    let pet: Pet = serde_json::from_str(payload).expect("an unknown enum value decodes");
+    assert_eq!(pet.status, Some(PetStatusEnum::UnknownDefaultOpenApi));
 }
 
 #[test]
-fn test_bhv_serializationobject_193_an_unknown_integer_enum_value_is_rejected_on_decode() {
+fn test_bhv_serializationobject_193_an_unknown_integer_enum_value_decodes_to_the_catch_all_variant() {
     assert_eq!(Priority::Number2, serde_json::from_str::<Priority>("2").expect("2 is a declared value"));
-    assert!(serde_json::from_str::<Priority>("4").is_err(), "4 is not a declared value");
+    assert_eq!(
+        Priority::UnknownDefaultOpenApi,
+        serde_json::from_str::<Priority>("4").expect("4 is not declared and decodes to the catch-all")
+    );
 }
 
 #[test]
@@ -617,12 +617,9 @@ fn test_bhv_serializationobject_069_enum_known_value_on_deserialize_succeeds() {
 }
 
 #[test]
-fn test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode() {
-    let result: Result<PetStatusEnum, _> = serde_json::from_str("\"teleported\"");
-    assert!(
-        result.is_err(),
-        "an unknown enum string must fail when it is decoded, never fall back to a variant"
-    );
+fn test_bhv_serializationobject_192_an_unknown_enum_string_decodes_to_the_catch_all_variant() {
+    let result: PetStatusEnum = serde_json::from_str("\"teleported\"").expect("decodes");
+    assert_eq!(result, PetStatusEnum::UnknownDefaultOpenApi);
 }
 
 // -- optional-enum-default-omitted (parity) --

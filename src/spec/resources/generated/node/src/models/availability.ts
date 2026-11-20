@@ -16,5 +16,7 @@ export const Availability = {
   AB: "a\\b",
   Eq: "$eq",
   X: "#{x}",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type Availability = (typeof Availability)[keyof typeof Availability];

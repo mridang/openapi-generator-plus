@@ -8,6 +8,7 @@ defmodule PetstoreClient.Models.TestEnumStatus do
   def available, do: :available
   def pending, do: :pending
   def sold, do: :sold
+  def unknown_default_open_api, do: :unknown_default_open_api
   def all_values, do: [available(), pending(), sold()]
 
   # Mirror a generated enum's wire->atom inverse (used by ObjectSerializer's
@@ -26,6 +27,7 @@ end
 
 # Fixture for bhv serialization 101: an integer-backed enum mapping its numbers to members.
 defmodule PetstoreClient.Models.TestPriority do
+  def unknown_default_open_api, do: :unknown_default_open_api
   def all_values, do: [1, 2]
   def from_value(1), do: :low
   def from_value(2), do: :high
@@ -329,14 +331,13 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
     # Every wire-shape failure is a SerializationError and part of the
     # OpenAPIError hierarchy: malformed JSON, a wrong primitive type, a
-    # missing required field, an unknown enum value and a malformed date-time
+    # missing required field and a malformed date-time
     # or duration.
     test "bhv serializationobject 077 every wire-shape failure is a SerializationError" do
       for {json, model} <- [
             {"{", "Pet"},
             {~s({"name":7,"photoUrls":[]}), "Pet"},
             {~s({"photoUrls":[]}), "Pet"},
-            {~s({"status":"lost"}), "Order"},
             {~s({"shipDate":"not-a-date"}), "Order"},
             {~s({"retryAfter":"PT1H"}), "EdgeCases"}
           ] do
@@ -491,16 +492,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
                :available
     end
 
-    test "bhv serializationobject 172 unknown enum value raises SerializationError" do
-      assert_raise PetstoreClient.Errors.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.convert_to_type("banana", "TestEnumStatus")
-      end
+    test "bhv serializationobject 172 unknown enum value decodes to the catch-all member" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type("banana", "TestEnumStatus") ==
+               :unknown_default_open_api
     end
 
-    test "bhv langelixir 091 mis-cased enum value raises (case-sensitive match)" do
-      assert_raise PetstoreClient.Errors.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.convert_to_type("AVAILABLE", "TestEnumStatus")
-      end
+    test "bhv langelixir 091 mis-cased enum value gives the catch-all member (case-sensitive match)" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type("AVAILABLE", "TestEnumStatus") ==
+               :unknown_default_open_api
     end
   end
 
@@ -1575,10 +1574,9 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert item.priority == :number_2
     end
 
-    test "bhv serializationobject 193 an integer outside the declared members is rejected on decode" do
-      assert_raise PetstoreClient.Errors.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.convert_to_type(99, "Priority")
-      end
+    test "bhv serializationobject 193 an integer outside the declared members decodes to the catch-all member" do
+      assert PetstoreClient.ObjectSerializer.convert_to_type(99, "Priority") ==
+               :unknown_default_open_api
     end
   end
 
@@ -1626,13 +1624,14 @@ defmodule PetstoreClient.ObjectSerializerTest do
   # StockItem.availability is a $ref to the Availability enum; an out-of-spec
   # value reaches atomize_enum via the field's declared type and raises.
   describe "referenced enum field rejects unknown wire value" do
-    test "bhv serializationobject 059 unknown Availability wire value on a model field raises SerializationError" do
-      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+    test "bhv serializationobject 059 unknown Availability wire value on a model field gives the catch-all member" do
+      item =
         PetstoreClient.ObjectSerializer.deserialize(
           ~s({"priority":1,"availability":"Discontinued"}),
           "StockItem"
         )
-      end
+
+      assert item.availability == :unknown_default_open_api
     end
 
     test "bhv models 018 models whose decimal fields hold numerically equal values compare equal" do
@@ -1661,10 +1660,9 @@ defmodule PetstoreClient.ObjectSerializerTest do
       refute is_binary(data["priority"])
     end
 
-    test "bhv serializationobject 119 unknown Priority wire value on a referenced enum field raises" do
-      assert_raise PetstoreClient.Errors.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.deserialize(~s({"priority":99}), "StockItem")
-      end
+    test "bhv serializationobject 119 unknown Priority wire value on a referenced enum field gives the catch-all member" do
+      item = PetstoreClient.ObjectSerializer.deserialize(~s({"priority":99}), "StockItem")
+      assert item.priority == :unknown_default_open_api
     end
   end
 
@@ -2538,13 +2536,11 @@ defmodule PetstoreClient.ObjectSerializerTest do
                9_007_199_254_740_993
     end
 
-    test "bhv serializationobject 192 an unknown enum string fails when it is decoded" do
-      error =
-        assert_raise PetstoreClient.Errors.SerializationError, fn ->
-          PetstoreClient.ObjectSerializer.deserialize(~s({"status":"no-such-member"}), "Order")
-        end
+    test "bhv serializationobject 192 an unknown enum string decodes to the catch-all member" do
+      order =
+        PetstoreClient.ObjectSerializer.deserialize(~s({"status":"no-such-member"}), "Order")
 
-      assert Exception.message(error) =~ "no-such-member"
+      assert order.status == :unknown_default_open_api
     end
 
     test "bhv langelixir 077 a wrong-typed property fails when it is decoded" do
@@ -2952,19 +2948,25 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert item.tier == :medium
     end
 
-    test "bhv enums 008 encoding writes the wire value and decoding rejects a supplied name" do
+    test "bhv enums 008 encoding writes the wire value and decoding a supplied name gives the catch-all member" do
       item = %PetstoreClient.Models.Subscription{rank: :low, tier: :medium}
       assert Jason.decode!(PetstoreClient.ObjectSerializer.serialize(item))["tier"] == "m"
 
-      error =
-        assert_raise PetstoreClient.Errors.SerializationError, fn ->
-          PetstoreClient.ObjectSerializer.deserialize(
-            ~s({"rank":1,"tier":"Medium"}),
-            "Subscription"
-          )
-        end
+      decoded =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"rank":1,"tier":"Medium"}),
+          "Subscription"
+        )
 
-      assert Exception.message(error) =~ "Medium"
+      assert decoded.tier == :unknown_default_open_api
+    end
+
+    test "bhv enums 012 the catch-all member of an enum has no wire value and cannot be written" do
+      item = %PetstoreClient.Models.Subscription{rank: :low, tier: :unknown_default_open_api}
+
+      assert_raise PetstoreClient.Errors.SerializationError, fn ->
+        PetstoreClient.ObjectSerializer.serialize(item)
+      end
     end
 
     test "bhv enums 009 a description is the doc directly above the member" do
@@ -3097,7 +3099,7 @@ defmodule PetstoreClient.ObjectSerializerTest do
   test "bhv serialization 083 a serialization error is the library's error type and carries a non-empty message" do
     error =
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
-        PetstoreClient.ObjectSerializer.convert_to_type("banana", "TestEnumStatus")
+        PetstoreClient.ObjectSerializer.convert_to_type("5", "integer()")
       end
 
     assert error.message != ""
@@ -3239,10 +3241,9 @@ defmodule PetstoreClient.ObjectSerializerTest do
     assert PetstoreClient.ObjectSerializer.convert_to_type(upper, "UUID") == lower
   end
 
-  test "bhv serialization 105 a wrong-case match of a declared enum member raises a serialization error" do
-    assert_raise PetstoreClient.Errors.SerializationError, fn ->
-      PetstoreClient.ObjectSerializer.convert_to_type("Available", "TestEnumStatus")
-    end
+  test "bhv serialization 105 a wrong-case match of a declared enum member gives the catch-all member" do
+    assert PetstoreClient.ObjectSerializer.convert_to_type("Available", "TestEnumStatus") ==
+             :unknown_default_open_api
   end
 
   test "bhv serialization 106 a non-exploded array query parameter joins its values with commas" do

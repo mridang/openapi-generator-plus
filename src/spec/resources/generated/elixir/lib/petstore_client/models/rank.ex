@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.Rank do
   """
 
   @typedoc "One of the allowed enum atoms for Rank."
-  @type t :: :low | :medium | :high
+  @type t :: :low | :medium | :high | :unknown_default_open_api
   @doc """
   The lowest rank.
   """
@@ -29,7 +29,10 @@ defmodule PetstoreClient.Models.Rank do
   """
   def high, do: :high
 
-  @doc "All allowed values as atoms."
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
   @spec all_values() :: [t(), ...]
   def all_values do
     [low(), medium(), high()]

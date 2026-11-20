@@ -228,30 +228,27 @@ import Testing
         #expect(decoded.status?.rawValue == "approved")
     }
 
-    // unknown-enum-throws: deserializing a JSON payload whose enum field holds a
-    // value outside the declared cases must raise the SDK SerializationError,
-    // not silently fall back to a default/unknown variant. OrderStatusEnum
-    // declares placed/approved/delivered; "teleported" is unknown.
-    @Test func testBhvSerializationobject172UnknownEnumValueOnDeserializeThrows() {
+    // unknown-enum-catch-all: deserializing a JSON payload whose enum field holds a
+    // value outside the declared cases gives the catch-all case, never a declared
+    // case or a default. OrderStatusEnum declares placed/approved/delivered;
+    // "teleported" is unknown.
+    @Test func testBhvSerializationobject172UnknownEnumValueOnDeserializeGivesTheCatchAllCase() throws {
         let json = "{\"id\":1,\"status\":\"teleported\"}"
-        #expect(throws: SerializationError.self) {
-            _ = try ObjectSerializer.deserialize(json, as: Order.self)
-        }
+        let order = try ObjectSerializer.deserialize(json, as: Order.self)
+        #expect(order?.status == .unknownDefaultOpenApi)
     }
 
-    /* An unknown enum string fails when it is decoded, with the decoder failure kept as the cause. */
-    @Test func testBhvSerializationobject192AnUnknownEnumStringFailsWhenDecoded() {
-        let error = #expect(throws: SerializationError.self) {
-            _ = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
-        }
-        #expect(error?.cause is DecodingError)
+    /* An unknown enum string decodes to the catch-all case. */
+    @Test func testBhvSerializationobject192AnUnknownEnumStringDecodesToTheCatchAllCase() throws {
+        let decoded = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
+        #expect(decoded == .unknownDefaultOpenApi)
     }
 
-    /* An unknown enum value on a scalar deserialize throws, never falling back to a default case. */
-    @Test func testBhvSerializationobject182UnknownEnumValueOnScalarDeserializeThrows() {
-        #expect(throws: SerializationError.self) {
-            _ = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
-        }
+    /* An unknown enum value on a scalar deserialize gives the catch-all case, never a declared case. */
+    @Test func testBhvSerializationobject182UnknownEnumValueOnScalarDeserializeGivesTheCatchAllCase() throws {
+        let decoded = try ObjectSerializer.deserialize("\"teleported\"", as: OrderStatusEnum.self)
+        #expect(decoded == .unknownDefaultOpenApi)
+        #expect(decoded != .placed)
     }
 
     /* A payload that carries only the required fields leaves the optional ones unset. */
@@ -1116,13 +1113,12 @@ import Testing
     // MARK: - Every wire-shape failure is a SerializationError
 
     /* Malformed JSON, a wrong primitive type, a missing required field, an
-       unknown enum value and a malformed date-time or duration all surface as
+       malformed date-time and a malformed duration all surface as
        the SDK's SerializationError, part of the {{errorPrefix}}Error hierarchy. */
     @Test(arguments: [
         ("{", "Pet"),
         ("{\"name\":7,\"photoUrls\":[]}", "Pet"),
         ("{\"photoUrls\":[]}", "Pet"),
-        ("{\"status\":\"lost\"}", "Order"),
         ("{\"shipDate\":\"not-a-date\"}", "Order"),
         ("{\"retryAfter\":\"PT1H\"}", "EdgeCases"),
         ("{\"quantity\":7.5}", "Order"),
@@ -1778,9 +1774,6 @@ import Testing
         #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.deserialize(
                 "{\"name\":\"Fido\",\"photoUrls\":[],\"homepageUrl\":\"not an absolute uri\"}", as: Pet.self)
-        }
-        #expect(throws: SerializationError.self) {
-            _ = try ObjectSerializer.deserialize("{\"status\":\"teleported\"}", as: Order.self)
         }
     }
 
@@ -2791,11 +2784,13 @@ import Testing
     @Test func testBhvEnums008OnlyTheWireValueIsOnTheWire() throws {
         let json = try ObjectSerializer.serialize(Subscription(rank: .low, tier: .medium))
         #expect(json.contains("\"tier\":\"m\""))
-        do {
-            _ = try ObjectSerializer.deserialize("{\"rank\":1,\"tier\":\"Medium\"}", as: Subscription.self)
-            Issue.record("a supplied name must not decode")
-        } catch let error as SerializationError {
-            #expect(String(describing: error).contains("Medium"))
+        let decoded = try ObjectSerializer.deserialize("{\"rank\":1,\"tier\":\"Medium\"}", as: Subscription.self)
+        #expect(decoded?.tier == .unknownDefaultOpenApi)
+    }
+
+    @Test func testBhvEnums012TheCatchAllCaseHasNoWireValueAndCannotBeWritten() {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.serialize(Subscription(rank: .low, tier: .unknownDefaultOpenApi))
         }
     }
 

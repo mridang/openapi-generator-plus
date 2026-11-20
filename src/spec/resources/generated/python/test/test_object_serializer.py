@@ -287,11 +287,6 @@ class TestDeserializationErrorWrapping:
                 "Pet",
                 id="wrong primitive type",
             ),
-            pytest.param(
-                '{"name":"doggie","photoUrls":[],"status":"banana"}',
-                "Pet",
-                id="unknown enum value",
-            ),
             pytest.param('{"photoUrls":[]}', "Pet", id="missing required field"),
             pytest.param('{"retryAfter":"soon"}', "EdgeCases", id="malformed duration"),
             pytest.param(
@@ -1619,11 +1614,14 @@ class TestFixtureModelsOnTheWire:
         assert isinstance(category, Category)
         assert category.id == 2
 
-    def test_bhv_serializationobject_024_an_unknown_inline_enum_value_is_rejected(
+    def test_bhv_serializationobject_024_an_unknown_inline_enum_value_decodes_to_the_catch_all_member(
         self,
     ) -> None:
-        with pytest.raises(SerializationException):
-            ObjectSerializer().deserialize('{"phase":"in-stock"}', "EdgeCases")
+        from petstore_client.models.edge_cases import EdgeCasesPhaseEnum
+
+        decoded = ObjectSerializer().deserialize('{"phase":"in-stock"}', "EdgeCases")
+
+        assert decoded.phase is EdgeCasesPhaseEnum.UNKNOWN_DEFAULT_OPEN_API
 
 
 class TestWireNamesMapsAndFreeForm:
@@ -2033,7 +2031,7 @@ class TestRequiredFieldNullRejection:
             ObjectSerializer().deserialize('{"id": 7}', "Account")
 
 
-class TestUnknownEnumRejection:
+class TestUnknownEnumCatchAll:
     def test_bhv_serialization_075_an_enum_value_decodes_from_its_wire_string_to_its_member(
         self,
     ) -> None:
@@ -2042,16 +2040,18 @@ class TestUnknownEnumRejection:
             == OrderStatusEnum.PLACED
         )
 
-    """unknown-enum-deserialize-throws: an enum value not declared in the
-    schema must raise the SDK's SerializationException on deserialize, never fall
-    back to a silent default or an 'unknown' member. All 12 SDKs converge here.
+    """unknown-enum-catch-all: an enum value not declared in the schema decodes
+    to the enum's catch-all member UNKNOWN_DEFAULT_OPEN_API, never to a declared
+    member or a default. All 12 SDKs converge here.
     """
 
-    def test_bhv_serializationobject_182_unknown_enum_value_on_scalar_raises(
+    def test_bhv_serializationobject_182_unknown_enum_value_on_scalar_gives_the_catch_all_member(
         self,
     ) -> None:
-        with pytest.raises(SerializationException):
+        assert (
             ObjectSerializer().deserialize('"teleported"', OrderStatusEnum)
+            is OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        )
 
     def test_bhv_serializationobject_069_known_enum_value_on_scalar_round_trips(
         self,
@@ -2059,14 +2059,14 @@ class TestUnknownEnumRejection:
         result = ObjectSerializer().deserialize('"placed"', OrderStatusEnum)
         assert result == OrderStatusEnum.PLACED
 
-    def test_bhv_serializationobject_172_unknown_enum_value_on_model_field_raises(
+    def test_bhv_serializationobject_172_unknown_enum_value_on_model_field_gives_the_catch_all_member(
         self,
     ) -> None:
-        # The enum field lives on a model; an out-of-schema value must fail the
-        # whole deserialize rather than coerce to the field default.
+        # The enum field lives on a model; an out-of-schema value decodes to the
+        # catch-all member rather than coercing to the field default.
         json_str = '{"id": 1, "petId": 1, "quantity": 1, "status": "teleported"}'
-        with pytest.raises(SerializationException):
-            ObjectSerializer().deserialize(json_str, "Order")
+        order = ObjectSerializer().deserialize(json_str, "Order")
+        assert order.status is OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API
 
 
 class TestNanInfinityRejection:
@@ -2249,19 +2249,21 @@ class TestDecodeValidates:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"name":123,"photoUrls":[]}', "Pet")
 
-    """F316: a document is validated when it is decoded, and an unknown enum value fails loudly."""
+    """F316: a document is validated when it is decoded, and an unknown enum value decodes to the catch-all member."""
 
     def test_bhv_serializationobject_180_a_wrong_type_is_rejected(self) -> None:
         with pytest.raises(SerializationException):
             ObjectSerializer().deserialize('{"name":123,"photoUrls":[]}', "Pet")
 
-    def test_bhv_serializationobject_192_an_unknown_enum_string_fails_at_decode(
+    def test_bhv_serializationobject_192_an_unknown_enum_string_decodes_to_the_catch_all_member(
         self,
     ) -> None:
-        with pytest.raises(SerializationException):
-            ObjectSerializer().deserialize(
-                '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
-            )
+        from petstore_client.models.pet import PetStatusEnum
+
+        pet = ObjectSerializer().deserialize(
+            '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
+        )
+        assert pet.status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_lang_python_216_a_value_outside_the_declared_constraints_is_rejected(
         self,
@@ -3369,13 +3371,15 @@ class TestReferencedEnumFieldRejection:
     `$ref` to the Availability enum (distinct from Order.status, which is an
     inline enum). An out-of-schema value fails the whole deserialize."""
 
-    def test_bhv_serializationobject_119_unknown_referenced_enum_value_rejected(
+    def test_bhv_serializationobject_119_unknown_referenced_enum_value_gives_the_catch_all_member(
         self,
     ) -> None:
-        with pytest.raises(SerializationException):
-            ObjectSerializer().deserialize(
-                '{"priority":1,"availability":"teleported"}', "StockItem"
-            )
+        from petstore_client.models.availability import Availability
+
+        item = ObjectSerializer().deserialize(
+            '{"priority":1,"availability":"teleported"}', "StockItem"
+        )
+        assert item.availability is Availability.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_lang_python_170_known_referenced_enum_value_accepted(self) -> None:
         from petstore_client.models.availability import Availability
@@ -3772,16 +3776,22 @@ class TestObjectSerializerBehaviours:
 
         assert json.loads(ObjectSerializer().serialize(order))["status"] == "approved"
 
-    def test_bhv_serialization_004_an_enum_lists_its_members_and_refuses_any_other_value(
+    def test_bhv_serialization_004_an_enum_lists_its_members_and_gives_the_catch_all_member_for_any_other_value(
         self,
     ) -> None:
-        assert [member.value for member in OrderStatusEnum] == [
+        assert [
+            member.value
+            for member in OrderStatusEnum
+            if member is not OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        ] == [
             "placed",
             "approved",
             "delivered",
         ]
-        with pytest.raises(ValidationError):
-            Order.model_validate({"status": "shipped"})
+        assert (
+            Order.model_validate({"status": "shipped"}).status
+            is OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        )
 
     def test_bhv_serialization_017_a_model_is_written_under_wire_names_in_declaration_order(
         self,
@@ -3993,9 +4003,24 @@ class TestEnumMemberNames:
         from petstore_client.models.tier import Tier
 
         assert ObjectSerializer().serialize(Tier.MEDIUM) == '"m"'
-        with pytest.raises(SerializationException) as exc_info:
-            ObjectSerializer().deserialize('{"rank":1,"tier":"Medium"}', "Subscription")
-        assert "Medium" in str(exc_info.value)
+        decoded = ObjectSerializer().deserialize(
+            '{"rank":1,"tier":"Medium"}', "Subscription"
+        )
+        assert decoded.tier is Tier.UNKNOWN_DEFAULT_OPEN_API
+
+    def test_bhv_enums_012_the_catch_all_member_has_no_wire_value_and_cannot_be_written(
+        self,
+    ) -> None:
+        from petstore_client.models.rank import Rank
+        from petstore_client.models.subscription import Subscription
+        from petstore_client.models.tier import Tier
+
+        with pytest.raises(SerializationException):
+            ObjectSerializer().serialize(Tier.UNKNOWN_DEFAULT_OPEN_API)
+        with pytest.raises(SerializationException):
+            ObjectSerializer().serialize(
+                Subscription(rank=Rank.LOW, tier=Tier.UNKNOWN_DEFAULT_OPEN_API)
+            )
 
     def test_bhv_enums_009_a_description_is_the_comment_above_the_member(self) -> None:
         source = self._source("tier")

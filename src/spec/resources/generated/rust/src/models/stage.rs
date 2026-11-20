@@ -20,6 +20,9 @@ pub enum Stage {
     /// Running.
     #[serde(rename = "live")]
     Active2,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for Stage {
@@ -29,6 +32,7 @@ impl std::fmt::Display for Stage {
             Stage::OnHold => "paused",
             Stage::Active => "active",
             Stage::Active2 => "live",
+            Stage::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

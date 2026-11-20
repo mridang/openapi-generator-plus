@@ -25,6 +25,9 @@ module Petstore::Client
       # The highest rank.
       HIGH = 3
 
+      # Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written.
+      UNKNOWN_DEFAULT_OPEN_API = -9_223_372_036_854_775_808
+
       # Frozen set of all allowed values, used for validation.
       VALUES = [LOW, MEDIUM, HIGH].freeze
 

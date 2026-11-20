@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.cfg.CoercionAction;
@@ -555,6 +556,9 @@ public final class ObjectSerializer {
         /* A null element in an array or map of models fails the decode
         instead of reaching the caller as a null entry. */
         .addModule(nullModelElementModule())
+        /* The catch-all member of a generated enum stands for a value this
+        SDK does not list, so it has no wire form and writing it fails. */
+        .addModule(catchAllEnumModule())
         .defaultDateFormat(new StdDateFormat().withColonInTimeZone(true))
         .build();
   }
@@ -698,6 +702,37 @@ public final class ObjectSerializer {
             return isStrictElementType(type.getContentType())
                 ? new NullModelElementDeserializer(deserializer)
                 : deserializer;
+          }
+        });
+    return module;
+  }
+
+  private static SimpleModule catchAllEnumModule() {
+    SimpleModule module = new SimpleModule();
+    module.setSerializerModifier(
+        new com.fasterxml.jackson.databind.ser.BeanSerializerModifier() {
+          @Override
+          public JsonSerializer<?> modifyEnumSerializer(
+              SerializationConfig config,
+              JavaType type,
+              BeanDescription beanDesc,
+              JsonSerializer<?> serializer) {
+            return new com.fasterxml.jackson.databind.ser.std.StdSerializer<Object>(Object.class) {
+              @Override
+              public void serialize(
+                  Object value, JsonGenerator generator, SerializerProvider provider)
+                  throws IOException {
+                if (value instanceof Enum<?> e && "UNKNOWN_DEFAULT_OPEN_API".equals(e.name())) {
+                  throw com.fasterxml.jackson.databind.JsonMappingException.from(
+                      generator,
+                      "The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and"
+                          + " cannot be written");
+                }
+                @SuppressWarnings("unchecked")
+                JsonSerializer<Object> delegate = (JsonSerializer<Object>) serializer;
+                delegate.serialize(value, generator, provider);
+              }
+            };
           }
         });
     return module;

@@ -22,6 +22,9 @@ enum class Priority(
     NUMBER_1(1),
     NUMBER_2(2),
     NUMBER_3(3),
+
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(0),
     ;
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -30,7 +33,7 @@ enum class Priority(
     companion object {
         fun fromValue(value: Int): Priority =
             entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException("Unexpected value '$value'")
+                ?: UNKNOWN_DEFAULT_OPEN_API
     }
 
     internal object Serializer : kotlinx.serialization.KSerializer<Priority> {
@@ -43,7 +46,12 @@ enum class Priority(
         override fun serialize(
             encoder: kotlinx.serialization.encoding.Encoder,
             value: Priority,
-        ) = encoder.encodeInt(value.value)
+        ) {
+            if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+            }
+            encoder.encodeInt(value.value)
+        }
 
         override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Priority = fromValue(decoder.decodeInt())
     }

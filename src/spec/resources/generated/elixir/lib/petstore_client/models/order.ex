@@ -16,7 +16,7 @@ defmodule PetstoreClient.Models.Order do
     @moduledoc "Allowed values of Order.status"
 
     @typedoc "One of the allowed enum atoms for Order.status."
-    @type t :: :placed | :approved | :delivered
+    @type t :: :placed | :approved | :delivered | :unknown_default_open_api
 
     @doc "Enum value `placed`"
     def placed, do: :placed
@@ -27,7 +27,10 @@ defmodule PetstoreClient.Models.Order do
     @doc "Enum value `delivered`"
     def delivered, do: :delivered
 
-    @doc "All allowed values as atoms."
+    @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+    def unknown_default_open_api, do: :unknown_default_open_api
+
+    @doc "All declared values as atoms; the catch-all member is not one of them."
     @spec all_values() :: [t(), ...]
     def all_values do
       [placed(), approved(), delivered()]

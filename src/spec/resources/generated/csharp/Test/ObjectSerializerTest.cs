@@ -40,7 +40,10 @@ public static class ObjectSerializerTest
         [Fact]
         public void BhvMisc137AGeneratedEnumListsItsValuesAndReportsMembership()
         {
-            Assert.Equal(3, Enum.GetValues<Priority>().Length);
+            Assert.Equal(
+                3,
+                Enum.GetValues<Priority>().Count(member => member != Priority.UnknownDefaultOpenApi)
+            );
             Assert.True(Enum.IsDefined(Priority.Number2));
             Assert.False(Enum.IsDefined((Priority)999));
         }
@@ -812,25 +815,21 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerializationobject182DecodingAnUnknownEnumStringFailsLoudly()
+        public void BhvSerializationobject182DecodingAnUnknownEnumStringGivesTheCatchAllMember()
         {
-            var ex = Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<Pet>(
-                    "{\"name\":\"Rex\",\"photoUrls\":[],\"status\":\"nonsense\"}"
-                )
+            var pet = _serializer.Deserialize<Pet>(
+                "{\"name\":\"Rex\",\"photoUrls\":[],\"status\":\"nonsense\"}"
             );
 
-            Assert.Contains("nonsense", ex.Message, StringComparison.Ordinal);
+            Assert.Equal(Pet.StatusEnum.UnknownDefaultOpenApi, pet!.Status);
         }
 
         [Fact]
-        public void BhvSerializationobject192AnUnknownEnumStringFailsAtDecode()
+        public void BhvSerializationobject192AnUnknownEnumStringDecodesToTheCatchAllMember()
         {
-            var ex = Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<Order>("{\"id\":1,\"status\":\"nonsense\"}")
-            );
+            var order = _serializer.Deserialize<Order>("{\"id\":1,\"status\":\"nonsense\"}");
 
-            Assert.Contains("nonsense", ex.Message, StringComparison.Ordinal);
+            Assert.Equal(Order.StatusEnum.UnknownDefaultOpenApi, order!.Status);
         }
 
         [Fact]
@@ -1240,20 +1239,15 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerializationobject172UnknownEnumValueThrows()
+        public void BhvSerializationobject172UnknownEnumValueDecodesToTheCatchAllMember()
         {
             // Wire-format parity lock: a string enum value the schema does not
-            // declare ("banana" for Pet.status) must hard-fail on deserialize
-            // with the SDK-owned SerializationException rather than silently
-            // mapping to a default/unknown member. System.Text.Json's
-            // JsonStringEnumConverter throws a JsonException on an unknown
-            // value, which the serializer wraps. Canonical across all 12 SDKs.
+            // declare ("banana" for Pet.status) decodes to the catch-all member,
+            // which cannot be written back. Canonical across all 12 SDKs.
             var json =
                 "{\"id\":1,\"name\":\"Fido\",\"photoUrls\":[\"https://example.com/fido.jpg\"],\"status\":\"banana\"}";
-            var ex = Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<Pet>(json)
-            );
-            Assert.IsAssignableFrom<OpenAPIException>(ex);
+            var pet = _serializer.Deserialize<Pet>(json);
+            Assert.Equal(Pet.StatusEnum.UnknownDefaultOpenApi, pet!.Status);
         }
 
         [Fact]
@@ -1416,7 +1410,10 @@ public static class ObjectSerializerTest
         public void BhvMisc252AnEnumWireValueWithSeparatorsRoundTripsUnchanged()
         {
             var serializer = new ObjectSerializer();
-            foreach (var member in Enum.GetValues<Separator>())
+            foreach (
+                var member in Enum.GetValues<Separator>()
+                    .Where(m => m != Separator.UnknownDefaultOpenApi)
+            )
             {
                 var wire = serializer.Serialize(member);
                 Assert.Equal(member, serializer.Deserialize<Separator>(wire));
@@ -2198,14 +2195,10 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerializationobject193PriorityRejectsUnknownIntegerValue()
+        public void BhvSerializationobject193PriorityDecodesAnUnknownIntegerValueToTheCatchAllMember()
         {
-            // A number outside the declared members must hard-fail with the
-            // SDK-owned SerializationException (the converter throws a
-            // JsonException, which the serializer wraps).
-            Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<StockItem>("{\"priority\":99}")
-            );
+            var item = _serializer.Deserialize<StockItem>("{\"priority\":99}");
+            Assert.Equal(Priority.UnknownDefaultOpenApi, item!.Priority);
         }
 
         [Fact]
@@ -2314,15 +2307,13 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerializationobject059AvailabilityRejectsUnknownWireValue()
+        public void BhvSerializationobject059AvailabilityDecodesAnUnknownWireValueToTheCatchAllMember()
         {
-            // A lowercased "available" is NOT a declared wire value and must
-            // hard-fail rather than silently mapping to a member.
-            Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<StockItem>(
-                    "{\"priority\":1,\"availability\":\"available\"}"
-                )
+            // A lowercased "available" is NOT a declared wire value.
+            var item = _serializer.Deserialize<StockItem>(
+                "{\"priority\":1,\"availability\":\"available\"}"
             );
+            Assert.Equal(Availability.UnknownDefaultOpenApi, item!.Availability);
         }
     }
 
@@ -3995,10 +3986,18 @@ public static class ObjectSerializerTest
                 _serializer.Serialize(new Subscription(Rank.LOW) { Tier = Tier.Medium }),
                 StringComparison.Ordinal
             );
-            var ex = Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<Subscription>("{\"rank\":1,\"tier\":\"Medium\"}")
+            var decoded = _serializer.Deserialize<Subscription>("{\"rank\":1,\"tier\":\"Medium\"}");
+            Assert.Equal(Tier.UnknownDefaultOpenApi, decoded!.Tier);
+        }
+
+        [Fact]
+        public void BhvEnums012TheCatchAllMemberHasNoWireValueAndCannotBeWritten()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Serialize(
+                    new Subscription(Rank.LOW) { Tier = Tier.UnknownDefaultOpenApi }
+                )
             );
-            Assert.Contains("Medium", ex.Message, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -4480,11 +4479,10 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerialization105AnEnumValueWithTheWrongCaseRaises()
+        public void BhvSerialization105AnEnumValueWithTheWrongCaseGivesTheCatchAllMember()
         {
-            Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<Order>("{\"status\":\"PLACED\"}")
-            );
+            var order = _serializer.Deserialize<Order>("{\"status\":\"PLACED\"}");
+            Assert.Equal(Order.StatusEnum.UnknownDefaultOpenApi, order!.Status);
         }
 
         [Fact]

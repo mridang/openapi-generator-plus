@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.Availability do
   """
 
   @typedoc "One of the allowed enum atoms for Availability."
-  @type t :: :available | :sold | :on_hold | :oclock | :a_b | :eq | :x
+  @type t :: :available | :sold | :on_hold | :oclock | :a_b | :eq | :x | :unknown_default_open_api
   @doc "Enum value `available`"
   def available, do: :available
 
@@ -37,7 +37,10 @@ defmodule PetstoreClient.Models.Availability do
   @doc "Enum value `x`"
   def x, do: :x
 
-  @doc "All allowed values as atoms."
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
   @spec all_values() :: [t(), ...]
   def all_values do
     [available(), sold(), on_hold(), oclock(), a_b(), eq(), x()]

@@ -1238,9 +1238,17 @@ fn test_bhv_enums_008_only_the_wire_value_is_on_the_wire() {
 
     let item = Subscription::new(Rank::LOW).with_tier(Tier::Medium);
     assert!(serde_json::to_string(&item).expect("encode").contains(r#""tier":"m""#));
-    let error = serde_json::from_str::<Subscription>(r#"{"rank":1,"tier":"Medium"}"#)
-        .expect_err("a name is not a wire value");
-    assert!(error.to_string().contains("Medium"), "{error}");
+    let decoded: Subscription = serde_json::from_str(r#"{"rank":1,"tier":"Medium"}"#).expect("a name decodes");
+    assert_eq!(decoded.tier, Some(Tier::UnknownDefaultOpenApi));
+}
+
+#[test]
+fn test_bhv_enums_012_the_catch_all_variant_has_no_wire_value_and_cannot_be_written() {
+    use {{packageName}}::models::{Rank, Subscription, Tier};
+
+    let item = Subscription::new(Rank::LOW).with_tier(Tier::UnknownDefaultOpenApi);
+    assert!(serde_json::to_string(&item).is_err());
+    assert!(serde_json::to_string(&Rank::UnknownDefaultOpenApi).is_err());
 }
 
 #[test]
@@ -1468,7 +1476,10 @@ fn test_bhv_misc_137_a_generated_enum_lists_its_values_and_reports_membership() 
     use {{packageName}}::models::Separator;
     let values: Vec<String> = Separator::all_values().iter().map(|v| v.to_string()).collect();
     assert_eq!(values, vec![" ", "@@", "a-b", "a_b"]);
-    assert!(serde_json::from_str::<Separator>(r#""not-declared""#).is_err());
+    assert_eq!(
+        serde_json::from_str::<Separator>(r#""not-declared""#).expect("decodes"),
+        Separator::UnknownDefaultOpenApi
+    );
 }
 
 #[test]

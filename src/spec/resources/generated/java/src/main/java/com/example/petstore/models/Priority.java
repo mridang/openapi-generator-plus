@@ -15,7 +15,9 @@ public enum Priority {
   /** The {@code 2} value. */
   NUMBER_2(2),
   /** The {@code 3} value. */
-  NUMBER_3(3);
+  NUMBER_3(3),
+  /** Any wire value this SDK does not list; it cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API(0);
 
   private final int value;
 
@@ -47,8 +49,7 @@ public enum Priority {
    * Returns the enum constant for the given wire value.
    *
    * @param value the wire value
-   * @return the matching enum constant
-   * @throws IllegalArgumentException if no constant matches
+   * @return the matching enum constant, or {@code UNKNOWN_DEFAULT_OPEN_API} when none matches
    */
   @com.fasterxml.jackson.annotation.JsonCreator
   public static Priority fromValue(int value) {
@@ -57,6 +58,6 @@ public enum Priority {
         return b;
       }
     }
-    throw new IllegalArgumentException("Unexpected value '" + value + "'");
+    return UNKNOWN_DEFAULT_OPEN_API;
   }
 }

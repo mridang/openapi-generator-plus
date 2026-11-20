@@ -317,7 +317,7 @@ class TestReadmeAndSkillsText:
             '### Behaviours to know',
         ):
             assert readme.index(heading) < not_supported
-        assert 'Unknown values fail loudly' in readme
+        assert 'Unknown enum values decode to the catch-all member' in readme
         assert 'Streaming is not supported' in readme
         assert 'stay separate objects' in readme
 
@@ -655,7 +655,7 @@ class TestMetadataBehaviours:
     def test_bhv_models_021_each_member_of_an_integer_backed_enum_carries_its_declared_number(self) -> None:
         from {{packageName}}.models.priority import Priority
 
-        assert [member.value for member in Priority] == [1, 2, 3]
+        assert [member.value for member in Priority if member is not Priority.UNKNOWN_DEFAULT_OPEN_API] == [1, 2, 3]
         assert Priority.NUMBER_3.value == 3
 
     def test_bhv_models_022_a_model_whose_schema_allows_undeclared_properties_reports_it(self) -> None:

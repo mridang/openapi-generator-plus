@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.Stage do
   """
 
   @typedoc "One of the allowed enum atoms for Stage."
-  @type t :: :on_hold | :active | :active2
+  @type t :: :on_hold | :active | :active2 | :unknown_default_open_api
   @doc """
   Waiting.
   """
@@ -29,7 +29,10 @@ defmodule PetstoreClient.Models.Stage do
   """
   def active2, do: :active2
 
-  @doc "All allowed values as atoms."
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
   @spec all_values() :: [t(), ...]
   def all_values do
     [on_hold(), active(), active2()]

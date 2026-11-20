@@ -49,6 +49,9 @@ public record Subscription
         /// Billed every year.
         /// </summary>
         YEARLY,
+
+        /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+        UnknownDefaultOpenApi,
     }
 
     /// <summary>
@@ -76,9 +79,7 @@ public record Subscription
             {
                 "month" => IntervalEnum.MONTHLY,
                 "year" => IntervalEnum.YEARLY,
-                _ => throw new System.Text.Json.JsonException(
-                    $"Unknown value '{value}' for enum IntervalEnum."
-                ),
+                _ => IntervalEnum.UnknownDefaultOpenApi,
             };
         }
 

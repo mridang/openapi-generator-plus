@@ -336,6 +336,10 @@ class ObjectSerializer:
         elif isinstance(obj, BaseModel):
             return json.loads(cls()._serialize_marked(obj))
         elif isinstance(obj, Enum):
+            if obj.name == 'UNKNOWN_DEFAULT_OPEN_API':
+                raise SerializationException(
+                    'The catch-all enum member UNKNOWN_DEFAULT_OPEN_API has no wire value and cannot be written'
+                )
             return obj.value
         elif isinstance(obj, SecretStr):
             return obj.get_secret_value()

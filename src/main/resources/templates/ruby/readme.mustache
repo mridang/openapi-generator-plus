@@ -240,9 +240,12 @@ identifiers.
 
 A property that is optional and a property that is nullable both read as `nil` when absent or `null`. Use `with` to build a changed copy of a model (models have no writers) and `additional_properties` where the schema allows extras. A required nullable query parameter is kept the same way: when its value is `nil` the key is still sent, with an empty value (`?key=`).
 
-### An unknown enum value or discriminator fails loudly
+### Unknown enum values and discriminators
 
-A response holding an enum value the SDK does not list, or a discriminator it does not map, raises `SerializationError` instead of being kept as a raw value.
+An enum value the spec does not list decodes to the enum's catch-all member (`UNKNOWN_DEFAULT_OPEN_API`) instead of failing the
+response, so a server that adds a value does not break a client built before it. The catch-all member has no
+wire value, so writing it raises `SerializationError`. A discriminator value that maps to no variant still fails
+loudly with `SerializationError`.
 
 ### Repeated response headers are joined
 

@@ -143,7 +143,7 @@ void main() {
           '### Logging',
           '### Versioning',
           '### Optional and nullable are one type',
-          '### Unknown enum values and discriminators fail loudly',
+          '### Unknown enum values and discriminators',
           '### Response headers',
           '### Streaming is not supported',
           '### `Configuration` and `TransportOptions` are separate',

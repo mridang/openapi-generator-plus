@@ -12,5 +12,7 @@ export const Priority = {
   Number1: 1,
   Number2: 2,
   Number3: 3,
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: -9007199254740991,
 } as const;
 export type Priority = (typeof Priority)[keyof typeof Priority];

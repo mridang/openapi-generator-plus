@@ -112,7 +112,7 @@ A cookie parameter value is sent exactly as given when every character is a lega
 
 ## Models
 
-Constructors and `Default` never validate. A wrong value or an unknown enum string fails only when a response or a payload is decoded.
+Constructors and `Default` never validate. A wrong value fails only when a response or a payload is decoded, and an unknown enum string decodes to the `UnknownDefaultOpenApi` variant (D117).
 
 ## Recipes
 

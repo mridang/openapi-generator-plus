@@ -24,6 +24,8 @@ const (
 	ColorGreen Color = "green"
 	/* ColorBlue represents the value "blue". */
 	ColorBlue Color = "blue"
+	/* ColorUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	ColorUnknownDefaultOpenApi Color = "__unknown_default_open_api__"
 )
 
 // AllColorValues returns all allowed values of Color.
@@ -55,9 +57,9 @@ func (v Color) String() string {
 	return string(v)
 }
 
-// UnmarshalJSON enforces that the deserialized value is one of the
-// declared enum members and returns an error otherwise. The default
-// json.Unmarshal would silently accept any value, masking spec drift.
+// UnmarshalJSON decodes a declared enum member to itself and any other wire
+// value to the catch-all member, so a value the spec does not list yet never
+// fails the whole decode.
 func (v *Color) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -70,11 +72,12 @@ func (v *Color) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum Color", raw)
+	*v = ColorUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v Color) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllColorValues() {
 		if allowed == v {

@@ -15,7 +15,7 @@ defmodule PetstoreClient.Models.Separator do
   """
 
   @typedoc "One of the allowed enum atoms for Separator."
-  @type t :: :space_1 | :value_0040_0040 | :a_b | :a_b_2
+  @type t :: :space_1 | :value_0040_0040 | :a_b | :a_b_2 | :unknown_default_open_api
   @doc "Enum value `space_1`"
   def space_1, do: :space_1
 
@@ -28,7 +28,10 @@ defmodule PetstoreClient.Models.Separator do
   @doc "Enum value `a_b_2`"
   def a_b_2, do: :a_b_2
 
-  @doc "All allowed values as atoms."
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
   @spec all_values() :: [t(), ...]
   def all_values do
     [space_1(), value_0040_0040(), a_b(), a_b_2()]

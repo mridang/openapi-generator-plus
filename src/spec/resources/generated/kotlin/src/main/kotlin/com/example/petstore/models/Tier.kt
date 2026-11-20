@@ -11,25 +11,24 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
-@Serializable
+@Serializable(with = Tier.Serializer::class)
 enum class Tier(
     val value: String,
 ) {
     /** The smallest tier. */
-    @SerialName("s")
     SMALL("s"),
 
     /** The medium tier. */
-    @SerialName("m")
     MEDIUM("m"),
 
     /** The largest tier. Ends with * / and #{x} and $x. */
-    @SerialName("l")
     LARGE("l"),
+
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(""),
     ;
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -38,6 +37,26 @@ enum class Tier(
     companion object {
         fun fromValue(value: String): Tier =
             entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException("Unexpected value '$value'")
+                ?: UNKNOWN_DEFAULT_OPEN_API
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<Tier> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                "Tier",
+                kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+            )
+
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: Tier,
+        ) {
+            if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+            }
+            encoder.encodeString(value.value)
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Tier = fromValue(decoder.decodeString())
     }
 }

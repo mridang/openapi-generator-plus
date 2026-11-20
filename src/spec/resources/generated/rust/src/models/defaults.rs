@@ -32,6 +32,9 @@ pub enum DefaultsModeEnum {
     /// Represents the value "high".
     #[serde(rename = "high")]
     High,
+    /// Any wire value this SDK does not list decodes to this variant; it has no wire value and cannot be written.
+    #[serde(other, skip_serializing)]
+    UnknownDefaultOpenApi,
 }
 
 impl std::fmt::Display for DefaultsModeEnum {
@@ -41,6 +44,7 @@ impl std::fmt::Display for DefaultsModeEnum {
             DefaultsModeEnum::Low => "low",
             DefaultsModeEnum::Medium => "medium",
             DefaultsModeEnum::High => "high",
+            DefaultsModeEnum::UnknownDefaultOpenApi => "UNKNOWN_DEFAULT_OPEN_API",
         })
     }
 }

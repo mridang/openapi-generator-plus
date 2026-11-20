@@ -15,7 +15,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   """
 
   @typedoc "One of the allowed enum atoms for {{classname}}."
-  @type t :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}
+  @type t :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}} | :unknown_default_open_api
 {{#allowableValues}}
 {{#enumVars}}
 {{#enumDescription}}
@@ -30,7 +30,10 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
 {{/enumVars}}
 {{/allowableValues}}
-  @doc "All allowed values as atoms."
+  @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+  def unknown_default_open_api, do: :unknown_default_open_api
+
+  @doc "All declared values as atoms; the catch-all member is not one of them."
   @spec all_values() :: [t(), ...]
   def all_values do
     [{{#allowableValues}}{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
@@ -458,7 +461,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
     @moduledoc "Allowed values of {{classname}}.{{baseName}}"
 
     @typedoc "One of the allowed enum atoms for {{classname}}.{{baseName}}."
-    @type t :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}
+    @type t :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}} | :unknown_default_open_api
 {{#enumVars}}
 
 {{#enumDescription}}
@@ -472,7 +475,10 @@ defmodule {{moduleName}}.Models.{{classname}} do
     def {{nameLowercase}}, do: :"{{nameLowercase}}"
 {{/enumVars}}
 
-    @doc "All allowed values as atoms."
+    @doc "The catch-all member: a wire value this SDK does not list decodes to it. It has no wire value and cannot be written."
+    def unknown_default_open_api, do: :unknown_default_open_api
+
+    @doc "All declared values as atoms; the catch-all member is not one of them."
     @spec all_values() :: [t(), ...]
     def all_values do
       [{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}]

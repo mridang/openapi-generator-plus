@@ -17,7 +17,10 @@ enum OrderStatusEnum {
   approved('approved'),
 
   /// Represents the value 'delivered'.
-  delivered('delivered');
+  delivered('delivered'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const OrderStatusEnum(this.value);
@@ -26,12 +29,18 @@ enum OrderStatusEnum {
   static OrderStatusEnum fromJson(String value) {
     return OrderStatusEnum.values.firstWhere(
       (e) => e.value == value,
-      orElse: () =>
-          throw ArgumentError('Unknown OrderStatusEnum value: $value'),
+      orElse: () => OrderStatusEnum.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == OrderStatusEnum.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value OrderStatusEnum.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

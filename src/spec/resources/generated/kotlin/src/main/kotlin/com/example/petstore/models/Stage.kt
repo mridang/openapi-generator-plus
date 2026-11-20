@@ -11,24 +11,22 @@
 package com.example.petstore.models
 
 import com.example.petstore.Base64ByteArraySerializer
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.UseSerializers
 
-@Serializable
+@Serializable(with = Stage.Serializer::class)
 enum class Stage(
     val value: String,
 ) {
     /** Waiting. */
-    @SerialName("paused")
     ON_HOLD("paused"),
-
-    @SerialName("active")
     ACTIVE("active"),
 
     /** Running. */
-    @SerialName("live")
     ACTIVE2("live"),
+
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    UNKNOWN_DEFAULT_OPEN_API(""),
     ;
 
     /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -37,6 +35,26 @@ enum class Stage(
     companion object {
         fun fromValue(value: String): Stage =
             entries.firstOrNull { it.value == value }
-                ?: throw IllegalArgumentException("Unexpected value '$value'")
+                ?: UNKNOWN_DEFAULT_OPEN_API
+    }
+
+    internal object Serializer : kotlinx.serialization.KSerializer<Stage> {
+        override val descriptor =
+            kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                "Stage",
+                kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+            )
+
+        override fun serialize(
+            encoder: kotlinx.serialization.encoding.Encoder,
+            value: Stage,
+        ) {
+            if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+            }
+            encoder.encodeString(value.value)
+        }
+
+        override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): Stage = fromValue(decoder.decodeString())
     }
 }

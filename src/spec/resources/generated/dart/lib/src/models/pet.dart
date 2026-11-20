@@ -23,7 +23,10 @@ enum PetStatusEnum {
   pending('pending'),
 
   /// Represents the value 'sold'.
-  sold('sold');
+  sold('sold'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const PetStatusEnum(this.value);
@@ -32,11 +35,18 @@ enum PetStatusEnum {
   static PetStatusEnum fromJson(String value) {
     return PetStatusEnum.values.firstWhere(
       (e) => e.value == value,
-      orElse: () => throw ArgumentError('Unknown PetStatusEnum value: $value'),
+      orElse: () => PetStatusEnum.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == PetStatusEnum.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value PetStatusEnum.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

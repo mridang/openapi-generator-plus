@@ -19,7 +19,10 @@ enum DefaultsModeEnum {
   medium('medium'),
 
   /// Represents the value 'high'.
-  high('high');
+  high('high'),
+
+  /// Any wire value this SDK does not list; it has no wire value and cannot be written.
+  unknownDefaultOpenApi('__unknown_default_open_api__');
 
   final String value;
   const DefaultsModeEnum(this.value);
@@ -28,12 +31,18 @@ enum DefaultsModeEnum {
   static DefaultsModeEnum fromJson(String value) {
     return DefaultsModeEnum.values.firstWhere(
       (e) => e.value == value,
-      orElse: () =>
-          throw ArgumentError('Unknown DefaultsModeEnum value: $value'),
+      orElse: () => DefaultsModeEnum.unknownDefaultOpenApi,
     );
   }
 
-  String toJson() => value;
+  String toJson() {
+    if (this == DefaultsModeEnum.unknownDefaultOpenApi) {
+      throw ArgumentError(
+        'The catch-all enum value DefaultsModeEnum.unknownDefaultOpenApi has no wire value and cannot be written',
+      );
+    }
+    return value;
+  }
 
   @override
   String toString() => value;

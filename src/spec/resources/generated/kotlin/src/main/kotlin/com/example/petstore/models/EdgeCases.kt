@@ -132,18 +132,16 @@ data class EdgeCases(
     @SerialName("slug")
     val slug: String? = null,
 ) {
-    @Serializable
+    @Serializable(with = PhaseEnum.Serializer::class)
     enum class PhaseEnum(
         val value: String,
     ) {
-        @SerialName("In-Stock")
         IN_STOCK("In-Stock"),
-
-        @SerialName("on-hold")
         ON_HOLD("on-hold"),
-
-        @SerialName("OUT_OF_STOCK")
         OUT_OF_STOCK("OUT_OF_STOCK"),
+
+        /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+        UNKNOWN_DEFAULT_OPEN_API(""),
         ;
 
         /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -152,7 +150,27 @@ data class EdgeCases(
         companion object {
             fun fromValue(value: String): PhaseEnum =
                 entries.firstOrNull { it.value == value }
-                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+                    ?: UNKNOWN_DEFAULT_OPEN_API
+        }
+
+        internal object Serializer : kotlinx.serialization.KSerializer<PhaseEnum> {
+            override val descriptor =
+                kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                    "PhaseEnum",
+                    kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+                )
+
+            override fun serialize(
+                encoder: kotlinx.serialization.encoding.Encoder,
+                value: PhaseEnum,
+            ) {
+                if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                    throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+                }
+                encoder.encodeString(value.value)
+            }
+
+            override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): PhaseEnum = fromValue(decoder.decodeString())
         }
     }
 }

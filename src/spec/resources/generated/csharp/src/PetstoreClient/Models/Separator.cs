@@ -24,6 +24,9 @@ public enum Separator
     AB,
 
     AB2,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi,
 }
 
 /// <summary>
@@ -55,7 +58,7 @@ internal sealed class SeparatorConverter : JsonConverter<Separator>
             "@@" => Separator.VALUE00400040,
             "a-b" => Separator.AB,
             "a_b" => Separator.AB2,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Separator."),
+            _ => Separator.UnknownDefaultOpenApi,
         };
     }
 

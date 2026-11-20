@@ -22,6 +22,9 @@ public enum Color
     Green,
 
     Blue,
+
+    /// <summary>Any wire value this SDK does not list; it has no wire value and cannot be written.</summary>
+    UnknownDefaultOpenApi,
 }
 
 /// <summary>
@@ -52,7 +55,7 @@ internal sealed class ColorConverter : JsonConverter<Color>
             "red" => Color.Red,
             "green" => Color.Green,
             "blue" => Color.Blue,
-            _ => throw new JsonException($"Unknown value '{value}' for enum Color."),
+            _ => Color.UnknownDefaultOpenApi,
         };
     }
 

@@ -313,10 +313,16 @@ export class EdgeCases {
     if (this.phase != null) {
       const phaseValues = Object.values(EdgeCasesPhaseEnum);
       if (!(phaseValues as readonly unknown[]).includes(this.phase)) {
-        throw new TypeError(
-          `Unknown enum value for phase: ${JSON.stringify(this.phase)}. ` +
-            `Expected one of [${phaseValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.phase !==
+          typeof EdgeCasesPhaseEnum.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for phase: ${JSON.stringify(this.phase)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["phase"] =
+          EdgeCasesPhaseEnum.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.favoriteColor != null) {
@@ -326,19 +332,29 @@ export class EdgeCases {
           this.favoriteColor,
         )
       ) {
-        throw new TypeError(
-          `Unknown enum value for favoriteColor: ${JSON.stringify(this.favoriteColor)}. ` +
-            `Expected one of [${favoriteColorValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.favoriteColor !== typeof Color.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for favoriteColor: ${JSON.stringify(this.favoriteColor)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["favoriteColor"] =
+          Color.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
     if (this.separator != null) {
       const separatorValues = Object.values(Separator);
       if (!(separatorValues as readonly unknown[]).includes(this.separator)) {
-        throw new TypeError(
-          `Unknown enum value for separator: ${JSON.stringify(this.separator)}. ` +
-            `Expected one of [${separatorValues.map((v) => JSON.stringify(v)).join(", ")}].`,
-        );
+        if (
+          typeof this.separator !== typeof Separator.UNKNOWN_DEFAULT_OPEN_API
+        ) {
+          throw new TypeError(
+            `Unknown enum value for separator: ${JSON.stringify(this.separator)}.`,
+          );
+        }
+        (this as unknown as Record<string, unknown>)["separator"] =
+          Separator.UNKNOWN_DEFAULT_OPEN_API;
       }
     }
   }
@@ -542,6 +558,8 @@ export const EdgeCasesPhaseEnum = {
   InStock: "In-Stock",
   OnHold: "on-hold",
   OUTOFSTOCK: "OUT_OF_STOCK",
+  /** Any wire value this SDK does not list decodes to this member; it has no wire value and cannot be written. */
+  UNKNOWN_DEFAULT_OPEN_API: "__unknown_default_open_api__",
 } as const;
 export type EdgeCasesPhaseEnum =
   (typeof EdgeCasesPhaseEnum)[keyof typeof EdgeCasesPhaseEnum];

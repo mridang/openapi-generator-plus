@@ -21,4 +21,6 @@ enum Priority: int
     case NUMBER_1 = 1;
     case NUMBER_2 = 2;
     case NUMBER_3 = 3;
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    case UNKNOWN_DEFAULT_OPEN_API = PHP_INT_MIN;
 }

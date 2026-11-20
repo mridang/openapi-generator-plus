@@ -38,17 +38,18 @@ data class Subscription(
     @SerialName("interval")
     val interval: IntervalEnum? = null,
 ) {
-    @Serializable
+    @Serializable(with = IntervalEnum.Serializer::class)
     enum class IntervalEnum(
         val value: String,
     ) {
         /** Billed every month. */
-        @SerialName("month")
         MONTHLY("month"),
 
         /** Billed every year. */
-        @SerialName("year")
         YEARLY("year"),
+
+        /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+        UNKNOWN_DEFAULT_OPEN_API(""),
         ;
 
         /** The wire value, so an enum interpolated into a string reads as it does on the wire. */
@@ -57,7 +58,27 @@ data class Subscription(
         companion object {
             fun fromValue(value: String): IntervalEnum =
                 entries.firstOrNull { it.value == value }
-                    ?: throw IllegalArgumentException("Unexpected value '$value'")
+                    ?: UNKNOWN_DEFAULT_OPEN_API
+        }
+
+        internal object Serializer : kotlinx.serialization.KSerializer<IntervalEnum> {
+            override val descriptor =
+                kotlinx.serialization.descriptors.PrimitiveSerialDescriptor(
+                    "IntervalEnum",
+                    kotlinx.serialization.descriptors.PrimitiveKind.STRING,
+                )
+
+            override fun serialize(
+                encoder: kotlinx.serialization.encoding.Encoder,
+                value: IntervalEnum,
+            ) {
+                if (value == UNKNOWN_DEFAULT_OPEN_API) {
+                    throw kotlinx.serialization.SerializationException("The catch-all enum member has no wire value and cannot be written")
+                }
+                encoder.encodeString(value.value)
+            }
+
+            override fun deserialize(decoder: kotlinx.serialization.encoding.Decoder): IntervalEnum = fromValue(decoder.decodeString())
         }
     }
 }

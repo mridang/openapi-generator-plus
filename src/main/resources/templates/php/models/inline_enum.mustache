@@ -13,4 +13,6 @@ enum {{enumClassName}}: {{backingType}}
 {{/enumDescription}}
     case {{{name}}} = {{{value}}};
 {{/enumVars}}
+    /** Any wire value this SDK does not list; it has no wire value and cannot be written. */
+    case UNKNOWN_DEFAULT_OPEN_API = {{#isIntBacked}}PHP_INT_MIN{{/isIntBacked}}{{^isIntBacked}}'__unknown_default_open_api__'{{/isIntBacked}};
 }

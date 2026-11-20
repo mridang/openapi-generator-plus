@@ -947,21 +947,13 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvSerializationObject172 unknown enum value throws SerializationException")
-    void bhvSerializationObject172UnknownEnumValueThrowsSerializationException() {
-      // Parity regression: deserializing a payload whose enum field holds a
-      // value the schema never declared (status="banana") must fail loudly
-      // with the SDK's (de)serialization exception, not be silently coerced
-      // to null or a default constant.
-      SerializationException ex =
-          assertThrowsExactly(
-              SerializationException.class,
-              () ->
-                  serializer.deserialize(
-                      "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
-                      new com.fasterxml.jackson.core.type.TypeReference<
-                          com.example.petstore.models.Pet>() {}.getType()));
-      assertInstanceOf(OpenAPIException.class, ex);
+    @DisplayName("bhvSerializationObject172 an unknown enum value decodes to the catch-all member")
+    void bhvSerializationObject172UnknownEnumValueDecodesToTheCatchAllMember() {
+      com.example.petstore.models.Pet pet =
+          serializer.deserialize(
+              "{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}",
+              com.example.petstore.models.Pet.class);
+      assertEquals(com.example.petstore.models.Pet.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, pet.status);
     }
 
     @Test
@@ -1029,18 +1021,17 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvSerializationObject024 an unknown inline enum value is rejected")
-    void bhvSerializationObject024UnknownInlineEnumValueIsRejected() {
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> com.example.petstore.models.Order.StatusEnum.fromValue("banana"));
-      assertThrowsExactly(
-          SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{\"status\":\"banana\"}",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.Order>() {}.getType()));
+    @DisplayName(
+        "bhvSerializationObject024 an unknown inline enum value decodes to the catch-all member")
+    void bhvSerializationObject024UnknownInlineEnumValueDecodesToTheCatchAllMember() {
+      assertEquals(
+          com.example.petstore.models.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API,
+          com.example.petstore.models.Order.StatusEnum.fromValue("banana"));
+      com.example.petstore.models.Order order =
+          serializer.deserialize(
+              "{\"status\":\"banana\"}", com.example.petstore.models.Order.class);
+      assertEquals(
+          com.example.petstore.models.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, order.status);
     }
 
     @Test
@@ -1055,16 +1046,13 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName(
-        "bhvSerializationObject192 an unknown enum string fails at decode and names the value")
-    void bhvSerializationObject192UnknownEnumStringFailsAtDecode() {
-      SerializationException ex =
-          assertThrowsExactly(
-              SerializationException.class,
-              () ->
-                  serializer.deserialize(
-                      "{\"status\":\"teleported\"}", com.example.petstore.models.Order.class));
-      assertTrue(ex.toString().contains("teleported"), ex.toString());
+    @DisplayName("bhvSerializationObject192 an unknown enum string decodes to the catch-all member")
+    void bhvSerializationObject192UnknownEnumStringDecodesToTheCatchAllMember() {
+      com.example.petstore.models.Order order =
+          serializer.deserialize(
+              "{\"status\":\"teleported\"}", com.example.petstore.models.Order.class);
+      assertEquals(
+          com.example.petstore.models.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, order.status);
     }
 
     @Test
@@ -2101,15 +2089,11 @@ class ObjectSerializerTest {
 
     @Test
     @DisplayName(
-        "bhvSerializationObject193 an unknown integer enum value is rejected on deserialize")
-    void bhvSerializationObject193UnknownIntegerEnumValueIsRejected() {
-      assertThrowsExactly(
-          SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{\"priority\":99}",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.StockItem>() {}.getType()));
+        "bhvSerializationObject193 an unknown integer enum value decodes to the catch-all member")
+    void bhvSerializationObject193UnknownIntegerEnumValueDecodesToTheCatchAllMember() {
+      com.example.petstore.models.StockItem item =
+          serializer.deserialize("{\"priority\":99}", com.example.petstore.models.StockItem.class);
+      assertEquals(com.example.petstore.models.Priority.UNKNOWN_DEFAULT_OPEN_API, item.priority);
     }
 
     @Test
@@ -2163,15 +2147,16 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvSerializationObject119 referenced enum field rejects an unknown wire value")
-    void bhvSerializationObject119ReferencedEnumRejectsUnknownValue() {
-      assertThrows(
-          SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "{\"priority\":1,\"availability\":\"banana\"}",
-                  new com.fasterxml.jackson.core.type.TypeReference<
-                      com.example.petstore.models.StockItem>() {}.getType()));
+    @DisplayName(
+        "bhvSerializationObject119 referenced enum field decodes an unknown wire value to the"
+            + " catch-all member")
+    void bhvSerializationObject119ReferencedEnumDecodesUnknownValueToTheCatchAllMember() {
+      com.example.petstore.models.StockItem item =
+          serializer.deserialize(
+              "{\"priority\":1,\"availability\":\"banana\"}",
+              com.example.petstore.models.StockItem.class);
+      assertEquals(
+          com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API, item.availability);
     }
   }
 
@@ -2280,17 +2265,24 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvEnums008 encoding writes the wire value and decoding rejects a supplied name")
+    @DisplayName(
+        "bhvEnums008 encoding writes the wire value and decoding a supplied name gives the"
+            + " catch-all member")
     void bhvEnums008WireValueOnlyOnTheWire() {
       assertEquals("\"m\"", serializer.serialize(com.example.petstore.models.Tier.MEDIUM));
-      SerializationException error =
-          assertThrows(
-              SerializationException.class,
-              () ->
-                  decode(
-                      "{\"rank\":1,\"tier\":\"Medium\"}",
-                      com.example.petstore.models.Subscription.class));
-      assertTrue(String.valueOf(error.getMessage()).contains("Medium"), error.getMessage());
+      com.example.petstore.models.Subscription decoded =
+          decode(
+              "{\"rank\":1,\"tier\":\"Medium\"}", com.example.petstore.models.Subscription.class);
+      assertEquals(com.example.petstore.models.Tier.UNKNOWN_DEFAULT_OPEN_API, decoded.tier);
+    }
+
+    @Test
+    @DisplayName(
+        "bhvEnums012 the catch-all member of an enum has no wire value and cannot be written")
+    void bhvEnums012TheCatchAllMemberCannotBeWritten() {
+      assertThrowsExactly(
+          SerializationException.class,
+          () -> serializer.serialize(com.example.petstore.models.Tier.UNKNOWN_DEFAULT_OPEN_API));
     }
 
     @Test
@@ -2781,6 +2773,9 @@ class ObjectSerializerTest {
     void bhvSerializationObject076AvailabilityMembersRoundTrip() {
       for (com.example.petstore.models.Availability member :
           com.example.petstore.models.Availability.values()) {
+        if (member == com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API) {
+          continue;
+        }
         String json = serializer.serialize(member);
         assertEquals("\"" + member.getValue().replace("\\", "\\\\") + "\"", json);
         assertEquals(
@@ -3139,22 +3134,22 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvSerializationObject059 deserialize rejects an unknown availability wire value")
-    void bhvSerializationObject059UnknownAvailabilityWireValueIsRejected() {
-      assertThrowsExactly(
-          SerializationException.class,
-          () ->
-              serializer.deserialize("\"banana\"", com.example.petstore.models.Availability.class));
+    @DisplayName(
+        "bhvSerializationObject059 deserialize gives the catch-all member for an unknown"
+            + " availability wire value")
+    void bhvSerializationObject059UnknownAvailabilityWireValueGivesTheCatchAllMember() {
+      assertEquals(
+          com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API,
+          serializer.deserialize("\"banana\"", com.example.petstore.models.Availability.class));
     }
 
     @Test
-    @DisplayName("bhvSerializationObject182 unknown enum value on deserialize throws")
-    void bhvSerializationObject182UnknownEnumValueOnDeserializeThrows() {
-      assertThrowsExactly(
-          SerializationException.class,
-          () ->
-              serializer.deserialize(
-                  "\"unknown\"", com.example.petstore.models.Availability.class));
+    @DisplayName(
+        "bhvSerializationObject182 unknown enum value on deserialize gives the catch-all member")
+    void bhvSerializationObject182UnknownEnumValueOnDeserializeGivesTheCatchAllMember() {
+      assertEquals(
+          com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API,
+          serializer.deserialize("\"unknown\"", com.example.petstore.models.Availability.class));
     }
 
     @Test
@@ -4129,13 +4124,13 @@ class ObjectSerializerTest {
   }
 
   @Test
-  void bhvSerialization105EnumValueOutsideTheMembersOrInWrongCaseIsRejected() {
-    assertThrowsExactly(
-        SerializationException.class,
-        () -> decode("\"RED\"", com.example.petstore.models.Color.class));
-    assertThrowsExactly(
-        SerializationException.class,
-        () -> decode("\"purple\"", com.example.petstore.models.Color.class));
+  void bhvSerialization105EnumValueOutsideTheMembersOrInWrongCaseGivesTheCatchAllMember() {
+    assertEquals(
+        com.example.petstore.models.Color.UNKNOWN_DEFAULT_OPEN_API,
+        decode("\"RED\"", com.example.petstore.models.Color.class));
+    assertEquals(
+        com.example.petstore.models.Color.UNKNOWN_DEFAULT_OPEN_API,
+        decode("\"purple\"", com.example.petstore.models.Color.class));
   }
 
   @Test
@@ -4374,15 +4369,16 @@ class ObjectSerializerTest {
   }
 
   @Test
-  void bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndRejectsOthers() {
+  void bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndGivesTheCatchAllForOthers() {
     assertEquals(
         List.of(" ", "@@", "a-b", "a_b"),
         Arrays.stream(com.example.petstore.models.Separator.values())
+            .filter(v -> v != com.example.petstore.models.Separator.UNKNOWN_DEFAULT_OPEN_API)
             .map(com.example.petstore.models.Separator::getValue)
             .toList());
-    assertThrows(
-        IllegalArgumentException.class,
-        () -> com.example.petstore.models.Separator.fromValue("not-declared"));
+    assertEquals(
+        com.example.petstore.models.Separator.UNKNOWN_DEFAULT_OPEN_API,
+        com.example.petstore.models.Separator.fromValue("not-declared"));
   }
 
   @Test

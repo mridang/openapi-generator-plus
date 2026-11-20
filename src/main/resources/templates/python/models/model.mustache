@@ -3,13 +3,13 @@
 {{#models}}
 {{#model}}
 {{#isEnum}}
-from enum import Enum
+from {{packageName}}._types import CatchAllEnum
 
 
 {{! An integer-backed enum mixes in `int` (not `str`) so its members compare
     and serialize as JSON numbers; pydantic/json then emit `1` rather than the
     quoted `"1"` that `str, Enum` would produce. String enums keep `str`. }}
-class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}str{{/isLong}}{{/isInteger}}, Enum):
+class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^isInteger}}{{^isLong}}str{{/isLong}}{{/isInteger}}, CatchAllEnum):
     """
     {{#description}}{{{description}}}{{/description}}{{^description}}{{{classname}}}{{/description}}
     """
@@ -22,6 +22,8 @@ class {{classname}}({{#isInteger}}int{{/isInteger}}{{#isLong}}int{{/isLong}}{{^i
     {{{name}}} = {{{value}}}
     {{/enumVars}}
     {{/allowableValues}}
+    #: Any wire value this SDK does not list; it has no wire value and cannot be written.
+    UNKNOWN_DEFAULT_OPEN_API = {{#isInteger}}-9223372036854775808{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}'__unknown_default_open_api__'{{/isLong}}{{/isInteger}}
 
     def __str__(self) -> str:
         """The wire value, so interpolating a member gives the text the server sees."""
@@ -338,7 +340,7 @@ from {{packageName}}.models.{{vendorExtensions.x-allof-base-filename}} import {{
 {{! A bare number default is built as a Decimal; ruff prunes it when unused. }}
 from decimal import Decimal
 {{#hasEnums}}
-from enum import Enum
+from {{packageName}}._types import CatchAllEnum
 {{/hasEnums}}
 {{#hasChildren}}
 {{#discriminator}}
@@ -355,7 +357,7 @@ if TYPE_CHECKING:
 {{#isEnum}}
 
 
-class {{classname}}{{enumName}}(str, Enum):
+class {{classname}}{{enumName}}(str, CatchAllEnum):
     """{{classname}} - {{baseName}}"""
 
     {{#allowableValues}}
@@ -366,6 +368,8 @@ class {{classname}}{{enumName}}(str, Enum):
     {{{name}}} = {{{value}}}
     {{/enumVars}}
     {{/allowableValues}}
+    #: Any wire value this SDK does not list; it has no wire value and cannot be written.
+    UNKNOWN_DEFAULT_OPEN_API = '__unknown_default_open_api__'
 
     def __str__(self) -> str:
         """The wire value, so interpolating a member gives the text the server sees."""

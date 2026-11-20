@@ -23,6 +23,8 @@ const (
 	SubscriptionIntervalEnumMONTHLY SubscriptionIntervalEnum = "month"
 	// Billed every year.
 	SubscriptionIntervalEnumYEARLY SubscriptionIntervalEnum = "year"
+	/* SubscriptionIntervalEnumUnknownDefaultOpenApi is what a wire value this SDK does not list decodes to; it has no wire value and cannot be written. */
+	SubscriptionIntervalEnumUnknownDefaultOpenApi SubscriptionIntervalEnum = "__unknown_default_open_api__"
 )
 
 // AllSubscriptionIntervalEnumValues returns all allowed values.
@@ -49,8 +51,8 @@ func (v SubscriptionIntervalEnum) String() string {
 	return string(v)
 }
 
-// UnmarshalJSON validates the value is one of the declared
-// enum members at deserialise time.
+// UnmarshalJSON decodes a declared member to itself and any other wire value
+// to the catch-all member.
 func (v *SubscriptionIntervalEnum) UnmarshalJSON(data []byte) error {
 	var raw string
 	if err := json.Unmarshal(data, &raw); err != nil {
@@ -63,11 +65,12 @@ func (v *SubscriptionIntervalEnum) UnmarshalJSON(data []byte) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("unexpected value %v for enum SubscriptionIntervalEnum", raw)
+	*v = SubscriptionIntervalEnumUnknownDefaultOpenApi
+	return nil
 }
 
-// MarshalJSON enforces the same membership on the way out, so a value outside
-// the declared members is rejected instead of being sent.
+// MarshalJSON enforces membership on the way out: the catch-all member and any
+// value outside the declared members are rejected instead of being sent.
 func (v SubscriptionIntervalEnum) MarshalJSON() ([]byte, error) {
 	for _, allowed := range AllSubscriptionIntervalEnumValues() {
 		if allowed == v {

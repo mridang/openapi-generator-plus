@@ -289,42 +289,32 @@ class ObjectSerializerTest {
         @Test
         @DisplayName(
             "bhvSerializationobject182 unknown enum value " +
-                "throws SerializationException",
+                "decodes to the catch-all member",
         )
-        fun unknownEnumValueThrowsSerializationException() {
-            val ex =
-                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
-                    serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
-                }
-            assertInstanceOf(OpenAPIException::class.java, ex)
+        fun unknownEnumValueDecodesToTheCatchAllMember() {
+            val pet = serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"x\",\"photoUrls\":[],\"status\":\"banana\"}")
+            assertEquals(com.example.petstore.models.Pet.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, pet!!.status)
         }
 
         @Test
-        @DisplayName("bhvSerializationobject193 an unknown integer enum value is rejected on decode")
-        fun unknownIntegerEnumValueIsRejectedOnDecode() {
-            assertThrowsExactly(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":99}")
-            }
+        @DisplayName("bhvSerializationobject193 an unknown integer enum value decodes to the catch-all member")
+        fun unknownIntegerEnumValueDecodesToTheCatchAllMember() {
+            val item = serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":99}")
+            assertEquals(com.example.petstore.models.Priority.UNKNOWN_DEFAULT_OPEN_API, item!!.priority)
         }
 
         @Test
-        @DisplayName("bhvSerializationobject172 unknown enum value raises SerializationError")
-        fun unknownEnumValueRaisesSerializationError() {
-            val ex =
-                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
-                    serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"banana\"}")
-                }
-            assertInstanceOf(OpenAPIException::class.java, ex)
+        @DisplayName("bhvSerializationobject172 an unknown enum value decodes to the catch-all member")
+        fun unknownEnumValueDecodesToTheCatchAllMemberOfAnOrder() {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"banana\"}")
+            assertEquals(com.example.petstore.models.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, order!!.status)
         }
 
         @Test
-        @DisplayName("bhvSerializationobject192 an unknown enum string fails at decode and names the value")
-        fun unknownEnumStringFailsAtDecodeNamingTheValue() {
-            val ex =
-                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
-                    serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"banana\"}")
-                }
-            assertTrue(ex.message.orEmpty().contains("banana"), "the message must name the value, got ${ex.message}")
+        @DisplayName("bhvSerializationobject192 an unknown enum string decodes to the catch-all member")
+        fun unknownEnumStringDecodesToTheCatchAllMember() {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"banana\"}")
+            assertEquals(com.example.petstore.models.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, order!!.status)
         }
 
         @Test
@@ -950,15 +940,19 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject029 F316: building a model never validates, an unknown enum string fails only at decode")
-        fun constructionNeverValidatesAndDecodeFailsOnAnUnknownEnum() {
+        @DisplayName(
+            "bhvSerializationobject029 F316: building a model never validates, an unknown enum string decodes to the catch-all member",
+        )
+        fun constructionNeverValidatesAndDecodeGivesTheCatchAllForAnUnknownEnum() {
             val built =
                 com.example.petstore.models
                     .StockItem(priority = com.example.petstore.models.Priority.NUMBER_1)
             assertNotNull(built)
-            assertThrows(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.StockItem>("{\"priority\":1,\"availability\":\"no-such-member\"}")
-            }
+            val decoded =
+                serializer.deserialize<com.example.petstore.models.StockItem>(
+                    "{\"priority\":1,\"availability\":\"no-such-member\"}",
+                )
+            assertEquals(com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API, decoded!!.availability)
         }
 
         @Test
@@ -1013,17 +1007,19 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvMisc137 a generated enum lists its declared values and rejects any other value")
-        fun bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndRejectsOthers() {
+        @DisplayName("bhvMisc137 a generated enum lists its declared values and gives the catch-all member for any other value")
+        fun bhvMisc137AGeneratedEnumListsItsDeclaredValuesAndGivesTheCatchAllForOthers() {
             assertEquals(
                 listOf("low", "medium", "high"),
                 com.example.petstore.models.Defaults.ModeEnum.entries
+                    .filter { it != com.example.petstore.models.Defaults.ModeEnum.UNKNOWN_DEFAULT_OPEN_API }
                     .map { it.value },
             )
-            assertThrowsExactly(IllegalArgumentException::class.java) {
+            assertEquals(
+                com.example.petstore.models.Defaults.ModeEnum.UNKNOWN_DEFAULT_OPEN_API,
                 com.example.petstore.models.Defaults.ModeEnum
-                    .fromValue("not-declared")
-            }
+                    .fromValue("not-declared"),
+            )
         }
 
         @Test
@@ -1824,7 +1820,10 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("bhvModels021 each member of an integer-backed enum carries its declared number as its value")
         fun bhvModels021EachIntegerEnumMemberCarriesItsDeclaredNumber() {
-            for (member in com.example.petstore.models.Priority.entries) {
+            for (member in com.example.petstore.models.Priority.entries.filter {
+                it !=
+                    com.example.petstore.models.Priority.UNKNOWN_DEFAULT_OPEN_API
+            }) {
                 assertEquals(member.name.removePrefix("NUMBER_").toInt(), member.value, member.name)
             }
         }
@@ -1941,15 +1940,13 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject059 unknown Availability wire value is rejected on deserialize")
-        fun unknownAvailabilityValueRejected() {
-            // An undeclared enum value must fail loud rather than coerce to null
-            // or a default.
-            assertThrows(SerializationException::class.java) {
+        @DisplayName("bhvSerializationobject059 unknown Availability wire value decodes to the catch-all member")
+        fun unknownAvailabilityValueGivesTheCatchAllMember() {
+            val item =
                 serializer.deserialize<com.example.petstore.models.StockItem>(
                     "{\"priority\":1,\"availability\":\"out-of-stock\"}",
                 )
-            }
+            assertEquals(com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API, item!!.availability)
         }
 
         @Test
@@ -2189,15 +2186,16 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerializationobject119 a model field typed as a referenced enum (Color) rejects an unknown wire value")
-        fun referencedEnumFieldRejectsUnknownValue() {
+        @DisplayName(
+            "bhvSerializationobject119 a model field typed as a referenced enum (Color) decodes an unknown wire value to the catch-all member",
+        )
+        fun referencedEnumFieldDecodesUnknownValueToTheCatchAllMember() {
             // EdgeCases.favoriteColor is a $ref to the standalone Color enum
             // component (red/green/blue) rather than an inline property enum.
             // The referenced-enum deserialize path must validate-and-throw on an
             // undeclared value, exactly like the inline-enum path.
-            assertThrows(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"favoriteColor\":\"purple\"}")
-            }
+            val unknown = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"favoriteColor\":\"purple\"}")
+            assertEquals(com.example.petstore.models.Color.UNKNOWN_DEFAULT_OPEN_API, unknown!!.favoriteColor)
             // Control: a declared value still decodes.
             val ok = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"favoriteColor\":\"green\"}")
             assertNotNull(ok)
@@ -3611,14 +3609,19 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvEnums008 encoding writes the wire value and decoding rejects a supplied name")
+        @DisplayName("bhvEnums008 encoding writes the wire value and decoding a supplied name gives the catch-all member")
         fun wireValueOnlyOnTheWire() {
             assertEquals("\"m\"", serializer.serialize(com.example.petstore.models.Tier.MEDIUM))
-            val error =
-                assertThrows(SerializationException::class.java) {
-                    serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"tier\":\"Medium\"}")
-                }
-            assertTrue(error.message!!.contains("Medium"), error.message)
+            val decoded = serializer.deserialize<com.example.petstore.models.Subscription>("{\"rank\":1,\"tier\":\"Medium\"}")
+            assertEquals(com.example.petstore.models.Tier.UNKNOWN_DEFAULT_OPEN_API, decoded!!.tier)
+        }
+
+        @Test
+        @DisplayName("bhvEnums012 the catch-all member of an enum has no wire value and cannot be written")
+        fun bhvEnums012TheCatchAllMemberCannotBeWritten() {
+            assertThrowsExactly(SerializationException::class.java) {
+                serializer.serialize(com.example.petstore.models.Tier.UNKNOWN_DEFAULT_OPEN_API)
+            }
         }
 
         @Test
