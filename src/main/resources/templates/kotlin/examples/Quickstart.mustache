@@ -1,0 +1,16 @@
+{{>api_info}}
+
+package {{invokerPackage}}.examples
+
+import {{invokerPackage}}.{{clientClassName}}
+{{#hasExampleOperation}}
+import kotlinx.coroutines.runBlocking
+{{/hasExampleOperation}}
+
+/**
+ * Builds a client from the environment variables the README names, calls one operation and
+ * closes the client. An error escapes as the SDK's own typed exception.
+ */
+fun main() {
+{{>usage_statements}}
+}

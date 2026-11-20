@@ -79,11 +79,70 @@ HTTP is the standard library. Other requirements in the manifest are for the gen
 - **OpenTelemetry adapter.** `otelhook.New(opts...)` in `pkg/otelhook` (options `WithTracerProvider`, `WithMeterProvider`, `WithPropagator`) is a `CallHook` that records one span (named with the operation id, kind client), the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type`. It uses the OpenTelemetry API only and writes `traceparent` itself.
 - Initialisms are upper case (`URL`, `ID`, `HTTP`).
 - A model struct can be created without its required properties. Decoding enforces them.
+- With `generateExamples` on, the module ships `examples/quickstart/main.go`, a `package main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation and closes the client; `make examples` vets and builds everything under `examples/` and `make examples-run` runs the quickstart. `go vet ./...` and `staticcheck ./...` cover it, and `make docs` skips it.
+
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```go
+hook := petstore.CallHookFunc(func(ctx context.Context, info petstore.CallInfo, headers map[string]string) (petstore.CallObserver, error) {
+    headers["X-Caller"] = "billing"
+    return nil, nil
+})
+client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(hook))
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```go
+eu, err := petstore.NewClientWithToken("https://eu.api.example.com", "eu-token", nil)
+if err != nil {
+    return err
+}
+defer eu.Close()
+us, err := petstore.NewClientWithToken("https://us.api.example.com", "us-token", nil)
+if err != nil {
+    return err
+}
+defer us.Close()
+```
+
+Closing one client does not affect the other.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `pkg/models/animal.go`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHTTPInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```go
+result, err := client.Pet.AddPetWithHTTPInfo(ctx, pet, nil)
+if err == nil {
+    status, etag, raw := result.StatusCode, result.Headers["etag"], result.RawBody
+    _, _, _ = status, etag, raw
+}
+
+var apiErr *petstore.ApiError
+if errors.As(err, &apiErr) {
+    fmt.Println(apiErr.StatusCode(), apiErr.ResponseHeaders(), apiErr.ResponseBody())
+}
+```
 
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - `format: date` and `format: time` are plain strings, so they are not validated.
-- A schema integer with no format decodes into `int32`, so a larger value fails to decode. Declare `format: int64` where needed.
 - `format: decimal` and `number` are `float64` and lose exactness.
 - Schema constraints (`pattern`, `minLength`, `maximum` and so on) are not enforced by the client. The server owns validation.
 - `allOf` with a discriminator is not implemented yet. Only `oneOf` with a discriminator is.

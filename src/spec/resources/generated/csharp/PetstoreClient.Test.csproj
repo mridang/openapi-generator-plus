@@ -21,6 +21,7 @@
     </PropertyGroup>
     <ItemGroup>
         <Compile Remove="src/**" />
+        <Compile Remove="examples/**" />
         <ProjectReference Include="src/PetstoreClient/PetstoreClient.csproj" />
     </ItemGroup>
     <ItemGroup>

@@ -413,7 +413,7 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
         final String apiFolder = Path.of(SRC_BASE_PATH, API_DIR_NAME).toString();
         final String errorsFolder = Path.of(SRC_BASE_PATH, "Errors").toString();
         final String serializerFolder = Path.of(SRC_BASE_PATH, "Serializer").toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("configuration.mustache", invokerFolder, "Configuration.php"),
@@ -492,7 +492,13 @@ public class BetterPHPCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("gitignore.mustache", "", ".gitignore"),
             new SupportingFileSpec(
                 "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
-        );
+        ));
+        if (generateExamples) {
+            /* A script outside the PSR-4 root: it needs only vendor/autoload.php, and the
+             * shipped phpstan.neon and phpcs.xml already cover every directory but vendor. */
+            specs.add(new SupportingFileSpec("examples/quickstart.mustache", "examples", "quickstart.php"));
+        }
+        return specs;
     }
 
     /**

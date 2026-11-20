@@ -197,6 +197,23 @@
                             </sources>
                         </configuration>
                     </execution>
+{{#generateExamples}}
+                    <execution>
+                        <!-- The examples compile as test sources, so `mvn test-compile`
+                             builds them with the same compiler checks and they never
+                             ship in the jar. -->
+                        <id>add-example-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>src/examples/java</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+{{/generateExamples}}
                 </executions>
             </plugin>
             <plugin>
@@ -230,6 +247,9 @@
                         <includes>
                             <include>src/main/java/**/*.java</include>
                             <include>src/test/java/**/*.java</include>
+{{#generateExamples}}
+                            <include>src/examples/java/**/*.java</include>
+{{/generateExamples}}
                         </includes>
                         <googleJavaFormat>
                             <!-- Pin a google-java-format release that runs
@@ -337,6 +357,19 @@
                     <notimestamp>true</notimestamp>
                 </configuration>
             </plugin>
+{{#generateExamples}}
+            <plugin>
+                <!-- `make examples-run` runs the quickstart on the test class path,
+                     where the examples are compiled. -->
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.5.0</version>
+                <configuration>
+                    <mainClass>{{invokerPackage}}.examples.Quickstart</mainClass>
+                    <classpathScope>test</classpathScope>
+                </configuration>
+            </plugin>
+{{/generateExamples}}
         </plugins>
     </build>
 

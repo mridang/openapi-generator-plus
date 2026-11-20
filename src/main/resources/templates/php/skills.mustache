@@ -10,10 +10,10 @@ composer require {{#packageName}}{{packageName}}{{/packageName}}{{^packageName}}
 
 ## Quick Start
 
-```php
+```php statements
 use {{invokerPackage}}\{{clientClassName}};
 
-$client = {{clientClassName}}::withToken('https://api.example.com', 'your-token');
+{{>usage_statements}}
 ```
 
 ## Authentication
@@ -26,7 +26,8 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\BearerAuthenticator;
 
 $authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
@@ -47,7 +48,8 @@ The prefix `{{envVarPrefix}}` comes from the `envVarPrefix` generator option. Pa
 {{#hasBasicAuth}}
 ### Basic Auth
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\BasicAuthenticator;
 
 $authenticator = new BasicAuthenticator('https://api.example.com', 'username', 'password');
@@ -58,7 +60,8 @@ $client = new {{clientClassName}}($authenticator);
 {{#hasApiKeyAuth}}
 ### API Key
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\ApiKeyAuthenticator;
 use {{invokerPackage}}\Auth\ApiKeyLocation;
 
@@ -70,7 +73,8 @@ $client = new {{clientClassName}}($authenticator);
 {{#hasOAuth2ClientCredentials}}
 ### OAuth2 Client Credentials
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
 $authenticator = new OAuth2ClientCredentialsAuthenticator(
@@ -82,7 +86,8 @@ $client = new {{clientClassName}}($authenticator);
 {{#hasOAuth2AuthorizationCode}}
 ### OAuth2 Authorization Code
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\OAuth\OAuth2AuthorizationCodeAuthenticator;
 
 $authenticator = new OAuth2AuthorizationCodeAuthenticator(
@@ -97,7 +102,8 @@ $authenticator->exchangeCode('authorization-code');
 {{#hasOAuth2Password}}
 ### OAuth2 Password
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\OAuth\OAuth2PasswordAuthenticator;
 
 $authenticator = new OAuth2PasswordAuthenticator(
@@ -112,7 +118,8 @@ $client = new {{clientClassName}}($authenticator);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\OAuth\OAuth2ImplicitAuthenticator;
 
 $authenticator = new OAuth2ImplicitAuthenticator(
@@ -125,7 +132,8 @@ $client = new {{clientClassName}}($authenticator);
 {{#hasOpenIdConnect}}
 ### OpenID Connect
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\OAuth\OpenIdConnectAuthenticator;
 
 $authenticator = new OpenIdConnectAuthenticator(
@@ -164,7 +172,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```php
+```php statements
 use {{invokerPackage}}\Auth\OAuth\ClientAuthMethod;
 use {{invokerPackage}}\Auth\OAuth\OAuth2ClientCredentialsAuthenticator;
 
@@ -179,7 +187,8 @@ $authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `{{invokerPackage}}\Servers` class exposes each as a `ServerConfiguration` static method (e.g., `Servers::server0()`, `Servers::server1()`, ...) plus a `Servers::all()` array. Pass the desired server's URL to the client:
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Servers;
 
 $client = {{clientClassName}}::withToken(Servers::server0()->getUrl(), 'your-token');
@@ -191,7 +200,8 @@ $client = {{clientClassName}}::withToken(Servers::server0()->getUrl(), 'your-tok
 
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```php
+```php statements
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Auth\Authenticator;
 
 $fake = new class implements Authenticator {
@@ -241,19 +251,19 @@ Every failure the SDK raises derives from `{{errorPrefix}}Exception`; catching i
     - `NetworkException` (no HTTP response, status 0)
       - `NetworkTimeoutException` (the request timed out, status 0)
 
-```php
+{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}```php file
 use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Api\Options\{{vendorExtensions.op.optionsClassName}};
 use {{invokerPackage}}\Errors\ApiException;
 use {{invokerPackage}}\Errors\NotFoundException;
 use {{invokerPackage}}\Errors\ClientException;
 use {{invokerPackage}}\Errors\ServerException;
 use {{invokerPackage}}\Errors\{{errorPrefix}}Exception;
-{{#apiInfo}}{{#apis}}{{#-first}}{{#operations}}{{#operation}}{{#-first}}
 
-function {{operationId}}OrReport({{clientClassName}} $client{{#pathParams}}, {{{dataType}}} ${{paramName}}{{/pathParams}}{{#bodyParam}}, {{{dataType}}} ${{paramName}}{{/bodyParam}}): void
+function {{operationId}}OrReport({{clientClassName}} $client{{#vendorExtensions.op.signatureArgsNoServer}}, {{#isPath}}{{{dataType}}} ${{paramName}}{{/isPath}}{{#isBody}}{{{dataType}}}{{#nullable}}|null{{/nullable}} ${{paramName}}{{/isBody}}{{#isOptions}}{{#nullable}}?{{/nullable}}{{{dataType}}} $options{{/isOptions}}{{/vendorExtensions.op.signatureArgsNoServer}}): void
 {
     try {
-        $client->{{clientPropertyName}}->{{operationId}}({{#pathParams}}${{paramName}}{{^-last}}, {{/-last}}{{/pathParams}}{{#bodyParam}}{{#hasPathParams}}, {{/hasPathParams}}${{paramName}}{{/bodyParam}});
+        $client->{{clientPropertyName}}->{{operationId}}({{#vendorExtensions.op.signatureArgsNoServer}}{{^-first}}, {{/-first}}${{paramName}}{{/vendorExtensions.op.signatureArgsNoServer}});
     } catch (NotFoundException $e) {
         echo "Not found: " . $e->getMessage();
     } catch (ClientException $e) {
@@ -265,40 +275,58 @@ function {{operationId}}OrReport({{clientClassName}} $client{{#pathParams}}, {{{
     } catch ({{errorPrefix}}Exception $e) {
         echo "SDK error: " . $e->getMessage();
     }
-}{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
-```
+}
+```{{/-first}}{{/operation}}{{/operations}}{{/-first}}{{/apis}}{{/apiInfo}}
 
 ## Configuration
 
 ### Custom Transport Options
 
-```php
+```php file
+use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Auth\Authenticator;
 use {{invokerPackage}}\TransportOptions;
 
-$transport = TransportOptions::builder()
-    ->proxy('http://proxy:3128')
-    ->timeout(5000)
-    ->build();
+function clientWithTransport(Authenticator $authenticator): {{clientClassName}}
+{
+    $transport = TransportOptions::builder()
+        ->proxy('http://proxy:3128')
+        ->timeout(5000)
+        ->build();
 
-$client = new {{clientClassName}}($authenticator, $transport);
+    return new {{clientClassName}}($authenticator, $transport);
+}
 ```
 
 ### Retries
 
 `TransportOptions::builder()->maxRetries(int)` sets the retries after a transient failure (default 2; 0 disables). Network errors before a response and 408, 409, 429 and 5xx (not 501) are retried with a 0.5 s to 8 s backoff and `Retry-After` honoured (at most 60 s). The retries stay inside the request timeout, a stream or multipart body is never retried, and each retry rebuilds the headers, authentication included.
 
-```php
+```php statements
+use {{invokerPackage}}\TransportOptions;
+
 $transport = TransportOptions::builder()->maxRetries(0)->build();
 ```
 
 ### Custom HTTP client
 
-```php
+```php file
+use {{invokerPackage}}\{{clientClassName}};
 use {{invokerPackage}}\Psr18ApiClient;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 /* $httpClient is any PSR-18 client with redirects disabled; $psr17 is any PSR-17 factory. */
-$apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
-$client = {{clientClassName}}::withToken('https://api.example.com', 'your-token', null, $apiClient);
+function clientWithHttpClient(
+    ClientInterface $httpClient,
+    RequestFactoryInterface&StreamFactoryInterface $psr17,
+    string $token
+): {{clientClassName}} {
+    $apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
+
+    return {{clientClassName}}::withToken('https://api.example.com', $token, null, $apiClient);
+}
 ```
 
 The SDK sends every request through your client and never closes it. Combining a supplied client with `proxy`, `caCertPath` or `verifySsl(false)` throws `InvalidArgumentException`.
@@ -307,9 +335,19 @@ The SDK sends every request through your client and never closes it. Combining a
 
 Every operation takes an options object as its last argument, including one with no parameters and no security scheme, and it carries `timeout` (ms), `headers` and `maxRetries` for that call only, replacing the transport settings.
 
-```php
-$api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+```php file
+use {{invokerPackage}}\{{clientClassName}};
+use {{invokerPackage}}\Api\Options\{{vendorExtensions.op.optionsClassName}};
+
+function {{operationId}}WithinTwoSeconds({{clientClassName}} $client): void
+{
+    $client->{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}->{{operationId}}(new {{vendorExtensions.op.optionsClassName}}(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+}
 ```
+{{/exampleOperation}}
+{{/hasExampleOperation}}
 
 ### Cancellation
 
@@ -331,11 +369,14 @@ Each API group is exposed as a typed property on the client (e.g., `$client->{{#
 
 Models are generated as PHP classes under the `{{invokerPackage}}\Models` namespace. They are immutable: properties are `readonly` and `withX()` returns a changed copy. A `oneOf` or `anyOf` wrapper has `fromX()`, `isX()` and `asX()` per variant, and an operation with several 2xx responses returns such a wrapper decoded by the status code that arrived.
 
-```php
-{{#models}}{{#model}}{{#-first}}use {{invokerPackage}}\Models\{{classname}};
+{{#models}}{{#model}}{{#-first}}{{^isEnum}}{{#vars}}{{#-first}}```php file
+use {{invokerPackage}}\Models\{{classname}};
 
-$model = new {{classname}}({{#requiredVars}}{{name}}: {{#isString}}'example'{{/isString}}{{#isInteger}}1{{/isInteger}}{{#isLong}}1{{/isLong}}{{#isNumber}}1.0{{/isNumber}}{{#isFloat}}1.0{{/isFloat}}{{#isDouble}}1.0{{/isDouble}}{{#isBoolean}}true{{/isBoolean}}{{#isMap}}new \Ds\Map(){{/isMap}}{{#isArray}}{{#uniqueItems}}new \Ds\Set(){{/uniqueItems}}{{^uniqueItems}}new \Ds\Vector(){{/uniqueItems}}{{/isArray}}{{^-last}}, {{/-last}}{{/requiredVars}});{{/-first}}{{/model}}{{/models}}
-```
+function {{vendorExtensions.withMethod}}From({{classname}} $model, {{classname}} $other): {{classname}}
+{
+    return $model->{{vendorExtensions.withMethod}}($other->{{name}});
+}
+```{{/-first}}{{/vars}}{{/isEnum}}{{/-first}}{{/model}}{{/models}}
 
 ## Binary / File Uploads
 

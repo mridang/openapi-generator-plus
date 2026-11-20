@@ -36,6 +36,11 @@ final class FileRoleNormaliser {
     PACKAGE_INDEX,
     /** A type declaration companion file such as Ruby's RBS signatures. */
     TYPE_DECLARATION,
+    /**
+     * A shipped example program under {@code examples/} ({@code src/examples/} in the JVM
+     * languages), emitted when {@code generateExamples} is on and built by {@code make examples}.
+     */
+    EXAMPLE,
     /** A file that fits no other kind. */
     UNKNOWN
   }
@@ -246,6 +251,9 @@ final class FileRoleNormaliser {
     }
     if (isTest(segments)) {
       return new Classified(Kind.TEST, baseName(file), "under a test folder or named as a test");
+    }
+    if (path.startsWith("examples/") || path.startsWith("src/examples/")) {
+      return new Classified(Kind.EXAMPLE, baseName(file), "shipped example program");
     }
     if (path.endsWith(".rbs") || path.startsWith("sig/")) {
       return new Classified(Kind.TYPE_DECLARATION, baseName(file), "type declaration companion");

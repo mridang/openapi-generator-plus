@@ -107,4 +107,74 @@ describe 'README' do
     _(section).must_include '_PetApiInterface'
     _(section).must_include '_PetstoreInterface'
   end
+
+  def root_file(name)
+    File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), name))
+  end
+
+  def ruby_fences(text)
+    text.scan(/^```(ruby[^\n]*)\n(.*?)^```/m)
+  end
+
+  def quickstart
+    root_file('examples/quickstart.rb')
+  end
+
+  it 'bhv_langruby_091 ships a quickstart that builds a client, calls an operation and closes it' do
+    _(quickstart).must_include "require 'petstore_client'"
+    _(quickstart).must_include 'Petstore::Client::Petstore.with_token(host, token)'
+    _(quickstart).must_include 'client.store.get_defaults'
+    _(quickstart).must_include 'client.close'
+  end
+
+  it 'bhv_langruby_092 reads the host and the token from the variables the README names' do
+    %w[SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN].each do |name|
+      _(quickstart).must_include "ENV.fetch('#{name}')"
+      _(readme).must_include name
+    end
+    _(quickstart).wont_include 'your-token'
+  end
+
+  it 'bhv_langruby_093 holds the statements of the README Usage fence in the quickstart, in order' do
+    usage = readme.split("\n## Usage\n", 2).last.to_s.split("\n## ", 2).first.to_s
+    fence = ruby_fences(usage).first
+    _(fence).wont_be_nil
+    position = 0
+    fence.last.each_line do |line|
+      stripped = line.strip
+      next if stripped.empty? || stripped.start_with?('require ')
+
+      found = quickstart.index(stripped, position)
+      _(found).wont_be_nil stripped
+      position = found + stripped.length
+    end
+  end
+
+  it 'bhv_langruby_094 declares the kind of every ruby fence of README.md and SKILLS.md' do
+    %w[README.md SKILLS.md].each do |name|
+      ruby_fences(root_file(name)).map(&:first).each do |info|
+        _(['ruby file', 'ruby statements']).must_include info, name
+      end
+    end
+  end
+
+  it 'bhv_langruby_095 leaves no placeholder line in a ruby fence of README.md and SKILLS.md' do
+    %w[README.md SKILLS.md].each do |name|
+      ruby_fences(root_file(name)).map(&:last).each do |body|
+        body.each_line do |line|
+          stripped = line.strip
+          _(['...', '# ...']).wont_include stripped, name
+          _(stripped).wont_match(/\A<\w+>\z/, name)
+          _(stripped).wont_match(/<[A-Z]\w*>/, name)
+        end
+      end
+    end
+  end
+
+  it 'bhv_langruby_096 has Makefile targets that check and run the examples directory' do
+    makefile = root_file('Makefile')
+    _(makefile).must_include "\nexamples: install\n"
+    _(makefile).must_include "\nexamples-run: examples\n"
+    _(makefile).must_include "find examples -name '*.rb'"
+  end
 end

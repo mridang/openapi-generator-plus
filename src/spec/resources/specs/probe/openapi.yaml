@@ -88,6 +88,69 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Probe'
+  /probe.v1.RELAYService/Feed/{feedId}:
+    get:
+      tags: [RELAYService]
+      operationId: followFeed
+      summary: Follows a feed as server-sent events with a JSON payload.
+      parameters:
+        - name: feedId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: since
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: One event per entry.
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/Probe'
+
+  /probe.v1.RELAYService/Ledger:
+    get:
+      tags: [RELAYService]
+      operationId: readLedger
+      summary: Reads the ledger as JSON Lines.
+      responses:
+        '200':
+          description: One entry per line.
+          content:
+            application/x-ndjson:
+              schema:
+                $ref: '#/components/schemas/Probe'
+
+  /probe.v1.RELAYService/Blob/{blobId}:
+    put:
+      tags: [RELAYService]
+      operationId: replaceBlob
+      summary: Replaces a blob with a raw body and returns the stored bytes.
+      parameters:
+        - name: blobId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: The stored bytes.
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
 
 components:
   securitySchemes:

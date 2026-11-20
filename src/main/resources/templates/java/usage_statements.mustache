@@ -1,0 +1,19 @@
+String host = System.getenv("{{envVarPrefix}}_BASE_URL");
+String token = System.getenv("{{envVarPrefix}}_ACCESS_TOKEN");
+{{#hasExampleOperation}}
+try ({{clientClassName}} client = {{clientClassName}}.withToken(host, token)) {
+{{#exampleOperation}}
+{{#returnType}}
+    var result = client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}();
+    System.out.println(result);
+{{/returnType}}
+{{^returnType}}
+    client.{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}.{{operationId}}();
+{{/returnType}}
+{{/exampleOperation}}
+}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+{{clientClassName}} client = {{clientClassName}}.withToken(host, token);
+client.close();
+{{/hasExampleOperation}}

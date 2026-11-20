@@ -8,13 +8,18 @@ go get petstore
 
 ## Quick Start
 
-```go
-import "petstore/pkg"
+```go statements
+import (
+	"os"
 
-client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil)
+	"petstore/pkg"
+)
+
+client, err := petstore.NewClientWithToken(os.Getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"), os.Getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), nil)
 if err != nil {
-    return err
+	return err
 }
+defer func() { _ = client.Close() }()
 ```
 
 ## Authentication
@@ -23,85 +28,137 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```go
-import "petstore/pkg/auth"
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth"
+)
 
-authenticator, err := auth.NewBearerAuthenticator("https://api.example.com", "your-token")
-if err != nil {
-    return err
+func newClient() (*petstore.Client, error) {
+	authenticator, err := auth.NewBearerAuthenticator("https://api.example.com", "your-token")
+	if err != nil {
+		return nil, err
+	}
+	return petstore.NewClient(authenticator, nil), nil
 }
-client := petstore.NewClient(authenticator, nil)
 ```
 
 ### Basic Auth
 
-```go
-authenticator, err := auth.NewBasicAuthenticator("https://api.example.com", "username", "password")
-if err != nil {
-    return err
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth"
+)
+
+func newClient() (*petstore.Client, error) {
+	authenticator, err := auth.NewBasicAuthenticator("https://api.example.com", "username", "password")
+	if err != nil {
+		return nil, err
+	}
+	return petstore.NewClient(authenticator, nil), nil
 }
-client := petstore.NewClient(authenticator, nil)
 ```
 
 ### API Key
 
-```go
-authenticator, err := auth.NewApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", auth.ApiKeyLocationHeader)
-if err != nil {
-    return err
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth"
+)
+
+func newClient() (*petstore.Client, error) {
+	authenticator, err := auth.NewApiKeyAuthenticator("https://api.example.com", "key-name", "key-value", auth.ApiKeyLocationHeader)
+	if err != nil {
+		return nil, err
+	}
+	return petstore.NewClient(authenticator, nil), nil
 }
-client := petstore.NewClient(authenticator, nil)
 ```
 
 ### OAuth2 Client Credentials
 
-```go
-import "petstore/pkg/auth/oauth"
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth/oauth"
+)
 
-authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil)
-client := petstore.NewClient(authenticator, nil)
+func newClient() *petstore.Client {
+	authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
+		"https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil)
+	return petstore.NewClient(authenticator, nil)
+}
 ```
 
 ### OAuth2 Authorization Code
 
-```go
-authenticator := oauth.NewOAuth2AuthorizationCodeAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/authorize", "https://auth.example.com/token",
-    "https://app.example.com/callback", nil, "")
-client := petstore.NewClient(authenticator, nil)
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth/oauth"
+)
+
+func newClient() *petstore.Client {
+	authenticator := oauth.NewOAuth2AuthorizationCodeAuthenticator(
+		"https://api.example.com", "client-id", "client-secret",
+		"https://auth.example.com/authorize", "https://auth.example.com/token",
+		"https://app.example.com/callback", nil, "")
+	return petstore.NewClient(authenticator, nil)
+}
 ```
 
 ### OAuth2 Password
 
-```go
-authenticator := oauth.NewOAuth2PasswordAuthenticator(
-    "https://api.example.com", "client-id", "client-secret",
-    "https://auth.example.com/token", "username", "password", nil, "")
-client := petstore.NewClient(authenticator, nil)
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth/oauth"
+)
+
+func newClient() *petstore.Client {
+	authenticator := oauth.NewOAuth2PasswordAuthenticator(
+		"https://api.example.com", "client-id", "client-secret",
+		"https://auth.example.com/token", "username", "password", nil, "")
+	return petstore.NewClient(authenticator, nil)
+}
 ```
 
 ### OAuth2 Implicit
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```go
-authenticator := oauth.NewOAuth2ImplicitAuthenticator(
-    "https://api.example.com", "client-id", "https://auth.example.com/authorize", nil)
-if err := authenticator.SetAccessToken("your-access-token"); err != nil {
-    return err
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth/oauth"
+)
+
+func newClient() (*petstore.Client, error) {
+	authenticator := oauth.NewOAuth2ImplicitAuthenticator(
+		"https://api.example.com", "client-id", "https://auth.example.com/authorize", nil)
+	if err := authenticator.SetAccessToken("your-access-token"); err != nil {
+		return nil, err
+	}
+	return petstore.NewClient(authenticator, nil), nil
 }
-client := petstore.NewClient(authenticator, nil)
 ```
 
 ### OpenID Connect
 
-```go
-authenticator := oauth.NewOpenIdConnectAuthenticator(
-    "https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
-    "client-id", "client-secret", "https://app.example.com/callback", nil)
-client := petstore.NewClient(authenticator, nil)
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth/oauth"
+)
+
+func newClient() *petstore.Client {
+	authenticator := oauth.NewOpenIdConnectAuthenticator(
+		"https://api.example.com", "https://auth.example.com/.well-known/openid-configuration",
+		"client-id", "client-secret", "https://app.example.com/callback", nil)
+	return petstore.NewClient(authenticator, nil)
+}
 ```
 
 ### OAuth2 token lifecycle
@@ -127,25 +184,33 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```go
-authenticator := oauth.NewOAuth2ClientCredentialsAuthenticator(
-    "https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil).
-    WithClientAuthMethod(oauth.ClientAuthMethodBasic)
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/auth/oauth"
+)
+
+func newAuthenticator() petstore.Authenticator {
+	return oauth.NewOAuth2ClientCredentialsAuthenticator(
+		"https://api.example.com", "client-id", "client-secret", "https://auth.example.com/token", nil).
+		WithClientAuthMethod(oauth.ClientAuthMethodBasic)
+}
 ```
 
 ## Servers
 
 If the OpenAPI spec defines multiple servers, the generated package exposes each as a `*ServerConfiguration` variable (e.g., `Server0`, `Server1`, ...) plus an `AllServers` slice. Pass the desired server's URL to the client:
 
-```go
-url, err := petstore.Server0.URL(nil)
-if err != nil {
-	log.Fatal(err)
-}
+```go file
+import "petstore/pkg"
 
-client, err := petstore.NewClientWithToken(url, "your-token", nil)
-if err != nil {
-	log.Fatal(err)
+func newClient() (*petstore.Client, error) {
+	url, err := petstore.Server0.URL(nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return petstore.NewClientWithToken(url, "your-token", nil)
 }
 ```
 
@@ -153,17 +218,21 @@ if err != nil {
 
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```go
+```go file
+import "petstore/pkg"
+
 type fakeAuth struct{}
 
 func (fakeAuth) Host() string { return "https://api.example.com" }
 func (fakeAuth) AuthHeaders() map[string]string {
-    return map[string]string{"Authorization": "Bearer test-token"}
+	return map[string]string{"Authorization": "Bearer test-token"}
 }
 func (fakeAuth) QueryParams() map[string]string  { return nil }
 func (fakeAuth) CookieParams() map[string]string { return nil }
 
-client := petstore.NewClient(fakeAuth{}, nil)
+func newClient() *petstore.Client {
+	return petstore.NewClient(fakeAuth{}, nil)
+}
 ```
 
 ## Error Handling
@@ -199,33 +268,35 @@ Every failure the SDK produces satisfies the `OpenAPIError` interface, so one `e
     - `NetworkError` (no HTTP response, status 0)
       - `NetworkTimeoutError` (the request timed out, status 0)
 
-```go
+```go file
 import (
-    "context"
-    "errors"
-    "fmt"
+	"context"
+	"errors"
+	"fmt"
 
-    "petstore/pkg"
+	"petstore/pkg"
+	"petstore/pkg/models"
+	opts "petstore/pkg/options"
 )
 
-_, err := client.Pet.AddPet(context.Background(), pet, nil)
-if err != nil {
-    var notFound *petstore.NotFoundError
-    var clientErr *petstore.ClientError
-    var serverErr *petstore.ServerError
-    var apiErr *petstore.ApiError
-    var root petstore.OpenAPIError
-    if errors.As(err, &notFound) {
-        fmt.Printf("Not found: %s\n", notFound.Error())
-    } else if errors.As(err, &clientErr) {
-        fmt.Printf("Client error %d: %s\n", clientErr.StatusCode(), clientErr.Error())
-    } else if errors.As(err, &serverErr) {
-        fmt.Printf("Server error: %s\n", serverErr.Error())
-    } else if errors.As(err, &apiErr) {
-        fmt.Printf("API error %d: %s\n", apiErr.StatusCode(), apiErr.Error())
-    } else if errors.As(err, &root) {
-        fmt.Printf("SDK error: %s\n", root.Error())
-    }
+func addPetOrReport(ctx context.Context, client *petstore.Client, pet models.Pet, options *opts.AddPetOptions) {
+	_, err := client.Pet.AddPet(ctx, pet, options)
+	var notFound *petstore.NotFoundError
+	var clientErr *petstore.ClientError
+	var serverErr *petstore.ServerError
+	var apiErr *petstore.ApiError
+	var root petstore.OpenAPIError
+	if errors.As(err, &notFound) {
+		fmt.Printf("Not found: %s\n", notFound.Error())
+	} else if errors.As(err, &clientErr) {
+		fmt.Printf("Client error %d: %s\n", clientErr.StatusCode(), clientErr.Error())
+	} else if errors.As(err, &serverErr) {
+		fmt.Printf("Server error: %s\n", serverErr.Error())
+	} else if errors.As(err, &apiErr) {
+		fmt.Printf("API error %d: %s\n", apiErr.StatusCode(), apiErr.Error())
+	} else if errors.As(err, &root) {
+		fmt.Printf("SDK error: %s\n", root.Error())
+	}
 }
 ```
 
@@ -233,38 +304,54 @@ if err != nil {
 
 ### Custom Transport Options
 
-```go
-timeout := 5000
-transport, err := petstore.NewTransportOptionsBuilder().
-    Proxy("http://proxy:3128").
-    Timeout(&timeout).
-    Build()
-if err != nil {
-    return err
-}
+```go file
+import "petstore/pkg"
 
-client := petstore.NewClient(authenticator, transport)
+func newClient(authenticator petstore.Authenticator) (*petstore.Client, error) {
+	timeout := 5000
+	transport, err := petstore.NewTransportOptionsBuilder().
+		Proxy("http://proxy:3128").
+		Timeout(&timeout).
+		Build()
+	if err != nil {
+		return nil, err
+	}
+
+	return petstore.NewClient(authenticator, transport), nil
+}
 ```
 
 ### Retries
 
 A request is retried up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries) after a network error that happened before a response and after a 408, 409, 429 or 5xx (not 501) response. The wait starts at 0.5 seconds, doubles up to 8 seconds, loses up to 25% to jitter and is replaced by a `Retry-After` header (seconds or an HTTP date, at most 60 seconds). The retries never extend the end-to-end `Timeout`, a cancelled context stops them, and every retry rebuilds the headers, authentication included. A `multipart/form-data` request is sent once and never retried, because its file parts are streams.
 
-```go
-transport, err := petstore.NewTransportOptionsBuilder().
-    MaxRetries(0).
-    Build()
+```go file
+import "petstore/pkg"
+
+func newTransport() (*petstore.TransportOptions, error) {
+	return petstore.NewTransportOptionsBuilder().
+		MaxRetries(0).
+		Build()
+}
 ```
 
 A 401 on an OAuth2 or OpenID Connect request calls `InvalidateAccessToken` on the authenticator (the refresh token is kept) and replays the request once; a second 401 is an `UnauthorizedError`.
 
 ### Custom HTTP client
 
-```go
-httpClient := &http.Client{Transport: &http.Transport{}}
-transport, err := petstore.NewTransportOptionsBuilder().
-    HttpClient(httpClient).
-    Build()
+```go file
+import (
+	"net/http"
+
+	"petstore/pkg"
+)
+
+func newTransport() (*petstore.TransportOptions, error) {
+	httpClient := &http.Client{Transport: &http.Transport{}}
+	return petstore.NewTransportOptionsBuilder().
+		HttpClient(httpClient).
+		Build()
+}
 ```
 
 The SDK sends every request through your client (anything with a `Do(*http.Request)` method; `RoundTripper(rt)` wraps an `http.RoundTripper`) and never closes it. Combining it with `Proxy`, `CACertPath` or `VerifySsl(false)` fails at `Build()` with `ErrTransportConflict`.
@@ -273,12 +360,29 @@ The SDK sends every request through your client (anything with a `Do(*http.Reque
 
 Every operation takes a `ctx context.Context` as its first parameter; cancelling it aborts the request and the error satisfies `errors.Is(err, context.Canceled)`. It is never reported as `NetworkTimeoutError`.
 
-```go
-ctx, cancel := context.WithCancel(context.Background())
-go func() { time.Sleep(time.Second); cancel() }()
-_, err := client.Pet.AddPet(ctx, pet, nil)
-if errors.Is(err, context.Canceled) {
-    fmt.Println("cancelled")
+```go file
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"petstore/pkg"
+	"petstore/pkg/models"
+	opts "petstore/pkg/options"
+)
+
+func addPetWithCancel(client *petstore.Client, pet models.Pet, options *opts.AddPetOptions) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go func() {
+		time.Sleep(time.Second)
+		cancel()
+	}()
+	_, err := client.Pet.AddPet(ctx, pet, options)
+	if errors.Is(err, context.Canceled) {
+		fmt.Println("cancelled")
+	}
 }
 ```
 
@@ -336,10 +440,12 @@ Every operation takes a `ctx context.Context` as its first parameter; cancelling
 
 Models are generated as Go structs in the `models` package.
 
-```go
+```go file
 import "petstore/pkg/models"
 
-m := models.Account{}
+func accept(m models.Account) models.Account {
+	return m
+}
 ```
 
 ## Binary / File Uploads

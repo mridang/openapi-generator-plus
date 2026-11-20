@@ -87,11 +87,66 @@ Response bodies are decoded by `URLSession`, with a bundled inflater for gzip an
 - The call hook is `CallHook` with `start(info:headers:)`, which may throw and returns a `CallObserver?` whose `finish(_:)` is called once when the call has ended; `CallHooks.chain(...)` combines several. Set it with `ConfigurationBuilder.callHook(_:)` or with the `callHook:` argument of `Client`, `Client.withToken`, `Client.withAuthenticator` and `Client.fromEnvironment`. `start` and `finish` are `throws` because Swift has no other way to refuse a call or to show that an observer failed; an error from `start` reaches the caller and an error from `finish` is swallowed. `CallInfo` carries `operationId` (as written in the spec), `method`, `urlTemplate`, `url` and `serverAddress`; `CallOutcome` carries `statusCode` (0 when no response arrived), `headers` (lower-cased, `nil` when no response arrived) and `error`. The protocols are `Sendable`.
 - OpenTelemetry is a recipe, not a shipped adapter: a Swift package cannot declare an optional dependency, and the metrics API of opentelemetry-swift cannot name a unit. The generated README holds the recipe, `OpenTelemetryCallHook`, which records one span per call and hands the request count and the duration in seconds to two closures you supply; the generated test suite compiles and runs that same text.
 
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```swift
+struct SourceHook: CallHook {
+    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+        headers["X-Source"] = "nightly-job"
+        return nil
+    }
+}
+
+let client = try Client.withToken(
+    host: "https://api.example.com",
+    accessToken: "your-token",
+    callHook: SourceHook()
+)
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```swift
+let eu = try Client(host: "https://eu.api.example.com", accessToken: "eu-token")
+let us = try Client(host: "https://us.api.example.com", accessToken: "us-token")
+```
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `Models/Animal.swift`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHTTPInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiError` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```swift
+let result = try await client.pet.addPetWithHTTPInfo(pet: pet)
+let status = result.statusCode
+let etag = result.headers["etag"]
+let raw = result.rawBody
+
+do {
+    _ = try await client.pet.addPet(pet: pet)
+} catch let error as ApiError {
+    print(error.statusCode, error.responseHeaders as Any, error.responseBody as Any)
+}
+```
+
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a Swift `Int`, which is 64-bit, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - On Linux there is no proxy support and no CA pinning. Both throw a `ConfigurationError`. SOCKS proxies are rejected on every platform.
 - `format: date` and `format: time` are plain strings, so they are not validated.
-- `int32` fields are `Int`, so a value above the 32-bit range is accepted.
 - `format: decimal` and `number` are `Double` and lose exactness.
 - Query, form and multipart parameters are held in dictionaries, so their wire order is not the order in the spec.
 - A body with a declared charset other than UTF-8 (such as `windows-1252` or `shift_jis`) can decode incorrectly.
@@ -109,7 +164,6 @@ These are ideas from a type review in November 2026. None of them is decided, an
 - SDK-owned `LocalDate` and `LocalTime` types for `date` and `time`, so those values are validated. This needs no dependency and no floor change.
 - `Swift.Duration` for `duration`. It is integer-backed with no rounding, but it needs macOS 13 and iOS 16, so it depends on a decision to raise the platform minimums.
 - `Foundation.Decimal` for `decimal`, only after a test proves an exact JSON round trip.
-- `Int32` for `int32` and `Int64` for an unformatted integer. This is a trade between exactness and convenience for callers, to be decided across languages.
 - `URL` for `uri`. The review recommends keeping `String`, because `URL` parsing differs between Apple platforms and Linux and rejects link templates.
 - Renaming `ISO8601Duration.swift`, since the wire form it handles is protobuf-JSON and not ISO 8601.
 - An unknown-case fallback on enums for forward compatibility.

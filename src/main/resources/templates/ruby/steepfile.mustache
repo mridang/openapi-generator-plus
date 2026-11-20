@@ -7,6 +7,16 @@ target :lib do
   signature 'sig'
   library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'
 end
+{{#generateExamples}}
+
+# The shipped examples are type-checked against the SDK's signatures with the
+# default diagnostics, so an example that calls the SDK wrongly fails here.
+target :examples do
+  check 'examples'
+  signature 'sig'
+  library 'base64', 'bigdecimal', 'date', 'digest', 'ipaddr', 'json', 'securerandom', 'time', 'cgi', 'uri', 'zlib', 'stringio', 'openssl', 'timeout'
+end
+{{/generateExamples}}
 {{#emitUnitTests}}
 
 # The tests are type-checked against the SDK's signatures, so a test that

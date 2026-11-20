@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck docs clean
+.PHONY: install build test lint format typecheck docs examples examples-run clean
 
 install:
 	pip install --quiet -e . --group dev
@@ -22,6 +22,13 @@ format: install
 typecheck: install
 	# spec/ holds hand-written specs; check it only when it has python files.
 	mypy petstore_client/ test/ $(if $(shell find spec -name '*.py' -print -quit 2>/dev/null),spec/)
+
+examples: install
+	mypy examples/
+	python -m py_compile examples/*.py
+
+examples-run: install
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN=placeholder python examples/quickstart.py
 
 docs: install
 	rm -rf .out/docs-src .out/docs

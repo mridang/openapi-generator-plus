@@ -33,7 +33,11 @@ public class OnlyAllowJsonRule implements CustomNormalizationRule {
         "text/plain",
         "application/x-www-form-urlencoded",
         "multipart/form-data",
-        "application/octet-stream"
+        "application/octet-stream",
+        "text/event-stream",
+        "application/x-ndjson",
+        "application/jsonl",
+        "application/jsonlines"
     );
 
     @Override

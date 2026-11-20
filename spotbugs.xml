@@ -12,4 +12,11 @@
     <Class name="io.github.mridang.codegen.rules.ContentEncodingRule"/>
     <Bug pattern="IMPROPER_UNICODE"/>
   </Match>
+  <!-- Media types are ASCII tokens (RFC 9110): lower-casing one with Locale.ROOT
+       to match the stream types is safe. -->
+  <Match>
+    <Class name="io.github.mridang.codegen.generators.AbstractBetterCodegen"/>
+    <Method name="baseMediaType"/>
+    <Bug pattern="IMPROPER_UNICODE"/>
+  </Match>
 </FindBugsFilter>

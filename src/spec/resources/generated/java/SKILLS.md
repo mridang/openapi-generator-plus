@@ -20,11 +20,15 @@ implementation 'com.example.petstore:petstore-client:1.0.0'
 
 ## Quick Start
 
-```java
+```java statements
 import com.example.petstore.Client;
-import com.example.petstore.auth.BearerAuthenticator;
 
-Client client = Client.withToken("https://api.example.com", "your-token");
+String host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL");
+String token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN");
+try (Client client = Client.withToken(host, token)) {
+    var result = client.store.getDefaults();
+    System.out.println(result);
+}
 ```
 
 ## Authentication
@@ -33,7 +37,8 @@ All authentication is handled via `Authenticator` implementations passed to the 
 
 ### Bearer Token
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.BearerAuthenticator;
 
 var authenticator = new BearerAuthenticator("https://api.example.com", "your-token");
@@ -42,13 +47,21 @@ var client = new Client(authenticator);
 
 A token that rotates comes from a callback that runs before every request (pass either a token or a callback, never both):
 
-```java
-var authenticator = new BearerAuthenticator("https://api.example.com", () -> secretStore.currentToken());
+```java file
+import com.example.petstore.auth.BearerAuthenticator;
+import java.util.function.Supplier;
+
+class RotatingToken {
+    static BearerAuthenticator authenticator(Supplier<String> currentToken) {
+        return new BearerAuthenticator("https://api.example.com", currentToken);
+    }
+}
 ```
 
 ### Basic Auth
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.BasicAuthenticator;
 
 var authenticator = new BasicAuthenticator("https://api.example.com", "username", "password");
@@ -57,7 +70,8 @@ var client = new Client(authenticator);
 
 ### API Key
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.ApiKeyAuthenticator;
 import com.example.petstore.auth.ApiKeyLocation;
 
@@ -67,7 +81,8 @@ var client = new Client(authenticator);
 
 ### OAuth2 Client Credentials
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
 import java.util.List;
 
@@ -79,7 +94,8 @@ var client = new Client(authenticator);
 
 ### OAuth2 Authorization Code
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.oauth.OAuth2AuthorizationCodeAuthenticator;
 import java.util.List;
 
@@ -95,7 +111,8 @@ authenticator.exchangeCode("authorization-code");
 
 ### OAuth2 Password
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.oauth.OAuth2PasswordAuthenticator;
 import java.util.List;
 
@@ -109,7 +126,8 @@ var client = new Client(authenticator);
 
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.oauth.OAuth2ImplicitAuthenticator;
 import java.util.List;
 
@@ -121,7 +139,8 @@ var client = new Client(authenticator);
 
 ### OpenID Connect
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.oauth.OpenIdConnectAuthenticator;
 import java.util.List;
 
@@ -136,23 +155,57 @@ authenticator.exchangeCode("authorization-code");
 
 `Client.builder(host)` takes one optional credential per security scheme, named after the scheme. Each operation uses the credential of the first scheme in its own security list that the client holds, falls back to the single authenticator of `new Client(authenticator)` when it holds none of them, and sends no credential when there is neither or when the operation declares `security: []`. There is no per-call scheme override and no authenticator on an options object.
 
-```java
-var client = Client.builder("https://api.example.com")
-    .petStoreBasic(...)
-    .adminBasic(...)
-    .petStoreBearer(...)
-    .serviceToken(...)
-    .apiKeyHeader(...)
-    .internalApiKey(...)
-    .apiKeyQuery(...)
-    .sessionCookie(...)
-    .machineAuth(...)
-    .legacyAuth(...)
-    .userAuth(...)
-    .browserAuth(...)
-    .ssoAuth(...)
-    .transportOptions(transportOptions)
-    .build();
+```java file
+import com.example.petstore.Client;
+import com.example.petstore.TransportOptions;
+import com.example.petstore.auth.PetStoreBasicAuthenticator;
+import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.PetStoreBearerAuthenticator;
+import com.example.petstore.auth.ServiceTokenAuthenticator;
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
+import com.example.petstore.auth.InternalApiKeyAuthenticator;
+import com.example.petstore.auth.ApiKeyQueryAuthenticator;
+import com.example.petstore.auth.SessionCookieAuthenticator;
+import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
+import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
+import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
+import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
+
+class Credentials {
+    static Client build(
+            PetStoreBasicAuthenticator petStoreBasic,
+            AdminBasicAuthenticator adminBasic,
+            PetStoreBearerAuthenticator petStoreBearer,
+            ServiceTokenAuthenticator serviceToken,
+            ApiKeyHeaderAuthenticator apiKeyHeader,
+            InternalApiKeyAuthenticator internalApiKey,
+            ApiKeyQueryAuthenticator apiKeyQuery,
+            SessionCookieAuthenticator sessionCookie,
+            MachineAuthClientCredentialsAuthenticator machineAuth,
+            LegacyAuthPasswordAuthenticator legacyAuth,
+            UserAuthAuthorizationCodeAuthenticator userAuth,
+            BrowserAuthImplicitAuthenticator browserAuth,
+            SsoAuthAuthenticator ssoAuth,
+            TransportOptions transportOptions) {
+        return Client.builder("https://api.example.com")
+            .petStoreBasic(petStoreBasic)
+            .adminBasic(adminBasic)
+            .petStoreBearer(petStoreBearer)
+            .serviceToken(serviceToken)
+            .apiKeyHeader(apiKeyHeader)
+            .internalApiKey(internalApiKey)
+            .apiKeyQuery(apiKeyQuery)
+            .sessionCookie(sessionCookie)
+            .machineAuth(machineAuth)
+            .legacyAuth(legacyAuth)
+            .userAuth(userAuth)
+            .browserAuth(browserAuth)
+            .ssoAuth(ssoAuth)
+            .transportOptions(transportOptions)
+            .build();
+    }
+}
 ```
 
 ### Credentials from the environment
@@ -214,7 +267,7 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 
 Override the default if your authorization server only accepts one form:
 
-```java
+```java statements
 import com.example.petstore.auth.oauth.ClientAuthMethod;
 import com.example.petstore.auth.oauth.OAuth2ClientCredentialsAuthenticator;
 
@@ -227,7 +280,8 @@ var authenticator = new OAuth2ClientCredentialsAuthenticator(
 
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` constant (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` list. Pass the desired server's URL to the client:
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.Servers;
 
 var client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
@@ -237,7 +291,8 @@ var client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 
 The `Authenticator` interface is the seam for tests: substitute a fake authenticator that returns a known header map, and assert your code calls the API the way you expect.
 
-```java
+```java statements
+import com.example.petstore.Client;
 import com.example.petstore.auth.Authenticator;
 
 var fake = new Authenticator() {
@@ -283,20 +338,30 @@ Every error the SDK raises derives from `OpenAPIException` (unchecked). Catch it
     - `NetworkException` (no HTTP response, status 0)
       - `NetworkTimeoutException` (the request timed out, status 0)
 
-```java
-import com.example.petstore.errors.*;
+```java file
+import com.example.petstore.Client;
+import com.example.petstore.errors.ApiException;
+import com.example.petstore.errors.ClientException;
+import com.example.petstore.errors.NotFoundException;
+import com.example.petstore.errors.ServerException;
 import com.example.petstore.models.Pet;
+import com.example.petstore.api.options.AddPetOptions;
 
-try {
-    client.pet.addPet(new Pet());
-} catch (NotFoundException e) {
-    System.out.println("Not found: " + e.getMessage());
-} catch (ClientException e) {
-    System.out.println("Client error " + e.getStatusCode() + ": " + e.getMessage());
-} catch (ServerException e) {
-    System.out.println("Server error: " + e.getMessage());
-} catch (ApiException e) {
-    System.out.println("API error: " + e.getMessage());
+class ErrorHandling {
+    static void addPetOrReport(Client client, Pet pet, AddPetOptions options) {
+        try {
+            var result = client.pet.addPet(pet, options);
+            System.out.println(result);
+        } catch (NotFoundException e) {
+            System.out.println("Not found: " + e.getMessage());
+        } catch (ClientException e) {
+            System.out.println("Client error " + e.getStatusCode() + ": " + e.getMessage());
+        } catch (ServerException e) {
+            System.out.println("Server error: " + e.getMessage());
+        } catch (ApiException e) {
+            System.out.println("API error: " + e.getMessage());
+        }
+    }
 }
 ```
 
@@ -306,16 +371,22 @@ An `ApiException` also carries `getRequestMethod()` and `getRequestPath()` (no q
 
 ### Custom Transport Options
 
-```java
+```java file
+import com.example.petstore.Client;
 import com.example.petstore.TransportOptions;
+import com.example.petstore.auth.Authenticator;
 
-var transport = TransportOptions.builder()
-    .proxy("http://proxy:3128")
-    .timeout(5000)
-    .maxRetries(3)
-    .build();
+class Transport {
+    static Client build(Authenticator authenticator) {
+        var transport = TransportOptions.builder()
+            .proxy("http://proxy:3128")
+            .timeout(5000)
+            .maxRetries(3)
+            .build();
 
-var client = new Client(authenticator, transport);
+        return new Client(authenticator, transport);
+    }
+}
 ```
 
 ### Retries
@@ -324,7 +395,9 @@ var client = new Client(authenticator, transport);
 
 ### Custom HTTP client
 
-```java
+```java statements
+import com.example.petstore.TransportOptions;
+
 var httpClient = java.net.http.HttpClient.newBuilder()
     .followRedirects(java.net.http.HttpClient.Redirect.NEVER)
     .build();
@@ -345,10 +418,20 @@ A cookie parameter is sent exactly as given when every character is a legal RFC 
 
 Interrupt the calling thread; the call throws `java.util.concurrent.CancellationException` (the `InterruptedException` is its cause) and is never reported as `NetworkTimeoutException`.
 
-```java
-var executor = java.util.concurrent.Executors.newSingleThreadExecutor();
-var task = executor.submit(() -> client.pet.addPet(new Pet()));
-task.cancel(true);
+```java file
+import com.example.petstore.Client;
+import com.example.petstore.models.Pet;
+import com.example.petstore.api.options.AddPetOptions;
+import java.util.concurrent.Executors;
+
+class Cancellation {
+    static void addPetThenCancel(Client client, Pet pet, AddPetOptions options) {
+        var executor = Executors.newSingleThreadExecutor();
+        var task = executor.submit(() -> client.pet.addPet(pet, options));
+        task.cancel(true);
+        executor.shutdown();
+    }
+}
 ```
 
 ### Per-call options
@@ -371,8 +454,14 @@ Each API group is exposed as a typed field on the client (e.g., `client.pet`). A
 
 Models are generated as immutable Java classes in the `com.example.petstore.models` package: the fields are `final`, a model is made with its `builder()` (or its constructor when it has required properties) and copied with `toBuilder()`. A required property that is missing fails when the model is built.
 
-```java
-var changed = model.toBuilder().someProperty(value).build();
+```java file
+import com.example.petstore.models.Account;
+
+class Models {
+    static Account changed(Account model, Long value) {
+        return model.toBuilder().id(value).build();
+    }
+}
 ```
 
 A model that accepts extra keys reads them through `getAdditionalProperties()` (unmodifiable) and writes them with the builder's `putAdditionalProperty`, `putAllAdditionalProperties`, `removeAdditionalProperty` and `additionalProperties(map)`. A `oneOf` or `anyOf` model has `ofVariant(v)`, and for a plain class variant `isVariant()` and `asVariant()`.
