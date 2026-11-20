@@ -421,6 +421,8 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D111 | No sync/async variants: each SDK follows its language. Async-only: node, python, dart, rust, swift, kotlin, csharp. Blocking-only: java, php, ruby, go, elixir. Documented per language page; no code. | Owner decision of 2026-11-20. Two entry points per operation would double the public surface of every SDK. |
 | D112 | The three-state optional (absent, `null`, value) stays declined: an optional and nullable property keeps the language's own optional type and absent and `null` encode the same (F834). Documented per language page; no code. | Owner decision of 2026-11-20. Revisit only with a design that is identical in all twelve. |
 | D113 | An unformatted `type: integer` is 64-bit in all twelve languages: `NormalizeIntegerWidthRule` writes `format: int64` on it before generation. Supersedes the 32-bit half of D54. Test: serialization131. | Owner decision of 2026-11-20 (#159); a server identifier above 2^31 must decode everywhere. |
+| D114 | Go operations take `ctx context.Context` as their first argument (S7 already did; #146 answered). | Go convention; no code change. |
+| D115 | Header parameters named Accept, Content-Type or Authorization (any case, inline or by `$ref`) are removed by `IgnoreReservedHeadersRule`; the SDK owns those headers and a per-call header still overrides. Test: getPetByNote declares them. | The OpenAPI specification says to ignore them (#125). |
 
 ### Forced divergences (FD): do not align these away
 

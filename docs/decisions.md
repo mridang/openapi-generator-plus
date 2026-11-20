@@ -114,6 +114,30 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** This is a breaking change to the type of every unformatted integer field, parameter and response in Java, Kotlin, C#, Go, Rust and Swift. A test in every language decodes a value above 2^31 (serialization131). In Node a value above 2^53 loses precision, as for `int64`. [docs/types.md](types.md) and each language page state the rule.
 
+## D114: Go operations take the context as their first argument
+
+**Context.** Issue [#146](https://github.com/mridang/openapi-generator-plus/issues/146) asked whether Go operations should take the cancellation context as the first argument, as Go code and ogen do, instead of inside the per-call options. [docs/comparisons/ogen.md](comparisons/ogen.md) lists the difference between the two clients.
+
+**Options considered.** (1) Keep the context inside the options and default to a background context. (2) Take `ctx context.Context` as the first parameter of every operation.
+
+**What was compared.** The reference clients named in the root `AGENTS.md` (the AWS SDK for Go v2, client-go, Stainless Go SDKs) and ogen all take the context first. Settled decision S7 (cancellation) already chose option 2 for the Go SDK, and the generated operations and every Go test already have the shape `api.AddPet(ctx, pet, options, callOptions...)`; the issue text described an older shape.
+
+**Decision.** Go operations take `ctx` first, before the path parameters, the body and the options. No code changes were needed; the issue is answered by S7 and this record.
+
+**Consequences.** A caller that has no context passes `context.Background()`. The trace context comes from the same argument (D101).
+
+## D115: Header parameters named Accept, Content-Type or Authorization are ignored
+
+**Context.** The OpenAPI specification says a header parameter named `Accept`, `Content-Type` or `Authorization` shall be ignored, because those headers are defined by the media-type and security objects. The SDKs turned such a parameter into an option that overrode the negotiated header ([#125](https://github.com/mridang/openapi-generator-plus/issues/125)).
+
+**Options considered.** (1) Keep the override. (2) Ignore the parameter in every generator and let the SDK own the three headers. (3) Fail generation on such a parameter.
+
+**What was compared.** ogen and the other generators that follow the specification drop these parameters; failing generation would block specs that exist in the wild.
+
+**Decision.** `IgnoreReservedHeadersRule` removes a header parameter with one of the three names, in any case, from every operation and path item, whether it is written inline or by `$ref`, and the generation log warns about each one. The SDK negotiates `Accept` and `Content-Type` and the authenticators write `Authorization`. A caller who must send a different value still passes a per-call header.
+
+**Consequences.** The Options type of an operation no longer has such a field, a breaking change for a caller that set one. The fixture operation `getPetByNote` declares the three parameters, so the petstore tests in all twelve languages prove they are gone: its generated signature and tests are unchanged.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.
@@ -162,7 +186,6 @@ Each item below was weighed and left out on purpose, or deferred to an open issu
 * **A typed error from Rust operations (#113).** Every Rust operation returns `Box<dyn Error>`. A concrete error type is a public API break for that SDK alone.
 * **Error bodies decoded against the declared error schema (#117).** `errorBody` holds the parsed JSON, not a model. Typing it changes the `ApiError` generics in every SDK and needs a shared model in the generator.
 * **Object-valued query and header parameters (#109), classic `allOf` with a discriminator (#104), single-pass Go models (#107), Go tracer and meter providers (#108), a dependency audit (#105), compiled README examples (#111) and the Dart browser client (#115).** Each changes generated output in all or many languages and is waiting for its own change.
-* **Header parameters named `Accept`, `Content-Type` or `Authorization` (#125).** OpenAPI says to ignore them; the SDKs treat them as an override today, and the rule has to be chosen once for all twelve.
 * **A date type for Go (#126), keep-alive connections in the Ruby client (#127) and escaping of reserved property names in Swift and Elixir (#128).** Each is one language and waits for an owner decision on the shape.
 
 ### Settled differences between languages
@@ -202,7 +225,6 @@ Nothing below is decided. Each item is an open issue, and the list can change.
 * [#122](https://github.com/mridang/openapi-generator-plus/issues/122): guard the public API surface of every SDK and stop internals from leaking.
 * [#123](https://github.com/mridang/openapi-generator-plus/issues/123): generate a typed error hierarchy per status and per declared error schema.
 * [#124](https://github.com/mridang/openapi-generator-plus/issues/124): sweep the build, lint, format, test and docs logs of every SDK for warnings.
-* [#125](https://github.com/mridang/openapi-generator-plus/issues/125): ignore header parameters named Accept, Content-Type or Authorization and decide how a per-call Accept is set.
 * [#126](https://github.com/mridang/openapi-generator-plus/issues/126): type `format: date` values in the Go SDK.
 * [#127](https://github.com/mridang/openapi-generator-plus/issues/127): keep connections alive in the Ruby client.
 * [#128](https://github.com/mridang/openapi-generator-plus/issues/128): stop escaping reserved property names that need no escape in the Swift and Elixir SDKs.

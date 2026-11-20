@@ -1057,6 +1057,19 @@ paths:
             type:
               - integer
               - "null"
+        - name: Accept
+          in: header
+          schema:
+            type: string
+        - name: content-type
+          in: header
+          schema:
+            type: string
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: OK
