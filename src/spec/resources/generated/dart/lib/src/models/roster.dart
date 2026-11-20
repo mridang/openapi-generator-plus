@@ -15,10 +15,17 @@ import 'category.dart';
 class Roster {
   final String? label;
 
-  /// Additional properties not defined in the schema.
-  final Map<String, Category> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, Category> get additionalProperties =>
+      Map.of(_additionalProperties);
 
-  const Roster({this.label, this.additionalProperties = const {}});
+  final Map<String, Category> _additionalProperties;
+
+  const Roster({
+    this.label,
+    Map<String, Category> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
 
   /// Creates a [Roster] from a JSON map.
   factory Roster.fromJson(Map<String, dynamic> json) {

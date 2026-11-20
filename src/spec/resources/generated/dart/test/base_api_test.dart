@@ -24,6 +24,7 @@ import 'testcontainers_helper.dart';
 /// Records the body of every request as text, for the multipart and form tests.
 class _BodyCapturingApiClient implements ApiClient {
   String capturedBody = '';
+  Map<String, String> capturedHeaders = const {};
 
   @override
   Future<ApiHttpResponse> sendRequest(
@@ -38,6 +39,7 @@ class _BodyCapturingApiClient implements ApiClient {
     capturedBody = body is List<int>
         ? utf8.decode(body, allowMalformed: true)
         : '$body';
+    capturedHeaders = headers;
     return ApiHttpResponse(
       statusCode: 200,
       body: '{}',
@@ -3920,6 +3922,38 @@ void main() {
           contentType: 'multipart/form-data',
         );
         expect(client.capturedBody, contains(r'name="a\"b"'));
+      },
+    );
+
+    test(
+      'bhv misc 100 a declared multipart subtype keeps its boundary and an unsafe value falls back to form-data',
+      () async {
+        final kept = _BodyCapturingApiClient();
+        await _RecordingApi(kept).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'caption': 'x'},
+          contentType: 'multipart/related',
+        );
+        final keptType = kept.capturedHeaders['Content-Type']!;
+        expect(keptType, startsWith('multipart/related; boundary='));
+        expect(
+          kept.capturedBody,
+          contains('--${keptType.split('boundary=').last}'),
+        );
+
+        final unsafe = _BodyCapturingApiClient();
+        await _RecordingApi(unsafe).invokeApi(
+          method: 'POST',
+          path: '/test/echo',
+          body: {'caption': 'x'},
+          contentType: 'multipart/mixed\r\nX-Injected: 1',
+        );
+        expect(
+          unsafe.capturedHeaders['Content-Type'],
+          startsWith('multipart/form-data; boundary='),
+        );
+        expect(unsafe.capturedHeaders.keys, isNot(contains('X-Injected')));
       },
     );
 

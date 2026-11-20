@@ -13,10 +13,14 @@ import '../object_serializer.dart';
 class Counters {
   final String? label;
 
-  /// Additional properties not defined in the schema.
-  final Map<String, int> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, int> get additionalProperties => Map.of(_additionalProperties);
 
-  const Counters({this.label, this.additionalProperties = const {}});
+  final Map<String, int> _additionalProperties;
+
+  const Counters({this.label, Map<String, int> additionalProperties = const {}})
+    : _additionalProperties = additionalProperties;
 
   /// Creates a [Counters] from a JSON map.
   factory Counters.fromJson(Map<String, dynamic> json) {

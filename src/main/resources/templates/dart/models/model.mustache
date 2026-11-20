@@ -298,8 +298,11 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/vendorExtensions.dartInherited}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-  /// Additional properties not defined in the schema.
-  final Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> get additionalProperties => Map.of(_additionalProperties);
+
+  final Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> _additionalProperties;
 
 {{/isAdditionalPropertiesTrue}}
 {{#hasVars}}
@@ -346,15 +349,15 @@ enum {{vendorExtensions.dartOwner}}{{enumName}} {
 {{/required}}
 {{/vars}}
 {{#isAdditionalPropertiesTrue}}
-    this.additionalProperties = const {},
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> additionalProperties = const {},
 {{/isAdditionalPropertiesTrue}}
-  });
+  }){{#isAdditionalPropertiesTrue}} : _additionalProperties = additionalProperties{{/isAdditionalPropertiesTrue}};
 {{/hasVars}}
 {{^hasVars}}
 {{#isAdditionalPropertiesTrue}}
   const {{classname}}({
-    this.additionalProperties = const {},
-  });
+    Map<String, {{#vendorExtensions.additionalPropertiesValue}}{{{dataType}}}{{#isNullable}}?{{/isNullable}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}dynamic{{/vendorExtensions.additionalPropertiesValue}}> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
 {{/isAdditionalPropertiesTrue}}
 {{^isAdditionalPropertiesTrue}}
   const {{classname}}();

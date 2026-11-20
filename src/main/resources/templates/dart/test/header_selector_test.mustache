@@ -67,6 +67,22 @@ void main() {
       );
     });
 
+    test('bhv headers 005 selectHeaders does not set an Accept header for a null accept list', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(null, 'application/json', false);
+
+      expect(headers.containsKey('Accept'), isFalse);
+    });
+
+    test('bhv headers 002 selectHeaders defaults the Content-Type to application/json when it is null', () {
+      final hs = HeaderSelector();
+
+      final headers = hs.selectHeaders(['application/json'], null, false);
+
+      expect(headers['Content-Type'], equals('application/json'));
+    });
+
     test('bhv headers 004 selectHeaders with empty accepts', () {
       final hs = HeaderSelector();
 
@@ -225,6 +241,12 @@ void main() {
       final hs = HeaderSelector();
 
       expect(hs.isJsonMime('application/xml'), isFalse);
+    });
+
+    test('bhv headers 015 isJsonMime returns false for null', () {
+      final hs = HeaderSelector();
+
+      expect(hs.isJsonMime(null), isFalse);
     });
 
     test('bhv headers 014 isJsonMime returns false for an empty string', () {

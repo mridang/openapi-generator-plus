@@ -105,8 +105,8 @@ final class TestCertificates {
         signed.toString(), "-rfc", "-validity", "3650", "-ext", SAN, "-ext", "eku=serverAuth",
         "-ext", "ku:c=digitalSignature,keyEncipherment", "-keystore", store.toString(),
         "-storepass", PASSWORD);
-    /* The server presents its leaf and the intermediate linking it to the pinned root. */
-    Files.writeString(signed, Files.readString(signed) + Files.readString(interSigned));
+    /* keytool writes the whole chain, so server.pem holds the leaf followed by the intermediate
+     * that links it to the pinned root. */
     Files.delete(interRequest);
     Files.delete(interSigned);
     KeyStore keyStore = KeyStore.getInstance("PKCS12");

@@ -13,10 +13,17 @@ import '../object_serializer.dart';
 class Moments {
   final String? label;
 
-  /// Additional properties not defined in the schema.
-  final Map<String, DateTime> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, DateTime> get additionalProperties =>
+      Map.of(_additionalProperties);
 
-  const Moments({this.label, this.additionalProperties = const {}});
+  final Map<String, DateTime> _additionalProperties;
+
+  const Moments({
+    this.label,
+    Map<String, DateTime> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
 
   /// Creates a [Moments] from a JSON map.
   factory Moments.fromJson(Map<String, dynamic> json) {
