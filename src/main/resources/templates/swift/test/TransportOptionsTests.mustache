@@ -101,6 +101,15 @@ import FoundationNetworking
         }
     }
 
+    /* A ready-made session combined with a CA bundle setting is rejected when the options are built. */
+    @Test func testBhvMisc186ASuppliedSessionWithACaBundleIsRejectedAtBuild() {
+        let session = URLSession(configuration: .ephemeral)
+        defer { session.invalidateAndCancel() }
+        #expect(throws: ConfigurationError.self) {
+            try TransportOptionsBuilder().session(session).caCertPath("/tmp/ca.pem").build()
+        }
+    }
+
     @Test func testBhvOptions058SessionDefaultsToNil() throws {
         #expect(try TransportOptionsBuilder().build().session == nil)
     }

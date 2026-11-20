@@ -367,6 +367,67 @@ import Testing
         #expect(id.lowerBound < name.lowerBound)
         #expect(name.lowerBound < category.lowerBound)
         #expect(category.lowerBound < photos.lowerBound)
+        /* Text that looks like a position prefix, in a map key or a value, is written exactly as it was given. */
+        let lookalike = "\u{E000}\u{E001}00001name"
+        let metadata = Metadata(additionalProperties: [lookalike: lookalike, "\"\u{E000}00002": "v"])
+        let again = try ObjectSerializer.serialize(metadata)
+        let decoded = try #require(try ObjectSerializer.deserialize(again, as: Metadata.self))
+        #expect(decoded.additionalProperties[lookalike] == lookalike)
+        #expect(decoded.additionalProperties["\"\u{E000}00002"] == "v")
+    }
+
+    /* A list of byte arrays differs from another list or map of them by its contents, and equals a copy of itself. */
+    @Test func testBhvSerializationobject009ListsOfByteArraysCompareByTheirContents() {
+        let one = PetPassport(scans: [Data([1]), Data([2])])
+        #expect(one == PetPassport(scans: [Data([1]), Data([2])]))
+        #expect(one != PetPassport(scans: [Data([2]), Data([1])]))
+        #expect(Blobs(additionalProperties: ["a": Data([1])]) != Blobs(additionalProperties: ["a": Data([2])]))
+    }
+
+    /* A date-time written with an offset keeps its instant: the zone is not kept, the value is written in UTC. */
+    @Test func testBhvSerializationobject107ANegativeOffsetKeepsItsInstant() throws {
+        let order = try #require(
+            try ObjectSerializer.deserialize("{\"shipDate\":\"2024-01-15T13:00:00-08:00\"}", as: Order.self))
+        #expect(try ObjectSerializer.serialize(order).contains("2024-01-15T21:00:00.000+00:00"))
+    }
+
+    @Test func testBhvSerializationobject116APositiveOffsetKeepsItsInstant() throws {
+        let order = try #require(
+            try ObjectSerializer.deserialize("{\"shipDate\":\"2024-01-15T13:00:00+05:30\"}", as: Order.self))
+        #expect(try ObjectSerializer.serialize(order).contains("2024-01-15T07:30:00.000+00:00"))
+    }
+
+    /* A duration is written in the protobuf-JSON string form in a typed model. */
+    @Test func testBhvSerializationobject146ADurationInAModelIsWrittenAsAString() throws {
+        #expect(try ObjectSerializer.serialize(EdgeCases(retryAfter: 300)).contains("\"retryAfter\":\"300s\""))
+    }
+
+    /* A copy of a model holds the same nested value as the original. */
+    @Test func testBhvMisc147ACopyHoldsTheSameNestedValueAsTheOriginal() {
+        let original = Pet(name: "Rex", photoUrls: [], category: Category(id: 2, name: "dogs"))
+        #expect(original.copy(name: "Max").category == original.category)
+    }
+
+    /* A number the native decimal cannot hold fails with the serialization error and is never rounded. */
+    @Test func testBhvSerializationobject412ANumberTooLongForADecimalIsRefusedNotRounded() {
+        let digits = String(repeating: "1", count: 60)
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"amount\":\(digits)}", as: NativeValues.self)
+        }
+    }
+
+    /* A value that cannot be serialized fails with a serialization error before anything is sent. */
+    @Test func testBhvMisc214AnUnserializableValueRaisesASerializationError() {
+        struct Bad: Encodable { let value: Double }
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.serialize(Bad(value: .nan))
+        }
+    }
+
+    /* A time of day keeps its hours, minutes and seconds through decode. */
+    @Test func testBhvSerialization041ATimeOfDayKeepsItsFieldsThroughDecode() throws {
+        let value = try #require(try ObjectSerializer.deserialize("{\"cutoff\":\"23:59:58\"}", as: EdgeCases.self))
+        #expect(value.cutoff == "23:59:58")
     }
 
     /* A uniqueItems collection is written in order: code point order for strings. */

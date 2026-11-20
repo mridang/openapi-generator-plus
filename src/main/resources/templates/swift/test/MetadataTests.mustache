@@ -249,6 +249,13 @@ import Testing
         #expect(String(describing: Priority.number3) == "3")
     }
 
+    /* The package declares a non-empty description of itself. */
+    @Test func testBhvModels002TheReadmeDeclaresANonEmptyDescription() throws {
+        let text = try readme()
+        let lines = text.split(separator: "\n").dropFirst().map { $0.trimmingCharacters(in: .whitespaces) }
+        #expect(lines.contains { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix("[") })
+    }
+
     /* A model's string form shows the contents of its list, map and byte fields rather than their type names. */
     @Test func testBhvMisc113AModelsStringFormShowsTheContentsOfItsListMapAndByteFields() {
         let listed = String(describing: Pet(name: "Rex", photoUrls: ["https://x.example/a.png"]))

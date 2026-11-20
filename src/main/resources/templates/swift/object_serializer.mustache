@@ -100,8 +100,11 @@ internal enum ObjectSerializer {
         return dateFormatter.string(from: Date(timeIntervalSince1970: millis / 1000))
     }
 
-    /* Two private-use characters that open a key which carries its position. */
-    private static let orderMark = "\u{E000}\u{E001}"
+    /* A key that carries its position opens with a private-use character and a nonce made fresh for each
+       encode call, so no value or map key in the data can look like it (a clash needs a 128-bit guess). */
+    private static func newOrderMark() -> String {
+        return "\u{E000}" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+    }
 
     private struct OrderedKey: CodingKey {
         let stringValue: String
@@ -120,7 +123,7 @@ internal enum ObjectSerializer {
     }
 
     /// Removes the position prefix from every key of encoded JSON.
-    private static func removeOrderMarks(_ data: Data) -> Data {
+    private static func removeOrderMarks(_ data: Data, mark orderMark: String) -> Data {
         let mark = [UInt8](("\"" + orderMark).utf8)
         let bytes = [UInt8](data)
         var out = [UInt8]()
@@ -188,7 +191,7 @@ internal enum ObjectSerializer {
         return keys
     }
 
-    private static let encoder: JSONEncoder = {
+    private static func makeEncoder(mark orderMark: String) -> JSONEncoder {
         let encoder = JSONEncoder()
         /* Write '/' literally (the other SDKs never escape it) and emit keys in
            a fixed order: the default is Dictionary hash order, which is seeded
@@ -209,7 +212,12 @@ internal enum ObjectSerializer {
             try container.encode(formatDateTime(date))
         }
         return encoder
-    }()
+    }
+
+    private static func encodeOrdered<T: Encodable>(_ object: T) throws -> Data {
+        let mark = newOrderMark()
+        return removeOrderMarks(try makeEncoder(mark: mark).encode(object), mark: mark)
+    }
 
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -231,7 +239,7 @@ internal enum ObjectSerializer {
     /// round-trip a parsed payload through the same date-time wire format as
     /// every other model.
     static func encodeToData<T: Encodable>(_ object: T) throws -> Data {
-        return removeOrderMarks(try encoder.encode(object))
+        return try encodeOrdered(object)
     }
 
     /// Decodes a Decodable value from JSON `Data` using the shared,
@@ -248,7 +256,7 @@ internal enum ObjectSerializer {
     /// SDK never leaks `Foundation` encoding types out of its public surface.
     static func serialize<T: Encodable>(_ object: T) throws -> String {
         do {
-            let data = removeOrderMarks(try encoder.encode(object))
+            let data = try encodeOrdered(object)
             guard let string = String(data: data, encoding: .utf8) else {
                 throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
             }
@@ -343,6 +351,7 @@ internal enum ObjectSerializer {
                 message: "JSON nesting depth \(depth) exceeds limit \(maxJsonDepth)"
             )
         }
+        try rejectNumbersTooLongToHold(stripped)
         /* A bare top-level JSON null is treated as an absent body (returns nil)
            rather than a decode error, for lenient parity with the other SDKs
            (kotlin/php special-case it the same way) whose parsers accept a
@@ -888,5 +897,55 @@ extension ObjectSerializer {
                 DecodingError.Context(codingPath: [], debugDescription: "Not a decimal number: \(text)"))
         }
         return value
+    }
+}
+
+extension ObjectSerializer {
+    /// The most significant digits a decimal can hold.
+    static let maxDecimalDigits = 38
+
+    /// Refuses a JSON number with more significant digits than a `Decimal`
+    /// holds, so a decimal is never silently rounded.
+    static func rejectNumbersTooLongToHold(_ data: Data) throws {
+        var inString = false
+        var escaped = false
+        var digits = 0
+        var seenNonZero = false
+        var inMantissa = false
+        for byte in data {
+            if inString {
+                if escaped {
+                    escaped = false
+                } else if byte == 0x5C {
+                    escaped = true
+                } else if byte == 0x22 {
+                    inString = false
+                }
+                continue
+            }
+            if byte == 0x22 {
+                inString = true
+                continue
+            }
+            if byte >= 0x30 && byte <= 0x39 {
+                if !inMantissa {
+                    inMantissa = true
+                    digits = 0
+                    seenNonZero = false
+                }
+                if byte != 0x30 { seenNonZero = true }
+                if seenNonZero { digits += 1 }
+                if digits > maxDecimalDigits {
+                    throw SerializationError(
+                        message: "A number has more than \(maxDecimalDigits) significant digits and cannot be held exactly")
+                }
+            } else if byte == 0x2E || byte == 0x2D || byte == 0x2B {
+                continue
+            } else if byte == 0x65 || byte == 0x45 {
+                inMantissa = false
+            } else {
+                inMantissa = false
+            }
+        }
     }
 }

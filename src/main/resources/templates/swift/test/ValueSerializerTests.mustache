@@ -438,6 +438,21 @@ import Testing
         #expect(fields.map { $0.name }.prefix(4) == ["retries", "mode", "label", "greeting"])
     }
 
+    /* An unset style behaves like simple, and a decimal value is written in plain notation with no exponent. */
+    @Test func testBhvSerializationparam106AnUnsetStyleIsSimpleAndADecimalIsWrittenPlain() throws {
+        let small = try #require(Decimal(string: "0.0000001"))
+        let large = try #require(Decimal(string: "12345678901234567890.5"))
+        func written(_ value: Decimal, style: String) -> String {
+            let result = ValueSerializer.serializeStyled(
+                "n", value: value, location: "path", schemaType: "Decimal", collectionFormat: "", style: style,
+                explode: false)
+            return "\(result ?? "")"
+        }
+        #expect(written(small, style: "") == written(small, style: "simple"))
+        #expect(written(small, style: "") == "0.0000001")
+        #expect(written(large, style: "") == "12345678901234567890.5")
+    }
+
     @Test func testBhvSerializationparam048ScalarsAndDatesAreNotObjects() {
         #expect(ValueSerializer.objectFields("text") == nil)
         #expect(ValueSerializer.objectFields(5) == nil)

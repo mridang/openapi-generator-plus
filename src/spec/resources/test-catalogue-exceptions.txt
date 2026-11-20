@@ -41,10 +41,8 @@ dart | transport006 | Dart has no stdlib zstd decoder; a zstd response is refuse
 node | errors042 | FORCED D-FORCED-1: the fetch layer owns Content-Encoding and node passes an unrecognised coding through untouched rather than raising ApiError (see the node AGENTS.md forced divergences)
 python | serializationobject015 | Python has no set order to keep: a uniqueItems array decodes to a set, which the SDK writes sorted (TestSetSanitization), so no insertion order exists to pin
 python | serializationobject032 | python enforces the declared minLength, maxLength, pattern and numeric bounds on decode (pydantic, shared rule S3), so an out-of-bounds slug, nickname or quantity is rejected; the nickname case is bhv serializationobject 030
-swift | serializationobject009 | Swift types a list of byte arrays and a map of byte arrays as different types, so they cannot be compared for equality at all
 swift | redirects017 | PSR-18 is a PHP client interface with no Swift counterpart; the follow-by-default behaviour it checks is covered by bhv redirects004
 swift | retries019 | Psr18 is the PHP PSR-18 client interface and swift has no PSR-18 adapter; each sendRequest call starts its own end-to-end budget and the retries never extend it (bhv retries 025)
-swift | models002 | a SwiftPM manifest (Package.swift) has no description field, so there is no package description to assert
 csharp | serializationobject015 | S6 leaves uniqueItems order to the natural collection, and a HashSet promises no insertion order
 csharp | operations111 | the uuid path parameter is typed System.Guid, so a malformed value cannot be built and the SDK never receives a string to reject
 csharp | errors040 | SendRequestAsync takes a System.Uri, so a malformed request URL fails in the caller new Uri(...) with UriFormatException before the SDK runs and no SDK path receives one
@@ -69,9 +67,6 @@ go | transport031 | net/http has one client Timeout covering connect, headers an
 go | serializationobject164 | Go maps format time to string (typeMapping time to string), so there is no time-of-day type or HH:mm:ss formatter to test
 rust | serializationobject009 | Rust types a list of byte arrays (Vec<Vec<u8>>) and a map of byte arrays (HashMap<String, Vec<u8>>) as different types with no equality between them, so they cannot be compared for equality at all
 rust | unions011 | rust models derive PartialEq but never Hash, and a member model can hold a format: number field (f64, D83) which has no Eq or Hash, so a matching hash cannot be derived for every anyOf wrapper
-swift | serializationobject107 | A Swift Date is an absolute instant with no zone, so the input offset (-08:00) is not kept; formatDateTime always writes +00:00 (the UTC pin on dateFormatter)
-swift | serializationobject116 | A Swift Date is an absolute instant with no zone, so the input offset (+05:30) is not kept; formatDateTime always writes +00:00 (the UTC pin on dateFormatter)
-swift | serializationobject146 | TimeInterval is a Double, so a duration inside an untyped [String: Any] hash cannot be told from a number and JSONSerialization writes 300, not 300s; the protobuf string is produced for a typed model property (serializationobject081)
 elixir | config002 | Elixir has no builder: Configuration.new/1 takes the headers once as a keyword list, so there is no accumulating setter to call repeatedly
 elixir | config003 | Elixir has no builder and no chained setters: Configuration is an immutable struct built once by Configuration.new/1, so there is no fluent call chain to test
 elixir | config004 | Elixir has no builder and no separate single-header and bulk-header setters: headers are one keyword list given to Configuration.new/1, so there is no merge step
@@ -82,7 +77,6 @@ dart | operations125 | Dart types the required category as a non-nullable String
 java | errors047 | java Throwable has no name property, and the base type is named ApiException by the Java naming of exception classes (the normaliser maps that to ApiError), so there is no name value to assert; the type identity is pinned by the hierarchy rows of ApiExceptionTest
 php | operations125 | GetPetByNameOptions types category as a non-nullable string, so a nil value is a PHP TypeError at construction and cannot reach the missing-parameter check; the empty string is bhv operations 049
 php | retries028 | PHP has no per-call cancellation (S7), so there is no caller to cancel during a retry wait; the budget that ends a wait is bhv retries 025
-swift | serializationparam106 | serializeStyled takes a non-optional style String, so a null style cannot be passed; the empty style that the SDK treats as unset is covered by bhv serializationparam 035; Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 csharp | authbearer026 | the bearer constructors take either a token or a token provider and never both, so passing both is a compile-time error
 csharp | options046 | the TransportOptions constructor is internal, so csharp callers reach it only through TransportOptions.Builder(), and proxy validation runs in Build() (S16); there is no public direct-construction path to reject
 dart | config024 | Dart has no run-time reflection (dart:mirrors is absent from the AOT and web builds), and a missing static setter on Configuration is a compile-time fact the analyzer enforces, so no test can observe its absence
@@ -214,7 +208,6 @@ rust | lifecycle040 | Rust's scoped-disposal construct is Drop, and the generate
 rust | transport069 | Rust has no cancellation parameter or signal on a call (S7): cancelling is dropping the future, so no cancellation signal or caller context reaches the transport to be asserted
 rust | transport074 | The zstd, brotli and flate2 decoders are compiled into the crate, so no codec library can be missing at run time
 rust | transport079 | reqwest with rustls honours verify_ssl(false), so no client built by the crate is unable to honour it and no construction refusal exists
-swift | serialization041 | Swift maps format time to String with no time-of-day type in Foundation, so the wire string is the value and is never parsed into a time value
 swift | auth001 | Swift OAuth2 authenticators expose only the async authHeaders() requirement, so a synchronous header call does not compile and there is no sync accessor to raise from
 csharp | auth007 | the generic csharp authenticators take their credential as a required constructor argument, so an authenticator built without credentials does not compile; environment reading exists only in the per-scheme wrappers and FromEnvironment, which the authscheme and lifecycle rows cover
 csharp | auth015 | csharp's synchronous GetAuthHeaders raises for every OAuth2 token flow (D12, forced by the interface), so no sync header call can return headers without an Authorization entry after a failed token request
@@ -269,7 +262,6 @@ go | serializationobject412 | Go decodes a bare type: number or a decimal string
 rust | serializationobject410 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 rust | serializationobject411 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 rust | serializationobject412 | Rust decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
-swift | serializationobject412 | Swift decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 elixir | serializationobject410 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 elixir | serializationobject411 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 elixir | serializationobject412 | Elixir decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
@@ -565,12 +557,10 @@ dart | misc112 | the generic fixture models have no unique-array field outside t
 swift | misc128 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
 swift | misc129 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
 swift | misc135 | the Swift client has no client-level cancellation handle: cancellation is the task that awaits each call, and ConfigurationBuilder has no setter for one
-swift | misc147 | Swift models are value types, so a copy's nested model is an independent value and cannot be the same object as the original
 swift | misc149 | copy takes only the model's declared properties as typed parameters, so an undeclared attribute is a compile-time error and no runtime error naming it can occur
 swift | misc152 | Swift has no abort signal: a call is cancelled through Task cancellation, and no call takes a signal that could already be aborted
 swift | misc153 | Swift has no client-level or per-call cancel signal: cancellation is Task cancellation of the awaiting task, and the client has no signal to set
 swift | misc185 | the Swift OAuth2 token manager has no stop operation and holds no background task, so a second stop and a token request after stop cannot be observed
-swift | misc186 | the Swift transport options take no ready-made HTTP connection object, so there is no connection value to reject when the options are built
 dart | misc135 | Dart has no client-level cancellation handle: a call is cancelled through the subscription it returns, so the configuration holds no signal to store
 dart | misc139 | Dart model constructors are const and store a passed map by reference, so a copy cannot be taken when the model is built without losing const construction
 dart | misc145 | additionalProperties is a plain final Map on a const model, so a read returns the stored map and a copy on read would break the const model shape
@@ -647,7 +637,6 @@ java | transport083 | Java has no client-level cancellation handle: TransportOpt
 
 
 php | serialization068 | PHP typed constructor parameters and enum-typed properties reject a wrong-typed or unknown value at construction under strict types, so a model cannot hold one as given
-swift | misc214 | Query content is a typed Codable value at the call site, so a value that cannot be serialized (a cyclic or NaN-bearing object) cannot be passed to the operation; the compiler rules it out
 swift | misc241 | Swift has no time-of-day type: a time value is a String the caller supplies and checks at the call site, so the SDK never truncates milliseconds from a time
 swift | misc271 | swift-corelibs-foundation ignores connectionProxyDictionary on Linux: libcurl reads http_proxy, https_proxy and all_proxy from the environment itself and the handle exposes no proxy option, so a proxy environment variable does route a request there (D74)
 swift | misc272 | On Linux the SDK refuses a proxy (ConfigurationError.invalidProxy, D74) because the libcurl handle of swift-corelibs-foundation has no proxy option, so no request can be sent through the proxy fixture there; the Apple-only test is in DefaultApiClientAppleStubTests
