@@ -34,17 +34,23 @@ module Petstore::Client
 
       # @return [Hash{String => String}]
       def auth_headers
-        @parts.each_with_object({}) { |part, merged| merged.merge!(part.auth_headers) }
+        merged = {} # @type var merged: Hash[String, String]
+        @parts.each { |part| merged.merge!(part.auth_headers) }
+        merged
       end
 
       # @return [Hash{String => String}]
       def query_params
-        @parts.each_with_object({}) { |part, merged| merged.merge!(part.query_params) }
+        merged = {} # @type var merged: Hash[String, String]
+        @parts.each { |part| merged.merge!(part.query_params) }
+        merged
       end
 
       # @return [Hash{String => String}]
       def cookie_params
-        @parts.each_with_object({}) { |part, merged| merged.merge!(part.cookie_params) }
+        merged = {} # @type var merged: Hash[String, String]
+        @parts.each { |part| merged.merge!(part.cookie_params) }
+        merged
       end
 
       protected

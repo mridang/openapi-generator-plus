@@ -86,19 +86,12 @@ module Petstore::Client
       # @param groups [Array<Array<String>>] the requirements, in the spec's order
       # @return [Authenticator, nil]
       def requirement_authenticator(*groups)
-        partial = nil
-        groups.each do |group|
-          held = group.filter_map { |name| @scheme_authenticators[name] }
-          next if held.empty?
-          if held.size == group.size
-            return held.one? ? held.first : ::Petstore::Client::Auth::AllOfAuthenticator.of(held)
-          end
+        helds = groups.map { |group| group.filter_map { |name| @scheme_authenticators[name] } }
+        complete = groups.each_index.find { |i| !helds[i].empty? && helds[i].size == groups[i].size }
+        chosen = complete ? helds[complete] : helds.find { |held| !held.empty? }
+        return nil if chosen.nil?
 
-          partial ||= held
-        end
-        return nil if partial.nil?
-
-        partial.one? ? partial.first : ::Petstore::Client::Auth::AllOfAuthenticator.of(partial)
+        chosen.one? ? chosen.first : ::Petstore::Client::Auth::AllOfAuthenticator.of(chosen)
       end
 
       # Invoke an API operation and return the full result including status
