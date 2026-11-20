@@ -1099,6 +1099,31 @@ func TestBhvOperations063_PetApi_GetPetAvatarThumbnailRejectsMalformedBase64(t *
 	}
 }
 
+// Per-call options override the options object, and an option that is unset falls through to the object's value.
+func TestBhvMisc050_PetApi_PerCallHeadersOverrideTheOptionsObjectAndUnsetFallsThrough(t *testing.T) {
+	t.Parallel()
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("X-Correlation-Id"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	api := newPetApiForMock(t, server)
+	object := &options.GetPetByNameOptions{Category: "dog", XCorrelationId: "from-object"}
+
+	if _, err := api.GetPetByName(context.Background(), "rex", object, petstore.WithHeaders(map[string]string{"X-Correlation-Id": "per-call"})); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := api.GetPetByName(context.Background(), "rex", object); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen[0] != "per-call" || seen[1] != "from-object" {
+		t.Errorf("expected the per-call value then the object's value, got %v", seen)
+	}
+}
+
 // A name made only of dots is not a dot segment, so it is kept as the path segment.
 func TestBhvOperations064_PetApi_GetPetByNameKeepsANameThatOnlyContainsDots(t *testing.T) {
 	t.Parallel()

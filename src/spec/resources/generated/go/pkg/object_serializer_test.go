@@ -2422,6 +2422,23 @@ func TestBhvSerializationobject163_ObjectSerializer_EdgeCases_CutoffTimeRoundTri
 	}
 }
 
+// Rejecting undeclared keys on one strict model leaves other models accepting and ignoring them.
+func TestBhvMisc103_ObjectSerializer_StrictRejectionIsPerModel(t *testing.T) {
+	t.Parallel()
+	var strict models.StrictTag
+	if err := deserialize([]byte(`{"rogue":"x"}`), &strict); err == nil {
+		t.Error("the strict model must reject an undeclared key")
+	}
+	var loose models.Category
+	if err := deserialize([]byte(`{"rogue":"x"}`), &loose); err != nil {
+		t.Errorf("another model must keep ignoring an undeclared key, got %v", err)
+	}
+	var open models.Metadata
+	if err := deserialize([]byte(`{"rogue":"x"}`), &open); err != nil {
+		t.Errorf("a model with additional properties must accept an undeclared key, got %v", err)
+	}
+}
+
 // F1111: unevaluatedProperties:false refuses an undeclared key as a
 // *SerializationError, still decodes the declared keys, and does not leak onto
 // a model that does not declare it.

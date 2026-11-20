@@ -450,7 +450,13 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -597,7 +603,13 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -746,7 +758,13 @@ func (a *PetApi) AttachPetFilesWithHTTPInfo(ctx context.Context, petId int64, op
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -894,7 +912,13 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -905,7 +929,13 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 		 * branch above. Fail closed by returning an error so a CR/LF or
 		 * control-char value cannot be injected into the Cookie header. */
 		var cookieValue string
-		cookieValue = fmt.Sprintf("%v", serializeStyled("api_key", options.ApiKey, "cookie", "string", "", "form", true))
+		{
+			styledValue, styledErr := serializeStyledChecked("api_key", options.ApiKey, "cookie", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			cookieValue = fmt.Sprintf("%v", styledValue)
+		}
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "api_key")
 		}
@@ -995,12 +1025,24 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "documentId", fmt.Sprintf("%v", serializeStyled("documentId", documentId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("documentId", documentId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "documentId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1141,7 +1183,13 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 	path := "/pet/born-on/{bornOn}"
 	/* A date is formatted as YYYY-MM-DD first and then styled like any other
 	 * path value, so a matrix or label style on a date parameter applies too. */
-	path = replacePathParam(path, "bornOn", fmt.Sprintf("%v", serializeStyled("bornOn", stringifyDate(bornOn), "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("bornOn", stringifyDate(bornOn), "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "bornOn", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1295,7 +1343,13 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 	 * other optional query params above). An explicit empty value supplied by the
 	 * caller still flows through serializeStyled and emits the bare "key=". */
 	if options != nil && options.Status != nil {
-		queryParams["status"] = maybeAllowReserved(serializeStyled("status", options.Status, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("status", options.Status, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["status"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Filter != nil {
 		deepParams, err := serializeDeepObject("filter", options.Filter)
@@ -1307,15 +1361,33 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 		}
 	}
 	if options != nil && options.BornAfter != nil {
-		queryParams["bornAfter"] = maybeAllowReserved(serializeStyled("bornAfter", options.BornAfter, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("bornAfter", options.BornAfter, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["bornAfter"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.N2ndPage != nil {
-		queryParams["2ndPage"] = maybeAllowReserved(serializeStyled("2ndPage", options.N2ndPage, "query", "int32", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("2ndPage", options.N2ndPage, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["2ndPage"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
 	if options != nil && options.ReportDate != nil {
-		headerParams["Report-Date"] = fmt.Sprintf("%v", serializeStyled("Report-Date", options.ReportDate, "header", "string", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("Report-Date", options.ReportDate, "header", "string", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["Report-Date"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 
 	var requestBody any
@@ -1453,7 +1525,13 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -1600,7 +1678,13 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -1752,7 +1836,13 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1898,7 +1988,13 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -2051,7 +2147,13 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -2208,16 +2310,34 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "name", fmt.Sprintf("%v", serializeStyled("name", name, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("name", name, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "name", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 	/* Required query param: the Options field is a non-pointer value, so it is
 	 * always present (validated above) and serialized directly. */
-	queryParams["category"] = maybeAllowReserved(serializeStyled("category", options.Category, "query", "string", "", "form", true), false)
+	{
+		styledValue, styledErr := serializeStyledChecked("category", options.Category, "query", "string", "", "form", true)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		queryParams["category"] = maybeAllowReserved(styledValue, false)
+	}
 
 	headerParams := make(map[string]string)
 	/* Required header param: non-pointer Options field, always present. */
-	headerParams["X-Correlation-Id"] = fmt.Sprintf("%v", serializeStyled("X-Correlation-Id", options.XCorrelationId, "header", "string", "", "simple", false))
+	{
+		styledValue, styledErr := serializeStyledChecked("X-Correlation-Id", options.XCorrelationId, "header", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		headerParams["X-Correlation-Id"] = fmt.Sprintf("%v", styledValue)
+	}
 
 	var requestBody any
 
@@ -2362,7 +2482,13 @@ func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.Get
 	if options.Note == nil {
 		queryParams["note"] = ""
 	} else {
-		queryParams["note"] = maybeAllowReserved(serializeStyled("note", options.Note, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("note", options.Note, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["note"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	/* Required nullable query param: the Options field is a pointer. A nil
 	 * pointer is sent as the key with an empty value; a typed nil pointer must
@@ -2370,7 +2496,13 @@ func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.Get
 	if options.Rank == nil {
 		queryParams["rank"] = ""
 	} else {
-		queryParams["rank"] = maybeAllowReserved(serializeStyled("rank", options.Rank, "query", "int32", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("rank", options.Rank, "query", "int32", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["rank"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -2514,7 +2646,13 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -2663,12 +2801,24 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "photoId", fmt.Sprintf("%v", serializeStyled("photoId", photoId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("photoId", photoId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "photoId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -2825,14 +2975,32 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	/* A date is formatted as YYYY-MM-DD first and then styled like any other
 	 * path value, so a matrix or label style on a date parameter applies too. */
-	path = replacePathParam(path, "asOf", fmt.Sprintf("%v", serializeStyled("asOf", stringifyDate(asOf), "path", "string", "", "matrix", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("asOf", stringifyDate(asOf), "path", "string", "", "matrix", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "asOf", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Days != nil {
-		queryParams["days"] = maybeAllowReserved(serializeStyled("days", options.Days, "query", "[]string", "multi", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("days", options.Days, "query", "[]string", "multi", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["days"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -2846,7 +3014,13 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 	 * how this function reports every other invalid-parameter condition. */
 	{
 		var cookieValue string
-		cookieValue = fmt.Sprintf("%v", serializeStyled("session", options.Session, "cookie", "string", "", "form", true))
+		{
+			styledValue, styledErr := serializeStyledChecked("session", options.Session, "cookie", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			cookieValue = fmt.Sprintf("%v", styledValue)
+		}
 		if !isValidCookieValue(cookieValue) {
 			return nil, fmt.Errorf("%w: cookie value for '%s' contains characters forbidden by RFC 6265", ErrInvalidCookie, "session")
 		}
@@ -2995,19 +3169,43 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "matrix", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "matrix", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	/* Path params route through serializeStyled so OAS path styles
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "tagName", fmt.Sprintf("%v", serializeStyled("tagName", tagName, "path", "string", "", "label", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("tagName", tagName, "path", "string", "", "label", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "tagName", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Colors != nil {
-		queryParams["colors"] = maybeAllowReserved(serializeStyled("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("colors", options.Colors, "query", "[]string", "pipes", "pipeDelimited", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["colors"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Sizes != nil {
-		queryParams["sizes"] = maybeAllowReserved(serializeStyled("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("sizes", options.Sizes, "query", "[]string", "ssv", "spaceDelimited", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["sizes"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	/* allowEmptyValue means the server tolerates an empty value WHEN the client
 	 * sends the key; it does not require the SDK to always send the key. When the
@@ -3015,16 +3213,40 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 	 * other optional query params above). An explicit empty value supplied by the
 	 * caller still flows through serializeStyled and emits the bare "key=". */
 	if options != nil && options.Filter != nil {
-		queryParams["filter"] = maybeAllowReserved(serializeStyled("filter", options.Filter, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("filter", options.Filter, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["filter"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Revision != nil {
-		queryParams["revision"] = maybeAllowReserved(serializeStyled("revision", options.Revision, "query", "string", "", "form", true), true)
+		{
+			styledValue, styledErr := serializeStyledChecked("revision", options.Revision, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["revision"] = maybeAllowReserved(styledValue, true)
+		}
 	}
 	if options != nil && options.Criteria != nil {
-		queryParams["criteria"] = maybeAllowReserved(serializeStyled("criteria", options.Criteria, "query", "PetCriteria", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("criteria", options.Criteria, "query", "PetCriteria", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["criteria"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.CriteriaCsv != nil {
-		queryParams["criteriaCsv"] = maybeAllowReserved(serializeStyled("criteriaCsv", options.CriteriaCsv, "query", "PetCriteria", "", "form", false), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("criteriaCsv", options.CriteriaCsv, "query", "PetCriteria", "", "form", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["criteriaCsv"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.CriteriaDeep != nil {
 		deepParams, err := serializeDeepObject("criteriaDeep", options.CriteriaDeep)
@@ -3036,15 +3258,33 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 		}
 	}
 	if options != nil && options.Fingerprint != nil {
-		queryParams["fingerprint"] = maybeAllowReserved(serializeStyled("fingerprint", options.Fingerprint, "query", "[]byte", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("fingerprint", options.Fingerprint, "query", "[]byte", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["fingerprint"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
 	if options != nil && options.XCriteria != nil {
-		headerParams["X-Criteria"] = fmt.Sprintf("%v", serializeStyled("X-Criteria", options.XCriteria, "header", "PetCriteria", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("X-Criteria", options.XCriteria, "header", "PetCriteria", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["X-Criteria"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 	if options != nil && options.XFingerprint != nil {
-		headerParams["X-Fingerprint"] = fmt.Sprintf("%v", serializeStyled("X-Fingerprint", options.XFingerprint, "header", "[]byte", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("X-Fingerprint", options.XFingerprint, "header", "[]byte", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["X-Fingerprint"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 
 	var requestBody any
@@ -3182,7 +3422,13 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 	if server != nil {
 		serverUrl := server.GetUrl()
 		if strings.HasPrefix(serverUrl, "http://") || strings.HasPrefix(serverUrl, "https://") {
@@ -3328,7 +3574,13 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -3439,7 +3691,13 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -3528,7 +3786,13 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -3703,7 +3967,13 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -3855,7 +4125,13 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -4011,7 +4287,13 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("petId", petId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "petId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 

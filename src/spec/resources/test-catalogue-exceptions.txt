@@ -111,7 +111,6 @@ elixir | transport068 | Elixir has no cancellation handle on a call, so a call i
 elixir | transport069 | Elixir has no cancellation signal or caller context argument: a call is cancelled by its process exiting, which bhv transport 060 asserts reaches the request, and process-local values are never passed to the transport
 elixir | transport075 | The SDK hands the whole body to OTP's :zstd.decompress with no size cap, and the zstd codec exists only on OTP 28 and later; the SDK cannot produce a frame without a declared size to assert the expansion-ratio rule against
 go | serializationobject223 | Go's time.Duration is int64 nanoseconds, about 292 years (9223372036 s), so the protobuf bound of 315576000000 s cannot be stored and every value past about 292 years is refused as out of range
-go | serializationparam108 | serializeStyled returns no error and objectEntries keeps a nested property as its JSON text, so a styled object with a nested leaf is sent, not refused; refusing it needs an error return through serializeStyled and its callers
 java | transport064 | java.net.http reads every response body into a byte[] (BodyHandlers.ofByteArray) before the redirect is judged, so an intermediate response holds no connection or stream and there is nothing to release
 kotlin | servers024 | ServerVariable is a data class whose enumValues is the List the caller passed; a frozen copy would turn it into a regular class with hand-written equals, hashCode and copy, a public API change, so kotlin relies on the read-only List type and does not copy the caller's list
 kotlin | transport061 | Kotlin request bodies are ByteArray values and the MultipartWriter buffers every part into a ByteArrayOutputStream, so no caller-supplied stream reaches the SDK and there is no handle that could be left open
@@ -149,7 +148,6 @@ dart | serialization051 | Dart has no reflection, so the absence of a public unk
 dart | lifecycle040 | Dart has no scoped-disposal statement, and its standard disposal hook is close(), which bhv lifecycle 036 covers
 dart | servers026 | ServerVariable is built by a const constructor, which cannot copy its allowed-values list, so the caller's list stays referenced; the enumValues getter reads that list, and no copy can be taken at construction
 dart | servers025 | ServerConfiguration is built by a const constructor, which cannot copy its variables map, so the caller's map stays referenced; a copy at construction is impossible
-go | auth005 | Go's API-key authenticators take one fixed key and have no provider function; only the bearer token takes a provider, which bhvauthbearer014 covers
 go | auth008 | the PKCE verifier is made inside the unexported oauth package and the generated tests are external, so the RFC 7636 vector cannot be fed to pkceChallenge; the authorization URL carries a random verifier, so only the exchange proof (bhvauthoauthtwoauthcode023) is checked
 go | models014 | Go models expose their fields as plain struct fields that a caller can assign, so the language does not freeze a built model; changes are made on a copy through the With methods
 go | models020 | Go models that hold map or slice fields are not comparable and cannot key a Go map or set, so equality is the Equal method alone and there is no hash to make equal models hash alike
@@ -273,7 +271,7 @@ python | serialization129 | python datetime.timedelta stores microseconds at mos
 node | auth039 | the bearer constructor takes one argument that is either the token string or the token provider, so passing both is a compile-time type error and cannot reach a runtime refusal (the same case as authbearer026)
 dart | operations164 | Dart's sound null safety makes a nil required parameter unrepresentable: passing null is a compile error, so no ArgumentError can be raised at runtime; empty required values are covered by bhv operations 050
 go | auth039 | Go's client constructors take a token or a token provider through separate constructors (NewClientWithToken and NewClientWithTokenProvider), so no call can pass both
-go | auth042 | Go strings have no absent value, so an explicitly passed empty string is the same argument as an omitted one and both read the environment (bhv authapikey021 pins that); keeping them apart needs a pointer parameter on every credential constructor, a breaking change to the public API
+go | auth042 | Go constructors take credentials as plain string parameters, so an explicitly passed empty string and an omitted one are the same argument; the environment is read for both (bhv authapikey021), and keeping them apart needs a pointer parameter on every constructor, which would change the public API of the other eleven shapes
 rust | auth039 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test
 swift | auth039 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it
 swift | auth038 | a token provider is a caller closure the SDK never reads from the environment, and the generated bearer wrappers take a static token and an environment variable but no provider, so the provider cannot be ranked against the environment
@@ -290,9 +288,8 @@ go | redirects056 | Go has no per-call switch that drops the transport default h
 go | transport083 | the Go client has no client-level cancellation: Close is graceful and lets requests in flight finish (F1078), and cancellation is per call through its context.Context, which transport084 pins
 go | misc012 | the petstore declares no required argument that Go can pass as nil: every required parameter is a value type (int64, string, Account) that cannot be nil, and PlaceOrder's body is optional in the spec, so a nil order is no body by design; operations164 covers the empty required string
 go | misc049 | the petstore declares no oneOf between a single binary value and a list of binary values, so the list-of-bytes choice has no generated union to test
-go | misc050 | Go's per-call options (WithTimeout, WithHeaders, WithMaxRetries) do not overlap any field of an operation's Options struct, so no per-call option overrides an Options field to test
 go | misc051 | Go's Options structs and call options are typed, so an unknown key or a server setting on an operation without servers cannot be passed to compile at all
-go | misc060 | the Go API-key authenticators take one fixed key and have no provider function (auth005 records this), so an API key and a provider cannot be passed together
+go | misc060 | the API-key authenticator takes a fixed key (NewApiKeyAuthenticator) or a provider (NewApiKeyAuthenticatorWithProvider) through separate constructors, so no call can pass both; the same reason as authbearer026
 go | misc071 | the client's transport reaches a credential only through the SDK's own token and discovery requests, and the petstore's OAuth credential request is not observable through the client transport in a Go-specific way beyond the existing token-manager tests
 go | misc072 | every API group is built from the same Credentials value in NewClient, and the only operations that need a scheme are on PetApi, so a second group's credential has no observable operation in the petstore
 go | misc075 | Go's Credentials struct has one typed field per scheme, so a credential keyed to an undeclared scheme cannot be passed to compile
@@ -413,7 +410,6 @@ csharp | misc060 | the API key constructor takes one key string and has no provi
 csharp | misc065 | C# takes each scheme credential as its own named constructor parameter and the client builds its own dictionary from them, so the caller holds no map whose later changes could reach the API
 csharp | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so no request needs two credentials
 csharp | misc075 | C# takes each scheme credential as a named optional constructor parameter, so a credential keyed to an undeclared scheme is a compile-time error rather than a refusal at build
-go | misc145 | Go exposes the additional-properties map as a plain exported field, so reading it hands back the live map; the copy is taken only when the map is set through WithAdditionalProperties
 go | misc149 | Go's typed With methods exist only for declared fields, so an undeclared attribute cannot be named and the compiler refuses the call before any copy is made
 go | misc153 | Go has no client-level cancellation signal: a context is passed to each call, so a cancel signal only ever reaches the one call it is given
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
@@ -443,7 +439,6 @@ csharp | misc182 | the C# SDK has no API that removes a default or per-call head
 csharp | misc185 | the C# OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 kotlin | misc074 | The petstore fixture names one scheme per security alternative, so no operation sends the credentials of two schemes at once
 kotlin | misc075 | The scheme constructor takes one optional parameter per declared scheme, so a credential cannot be keyed to an undeclared scheme; the compiler refuses it
-go | misc185 | the Go OAuth2 token manager has no stop call and no closed state, so a second stop and a token request after stop cannot be expressed
 csharp | misc100 | The C# SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
 java | misc100 | The Java SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back
 python | misc145 | python exposes additional_properties as the model's own dict field, so reading it hands back the stored dict rather than a copy

@@ -1628,3 +1628,20 @@ func TestBhvMisc255_ValueSerializer_QuerySpaceIsEncodedAsPercent20(t *testing.T)
 		t.Errorf("expected a%%20b, got %q", got)
 	}
 }
+
+// A nested object leaf in a styled parameter is rejected with a serialization error.
+func TestBhvSerializationparam108_ValueSerializer_SerializeStyledChecked_NestedObjectLeafIsRejected(t *testing.T) {
+	t.Parallel()
+	value := map[string]any{"breed": "lab", "nested": map[string]any{"inner": 1}}
+	_, err := serializeStyledChecked("criteria", value, "query", "object", "", "form", true)
+	var serialization *pkgerrors.SerializationError
+	if !errors.As(err, &serialization) {
+		t.Fatalf("expected *SerializationError, got %T: %v", err, err)
+	}
+	if !strings.Contains(err.Error(), "'nested'") {
+		t.Errorf("expected the message to name the property, got %q", err.Error())
+	}
+	if _, err := serializeStyledChecked("criteria", map[string]any{"breed": "lab", "size": 2}, "query", "object", "", "form", true); err != nil {
+		t.Errorf("an object of scalars must serialize, got %v", err)
+	}
+}

@@ -353,6 +353,18 @@ func (o {{classname}}) WithAdditionalProperties(value map[string]{{#vendorExtens
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o {{classname}}) GetAdditionalProperties() map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}} {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 {{/isAdditionalPropertiesTrue}}
 {{#hasVars}}
 // New{{classname}} creates a new {{classname}} instance.

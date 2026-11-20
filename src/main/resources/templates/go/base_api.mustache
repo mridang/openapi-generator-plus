@@ -311,7 +311,19 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			for k, v := range params.queryParams {
 				queryParams[k] = v
 			}
-			for k, v := range effectiveAuth.QueryParams() {
+			var authQuery map[string]string
+			if p, ok := effectiveAuth.(interface {
+				QueryParamsOrErrorContext(context.Context) (map[string]string, error)
+			}); ok {
+				q, qerr := p.QueryParamsOrErrorContext(ctx)
+				if qerr != nil {
+					return "", nil, qerr
+				}
+				authQuery = q
+			} else {
+				authQuery = effectiveAuth.QueryParams()
+			}
+			for k, v := range authQuery {
 				queryParams[k] = v
 			}
 		}
@@ -368,7 +380,18 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 			 * arrive as literal `%3D` and break JWT/session cookies. Validate and
 			 * pass through raw instead. Invalid input is a caller mistake and is
 			 * returned as ErrInvalidCookie. */
-			cookies := effectiveAuth.CookieParams()
+			var cookies map[string]string
+			if p, ok := effectiveAuth.(interface {
+				CookieParamsOrErrorContext(context.Context) (map[string]string, error)
+			}); ok {
+				c, cerr := p.CookieParamsOrErrorContext(ctx)
+				if cerr != nil {
+					return "", nil, cerr
+				}
+				cookies = c
+			} else {
+				cookies = effectiveAuth.CookieParams()
+			}
 			if len(cookies) > 0 {
 				/* A Go map has no order, so the cookies are written sorted by name:
 				 * the same header bytes on every run. */

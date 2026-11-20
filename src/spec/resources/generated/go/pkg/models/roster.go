@@ -74,6 +74,18 @@ func (o Roster) WithAdditionalProperties(value map[string]Category) Roster {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Roster) GetAdditionalProperties() map[string]Category {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]Category, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewRoster creates a new Roster instance.
 func NewRoster() *Roster {
 	return &Roster{
