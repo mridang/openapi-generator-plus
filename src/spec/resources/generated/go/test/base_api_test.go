@@ -398,6 +398,33 @@ func TestBhvTracing013_BaseApi_OperationSendsTheTraceparentOfTheCallersSpan(t *t
 	}
 }
 
+// slowAuth builds its headers only after a delay, as an authenticator does while it waits on a token.
+type slowAuth struct{ delay time.Duration }
+
+func (a *slowAuth) Host() string { return "" }
+func (a *slowAuth) AuthHeaders() map[string]string {
+	time.Sleep(a.delay)
+	return map[string]string{"Authorization": "Bearer slow"}
+}
+func (a *slowAuth) QueryParams() map[string]string  { return map[string]string{} }
+func (a *slowAuth) CookieParams() map[string]string { return map[string]string{} }
+
+// The span still reaches traceparent when building the headers first waits on the credentials.
+func TestBhvTracing014_BaseApi_TheSpanReachesTraceparentWhenTheCredentialsAreSlow(t *testing.T) {
+	registerW3CTracePropagator(t)
+	client := &capturingApiClient{responseBody: `{"name":"Test","photoUrls":[]}`}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, &slowAuth{delay: 50 * time.Millisecond}, petstore.Credentials{})
+
+	ctx, want := startCallerSpan(t, context.Background())
+	if _, err := api.AddPet(ctx, *models.NewPet("Test", []string{}), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := client.capturedHeaders["traceparent"]; got != want {
+		t.Errorf("traceparent header = %q, want %q", got, want)
+	}
+}
+
 // Concurrent operations each send the traceparent of their own caller's span.
 func TestBhvTracing015_BaseApi_ConcurrentOperationsSendTheirOwnCallersTraceparent(t *testing.T) {
 	registerW3CTracePropagator(t)
@@ -1653,6 +1680,24 @@ func TestBhvMisc081_BaseApi_StringResultUnderBinaryContentTypeIsTheDecodedBody(t
 	}
 	if got != "hello" {
 		t.Errorf("expected the decoded body hello, got %q", got)
+	}
+}
+
+// A text/plain response is returned as the raw text and is never decoded, even when the text looks like base64.
+func TestBhvOperations161_BaseApi_TextPlainResponseIsReturnedRaw(t *testing.T) {
+	t.Parallel()
+	client := &binaryResponseApiClient{
+		responseBody:        "aGVsbG8=",
+		responseContentType: "text/plain",
+	}
+	config := petstore.NewConfigurationBuilder().BaseURL("http://localhost").Build()
+	api := petstore.NewPetApi(client, config, nil, petstore.Credentials{})
+	got, err := api.GetPetSummary(context.Background(), int64(1), "2024-01-01", &options.GetPetSummaryOptions{Session: "s"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != "aGVsbG8=" {
+		t.Errorf("expected the raw text, got %q", got)
 	}
 }
 

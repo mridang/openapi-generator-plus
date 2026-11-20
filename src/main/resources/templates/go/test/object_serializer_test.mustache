@@ -2433,6 +2433,30 @@ func TestBhvMisc103_ObjectSerializer_StrictRejectionIsPerModel(t *testing.T) {
 	}
 }
 
+// Properties are read and matched only by their wire name, never by the SDK's own attribute name.
+func TestBhvMisc092_ObjectSerializer_AKeyThatIsTheGoFieldNameDoesNotPopulateTheField(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"PhotoUrls":["bad"]}`), &pet); err != nil {
+		t.Fatalf("an unknown key must be ignored, got %v", err)
+	}
+	if len(pet.PhotoUrls) != 0 {
+		t.Errorf("the Go field name must not match a wire key, got %v", pet.PhotoUrls)
+	}
+}
+
+// An input object with no fields is filled with every declared default value.
+func TestBhvMisc215_ObjectSerializer_AnEmptyObjectIsFilledWithItsDeclaredDefaults(t *testing.T) {
+	t.Parallel()
+	var defaults models.Defaults
+	if err := deserialize([]byte(`{}`), &defaults); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if defaults.Retries == nil || *defaults.Retries != 3 {
+		t.Errorf("expected the declared retries default of 3, got %v", defaults.Retries)
+	}
+}
+
 // F1111: unevaluatedProperties:false refuses an undeclared key as a
 // *SerializationError, still decodes the declared keys, and does not leak onto
 // a model that does not declare it.

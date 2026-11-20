@@ -1182,6 +1182,11 @@ public class BetterGoCodegen extends AbstractBetterCodegen {
                         "oauth2_authorization_code_authenticator_test.go",
                         OAuthTestCondition.AUTH_CODE),
                 new OAuthTestFileSpec(
+                        "test/oauth2_pkce_unit_test.mustache",
+                        "pkg/auth/oauth",
+                        "oauth2_pkce_test.go",
+                        OAuthTestCondition.AUTH_CODE),
+                new OAuthTestFileSpec(
                         "test/oauth2_implicit_authenticator_test.mustache",
                         "test",
                         "oauth2_implicit_authenticator_test.go",

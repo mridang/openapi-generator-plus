@@ -121,6 +121,26 @@ func TestBhvHeaders030_BaseApi_InvokeApi_ALowerCaseDefaultAcceptReplacesTheNegot
 	}
 }
 
+// A text body sent without a declared content type goes out with the JSON media type and no parameters.
+func TestBhvMisc202_BaseApi_InvokeApi_ATextBodyWithNoDeclaredContentTypeIsSentAsJson(t *testing.T) {
+	t.Parallel()
+	client := &acceptCapturingClient{}
+	base := newBaseApi(client, NewConfigurationBuilder().BaseURL("http://localhost").Build(), nil)
+
+	if _, err := base.invokeApi(invokeApiParams{method: "POST", path: "/items", body: "plain text", contentType: ""}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got string
+	for header, value := range client.headers {
+		if strings.EqualFold(header, "Content-Type") {
+			got = value
+		}
+	}
+	if got != "application/json" {
+		t.Errorf("expected the bare JSON media type, got %q", got)
+	}
+}
+
 // Accept has three layers: the one negotiated from the operation's responses,
 // the client's default, and a header parameter the caller passes for the call.
 // The parameter beats both of the others, and the default beats the negotiated.

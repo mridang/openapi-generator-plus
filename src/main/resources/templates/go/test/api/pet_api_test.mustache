@@ -1939,6 +1939,41 @@ func TestBhvOperations080_PetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(
 	}
 }
 
+// Each API group of a client holds the default credential and the scheme credentials the client was built with.
+func TestBhvMisc072_PetApi_EveryGroupOfAClientHoldsItsSchemeCredentials(t *testing.T) {
+	t.Parallel()
+	var petKey, storeAuth, storeKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		if strings.HasPrefix(r.URL.Path, "/store/audit") {
+			storeAuth, storeKey = r.Header.Get("Authorization"), r.Header.Get("X-API-Key")
+			_, _ = w.Write([]byte(`{"code":1}`))
+			return
+		}
+		petKey = r.Header.Get("X-API-Key")
+		_, _ = w.Write([]byte(`{"id":1,"name":"x","photoUrls":[]}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	header, _ := auth.NewApiKeyHeaderAuthenticator(server.URL, "header-key")
+	client, err := {{packageName}}.New{{clientClassName}}WithCredentials(server.URL, {{packageName}}.Credentials{PetStoreBearer: bearer, ApiKeyHeader: header}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Pet.AddPet(context.Background(), *models.NewPet("Dog", models.Set[string]{"http://example.com/a.jpg"}), nil); err != nil {
+		t.Fatalf("AddPet failed: %v", err)
+	}
+	if _, err := client.Store.GetAuditTrail(context.Background(), nil); err != nil {
+		t.Fatalf("GetAuditTrail failed: %v", err)
+	}
+	if petKey != "header-key" || storeAuth != "Bearer bearer-token" || storeKey != "header-key" {
+		t.Errorf("expected both groups to carry their credentials, got pet key %q, store authorization %q and store key %q", petKey, storeAuth, storeKey)
+	}
+}
+
 // An alternative whose requirement names two schemes sends the credentials of both.
 func TestBhvMisc074_PetApi_ARequirementNamingTwoSchemesSendsBothCredentials(t *testing.T) {
 	t.Parallel()
