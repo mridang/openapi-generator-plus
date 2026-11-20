@@ -16,6 +16,9 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceAccessMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
+import org.junit.jupiter.api.parallel.ResourceLocks;
 
 /**
  * Guardrail G5 (F1172): a generated file may not switch off a whole tool or rule set. A named
@@ -86,6 +89,21 @@ class BlanketLintDisableTest {
   }
 
   @Test
+  /* A generator test rewrites its golden while this walks it, so read every golden under its lock. */
+  @ResourceLocks({
+    @ResourceLock(value = "generated-csharp", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-dart", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-elixir", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-go", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-java", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-kotlin", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-node", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-php", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-python", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-ruby", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-rust", mode = ResourceAccessMode.READ),
+    @ResourceLock(value = "generated-swift", mode = ResourceAccessMode.READ)
+  })
   @DisplayName("no committed golden disables a whole tool or rule set")
   void noGoldenCarriesABlanketDisable() throws IOException {
     final List<String> violations = new ArrayList<>();
