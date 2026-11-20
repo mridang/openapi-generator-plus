@@ -85,7 +85,6 @@ rust | lifecycle030 | rust's with_credentials takes the host as a required argum
 rust | options045 | max_redirects takes an Option<usize>, so a negative count cannot be passed and the compiler rejects it before the builder runs
 rust | retries032 | RequestBody has only Bytes and Multipart variants and no stream body, so a streamed upload is not a request type here; the one body never sent twice is multipart, pinned by bhv retries 003
 swift | authbearer026 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it
-swift | lifecycle030 | the scheme initializer takes the base URL as its required host argument (init(host:...)), so no scheme credential ever supplies the base URL and the second half of the promise cannot exist; the authenticator-first half is the init(authenticator:) path
 csharp | transport065 | The pinned CA is applied inside a private ServerCertificateCustomValidationCallback that no public member exposes, and the offline Chasm host has no certificate chained to a system root, so the replace-not-add rule cannot be observed through the SDK public API
 dart | servers020 | the per-operation server variables are enum-typed constructor arguments (GetStagingPetInfoServerEnvironment, GetStagingPetInfoServerVersion), so a value outside the enum does not compile and never reaches the URL template
 dart | transport060 | Dart has no cancellation handle: a Future cannot be cancelled and the SDK exposes no cancel token or abort trigger (the readme documents this), so a call is bounded only by its timeout, covered by bhv transport 024
@@ -208,7 +207,6 @@ kotlin | serializationobject407 | ipv4 and ipv6 are plain strings in kotlin: the
 node | serializationobject407 | ipv4 and ipv6 are plain strings in node: the standard library has no address value type, so nothing is checked and no error can be raised
 php | serializationobject407 | ipv4 and ipv6 are plain strings in php: the language has no address class, so nothing is checked and no error can be raised
 dart | serializationobject407 | ipv4 and ipv6 are plain Strings in dart: InternetAddress lives in dart:io, which the models cannot import because the SDK also builds for the web
-swift | serializationobject407 | ipv4 and ipv6 are plain Strings in swift: the Network framework is not available on Linux, so nothing is checked and no error can be raised
 php | serializationobject410 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 php | serializationobject411 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
 php | serializationobject412 | PHP decodes a bare type: number or a decimal string into a binary float, so it cannot be exact and written in plain notation the way a decimal type is (D83, FD-11); the loss is documented in the README
@@ -241,7 +239,6 @@ go | auth039 | Go's client constructors take a token or a token provider through
 go | auth042 | Go strings have no absent value, so an explicitly passed empty string is the same argument as an omitted one and both read the environment (bhv authapikey021 pins that); keeping them apart needs a pointer parameter on every credential constructor, a breaking change to the public API
 rust | auth039 | BearerAuthenticator takes a fixed token in new(host, token) and a token provider in with_token_provider(host, provider), so one call cannot pass both and the refusal is a compile error with no run-time check to test
 swift | auth039 | BearerAuthenticator has a token initializer and a tokenProvider initializer as separate overloads, so passing both at once does not compile and no run-time test can observe it
-swift | auth038 | a token provider is a caller closure the SDK never reads from the environment, and the generated bearer wrappers take a static token and an environment variable but no provider, so the provider cannot be ranked against the environment
 elixir | auth039 | Elixir has one credential argument that is either a string or a zero-arity function, so a token and a token provider cannot be passed together (the same reason as authbearer026)
 elixir | auth052 | Elixir has no async accessor: auth_headers/1 is the only way to read headers and it is synchronous, so the asynchronous refusal the promise names cannot exist; the synchronous refusal is asserted by bhv auth 001
 go | operations161 | the only text/plain operation in the fixture is testTextPlain, an x-internal mock that DropInternalOperationsRule removes from every SDK, so no generated Go operation returns text/plain; a text/plain body for a model return is already pinned by TestBinaryResponse_TextPlainBodyForModelReturnIsASerializationError
@@ -487,7 +484,6 @@ java | misc231 | Java builders and setters take the declared property type, so a
 
 swift | transport083 | Swift has no client-level cancellation token: cancellation is the calling Task, per call, and transport084 covers cancelling a call through its handle
 swift | transport093 | libcurl on Linux takes its CA bundle from fixed system paths and swift-corelibs-foundation reads URLSessionCertificateAuthorityInfoFile only on Android and raises no server-trust challenge, so a CA file or disabled verification cannot be applied there and the SDK refuses both at construction (D72); no CA can be pinned or trusted in the Linux suite
-swift | serialization068 | Swift model initializers take typed parameters, so wrong types, unknown enum values and a missing required field cannot be passed in; the compiler rejects them before any model exists
 
 rust | transport091 | Uploads are passed as in-memory bytes (MultipartValue::Bytes) and the SDK never opens a file or stream handle, so there is no caller-owned handle for it to leave open.
 rust | serialization114 | Numbers are f64 by the settled decision D83 (docs/languages/rust.md, known limits), so a long decimal loses digits; an exact decimal type is under review and not decided.

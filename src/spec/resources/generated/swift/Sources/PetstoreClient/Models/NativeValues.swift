@@ -92,7 +92,8 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.address6 = try container.decodeIfPresent(String.self, forKey: .address6)
     self.addresses = try container.decodeIfPresent([String].self, forKey: .addresses)
     self.homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
-    self.amount = try container.decodeIfPresent(Decimal.self, forKey: .amount)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.amount = try container.decodeDecimalNumberIfPresent(forKey: .amount)
     self.ledger = try container.decodeIfPresent(String.self, forKey: .ledger).map {
       try ObjectSerializer.decodeDecimalString($0)
     }
@@ -102,6 +103,9 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.since = try container.decodeIfPresent(String.self, forKey: .since)
     self.host = try container.decodeIfPresent(String.self, forKey: .host)
     self.contact = try container.decodeIfPresent(String.self, forKey: .contact)
+    try ObjectSerializer.requireIpAddress(self.address4, format: "ipv4", property: "address4")
+    try ObjectSerializer.requireIpAddress(self.address6, format: "ipv6", property: "address6")
+    try ObjectSerializer.requireIpAddress(self.addresses, format: "ipv6", property: "addresses")
     try ObjectSerializer.requireAbsoluteUri(self.homepage, property: "homepage")
   }
 

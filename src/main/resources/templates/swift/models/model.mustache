@@ -169,11 +169,11 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
 {{#defaultValue}}
         self.{{name}} = container.contains(.{{name}})
-            ? try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            ? try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
             : {{{.}}}
 {{/defaultValue}}
 {{^defaultValue}}
-        self.{{name}} = try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+        self.{{name}} = try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
 {{/defaultValue}}
 {{/vendorExtensions.isNarrowInt}}
 {{^vendorExtensions.isNarrowInt}}
@@ -246,6 +246,9 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#isUri}}
         try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
 {{/isUri}}
+{{#vendorExtensions.isIpAddress}}
+        try ObjectSerializer.requireIpAddress(self.{{name}}, format: "{{vendorExtensions.ipFormat}}", property: "{{baseName}}")
+{{/vendorExtensions.isIpAddress}}
 {{/vars}}
 {{#isUnevaluatedPropertiesFalse}}
         /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -400,11 +403,11 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
         /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
 {{#defaultValue}}
         self.{{name}} = container.contains(.{{name}})
-            ? try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            ? try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
             : {{{.}}}
 {{/defaultValue}}
 {{^defaultValue}}
-        self.{{name}} = try container.decodeInt32{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+        self.{{name}} = try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
 {{/defaultValue}}
 {{/vendorExtensions.isNarrowInt}}
 {{^vendorExtensions.isNarrowInt}}
@@ -489,6 +492,9 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#isUri}}
         try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
 {{/isUri}}
+{{#vendorExtensions.isIpAddress}}
+        try ObjectSerializer.requireIpAddress(self.{{name}}, format: "{{vendorExtensions.ipFormat}}", property: "{{baseName}}")
+{{/vendorExtensions.isIpAddress}}
 {{/vars}}
     }
 

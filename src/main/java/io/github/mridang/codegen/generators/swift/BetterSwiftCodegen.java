@@ -525,8 +525,22 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         property.vendorExtensions.put(
                 "isDecimalString",
                 "Decimal".equals(property.dataType) && "string".equals(property.openApiType));
+        boolean decimalNumber =
+                "Decimal".equals(property.dataType) && "number".equals(property.openApiType);
         property.vendorExtensions.put(
-                "isNarrowInt", !property.isEnum && !property.isContainer && "Int".equals(property.dataType));
+                "isNarrowInt",
+                decimalNumber
+                        || (!property.isEnum && !property.isContainer && "Int".equals(property.dataType)));
+        property.vendorExtensions.put("checkedNumber", decimalNumber ? "DecimalNumber" : "Int32");
+        String ipFormat =
+                property.dataFormat != null
+                        ? property.dataFormat
+                        : (property.items != null ? property.items.dataFormat : null);
+        boolean isIp = "ipv4".equals(ipFormat) || "ipv6".equals(ipFormat);
+        property.vendorExtensions.put("isIpAddress", isIp);
+        if (isIp) {
+            property.vendorExtensions.put("ipFormat", ipFormat);
+        }
         /* UUID encodes itself in uppercase; arrays and maps of UUIDs are
          * flagged so the model template writes them lowercase. */
         org.openapitools.codegen.CodegenProperty uuidItems = property.items;
@@ -1022,6 +1036,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 "BasicAuthenticator".equals(spec.baseClass())
                         || "BearerAuthenticator".equals(spec.baseClass());
         ctx.put("needsOverride", needsOverride);
+        ctx.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
         ctx.put("constructorSignature", buildSwiftConstructorSignature(spec, hasEnvVars, true));
         ctx.put("environmentSignature", buildSwiftConstructorSignature(spec, hasEnvVars, false));
         ctx.put("forwardArguments", buildSwiftForwardArguments(spec));

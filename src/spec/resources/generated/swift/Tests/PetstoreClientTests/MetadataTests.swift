@@ -300,6 +300,15 @@ import Testing
     #expect(String(describing: error).contains("name"))
   }
 
+  /* Building a model in code does not validate it: values that are wrong for the schema are kept as given and raise
+     nothing (a wrong type or a missing required field cannot be written at all). */
+  @Test func testBhvSerialization068BuildingAModelDoesNotValidateIt() {
+    let pet = Pet(name: "", photoUrls: [""])
+    #expect(pet.name == "")
+    #expect(pet.photoUrls == [""])
+    #expect(Order(quantity: -5).quantity == -5)
+  }
+
   @Test func testBhvModels021IntegerEnumMembersAreLowerCamelCase() {
     #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
     #expect(Priority.number1.rawValue == 1)

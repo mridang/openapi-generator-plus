@@ -409,11 +409,14 @@ import Testing
     }
 
     /* A number the native decimal cannot hold fails with the serialization error and is never rounded. */
-    @Test func testBhvSerializationobject412ANumberTooLongForADecimalIsRefusedNotRounded() {
+    @Test func testBhvSerializationobject412ANumberTooLongForADecimalIsRefusedNotRounded() throws {
         let digits = String(repeating: "1", count: 60)
         #expect(throws: SerializationError.self) {
             _ = try ObjectSerializer.deserialize("{\"amount\":\(digits)}", as: NativeValues.self)
         }
+        /* Only a decimal field refuses it: a Double field still reads a long number. */
+        let long = "1." + String(repeating: "2", count: 60)
+        #expect(try ObjectSerializer.deserialize("{\"ratio\":\(long)}", as: Defaults.self)?.ratio == 1.2222222222222223)
     }
 
     /* A duration finer than a nanosecond keeps every digit it can hold and cuts the rest off toward zero: it is
@@ -422,6 +425,20 @@ import Testing
         let value = try parseProtobufDuration("1.9999999999s")
         #expect(try formatProtobufDuration(value) == "1.999999999s")
         #expect(try formatProtobufDuration(try parseProtobufDuration("-1.9999999999s")) == "-1.999999999s")
+    }
+
+    /* A malformed address fails decode with the serialization error. */
+    @Test(arguments: [
+        ("address4", "01.2.3.4"), ("address4", "192.0.2.1/24"), ("address4", " 192.0.2.1"),
+        ("address4", "[::1]"), ("address4", "2001:db8::1"), ("address6", "fe80::1%eth0"),
+        ("address6", "[::1]"), ("address6", "2001:db8::/64"), ("address6", " ::1"), ("address6", "192.0.2.1"),
+    ])
+    func testBhvSerializationobject407AMalformedAddressFailsWithTheSerializationError(
+        field: String, text: String
+    ) {
+        #expect(throws: SerializationError.self) {
+            _ = try ObjectSerializer.deserialize("{\"\(field)\":\"\(text)\"}", as: NativeValues.self)
+        }
     }
 
     /* A value that cannot be serialized fails with a serialization error before anything is sent. */

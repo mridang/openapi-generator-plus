@@ -218,6 +218,15 @@ import Testing
 
     /* The variable is read once, when the authenticator is built: a later change to
        the environment does not reach a token that is already held. */
+    /* A token provider that is passed is used even when the environment variable holds a token. */
+    @Test func testBhvAuth038AProviderPassedInIsUsedAheadOfTheEnvironment() async throws {
+        let name = "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"
+        setenv(name, "from-env", 1)
+        defer { unsetenv(name) }
+        let auth = PetStoreBearerAuthenticator(host: "https://api.example.com", tokenProvider: { "from-provider" })
+        #expect(try await auth.authHeaders()["Authorization"] == "Bearer from-provider")
+    }
+
     @Test func testBhvLifecycle025BearerAuthenticatorsReadTheEnvironmentOnceWhenBuilt() async throws {
 {{#perSchemeAuthEntries}}
 {{#isBearerScheme}}

@@ -351,7 +351,6 @@ internal enum ObjectSerializer {
                 message: "JSON nesting depth \(depth) exceeds limit \(maxJsonDepth)"
             )
         }
-        try rejectNumbersTooLongToHold(stripped)
         /* A bare top-level JSON null is treated as an absent body (returns nil)
            rather than a decode error, for lenient parity with the other SDKs
            (kotlin/php special-case it the same way) whose parsers accept a
@@ -372,13 +371,14 @@ internal enum ObjectSerializer {
         let bytes = [UInt8](stripped)
         var parser = JsonShapeParser(bytes: bytes)
         let shape = parser.parseDocument()
+        let longKeys: Set<String> = shape.map { longNumberKeys(in: $0, bytes: bytes) } ?? []
         var payload = stripped
         if let shape, parser.hasDuplicateKeys {
             payload = Data(render(shape, from: bytes, probe: false))
         }
         let value: T
         do {
-            value = try decoder.decode(type, from: payload)
+            value = try $longNumberKeys.withValue(longKeys) { try decoder.decode(type, from: payload) }
         } catch {
             throw SerializationError(
                 message: "Failed to deserialize JSON",
@@ -387,7 +387,9 @@ internal enum ObjectSerializer {
         }
         if let shape, parser.hasNonIntegralNumber {
             do {
-                _ = try decoder.decode(type, from: Data(render(shape, from: bytes, probe: true)))
+                _ = try $longNumberKeys.withValue(longKeys) {
+                    try decoder.decode(type, from: Data(render(shape, from: bytes, probe: true)))
+                }
             } catch {
                 throw SerializationError(
                     message: "Failed to deserialize JSON: a number with a fraction or an exponent cannot be decoded into an integer field",
@@ -396,6 +398,25 @@ internal enum ObjectSerializer {
             }
         }
         return value
+    }
+
+    /// The member names, at any depth, whose number is too long for a `Decimal`.
+    private static func longNumberKeys(in shape: JsonShape, bytes: [UInt8]) -> Set<String> {
+        var keys = Set<String>()
+        switch shape {
+        case .object(let members):
+            for member in members {
+                if case .number(let range, _) = member.value, isTooLongToHold(bytes[range]) {
+                    keys.insert(member.key)
+                }
+                keys.formUnion(longNumberKeys(in: member.value, bytes: bytes))
+            }
+        case .array(let items):
+            for item in items { keys.formUnion(longNumberKeys(in: item, bytes: bytes)) }
+        default:
+            break
+        }
+        return keys
     }
 
     /// The shape of a JSON document as byte ranges of its original text, so
@@ -884,6 +905,18 @@ extension KeyedDecodingContainer {
     func decodeInt32IfPresent(forKey key: Key) throws -> Int? {
         return try decodeIfPresent(Int32.self, forKey: key).map { Int($0) }
     }
+
+    func decodeDecimalNumber(forKey key: Key) throws -> Decimal {
+        return try ObjectSerializer.decodeDecimalNumber(self, forKey: key)
+    }
+
+    func decodeDecimalNumberNullable(forKey key: Key) throws -> Decimal? {
+        return try contains(key) && !(try decodeNil(forKey: key)) ? decodeDecimalNumber(forKey: key) : nil
+    }
+
+    func decodeDecimalNumberIfPresent(forKey key: Key) throws -> Decimal? {
+        return try decodeDecimalNumberNullable(forKey: key)
+    }
 }
 
 extension ObjectSerializer {
@@ -904,48 +937,60 @@ extension ObjectSerializer {
     /// The most significant digits a decimal can hold.
     static let maxDecimalDigits = 38
 
-    /// Refuses a JSON number with more significant digits than a `Decimal`
-    /// holds, so a decimal is never silently rounded.
-    static func rejectNumbersTooLongToHold(_ data: Data) throws {
-        var inString = false
-        var escaped = false
+    /// The keys, in the document being decoded, whose number has more significant digits than a `Decimal` holds.
+    @TaskLocal static var longNumberKeys: Set<String> = []
+
+    /// Reads a decimal number. One with more digits than a `Decimal` holds is refused rather than rounded.
+    static func decodeDecimalNumber<K: CodingKey>(
+        _ container: KeyedDecodingContainer<K>, forKey key: K
+    ) throws -> Decimal {
+        if longNumberKeys.contains(key.stringValue) {
+            throw DecodingError.dataCorruptedError(
+                forKey: key, in: container,
+                debugDescription: "A number has more than \(maxDecimalDigits) significant digits and cannot be held exactly")
+        }
+        return try container.decode(Decimal.self, forKey: key)
+    }
+
+    /// Whether the text of a JSON number has more significant digits than a `Decimal` holds.
+    static func isTooLongToHold(_ number: ArraySlice<UInt8>) -> Bool {
         var digits = 0
         var seenNonZero = false
-        var inMantissa = false
-        for byte in data {
-            if inString {
-                if escaped {
-                    escaped = false
-                } else if byte == 0x5C {
-                    escaped = true
-                } else if byte == 0x22 {
-                    inString = false
-                }
-                continue
-            }
-            if byte == 0x22 {
-                inString = true
-                continue
-            }
+        for byte in number {
+            if byte == 0x65 || byte == 0x45 { break }
             if byte >= 0x30 && byte <= 0x39 {
-                if !inMantissa {
-                    inMantissa = true
-                    digits = 0
-                    seenNonZero = false
-                }
                 if byte != 0x30 { seenNonZero = true }
                 if seenNonZero { digits += 1 }
-                if digits > maxDecimalDigits {
-                    throw SerializationError(
-                        message: "A number has more than \(maxDecimalDigits) significant digits and cannot be held exactly")
-                }
-            } else if byte == 0x2E || byte == 0x2D || byte == 0x2B {
-                continue
-            } else if byte == 0x65 || byte == 0x45 {
-                inMantissa = false
-            } else {
-                inMantissa = false
             }
+        }
+        return digits > maxDecimalDigits
+    }
+
+    /// Refuses an ipv4 or ipv6 value that is not exactly an address of that family: a leading zero, a prefix length,
+    /// a zone id, brackets, surrounding whitespace or the other family all fail.
+    static func requireIpAddress(_ value: String?, format: String, property: String) throws {
+        guard let value = value else { return }
+        let valid: Bool
+        if format == "ipv4" {
+            let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+            valid = parts.count == 4
+                && parts.allSatisfy { part in
+                    !part.isEmpty && part.count <= 3 && part.allSatisfy { $0 >= "0" && $0 <= "9" }
+                        && (part == "0" || !part.hasPrefix("0")) && (Int(part) ?? 256) <= 255
+                }
+        } else {
+            var address = in6_addr()
+            valid = value.allSatisfy { $0.isASCII && ($0.isHexDigit || $0 == ":" || $0 == ".") }
+                && value.withCString { inet_pton(AF_INET6, $0, &address) } == 1
+        }
+        if !valid {
+            throw SerializationError(message: "'\(property)' is not a valid \(format) address: \(value)")
+        }
+    }
+
+    static func requireIpAddress(_ values: [String]?, format: String, property: String) throws {
+        for value in values ?? [] {
+            try requireIpAddress(value, format: format, property: property)
         }
     }
 }
