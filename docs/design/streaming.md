@@ -668,4 +668,3 @@ Status words: OK, PARTIAL (fetched, relevant part thin or truncated), SECONDARY 
 | T29 | https://spec.openapis.org/oas/v3.2.0.html | PARTIAL: read in 100,000-character chunks and summarised by the fetch tool; the third chunk (after character 200,000) was not read; wording is paraphrased |
 
 Not verified at all: Kiota streaming, Stainless's spec-level streaming configuration, the OkHttp SSE listener contract (the interface file fetched did not define it), how the AWS Go v2 SDK exposes event streams, and the behaviour of chasm for dropping SSE feeds.
-
