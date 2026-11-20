@@ -354,7 +354,6 @@ elixir | misc033 | the test certificates are generated per Maven run as one CA a
 elixir | misc034 | Elixir has no separate caller HTTP client beside a caller transport: a Finch pool and a Req adapter are both keys of one req_options list, which is accepted as given, so there is no client and transport pair to refuse
 elixir | misc035 | The SDK has no cancellation argument and no abort signal (readme), so no call can carry an already-aborted signal
 elixir | misc036 | A file part is an in-memory {:file, name, content} tuple that the SDK never consumes or closes, so the caller holds no handle that a failed request could leave unreadable
-rust | misc036 | Rust moves a caller's body into the call, so after a failed request the caller holds no part to read; readability after a failure does not arise
 dart | misc033 | the suite ships a single server certificate with no root and intermediate pair, so a root-only pinned CA file cannot be paired with a server that also sends the intermediate
 dart | misc035 | Dart futures have no abort signal, so a call cannot be aborted before it starts
 elixir | misc048 | The fixture has no operation whose declared response is a union, so no undeclared success status can decode as a union return type

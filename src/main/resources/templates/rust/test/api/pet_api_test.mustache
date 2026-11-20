@@ -670,6 +670,19 @@ async fn test_bhv_misc_178_a_declared_multipart_mixed_type_reaches_the_transport
     assert!(!header_text.contains("multipart/form-data"), "{}", header_text);
 }
 
+/* The options the caller passes by reference keep their parts after the call fails. */
+#[tokio::test]
+async fn test_bhv_misc_036_a_callers_multipart_part_stays_readable_after_the_request_fails() {
+    let (api, _) = new_pet_api_for_mock(500, "application/json", "{}");
+    let options = AttachPetFilesOptions::new(vec![9, 8, 7]).caption("note".to_string());
+
+    let outcome = api.attach_pet_files(1, Some(&options)).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(vec![9, 8, 7], options.file);
+    assert_eq!(Some("note".to_string()), options.caption);
+}
+
 #[tokio::test]
 async fn test_bhv_operations_061_pet_api_get_external_pet_info() {
     let api = new_pet_api_for_integration();
