@@ -54,6 +54,35 @@ async fn test_bhv_transport_017_default_api_client_makes_https_request_with_cust
     assert!(resp.body().contains("\"method\""));
 }
 
+/* The pinned CA file holds only the root; the server also sends the intermediate that
+ * links its leaf to that root, and the client accepts it. */
+#[tokio::test]
+async fn test_bhv_misc_033_a_root_only_pinned_ca_accepts_a_server_that_sends_the_intermediate() {
+    let ca_cert = testcontainers_helper::ca_cert_path();
+    let pem = std::fs::read_to_string(ca_cert).expect("readable CA file");
+    assert_eq!(
+        1,
+        pem.matches("BEGIN CERTIFICATE").count(),
+        "the pinned file must hold only the root"
+    );
+    let transport = TransportOptionsBuilder::new()
+        .verify_ssl(true)
+        .ca_cert_path(ca_cert)
+        .build()
+        .expect("valid transport options");
+    let client = DefaultApiClient::new(Some(transport));
+    let resp = client
+        .send_request(
+            "GET",
+            &format!("{}/test/echo", testcontainers_helper::chasm_https_url()),
+            &HashMap::new(),
+            None,
+        )
+        .await
+        .expect("the chain through the intermediate must verify against the pinned root");
+    assert_eq!(resp.status_code(), 200);
+}
+
 /* Verification is ON by default. The fixture certificate is signed by a CA the
  * system store does not trust, so a client that was not handed that CA must
  * refuse the handshake with a NetworkError (status 0), not return the response.

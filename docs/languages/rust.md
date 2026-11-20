@@ -116,6 +116,8 @@ Constructors and `Default` never validate. A wrong value or an unknown enum stri
 
 ## Known limits
 
+- An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
+
 - An unformatted `integer` decodes into `i32`, so a larger value fails to decode. Declare `format: int64` where needed.
 - `format: decimal` and `number` are `f64` and lose exactness.
 - `Vec<u8>` bodies are in memory, so streaming large uploads or downloads is not possible.
