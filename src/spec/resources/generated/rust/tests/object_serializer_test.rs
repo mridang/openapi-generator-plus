@@ -680,12 +680,15 @@ fn test_bhv_serializationobject_117_keyword_named_properties_keep_their_wire_key
 }
 
 #[test]
-fn test_bhv_serializationobject_119_referenced_enum_field_rejects_an_unknown_wire_value() {
-    use petstore::models::EdgeCases;
+fn test_bhv_serializationobject_119_referenced_enum_field_gives_the_catch_all_for_an_unknown_wire_value(
+) {
+    use petstore::models::{Color, EdgeCases};
 
-    assert!(
-        serde_json::from_str::<EdgeCases>(r#"{"favoriteColor":"mauve"}"#).is_err(),
-        "a colour outside the enum must be refused"
+    let edge: EdgeCases = serde_json::from_str(r#"{"favoriteColor":"mauve"}"#).expect("decodes");
+    assert_eq!(
+        edge.favorite_color,
+        Some(Color::UnknownDefaultOpenApi),
+        "a colour outside the enum gives the catch-all variant"
     );
 }
 
@@ -972,7 +975,7 @@ fn test_bhv_serialization_003_a_wire_value_decodes_to_the_member_carrying_exactl
 }
 
 #[test]
-fn test_bhv_serialization_004_a_generated_enum_lists_its_members_maps_each_to_its_value_and_refuses_others(
+fn test_bhv_serialization_004_a_generated_enum_lists_its_members_maps_each_to_its_value_and_gives_the_catch_all_for_others(
 ) {
     use petstore::models::*;
     assert_eq!(
@@ -983,9 +986,10 @@ fn test_bhv_serialization_004_a_generated_enum_lists_its_members_maps_each_to_it
         serde_json::to_string(&Color::Blue).expect("serializes"),
         "\"blue\""
     );
-    assert!(
-        serde_json::from_str::<Color>("\"purple\"").is_err(),
-        "a value outside the members is refused"
+    assert_eq!(
+        serde_json::from_str::<Color>("\"purple\"").expect("decodes"),
+        Color::UnknownDefaultOpenApi,
+        "a value outside the members gives the catch-all variant"
     );
 }
 
@@ -2204,9 +2208,12 @@ fn test_bhv_serialization_104_an_upper_case_uuid_decodes_and_comes_back_lowercas
 }
 
 #[test]
-fn test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises() {
+fn test_bhv_serialization_105_an_enum_value_with_the_wrong_case_gives_the_catch_all_variant() {
     use petstore::models::OrderStatusEnum;
-    assert!(serde_json::from_str::<OrderStatusEnum>("\"PLACED\"").is_err());
+    assert_eq!(
+        serde_json::from_str::<OrderStatusEnum>("\"PLACED\"").expect("decodes"),
+        OrderStatusEnum::UnknownDefaultOpenApi
+    );
 }
 
 #[test]

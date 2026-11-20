@@ -20,7 +20,7 @@ public enum {{classname}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}}Int{{/isLon
 {{/enumVars}}
 {{/allowableValues}}
     /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-    case unknownDefaultOpenApi = {{#isInteger}}Int.min{{/isInteger}}{{#isLong}}Int.min{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
+    case unknownDefaultOpenApi = {{#isInteger}}-9223372036854775808{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
 
     /// The declared cases; the catch-all case is not one of them.
     public static var allCases: [{{classname}}] {
@@ -82,7 +82,7 @@ public enum {{classname}}{{enumName}}: {{#isInteger}}Int{{/isInteger}}{{#isLong}
 {{/enumVars}}
 {{/allowableValues}}
     /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-    case unknownDefaultOpenApi = {{#isInteger}}Int.min{{/isInteger}}{{#isLong}}Int.min{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
+    case unknownDefaultOpenApi = {{#isInteger}}-9223372036854775808{{/isInteger}}{{#isLong}}-9223372036854775808{{/isLong}}{{^isInteger}}{{^isLong}}"__unknown_default_open_api__"{{/isLong}}{{/isInteger}}
 
     /// The declared cases; the catch-all case is not one of them.
     public static var allCases: [{{classname}}{{enumName}}] {

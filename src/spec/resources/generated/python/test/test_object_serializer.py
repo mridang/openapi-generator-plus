@@ -1505,14 +1505,22 @@ class TestFixtureModelsOnTheWire:
         assert decoded.phase == EdgeCasesPhaseEnum(wire)
         assert json.loads(ObjectSerializer().serialize(decoded)) == {"phase": wire}
 
-    def test_bhv_misc_137_a_generated_enum_lists_its_declared_values_and_rejects_others(
+    def test_bhv_misc_137_a_generated_enum_lists_its_declared_values_and_gives_the_catch_all_for_others(
         self,
     ) -> None:
         from petstore_client.models.separator import Separator
 
-        assert [member.value for member in Separator] == [" ", "@@", "a-b", "a_b"]
-        with pytest.raises(ValueError):
-            Separator("not-declared")
+        assert [
+            member.value
+            for member in Separator
+            if member is not Separator.UNKNOWN_DEFAULT_OPEN_API
+        ] == [
+            " ",
+            "@@",
+            "a-b",
+            "a_b",
+        ]
+        assert Separator("not-declared") is Separator.UNKNOWN_DEFAULT_OPEN_API
 
     def test_bhv_misc_138_converting_an_enum_member_to_text_yields_its_wire_value(
         self,
@@ -1874,11 +1882,13 @@ class TestDeserialize:
             ObjectSerializer.parse_json('{"a":')
         assert str(exc_info.value)
 
-    def test_bhv_serialization_105_an_enum_value_with_the_wrong_case_raises(
+    def test_bhv_serialization_105_an_enum_value_with_the_wrong_case_gives_the_catch_all_member(
         self,
     ) -> None:
-        with pytest.raises(SerializationException):
+        assert (
             ObjectSerializer().deserialize('"PLACED"', OrderStatusEnum)
+            is OrderStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        )
 
     def test_bhv_serializationobject_231_omitting_an_optional_field_leaves_it_unset(
         self,

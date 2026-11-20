@@ -13,7 +13,7 @@ public enum Priority: Int, Codable, Sendable, CaseIterable, CustomStringConverti
   case number2 = 2
   case number3 = 3
   /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-  case unknownDefaultOpenApi = Int.min
+  case unknownDefaultOpenApi = -9_223_372_036_854_775_808
 
   /// The declared cases; the catch-all case is not one of them.
   public static var allCases: [Priority] {

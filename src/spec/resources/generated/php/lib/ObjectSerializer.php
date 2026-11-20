@@ -107,11 +107,8 @@ class ObjectSerializer
                         $this->inner = new BackedEnumNormalizer();
                     }
 
-                    /**
-                     * @param array<string, mixed> $context
-                     * @return array<mixed>|string|int|float|bool|\ArrayObject<mixed, mixed>|null
-                     */
-                    public function normalize(mixed $data, ?string $format = null, array $context = []): mixed
+                    /** @param array<string, mixed> $context */
+                    public function normalize(mixed $data, ?string $format = null, array $context = []): string|int
                     {
                         if ($data instanceof \UnitEnum && $data->name === 'UNKNOWN_DEFAULT_OPEN_API') {
                             throw new \InvalidArgumentException(
@@ -159,7 +156,7 @@ class ObjectSerializer
                         return $this->inner->supportsDenormalization($data, $type, $format, $context);
                     }
 
-                    /** @return array<string, bool> */
+                    /** @return array<string, bool|null> */
                     public function getSupportedTypes(?string $format): array
                     {
                         return $this->inner->getSupportedTypes($format);

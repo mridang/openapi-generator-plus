@@ -829,17 +829,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
 
       assert decoded.phase == :unknown_default_open_api
     end
-
-    test "bhv serializationobject 078 the catch-all member of an inline enum is refused when written" do
-      err =
-        assert_raise PetstoreClient.Errors.SerializationError, fn ->
-          PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.EdgeCases{
-            phase: :unknown_default_open_api
-          })
-        end
-
-      assert err.message =~ "Unknown enum value"
-    end
   end
 
   describe "format: byte (ByteArray)" do

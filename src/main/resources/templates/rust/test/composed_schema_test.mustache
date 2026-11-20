@@ -815,17 +815,15 @@ fn test_bhv_serializationobject_076_availability_string_enum_round_trips_with_wi
 }
 
 #[test]
-fn test_bhv_serializationobject_059_availability_string_enum_rejects_unknown_value() {
-    let result: Result<Availability, _> = serde_json::from_str("\"available\"");
-    assert!(
-        result.is_err(),
-        "a lowercased (non-wire-casing) value must be rejected, not coerced"
+fn test_bhv_serializationobject_059_availability_string_enum_gives_the_catch_all_for_an_unknown_value() {
+    let result: Availability = serde_json::from_str("\"available\"").expect("decodes");
+    assert_eq!(
+        result,
+        Availability::UnknownDefaultOpenApi,
+        "a lowercased (non-wire-casing) value must give the catch-all variant, not a declared one"
     );
-    let result: Result<Availability, _> = serde_json::from_str("\"Discontinued\"");
-    assert!(
-        result.is_err(),
-        "an unknown Availability value must fail to deserialize"
-    );
+    let result: Availability = serde_json::from_str("\"Discontinued\"").expect("decodes");
+    assert_eq!(result, Availability::UnknownDefaultOpenApi);
 }
 
 // -- a property that is a $ref with a sibling default starts as that default (F866) --
@@ -1189,9 +1187,13 @@ fn test_bhv_serializationobject_023_optional_nullable_field_drops_its_null() {
 }
 
 #[test]
-fn test_bhv_serializationobject_024_unknown_inline_enum_value_is_rejected() {
-    let result = serde_json::from_str::<EdgeCases>(r#"{"phase":"never-a-phase"}"#);
-    assert!(result.is_err(), "an unknown EdgeCases.phase must be rejected");
+fn test_bhv_serializationobject_024_unknown_inline_enum_value_decodes_to_the_catch_all_variant() {
+    let result: EdgeCases = serde_json::from_str(r#"{"phase":"never-a-phase"}"#).expect("decodes");
+    assert_eq!(
+        result.phase,
+        Some(EdgeCasesPhaseEnum::UnknownDefaultOpenApi),
+        "an unknown EdgeCases.phase gives the catch-all variant"
+    );
 }
 
 #[test]
