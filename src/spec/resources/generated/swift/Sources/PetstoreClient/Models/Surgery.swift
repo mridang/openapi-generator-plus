@@ -13,7 +13,7 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   public let durationMinutes: Int?
   public let notes: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case procedureName = "procedureName"
     case durationMinutes = "durationMinutes"
     case notes = "notes"
@@ -50,7 +50,8 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.procedureName = try container.decode(String.self, forKey: .procedureName)
-    self.durationMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinutes)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.durationMinutes = try container.decodeInt32IfPresent(forKey: .durationMinutes)
     self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
   }
 
@@ -61,8 +62,9 @@ public struct Surgery: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(procedureName, forKey: .procedureName)
-    try container.encodeIfPresent(durationMinutes, forKey: .durationMinutes)
-    try container.encodeIfPresent(notes, forKey: .notes)
+    try container.encode(ObjectSerializer.ordered(procedureName), forKey: .procedureName)
+    try container.encodeIfPresent(
+      ObjectSerializer.ordered(durationMinutes), forKey: .durationMinutes)
+    try container.encodeIfPresent(ObjectSerializer.ordered(notes), forKey: .notes)
   }
 }

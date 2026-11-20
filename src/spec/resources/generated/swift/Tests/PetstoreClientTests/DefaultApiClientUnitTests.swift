@@ -82,6 +82,43 @@ import Testing
     #expect(DefaultApiClient.buildProxyCredential(withoutUser.proxy) == nil)
   }
 
+  /* Information in the proxy URL becomes the proxy credential, and the credential is the proxy's alone: it is not
+     a request header, so it never reaches the API host. */
+  @Test(arguments: [
+    ("http://alice:s3cret@127.0.0.1:3128", "alice", "s3cret"),
+    ("http://user:pass@127.0.0.1:3128", "user", "pass"),
+    ("http://us%40er:p%3Ass@127.0.0.1:3128", "us@er", "p:ss"),
+  ])
+  func testBhvTransport020ProxyCredentialsGoToTheProxyOnly(
+    proxy: String, user: String, password: String
+  ) throws {
+    let options = try TransportOptionsBuilder().proxy(proxy).build()
+    let credential = try #require(DefaultApiClient.buildProxyCredential(options.proxy))
+    #expect(credential.user == user)
+    #expect(credential.password == password)
+  }
+
+  /* Percent-escapes in the user information are decoded before the credentials are used, and a plus sign stays a
+     plus sign. */
+  @Test func testBhvTransport076PercentEscapesInProxyUserInfoAreDecodedAndAPlusStaysAPlus() throws {
+    let options = try TransportOptionsBuilder().proxy("http://a%20b:p%2Fq+r@127.0.0.1:3128").build()
+    let credential = try #require(DefaultApiClient.buildProxyCredential(options.proxy))
+    #expect(credential.user == "a b")
+    #expect(credential.password == "p/q+r")
+  }
+
+  /* With no proxy configured there is no proxy credential, and no Proxy-Authorization header is sent. */
+  @Test func testBhvTransport046NoProxyConfiguredLeavesTheProxyAuthorizationUnset() async throws {
+    #expect(DefaultApiClient.buildProxyCredential(nil) == nil)
+    let server = try LoopbackServer { _, _ in .ok() }
+    defer { server.stop() }
+    let response = try await DefaultApiClient().sendRequest(
+      method: "GET", url: server.origin + "/plain", headers: [:], body: nil)
+    #expect(response.statusCode == 200)
+    let request = try #require(server.requests.first)
+    #expect(request.header("Proxy-Authorization") == nil)
+  }
+
   /* The raw response returned to the caller exposes its status code, body and headers under public names. */
   @Test func testBhvMisc032TheRawResponseHasPublicFields() async throws {
     let client = makeClient { _ in (Data("{\"ok\":true}".utf8), 201, ["X-Trace": "t-1"]) }
@@ -1775,34 +1812,6 @@ import Testing
     #expect(DefaultApiClient.sameOrigin(explicit, implicit))
   }
 
-  #if !os(Linux)
-    /* A 302 to the same origin spelled with its scheme's default port is still the same origin,
-     * so the Authorization header reaches the second hop. */
-    @Test func testBhvRedirects037RedirectToExplicitDefaultPortKeepsAuthorization() async throws {
-      let transport = try TransportOptionsBuilder().followRedirects(true).build()
-      var hops = 0
-      var followUp: [String: String]?
-      /* The redirect rules ride on the SDK's session delegate, which a plain
-         stub session does not have (URLSession then returns the 3xx unfollowed),
-         so this client is built on the stub protocol with that delegate. */
-      UnitStubURLProtocol.handler = { req in
-        hops += 1
-        if hops == 1 {
-          return (Data(), 302, ["Location": "https://example.com:443/landing"])
-        }
-        followUp = req.allHTTPHeaderFields ?? [:]
-        return (Data("{}".utf8), 200, ["Content-Type": "application/json"])
-      }
-      let client = DefaultApiClient(
-        transportOptions: transport, protocolClasses: [UnitStubURLProtocol.self])
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start",
-        headers: ["Authorization": "Bearer secret-token"], body: nil)
-      #expect(resp.statusCode == 200)
-      #expect(followUp?["Authorization"] == "Bearer secret-token")
-    }
-  #endif
-
   // MARK: - Accept-Encoding
 
   // MARK: - Session configuration
@@ -1839,7 +1848,7 @@ import Testing
   #if !os(Linux)
     /* With no proxy configured the session must not pick up the system proxy
        settings: an empty dictionary switches them off. */
-    @Test func testBhvTransport046SessionIgnoresSystemProxyWhenNoProxyConfigured() throws {
+    @Test func testBhvTransport009SessionIgnoresSystemProxyWhenNoProxyConfigured() throws {
       let (session, _) = try DefaultApiClient.buildSession(TransportOptionsBuilder().build())
       #expect(session.configuration.connectionProxyDictionary?.isEmpty == true)
     }
@@ -2590,164 +2599,6 @@ import Testing
     #expect(value.contains("filename*=UTF-8''r%C3%A9sum%C3%A9.pdf"))
   }
 
-  // MARK: - Redirect following (Darwin only: the stub reports redirects through wasRedirectedTo)
-
-  #if !os(Linux)
-    /* A request body is not replayed across a 301 that moves HTTPS to plain HTTP: the call fails instead. */
-    @Test func testBhvMisc124ARequestBodyIsNotReplayedAcross301FromHttpsToHttp() async throws {
-      var calls = 0
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          calls += 1
-          if request.url?.scheme == "https" {
-            return (self.body("moved"), 301, ["Location": "http://example.com/plain"])
-          }
-          return (self.body(), 200, [:])
-        })
-      await #expect(throws: ApiError.self) {
-        _ = try await client.sendRequest(
-          method: "POST", url: "https://example.com/secure",
-          headers: ["Content-Type": "application/json"],
-          body: Data("{\"a\":1}".utf8), noRedirect: false)
-      }
-      #expect(calls == 1)
-    }
-
-    /* A 307 that upgrades HTTP to HTTPS is followed, and the request is repeated with its method. */
-    @Test func testBhvMisc125A307RedirectThatUpgradesToHttpsIsFollowed() async throws {
-      var methods: [String] = []
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          methods.append(request.httpMethod ?? "")
-          if request.url?.scheme == "http" {
-            return (self.body("moved"), 307, ["Location": "https://example.com/upgraded"])
-          }
-          return (self.body(), 200, [:])
-        })
-      let resp = try await client.sendRequest(
-        method: "POST", url: "http://example.com/secure",
-        headers: ["Content-Type": "application/json"],
-        body: Data("{\"a\":1}".utf8), noRedirect: false)
-      #expect(resp.statusCode == 200)
-      #expect(methods == ["POST", "POST"])
-    }
-
-    /* A HEAD request that receives a 303 is followed as HEAD rather than converted to GET. */
-    @Test func testBhvMisc126AHeadRequestRedirectedBy303IsFollowedAsHead() async throws {
-      var methods: [String] = []
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          methods.append(request.httpMethod ?? "")
-          if methods.count == 1 {
-            return (self.body(), 303, ["Location": "https://example.com/elsewhere"])
-          }
-          return (self.body(), 200, [:])
-        })
-      _ = try await client.sendRequest(
-        method: "HEAD", url: "https://example.com/start", headers: [:], body: nil, noRedirect: false
-      )
-      #expect(methods == ["HEAD", "HEAD"])
-    }
-
-    /* A Location that holds only a query keeps the path of the redirected request and replaces its query. */
-    @Test func testBhvMisc127ALocationWithOnlyAQueryKeepsTheRedirectedPath() async throws {
-      var urls: [String] = []
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          urls.append(request.url?.absoluteString ?? "")
-          if urls.count == 1 {
-            return (self.body(), 302, ["Location": "?page=2"])
-          }
-          return (self.body(), 200, [:])
-        })
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://h.example.com/v1/items/1?page=1", headers: [:], body: nil,
-        noRedirect: false)
-      #expect(urls.last == "https://h.example.com/v1/items/1?page=2")
-    }
-
-    /* A header whose name marks it as a credential, set for one call, is removed when a redirect leaves the origin. */
-    @Test func testBhvMisc132APerCallCredentialHeaderIsRemovedOnACrossOriginRedirect() async throws
-    {
-      var seen: [URLRequest] = []
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          seen.append(request)
-          if seen.count == 1 {
-            return (self.body(), 302, ["Location": "https://other.example.com/end"])
-          }
-          return (self.body(), 200, [:])
-        })
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: ["X-Call-Key": "abc"], body: nil,
-        noRedirect: false)
-      #expect(seen[0].value(forHTTPHeaderField: "X-Call-Key") == "abc")
-      #expect(seen[1].value(forHTTPHeaderField: "X-Call-Key") == nil)
-    }
-
-    /* A credential removed by a cross-origin hop is not restored when a later hop returns to the original origin. */
-    @Test func testBhvMisc130ACredentialRemovedByACrossOriginHopIsNotRestoredOnReturn() async throws
-    {
-      var seen: [URLRequest] = []
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          seen.append(request)
-          switch seen.count {
-          case 1: return (self.body(), 302, ["Location": "https://other.example.com/hop"])
-          case 2: return (self.body(), 302, ["Location": "https://example.com/back"])
-          default: return (self.body(), 200, [:])
-          }
-        })
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start",
-        headers: ["Authorization": "Bearer secret"], body: nil, noRedirect: false)
-      #expect(seen.count == 3)
-      #expect(seen[1].value(forHTTPHeaderField: "Authorization") == nil)
-      #expect(seen[2].value(forHTTPHeaderField: "Authorization") == nil)
-    }
-
-    /* A caller-supplied session still applies the SDK's redirect rules to the requests made through it. */
-    @Test func testBhvMisc131ASuppliedSessionFollowsRedirectsUnderTheSdkRules() async throws {
-      var calls = 0
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { _ in
-          calls += 1
-          if calls == 1 {
-            return (self.body(), 302, ["Location": "https://example.com/landing"])
-          }
-          return (self.body("landed"), 200, [:])
-        })
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: [:], body: nil, noRedirect: false)
-      #expect(calls == 2)
-      #expect(resp.statusCode == 200)
-    }
-
-    /* A 300 or 305 response is returned as it is, even when it carries a Location header. */
-    @Test(arguments: [300, 305]) func testBhvMisc133A300Or305IsReturnedUnfollowed(status: Int)
-      async throws
-    {
-      var calls = 0
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { _ in
-          calls += 1
-          return (self.body(), status, ["Location": "https://example.com/elsewhere"])
-        })
-      let resp = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start", headers: [:], body: nil, noRedirect: false)
-      #expect(calls == 1)
-      #expect(resp.statusCode == status)
-    }
-  #endif
-
   /* An error that is not a network failure is never retried. */
   @Test func testBhvMisc160AnErrorThatIsNotANetworkFailureIsNeverRetried() {
     #expect(!DefaultApiClient.isRetryableError(ConfigurationError.invalidTimeout(0), method: "GET"))
@@ -2893,28 +2744,6 @@ import Testing
     #expect(!DefaultApiClient.isSensitiveRedirectHeader("Content-Type"))
   }
 
-  #if !os(Linux)
-    /* A request body is replayed across a 307 redirect that keeps the same plain-text scheme. */
-    @Test func testBhvMisc165ABodyIsReplayedAcrossAHttpToHttpRedirect() async throws {
-      var calls = 0
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { _ in
-          calls += 1
-          if calls == 1 {
-            return (self.body(), 307, ["Location": "http://example.com/next"])
-          }
-          return (self.body(), 200, [:])
-        })
-      let resp = try await client.sendRequest(
-        method: "POST", url: "http://example.com/start",
-        headers: ["Content-Type": "application/json"],
-        body: Data("{\"a\":1}".utf8), noRedirect: false)
-      #expect(resp.statusCode == 200)
-      #expect(calls == 2)
-    }
-  #endif
-
   /* A default Content-Type header given in any letter case is not sent when the request has no body. */
   @Test func testBhvMisc177ADefaultContentTypeInAnyCaseIsNotSentWithoutABody() async throws {
     var seen: URLRequest?
@@ -2944,29 +2773,6 @@ import Testing
       headers: ["X-Raw": "a b%20c/d"], body: nil, noRedirect: false)
     #expect(seen?.value(forHTTPHeaderField: "X-Raw") == "a b%20c/d")
   }
-
-  #if !os(Linux)
-    /* Removing a credential header on a cross-origin hop matches its name without regard to letter case. */
-    @Test func testBhvMisc182ACredentialHeaderIsRemovedOnACrossOriginHopWhateverItsCase()
-      async throws
-    {
-      var seen: [URLRequest] = []
-      let client = makeClient(
-        transport: try TransportOptionsBuilder().followRedirects(true).build(),
-        handler: { request in
-          seen.append(request)
-          if seen.count == 1 {
-            return (self.body(), 302, ["Location": "https://other.example.com/end"])
-          }
-          return (self.body(), 200, [:])
-        })
-      _ = try await client.sendRequest(
-        method: "GET", url: "https://example.com/start",
-        headers: ["authorization": "Bearer t"], body: nil, noRedirect: false)
-      #expect(seen[0].value(forHTTPHeaderField: "authorization") == "Bearer t")
-      #expect(seen[1].value(forHTTPHeaderField: "Authorization") == nil)
-    }
-  #endif
 
   /* A client reports itself as closed only after close has been called on it. */
   @Test func testBhvMisc188AClientReportsClosedOnlyAfterClose() {
@@ -3254,19 +3060,6 @@ private final class UnitStubURLProtocol: URLProtocol {
       client?.urlProtocolDidFinishLoading(self)
       return
     }
-    /* URLSession follows a redirect only when the protocol reports it through
-     * wasRedirectedTo; a 3xx delivered as a plain response is returned unfollowed.
-     * swift-corelibs-foundation traps on wasRedirectedTo, so on Linux the stub
-     * never reports one and the redirect-following tests are Darwin-only. */
-    #if !os(Linux)
-      if (300..<400).contains(statusCode), let location = headers["Location"],
-        let redirectURL = URL(string: location, relativeTo: requestURL)?.absoluteURL
-      {
-        var next = request
-        next.url = redirectURL
-        client?.urlProtocol(self, wasRedirectedTo: next, redirectResponse: response)
-      }
-    #endif
     client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     if failWith == "cannotDecodeContentData" {
       client?.urlProtocol(self, didFailWithError: URLError(.cannotDecodeContentData))

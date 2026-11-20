@@ -10,6 +10,34 @@ import Testing
  * redaction guarantee. */
 @Suite final class ApiKeyAuthenticatorTests {
 
+    /* A key supplied through a provider function is obtained again for each request, whichever location it is sent in. */
+    @Test func testBhvAuth005AProviderKeyIsObtainedAgainForEachRequest() async throws {
+        final class Counter: @unchecked Sendable {
+            private let lock = NSLock()
+            private var calls = 0
+            func next() -> String {
+                lock.lock()
+                defer { lock.unlock() }
+                calls += 1
+                return "key\(calls)"
+            }
+        }
+        let header = ApiKeyAuthenticator(
+            host: "https://example.com", keyParamName: "X-Api-Key", apiKeyProvider: Counter().next,
+            location: .header)
+        #expect(await header.authHeaders() == ["X-Api-Key": "key1"])
+        #expect(await header.authHeaders() == ["X-Api-Key": "key2"])
+        let counter = Counter()
+        let query = ApiKeyAuthenticator(
+            host: "https://example.com", keyParamName: "api_key", apiKeyProvider: counter.next, location: .query)
+        #expect(query.queryParams() == ["api_key": "key1"])
+        #expect(query.queryParams() == ["api_key": "key2"])
+        let cookie = ApiKeyAuthenticator(
+            host: "https://example.com", keyParamName: "SESSION", apiKeyProvider: Counter().next, location: .cookie)
+        #expect(cookie.cookieParams() == ["SESSION": "key1"])
+        #expect(cookie.cookieParams() == ["SESSION": "key2"])
+    }
+
     @Test func testBhvAuthapikey014ValidHeaderKeyPasses() async throws {
         let auth = try ApiKeyAuthenticator(
             host: "https://api.example.com",

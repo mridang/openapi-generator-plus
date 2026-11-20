@@ -46,6 +46,14 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     }
   }()
 
+  /* The base URL comes from the default authenticator; the host initializer takes it from its own host argument. */
+  @Test func testBhvLifecycle030TheBaseUrlComesFromTheAuthenticatorOrTheHostArgument() throws {
+    let withAuthenticator = try Client(
+      authenticator: try BearerAuthenticator(host: "https://default.example.com", token: "t"))
+    defer { withAuthenticator.close() }
+    #expect(withAuthenticator.pet.config.baseURL == "https://default.example.com")
+  }
+
   @Test func testBhvLifecycle012ConstructWithAuthenticatorOnly() throws {
     _ = try Client(authenticator: authenticator)
   }

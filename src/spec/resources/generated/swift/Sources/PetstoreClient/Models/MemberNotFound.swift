@@ -12,7 +12,7 @@ public struct MemberNotFound: Codable, Sendable, Equatable, Hashable {
   public let code: Int?
   public let detail: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case code = "code"
     case detail = "detail"
   }
@@ -42,7 +42,8 @@ public struct MemberNotFound: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.code = try container.decodeIfPresent(Int.self, forKey: .code)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.code = try container.decodeInt32IfPresent(forKey: .code)
     self.detail = try container.decodeIfPresent(String.self, forKey: .detail)
   }
 
@@ -53,7 +54,7 @@ public struct MemberNotFound: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(code, forKey: .code)
-    try container.encodeIfPresent(detail, forKey: .detail)
+    try container.encodeIfPresent(ObjectSerializer.ordered(code), forKey: .code)
+    try container.encodeIfPresent(ObjectSerializer.ordered(detail), forKey: .detail)
   }
 }

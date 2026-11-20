@@ -118,9 +118,9 @@ Why: structs cannot inherit. Status (#104): the classic base is realised as the 
 Where: `models/model.mustache`, `BetterSwiftCodegen.postProcessAllModels`.
 Test: `ComposedSchemaTests` template.
 
-### No schema-constraint enforcement and unspecified uniqueItems order (S3 S6)
-Rule: the client does not enforce `pattern`, length, range, `multipleOf` or item-count constraints (README section on constraint validation); `Set` members go out in Swift's natural order and are not sorted.
-Why: the server owns validation; sorting a hash set would invent an order the schema never promised. This supersedes the earlier proposal D69 (sorted) and D55.
+### No schema-constraint enforcement (S3); uniqueItems order is sorted (S6 reversed)
+Rule: the client does not enforce `pattern`, length, range, `multipleOf` or item-count constraints (README section on constraint validation); `Set` members of strings or numbers are written sorted, as the other SDKs do (`ObjectSerializer.ordered`).
+Why: the server owns validation; a hash order is seeded per process, so it would put different bytes on the wire for one value.
 Where: `readme.mustache`, `models/model.mustache`.
 Test: none by design.
 
@@ -152,7 +152,13 @@ Test: `BaseApiTests`, `ValueSerializerTests` templates.
 Rule: a server variable name used by two or more variants of one operation is prefixed with the variant name (petstore: `RegionalRegion`, `MirrorRegion`, `Channel`); a caller's `User-Agent` or `X-Request-ID` in any case suppresses injection.
 Why: unique types; the caller's header wins.
 Where: `api/api.mustache`, `BetterSwiftCodegen`/`AbstractBetterCodegen.enrichOperationServers`, `default_api_client.mustache` (`caseInsensitiveCompare`).
-Test: `DefaultApiClientUnitTests` template (`DefaultApiClientTests` is `#if !os(Linux)` and does not run in the spec).
+Test: `DefaultApiClientUnitTests` template (the proxy and TLS tests that need Apple's URLSession sit in `DefaultApiClientAppleStubTests`, `#if !os(Linux)`).
+
+### Redirect rules are the SDK's on every platform (swift-corelibs differences)
+Rule: the SDK follows only 301, 302, 303, 307 and 308 (a 300 or 305 is the response), resolves the `Location` itself against the URL of the response (RFC 3986) instead of taking the request URLSession proposes, and drops the transport default headers on a cross-origin hop together with the credential headers. The body of each request is kept per task, so a redirect that keeps its method sends it again. On Linux a 307 or 308 that keeps its method and has a body is not followed by URLSession: the delegate records the follow-up and `sendOnce` sends it as a new task that carries the hop count.
+Why: swift-corelibs follows a 305, resolves a relative `Location` against the host only (`../x` and `?page=2` lose their path), turns a non-HTTP(S) `Location` into a path on the same host, and clears the body of the task when it follows a redirect (the next transfer starts from the task's known body, not from the request the delegate returns), so a followed 307 sent an empty body. It also reads a redirect's whole body before it asks the delegate.
+Where: `default_api_client.mustache` (`SessionDelegate`, `sendOnce`, `performDataTask`).
+Test: `DefaultApiClientRedirectTests` template, over `LoopbackServer`; a change of scheme between https and http is put to the delegate directly, because the loopback server speaks plain HTTP.
 
 ### Ambient proxy and Linux proxy (D74)
 Rule: on Apple platforms `connectionProxyDictionary = [:]` disables system proxies unless `TransportOptions.proxy` is set; on Linux setting a proxy throws `ConfigurationError.invalidProxy` (text `Proxy configuration is not supported on this platform`) because FoundationNetworking cannot apply one.
@@ -209,7 +215,7 @@ Where: `base_api.mustache`, `value_serializer.mustache`.
 Test: `ValueSerializerTests`, `BaseApiTests` templates (Linux wire test).
 
 ### JSON encoding and decoding limits (D82, D84, D85, D86, D87, forced)
-Rule: request JSON keys are sorted (`.sortedKeys`), slashes are not escaped, `format: double` is judged by JSON number equality not bytes, `JSONDecoder` refuses nesting beyond about 512 levels and keeps the first duplicate key, and a `Set` parameter expands like an array.
+Rule: request JSON keys of a model are written in declaration order (the encoder sorts them, so a position prefix on each `CodingKeys` key carries the order and `removeOrderMarks` strips it; a map's keys stay sorted) and a `Set` of strings or numbers is written sorted, slashes are not escaped, `format: double` is judged by JSON number equality not bytes, `JSONDecoder` refuses nesting beyond about 512 levels and keeps the first duplicate key, and a `Set` parameter expands like an array.
 Why: `JSONEncoder` has no declared-order mode and `JSONDecoder` is not configurable; the SDK's own 1000-level cap still applies first.
 Where: `object_serializer.mustache` (comments at the top), `value_serializer.mustache`.
 Test: `ObjectSerializerTests` template.
@@ -242,7 +248,7 @@ Test: `SwiftClientSpec`.
 Rule: every `ApiError` for a response that arrived carries the real lower-cased headers: the three redirect refusals (hop cap, non-HTTP(S) Location, HTTPS to HTTP body replay) and the undecodable-body error use `DefaultApiClient.lowercasedHeaders(of:)`, the same helper the normal path uses (D13); `nil` still means no response arrived. `OAuth2AuthorizationCodeError` is a `LocalizedError` whose `emptyCode` text is `Authorization code must not be empty` (D09); the use-after-close text is pinned.
 Why: audit proposals, taken as the default; no wire effect.
 Where: `default_api_client.mustache`, `errors/oauth2_authorization_code_error.mustache`.
-Test: `DefaultApiClientTests` (hop-cap and scheme refusals assert the `location` header; the HTTPS to HTTP downgrade test is not asserted because the stub ends in URLSession's own "too many HTTP redirects" before the delegate refuses), `OAuth2AuthCodeAuthenticatorTests`.
+Test: `DefaultApiClientRedirectTests` (hop-cap and scheme refusals assert the `location` header; the HTTPS to HTTP downgrade is put to the delegate directly), `OAuth2AuthCodeAuthenticatorTests`.
 Generated tests: a comparison of a non-optional value with `nil` is written `_ = value` or dropped, an `is` check that is always true is a typed assignment (`let _: ClientError = error`), and `try` is not written before the non-throwing `authHeaders()` of the API key, bearer and basic authenticators. Measure with `swift build --build-tests` and look for warnings in `Tests/`.
 
 ### Decisions taken in batch 7
@@ -330,7 +336,7 @@ Rule: every API group has an interface and the client has one where the language
 - A mustache `{{! }}` comment must not contain a literal `{{tag}}`: jmustache ends it at the first `}}`.
 - `swift build -warnings-as-errors` is on in debug (deprecation warnings are downgraded with `-Wwarning DeprecatedDeclaration` because models reference their own deprecated members).
 - `swift-format lint --strict --recursive Sources Tests` must pass; the formatter needs `swift:6.2` (6.0 cannot parse the trailing commas the templates emit) and a git repository in the working directory, which `getFormatterCommands` creates and removes.
-- Do not read private `BaseApi` helpers from tests; tests that call `DefaultApiClient` helpers must live in `DefaultApiClientUnitTests` because `DefaultApiClientTests` is `#if !os(Linux)`.
+- Do not read private `BaseApi` helpers from tests. Transport behaviour is tested over real sockets on every platform: against the shared mock server where it serves the case, otherwise against `LoopbackServer` (in `TestContainersHelper`, plain HTTP on 127.0.0.1, one request per connection). Never stub `URLProtocol` for a redirect: swift-corelibs traps when a stub reports one.
 - Golden regeneration runs Docker formatters; commit all twelve goldens current, never a subset.
 
 ## Verify

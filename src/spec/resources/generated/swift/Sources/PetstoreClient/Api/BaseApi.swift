@@ -333,7 +333,7 @@ public class BaseApi: @unchecked Sendable {
     }
 
     /* Select headers */
-    let isMultipart = params.contentType == "multipart/form-data"
+    let isMultipart = params.contentType.lowercased().hasPrefix("multipart/")
     var headers = headerSelector.selectHeaders(
       accept: params.accepts, contentType: params.contentType, isMultipart: isMultipart)
 
@@ -374,9 +374,12 @@ public class BaseApi: @unchecked Sendable {
     /* Serialize body -- multipart/form-data is handled separately so that
      * the boundary can be injected into the Content-Type header. */
     let serializedBody: Data?
-    if params.contentType == "multipart/form-data", let formFields = Self.formFields(params.body) {
+    if params.contentType.lowercased().hasPrefix("multipart/"),
+      let formFields = Self.formFields(params.body)
+    {
       let boundary = UUID().uuidString
-      headers["Content-Type"] = "multipart/form-data; boundary=\(boundary)"
+      /* The declared subtype (form-data, related, mixed) is kept; only the boundary is added. */
+      headers["Content-Type"] = "\(params.contentType); boundary=\(boundary)"
       serializedBody = try Self.buildMultipartBody(ordered: formFields, boundary: boundary)
     } else {
       serializedBody = try Self.serializeBody(
@@ -702,7 +705,7 @@ public class BaseApi: @unchecked Sendable {
       }
     }
 
-    if contentType == "multipart/form-data" {
+    if contentType.lowercased().hasPrefix("multipart/") {
       return nil
     }
 
@@ -848,11 +851,41 @@ public class BaseApi: @unchecked Sendable {
 
     if let fileURL = value as? URL {
       let fileName = fileURL.lastPathComponent
-      let fileData = (try? Data(contentsOf: fileURL)) ?? Data()
+      /* A file that cannot be read fails the call: an empty payload is never sent in its place. */
+      let fileData: Data
+      do {
+        fileData = try Data(contentsOf: fileURL)
+      } catch {
+        throw ConfigurationError.invalidArgument(
+          "multipart part '\(name)' cannot be read from \(fileURL.lastPathComponent): \(error.localizedDescription)"
+        )
+      }
       let mimeType = mimeTypeForFilename(fileName)
       let disposition = try buildContentDisposition(name: safeName, filename: fileName)
       body.append(Data("--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeType)\r\n\r\n".utf8))
       body.append(fileData)
+      body.append(Data("\r\n".utf8))
+    } else if let stream = value as? InputStream {
+      /* The caller owns the stream: it is read into the body and never closed here. */
+      var data = Data()
+      let wasOpen = stream.streamStatus != .notOpen
+      if !wasOpen { stream.open() }
+      var buffer = [UInt8](repeating: 0, count: 4096)
+      while stream.hasBytesAvailable {
+        let read = stream.read(&buffer, maxLength: buffer.count)
+        if read < 0 {
+          throw ConfigurationError.invalidArgument(
+            "multipart part '\(name)' cannot be read from its stream")
+        }
+        if read == 0 { break }
+        data.append(buffer, count: read)
+      }
+      let disposition = try buildContentDisposition(name: safeName, filename: name)
+      body.append(
+        Data(
+          "--\(boundary)\r\n\(disposition)\r\nContent-Type: \(mimeTypeForFilename(name))\r\n\r\n"
+            .utf8))
+      body.append(data)
       body.append(Data("\r\n".utf8))
     } else if let data = value as? Data {
       let mimeType = mimeTypeForFilename(name)

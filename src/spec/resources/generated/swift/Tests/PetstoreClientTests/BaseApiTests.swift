@@ -1865,6 +1865,45 @@ import Testing
     #expect(headers["Authorization"] == "Bearer scheme-level")
   }
 
+  private func multipartSend(_ contentType: String, _ body: [String: Any]) async throws
+    -> MockApiClient
+  {
+    let mockClient = MockApiClient()
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+    let params = BaseApi.InvokeAPIParams(
+      method: "POST", path: "/items", queryParams: [:],
+      headerParams: [:], body: body,
+      accepts: ["application/json"], contentType: contentType,
+      returnType: "String", auth: nil)
+    _ = try await api.invokeAPI(params)
+    return mockClient
+  }
+
+  /* A declared multipart content type other than form-data reaches the transport with its subtype kept. */
+  @Test func testBhvMisc178ADeclaredMultipartSubtypeReachesTheTransportUnchanged() async throws {
+    let client = try await multipartSend("multipart/related", ["note": "x"])
+    #expect(client.lastHeaders["Content-Type"]?.hasPrefix("multipart/related; boundary=") == true)
+  }
+
+  /* A caller-supplied stream used as a multipart part is read into the body and never closed. */
+  @Test func testBhvMisc098AStreamPartIsReadIntoTheBodyAndNeverClosed() async throws {
+    let stream = InputStream(data: Data("stream-bytes".utf8))
+    let client = try await multipartSend("multipart/form-data", ["blob": stream])
+    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.contains("name=\"blob\""))
+    #expect(body.contains("stream-bytes"))
+    #expect(stream.streamStatus != .closed)
+  }
+
+  /* A multipart file whose source can no longer be read fails the call instead of sending an empty payload. */
+  @Test func testBhvMisc101AnUnreadableMultipartFileFailsTheCall() async throws {
+    let missing = URL(fileURLWithPath: "/nonexistent-dir/source.bin")
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await self.multipartSend("multipart/form-data", ["file": missing])
+    }
+  }
+
   /* An authenticator passed for one call overrides the client-level one. */
   @Test func testBhvAuthintegration013PerCallAuthOverridesClientLevelAuthenticator() async throws {
     let mockClient = MockApiClient()

@@ -24,7 +24,7 @@ public struct Category: Codable, Sendable, Equatable, Hashable {
   /// ```
   public let name: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case id = "id"
     case name = "name"
   }
@@ -65,7 +65,7 @@ public struct Category: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(id, forKey: .id)
-    try container.encodeIfPresent(name, forKey: .name)
+    try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
+    try container.encodeIfPresent(ObjectSerializer.ordered(name), forKey: .name)
   }
 }

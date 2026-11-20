@@ -13,7 +13,7 @@ public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
   public let type: String?
   public let message: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case code = "code"
     case type = "type"
     case message = "message"
@@ -48,7 +48,8 @@ public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.code = try container.decodeIfPresent(Int.self, forKey: .code)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.code = try container.decodeInt32IfPresent(forKey: .code)
     self.type = try container.decodeIfPresent(String.self, forKey: .type)
     self.message = try container.decodeIfPresent(String.self, forKey: .message)
   }
@@ -60,8 +61,8 @@ public struct ApiResponse: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(code, forKey: .code)
-    try container.encodeIfPresent(type, forKey: .type)
-    try container.encodeIfPresent(message, forKey: .message)
+    try container.encodeIfPresent(ObjectSerializer.ordered(code), forKey: .code)
+    try container.encodeIfPresent(ObjectSerializer.ordered(type), forKey: .type)
+    try container.encodeIfPresent(ObjectSerializer.ordered(message), forKey: .message)
   }
 }

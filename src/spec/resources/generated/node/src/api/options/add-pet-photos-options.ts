@@ -1,4 +1,4 @@
-import type { PhotoMetadata } from '../../models/index.js';
+import type { PhotoMetadata } from "../../models/index.js";
 
 /**
  * Options for the addPetPhotos operation.

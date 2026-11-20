@@ -14,7 +14,7 @@ public struct ReservationReceipt: Codable, Sendable, Equatable, Hashable {
   /// Example: 2030-01-01T00:00:00Z
   public let expiresAt: Date
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case receiptCode = "receiptCode"
     case expiresAt = "expiresAt"
   }
@@ -56,7 +56,7 @@ public struct ReservationReceipt: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(receiptCode, forKey: .receiptCode)
-    try container.encode(expiresAt, forKey: .expiresAt)
+    try container.encode(ObjectSerializer.ordered(receiptCode), forKey: .receiptCode)
+    try container.encode(ObjectSerializer.ordered(expiresAt), forKey: .expiresAt)
   }
 }

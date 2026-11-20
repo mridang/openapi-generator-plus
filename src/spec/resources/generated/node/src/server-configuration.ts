@@ -33,7 +33,11 @@ export class ServerVariable {
    * @param description human-readable description of the variable, or null
    * @param enumValues allowed values, or an empty array if any value is accepted
    */
-  constructor(defaultValue: string, description: string | null = null, enumValues: string[] = []) {
+  constructor(
+    defaultValue: string,
+    description: string | null = null,
+    enumValues: string[] = [],
+  ) {
     this.defaultValue = defaultValue;
     this.description = description;
     this.enumValues = Object.freeze([...enumValues]);
@@ -72,7 +76,7 @@ export class ServerConfiguration {
   constructor(
     urlTemplate: string,
     description: string | null = null,
-    variables: Record<string, ServerVariable> = {}
+    variables: Record<string, ServerVariable> = {},
   ) {
     this.urlTemplate = urlTemplate;
     this.description = description;
@@ -96,14 +100,17 @@ export class ServerConfiguration {
       const supplied = overrides[varName];
       if (supplied === null && variable.enumValues.length > 0) {
         throw new TypeError(
-          `Invalid null value for server variable '${varName}'. Allowed values: ${variable.enumValues.join(', ')}`
+          `Invalid null value for server variable '${varName}'. Allowed values: ${variable.enumValues.join(", ")}`,
         );
       }
       const value = supplied ?? variable.defaultValue;
 
-      if (variable.enumValues.length > 0 && !variable.enumValues.includes(value)) {
+      if (
+        variable.enumValues.length > 0 &&
+        !variable.enumValues.includes(value)
+      ) {
         throw new TypeError(
-          `Invalid value '${value}' for server variable '${varName}'. Allowed values: ${variable.enumValues.join(', ')}`
+          `Invalid value '${value}' for server variable '${varName}'. Allowed values: ${variable.enumValues.join(", ")}`,
         );
       }
 
@@ -111,6 +118,9 @@ export class ServerConfiguration {
     }
     /* Substitute in a single pass so a value that itself contains a
      * placeholder such as {other} is never expanded a second time. */
-    return this.urlTemplate.replace(/\{([^{}]+)\}/g, (placeholder, name: string) => resolved.get(name) ?? placeholder);
+    return this.urlTemplate.replace(
+      /\{([^{}]+)\}/g,
+      (placeholder, name: string) => resolved.get(name) ?? placeholder,
+    );
   }
 }

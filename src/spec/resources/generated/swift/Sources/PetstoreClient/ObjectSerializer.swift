@@ -107,19 +107,124 @@ internal enum ObjectSerializer {
     return dateFormatter.string(from: Date(timeIntervalSince1970: millis / 1000))
   }
 
-  private static let encoder: JSONEncoder = {
+  /* A key that carries its position opens with a private-use character and a nonce made fresh for each
+     encode call, so no value or map key in the data can look like it (a clash needs a 128-bit guess). */
+  private static func newOrderMark() -> String {
+    return "\u{E000}" + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+  }
+
+  private struct OrderedKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { return nil }
+    init(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { return nil }
+  }
+
+  /// The position of a key among the cases of the model's `CodingKeys`.
+  private static func declarationIndex(of key: CodingKey) -> Int? {
+    func position<K: CaseIterable & CodingKey>(_ known: K) -> Int? {
+      return K.allCases.enumerated().first { $0.element.stringValue == known.stringValue }?.offset
+    }
+    guard let known = key as? any (CaseIterable & CodingKey) else { return nil }
+    return position(known)
+  }
+
+  /// Removes the position prefix from every key of encoded JSON.
+  private static func removeOrderMarks(_ data: Data, mark orderMark: String) -> Data {
+    let mark = [UInt8](("\"" + orderMark).utf8)
+    let bytes = [UInt8](data)
+    var out = [UInt8]()
+    out.reserveCapacity(bytes.count)
+    var i = 0
+    while i < bytes.count {
+      if bytes[i] == mark[0], i + mark.count + 5 <= bytes.count,
+        Array(bytes[i..<(i + mark.count)]) == mark,
+        bytes[(i + mark.count)..<(i + mark.count + 5)].allSatisfy({ $0 >= 0x30 && $0 <= 0x39 })
+      {
+        out.append(0x22)
+        i += mark.count + 5
+      } else {
+        out.append(bytes[i])
+        i += 1
+      }
+    }
+    return Data(out)
+  }
+
+  /// A set of strings or numbers is written in order (code point order for
+  /// strings, numeric order for numbers); any other value is written as it is.
+  static func ordered<T: Hashable & Comparable>(_ set: Set<T>) -> [T] {
+    return set.sorted()
+  }
+
+  static func ordered<T: Hashable & Comparable>(_ set: Set<T>?) -> [T]? {
+    return set?.sorted()
+  }
+
+  static func ordered<T>(_ value: T) -> T {
+    return value
+  }
+
+  /// The keys of the top-level object in `json`, in the order they are written.
+  static func topLevelKeyOrder(_ json: String) -> [String] {
+    var keys: [String] = []
+    var depth = 0
+    let scalars = Array(json.unicodeScalars)
+    var i = 0
+    while i < scalars.count {
+      let c = scalars[i]
+      if c == "\"" {
+        var j = i + 1
+        var text = String.UnicodeScalarView()
+        while j < scalars.count, scalars[j] != "\"" {
+          if scalars[j] == "\\", j + 1 < scalars.count {
+            text.append(scalars[j + 1])
+            j += 2
+          } else {
+            text.append(scalars[j])
+            j += 1
+          }
+        }
+        var k = j + 1
+        while k < scalars.count, scalars[k] == " " { k += 1 }
+        if depth == 1, k < scalars.count, scalars[k] == ":" { keys.append(String(text)) }
+        i = j + 1
+        continue
+      }
+      if c == "{" || c == "[" { depth += 1 }
+      if c == "}" || c == "]" { depth -= 1 }
+      i += 1
+    }
+    return keys
+  }
+
+  private static func makeEncoder(mark orderMark: String) -> JSONEncoder {
     let encoder = JSONEncoder()
     /* Write '/' literally (the other SDKs never escape it) and emit keys in
        a fixed order: the default is Dictionary hash order, which is seeded
        per process, so two runs would otherwise put different bytes on the
        wire for the same value. */
     encoder.outputFormatting = [.withoutEscapingSlashes, .sortedKeys]
+    /* Keys are sorted, so a model's declared order is carried by a prefix
+       that sorts in declaration order and is removed again once the JSON
+       is written (see `removeOrderMarks`). Keys of a map have no declared
+       position and stay sorted by name. */
+    encoder.keyEncodingStrategy = .custom { path in
+      guard let key = path.last else { return OrderedKey(stringValue: "") }
+      guard let index = declarationIndex(of: key) else { return key }
+      return OrderedKey(stringValue: orderMark + String(format: "%05d", index) + key.stringValue)
+    }
     encoder.dateEncodingStrategy = .custom { date, encoder in
       var container = encoder.singleValueContainer()
       try container.encode(formatDateTime(date))
     }
     return encoder
-  }()
+  }
+
+  private static func encodeOrdered<T: Encodable>(_ object: T) throws -> Data {
+    let mark = newOrderMark()
+    return removeOrderMarks(try makeEncoder(mark: mark).encode(object), mark: mark)
+  }
 
   private static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
@@ -141,7 +246,7 @@ internal enum ObjectSerializer {
   /// round-trip a parsed payload through the same date-time wire format as
   /// every other model.
   static func encodeToData<T: Encodable>(_ object: T) throws -> Data {
-    return try encoder.encode(object)
+    return try encodeOrdered(object)
   }
 
   /// Decodes a Decodable value from JSON `Data` using the shared,
@@ -158,7 +263,7 @@ internal enum ObjectSerializer {
   /// SDK never leaks `Foundation` encoding types out of its public surface.
   static func serialize<T: Encodable>(_ object: T) throws -> String {
     do {
-      let data = try encoder.encode(object)
+      let data = try encodeOrdered(object)
       guard let string = String(data: data, encoding: .utf8) else {
         throw SerializationError(message: "Failed to convert serialized data to UTF-8 string")
       }
@@ -275,13 +380,14 @@ internal enum ObjectSerializer {
     let bytes = [UInt8](stripped)
     var parser = JsonShapeParser(bytes: bytes)
     let shape = parser.parseDocument()
+    let longKeys: Set<String> = shape.map { longNumberKeys(in: $0, bytes: bytes) } ?? []
     var payload = stripped
     if let shape, parser.hasDuplicateKeys {
       payload = Data(render(shape, from: bytes, probe: false))
     }
     let value: T
     do {
-      value = try decoder.decode(type, from: payload)
+      value = try $longNumberKeys.withValue(longKeys) { try decoder.decode(type, from: payload) }
     } catch {
       throw SerializationError(
         message: "Failed to deserialize JSON",
@@ -290,7 +396,9 @@ internal enum ObjectSerializer {
     }
     if let shape, parser.hasNonIntegralNumber {
       do {
-        _ = try decoder.decode(type, from: Data(render(shape, from: bytes, probe: true)))
+        _ = try $longNumberKeys.withValue(longKeys) {
+          try decoder.decode(type, from: Data(render(shape, from: bytes, probe: true)))
+        }
       } catch {
         throw SerializationError(
           message:
@@ -300,6 +408,25 @@ internal enum ObjectSerializer {
       }
     }
     return value
+  }
+
+  /// The member names, at any depth, whose number is too long for a `Decimal`.
+  private static func longNumberKeys(in shape: JsonShape, bytes: [UInt8]) -> Set<String> {
+    var keys = Set<String>()
+    switch shape {
+    case .object(let members):
+      for member in members {
+        if case .number(let range, _) = member.value, isTooLongToHold(bytes[range]) {
+          keys.insert(member.key)
+        }
+        keys.formUnion(longNumberKeys(in: member.value, bytes: bytes))
+      }
+    case .array(let items):
+      for item in items { keys.formUnion(longNumberKeys(in: item, bytes: bytes)) }
+    default:
+      break
+    }
+    return keys
   }
 
   /// The shape of a JSON document as byte ranges of its original text, so
@@ -772,6 +899,117 @@ internal enum ObjectSerializer {
       return items
     default:
       return items.joined(separator: ",")
+    }
+  }
+}
+
+/* An integer property is an `Int` in the API, but is read as 32 bits: Foundation's
+   decoder refuses a value outside the 32-bit range and a fractional number for
+   `Int32`, which is the rule the other SDKs apply to `int32` and unformatted
+   integers. */
+extension KeyedDecodingContainer {
+  func decodeInt32(forKey key: Key) throws -> Int {
+    return Int(try decode(Int32.self, forKey: key))
+  }
+
+  func decodeInt32Nullable(forKey key: Key) throws -> Int? {
+    return try decode(Int32?.self, forKey: key).map { Int($0) }
+  }
+
+  func decodeInt32IfPresent(forKey key: Key) throws -> Int? {
+    return try decodeIfPresent(Int32.self, forKey: key).map { Int($0) }
+  }
+
+  func decodeDecimalNumber(forKey key: Key) throws -> Decimal {
+    return try ObjectSerializer.decodeDecimalNumber(self, forKey: key)
+  }
+
+  func decodeDecimalNumberNullable(forKey key: Key) throws -> Decimal? {
+    return try contains(key) && !(try decodeNil(forKey: key))
+      ? decodeDecimalNumber(forKey: key) : nil
+  }
+
+  func decodeDecimalNumberIfPresent(forKey key: Key) throws -> Decimal? {
+    return try decodeDecimalNumberNullable(forKey: key)
+  }
+}
+
+extension ObjectSerializer {
+  /// Reads a decimal written as a JSON string. Text that is not a plain
+  /// decimal number is refused, never read as zero or rounded.
+  static func decodeDecimalString(_ text: String) throws -> Decimal {
+    guard text.range(of: "^-?[0-9]+(\\.[0-9]+)?$", options: .regularExpression) != nil,
+      let value = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX"))
+    else {
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(codingPath: [], debugDescription: "Not a decimal number: \(text)"))
+    }
+    return value
+  }
+}
+
+extension ObjectSerializer {
+  /// The most significant digits a decimal can hold.
+  static let maxDecimalDigits = 38
+
+  /// The keys, in the document being decoded, whose number has more significant digits than a `Decimal` holds.
+  @TaskLocal static var longNumberKeys: Set<String> = []
+
+  /// Reads a decimal number. One with more digits than a `Decimal` holds is refused rather than rounded.
+  static func decodeDecimalNumber<K: CodingKey>(
+    _ container: KeyedDecodingContainer<K>, forKey key: K
+  ) throws -> Decimal {
+    if longNumberKeys.contains(key.stringValue) {
+      throw DecodingError.dataCorruptedError(
+        forKey: key, in: container,
+        debugDescription:
+          "A number has more than \(maxDecimalDigits) significant digits and cannot be held exactly"
+      )
+    }
+    return try container.decode(Decimal.self, forKey: key)
+  }
+
+  /// Whether the text of a JSON number has more significant digits than a `Decimal` holds.
+  static func isTooLongToHold(_ number: ArraySlice<UInt8>) -> Bool {
+    var digits = 0
+    var seenNonZero = false
+    for byte in number {
+      if byte == 0x65 || byte == 0x45 { break }
+      if byte >= 0x30 && byte <= 0x39 {
+        if byte != 0x30 { seenNonZero = true }
+        if seenNonZero { digits += 1 }
+      }
+    }
+    return digits > maxDecimalDigits
+  }
+
+  /// Refuses an ipv4 or ipv6 value that is not exactly an address of that family: a leading zero, a prefix length,
+  /// a zone id, brackets, surrounding whitespace or the other family all fail.
+  static func requireIpAddress(_ value: String?, format: String, property: String) throws {
+    guard let value = value else { return }
+    let valid: Bool
+    if format == "ipv4" {
+      let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+      valid =
+        parts.count == 4
+        && parts.allSatisfy { part in
+          !part.isEmpty && part.count <= 3 && part.allSatisfy { $0 >= "0" && $0 <= "9" }
+            && (part == "0" || !part.hasPrefix("0")) && (Int(part) ?? 256) <= 255
+        }
+    } else {
+      var address = in6_addr()
+      valid =
+        value.allSatisfy { $0.isASCII && ($0.isHexDigit || $0 == ":" || $0 == ".") }
+        && value.withCString { inet_pton(AF_INET6, $0, &address) } == 1
+    }
+    if !valid {
+      throw SerializationError(message: "'\(property)' is not a valid \(format) address: \(value)")
+    }
+  }
+
+  static func requireIpAddress(_ values: [String]?, format: String, property: String) throws {
+    for value in values ?? [] {
+      try requireIpAddress(value, format: format, property: property)
     }
   }
 }

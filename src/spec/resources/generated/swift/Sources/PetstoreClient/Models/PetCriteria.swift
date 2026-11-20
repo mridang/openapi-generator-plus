@@ -12,7 +12,7 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   public let breed: String?
   public let minAge: Int?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case breed = "breed"
     case minAge = "min_age"
   }
@@ -43,7 +43,8 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     self.breed = try container.decodeIfPresent(String.self, forKey: .breed)
-    self.minAge = try container.decodeIfPresent(Int.self, forKey: .minAge)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.minAge = try container.decodeInt32IfPresent(forKey: .minAge)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -53,7 +54,7 @@ public struct PetCriteria: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(breed, forKey: .breed)
-    try container.encodeIfPresent(minAge, forKey: .minAge)
+    try container.encodeIfPresent(ObjectSerializer.ordered(breed), forKey: .breed)
+    try container.encodeIfPresent(ObjectSerializer.ordered(minAge), forKey: .minAge)
   }
 }

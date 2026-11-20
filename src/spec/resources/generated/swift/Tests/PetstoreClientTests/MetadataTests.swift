@@ -262,6 +262,53 @@ import Testing
     #expect(String(describing: Priority.number3) == "3")
   }
 
+  /* The package declares a non-empty description of itself. */
+  @Test func testBhvModels002TheReadmeDeclaresANonEmptyDescription() throws {
+    let text = try readme()
+    let lines = text.split(separator: "\n").dropFirst().map {
+      $0.trimmingCharacters(in: .whitespaces)
+    }
+    #expect(lines.contains { !$0.isEmpty && !$0.hasPrefix("#") && !$0.hasPrefix("[") })
+  }
+
+  /* A model's string form shows the contents of its list, map and byte fields rather than their type names. */
+  @Test func testBhvMisc113AModelsStringFormShowsTheContentsOfItsListMapAndByteFields() {
+    let listed = String(describing: Pet(name: "Rex", photoUrls: ["https://x.example/a.png"]))
+    #expect(listed.contains("https://x.example/a.png"))
+    #expect(!listed.contains("Array<"))
+    let mapped = String(describing: Metadata(additionalProperties: ["colour": "tan"]))
+    #expect(mapped.contains("\"colour\": \"tan\""))
+    #expect(!mapped.contains("Dictionary<"))
+    let bytes = String(describing: PetPassport(thumbnail: Data([1, 2, 3])))
+    #expect(bytes.contains("3 bytes"))
+    #expect(!bytes.contains("Data<"))
+  }
+
+  /* A model is a value: changing a copy leaves the original as it was. */
+  @Test func testBhvModels014ChangingACopyLeavesTheOriginalModelUnchanged() {
+    let original = Pet(name: "Rex", photoUrls: [])
+    let changed = original.copy(name: "Max")
+    #expect(original.name == "Rex")
+    #expect(changed.name == "Max")
+  }
+
+  /* Decoding a model without one of its required properties fails with an error that names the property. */
+  @Test func testBhvMisc140ADecodeWithoutARequiredPropertyNamesIt() {
+    let error = #expect(throws: SerializationError.self) {
+      _ = try ObjectSerializer.deserialize("{\"photoUrls\":[]}", as: Pet.self)
+    }
+    #expect(String(describing: error).contains("name"))
+  }
+
+  /* Building a model in code does not validate it: values that are wrong for the schema are kept as given and raise
+     nothing (a wrong type or a missing required field cannot be written at all). */
+  @Test func testBhvSerialization068BuildingAModelDoesNotValidateIt() {
+    let pet = Pet(name: "", photoUrls: [""])
+    #expect(pet.name == "")
+    #expect(pet.photoUrls == [""])
+    #expect(Order(quantity: -5).quantity == -5)
+  }
+
   @Test func testBhvModels021IntegerEnumMembersAreLowerCamelCase() {
     #expect(Priority.allCases.map { "\($0)" } == ["1", "2", "3"])
     #expect(Priority.number1.rawValue == 1)
@@ -292,6 +339,18 @@ import Testing
   ])
   func testBhvLangswift042ReadmeHasTheSection(heading: String) throws {
     #expect(try readme().contains("\n\(heading)\n"))
+  }
+
+  /* The README has a section "Testing your code" that names the group interface and the top-level interface and
+     shows a fake. */
+  @Test func testBhvMocking009TestingYourCodeNamesTheGroupInterfaceAndTheClientInterface() throws {
+    let text = try readme()
+    let start = try #require(text.range(of: "\n## Testing your code\n"))
+    let rest = text[start.upperBound...]
+    let section = rest.range(of: "\n## ").map { String(rest[..<$0.lowerBound]) } ?? String(rest)
+    #expect(section.contains("ApiProtocol"))
+    #expect(section.contains("ClientProtocol"))
+    #expect(section.contains("A fake conforms to the interface"))
   }
 
   @Test func testBhvLangswift043ReadmeNamesTheRequestContextOnErrors() throws {

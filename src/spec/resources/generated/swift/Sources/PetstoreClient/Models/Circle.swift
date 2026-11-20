@@ -13,7 +13,7 @@ public struct Circle: Codable, Sendable, Equatable, Hashable {
   public let label: String?
   public let radius: Double
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case shapeType = "shapeType"
     case label = "label"
     case radius = "radius"
@@ -66,8 +66,8 @@ public struct Circle: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(shapeType, forKey: .shapeType)
-    try container.encodeIfPresent(label, forKey: .label)
-    try container.encode(radius, forKey: .radius)
+    try container.encode(ObjectSerializer.ordered(shapeType), forKey: .shapeType)
+    try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
+    try container.encode(ObjectSerializer.ordered(radius), forKey: .radius)
   }
 }

@@ -16,7 +16,7 @@ public struct BinaryVault: Codable, Sendable, Equatable, Hashable {
   /// A map of byte arrays; equality compares each value's contents.
   public let labels: [String: Data]?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case seal = "seal"
     case shards = "shards"
     case labels = "labels"
@@ -63,8 +63,8 @@ public struct BinaryVault: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(seal, forKey: .seal)
-    try container.encodeIfPresent(shards, forKey: .shards)
-    try container.encodeIfPresent(labels, forKey: .labels)
+    try container.encodeIfPresent(ObjectSerializer.ordered(seal), forKey: .seal)
+    try container.encodeIfPresent(ObjectSerializer.ordered(shards), forKey: .shards)
+    try container.encodeIfPresent(ObjectSerializer.ordered(labels), forKey: .labels)
   }
 }

@@ -46,7 +46,7 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   public let phase: EdgeCasesPhaseEnum?
   public let slug: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case freeFormAny = "freeFormAny"
     case favoriteColor = "favoriteColor"
     case permissionsNote = "permissionsNote"
@@ -168,26 +168,27 @@ public struct EdgeCases: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(freeFormAny, forKey: .freeFormAny)
-    try container.encodeIfPresent(favoriteColor, forKey: .favoriteColor)
-    try container.encodeIfPresent(permissionsNote, forKey: .permissionsNote)
-    try container.encodeIfPresent(and, forKey: .and)
-    try container.encodeIfPresent(or, forKey: .or)
-    try container.encodeIfPresent(not, forKey: .not)
-    try container.encodeIfPresent(_class, forKey: ._class)
-    try container.encodeIfPresent(_return, forKey: ._return)
+    try container.encodeIfPresent(ObjectSerializer.ordered(freeFormAny), forKey: .freeFormAny)
+    try container.encodeIfPresent(ObjectSerializer.ordered(favoriteColor), forKey: .favoriteColor)
+    try container.encodeIfPresent(
+      ObjectSerializer.ordered(permissionsNote), forKey: .permissionsNote)
+    try container.encodeIfPresent(ObjectSerializer.ordered(and), forKey: .and)
+    try container.encodeIfPresent(ObjectSerializer.ordered(or), forKey: .or)
+    try container.encodeIfPresent(ObjectSerializer.ordered(not), forKey: .not)
+    try container.encodeIfPresent(ObjectSerializer.ordered(_class), forKey: ._class)
+    try container.encodeIfPresent(ObjectSerializer.ordered(_return), forKey: ._return)
     try container.encodeIfPresent(
       try retryAfter.map { try ObjectSerializer.encodeDuration($0) }, forKey: .retryAfter)
-    try container.encodeIfPresent(expiresAt, forKey: .expiresAt)
-    try container.encodeIfPresent(n2fa, forKey: .n2fa)
-    try container.encodeIfPresent(separator, forKey: .separator)
-    try container.encodeIfPresent(null, forKey: .null)
-    try container.encodeIfPresent(_true, forKey: ._true)
-    try container.encodeIfPresent(_false, forKey: ._false)
-    try container.encodeIfPresent(lastError, forKey: .lastError)
-    try container.encodeIfPresent(outcome, forKey: .outcome)
-    try container.encodeIfPresent(cutoff, forKey: .cutoff)
-    try container.encodeIfPresent(phase, forKey: .phase)
-    try container.encodeIfPresent(slug, forKey: .slug)
+    try container.encodeIfPresent(ObjectSerializer.ordered(expiresAt), forKey: .expiresAt)
+    try container.encodeIfPresent(ObjectSerializer.ordered(n2fa), forKey: .n2fa)
+    try container.encodeIfPresent(ObjectSerializer.ordered(separator), forKey: .separator)
+    try container.encodeIfPresent(ObjectSerializer.ordered(null), forKey: .null)
+    try container.encodeIfPresent(ObjectSerializer.ordered(_true), forKey: ._true)
+    try container.encodeIfPresent(ObjectSerializer.ordered(_false), forKey: ._false)
+    try container.encodeIfPresent(ObjectSerializer.ordered(lastError), forKey: .lastError)
+    try container.encodeIfPresent(ObjectSerializer.ordered(outcome), forKey: .outcome)
+    try container.encodeIfPresent(ObjectSerializer.ordered(cutoff), forKey: .cutoff)
+    try container.encodeIfPresent(ObjectSerializer.ordered(phase), forKey: .phase)
+    try container.encodeIfPresent(ObjectSerializer.ordered(slug), forKey: .slug)
   }
 }

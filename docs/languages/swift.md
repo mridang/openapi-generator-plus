@@ -146,8 +146,10 @@ do {
 
 - An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a Swift `Int`, which is 64-bit, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - On Linux there is no proxy support and no CA pinning. Both throw a `ConfigurationError`. SOCKS proxies are rejected on every platform.
+- The redirect rules are the SDK's on every platform. On Linux, `URLSession` sends no body on a redirect it follows, so a 307 or 308 that keeps its method and has a body is sent again by the SDK itself.
 - `format: date` and `format: time` are plain strings, so they are not validated.
-- `format: decimal` and `number` are `Double` and lose exactness.
+- Integer fields are `Int`, but are decoded as 32 bits, so a value outside the 32-bit range is refused; declare `format: int64` for a larger one.
+- `format: decimal` is `Foundation.Decimal` (38 digits, trailing zeros are not kept); a bare `type: number` is `Double` and loses exactness.
 - Query, form and multipart parameters are held in dictionaries, so their wire order is not the order in the spec.
 - A body with a declared charset other than UTF-8 (such as `windows-1252` or `shift_jis`) can decode incorrectly.
 - An unknown enum value throws when decoding.

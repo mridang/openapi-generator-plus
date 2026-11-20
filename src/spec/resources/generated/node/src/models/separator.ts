@@ -9,9 +9,9 @@
  * String enum whose values sanitise to an empty or colliding identifier
  */
 export const Separator = {
-  SPACE1: ' ',
-  VALUE00400040: '@@',
-  AB: 'a-b',
-  AB2: 'a_b',
+  SPACE1: " ",
+  VALUE00400040: "@@",
+  AB: "a-b",
+  AB2: "a_b",
 } as const;
 export type Separator = (typeof Separator)[keyof typeof Separator];

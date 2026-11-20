@@ -3,6 +3,14 @@
 import Foundation
 import TestcontainersCore
 
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#elseif canImport(Darwin)
+import Darwin
+#endif
+
 nonisolated(unsafe) var proxyUrl: String = ""
 nonisolated(unsafe) var proxyAuthHostPort: String = ""
 nonisolated(unsafe) var chasmUrl: String = ""
@@ -178,6 +186,237 @@ func tearDownContainers() async throws {
     }
     if let network = sharedNetwork {
         try await network.remove()
+    }
+}
+
+/// One request as a ``LoopbackServer`` read it off the wire.
+struct LoopbackRequest: Sendable {
+    let method: String
+    let target: String
+    let headers: [String: String]
+    let body: Data
+
+    /// A header by name, whatever the case it travelled in.
+    func header(_ name: String) -> String? {
+        return headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+    }
+}
+
+/// What a ``LoopbackServer`` answers a request with.
+struct LoopbackResponse: Sendable {
+    var status: Int
+    var headers: [String: String] = [:]
+    var body: Data = Data()
+    /// Seconds to wait before answering.
+    var delay: TimeInterval = 0
+
+    static func ok(_ text: String = "{}") -> LoopbackResponse {
+        return LoopbackResponse(
+            status: 200, headers: ["Content-Type": "application/json"], body: Data(text.utf8))
+    }
+
+    static func redirect(_ status: Int, to location: String?) -> LoopbackResponse {
+        return LoopbackResponse(status: status, headers: location.map { ["Location": $0] } ?? [:])
+    }
+
+    /// Closes the connection without answering, as a dropped network does.
+    static let dropped = LoopbackResponse(status: 0)
+}
+
+/// A plain-HTTP server on the loopback interface, for the tests that need to
+/// decide what the far end does (an arbitrary Location, a dropped connection,
+/// the second origin of a cross-origin redirect) and to see exactly what
+/// reached it. It speaks only what the transport tests need: one request per
+/// connection, a Content-Length or chunked request body, and a response
+/// carrying Content-Length and `Connection: close`. It is plain sockets, so the
+/// same code serves Linux and the Apple platforms.
+final class LoopbackServer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var requestLog: [LoopbackRequest] = []
+    private var stopped = false
+    private let handler: @Sendable (LoopbackRequest, Int) -> LoopbackResponse
+    private(set) var port: Int = 0
+
+    /// Starts listening on a free loopback port. The handler gets each request
+    /// and its 1-based position in the order the server received them.
+    init(handler: @escaping @Sendable (LoopbackRequest, Int) -> LoopbackResponse) throws {
+        self.handler = handler
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let fd = socket(AF_INET, stream, 0)
+        guard fd >= 0 else { throw LoopbackError.socket }
+        var on: Int32 = 1
+        setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &on, socklen_t(MemoryLayout<Int32>.size))
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = 0
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        let bound = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                bind(fd, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard bound == 0, listen(fd, 64) == 0 else {
+            close(fd)
+            throw LoopbackError.socket
+        }
+        var assigned = sockaddr_in()
+        var length = socklen_t(MemoryLayout<sockaddr_in>.size)
+        _ = withUnsafeMutablePointer(to: &assigned) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) { getsockname(fd, $0, &length) }
+        }
+        port = Int(UInt16(bigEndian: assigned.sin_port))
+        let thread = Thread { [self] in acceptLoop(fd) }
+        thread.start()
+    }
+
+    enum LoopbackError: Error { case socket }
+
+    /// The origin this server answers on.
+    var origin: String { return "http://127.0.0.1:\(port)" }
+
+    /// The same server under another host name, which is another origin.
+    var alternateOrigin: String { return "http://localhost:\(port)" }
+
+    /// Every request received so far, in arrival order.
+    var requests: [LoopbackRequest] {
+        lock.lock()
+        defer { lock.unlock() }
+        return requestLog
+    }
+
+    /// Stops accepting connections; one already being served finishes.
+    func stop() {
+        lock.lock()
+        let wasStopped = stopped
+        stopped = true
+        lock.unlock()
+        if wasStopped { return }
+        /* A connection to ourselves wakes the accept loop, which closes the
+         * listening socket itself: closing it here could let another socket
+         * take its descriptor number while the loop still accepts on it. */
+#if canImport(Glibc) || canImport(Musl)
+        let stream = Int32(SOCK_STREAM.rawValue)
+#else
+        let stream = SOCK_STREAM
+#endif
+        let wake = socket(AF_INET, stream, 0)
+        if wake < 0 { return }
+        var address = sockaddr_in()
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = UInt16(port).bigEndian
+        address.sin_addr.s_addr = UInt32(0x7F00_0001).bigEndian
+        _ = withUnsafePointer(to: &address) {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(wake, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        close(wake)
+    }
+
+    deinit { stop() }
+
+    private func acceptLoop(_ fd: Int32) {
+        defer { close(fd) }
+        while true {
+            let client = accept(fd, nil, nil)
+            lock.lock()
+            let done = stopped
+            lock.unlock()
+            if client < 0 || done {
+                if client >= 0 { close(client) }
+                return
+            }
+            let thread = Thread { [self] in serve(client) }
+            thread.start()
+        }
+    }
+
+    private func serve(_ client: Int32) {
+        defer { close(client) }
+        guard let request = LoopbackServer.read(client) else { return }
+        lock.lock()
+        requestLog.append(request)
+        let position = requestLog.count
+        lock.unlock()
+        let response = handler(request, position)
+        if response.delay > 0 { Thread.sleep(forTimeInterval: response.delay) }
+        if response.status == 0 { return }
+        var head = "HTTP/1.1 \(response.status) Status\r\n"
+        for (name, value) in response.headers { head += "\(name): \(value)\r\n" }
+        head += "Content-Length: \(response.body.count)\r\n"
+        head += "Connection: close\r\n\r\n"
+        LoopbackServer.write(client, Data(head.utf8) + response.body)
+    }
+
+    private static func write(_ client: Int32, _ data: Data) {
+        data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            guard let base = raw.baseAddress else { return }
+            var sent = 0
+            while sent < raw.count {
+                let n = send(client, base + sent, raw.count - sent, 0)
+                if n <= 0 { return }
+                sent += n
+            }
+        }
+    }
+
+    private static func fill(_ client: Int32, _ buffer: inout Data) -> Bool {
+        var chunk = [UInt8](repeating: 0, count: 8192)
+        let n = recv(client, &chunk, chunk.count, 0)
+        if n <= 0 { return false }
+        buffer.append(contentsOf: chunk[0..<n])
+        return true
+    }
+
+    private static func read(_ client: Int32) -> LoopbackRequest? {
+        var buffer = Data()
+        let terminator = Data("\r\n\r\n".utf8)
+        var split = buffer.range(of: terminator)
+        while split == nil {
+            if !fill(client, &buffer) { return nil }
+            split = buffer.range(of: terminator)
+        }
+        guard let end = split,
+            let head = String(data: buffer[buffer.startIndex..<end.lowerBound], encoding: .utf8)
+        else { return nil }
+        var rest = Data(buffer[end.upperBound...])
+        var lines = head.components(separatedBy: "\r\n")
+        let first = lines.removeFirst().split(separator: " ", omittingEmptySubsequences: true)
+        guard first.count >= 2 else { return nil }
+        var headers: [String: String] = [:]
+        for line in lines {
+            guard let colon = line.firstIndex(of: ":") else { continue }
+            headers[String(line[line.startIndex..<colon])] =
+                line[line.index(after: colon)...].trimmingCharacters(in: .whitespaces)
+        }
+        let lookup = { (name: String) -> String? in
+            headers.first { $0.key.caseInsensitiveCompare(name) == .orderedSame }?.value
+        }
+        var body = Data()
+        if let length = lookup("Content-Length").flatMap({ Int($0) }) {
+            while rest.count < length { if !fill(client, &rest) { break } }
+            body = rest.prefix(length)
+        } else if lookup("Transfer-Encoding")?.lowercased() == "chunked" {
+            while true {
+                while rest.range(of: Data("\r\n".utf8)) == nil { if !fill(client, &rest) { break } }
+                guard let eol = rest.range(of: Data("\r\n".utf8)),
+                    let size = Int(
+                        String(data: rest[rest.startIndex..<eol.lowerBound], encoding: .utf8) ?? "",
+                        radix: 16)
+                else { break }
+                rest = Data(rest[eol.upperBound...])
+                if size == 0 { break }
+                while rest.count < size + 2 { if !fill(client, &rest) { break } }
+                body.append(rest.prefix(size))
+                rest = Data(rest.dropFirst(size + 2))
+            }
+        }
+        return LoopbackRequest(
+            method: String(first[0]), target: String(first[1]), headers: headers, body: body)
     }
 }
 {{/generateTests}}

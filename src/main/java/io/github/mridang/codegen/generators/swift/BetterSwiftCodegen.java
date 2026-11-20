@@ -87,7 +87,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
         typeMapping.put("float", "Float");
         typeMapping.put("double", "Double");
         typeMapping.put("number", "Double");
-        typeMapping.put("decimal", "Double");
+        typeMapping.put("decimal", "Decimal");
         typeMapping.put("date", "String");
         typeMapping.put("DateTime", "Date");
         // 4.8: format:time and format:duration. Foundation has no civil-time
@@ -456,6 +456,10 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
     @SuppressWarnings("rawtypes")
     public String getSchemaType(Schema schema) {
         final String type = super.getSchemaType(schema);
+        /* A number written as a decimal is an exact Decimal, the same as the string form. */
+        if ("Double".equals(type) && schema != null && "decimal".equals(schema.getFormat())) {
+            return "Decimal";
+        }
         if ("Error".equals(type) || "Result".equals(type)) {
             return "Model" + type;
         }
@@ -518,6 +522,25 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
             org.openapitools.codegen.CodegenProperty property) {
         super.postProcessModelProperty(model, property);
         property.vendorExtensions.put("isDuration", "duration".equals(property.dataFormat));
+        property.vendorExtensions.put(
+                "isDecimalString",
+                "Decimal".equals(property.dataType) && "string".equals(property.openApiType));
+        boolean decimalNumber =
+                "Decimal".equals(property.dataType) && "number".equals(property.openApiType);
+        property.vendorExtensions.put(
+                "isNarrowInt",
+                decimalNumber
+                        || (!property.isEnum && !property.isContainer && "Int".equals(property.dataType)));
+        property.vendorExtensions.put("checkedNumber", decimalNumber ? "DecimalNumber" : "Int32");
+        String ipFormat =
+                property.dataFormat != null
+                        ? property.dataFormat
+                        : (property.items != null ? property.items.dataFormat : null);
+        boolean isIp = "ipv4".equals(ipFormat) || "ipv6".equals(ipFormat);
+        property.vendorExtensions.put("isIpAddress", isIp);
+        if (isIp) {
+            property.vendorExtensions.put("ipFormat", ipFormat);
+        }
         /* UUID encodes itself in uppercase; arrays and maps of UUIDs are
          * flagged so the model template writes them lowercase. */
         org.openapitools.codegen.CodegenProperty uuidItems = property.items;
@@ -1013,6 +1036,7 @@ public class BetterSwiftCodegen extends AbstractBetterCodegen {
                 "BasicAuthenticator".equals(spec.baseClass())
                         || "BearerAuthenticator".equals(spec.baseClass());
         ctx.put("needsOverride", needsOverride);
+        ctx.put("isBearer", "BearerAuthenticator".equals(spec.baseClass()));
         ctx.put("constructorSignature", buildSwiftConstructorSignature(spec, hasEnvVars, true));
         ctx.put("environmentSignature", buildSwiftConstructorSignature(spec, hasEnvVars, false));
         ctx.put("forwardArguments", buildSwiftForwardArguments(spec));

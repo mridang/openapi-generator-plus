@@ -17,9 +17,9 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Example: https://example.com/a
   public let homepage: String?
   /// Example: 12.345678901234567
-  public let amount: Double?
+  public let amount: Decimal?
   /// Example: 12.50
-  public let ledger: Double?
+  public let ledger: Decimal?
   /// Example: 3600s
   public let wait: TimeInterval?
   /// Example: 2024-02-29
@@ -29,7 +29,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Example: a@example.com
   public let contact: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case address4 = "address4"
     case address6 = "address6"
     case addresses = "addresses"
@@ -45,7 +45,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// Creates a new NativeValues instance.
   public init(
     address4: String? = nil, address6: String? = nil, addresses: [String]? = nil,
-    homepage: String? = nil, amount: Double? = nil, ledger: Double? = nil,
+    homepage: String? = nil, amount: Decimal? = nil, ledger: Decimal? = nil,
     wait: TimeInterval? = nil, since: String? = nil, host: String? = nil, contact: String? = nil
   ) {
     self.address4 = address4
@@ -65,7 +65,7 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// `.some(nil)`, since a bare `nil` also means "keep".
   public func copy(
     address4: String?? = .none, address6: String?? = .none, addresses: [String]?? = .none,
-    homepage: String?? = .none, amount: Double?? = .none, ledger: Double?? = .none,
+    homepage: String?? = .none, amount: Decimal?? = .none, ledger: Decimal?? = .none,
     wait: TimeInterval?? = .none, since: String?? = .none, host: String?? = .none,
     contact: String?? = .none
   ) -> NativeValues {
@@ -92,14 +92,20 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
     self.address6 = try container.decodeIfPresent(String.self, forKey: .address6)
     self.addresses = try container.decodeIfPresent([String].self, forKey: .addresses)
     self.homepage = try container.decodeIfPresent(String.self, forKey: .homepage)
-    self.amount = try container.decodeIfPresent(Double.self, forKey: .amount)
-    self.ledger = try container.decodeIfPresent(Double.self, forKey: .ledger)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.amount = try container.decodeDecimalNumberIfPresent(forKey: .amount)
+    self.ledger = try container.decodeIfPresent(String.self, forKey: .ledger).map {
+      try ObjectSerializer.decodeDecimalString($0)
+    }
     self.wait = try container.decodeIfPresent(String.self, forKey: .wait).map {
       try ObjectSerializer.decodeDuration($0)
     }
     self.since = try container.decodeIfPresent(String.self, forKey: .since)
     self.host = try container.decodeIfPresent(String.self, forKey: .host)
     self.contact = try container.decodeIfPresent(String.self, forKey: .contact)
+    try ObjectSerializer.requireIpAddress(self.address4, format: "ipv4", property: "address4")
+    try ObjectSerializer.requireIpAddress(self.address6, format: "ipv6", property: "address6")
+    try ObjectSerializer.requireIpAddress(self.addresses, format: "ipv6", property: "addresses")
     try ObjectSerializer.requireAbsoluteUri(self.homepage, property: "homepage")
   }
 
@@ -110,16 +116,16 @@ public struct NativeValues: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(address4, forKey: .address4)
-    try container.encodeIfPresent(address6, forKey: .address6)
-    try container.encodeIfPresent(addresses, forKey: .addresses)
-    try container.encodeIfPresent(homepage, forKey: .homepage)
-    try container.encodeIfPresent(amount, forKey: .amount)
-    try container.encodeIfPresent(ledger, forKey: .ledger)
+    try container.encodeIfPresent(ObjectSerializer.ordered(address4), forKey: .address4)
+    try container.encodeIfPresent(ObjectSerializer.ordered(address6), forKey: .address6)
+    try container.encodeIfPresent(ObjectSerializer.ordered(addresses), forKey: .addresses)
+    try container.encodeIfPresent(ObjectSerializer.ordered(homepage), forKey: .homepage)
+    try container.encodeIfPresent(ObjectSerializer.ordered(amount), forKey: .amount)
+    try container.encodeIfPresent(ledger.map { $0.description }, forKey: .ledger)
     try container.encodeIfPresent(
       try wait.map { try ObjectSerializer.encodeDuration($0) }, forKey: .wait)
-    try container.encodeIfPresent(since, forKey: .since)
-    try container.encodeIfPresent(host, forKey: .host)
-    try container.encodeIfPresent(contact, forKey: .contact)
+    try container.encodeIfPresent(ObjectSerializer.ordered(since), forKey: .since)
+    try container.encodeIfPresent(ObjectSerializer.ordered(host), forKey: .host)
+    try container.encodeIfPresent(ObjectSerializer.ordered(contact), forKey: .contact)
   }
 }

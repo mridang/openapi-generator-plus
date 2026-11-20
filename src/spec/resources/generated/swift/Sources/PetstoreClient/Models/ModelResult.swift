@@ -11,7 +11,7 @@ import Foundation
 public struct ModelResult: Codable, Sendable, Equatable, Hashable {
   public let ok: Bool?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case ok = "ok"
   }
 
@@ -49,6 +49,6 @@ public struct ModelResult: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ok, forKey: .ok)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ok), forKey: .ok)
   }
 }

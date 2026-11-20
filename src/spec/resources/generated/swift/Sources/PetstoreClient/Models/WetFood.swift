@@ -12,7 +12,7 @@ public struct WetFood: Codable, Sendable, Equatable, Hashable {
   public let foodType: String
   public let volumeMl: Int
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case foodType = "foodType"
     case volumeMl = "volumeMl"
   }
@@ -48,7 +48,8 @@ public struct WetFood: Codable, Sendable, Equatable, Hashable {
       container.contains(.foodType)
       ? try container.decode(String.self, forKey: .foodType)
       : "wet"
-    self.volumeMl = try container.decode(Int.self, forKey: .volumeMl)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.volumeMl = try container.decodeInt32(forKey: .volumeMl)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -58,7 +59,7 @@ public struct WetFood: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(foodType, forKey: .foodType)
-    try container.encode(volumeMl, forKey: .volumeMl)
+    try container.encode(ObjectSerializer.ordered(foodType), forKey: .foodType)
+    try container.encode(ObjectSerializer.ordered(volumeMl), forKey: .volumeMl)
   }
 }

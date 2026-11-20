@@ -111,7 +111,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         caCertPath: nil,
         followRedirects: true,
         maxRedirects: nil,
-        proxyCredential: nil
+        proxyCredential: nil,
+        defaultHeaderNames: Array(opts.defaultHeaders.keys)
       )
       self.ownsSession = false
       return
@@ -220,7 +221,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
       caCertPath: opts.caCertPath,
       followRedirects: opts.followRedirects,
       maxRedirects: opts.maxRedirects,
-      proxyCredential: DefaultApiClient.buildProxyCredential(opts.proxy)
+      proxyCredential: DefaultApiClient.buildProxyCredential(opts.proxy),
+      defaultHeaderNames: Array(opts.defaultHeaders.keys)
     )
     self.session = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
     self.sessionDelegate = delegate
@@ -566,7 +568,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     }
 
     var data: Data
-    let response: URLResponse
+    var response: URLResponse
     /* The URLSessionTask backing this single call. Redirect counting and
        the redirect-refusal error are scoped to THIS task inside the
        shared ``SessionDelegate`` (keyed by the task's taskIdentifier),
@@ -574,7 +576,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
        redirect counter or corrupt each other's refusal error. We hold the
        task here so the post-completion `takeRedirectError(for:)` retrieves
        only this request's recorded refusal. */
-    let task: URLSessionTask
+    var task: URLSessionTask
     var callDelegate: SessionDelegate?
     do {
       /* When noRedirect is set (used by the OAuth2 token
@@ -601,7 +603,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
           caCertPath: transportOptions.caCertPath,
           followRedirects: transportOptions.followRedirects,
           maxRedirects: transportOptions.maxRedirects,
-          proxyCredential: proxyCredential
+          proxyCredential: proxyCredential,
+          defaultHeaderNames: Array(transportOptions.defaultHeaders.keys)
         )
         let created = URLSession(
           configuration: configuration, delegate: delegate, delegateQueue: nil)
@@ -610,10 +613,22 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         activeSession = created
       }
       defer { callSession?.finishTasksAndInvalidate() }
-      (data, response, task) = try await DefaultApiClient.performDataTask(
-        on: activeSession, for: request,
-        taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
-        deadline: effectiveTimeout)
+      let redirects = noRedirect ? nil : (callDelegate ?? sessionDelegate)
+      var next = request
+      var followed = 0
+      let started = Date()
+      while true {
+        let remaining = effectiveTimeout.map { max($0 - Date().timeIntervalSince(started), 0.001) }
+        (data, response, task) = try await DefaultApiClient.performDataTask(
+          on: activeSession, for: next,
+          taskDelegate: (!ownsSession && !noRedirect) ? sessionDelegate : nil,
+          redirects: redirects, redirectsFollowed: followed, deadline: remaining)
+        /* A redirect the delegate left for the caller to send (Linux,
+         * where a body cannot ride on the redirect URLSession follows). */
+        guard let followUp = redirects?.takeFollowUp(for: task) else { break }
+        next = followUp.request
+        followed = followUp.hops
+      }
     } catch let undecodable as UndecodableBody {
       /* The server answered but its body cannot be decoded: an ApiError
          carrying the real status code, never a NetworkError. */
@@ -1133,6 +1148,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
     on session: URLSession,
     for request: URLRequest,
     taskDelegate: URLSessionTaskDelegate? = nil,
+    redirects: SessionDelegate? = nil,
+    redirectsFollowed: Int = 0,
     deadline: TimeInterval? = nil
   ) async throws -> (Data, URLResponse, URLSessionTask) {
     /* Box the task so the completion handler, the continuation body and
@@ -1224,6 +1241,7 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
           if let taskDelegate = taskDelegate {
             task.delegate = taskDelegate
           }
+          redirects?.remember(body: request.httpBody, hops: redirectsFollowed, for: task)
           /* A task that is never resumed never calls its completion
              handler, so resuming the continuation here is the only
              resume on this path. */
@@ -1307,7 +1325,8 @@ public final class DefaultApiClient: ApiClient, @unchecked Sendable {
         caCertPath: opts.caCertPath,
         followRedirects: opts.followRedirects,
         maxRedirects: opts.maxRedirects,
-        proxyCredential: buildProxyCredential(opts.proxy)
+        proxyCredential: buildProxyCredential(opts.proxy),
+        defaultHeaderNames: Array(opts.defaultHeaders.keys)
       )
       return (URLSession(configuration: config, delegate: delegate, delegateQueue: nil), delegate)
     }
@@ -1459,16 +1478,46 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
      re-raised on the call side once that task completes. */
   private let redirectErrors = LockedTaskErrors()
 
+  /* The names (lower-cased) of the headers the transport adds to every
+   * request: they belong to this API, so a redirect to another origin does
+   * not carry them. */
+  private let defaultHeaderNames: Set<String>
+  /* The body each in-flight request was sent with, kept so a redirect that
+   * keeps the method can send it again. URLSession does not hand a
+   * delegate the body of a task on every platform (on Linux it is gone from
+   * the task's original request), so the SDK holds the one it built. */
+  private let requestBodies = LockedTaskBodies()
+  /* On Linux, the follow-up a redirect that keeps its method and its body
+   * asks for, held for the call side to send (see `willPerformHTTPRedirection`). */
+  private let followUps = LockedTaskFollowUps()
+
   init(
     verifySsl: Bool, caCertPath: String?, followRedirects: Bool, maxRedirects: Int?,
-    proxyCredential: URLCredential? = nil
+    proxyCredential: URLCredential? = nil, defaultHeaderNames: [String] = []
   ) {
     self.verifySsl = verifySsl
     self.caCertPath = caCertPath
     self.followRedirects = followRedirects
     self.maxRedirects = maxRedirects
     self.proxyCredential = proxyCredential
+    self.defaultHeaderNames = Set(defaultHeaderNames.map { $0.lowercased() })
     super.init()
+  }
+
+  /// Records the body a task is sent with, for a redirect that replays it,
+  /// and the redirects already followed to reach it.
+  func remember(body: Data?, hops: Int = 0, for task: URLSessionTask) {
+    requestBodies.set(body, for: task.taskIdentifier)
+    if hops > 0 {
+      redirectCounts.seed(hops, for: task.taskIdentifier)
+    }
+  }
+
+  /// Returns and clears the follow-up request recorded for the task, with the
+  /// number of redirects followed to reach it, if its redirect is to be sent
+  /// by the caller instead of by URLSession.
+  func takeFollowUp(for task: URLSessionTask) -> (request: URLRequest, hops: Int)? {
+    return followUps.take(for: task.taskIdentifier)
   }
 
   /// Returns and clears the redirect-refusal error recorded for the given
@@ -1479,6 +1528,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
        completion handler is not guaranteed a `didCompleteWithError`
        callback, and a leaked count would otherwise follow the key. */
     redirectCounts.clear(for: task.taskIdentifier)
+    requestBodies.clear(for: task.taskIdentifier)
     return redirectErrors.take(for: task.taskIdentifier)
   }
 
@@ -1552,12 +1602,30 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     _ session: URLSession,
     task: URLSessionTask,
     willPerformHTTPRedirection response: HTTPURLResponse,
-    newRequest request: URLRequest,
+    newRequest proposed: URLRequest,
     completionHandler: @escaping (URLRequest?) -> Void
   ) {
     if !followRedirects {
       completionHandler(nil)
       return
+    }
+    /* Only these five statuses ask the client to go elsewhere (RFC 9110
+     * 15.4). A 300 or 305 is the response, whatever its Location says; the
+     * platforms differ on both (swift-corelibs follows a 305). */
+    guard DefaultApiClient.followedRedirectStatuses.contains(response.statusCode) else {
+      completionHandler(nil)
+      return
+    }
+    /* The Location is resolved here, against the URL of the request that
+     * received it (RFC 3986), so every platform sends the same follow-up:
+     * swift-corelibs resolves a relative Location against the host only
+     * and turns a non-HTTP(S) URL into a path on the same host. */
+    var request = proposed
+    if let location = response.value(forHTTPHeaderField: "Location"),
+      let base = response.url ?? task.currentRequest?.url,
+      let target = URL(string: location, relativeTo: base)?.absoluteURL
+    {
+      request.url = target
     }
     /* Cap at the caller-configured limit, falling back to the
        unified 20-hop default across all 12 SDKs. URLSession otherwise
@@ -1616,6 +1684,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     {
       let sensitiveNames = (redirectRequest.allHTTPHeaderFields ?? [:]).keys.filter {
         DefaultApiClient.isSensitiveRedirectHeader($0)
+          || defaultHeaderNames.contains($0.lowercased())
       }
       for name in sensitiveNames {
         redirectRequest.setValue(nil, forHTTPHeaderField: name)
@@ -1626,7 +1695,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
      * rewritten below: a 301 or 302 POST-to-GET rewrite drops the body. */
     let currentScheme = task.currentRequest?.url?.scheme?.lowercased()
     let nextScheme = request.url?.scheme?.lowercased()
-    let originalBody = task.originalRequest?.httpBody
+    let originalBody = requestBodies.body(for: taskKey) ?? task.originalRequest?.httpBody
     let bodySent = !(originalBody ?? Data()).isEmpty || redirectRequest.httpBodyStream != nil
 
     /* RFC 9110 15.4: set the follow-up method explicitly instead of
@@ -1638,8 +1707,9 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     if toMethod.uppercased() != fromMethod.uppercased() {
       redirectRequest.httpBody = nil
       redirectRequest.httpBodyStream = nil
-    } else if redirectRequest.httpBody == nil && redirectRequest.httpBodyStream == nil {
-      redirectRequest.httpBody = task.originalRequest?.httpBody
+    } else if (redirectRequest.httpBody ?? Data()).isEmpty && redirectRequest.httpBodyStream == nil
+    {
+      redirectRequest.httpBody = originalBody
     }
 
     /* Refuse to replay a request body across an
@@ -1695,6 +1765,20 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
       redirectRequest.setValue(nil, forHTTPHeaderField: "Content-Type")
     }
 
+    #if os(Linux)
+      /* swift-corelibs-foundation clears the body of the task when it
+       * follows a redirect and starts the next transfer from that, whatever
+       * request the delegate hands back, so a 307 or 308 that keeps the
+       * method would be sent again with an empty body. The redirect is not
+       * followed here: the response ends this task, and the call side sends
+       * the follow-up itself with the body the SDK kept. */
+      if let body = redirectRequest.httpBody, !body.isEmpty {
+        followUps.set(redirectRequest, hops: count, for: taskKey)
+        completionHandler(nil)
+        return
+      }
+    #endif
+
     completionHandler(redirectRequest)
   }
 
@@ -1711,6 +1795,7 @@ final class SessionDelegate: NSObject, URLSessionDelegate, URLSessionTaskDelegat
     didCompleteWithError error: Error?
   ) {
     redirectCounts.clear(for: task.taskIdentifier)
+    requestBodies.clear(for: task.taskIdentifier)
   }
 }
 
@@ -1776,6 +1861,9 @@ extension DefaultApiClient {
   static func bodyReplayMessage(current: String, next: String) -> String {
     return "Refusing to replay request body across HTTPS->HTTP redirect: \(current) -> \(next)"
   }
+
+  /// The statuses whose Location the client follows: 301, 302, 303, 307 and 308.
+  static let followedRedirectStatuses: Set<Int> = [301, 302, 303, 307, 308]
 
   /// The method of the follow-up request for a redirect (RFC 9110 15.4):
   /// 301 and 302 turn only POST into GET, 303 turns everything except HEAD
@@ -1896,9 +1984,53 @@ private final class LockedTaskCounters: @unchecked Sendable {
     }
   }
 
+  /// Starts this task's count at the redirects already followed to reach it.
+  func seed(_ hops: Int, for key: Int) {
+    lock.withLock { counts[key] = hops }
+  }
+
   /// Drops this task's entry once the task has finished.
   func clear(for key: Int) {
     lock.withLock { counts[key] = nil }
+  }
+}
+
+/// Thread-safe PER-TASK store of the follow-up request a redirect asks for and
+/// the caller sends (Linux), with the redirects followed so far.
+private final class LockedTaskFollowUps: @unchecked Sendable {
+  private var requests: [Int: (request: URLRequest, hops: Int)] = [:]
+  private let lock = NSLock()
+
+  func set(_ request: URLRequest, hops: Int, for key: Int) {
+    lock.withLock { requests[key] = (request, hops) }
+  }
+
+  /// Returns this task's follow-up and clears its slot.
+  func take(for key: Int) -> (request: URLRequest, hops: Int)? {
+    lock.withLock {
+      let value = requests[key]
+      requests[key] = nil
+      return value
+    }
+  }
+}
+
+/// Thread-safe PER-TASK store of the request body each in-flight task was sent
+/// with, keyed by ``URLSessionTask/taskIdentifier`` like the redirect counters.
+private final class LockedTaskBodies: @unchecked Sendable {
+  private var bodies: [Int: Data] = [:]
+  private let lock = NSLock()
+
+  func set(_ body: Data?, for key: Int) {
+    lock.withLock { bodies[key] = body }
+  }
+
+  func body(for key: Int) -> Data? {
+    lock.withLock { bodies[key] }
+  }
+
+  func clear(for key: Int) {
+    lock.withLock { bodies[key] = nil }
   }
 }
 

@@ -29,4 +29,11 @@ public final class ServiceTokenAuthenticator: BearerAuthenticator, @unchecked Se
       environment: environment)
     try super.init(host: host, token: token)
   }
+
+  /// Creates the authenticator with a token provider. The provider runs before every
+  /// request and is used even when the environment variable holds a token: the
+  /// environment only fills a credential that was not passed.
+  override public init(host: String, tokenProvider: @escaping @Sendable () async throws -> String) {
+    super.init(host: host, tokenProvider: tokenProvider)
+  }
 }

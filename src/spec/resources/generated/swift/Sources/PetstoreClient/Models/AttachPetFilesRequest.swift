@@ -12,7 +12,7 @@ public struct AttachPetFilesRequest: Codable, Sendable, Equatable, Hashable {
   public let file: Data
   public let caption: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case file = "file"
     case caption = "caption"
   }
@@ -53,7 +53,7 @@ public struct AttachPetFilesRequest: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(file, forKey: .file)
-    try container.encodeIfPresent(caption, forKey: .caption)
+    try container.encode(ObjectSerializer.ordered(file), forKey: .file)
+    try container.encodeIfPresent(ObjectSerializer.ordered(caption), forKey: .caption)
   }
 }

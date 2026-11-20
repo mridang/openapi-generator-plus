@@ -13,9 +13,9 @@ If using locally, add it as a file dependency in your `package.json`.
 ## Quick Start
 
 ```typescript
-import { Client } from 'petstore-client';
+import { Client } from "petstore-client";
 
-const client = Client.withToken('https://api.example.com', 'your-token');
+const client = Client.withToken("https://api.example.com", "your-token");
 ```
 
 ## Authentication
@@ -25,60 +25,88 @@ All authentication is handled via `Authenticator` implementations passed to the 
 ### Bearer Token
 
 ```typescript
-import { BearerAuthenticator, Client } from 'petstore-client';
+import { BearerAuthenticator, Client } from "petstore-client";
 
-const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
+const authenticator = new BearerAuthenticator(
+  "https://api.example.com",
+  "your-token",
+);
 const client = new Client(authenticator);
 ```
 
 ### Basic Auth
 
 ```typescript
-import { BasicAuthenticator } from 'petstore-client';
+import { BasicAuthenticator } from "petstore-client";
 
-const authenticator = new BasicAuthenticator('https://api.example.com', 'username', 'password');
+const authenticator = new BasicAuthenticator(
+  "https://api.example.com",
+  "username",
+  "password",
+);
 const client = new Client(authenticator);
 ```
 
 ### API Key
 
 ```typescript
-import { ApiKeyAuthenticator, ApiKeyLocation } from 'petstore-client';
+import { ApiKeyAuthenticator, ApiKeyLocation } from "petstore-client";
 
-const authenticator = new ApiKeyAuthenticator('https://api.example.com', 'key-name', 'key-value', ApiKeyLocation.HEADER);
+const authenticator = new ApiKeyAuthenticator(
+  "https://api.example.com",
+  "key-name",
+  "key-value",
+  ApiKeyLocation.HEADER,
+);
 const client = new Client(authenticator);
 ```
 
 ### OAuth2 Client Credentials
 
 ```typescript
-import { OAuth2ClientCredentialsAuthenticator } from 'petstore-client';
+import { OAuth2ClientCredentialsAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
-  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token', ['read']);
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
+  ["read"],
+);
 const client = new Client(authenticator);
 ```
 
 ### OAuth2 Authorization Code
 
 ```typescript
-import { OAuth2AuthorizationCodeAuthenticator } from 'petstore-client';
+import { OAuth2AuthorizationCodeAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2AuthorizationCodeAuthenticator(
-  'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/authorize', 'https://auth.example.com/token',
-  'https://app.example.com/callback', ['read']);
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/authorize",
+  "https://auth.example.com/token",
+  "https://app.example.com/callback",
+  ["read"],
+);
 const client = new Client(authenticator);
 ```
 
 ### OAuth2 Password
 
 ```typescript
-import { OAuth2PasswordAuthenticator } from 'petstore-client';
+import { OAuth2PasswordAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2PasswordAuthenticator(
-  'https://api.example.com', 'client-id', 'client-secret',
-  'https://auth.example.com/token', 'username', 'password', ['read']);
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
+  "username",
+  "password",
+  ["read"],
+);
 const client = new Client(authenticator);
 ```
 
@@ -87,26 +115,31 @@ const client = new Client(authenticator);
 The implicit flow obtains the access token out of band (typically in the browser). Pass the token to the authenticator:
 
 ```typescript
-import { OAuth2ImplicitAuthenticator } from 'petstore-client';
+import { OAuth2ImplicitAuthenticator } from "petstore-client";
 
 const authenticator = new OAuth2ImplicitAuthenticator(
-  'https://api.example.com',
-  'client-id',
-  'https://auth.example.com/authorize',
-  ['read'],
+  "https://api.example.com",
+  "client-id",
+  "https://auth.example.com/authorize",
+  ["read"],
 );
-authenticator.setAccessToken('your-access-token');
+authenticator.setAccessToken("your-access-token");
 const client = new Client(authenticator);
 ```
 
 ### OpenID Connect
 
 ```typescript
-import { OpenIdConnectAuthenticator } from 'petstore-client';
+import { OpenIdConnectAuthenticator } from "petstore-client";
 
 const authenticator = new OpenIdConnectAuthenticator(
-  'https://api.example.com', 'https://auth.example.com/.well-known/openid-configuration',
-  'client-id', 'client-secret', 'https://app.example.com/callback', ['openid']);
+  "https://api.example.com",
+  "https://auth.example.com/.well-known/openid-configuration",
+  "client-id",
+  "client-secret",
+  "https://app.example.com/callback",
+  ["openid"],
+);
 const client = new Client(authenticator);
 ```
 
@@ -142,11 +175,19 @@ OAuth2 clients can transmit their `client_id` and `client_secret` to the token e
 Override the default if your authorization server only accepts one form:
 
 ```typescript
-import { ClientAuthMethod, OAuth2ClientCredentialsAuthenticator } from 'petstore-client';
+import {
+  ClientAuthMethod,
+  OAuth2ClientCredentialsAuthenticator,
+} from "petstore-client";
 
 const authenticator = new OAuth2ClientCredentialsAuthenticator(
-  'https://api.example.com', 'client-id', 'client-secret', 'https://auth.example.com/token',
-  [], ClientAuthMethod.Basic);
+  "https://api.example.com",
+  "client-id",
+  "client-secret",
+  "https://auth.example.com/token",
+  [],
+  ClientAuthMethod.Basic,
+);
 ```
 
 ## Servers
@@ -154,9 +195,9 @@ const authenticator = new OAuth2ClientCredentialsAuthenticator(
 If the OpenAPI spec defines multiple servers, the generated `Servers` class exposes each as a `ServerConfiguration` static property (e.g., `Servers.SERVER_0`, `Servers.SERVER_1`, ...) plus a `Servers.ALL` array. Pass the desired server's URL to the client:
 
 ```typescript
-import { Client, Servers } from 'petstore-client';
+import { Client, Servers } from "petstore-client";
 
-const client = Client.withToken(Servers.SERVER_0.getUrl(), 'your-token');
+const client = Client.withToken(Servers.SERVER_0.getUrl(), "your-token");
 ```
 
 ## Testing
@@ -164,18 +205,24 @@ const client = Client.withToken(Servers.SERVER_0.getUrl(), 'your-token');
 To stub responses, pass your own `fetch` through `TransportOptions` and return a canned `Response`; to control credentials, substitute a fake `Authenticator` that returns a known header map. Together they let a test run without a network.
 
 ```typescript
-import { Client, type Authenticator } from 'petstore-client';
+import { Client, type Authenticator } from "petstore-client";
 
 const fake: Authenticator = {
-  getHost(): string { return 'https://api.example.com'; },
+  getHost(): string {
+    return "https://api.example.com";
+  },
   getAuthHeaders(): Record<string, string> {
-    return { Authorization: 'Bearer test-token' };
+    return { Authorization: "Bearer test-token" };
   },
   getAuthHeadersAsync(): Promise<Record<string, string>> {
     return Promise.resolve(this.getAuthHeaders());
   },
-  getQueryParams(): Record<string, string> { return {}; },
-  getCookieParams(): Record<string, string> { return {}; },
+  getQueryParams(): Record<string, string> {
+    return {};
+  },
+  getCookieParams(): Record<string, string> {
+    return {};
+  },
 };
 
 const client = new Client(fake);
@@ -184,10 +231,13 @@ const client = new Client(fake);
 Stubbing the transport so that every call receives a canned response:
 
 ```typescript
-import { Client, TransportOptions } from 'petstore-client';
+import { Client, TransportOptions } from "petstore-client";
 
 const stub: typeof fetch = async () =>
-  new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  new Response("{}", {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
 const transport = TransportOptions.builder().fetch(stub).build();
 const client = new Client(fake, transport);
 ```
@@ -226,7 +276,14 @@ Every error the SDK raises derives from `OpenAPIError`. The error hierarchy is:
   - `OAuth2TokenError` (the token endpoint answered 2xx with an unusable body)
 
 ```typescript
-import { ApiError, ClientError, NotFoundError, ServerError, OpenAPIError, Pet } from 'petstore-client';
+import {
+  ApiError,
+  ClientError,
+  NotFoundError,
+  ServerError,
+  OpenAPIError,
+  Pet,
+} from "petstore-client";
 
 try {
   const result = await client.pet.addPet(new Pet());
@@ -252,11 +309,14 @@ try {
 ### Custom Transport Options
 
 ```typescript
-import { BearerAuthenticator, Client, TransportOptions } from 'petstore-client';
+import { BearerAuthenticator, Client, TransportOptions } from "petstore-client";
 
-const authenticator = new BearerAuthenticator('https://api.example.com', 'your-token');
+const authenticator = new BearerAuthenticator(
+  "https://api.example.com",
+  "your-token",
+);
 const transport = TransportOptions.builder()
-  .proxy('http://proxy:3128')
+  .proxy("http://proxy:3128")
   .timeout(5000)
   .build();
 
@@ -305,7 +365,9 @@ Every operation takes a trailing `RequestOptions` object (`{ signal?: AbortSigna
 const controller = new AbortController();
 // An operation with optional parameters takes them before the signal: pass `undefined` to skip them.
 const perCall = client.pet.addPet(new Pet(), { signal: controller.signal });
-const cancellable = new Client(authenticator, undefined, { signal: controller.signal });
+const cancellable = new Client(authenticator, undefined, {
+  signal: controller.signal,
+});
 ```
 
 ### Raw responses, timeouts and the request id
@@ -329,7 +391,7 @@ All API methods are asynchronous; call them with `await`.
 Models are generated as TypeScript classes in the `src/models/` directory. Every field is `readonly`; `model.with({ field: value })` returns a copy with the fields replaced. A model constructor validates nothing; a missing required field, a wrong type or an unknown enum string fails when a response is decoded. A `format: date` field or parameter is a plain `YYYY-MM-DD` string (a `Date` is accepted on input and sent as its UTC date); `format: date-time` is a `Date`.
 
 ```typescript
-import { Account } from 'petstore-client';
+import { Account } from "petstore-client";
 
 const model = new Account();
 ```

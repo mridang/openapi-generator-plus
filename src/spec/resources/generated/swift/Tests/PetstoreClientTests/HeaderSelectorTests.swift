@@ -63,6 +63,25 @@ import Testing
     #expect((headers["Accept"] ?? "") == "")
   }
 
+  /* A missing content type cannot be passed (the parameter is not optional); the empty value that stands for it
+     defaults to application/json. */
+  @Test func testBhvHeaders002AnUnsetContentTypeDefaultsToApplicationJson() {
+    let headers = HeaderSelector().selectHeaders(accept: [], contentType: "", isMultipart: false)
+    #expect(headers["Content-Type"] == "application/json")
+  }
+
+  /* A missing accept list cannot be passed; the empty list that stands for it sets no Accept header. */
+  @Test func testBhvHeaders005NoAcceptValuesSetNoAcceptHeader() {
+    let headers = HeaderSelector().selectHeaders(
+      accept: [], contentType: "application/json", isMultipart: false)
+    #expect(headers["Accept"] == nil)
+  }
+
+  /* A missing mime type cannot be passed; the empty one that stands for it is not JSON. */
+  @Test func testBhvHeaders015AnUnsetMimeTypeIsNotJson() {
+    #expect(!HeaderSelector().isJsonMime(""))
+  }
+
   @Test func testBhvHeaders004SelectHeadersWithEmptyAccepts() {
     let hs = HeaderSelector()
     let headers = hs.selectHeaders(accept: [], contentType: "application/json", isMultipart: false)

@@ -9,11 +9,11 @@ import Foundation
 /// `s` and an optional fractional part of up to nine digits
 /// (nanoseconds). Examples: `3600s`, `1.5s`, `3600.000000001s`,
 /// `-1.500s`. The fractional part is right-padded to nine digits to
-/// recover nanoseconds, and the sign is applied to the whole value.
+/// recover nanoseconds; digits finer than a nanosecond are cut off toward zero, never rounded or refused, and the sign is applied to the whole value.
 ///
 /// Throws ``SerializationError`` for malformed input.
 public func parseProtobufDuration(_ input: String) throws -> TimeInterval {
-    let pattern = "^-?[0-9]+(\\.[0-9]{1,9})?s$"
+    let pattern = "^-?[0-9]+(\\.[0-9]+)?s$"
     guard input.range(of: pattern, options: .regularExpression) != nil else {
         throw SerializationError(message: "invalid protobuf duration: \(input)")
     }

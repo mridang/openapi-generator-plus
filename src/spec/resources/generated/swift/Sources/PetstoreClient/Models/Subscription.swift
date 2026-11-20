@@ -30,7 +30,7 @@ public struct Subscription: Codable, Sendable, Equatable, Hashable {
   public let stage: Stage?
   public let interval: SubscriptionIntervalEnum?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case tier = "tier"
     case rank = "rank"
     case stage = "stage"
@@ -90,9 +90,9 @@ public struct Subscription: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(tier, forKey: .tier)
-    try container.encode(rank, forKey: .rank)
-    try container.encodeIfPresent(stage, forKey: .stage)
-    try container.encodeIfPresent(interval, forKey: .interval)
+    try container.encodeIfPresent(ObjectSerializer.ordered(tier), forKey: .tier)
+    try container.encode(ObjectSerializer.ordered(rank), forKey: .rank)
+    try container.encodeIfPresent(ObjectSerializer.ordered(stage), forKey: .stage)
+    try container.encodeIfPresent(ObjectSerializer.ordered(interval), forKey: .interval)
   }
 }

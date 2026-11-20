@@ -51,7 +51,7 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
   public let nickname: String?
   public let ownerName: String
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case id = "id"
     case name = "name"
     case category = "category"
@@ -148,19 +148,19 @@ public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(id, forKey: .id)
-    try container.encode(name, forKey: .name)
-    try container.encodeIfPresent(category, forKey: .category)
-    try container.encode(photoUrls, forKey: .photoUrls)
-    try container.encodeIfPresent(tags, forKey: .tags)
-    try container.encodeIfPresent(status, forKey: .status)
-    try container.encodeIfPresent(location, forKey: .location)
-    try container.encodeIfPresent(homepageUrl, forKey: .homepageUrl)
-    try container.encodeIfPresent(thumbnailRef, forKey: .thumbnailRef)
-    try container.encodeIfPresent(linkTemplate, forKey: .linkTemplate)
-    try container.encodeIfPresent(ownerEmail, forKey: .ownerEmail)
-    try container.encodeIfPresent(weightKg, forKey: .weightKg)
-    try container.encodeIfPresent(nickname, forKey: .nickname)
-    try container.encode(ownerName, forKey: .ownerName)
+    try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
+    try container.encode(ObjectSerializer.ordered(name), forKey: .name)
+    try container.encodeIfPresent(ObjectSerializer.ordered(category), forKey: .category)
+    try container.encode(ObjectSerializer.ordered(photoUrls), forKey: .photoUrls)
+    try container.encodeIfPresent(ObjectSerializer.ordered(tags), forKey: .tags)
+    try container.encodeIfPresent(ObjectSerializer.ordered(status), forKey: .status)
+    try container.encodeIfPresent(ObjectSerializer.ordered(location), forKey: .location)
+    try container.encodeIfPresent(ObjectSerializer.ordered(homepageUrl), forKey: .homepageUrl)
+    try container.encodeIfPresent(ObjectSerializer.ordered(thumbnailRef), forKey: .thumbnailRef)
+    try container.encodeIfPresent(ObjectSerializer.ordered(linkTemplate), forKey: .linkTemplate)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ownerEmail), forKey: .ownerEmail)
+    try container.encodeIfPresent(ObjectSerializer.ordered(weightKg), forKey: .weightKg)
+    try container.encodeIfPresent(ObjectSerializer.ordered(nickname), forKey: .nickname)
+    try container.encode(ObjectSerializer.ordered(ownerName), forKey: .ownerName)
   }
 }

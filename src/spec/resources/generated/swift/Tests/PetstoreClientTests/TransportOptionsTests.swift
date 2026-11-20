@@ -101,6 +101,22 @@ import Testing
     #expect(error?.errorDescription?.contains("must use http or https scheme") == true)
   }
 
+  /* Transport options are only built through the builder, which rejects a proxy that is not http or https. */
+  @Test func testBhvOptions046TransportOptionsWithANonHttpProxySchemeCannotBeBuilt() {
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("socks5://proxy.example.com:1080").build()
+    }
+  }
+
+  /* A ready-made session combined with a CA bundle setting is rejected when the options are built. */
+  @Test func testBhvMisc186ASuppliedSessionWithACaBundleIsRejectedAtBuild() {
+    let session = URLSession(configuration: .ephemeral)
+    defer { session.invalidateAndCancel() }
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().session(session).caCertPath("/tmp/ca.pem").build()
+    }
+  }
+
   @Test func testBhvOptions058SessionDefaultsToNil() throws {
     #expect(try TransportOptionsBuilder().build().session == nil)
   }

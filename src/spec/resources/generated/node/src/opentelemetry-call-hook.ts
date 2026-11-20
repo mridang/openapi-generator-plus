@@ -18,17 +18,31 @@ import {
   propagation,
   SpanKind,
   SpanStatusCode,
-  trace
-} from '@opentelemetry/api';
-import type { Attributes, MeterProvider, TextMapPropagator, TracerProvider } from '@opentelemetry/api';
-import type { CallHook, CallInfo, CallObserver, CallOutcome } from './call-hook.js';
-import { NetworkError, NetworkTimeoutError, SerializationError } from './errors/index.js';
+  trace,
+} from "@opentelemetry/api";
+import type {
+  Attributes,
+  MeterProvider,
+  TextMapPropagator,
+  TracerProvider,
+} from "@opentelemetry/api";
+import type {
+  CallHook,
+  CallInfo,
+  CallObserver,
+  CallOutcome,
+} from "./call-hook.js";
+import {
+  NetworkError,
+  NetworkTimeoutError,
+  SerializationError,
+} from "./errors/index.js";
 
 /** The instrumentation scope: the published package name. */
-const SCOPE_NAME = 'petstore-client';
+const SCOPE_NAME = "petstore-client";
 
 /** The instrumentation scope version: the version of this SDK. */
-const SCOPE_VERSION = '1.0.0';
+const SCOPE_VERSION = "1.0.0";
 
 /**
  * Options of {@link createOpenTelemetryCallHook}. Every field is optional: a
@@ -59,29 +73,45 @@ export interface OpenTelemetryCallHookOptions {
  * @param options the providers and propagator to use, if not the global ones
  * @returns the call hook
  */
-export function createOpenTelemetryCallHook(options: OpenTelemetryCallHookOptions = {}): CallHook {
-  const tracer = (options.tracerProvider ?? trace.getTracerProvider()).getTracer(SCOPE_NAME, SCOPE_VERSION);
-  const meter = (options.meterProvider ?? metrics.getMeterProvider()).getMeter(SCOPE_NAME, SCOPE_VERSION);
-  const counter = meter.createCounter('http.client.request.count', {
-    unit: '{request}',
-    description: 'Client requests, one per call.'
+export function createOpenTelemetryCallHook(
+  options: OpenTelemetryCallHookOptions = {},
+): CallHook {
+  const tracer = (
+    options.tracerProvider ?? trace.getTracerProvider()
+  ).getTracer(SCOPE_NAME, SCOPE_VERSION);
+  const meter = (options.meterProvider ?? metrics.getMeterProvider()).getMeter(
+    SCOPE_NAME,
+    SCOPE_VERSION,
+  );
+  const counter = meter.createCounter("http.client.request.count", {
+    unit: "{request}",
+    description: "Client requests, one per call.",
   });
-  const duration = meter.createHistogram('http.client.request.duration', {
-    unit: 's',
-    description: 'Duration of a call from start to finish, in seconds.'
+  const duration = meter.createHistogram("http.client.request.duration", {
+    unit: "s",
+    description: "Duration of a call from start to finish, in seconds.",
   });
-  const propagator: Pick<TextMapPropagator, 'inject'> = options.propagator ?? propagation;
+  const propagator: Pick<TextMapPropagator, "inject"> =
+    options.propagator ?? propagation;
   return {
     start(info: CallInfo, headers: Record<string, string>): CallObserver {
       const started = performance.now();
       const attributes: Attributes = {
-        'http.request.method': info.method,
-        'url.template': info.urlTemplate,
-        'server.address': info.serverAddress
+        "http.request.method": info.method,
+        "url.template": info.urlTemplate,
+        "server.address": info.serverAddress,
       };
       const parent = context.active();
-      const span = tracer.startSpan(info.operationId, { kind: SpanKind.CLIENT, attributes }, parent);
-      propagator.inject(trace.setSpan(parent, span), headers, defaultTextMapSetter);
+      const span = tracer.startSpan(
+        info.operationId,
+        { kind: SpanKind.CLIENT, attributes },
+        parent,
+      );
+      propagator.inject(
+        trace.setSpan(parent, span),
+        headers,
+        defaultTextMapSetter,
+      );
       let finished = false;
       return {
         finish(outcome: CallOutcome): void {
@@ -91,20 +121,20 @@ export function createOpenTelemetryCallHook(options: OpenTelemetryCallHookOption
           finished = true;
           const recorded: Attributes = { ...attributes };
           if (outcome.statusCode > 0) {
-            recorded['http.response.status_code'] = outcome.statusCode;
+            recorded["http.response.status_code"] = outcome.statusCode;
           }
           const errorType = errorTypeOf(outcome);
           if (errorType !== null) {
-            recorded['error.type'] = errorType;
+            recorded["error.type"] = errorType;
             span.setStatus({ code: SpanStatusCode.ERROR });
           }
           span.setAttributes(recorded);
           span.end();
           counter.add(1, recorded);
           duration.record((performance.now() - started) / 1000, recorded);
-        }
+        },
       };
-    }
+    },
   };
 }
 
@@ -122,16 +152,19 @@ function errorTypeOf(outcome: CallOutcome): string | null {
     return null;
   }
   if (error instanceof NetworkTimeoutError) {
-    return 'timeout';
+    return "timeout";
   }
   if (error instanceof NetworkError) {
-    return 'network_error';
+    return "network_error";
   }
   if (error instanceof SerializationError) {
-    return 'serialization_error';
+    return "serialization_error";
   }
-  if (typeof error === 'object' && (error as { name?: unknown }).name === 'AbortError') {
-    return 'cancelled';
+  if (
+    typeof error === "object" &&
+    (error as { name?: unknown }).name === "AbortError"
+  ) {
+    return "cancelled";
   }
-  return '_OTHER';
+  return "_OTHER";
 }

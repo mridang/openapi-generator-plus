@@ -13,7 +13,7 @@
  * @returns the URL with its userinfo masked
  */
 function proxyForMessage(proxy: string): string {
-  return proxy.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, '$1***@');
+  return proxy.replace(/^([A-Za-z][A-Za-z0-9+.-]*:\/\/)[^/?#]*@/, "$1***@");
 }
 
 /**
@@ -34,13 +34,19 @@ function assertValidProxy(proxy: string | null): void {
   } catch {
     /* The parser's own error carries the raw input (and so its userinfo),
      * which is why it is not chained as the cause. */
-    throw new TypeError(`Invalid proxy URL (unparseable): ${proxyForMessage(proxy)}`);
+    throw new TypeError(
+      `Invalid proxy URL (unparseable): ${proxyForMessage(proxy)}`,
+    );
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new TypeError(`Invalid proxy URL (must use http or https scheme): ${proxyForMessage(proxy)}`);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new TypeError(
+      `Invalid proxy URL (must use http or https scheme): ${proxyForMessage(proxy)}`,
+    );
   }
   if (!parsed.hostname) {
-    throw new TypeError(`Invalid proxy URL (missing host): ${proxyForMessage(proxy)}`);
+    throw new TypeError(
+      `Invalid proxy URL (missing host): ${proxyForMessage(proxy)}`,
+    );
   }
 }
 
@@ -61,23 +67,23 @@ function assertFetchCompatible(options: {
   if (options.fetch == null) {
     return;
   }
-  if (typeof options.fetch !== 'function') {
-    throw new TypeError('The HTTP connection must be a fetch function.');
+  if (typeof options.fetch !== "function") {
+    throw new TypeError("The HTTP connection must be a fetch function.");
   }
   const conflicts: string[] = [];
   if (options.proxy != null) {
-    conflicts.push('proxy');
+    conflicts.push("proxy");
   }
   if (options.caCertPath != null) {
-    conflicts.push('caCertPath');
+    conflicts.push("caCertPath");
   }
   if (!options.verifySsl) {
-    conflicts.push('verifySsl(false)');
+    conflicts.push("verifySsl(false)");
   }
   if (conflicts.length > 0) {
     throw new TypeError(
-      `A custom fetch conflicts with the SDK's own ${conflicts.join(', ')} setting: `
-        + 'configure it on the fetch implementation you supply instead.'
+      `A custom fetch conflicts with the SDK's own ${conflicts.join(", ")} setting: ` +
+        "configure it on the fetch implementation you supply instead.",
     );
   }
 }
@@ -90,7 +96,9 @@ function assertFetchCompatible(options: {
  */
 function assertValidMaxRetries(maxRetries: number): void {
   if (!Number.isInteger(maxRetries) || maxRetries < 0) {
-    throw new TypeError(`Invalid maxRetries: must be a non-negative integer (got ${maxRetries})`);
+    throw new TypeError(
+      `Invalid maxRetries: must be a non-negative integer (got ${maxRetries})`,
+    );
   }
 }
 
@@ -102,7 +110,9 @@ function assertValidMaxRetries(maxRetries: number): void {
  */
 function assertValidMaxRedirects(maxRedirects: number): void {
   if (!Number.isInteger(maxRedirects) || maxRedirects < 0) {
-    throw new TypeError(`Invalid maxRedirects: must be a non-negative integer (got ${maxRedirects})`);
+    throw new TypeError(
+      `Invalid maxRedirects: must be a non-negative integer (got ${maxRedirects})`,
+    );
   }
 }
 
@@ -117,12 +127,12 @@ function assertValidMaxRedirects(maxRedirects: number): void {
 function isSecretHeader(name: string): boolean {
   const lower = name.toLowerCase();
   return (
-    lower === 'authorization' ||
-    lower === 'proxy-authorization' ||
-    lower === 'cookie' ||
-    lower.includes('key') ||
-    lower.includes('token') ||
-    lower.includes('secret')
+    lower === "authorization" ||
+    lower === "proxy-authorization" ||
+    lower === "cookie" ||
+    lower.includes("key") ||
+    lower.includes("token") ||
+    lower.includes("secret")
   );
 }
 
@@ -132,10 +142,12 @@ function isSecretHeader(name: string): boolean {
  * @param headers header map
  * @returns a redacted copy, safe to print
  */
-export function redactHeaders(headers: Readonly<Record<string, string>>): Record<string, string> {
+export function redactHeaders(
+  headers: Readonly<Record<string, string>>,
+): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [name, value] of Object.entries(headers)) {
-    out[name] = isSecretHeader(name) ? '***' : value;
+    out[name] = isSecretHeader(name) ? "***" : value;
   }
   return out;
 }
@@ -152,13 +164,13 @@ function redactProxy(proxy: string | null): string | null {
   }
   try {
     const parsed = new URL(proxy);
-    if (parsed.password === '') {
+    if (parsed.password === "") {
       return proxy;
     }
-    parsed.password = '***';
+    parsed.password = "***";
     return parsed.toString();
   } catch {
-    return '***';
+    return "***";
   }
 }
 
@@ -279,13 +291,14 @@ export class TransportOptions {
   }) {
     assertValidProxy(options.proxy);
     assertFetchCompatible(options);
-    if (options.fetchOptions?.['redirect'] === 'follow') {
+    if (options.fetchOptions?.["redirect"] === "follow") {
       throw new TypeError(
-        'A fetchOptions redirect of follow conflicts with the SDK redirect handling: remove it and use followRedirects and maxRedirects instead.'
+        "A fetchOptions redirect of follow conflicts with the SDK redirect handling: remove it and use followRedirects and maxRedirects instead.",
       );
     }
     assertValidMaxRetries(options.maxRetries ?? 2);
-    if (options.maxRedirects != null) assertValidMaxRedirects(options.maxRedirects);
+    if (options.maxRedirects != null)
+      assertValidMaxRedirects(options.maxRedirects);
     this.verifySsl = options.verifySsl;
     this.caCertPath = options.caCertPath;
     this.proxy = options.proxy;
@@ -297,7 +310,10 @@ export class TransportOptions {
     this.defaultHeaders = Object.freeze({ ...options.defaultHeaders });
     this.injectRequestId = options.injectRequestId;
     this.fetch = options.fetch ?? null;
-    this.fetchOptions = options.fetchOptions == null ? null : Object.freeze({ ...options.fetchOptions });
+    this.fetchOptions =
+      options.fetchOptions == null
+        ? null
+        : Object.freeze({ ...options.fetchOptions });
     Object.freeze(this);
   }
 
@@ -327,7 +343,8 @@ export class TransportOptions {
       defaultHeaders: redactHeaders(this.defaultHeaders),
       injectRequestId: this.injectRequestId,
       fetch: this.fetch != null,
-      fetchOptions: this.fetchOptions == null ? null : Object.keys(this.fetchOptions)
+      fetchOptions:
+        this.fetchOptions == null ? null : Object.keys(this.fetchOptions),
     };
   }
 
@@ -339,7 +356,7 @@ export class TransportOptions {
     return `TransportOptions(${JSON.stringify(this.redacted())})`;
   }
 
-  [Symbol.for('nodejs.util.inspect.custom')](): string {
+  [Symbol.for("nodejs.util.inspect.custom")](): string {
     return this.toString();
   }
 }
@@ -364,7 +381,7 @@ export class TransportOptionsBuilder {
   private _followRedirects: boolean = true;
   private _maxRedirects: number | null = null;
   private _maxRetries: number = 2;
-  private _userAgent: string | null = 'petstore-client/1.0.0 (node)';
+  private _userAgent: string | null = "petstore-client/1.0.0 (node)";
   private _defaultHeaders: Record<string, string> = {};
   private _injectRequestId: boolean = false;
   private _fetch: typeof fetch | null = null;
@@ -401,7 +418,7 @@ export class TransportOptionsBuilder {
    */
   proxy(proxy: string | null): this {
     /* An empty string clears a proxy set earlier, like null. */
-    const value = proxy === '' ? null : proxy;
+    const value = proxy === "" ? null : proxy;
     assertValidProxy(value);
     this._proxy = value;
     return this;
@@ -416,7 +433,7 @@ export class TransportOptionsBuilder {
   timeout(timeout: number | null): this {
     if (timeout !== null && !(timeout > 0)) {
       throw new TypeError(
-        `Invalid timeout: must be a positive number of milliseconds (got ${timeout})`
+        `Invalid timeout: must be a positive number of milliseconds (got ${timeout})`,
       );
     }
     this._timeout = timeout;
@@ -552,7 +569,8 @@ export class TransportOptionsBuilder {
       defaultHeaders: { ...this._defaultHeaders },
       injectRequestId: this._injectRequestId,
       fetch: this._fetch,
-      fetchOptions: this._fetchOptions == null ? null : { ...this._fetchOptions }
+      fetchOptions:
+        this._fetchOptions == null ? null : { ...this._fetchOptions },
     });
   }
 }

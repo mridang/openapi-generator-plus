@@ -107,7 +107,7 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/isAdditionalPropertiesTrue}}
 
 {{^isAdditionalPropertiesTrue}}
-    enum CodingKeys: String, CodingKey {
+    enum CodingKeys: String, CodingKey, CaseIterable {
 {{#vars}}
         case {{name}} = "{{baseName}}"
 {{/vars}}
@@ -151,6 +151,32 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/isNullable}}
+{{^isNullable}}
+        self.{{name}} = try ObjectSerializer.decodeDecimalString(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isNarrowInt}}
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            : {{{.}}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+{{/defaultValue}}
+{{/vendorExtensions.isNarrowInt}}
+{{^vendorExtensions.isNarrowInt}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
 {{#isNullable}}
@@ -213,11 +239,16 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isNarrowInt}}
+{{/vendorExtensions.isDecimalString}}
 {{/vars}}
 {{#vars}}
 {{#isUri}}
         try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
 {{/isUri}}
+{{#vendorExtensions.isIpAddress}}
+        try ObjectSerializer.requireIpAddress(self.{{name}}, format: "{{vendorExtensions.ipFormat}}", property: "{{baseName}}")
+{{/vendorExtensions.isIpAddress}}
 {{/vars}}
 {{#isUnevaluatedPropertiesFalse}}
         /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
@@ -253,6 +284,20 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { $0.description }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode({{name}}.description, forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { $0.description }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
 {{#isNullable}}
@@ -291,14 +336,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/vendorExtensions.isUuidCollection}}
 {{^vendorExtensions.isUuidCollection}}
 {{#required}}
-        try container.encode({{name}}, forKey: .{{name}})
+        try container.encode(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{^required}}
-        try container.encodeIfPresent({{name}}, forKey: .{{name}})
+        try container.encodeIfPresent(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{/vendorExtensions.isUuidCollection}}
 {{/isUuid}}
 {{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isDecimalString}}
 {{/vars}}
     }
 {{/hasVars}}
@@ -339,6 +385,32 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        self.{{name}} = try container.decode(String?.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/isNullable}}
+{{^isNullable}}
+        self.{{name}} = try ObjectSerializer.decodeDecimalString(try container.decode(String.self, forKey: .{{name}}))
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        self.{{name}} = try container.decodeIfPresent(String.self, forKey: .{{name}}).map { try ObjectSerializer.decodeDecimalString($0) }
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
+{{#vendorExtensions.isNarrowInt}}
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+{{#defaultValue}}
+        self.{{name}} = container.contains(.{{name}})
+            ? try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+            : {{{.}}}
+{{/defaultValue}}
+{{^defaultValue}}
+        self.{{name}} = try container.decode{{{vendorExtensions.checkedNumber}}}{{^required}}IfPresent{{/required}}{{#required}}{{#isNullable}}Nullable{{/isNullable}}{{/required}}(forKey: .{{name}})
+{{/defaultValue}}
+{{/vendorExtensions.isNarrowInt}}
+{{^vendorExtensions.isNarrowInt}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
 {{#isNullable}}
@@ -401,6 +473,8 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/defaultValue}}
 {{/required}}
 {{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isNarrowInt}}
+{{/vendorExtensions.isDecimalString}}
 {{/vars}}
 
         /* Decode additional properties */
@@ -418,12 +492,29 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{#isUri}}
         try ObjectSerializer.requireAbsoluteUri(self.{{name}}, property: "{{baseName}}")
 {{/isUri}}
+{{#vendorExtensions.isIpAddress}}
+        try ObjectSerializer.requireIpAddress(self.{{name}}, format: "{{vendorExtensions.ipFormat}}", property: "{{baseName}}")
+{{/vendorExtensions.isIpAddress}}
 {{/vars}}
     }
 
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
 {{#vars}}
+{{#vendorExtensions.isDecimalString}}
+{{#required}}
+{{#isNullable}}
+        try container.encode({{name}}.map { $0.description }, forKey: .{{name}})
+{{/isNullable}}
+{{^isNullable}}
+        try container.encode({{name}}.description, forKey: .{{name}})
+{{/isNullable}}
+{{/required}}
+{{^required}}
+        try container.encodeIfPresent({{name}}.map { $0.description }, forKey: .{{name}})
+{{/required}}
+{{/vendorExtensions.isDecimalString}}
+{{^vendorExtensions.isDecimalString}}
 {{#vendorExtensions.isDuration}}
 {{#required}}
 {{#isNullable}}
@@ -462,14 +553,15 @@ public struct {{classname}}: Codable, Sendable, Equatable, Hashable {
 {{/vendorExtensions.isUuidCollection}}
 {{^vendorExtensions.isUuidCollection}}
 {{#required}}
-        try container.encode({{name}}, forKey: .{{name}})
+        try container.encode(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{^required}}
-        try container.encodeIfPresent({{name}}, forKey: .{{name}})
+        try container.encodeIfPresent(ObjectSerializer.ordered({{name}}), forKey: .{{name}})
 {{/required}}
 {{/vendorExtensions.isUuidCollection}}
 {{/isUuid}}
 {{/vendorExtensions.isDuration}}
+{{/vendorExtensions.isDecimalString}}
 {{/vars}}
 
         /* Encode additional properties */

@@ -62,6 +62,35 @@ import Testing
     #expect(try server.url(variables: ["env": "staging"]) == "https://staging.api.example.com")
   }
 
+  /* A per-operation server variable value outside its allowed values is refused. */
+  @Test func testBhvServers020AValueOutsideTheAllowedValuesIsRefused() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com",
+      variables: ["env": ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"])])
+    #expect(throws: ConfigurationError.self) {
+      _ = try server.url(variables: ["env": "qa"])
+    }
+  }
+
+  /* An absent value cannot be passed for an enum variable; the empty value that stands for it is refused, never
+     substituted by the default. */
+  @Test func testBhvMisc260AnEmptyValueForAnEnumVariableIsRefusedNotSubstituted() throws {
+    let server = ServerConfiguration(
+      urlTemplate: "https://{env}.api.example.com",
+      variables: ["env": ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"])])
+    #expect(throws: ConfigurationError.self) {
+      _ = try server.url(variables: ["env": ""])
+    }
+  }
+
+  /* A server variable keeps its allowed values: changing a copy of the list does not change the variable. */
+  @Test func testBhvServers024AServerVariableKeepsItsAllowedValues() {
+    let variable = ServerVariable(defaultValue: "prod", enumValues: ["prod", "staging"])
+    var copy = variable.enumValues
+    copy.append("qa")
+    #expect(variable.enumValues == ["prod", "staging"])
+  }
+
   @Test func testBhvServers008UrlRejectsOverrideNotInEnumValues() throws {
     let server = ServerConfiguration(
       urlTemplate: "https://{env}.api.example.com",

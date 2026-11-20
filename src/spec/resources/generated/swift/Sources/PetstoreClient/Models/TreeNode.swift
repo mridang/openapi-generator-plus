@@ -12,7 +12,7 @@ public struct TreeNode: Codable, Sendable, Equatable, Hashable {
   public let value: String
   @Indirect public private(set) var child: TreeNode?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case value = "value"
     case child = "child"
   }
@@ -53,7 +53,7 @@ public struct TreeNode: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(value, forKey: .value)
-    try container.encodeIfPresent(child, forKey: .child)
+    try container.encode(ObjectSerializer.ordered(value), forKey: .value)
+    try container.encodeIfPresent(ObjectSerializer.ordered(child), forKey: .child)
   }
 }

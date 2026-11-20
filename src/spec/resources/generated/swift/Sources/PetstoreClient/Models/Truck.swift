@@ -13,7 +13,7 @@ public struct Truck: Codable, Sendable, Equatable, Hashable {
   public let plate: String
   public let payloadKg: Int?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case vehicleType = "vehicleType"
     case plate = "plate"
     case payloadKg = "payloadKg"
@@ -56,7 +56,8 @@ public struct Truck: Codable, Sendable, Equatable, Hashable {
       ? try container.decode(String.self, forKey: .vehicleType)
       : "truck"
     self.plate = try container.decode(String.self, forKey: .plate)
-    self.payloadKg = try container.decodeIfPresent(Int.self, forKey: .payloadKg)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+    self.payloadKg = try container.decodeInt32IfPresent(forKey: .payloadKg)
   }
 
   /// Encodes this instance, omitting nil optional fields from the JSON output.
@@ -66,8 +67,8 @@ public struct Truck: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(vehicleType, forKey: .vehicleType)
-    try container.encode(plate, forKey: .plate)
-    try container.encodeIfPresent(payloadKg, forKey: .payloadKg)
+    try container.encode(ObjectSerializer.ordered(vehicleType), forKey: .vehicleType)
+    try container.encode(ObjectSerializer.ordered(plate), forKey: .plate)
+    try container.encodeIfPresent(ObjectSerializer.ordered(payloadKg), forKey: .payloadKg)
   }
 }

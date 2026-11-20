@@ -11,7 +11,7 @@ import Foundation
 public struct RequiredNullable: Codable, Sendable, Equatable, Hashable {
   public let note: String?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case note = "note"
   }
 
@@ -49,6 +49,6 @@ public struct RequiredNullable: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(note, forKey: .note)
+    try container.encode(ObjectSerializer.ordered(note), forKey: .note)
   }
 }

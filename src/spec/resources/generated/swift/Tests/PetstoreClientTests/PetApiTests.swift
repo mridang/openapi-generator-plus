@@ -1190,6 +1190,63 @@ final class PetApiTests {
   // required-date-path-validation: a required `format: date` path param is a
   // String in swift, so an empty value must be rejected before dispatch just
   // like an empty string path param, never sent as `/pet/born-on/`.
+  /* A call with a missing required argument raises an argument error that names it and sends nothing; the
+     argument cannot be left out or nil, so the empty value that stands for it is refused. */
+  @Test func testBhvMisc012ARequiredArgumentThatIsEmptyIsRefusedByName() async throws {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.findPetsBornOn(bornOn: "")
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected invalidArgument")
+      return
+    }
+    #expect(message.contains("'bornOn'"))
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  @Test func testBhvOperations164AMissingRequiredParameterRaisesAnArgumentErrorAndSendsNoRequest()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await api.findPetsBornOn(bornOn: "")
+    }
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
+  /* An options object with an empty required field is refused naming the first missing field. */
+  @Test func testBhvMisc004AnOptionsObjectWithAMissingRequiredFieldNamesTheFirstOne() async throws {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    let error = await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "x", options: GetPetByNameOptions(category: "dog", xCorrelationId: ""))
+    }
+    guard case .invalidArgument(let message)? = error else {
+      Issue.record("expected invalidArgument")
+      return
+    }
+    #expect(message.contains("'xCorrelationId'"))
+  }
+
+  @Test func testBhvMisc010AnOperationWhoseOptionsHaveRequiredFieldsRefusesEmptyOnes() async throws
+  {
+    let mockClient = MockApiClient()
+    let api = PetApi(
+      apiClient: mockClient, config: ConfigurationBuilder().baseURL("https://example.com").build())
+    await #expect(throws: ConfigurationError.self) {
+      _ = try await api.getPetByName(
+        name: "x", options: GetPetByNameOptions(category: "dog", xCorrelationId: ""))
+    }
+    #expect(mockClient.lastURL.isEmpty)
+  }
+
   @Test func testBhvOperations052RequiredDatePathParamEmptyThrows() async throws {
     let mockClient = MockApiClient()
     mockClient.responseStatusCode = 200
@@ -1615,6 +1672,65 @@ final class PetApiTests {
       !mockClient.lastURL.contains("bornAfter=2024-01-01T"),
       "query date must carry no time component, got: \(mockClient.lastURL)")
     #expect(mockClient.lastHeaders["Report-Date"] == "2024-01-01")
+  }
+
+  /* A date-only parameter goes out as a bare date, with no time component, in the form, query, header and path
+     positions. */
+  @Test func testBhvOperations162ADateOnlyParameterIsSentAsABareDateInEveryPosition() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseStatusCode = 200
+    mockClient.responseBody = "[]"
+    mockClient.responseHeaders = ["Content-Type": "application/json"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.findPetsByStatus(
+      options: FindPetsByStatusOptions(bornAfter: "2024-01-01", reportDate: "2024-01-02"))
+    #expect(
+      mockClient.lastURL.contains("bornAfter=2024-01-01&")
+        || mockClient.lastURL.hasSuffix("bornAfter=2024-01-01"))
+    #expect(mockClient.lastHeaders["Report-Date"] == "2024-01-02")
+
+    _ = try await api.findPetsBornOn(bornOn: "2024-01-03")
+    #expect(mockClient.lastURL.hasSuffix("/pet/born-on/2024-01-03"))
+
+    mockClient.responseBody = "{\"code\":200,\"type\":\"\",\"message\":\"ok\"}"
+    _ = try await api.setPetPreferences(
+      petId: 1, options: SetPetPreferencesOptions(nickname: "Rex", renewalDate: "2024-01-04"))
+    let body = String(data: mockClient.lastBody ?? Data(), encoding: .utf8) ?? ""
+    #expect(body.split(separator: "&").map(String.init).contains("renewalDate=2024-01-04"))
+  }
+
+  /* A date value is written as YYYY-MM-DD, in the matrix path segment and in a query value. */
+  @Test func testBhvSerializationparam110ADateValueIsWrittenAsYearMonthDay() async throws {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "all quiet"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15",
+      options: GetPetSummaryOptions(session: "abc", days: ["2024-02-01"]))
+
+    #expect(mockClient.lastURL.hasSuffix("/pet/5/summary/;asOf=2024-01-15?days=2024-02-01"))
+  }
+
+  /* An array of date values is written with each element as YYYY-MM-DD. */
+  @Test func testBhvSerializationparam120AnArrayOfDateValuesIsWrittenEachAsYearMonthDay()
+    async throws
+  {
+    let mockClient = MockApiClient()
+    mockClient.responseBody = "all quiet"
+    mockClient.responseHeaders = ["Content-Type": "text/plain"]
+    let config = ConfigurationBuilder().baseURL("https://example.com").build()
+    let api = PetApi(apiClient: mockClient, config: config)
+
+    _ = try await api.getPetSummary(
+      petId: 5, asOf: "2024-01-15",
+      options: GetPetSummaryOptions(session: "abc", days: ["2024-01-15", "2024-02-01"]))
+
+    #expect(mockClient.lastURL.hasSuffix("?days=2024-01-15&days=2024-02-01"))
   }
 
   // format-date-path: a `format: date` path param `bornOn` must appear as the

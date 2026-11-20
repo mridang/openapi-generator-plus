@@ -32,7 +32,7 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
   public let weight: Double?
   public let ceiling: Int64?
 
-  enum CodingKeys: String, CodingKey {
+  enum CodingKeys: String, CodingKey, CaseIterable {
     case retries = "retries"
     case mode = "mode"
     case label = "label"
@@ -90,9 +90,10 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
   /// "discard extras on deserialise" expectation.
   public init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
+    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
     self.retries =
       container.contains(.retries)
-      ? try container.decodeIfPresent(Int.self, forKey: .retries)
+      ? try container.decodeInt32IfPresent(forKey: .retries)
       : 3
     self.mode =
       container.contains(.mode)
@@ -135,14 +136,14 @@ public struct Defaults: Codable, Sendable, Equatable, Hashable {
   /// the cross-language "discard nulls on serialise" expectation.
   public func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(retries, forKey: .retries)
-    try container.encodeIfPresent(mode, forKey: .mode)
-    try container.encodeIfPresent(label, forKey: .label)
-    try container.encodeIfPresent(greeting, forKey: .greeting)
-    try container.encodeIfPresent(swatch, forKey: .swatch)
-    try container.encodeIfPresent(ratio, forKey: .ratio)
-    try container.encodeIfPresent(scale, forKey: .scale)
-    try container.encodeIfPresent(weight, forKey: .weight)
-    try container.encodeIfPresent(ceiling, forKey: .ceiling)
+    try container.encodeIfPresent(ObjectSerializer.ordered(retries), forKey: .retries)
+    try container.encodeIfPresent(ObjectSerializer.ordered(mode), forKey: .mode)
+    try container.encodeIfPresent(ObjectSerializer.ordered(label), forKey: .label)
+    try container.encodeIfPresent(ObjectSerializer.ordered(greeting), forKey: .greeting)
+    try container.encodeIfPresent(ObjectSerializer.ordered(swatch), forKey: .swatch)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ratio), forKey: .ratio)
+    try container.encodeIfPresent(ObjectSerializer.ordered(scale), forKey: .scale)
+    try container.encodeIfPresent(ObjectSerializer.ordered(weight), forKey: .weight)
+    try container.encodeIfPresent(ObjectSerializer.ordered(ceiling), forKey: .ceiling)
   }
 }
