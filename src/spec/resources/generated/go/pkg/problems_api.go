@@ -121,6 +121,7 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"default": NewUnexpectedFailureErrorFromResponse,
 		},
@@ -267,6 +268,7 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"404": NewMemberNotFoundErrorFromResponse,
 		},
@@ -413,6 +415,7 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"404": NewProjectNotFoundErrorFromResponse,
 		},
@@ -559,6 +562,7 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"4XX": NewRejectedRequestErrorFromResponse,
 		},
@@ -705,6 +709,7 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"5XX": NewUpstreamFailureErrorFromResponse,
 		},
@@ -852,6 +857,7 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"409": NewStateConflictErrorFromResponse,
 			"423": NewStateConflictErrorFromResponse,

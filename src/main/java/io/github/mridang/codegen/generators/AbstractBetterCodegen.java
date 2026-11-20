@@ -6038,7 +6038,55 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final Map<String, Object> opDecorator = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
         opDecorator.put("securitySchemeOrder", schemeOrder);
         opDecorator.put("hasSecuritySchemes", !schemeOrder.isEmpty());
+        final List<Map<String, Object>> alternatives = securityAlternatives(operation, openAPI);
+        opDecorator.put("securityAlternatives", alternatives);
+        opDecorator.put("hasSecurityAlternatives", !alternatives.isEmpty());
         return op;
+    }
+
+    /**
+     * The security alternatives of an operation, one entry per requirement object in spec order
+     * (misc074). A requirement that names several schemes is one alternative that needs all of
+     * them at once, so a request carries the credential of each. An alternative that names a
+     * scheme the client holds no credential for is left out, because it can never be satisfied.
+     *
+     * @param operation the operation being converted
+     * @param spec the parsed document
+     * @return one entry per usable alternative: {@code schemeIds} (each with {@code schemeId}) and
+     *     {@code isAnd}, true when the alternative names more than one scheme
+     */
+    final List<Map<String, Object>> securityAlternatives(
+            final Operation operation, final OpenAPI spec) {
+        final List<io.swagger.v3.oas.models.security.SecurityRequirement> requirements =
+                operation != null && operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (spec != null ? spec.getSecurity() : null);
+        final List<Map<String, Object>> alternatives = new ArrayList<>();
+        if (requirements == null) {
+            return alternatives;
+        }
+        final Set<String> held = new HashSet<>();
+        for (final Map<String, Object> scheme : schemeCredentials(spec)) {
+            held.add((String) scheme.get("schemeId"));
+        }
+        for (final io.swagger.v3.oas.models.security.SecurityRequirement requirement :
+                requirements) {
+            if (requirement == null || requirement.isEmpty()
+                    || !held.containsAll(requirement.keySet())) {
+                continue;
+            }
+            final List<Map<String, Object>> ids = new ArrayList<>();
+            for (final String schemeId : requirement.keySet()) {
+                final Map<String, Object> entry = new LinkedHashMap<>();
+                entry.put("schemeId", schemeId);
+                ids.add(entry);
+            }
+            final Map<String, Object> alternative = new LinkedHashMap<>();
+            alternative.put("schemeIds", ids);
+            alternative.put("isAnd", ids.size() > 1);
+            alternatives.add(alternative);
+        }
+        return alternatives;
     }
 
     /**

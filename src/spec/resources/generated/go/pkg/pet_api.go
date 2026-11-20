@@ -322,6 +322,7 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{"apiKeyHeader", "petStoreBearer"},
+		schemeGroups: [][]string{{"apiKeyHeader"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -479,6 +480,7 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 		returnType:   "[]Photo",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -620,6 +622,7 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 		returnType:   "PetTreatment",
 		auth:         nil,
 		schemes:      []string{"petStoreBasic", "petStoreBearer"},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -775,6 +778,7 @@ func (a *PetApi) AttachPetFilesWithHTTPInfo(ctx context.Context, petId int64, op
 		returnType:   "ApiResponse",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -930,6 +934,7 @@ func (a *PetApi) DeletePetWithHTTPInfo(ctx context.Context, petId int64, options
 		returnType:   "",
 		auth:         nil,
 		schemes:      []string{"adminBasic", "machineAuth"},
+		schemeGroups: [][]string{{"adminBasic"}, {"machineAuth"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1020,6 +1025,7 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 		returnType:   "[]byte",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1160,6 +1166,7 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 		returnType:   "[]Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1330,6 +1337,7 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 		returnType:   "[]Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1476,6 +1484,7 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1622,6 +1631,7 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1767,6 +1777,7 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 		returnType:   "[]byte",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1912,6 +1923,7 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 		returnType:   "[]byte",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2070,6 +2082,7 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2225,6 +2238,7 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2380,6 +2394,7 @@ func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.Get
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2524,6 +2539,7 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 		returnType:   "PetPassport",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2677,6 +2693,7 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 		returnType:   "[]byte",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2858,6 +2875,7 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 		returnType:   "string",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3048,6 +3066,7 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3194,6 +3213,7 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3367,6 +3387,7 @@ func (a *PetApi) SetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, body
 		rawBody:      true,
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3443,6 +3464,7 @@ func (a *PetApi) SetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 		returnType:   "",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3559,6 +3581,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		returnType:   "ApiResponse",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3705,6 +3728,7 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 		returnType:   "Pet",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -3860,6 +3884,7 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 		returnType:   "ApiResponse",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -4054,7 +4079,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 	 * formBody is only correct for multipart/form-data; for any other selected
 	 * type we stream the file part itself so serializeBody emits the raw bytes
 	 * under the chosen Content-Type. */
-	if requestContentTypeValue != "multipart/form-data" {
+	if !strings.HasPrefix(requestContentTypeValue, "multipart/") {
 		requestBody = options.File
 	}
 
@@ -4075,6 +4100,7 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 		returnType:   "ApiResponse",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err

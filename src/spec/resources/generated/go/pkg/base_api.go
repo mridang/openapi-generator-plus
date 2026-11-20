@@ -84,6 +84,84 @@ func (noAuthSentinel) CookieParams() map[string]string { return nil }
 // client authenticator.
 var noAuth Authenticator = &noAuthSentinel{}
 
+// allOfAuthenticator applies several credentials to one request: the
+// authenticator of a security requirement that names more than one scheme.
+// Headers, query parameters and cookies of every member are merged in the order
+// the requirement names them; a token failure of any member is the failure of
+// the request.
+type allOfAuthenticator struct {
+	members []Authenticator
+}
+
+func (a *allOfAuthenticator) Host() string {
+	for _, m := range a.members {
+		if h := m.Host(); h != "" {
+			return h
+		}
+	}
+	return ""
+}
+
+func (a *allOfAuthenticator) AuthHeaders() map[string]string {
+	merged := map[string]string{}
+	for _, m := range a.members {
+		for k, v := range m.AuthHeaders() {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+func (a *allOfAuthenticator) QueryParams() map[string]string {
+	merged := map[string]string{}
+	for _, m := range a.members {
+		for k, v := range m.QueryParams() {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+func (a *allOfAuthenticator) CookieParams() map[string]string {
+	merged := map[string]string{}
+	for _, m := range a.members {
+		for k, v := range m.CookieParams() {
+			merged[k] = v
+		}
+	}
+	return merged
+}
+
+// AuthHeadersOrErrorContext asks each member for its headers the way a single
+// authenticator is asked, so a failing token request surfaces as its own error.
+func (a *allOfAuthenticator) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
+	merged := map[string]string{}
+	for _, m := range a.members {
+		var h map[string]string
+		if p, ok := m.(auth.ContextAuthenticator); ok {
+			got, err := p.AuthHeadersOrErrorContext(ctx)
+			if err != nil {
+				return nil, err
+			}
+			h = got
+		} else if p, ok := m.(interface {
+			AuthHeadersOrError() (map[string]string, error)
+		}); ok {
+			got, err := p.AuthHeadersOrError()
+			if err != nil {
+				return nil, err
+			}
+			h = got
+		} else {
+			h = m.AuthHeaders()
+		}
+		for k, v := range h {
+			merged[k] = v
+		}
+	}
+	return merged, nil
+}
+
 // baseApi is the base for all API classes. Provides the invokeApi method that
 // handles URL construction, header selection, body serialization, and request
 // dispatch.
@@ -130,6 +208,7 @@ type invokeApiParams struct {
 	returnType     string                  // return type for deserialization (empty for void)
 	auth           Authenticator           // noAuth for an operation declared with `security: []`, otherwise nil
 	schemes        []string                // ids of the security schemes the operation accepts, in spec order
+	schemeGroups   [][]string              // the security alternatives in spec order; a group of several ids needs all of them at once
 	rawBody        bool                    // body is a format:binary value sent verbatim under any contentType
 	ctx            context.Context         // per-call context; cancelling it aborts the request (nil means Background)
 	order          []string                // spec declaration order of the query and form parameter names
@@ -173,7 +252,30 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	var effectiveAuth Authenticator
 	if params.auth != noAuth {
 		effectiveAuth = b.authenticator
+		/* An alternative that names several schemes is satisfied only when the
+		 * client holds a credential for each; the first satisfied alternative
+		 * with more than one scheme sends all of them. */
+		resolved := false
+		for _, group := range params.schemeGroups {
+			if len(group) < 2 {
+				continue
+			}
+			members := make([]Authenticator, 0, len(group))
+			for _, scheme := range group {
+				if credential := b.credentials[scheme]; credential != nil {
+					members = append(members, credential)
+				}
+			}
+			if len(members) == len(group) {
+				effectiveAuth = &allOfAuthenticator{members: members}
+				resolved = true
+				break
+			}
+		}
 		for _, scheme := range params.schemes {
+			if resolved {
+				break
+			}
 			if credential := b.credentials[scheme]; credential != nil {
 				effectiveAuth = credential
 				break
@@ -229,7 +331,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		}
 
 		/* Select headers */
-		isMultipart := params.contentType == "multipart/form-data"
+		_, isMultipart := multipartMediaType(params.contentType)
 		headers := b.headerSelector.selectHeaders(params.accepts, params.contentType, isMultipart)
 
 		/* Merge config default headers */
@@ -328,13 +430,13 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 		/* Serialize body -- multipart/form-data is handled here so that
 		 * the boundary can be injected into the Content-Type header. */
 		if !bodyBuilt {
-			if params.contentType == "multipart/form-data" && params.body != nil {
+			if mediaType, isMultipartBody := multipartMediaType(params.contentType); isMultipartBody && params.body != nil {
 				formFields, ok := params.body.(map[string]any)
 				if !ok {
 					return "", nil, fmt.Errorf("multipart body must be map[string]any")
 				}
 				boundary := uuid.New().String()
-				bodyContentType = "multipart/form-data; boundary=" + boundary
+				bodyContentType = mediaType + "; boundary=" + boundary
 				var merr error
 				serializedBody, merr = buildMultipartBodyOrdered(formFields, boundary, params.order)
 				if merr != nil {
@@ -386,7 +488,7 @@ func (b *baseApi) invokeApiForResult(params invokeApiParams) (*ApiHttpResponse, 
 	/* A multipart body is never replayed after a 401 and never retried after a
 	 * transient failure: its file parts are streams that the first attempt may
 	 * already have consumed, so it is sent once. */
-	streamBody := params.contentType == "multipart/form-data"
+	_, streamBody := multipartMediaType(params.contentType)
 	canReplay = canReplay && !streamBody
 	replayed := false
 	retries := 0
@@ -701,7 +803,7 @@ func serializeBodyOrdered(body any, contentType string, rawBody bool, order []st
 		return nil, nil
 	}
 
-	if contentType == "multipart/form-data" {
+	if _, isMultipartBody := multipartMediaType(contentType); isMultipartBody {
 		/* Multipart is handled by invokeApiForResult before calling serializeBody */
 		return nil, nil
 	}
@@ -811,6 +913,30 @@ func isFormScalarStruct(rv reflect.Value) bool {
 	}
 	_, ok := rv.Interface().(fmt.Stringer)
 	return ok
+}
+
+// multipartMediaType returns the multipart media type a request is sent under
+// and whether the declared content type is multipart at all. A declared
+// subtype such as multipart/mixed is kept as written; a value that is not a
+// plain multipart/<token> (a parameter, a line break, a space) falls back to
+// multipart/form-data, so a declared value can never inject a header.
+func multipartMediaType(contentType string) (string, bool) {
+	if !strings.HasPrefix(contentType, "multipart/") {
+		return "", false
+	}
+	subtype := strings.TrimPrefix(contentType, "multipart/")
+	if subtype == "" {
+		return "multipart/form-data", true
+	}
+	for _, r := range subtype {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+		case strings.ContainsRune("!#$%&'*+-.^_`|~", r):
+		default:
+			return "multipart/form-data", true
+		}
+	}
+	return contentType, true
 }
 
 // buildMultipartBody constructs a multipart/form-data request body from a map of

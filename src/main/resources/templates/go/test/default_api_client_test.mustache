@@ -93,6 +93,29 @@ func TestBhvTransport018_DefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t 
 	}
 }
 
+// When the pinned CA file holds only a root, the client accepts a server that also sends the intermediate linking its leaf to that root.
+func TestBhvMisc033_DefaultApiClient_RootOnlyPinAcceptsAServedIntermediate(t *testing.T) {
+	t.Parallel()
+	pemBytes, err := os.ReadFile(caCertPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(pemBytes), "BEGIN CERTIFICATE"); n != 1 {
+		t.Fatalf("the pinned file must hold only the root, found %d certificates", n)
+	}
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(true).CACertPath(caCertPath).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("a root-only pin must accept the served chain: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
 func TestBhvTransport017_DefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 	t.Parallel()
 	transport, buildErr := NewTransportOptionsBuilder().

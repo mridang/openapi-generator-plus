@@ -236,6 +236,28 @@ func TestBhvSerialization123_BaseApi_UnsafeMultipartNamesAreRejectedAndQuotesEsc
 	}
 }
 
+// A multipart request keeps its declared multipart subtype, and falls back to form-data when the declared value is unsafe.
+func TestBhvMisc100_BaseApi_MultipartMediaTypeKeepsASafeSubtypeAndFallsBackOtherwise(t *testing.T) {
+	t.Parallel()
+	for declared, want := range map[string]string{
+		"multipart/form-data":      "multipart/form-data",
+		"multipart/mixed":          "multipart/mixed",
+		"multipart/related":        "multipart/related",
+		"multipart/mixed; x=y":     "multipart/form-data",
+		"multipart/mixed\r\nX: y": "multipart/form-data",
+		"multipart/":               "multipart/form-data",
+		"multipart/a b":            "multipart/form-data",
+	} {
+		got, ok := multipartMediaType(declared)
+		if !ok || got != want {
+			t.Errorf("%q: expected %q, got %q (multipart=%v)", declared, want, got, ok)
+		}
+	}
+	if _, ok := multipartMediaType("application/json"); ok {
+		t.Error("application/json is not multipart")
+	}
+}
+
 // Form-urlencoded keys and values percent-encode reserved characters, and a literal plus sign is sent as %2B.
 func TestBhvSerialization125_BaseApi_FormValuesEncodeReservedCharacters(t *testing.T) {
 	t.Parallel()

@@ -1926,6 +1926,63 @@ func TestBhvOperations080_PetApi_AddPetPrefersTheFirstAcceptedSchemeInSpecOrder(
 	}
 }
 
+// An alternative whose requirement names two schemes sends the credentials of both.
+func TestBhvMisc074_PetApi_ARequirementNamingTwoSchemesSendsBothCredentials(t *testing.T) {
+	t.Parallel()
+	var gotAuth, gotKey string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotAuth, gotKey = r.Header.Get("Authorization"), r.Header.Get("X-API-Key")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"code":1}`))
+	}))
+	defer server.Close()
+	bearer, _ := auth.NewPetStoreBearerAuthenticator(server.URL, "bearer-token")
+	header, _ := auth.NewApiKeyHeaderAuthenticator(server.URL, "header-key")
+	client, err := petstore.NewClientWithCredentials(server.URL, petstore.Credentials{PetStoreBearer: bearer, ApiKeyHeader: header}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if _, err := client.Store.GetAuditTrail(context.Background(), nil); err != nil {
+		t.Fatalf("GetAuditTrail failed: %v", err)
+	}
+	if gotAuth != "Bearer bearer-token" || gotKey != "header-key" {
+		t.Errorf("expected both credentials, got authorization %q and api key %q", gotAuth, gotKey)
+	}
+}
+
+// A declared multipart content type other than form-data reaches the transport unchanged.
+func TestBhvMisc178_PetApi_AMultipartMixedBodyKeepsItsDeclaredType(t *testing.T) {
+	t.Parallel()
+	var gotType string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotType = r.Header.Get("Content-Type")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte(`{"code":1}`))
+	}))
+	defer server.Close()
+	client, err := petstore.NewClientWithToken(server.URL, "test-token", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	caption := "c"
+	if _, err := client.Pet.AttachPetFiles(context.Background(), 1, &options.AttachPetFilesOptions{File: strings.NewReader("data"), Caption: &caption}); err != nil {
+		t.Fatalf("AttachPetFiles failed: %v", err)
+	}
+	mediaType, params, err := mime.ParseMediaType(gotType)
+	if err != nil {
+		t.Fatalf("unparsable Content-Type %q: %v", gotType, err)
+	}
+	if mediaType != "multipart/mixed" || params["boundary"] == "" {
+		t.Errorf("expected multipart/mixed with a boundary, got %q", gotType)
+	}
+}
+
 // F857: an operation declared without security sends no credential at all.
 func TestBhvAuth044_PetApi_AnOperationWithoutSecuritySendsNoCredential(t *testing.T) {
 	t.Parallel()

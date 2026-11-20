@@ -543,7 +543,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 	 * formBody is only correct for multipart/form-data; for any other selected
 	 * type we stream the file part itself so serializeBody emits the raw bytes
 	 * under the chosen Content-Type. */
-	if requestContentTypeValue != "multipart/form-data" {
+	if !strings.HasPrefix(requestContentTypeValue, "multipart/") {
 {{#formParams}}
 {{#isFile}}
 		requestBody = options.{{nameInPascalCase}}
@@ -582,6 +582,7 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 		    per-call override (or nil for no-override), unchanged. }}
 		auth:         {{^hasAuthMethods}}{{#vendorExtensions.op.securityNone}}noAuth{{/vendorExtensions.op.securityNone}}{{^vendorExtensions.op.securityNone}}nil{{/vendorExtensions.op.securityNone}}{{/hasAuthMethods}}{{#hasAuthMethods}}nil{{/hasAuthMethods}},
 		schemes:      []string{ {{#authMethods}}"{{{name}}}"{{^-last}}, {{/-last}}{{/authMethods}} },
+		schemeGroups: [][]string{ {{#vendorExtensions.op.securityAlternatives}}{ {{#schemeIds}}"{{{schemeId}}}"{{^-last}}, {{/-last}}{{/schemeIds}} }, {{/vendorExtensions.op.securityAlternatives}} },
 {{#vendorExtensions.op.hasErrorSchemaResponses}}
 		errorFactories: map[string]errorFactory{
 {{#vendorExtensions.op.errorSchemaResponses}}

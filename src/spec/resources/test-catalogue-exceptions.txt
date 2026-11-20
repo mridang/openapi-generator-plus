@@ -289,14 +289,12 @@ go | retries045 | the Go client reads every body into memory before the first se
 go | redirects056 | Go has no per-call switch that drops the transport default headers (RequestOption has no opt-out); the only requests that drop them are the SDK's own token and discovery requests, which carry authRequestContextKey
 go | transport083 | the Go client has no client-level cancellation: Close is graceful and lets requests in flight finish (F1078), and cancellation is per call through its context.Context, which transport084 pins
 go | misc012 | the petstore declares no required argument that Go can pass as nil: every required parameter is a value type (int64, string, Account) that cannot be nil, and PlaceOrder's body is optional in the spec, so a nil order is no body by design; operations164 covers the empty required string
-go | misc033 | the test certificates are generated per Maven run as one CA and one server leaf (TestCertificates), so the petstore fixture has no intermediate certificate to send; a pinned root that accepts a served intermediate needs a chain the fixture does not contain
 go | misc049 | the petstore declares no oneOf between a single binary value and a list of binary values, so the list-of-bytes choice has no generated union to test
 go | misc050 | Go's per-call options (WithTimeout, WithHeaders, WithMaxRetries) do not overlap any field of an operation's Options struct, so no per-call option overrides an Options field to test
 go | misc051 | Go's Options structs and call options are typed, so an unknown key or a server setting on an operation without servers cannot be passed to compile at all
 go | misc060 | the Go API-key authenticators take one fixed key and have no provider function (auth005 records this), so an API key and a provider cannot be passed together
 go | misc071 | the client's transport reaches a credential only through the SDK's own token and discovery requests, and the petstore's OAuth credential request is not observable through the client transport in a Go-specific way beyond the existing token-manager tests
 go | misc072 | every API group is built from the same Credentials value in NewClient, and the only operations that need a scheme are on PetApi, so a second group's credential has no observable operation in the petstore
-go | misc074 | the petstore declares no security requirement that names two schemes together: every alternative names one scheme, so no request needs two credentials at once
 go | misc075 | Go's Credentials struct has one typed field per scheme, so a credential keyed to an undeclared scheme cannot be passed to compile
 go | misc076 | the discovered-configuration reuse after a dropped exchange is pinned by the OpenID Connect rediscovery tests (TestOpenIdConnect_PkceVerifierSurvivesRediscovery), and a dedicated timing case needs a controllable discovery server the fixture does not provide
 go | misc083 | Go builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
@@ -315,8 +313,6 @@ rust | misc010 | Rust operations take an options object with required fields as 
 rust | misc012 | Rust has no nil value, so a required argument cannot be absent at run time; omitting it is refused by the compiler and no run-time argument error exists
 php | misc185 | The PHP token manager has no stop operation, so there is no stop to repeat and no stopped state to report; the client's close is covered by bhv lifecycle 013 and 035
 php | misc187 | The PHP client takes its host as a required constructor argument and has no environment host variable; the token fallback to the environment is covered by bhv lifecycle 028 and bhv config 025
-go | misc100 | The Go SDK always sends a multipart body as multipart/form-data with a generated boundary and takes no declared multipart subtype, so there is no declared value to keep or fall back from
-go | misc103 | Go decodes every model leniently and has no strict-mode option, so no single model can reject undeclared keys while others ignore them
 python | misc006 | a bare JSON null for a required response is an ApiException naming the operation (operations136), so the with-HTTP-info variant has no data-less result of its own to return
 swift | misc004 | every operation with a required field takes its options object as a non-optional parameter, so calling it without one does not compile; the first missing field is named by bhv operations 132
 rust | misc083 | Rust builds every query from typed parameters and has no raw-query option, so a caller cannot supply a raw query string to be kept as written
@@ -421,7 +417,6 @@ go | misc145 | Go exposes the additional-properties map as a plain exported fiel
 go | misc149 | Go's typed With methods exist only for declared fields, so an undeclared attribute cannot be named and the compiler refuses the call before any copy is made
 go | misc153 | Go has no client-level cancellation signal: a context is passed to each call, so a cancel signal only ever reaches the one call it is given
 python | misc083 | the generated Python client builds every query string from named parameters only (urlencode over a dict of values, base_api), so no caller can hand it raw query text for the SDK to keep as written; the repeated-key and percent-encoding behaviour is pinned for named parameters instead
-go | misc178 | the fixture declares no multipart content type other than multipart/form-data, so no operation sends a declared type that could reach the transport unchanged
 python | misc135 | Python has no client-level cancellation handle: a RequestHandle is passed to each send_request call, so the TransportOptionsBuilder has no field to store one
 swift | misc074 | The petstore fixture has no operation whose security requirement names two schemes together, so there is no alternative to call that sends both credentials
 swift | misc075 | The client takes one named credential per declared scheme, so a credential keyed to an undeclared scheme cannot be passed to it
