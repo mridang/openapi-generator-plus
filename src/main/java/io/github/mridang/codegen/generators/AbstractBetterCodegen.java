@@ -6274,7 +6274,70 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final Map<String, Object> opDecorator = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
         opDecorator.put("securitySchemeOrder", schemeOrder);
         opDecorator.put("hasSecuritySchemes", !schemeOrder.isEmpty());
+        final List<Map<String, Object>> alternatives = securityAlternatives(operation, openAPI);
+        opDecorator.put("securityAlternatives", alternatives);
+        opDecorator.put("hasSecurityAlternatives", !alternatives.isEmpty());
+        final List<Map<String, Object>> groups = securityGroups(operation, openAPI);
+        opDecorator.put("securityGroups", groups);
+        boolean allOf = false;
+        for (final Map<String, Object> group : groups) {
+            final Object schemes = group.get("schemes");
+            if (schemes instanceof List && ((List<?>) schemes).size() > 1) {
+                allOf = true;
+            }
+        }
+        opDecorator.put("hasAllOfGroup", allOf);
         return op;
+    }
+
+    /**
+     * The security alternatives an operation accepts: one entry per requirement object, in
+     * order, each listing {@code schemes} (the {@code schemeId}s the requirement names that the
+     * client holds a credential for, in the order it names them). A requirement that names two
+     * schemes is one alternative that needs both credentials at once. Requirements that name no
+     * scheme the client holds are left out.
+     *
+     * @param operation the operation being converted
+     * @param spec the parsed document
+     * @return the alternatives, each as a map with a {@code schemes} list of {@code schemeId}
+     *     entries
+     */
+    final List<Map<String, Object>> securityAlternatives(
+            final Operation operation, final OpenAPI spec) {
+        final List<io.swagger.v3.oas.models.security.SecurityRequirement> requirements =
+                operation != null && operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (spec != null ? spec.getSecurity() : null);
+        final List<Map<String, Object>> alternatives = new ArrayList<>();
+        if (requirements == null) {
+            return alternatives;
+        }
+        final Set<String> held = new HashSet<>();
+        for (final Map<String, Object> scheme : schemeCredentials(spec)) {
+            held.add((String) scheme.get("schemeId"));
+        }
+        for (final io.swagger.v3.oas.models.security.SecurityRequirement requirement :
+                requirements) {
+            if (requirement == null) {
+                continue;
+            }
+            final List<Map<String, Object>> schemes = new ArrayList<>();
+            for (final String schemeId : requirement.keySet()) {
+                if (held.contains(schemeId)) {
+                    final Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("schemeId", schemeId);
+                    schemes.add(entry);
+                }
+            }
+            if (!schemes.isEmpty()) {
+                final Map<String, Object> alternative = new LinkedHashMap<>();
+                alternative.put("schemes", schemes);
+                alternative.put("schemeIds", schemes);
+                alternative.put("isAnd", schemes.size() > 1);
+                alternatives.add(alternative);
+            }
+        }
+        return alternatives;
     }
 
     /**
@@ -6326,6 +6389,53 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             }
         }
         return order;
+    }
+
+    /**
+     * The alternatives of an operation's security block, each as the schemes it names together
+     * (an AND group): every entry of the list is one requirement object, in order, holding
+     * {@code schemes}, a list of {@code name} entries for the schemes the client holds a
+     * credential for. A requirement that names two schemes yields one group of two, so a client
+     * sends the credentials of both; a scheme the client holds no credential for is left out of its
+     * group, and a group left empty is dropped. The same inheritance rules as {@link #securitySchemeOrder} apply.
+     *
+     * @param operation the operation being converted
+     * @param spec the parsed document
+     * @return the groups in the order the spec lists them; empty when there is none
+     */
+    final List<Map<String, Object>> securityGroups(final Operation operation, final OpenAPI spec) {
+        final List<io.swagger.v3.oas.models.security.SecurityRequirement> requirements =
+                operation != null && operation.getSecurity() != null
+                        ? operation.getSecurity()
+                        : (spec != null ? spec.getSecurity() : null);
+        final List<Map<String, Object>> groups = new ArrayList<>();
+        if (requirements == null) {
+            return groups;
+        }
+        final Set<String> held = new HashSet<>();
+        for (final Map<String, Object> scheme : schemeCredentials(spec)) {
+            held.add((String) scheme.get("schemeId"));
+        }
+        for (final io.swagger.v3.oas.models.security.SecurityRequirement requirement :
+                requirements) {
+            if (requirement == null || requirement.isEmpty()) {
+                continue;
+            }
+            final List<Map<String, Object>> names = new ArrayList<>();
+            for (final String schemeId : requirement.keySet()) {
+                if (held.contains(schemeId)) {
+                    final Map<String, Object> entry = new LinkedHashMap<>();
+                    entry.put("name", schemeId);
+                    names.add(entry);
+                }
+            }
+            if (!names.isEmpty()) {
+                final Map<String, Object> group = new LinkedHashMap<>();
+                group.put("schemes", names);
+                groups.add(group);
+            }
+        }
+        return groups;
     }
 
     /**

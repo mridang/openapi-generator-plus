@@ -102,6 +102,29 @@ func TestBhvTransport018_DefaultApiClient_MakesHttpsRequestWithVerifySslFalse(t 
 	}
 }
 
+// When the pinned CA file holds only a root, the client accepts a server that also sends the intermediate linking its leaf to that root.
+func TestBhvMisc033_DefaultApiClient_RootOnlyPinAcceptsAServedIntermediate(t *testing.T) {
+	t.Parallel()
+	pemBytes, err := os.ReadFile(caCertPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(string(pemBytes), "BEGIN CERTIFICATE"); n != 1 {
+		t.Fatalf("the pinned file must hold only the root, found %d certificates", n)
+	}
+	transport, buildErr := NewTransportOptionsBuilder().VerifySsl(true).CACertPath(caCertPath).Build()
+	if buildErr != nil {
+		t.Fatal(buildErr)
+	}
+	resp, err := NewDefaultApiClient(transport).SendRequest("GET", chasmHTTPSURL+"/test/echo", map[string]string{}, nil)
+	if err != nil {
+		t.Fatalf("a root-only pin must accept the served chain: %v", err)
+	}
+	if resp.StatusCode != 200 {
+		t.Errorf("expected status 200, got %d", resp.StatusCode)
+	}
+}
+
 func TestBhvTransport017_DefaultApiClient_MakesHttpsRequestWithCustomCaCert(t *testing.T) {
 	t.Parallel()
 	transport, buildErr := NewTransportOptionsBuilder().
@@ -334,6 +357,71 @@ func TestBhvTransport007_DefaultApiClient_GeneratesUniqueRequestIds(t *testing.T
 	}
 	if headers1["x-request-id"] == headers2["x-request-id"] {
 		t.Error("expected unique X-Request-ID per request")
+	}
+}
+
+// A request that opts out of transport default headers sends none of them, and the next normal request sends them again.
+func TestBhvRedirects056_DefaultApiClient_AnOptedOutRequestSendsNoDefaultHeaderAndTheNextOneDoes(t *testing.T) {
+	t.Parallel()
+	var seen []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seen = append(seen, r.Header.Get("X-Custom"))
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	transport, err := NewTransportOptionsBuilder().DefaultHeader("X-Custom", "custom-value").Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := NewDefaultApiClient(transport)
+	if _, err := client.SendRequestWithOptions("GET", server.URL, map[string]string{}, nil, &RequestOptions{NoDefaultHeaders: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.SendRequest("GET", server.URL, map[string]string{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(seen) != 2 || seen[0] != "" || seen[1] != "custom-value" {
+		t.Errorf("expected no default header and then the default header, got %q", seen)
+	}
+}
+
+// A query supplied as raw text keeps its repeated keys, values and existing percent-encodings exactly as written.
+func TestBhvMisc083_DefaultApiClient_ARawQueryIsSentExactlyAsWritten(t *testing.T) {
+	t.Parallel()
+	var raw string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw = r.URL.RawQuery
+		w.WriteHeader(200)
+	}))
+	defer server.Close()
+	client := NewDefaultApiClient(nil)
+	const query = "a=1&a=2&b=%20x%2B&c=%7E"
+	if _, err := client.SendRequest("GET", server.URL+"/p?"+query, map[string]string{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if raw != query {
+		t.Errorf("expected the raw query %q, got %q", query, raw)
+	}
+}
+
+// dialTimeoutRoundTripper fails the way a connect that outlives its deadline does.
+type dialTimeoutRoundTripper struct{}
+
+func (dialTimeoutRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, &net.OpError{Op: "dial", Net: "tcp", Err: os.ErrDeadlineExceeded}
+}
+
+// A connect deadline raises the network timeout error.
+func TestBhvTransport031_DefaultApiClient_ADialTimeoutIsANetworkTimeoutError(t *testing.T) {
+	t.Parallel()
+	transport, err := NewTransportOptionsBuilder().RoundTripper(dialTimeoutRoundTripper{}).MaxRetries(0).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = NewDefaultApiClient(transport).SendRequest("GET", "http://203.0.113.1/", map[string]string{}, nil)
+	var timeout *pkgerrors.NetworkTimeoutError
+	if !errors.As(err, &timeout) {
+		t.Fatalf("expected *NetworkTimeoutError, got %T: %v", err, err)
 	}
 }
 

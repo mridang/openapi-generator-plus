@@ -74,6 +74,18 @@ func (o Counters) WithAdditionalProperties(value map[string]int32) Counters {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Counters) GetAdditionalProperties() map[string]int32 {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]int32, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewCounters creates a new Counters instance.
 func NewCounters() *Counters {
 	return &Counters{

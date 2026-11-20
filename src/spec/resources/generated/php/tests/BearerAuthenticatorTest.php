@@ -205,6 +205,17 @@ test('bhv authscheme 010 a missing or empty environment token fails naming the v
     'empty' => [''],
 ]);
 
+test('bhv misc 068 an empty environment variable counts as unset while an explicitly passed empty value is refused', function (): void {
+    withBearerTokenEnvironment('', function (): void {
+        expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com'))
+            ->toThrow(\InvalidArgumentException::class, 'SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN');
+    });
+    withBearerTokenEnvironment('from-environment', function (): void {
+        expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com', ''))
+            ->toThrow(\InvalidArgumentException::class);
+    });
+});
+
 test('bhv authscheme 011 an empty environment variable for a bearer scheme credential is treated as unset and fails naming the variable', function (): void {
     withBearerTokenEnvironment('', function (): void {
         expect(fn () => new PetStoreBearerAuthenticator('https://api.example.com'))

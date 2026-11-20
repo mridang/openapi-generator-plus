@@ -439,6 +439,58 @@ func requirePathParam(paramName string, value any) error {
 //
 // Returns the serialized value, or nil to omit the parameter.
 func serializeStyled(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
+	serialized, err := serializeStyledChecked(paramName, value, location, schemaType, collectionFormat, style, explode)
+	if err != nil {
+		return nil
+	}
+	return serialized
+}
+
+// serializeStyledChecked is serializeStyled that also reports a value the
+// style cannot carry: an object-valued parameter with a property that is itself
+// an object has no encoding in any style, so it fails with a
+// *SerializationError and no request is sent.
+func serializeStyledChecked(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) (any, error) {
+	if style != "" && value != nil {
+		if err := rejectNestedObjectLeaf(value); err != nil {
+			return nil, err
+		}
+	}
+	return serializeStyledValue(paramName, value, location, schemaType, collectionFormat, style, explode), nil
+}
+
+// rejectNestedObjectLeaf returns a *SerializationError when value is an object
+// with a property that is itself an object. Scalars, arrays and values that are
+// not objects pass.
+func rejectNestedObjectLeaf(value any) error {
+	if _, isArray := toStringSlice(value); isArray {
+		return nil
+	}
+	if _, ok := objectEntries(value); !ok {
+		return nil
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil
+	}
+	var properties map[string]json.RawMessage
+	if json.Unmarshal(data, &properties) != nil {
+		return nil
+	}
+	names := make([]string, 0, len(properties))
+	for name := range properties {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if trimmed := bytes.TrimSpace(properties[name]); len(trimmed) > 0 && trimmed[0] == '{' {
+			return newSerializationError(fmt.Sprintf("object-valued parameter property '%s' must be a scalar, not a nested object", name), nil)
+		}
+	}
+	return nil
+}
+
+func serializeStyledValue(paramName string, value any, location, schemaType, collectionFormat, style string, explode bool) any {
 	if style == "" {
 		return serializeValue(value, location, schemaType, collectionFormat)
 	}

@@ -2422,6 +2422,68 @@ func TestBhvSerializationobject163_ObjectSerializer_EdgeCases_CutoffTimeRoundTri
 	}
 }
 
+// A UUID whose text is not in canonical form is refused with a serialization error when it is decoded.
+func TestBhvMisc085_ObjectSerializer_ANonCanonicalUuidIsRefusedOnDecode(t *testing.T) {
+	t.Parallel()
+	for _, text := range []string{
+		"{550e8400-e29b-41d4-a716-446655440000}",
+		"urn:uuid:550e8400-e29b-41d4-a716-446655440000",
+		"550e8400e29b41d4a716446655440000",
+	} {
+		var order models.Order
+		err := deserialize([]byte(`{"trackingId":"`+text+`"}`), &order)
+		var serErr *SerializationError
+		if !errors.As(err, &serErr) {
+			t.Errorf("%q: expected *SerializationError, got %T: %v", text, err, err)
+		}
+	}
+	var ok models.Order
+	if err := deserialize([]byte(`{"trackingId":"550e8400-e29b-41d4-a716-446655440000"}`), &ok); err != nil {
+		t.Errorf("the canonical form must decode, got %v", err)
+	}
+}
+
+// Rejecting undeclared keys on one strict model leaves other models accepting and ignoring them.
+func TestBhvMisc103_ObjectSerializer_StrictRejectionIsPerModel(t *testing.T) {
+	t.Parallel()
+	var strict models.StrictTag
+	if err := deserialize([]byte(`{"rogue":"x"}`), &strict); err == nil {
+		t.Error("the strict model must reject an undeclared key")
+	}
+	var loose models.Category
+	if err := deserialize([]byte(`{"rogue":"x"}`), &loose); err != nil {
+		t.Errorf("another model must keep ignoring an undeclared key, got %v", err)
+	}
+	var open models.Metadata
+	if err := deserialize([]byte(`{"rogue":"x"}`), &open); err != nil {
+		t.Errorf("a model with additional properties must accept an undeclared key, got %v", err)
+	}
+}
+
+// Properties are read and matched only by their wire name, never by the SDK's own attribute name.
+func TestBhvMisc092_ObjectSerializer_AKeyThatIsTheGoFieldNameDoesNotPopulateTheField(t *testing.T) {
+	t.Parallel()
+	var pet models.Pet
+	if err := deserialize([]byte(`{"name":"x","photoUrls":[],"PhotoUrls":["bad"]}`), &pet); err != nil {
+		t.Fatalf("an unknown key must be ignored, got %v", err)
+	}
+	if len(pet.PhotoUrls) != 0 {
+		t.Errorf("the Go field name must not match a wire key, got %v", pet.PhotoUrls)
+	}
+}
+
+// An input object with no fields is filled with every declared default value.
+func TestBhvMisc215_ObjectSerializer_AnEmptyObjectIsFilledWithItsDeclaredDefaults(t *testing.T) {
+	t.Parallel()
+	var defaults models.Defaults
+	if err := deserialize([]byte(`{}`), &defaults); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if defaults.Retries == nil || *defaults.Retries != 3 {
+		t.Errorf("expected the declared retries default of 3, got %v", defaults.Retries)
+	}
+}
+
 // F1111: unevaluatedProperties:false refuses an undeclared key as a
 // *SerializationError, still decodes the declared keys, and does not leak onto
 // a model that does not declare it.

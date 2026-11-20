@@ -102,6 +102,73 @@ void main() {
       expect(parsed['method'], equals('GET'));
     });
 
+    test(
+      'bhv misc 033 a root-only pinned CA file accepts a server that also sends the intermediate',
+      () async {
+        final ca = await File(caCertPath).readAsString();
+        expect('-----BEGIN CERTIFICATE-----'.allMatches(ca), hasLength(1));
+        final served = await File(
+          'test/fixtures/certs/server.pem',
+        ).readAsString();
+        expect('-----BEGIN CERTIFICATE-----'.allMatches(served), hasLength(2));
+
+        final transport = TransportOptionsBuilder()
+            .verifySsl(true)
+            .caCertPath(caCertPath)
+            .build();
+        final client = DefaultApiClient(transportOptions: transport);
+        final resp = await client.sendRequest(
+          'GET',
+          '$chasmHttpsUrl/test/echo',
+          {},
+          null,
+        );
+        expect(resp.statusCode, equals(200));
+      },
+    );
+
+    test(
+      'bhv transport 093 a server whose certificate is signed by another CA than the configured one is rejected with a network error',
+      () async {
+        /* The test CA is the only one the harness issues and dart:io cannot sign
+       * certificates, so the other CA is the first root of the system store. */
+        String? other;
+        for (final path in [
+          '/etc/ssl/certs/ca-certificates.crt',
+          '/etc/ssl/cert.pem',
+        ]) {
+          final file = File(path);
+          if (await file.exists()) {
+            final text = await file.readAsString();
+            final match = RegExp(
+              r'-----BEGIN CERTIFICATE-----[^-]+-----END CERTIFICATE-----',
+            ).firstMatch(text);
+            if (match != null) {
+              other = '${match.group(0)}\n';
+              break;
+            }
+          }
+        }
+        expect(other, isNotNull);
+        final dir = await Directory.systemTemp.createTemp('other_ca_test');
+        try {
+          final bundle = File('${dir.path}/other.pem');
+          await bundle.writeAsString(other!);
+          final transport = TransportOptionsBuilder()
+              .verifySsl(true)
+              .caCertPath(bundle.path)
+              .build();
+          final client = DefaultApiClient(transportOptions: transport);
+          await expectLater(
+            client.sendRequest('GET', '$chasmHttpsUrl/test/echo', {}, null),
+            throwsA(isA<NetworkException>()),
+          );
+        } finally {
+          await dir.delete(recursive: true);
+        }
+      },
+    );
+
     test('bhv transport 015 makes HTTP request through proxy', () async {
       final transport = TransportOptionsBuilder().proxy(proxyUrl).build();
       final client = DefaultApiClient(transportOptions: transport);

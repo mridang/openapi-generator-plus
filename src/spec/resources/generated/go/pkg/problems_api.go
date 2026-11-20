@@ -96,7 +96,13 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "fallbackId", fmt.Sprintf("%v", serializeStyled("fallbackId", fallbackId, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("fallbackId", fallbackId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "fallbackId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -121,6 +127,7 @@ func (a *ProblemsApi) GetFallbackWithHTTPInfo(ctx context.Context, fallbackId st
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"default": NewUnexpectedFailureErrorFromResponse,
 		},
@@ -242,7 +249,13 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "memberId", fmt.Sprintf("%v", serializeStyled("memberId", memberId, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("memberId", memberId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "memberId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -267,6 +280,7 @@ func (a *ProblemsApi) GetMemberWithHTTPInfo(ctx context.Context, memberId string
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"404": NewMemberNotFoundErrorFromResponse,
 		},
@@ -388,7 +402,13 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "projectId", fmt.Sprintf("%v", serializeStyled("projectId", projectId, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("projectId", projectId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "projectId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -413,6 +433,7 @@ func (a *ProblemsApi) GetProjectWithHTTPInfo(ctx context.Context, projectId stri
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"404": NewProjectNotFoundErrorFromResponse,
 		},
@@ -534,7 +555,13 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "rangeId", fmt.Sprintf("%v", serializeStyled("rangeId", rangeId, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("rangeId", rangeId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "rangeId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -559,6 +586,7 @@ func (a *ProblemsApi) GetRangeWithHTTPInfo(ctx context.Context, rangeId string, 
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"4XX": NewRejectedRequestErrorFromResponse,
 		},
@@ -680,7 +708,13 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "upstreamId", fmt.Sprintf("%v", serializeStyled("upstreamId", upstreamId, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("upstreamId", upstreamId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "upstreamId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -705,6 +739,7 @@ func (a *ProblemsApi) GetUpstreamWithHTTPInfo(ctx context.Context, upstreamId st
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"5XX": NewUpstreamFailureErrorFromResponse,
 		},
@@ -827,7 +862,13 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "lockId", fmt.Sprintf("%v", serializeStyled("lockId", lockId, "path", "string", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("lockId", lockId, "path", "string", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "lockId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -852,6 +893,7 @@ func (a *ProblemsApi) TakeLockWithHTTPInfo(ctx context.Context, lockId string, c
 		returnType:   "Result",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 		errorFactories: map[string]errorFactory{
 			"409": NewStateConflictErrorFromResponse,
 			"423": NewStateConflictErrorFromResponse,

@@ -170,6 +170,9 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 ## Known limits
 
+- An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
+
+- An unformatted `integer` decodes into `i32`, so a larger value fails to decode. Declare `format: int64` where needed.
 - An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - `format: decimal` and `number` are `f64` and lose exactness.
 - `Vec<u8>` bodies are in memory, so streaming large uploads or downloads is not possible.

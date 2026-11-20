@@ -26,6 +26,73 @@ use crate::header_selector::HeaderSelector;
 use crate::trace_context_util;
 use crate::utils::form_url_encode;
 
+/// Sends the credentials of several schemes at once, for a security
+/// requirement that names more than one scheme.
+struct CombinedAuthenticator {
+    parts: Vec<Arc<dyn Authenticator>>,
+}
+
+impl Authenticator for CombinedAuthenticator {
+    fn host(&self) -> &str {
+        self.parts[0].host()
+    }
+
+    fn auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = HashMap<String, String>> + Send + 'a>>
+    {
+        Box::pin(async move {
+            let mut merged = HashMap::new();
+            for part in &self.parts {
+                merged.extend(part.auth_headers().await);
+            }
+            merged
+        })
+    }
+
+    fn try_auth_headers<'a>(
+        &'a self,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        HashMap<String, String>,
+                        Box<dyn std::error::Error + Send + Sync>,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        Box::pin(async move {
+            let mut merged = HashMap::new();
+            for part in &self.parts {
+                merged.extend(part.try_auth_headers().await?);
+            }
+            Ok(merged)
+        })
+    }
+
+    fn query_params(&self) -> HashMap<String, String> {
+        self.parts.iter().flat_map(|p| p.query_params()).collect()
+    }
+
+    fn cookie_params(&self) -> HashMap<String, String> {
+        self.parts.iter().flat_map(|p| p.cookie_params()).collect()
+    }
+
+    fn invalidate_access_token<'a>(
+        &'a self,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = bool> + Send + 'a>> {
+        Box::pin(async move {
+            let mut any = false;
+            for part in &self.parts {
+                any |= part.invalidate_access_token().await;
+            }
+            any
+        })
+    }
+}
+
 /// Sentinel authenticator that marks an operation as explicitly unauthenticated.
 ///
 /// An operation declared with `security: []` in the spec opts out of all
@@ -221,6 +288,30 @@ impl BaseApi {
             .find_map(|scheme| self.scheme_authenticators.get(*scheme).cloned())
     }
 
+    /// The credential of the first alternative whose schemes the client all
+    /// holds, or `None` when no alternative is fully held. An alternative that
+    /// names several schemes needs all of them: their headers, query
+    /// parameters and cookies are sent together.
+    pub(crate) fn authenticator_for_alternatives(
+        &self,
+        alternatives: &[&[&str]],
+    ) -> Option<Arc<dyn Authenticator>> {
+        for schemes in alternatives {
+            let held: Vec<Arc<dyn Authenticator>> = schemes
+                .iter()
+                .filter_map(|scheme| self.scheme_authenticators.get(*scheme).cloned())
+                .collect();
+            if held.is_empty() || held.len() != schemes.len() {
+                continue;
+            }
+            if held.len() == 1 {
+                return held.into_iter().next();
+            }
+            return Some(Arc::new(CombinedAuthenticator { parts: held }));
+        }
+        None
+    }
+
     /// Invokes an API operation and returns the raw HTTP response, after
     /// building the URL, selecting headers, applying authentication, and
     /// serializing the body. A non-2xx status is returned as an `ApiError`, and
@@ -409,6 +500,17 @@ impl BaseApi {
          * the client install the boundary-bearing value. */
         let serialized_body: Option<RequestBody> = if let Some(fields) = params.multipart {
             remove_header(&mut headers, "Content-Type");
+            /* A declared multipart type other than form-data (multipart/mixed, ...)
+             * is handed on so the client keeps the subtype; it appends the boundary. */
+            if params.content_type != "multipart/form-data"
+                && params.content_type.starts_with("multipart/")
+            {
+                insert_header(
+                    &mut headers,
+                    "Content-Type".to_string(),
+                    params.content_type.to_string(),
+                );
+            }
             if fields.is_empty() {
                 None
             } else {

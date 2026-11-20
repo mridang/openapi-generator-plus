@@ -317,12 +317,13 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<Pet>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
         let credential = self
             .base
-            .authenticator_for(&["apiKeyHeader", "petStoreBearer"]);
+            .authenticator_for_alternatives(&[&["apiKeyHeader"], &["petStoreBearer"]]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet".to_string();
@@ -554,12 +555,11 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<PetTreatment>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
-        let credential = self
-            .base
-            .authenticator_for(&["petStoreBasic", "petStoreBearer"]);
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self.base.authenticator_for_alternatives(&[]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}/treatment".to_string();
@@ -791,10 +791,13 @@ impl PetApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
-        let credential = self.base.authenticator_for(&["adminBasic", "machineAuth"]);
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
+        let credential = self
+            .base
+            .authenticator_for_alternatives(&[&["adminBasic"], &["machineAuth"]]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/pet/{petId}".to_string();

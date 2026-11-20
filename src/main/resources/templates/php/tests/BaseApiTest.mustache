@@ -2711,3 +2711,289 @@ test('bhv misc 176 a required cookie parameter is sent in the Cookie header with
     /** @var array{headers: array<string, string>} $result */
     expect($result['headers']['cookie'])->toBe('session=abc');
 });
+
+/**
+ * A transport that stays in flight until the caller resumes or cancels the fiber that runs the
+ * call: PHP's native way to cancel work that is waiting (Fiber::throw), since a call takes no
+ * cancellation signal of its own (S7).
+ *
+ * @param \ArrayObject<int, string>                       $requests    the URL of every request the transport started
+ * @param \ArrayObject<int, array<string, string>>|null $headersSeen the headers of every request, when given
+ */
+function inFlightTransport(
+    \ArrayObject $requests,
+    ?\Throwable $thenFail = null,
+    ?\ArrayObject $headersSeen = null
+): ApiClient {
+    return new class ($requests, $thenFail, $headersSeen) implements ApiClient {
+        /**
+         * @param \ArrayObject<int, string>                       $requests
+         * @param \ArrayObject<int, array<string, string>>|null $headersSeen
+         */
+        public function __construct(
+            private \ArrayObject $requests,
+            private ?\Throwable $thenFail,
+            private ?\ArrayObject $headersSeen
+        ) {
+        }
+
+        public function close(): void
+        {
+        }
+
+        /** @param array<string, string> $headers */
+        public function sendRequest(
+            string $method,
+            string $url,
+            array $headers,
+            mixed $body,
+            bool $noRedirect = false,
+            bool $noDefaultHeaders = false,
+        ): ApiHttpResponse {
+            $this->requests->append($url);
+            $this->headersSeen?->append($headers);
+            \Fiber::suspend('in flight');
+            if ($this->thenFail !== null) {
+                throw $this->thenFail;
+            }
+
+            return new ApiHttpResponse(200, '{}', ['Content-Type' => 'application/json']);
+        }
+    };
+}
+
+/**
+ * Starts $call in a fiber, lets it reach its in-flight request, then cancels it with $cancel.
+ *
+ * @param callable(): mixed $call
+ */
+function cancelWhileInFlight(callable $call, \Throwable $cancel): ?\Throwable
+{
+    $fiber = new \Fiber($call);
+    $fiber->start();
+    expect($fiber->isSuspended())->toBeTrue();
+    $caught = null;
+    try {
+        $fiber->throw($cancel);
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+    expect($fiber->isTerminated())->toBeTrue();
+
+    return $caught;
+}
+
+test('bhv transport 083 cancelling an in-flight call aborts its request and surfaces the cancellation', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+    $cancel = new \RuntimeException('cancelled by the caller');
+
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($requests)->toHaveCount(1);
+});
+
+test('bhv transport 084 an in-flight call that is cancelled or dropped sends nothing more', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+    $dropped = new \Fiber(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object')
+    );
+    $dropped->start();
+    expect($dropped->isSuspended())->toBeTrue();
+    unset($dropped);
+    gc_collect_cycles();
+
+    $cancel = new \RuntimeException('cancelled by the caller');
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($requests)->toHaveCount(2);
+});
+
+test('bhv transport 060 cancelling an in-flight call is not reported as a timeout', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        new \RuntimeException('cancelled by the caller')
+    );
+
+    expect($caught)->not->toBeInstanceOf(NetworkTimeoutException::class);
+    expect($caught)->not->toBeInstanceOf(NetworkException::class);
+});
+
+test('bhv misc 029 a cancellation raised by the caller is never wrapped in the SDK error', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $api = new TestableApi(inFlightTransport($requests), new Configuration('http://localhost'));
+    $cancel = new class ('cancelled') extends \Exception {
+    };
+
+    $caught = cancelWhileInFlight(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object'),
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($caught)->not->toBeInstanceOf(\{{invokerPackage}}\Errors\{{errorPrefix}}Exception::class);
+});
+
+test('bhv misc 262 a cancellation raised by the underlying transport reaches the caller unwrapped', function (): void {
+    $cancel = new \RuntimeException('request cancelled');
+    $api = new TestableApi(new ScriptedApiClient([$cancel]), new Configuration('http://localhost'));
+    $caught = null;
+
+    try {
+        $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($cancel);
+});
+
+test('bhv transport 085 a timeout still raises the network timeout error when no cancellation ever fires', function (): void {
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $timeout = new NetworkTimeoutException('timed out');
+    $api = new TestableApi(inFlightTransport($requests, $timeout), new Configuration('http://localhost'));
+    $fiber = new \Fiber(
+        static fn (): mixed => $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object')
+    );
+    $fiber->start();
+    $caught = null;
+
+    try {
+        $fiber->resume();
+    } catch (\Throwable $e) {
+        $caught = $e;
+    }
+
+    expect($caught)->toBe($timeout);
+});
+
+test('bhv hooks 015 finish gets the cancellation and the call rethrows it, never as the timeout error', function (): void {
+    $hook = new RecordingCallHook();
+    /** @var \ArrayObject<int, string> $requests */
+    $requests = new \ArrayObject();
+    $config = Configuration::builder()->baseUrl('http://localhost:8080')->callHook($hook)->build();
+    $api = new PetApi(inFlightTransport($requests), $config);
+    $cancel = new \RuntimeException('cancelled by the caller');
+
+    $caught = cancelWhileInFlight(
+        static function () use ($api): void {
+            $api->deletePet(7);
+        },
+        $cancel
+    );
+
+    expect($caught)->toBe($cancel);
+    expect($hook->outcomes[0]->error)->toBe($cancel);
+    expect($hook->outcomes[0]->error)->not->toBeInstanceOf(NetworkTimeoutException::class);
+});
+
+test('bhv tracing 014 the traceparent still reaches the request when building the headers waits on the credentials', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        $client = new CapturingApiClient();
+        $api = new TestableApi($client, new Configuration('http://localhost'));
+        $slowCredentials = new class implements Authenticator {
+            public function getHost(): string
+            {
+                return '';
+            }
+
+            public function getAuthHeaders(): array
+            {
+                \Fiber::suspend('waiting for the credentials');
+
+                return ['x-credential' => 'secret'];
+            }
+
+            public function getQueryParams(): array
+            {
+                return [];
+            }
+
+            public function getCookieParams(): array
+            {
+                return [];
+            }
+        };
+        $span = $tracerProvider->getTracer('base-api-test')->spanBuilder('caller')->startSpan();
+        $fiber = new \Fiber(static function () use ($api, $slowCredentials, $span): void {
+            $scope = $span->activate();
+            try {
+                $api->call('GET', '/test/echo', [], [], null, ['application/json'], 'application/json', null, $slowCredentials);
+            } finally {
+                $scope->detach();
+            }
+        });
+        $fiber->start();
+        expect($fiber->isSuspended())->toBeTrue();
+        $fiber->resume();
+        $span->end();
+
+        $context = $span->getContext();
+        expect($client->capturedHeaders['x-credential'] ?? null)->toBe('secret');
+        expect($client->capturedHeaders['traceparent'] ?? null)->toBe(sprintf(
+            '00-%s-%s-%02x',
+            $context->getTraceId(),
+            $context->getSpanId(),
+            $context->getTraceFlags()
+        ));
+    });
+});
+
+test('bhv tracing 015 concurrent operations each send the traceparent of their own caller span', function (): void {
+    withBaseApiTestTracing(function (\OpenTelemetry\SDK\Trace\TracerProvider $tracerProvider): void {
+        /** @var \ArrayObject<int, string> $requests */
+        $requests = new \ArrayObject();
+        /** @var \ArrayObject<int, array<string, string>> $headersSeen */
+        $headersSeen = new \ArrayObject();
+        $api = new TestableApi(inFlightTransport($requests, null, $headersSeen), new Configuration('http://localhost'));
+        $tracer = $tracerProvider->getTracer('base-api-test');
+        $spans = [$tracer->spanBuilder('first')->startSpan(), $tracer->spanBuilder('second')->startSpan()];
+        $fibers = [];
+        foreach ($spans as $span) {
+            $fibers[] = new \Fiber(static function () use ($api, $span): void {
+                $scope = $span->activate();
+                try {
+                    $api->call('GET', '/items', [], [], null, ['application/json'], null, 'object');
+                } finally {
+                    $scope->detach();
+                }
+            });
+        }
+        foreach ($fibers as $fiber) {
+            $fiber->start();
+        }
+        foreach ($fibers as $fiber) {
+            $fiber->resume();
+        }
+
+        expect($headersSeen)->toHaveCount(2);
+        foreach ($spans as $index => $span) {
+            $span->end();
+            $context = $span->getContext();
+            expect($headersSeen[$index]['traceparent'] ?? null)->toBe(sprintf(
+                '00-%s-%s-%02x',
+                $context->getTraceId(),
+                $context->getSpanId(),
+                $context->getTraceFlags()
+            ));
+        }
+        expect($headersSeen[0]['traceparent'] ?? '')->not->toBe($headersSeen[1]['traceparent'] ?? '');
+    });
+});

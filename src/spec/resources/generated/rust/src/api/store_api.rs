@@ -378,12 +378,13 @@ impl StoreApi {
 
         request_content_type: &str,
     ) -> Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>> {
-        /* The credential of the first security scheme this operation lists that
-         * the client holds; otherwise None, and the base client falls back to its
-         * single authenticator. There is no per-call override. */
+        /* The credential of the first security alternative this operation lists
+         * whose schemes the client all holds (an alternative that names two
+         * schemes sends both credentials); otherwise None, and the base client
+         * falls back to its single authenticator. There is no per-call override. */
         let credential = self
             .base
-            .authenticator_for(&["petStoreBearer", "apiKeyHeader"]);
+            .authenticator_for_alternatives(&[&["petStoreBearer", "apiKeyHeader"]]);
         let auth: Option<&dyn Authenticator> = credential.as_deref();
 
         let mut path = "/store/audit".to_string();

@@ -486,6 +486,13 @@ test('bhv misc 136 the debug output shows the base url and the non sensitive def
     expect($dump)->toContain('visible');
 });
 
+test('bhv config 024 there is no process-wide default to set and the default lookup returns a fresh configuration', function (): void {
+    expect(Configuration::defaultConfiguration())->not->toBe(Configuration::defaultConfiguration());
+    $reflection = new \ReflectionClass(Configuration::class);
+    expect($reflection->hasMethod('setDefaultConfiguration'))->toBeFalse();
+    expect($reflection->hasMethod('setDefault'))->toBeFalse();
+});
+
 /**
  * The info string and the body of every fence tagged php, in file order.
  *

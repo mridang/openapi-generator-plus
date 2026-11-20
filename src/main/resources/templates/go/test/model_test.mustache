@@ -705,3 +705,18 @@ func TestBhvMisc151_Model_AMapFieldComparesEveryEntry(t *testing.T) {
 		t.Error("expected maps with a differing entry to compare unequal")
 	}
 }
+
+// Reading the undeclared keys returns a copy, so changing it leaves the instance unchanged.
+func TestBhvMisc145_Model_ReadingTheUndeclaredKeysReturnsACopy(t *testing.T) {
+	t.Parallel()
+	meta := models.Metadata{AdditionalProperties: map[string]string{"owner": "team-a"}}
+	read := meta.GetAdditionalProperties()
+	read["owner"] = "changed"
+	read["extra"] = "added"
+	if got := meta.AdditionalProperties; len(got) != 1 || got["owner"] != "team-a" {
+		t.Errorf("expected the model to keep its own keys, got %v", got)
+	}
+	if models.NewMetadata().GetAdditionalProperties() == nil {
+		t.Error("a built model starts with an empty collection, so the copy is not nil")
+	}
+}

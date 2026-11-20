@@ -848,6 +848,28 @@ func TestBhvAuthoidc021_OpenIdConnectAuthenticator_PkceVerifierSurvivesRediscove
 	}
 }
 
+// A call made during a code exchange, or after a dropped one, reuses the discovered configuration and sees the code as not yet exchanged.
+func TestBhvMisc076_OpenIdConnectAuthenticator_ADroppedExchangeReusesTheDiscoveryAndLeavesTheCodeUnexchanged(t *testing.T) {
+	t.Parallel()
+	client := &recordingTokenClient{responses: []fakeResponse{
+		oidcDiscoveryResponse("max-age=3600"),
+		{body: `{"error":"invalid_grant"}`, statusCode: 400},
+	}}
+	authObj := createOpenIdConnectAuthenticator()
+	authObj.SetApiClient(client)
+
+	if err := authObj.ExchangeCode("rejected"); err == nil {
+		t.Fatal("expected the rejected exchange to fail")
+	}
+	_, err := authObj.AuthHeadersOrError()
+	if !errors.Is(err, oauth.ErrAuthCodeNotExchanged) {
+		t.Errorf("expected ErrAuthCodeNotExchanged after a dropped exchange, got %v", err)
+	}
+	if got := client.requestCount(); got != 2 {
+		t.Errorf("expected one discovery and one token request, the discovery being reused, got %d", got)
+	}
+}
+
 // A failed rediscovery keeps the previous delegate: the cached endpoints and the
 // exchanged token still work, so the call succeeds instead of failing with the
 // discovery error. The first discovery has no fallback and fails.

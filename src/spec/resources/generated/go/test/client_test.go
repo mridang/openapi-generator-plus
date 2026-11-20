@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -23,6 +24,7 @@ import (
 	"net"
 	petstore "petstore/pkg"
 	"petstore/pkg/auth"
+	"petstore/pkg/auth/oauth"
 	apierrors "petstore/pkg/errors"
 	"petstore/pkg/models"
 	"strings"
@@ -578,6 +580,75 @@ func TestBhvLifecycle042_Client_ACallerSuppliedTransportCarriesEveryRequest(t *t
 	if got := rt.hits.Load(); got != 1 {
 		t.Errorf("expected the supplied transport to carry 1 request, got %d", got)
 	}
+}
+
+// tokenAwareRoundTripper answers the token endpoint and the API itself and records every request it carries.
+type tokenAwareRoundTripper struct {
+	mu    sync.Mutex
+	hosts []string
+}
+
+func (rt *tokenAwareRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	rt.mu.Lock()
+	rt.hosts = append(rt.hosts, req.URL.Host)
+	rt.mu.Unlock()
+	body := ""
+	if req.URL.Host == "auth.example.com" {
+		body = `{"access_token":"tok","expires_in":3600}`
+	}
+	return &http.Response{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Request:    req,
+	}, nil
+}
+
+// A client-level credential that needs the HTTP transport receives the client's own transport.
+func TestBhvMisc071_Client_ACredentialThatNeedsTheTransportReceivesTheClientsOwn(t *testing.T) {
+	t.Parallel()
+	rt := &tokenAwareRoundTripper{}
+	opts, err := petstore.NewTransportOptionsBuilder().RoundTripper(rt).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	machine, err := oauth.NewMachineAuthClientCredentialsAuthenticator("https://api.example.com", "id", "secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client, err := petstore.NewClientWithCredentials("https://api.example.com", petstore.Credentials{MachineAuth: machine}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = client.Close() }()
+
+	if err := client.Pet.DeletePet(context.Background(), int64(1), nil); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
+	if len(rt.hosts) != 2 || rt.hosts[0] != "auth.example.com" || rt.hosts[1] != "api.example.com" {
+		t.Errorf("expected the token request and then the API request through the client's transport, got %v", rt.hosts)
+	}
+}
+
+// Takes one optional credential per security scheme, named after it.
+func TestBhvLifecycle015_Client_OneCredentialFieldPerSchemeNamedAfterIt(t *testing.T) {
+	t.Parallel()
+	authenticator := reflect.TypeOf((*petstore.Authenticator)(nil)).Elem()
+	typ := reflect.TypeOf(petstore.Credentials{})
+	for _, name := range []string{"PetStoreBearer", "ApiKeyHeader", "MachineAuth"} {
+		field, ok := typ.FieldByName(name)
+		if !ok || field.Type != authenticator {
+			t.Errorf("expected an Authenticator field named %s, got %v", name, field)
+		}
+	}
+	bearer := mustBearer(t, "https://api.example.com", "named-token")
+	client, err := petstore.NewClientWithCredentials("https://api.example.com", petstore.Credentials{PetStoreBearer: bearer}, nil)
+	if err != nil {
+		t.Fatalf("a single credential, set by name, must build a client: %v", err)
+	}
+	_ = client.Close()
 }
 
 // After Close, a new request fails with the closed-client error and never reaches the network.

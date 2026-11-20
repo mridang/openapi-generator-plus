@@ -230,6 +230,9 @@ func (o *Order) UnmarshalJSON(data []byte) error {
 	 * absent one keeps it, matching the default-application of the other SDKs. */
 	var defaultStatus OrderStatusEnum = "placed"
 	aux.Status = &defaultStatus
+	if err := checkUuidField(data, "trackingId"); err != nil {
+		return err
+	}
 	if err := json.Unmarshal(dropMiscasedKeys(data, "id", "petId", "quantity", "trackingId", "shipDate", "status", "complete"), aux); err != nil {
 		return err
 	}

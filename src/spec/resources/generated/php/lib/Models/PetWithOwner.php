@@ -18,7 +18,7 @@ use Symfony\Component\Serializer\Attribute\SerializedName;
 /**
  * A pet record extended with owner information
  */
-class PetWithOwner implements \Stringable
+class PetWithOwner implements \Ds\Hashable, \Stringable
 {
     /** @example 10 */
     #[SerializedName('id')]
@@ -54,6 +54,7 @@ class PetWithOwner implements \Stringable
      * Absolute URL to the pet's public profile page
      * @example https://example.com/pets/fido
      */
+    #[\PetstoreClient\WireFormat('uri')]
     #[SerializedName('homepageUrl')]
     public readonly ?string $homepageUrl;
 
@@ -473,10 +474,26 @@ class PetWithOwner implements \Stringable
      * models, lists, maps and date-times are compared by value. A value of another class, or null,
      * is never equal.
      */
-    public function equals(?object $other): bool
+    public function equals(mixed $other): bool
     {
-        return $other !== null
+        return is_object($other)
             && $other::class === static::class
             && \PetstoreClient\ObjectSerializer::valuesEqual(get_object_vars($this), get_object_vars($other));
+    }
+
+    /**
+     * A hash that equal models share, so a Ds\Set or Ds\Map stores equal models once: it is built from
+     * the class and the string, integer and boolean properties, whose equal values are always identical.
+     */
+    public function hash(): mixed
+    {
+        $parts = [static::class];
+        foreach (get_object_vars($this) as $name => $value) {
+            if (is_string($value) || is_int($value) || is_bool($value)) {
+                $parts[] = $name . '=' . var_export($value, true);
+            }
+        }
+
+        return md5(implode("\0", $parts));
     }
 }

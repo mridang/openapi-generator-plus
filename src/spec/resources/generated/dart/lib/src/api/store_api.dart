@@ -397,9 +397,8 @@ class StoreApi extends BaseApi implements StoreApiInterface {
   Future<ApiResult<ApiResponse>> getAuditTrailWithHttpInfo(
     GetAuditTrailOptions? options,
   ) async {
-    final Authenticator? auth = schemeAuthenticator(const [
-      'petStoreBearer',
-      'apiKeyHeader',
+    final Authenticator? auth = requirementAuthenticator(const <List<String>>[
+      ['petStoreBearer', 'apiKeyHeader'],
     ]);
 
     var path = '/store/audit';

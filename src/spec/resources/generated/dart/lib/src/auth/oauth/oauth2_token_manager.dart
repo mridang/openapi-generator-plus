@@ -51,6 +51,20 @@ class OAuth2TokenManager {
   /// issuing their own token request (single-flight pattern).
   Future<String>? _inflightRefresh;
 
+  bool _stopped = false;
+
+  /// Stops the manager. Stopping again is a no-op; any later token request
+  /// fails with an [OAuth2TokenException] whose message is fixed.
+  void stop() {
+    _stopped = true;
+  }
+
+  void _throwIfStopped() {
+    if (_stopped) {
+      throw OAuth2TokenException('The token manager has been stopped.');
+    }
+  }
+
   /// Sets the shared API client for making token requests.
   void setApiClient(ApiClient client) {
     _apiClient = client;
@@ -80,6 +94,7 @@ class OAuth2TokenManager {
     Map<String, String> extraHeaders = const {},
     String? refreshUrl,
   ]) async {
+    _throwIfStopped();
     if (_accessToken.isNotEmpty &&
         (_tokenExpiry == null || DateTime.now().isBefore(_tokenExpiry!))) {
       return _accessToken;
@@ -157,6 +172,7 @@ class OAuth2TokenManager {
     Map<String, String> params, [
     Map<String, String> extraHeaders = const {},
   ]) async {
+    _throwIfStopped();
     final inflight = _inflightRefresh;
     if (inflight != null) {
       try {

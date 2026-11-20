@@ -699,6 +699,23 @@ void main() {
     );
 
     test(
+      'bhv lifecycle 040 the standard disposal hook closes the client',
+      () async {
+        final client = Client.withToken(
+          host: 'https://api.example.com',
+          accessToken: 'tok',
+        );
+
+        client.close();
+
+        await expectLater(
+          client.pet.getPetById(1, null, null),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
+
+    test(
       'bhv lifecycle 037 closing a client while a request is in flight lets that request finish',
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

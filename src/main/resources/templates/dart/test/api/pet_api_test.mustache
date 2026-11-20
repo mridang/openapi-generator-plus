@@ -2562,6 +2562,102 @@ void main() {
     });
   });
 
+  group('calls the type system rejects are refused at run time', () {
+    /* The analyzer already refuses these at compile time; a dynamic call
+     * reaches the same check the VM makes, so each refusal is observable and
+     * nothing is sent. */
+    Matcher refusedNaming(String name) => throwsA(
+        isA<Error>().having((e) => e.toString(), 'message', contains(name)));
+
+    final api = PetApi(
+      apiClient: DefaultApiClient(),
+      config: ConfigurationBuilder().baseUrl('http://127.0.0.1:1').build(),
+    );
+
+    test('bhv operations 125 a nil required query option is refused and names the option', () {
+      expect(
+        () => Function.apply(
+            GetPetByNameOptions.new, [], {#category: null, #xCorrelationId: 'x'}),
+        refusedNaming('category'),
+      );
+    });
+
+    test('bhv operations 132 a missing required option names the first required field', () {
+      expect(
+        () => Function.apply(GetPetByNameOptions.new, [], {#xCorrelationId: 'x'}),
+        refusedNaming('category'),
+      );
+    });
+
+    test('bhv operations 164 a nil required parameter is refused before any request is sent', () async {
+      await expectLater(
+        () => (api as dynamic).getPetByName(null, null),
+        throwsA(isA<TypeError>()),
+      );
+    });
+
+    test('bhv misc 012 a nil required argument is refused and names that argument', () {
+      expect(() => (api as dynamic).getPetTag(1, null, null), refusedNaming('tagName'));
+    });
+
+    test('bhv misc 010 a call that omits the options of an operation with required fields is refused', () {
+      expect(
+        () => Function.apply((api as dynamic).addPetPhotos as Function, [7]),
+        throwsA(isA<NoSuchMethodError>()),
+      );
+    });
+
+    test('bhv misc 051 an option the operation does not declare is refused rather than ignored', () {
+      expect(
+        () => Function.apply(GetPetByNameOptions.new, [],
+            {#category: 'c', #xCorrelationId: 'x', #bogusOption: 1}),
+        throwsA(isA<NoSuchMethodError>()),
+      );
+    });
+
+    test('bhv misc 075 a credential keyed to a scheme the API does not declare is refused when the client is built', () {
+      expect(
+        () => Function.apply(Client.new, [], {#undeclaredScheme: BearerAuthenticator(host: 'h', token: 't')}),
+        throwsA(isA<NoSuchMethodError>()),
+      );
+    });
+
+    test('bhv misc 149 copying a model with an attribute it does not declare is refused and names it', () {
+      final pet = Pet(name: 'Fido', photoUrls: <String>{'a'});
+      expect(() => (pet as dynamic).copyWith(bogusAttribute: 1), refusedNaming('bogusAttribute'));
+    });
+
+    test('bhv models 014 a built model has no way to reassign a property', () {
+      final pet = Pet(name: 'Fido', photoUrls: <String>{'a'});
+      expect(() => (pet as dynamic).name = 'Rex', throwsA(isA<NoSuchMethodError>()));
+    });
+
+    test('bhv options 063 a built per-call options object has no way to change a field', () {
+      const options = GetPetByNameOptions(category: 'c', xCorrelationId: 'x');
+      expect(() => (options as dynamic).timeout = 5, throwsA(isA<NoSuchMethodError>()));
+    });
+
+    test('bhv servers 020 a per-operation server variable value outside its enum is refused', () {
+      expect(
+        () => Function.apply(
+            GetStagingPetInfoServerStagingServer.new, ['bogus', GetStagingPetInfoServerVersion.V2]),
+        throwsA(isA<TypeError>()),
+      );
+    });
+
+    test('bhv misc 260 nil for a server variable is refused instead of being substituted', () {
+      expect(
+        () => (server1 as dynamic).url({'environment': null}),
+        throwsA(isA<TypeError>()),
+      );
+      expect(
+        () => Function.apply(
+            GetStagingPetInfoServerStagingServer.new, [null, GetStagingPetInfoServerVersion.V2]),
+        throwsA(isA<TypeError>()),
+      );
+    });
+  });
+
   group('operation-level server variants', () {
     test('bhv operations 083 the fixed external variant resolves its URL', () {
       expect(

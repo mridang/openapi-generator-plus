@@ -624,6 +624,65 @@ async fn test_bhv_operations_148_pet_api_uses_the_first_listed_scheme_the_client
     assert!(!head.contains("authorization:"), "{}", head);
 }
 
+/* A requirement that names two schemes together sends both credentials. */
+#[tokio::test]
+async fn test_bhv_misc_074_an_alternative_naming_two_schemes_sends_both_credentials() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let host = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel::<String>();
+    thread::spawn(move || {
+        if let Some(stream) = listener.incoming().next() {
+            let mut stream = stream.unwrap();
+            let mut buf = [0u8; 4096];
+            let n = stream.read(&mut buf).unwrap_or(0);
+            let _ = tx.send(String::from_utf8_lossy(&buf[..n]).to_string());
+            let response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}";
+            let _ = std::io::Write::write_all(&mut stream, response.as_bytes());
+        }
+    });
+    thread::sleep(std::time::Duration::from_millis(50));
+
+    let credentials = {{packageName}}::Credentials::new()
+        .with_pet_store_bearer(
+            {{packageName}}::auth::BearerAuthenticator::new(&host, "bearer-token").expect("valid bearer token"),
+        )
+        .with_api_key_header(ApiKeyHeaderAuthenticator::new(&host, Some("key-token")).expect("valid api key"));
+    let client = {{packageName}}::Client::with_credentials(&host, credentials, None);
+
+    let _ = client.store.get_audit_trail(None).await;
+
+    let head = rx.recv().expect("expected a captured request").to_lowercase();
+    assert!(head.contains("x-api-key: key-token"), "{}", head);
+    assert!(head.contains("authorization: bearer bearer-token"), "{}", head);
+}
+
+/* A declared multipart type other than form-data reaches the transport. */
+#[tokio::test]
+async fn test_bhv_misc_178_a_declared_multipart_mixed_type_reaches_the_transport() {
+    let (api, rx, _) = new_pet_api_for_byte_capture();
+    let options = AttachPetFilesOptions::new(vec![1, 2, 3]).caption("note".to_string());
+    let _ = api.attach_pet_files(1, Some(&options)).await;
+
+    let raw = rx.recv().expect("expected a captured request");
+    let (headers, _) = split_http_request(&raw);
+    let header_text = String::from_utf8_lossy(headers).to_ascii_lowercase();
+    assert!(header_text.contains("content-type: multipart/mixed; boundary="), "{}", header_text);
+    assert!(!header_text.contains("multipart/form-data"), "{}", header_text);
+}
+
+/* The options the caller passes by reference keep their parts after the call fails. */
+#[tokio::test]
+async fn test_bhv_misc_036_a_callers_multipart_part_stays_readable_after_the_request_fails() {
+    let (api, _) = new_pet_api_for_mock(500, "application/json", "{}");
+    let options = AttachPetFilesOptions::new(vec![9, 8, 7]).caption("note".to_string());
+
+    let outcome = api.attach_pet_files(1, Some(&options)).await;
+
+    assert!(outcome.is_err());
+    assert_eq!(vec![9, 8, 7], options.file);
+    assert_eq!(Some("note".to_string()), options.caption);
+}
+
 #[tokio::test]
 async fn test_bhv_operations_061_pet_api_get_external_pet_info() {
     let api = new_pet_api_for_integration();

@@ -2,6 +2,7 @@
 package {{packageName}}_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -464,5 +465,47 @@ func TestBhvAuth035_ApiKeyAuthenticator_HeaderRefusesControlAndDeleteCharacters(
 	t.Parallel()
 	for _, value := range []string{"abc\x01def", "abc\x1bdef", "abc\x7fdef"} {
 		expectInvalidApiKey(t, value, auth.ApiKeyLocationHeader)
+	}
+}
+
+// A key supplied through a provider function is obtained again for each request, whichever location the key is sent in.
+func TestBhvAuth005_ApiKeyAuthenticator_ProviderIsAskedForEveryRequestInEveryLocation(t *testing.T) {
+	t.Parallel()
+	for _, location := range []auth.ApiKeyLocation{auth.ApiKeyLocationHeader, auth.ApiKeyLocationQuery, auth.ApiKeyLocationCookie} {
+		calls := 0
+		provider := func(ctx context.Context) (string, error) {
+			calls++
+			return fmt.Sprintf("key-%d", calls), nil
+		}
+		a, err := auth.NewApiKeyAuthenticatorWithProvider("https://api.example.com", "X-Key", provider, location)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", location, err)
+		}
+		read := func() string {
+			var params map[string]string
+			var rerr error
+			switch location {
+			case auth.ApiKeyLocationHeader:
+				params, rerr = a.AuthHeadersOrErrorContext(context.Background())
+			case auth.ApiKeyLocationQuery:
+				params, rerr = a.QueryParamsOrErrorContext(context.Background())
+			default:
+				params, rerr = a.CookieParamsOrErrorContext(context.Background())
+			}
+			if rerr != nil {
+				t.Fatalf("%s: unexpected error: %v", location, rerr)
+			}
+			return params["X-Key"]
+		}
+		if first, second := read(), read(); first != "key-1" || second != "key-2" {
+			t.Errorf("%s: expected a fresh key per request, got %q then %q", location, first, second)
+		}
+	}
+	if _, err := auth.NewApiKeyAuthenticatorWithProvider("https://api.example.com", "X-Key", nil, auth.ApiKeyLocationHeader); !errors.Is(err, auth.ErrInvalidApiKey) {
+		t.Errorf("a nil provider must be refused with ErrInvalidApiKey, got %v", err)
+	}
+	bad, _ := auth.NewApiKeyAuthenticatorWithProvider("https://api.example.com", "X-Key", func(context.Context) (string, error) { return "", nil }, auth.ApiKeyLocationHeader)
+	if _, err := bad.AuthHeadersOrErrorContext(context.Background()); !errors.Is(err, auth.ErrInvalidApiKey) {
+		t.Errorf("an empty provided key must be refused with ErrInvalidApiKey, got %v", err)
 	}
 }

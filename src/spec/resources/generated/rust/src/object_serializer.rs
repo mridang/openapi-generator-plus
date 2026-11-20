@@ -2867,6 +2867,19 @@ mod tests {
     }
 
     #[test]
+    fn test_bhv_misc_145_reading_the_undeclared_keys_gives_a_copy_that_leaves_the_instance_unchanged(
+    ) {
+        let model: crate::models::Freeform =
+            serde_json::from_str(r#"{"label":"x","extra":"y"}"#).unwrap();
+        let mut copy = model.additional_properties.clone();
+        copy.insert("another".to_string(), serde_json::from_str("1").unwrap());
+        copy.remove("extra");
+
+        assert_eq!(1, model.additional_properties.len());
+        assert!(model.additional_properties.contains_key("extra"));
+    }
+
+    #[test]
     fn test_bhv_misc_234_a_model_in_a_list_keeps_its_additional_properties_through_a_round_trip() {
         let items: Vec<crate::models::Freeform> =
             serde_json::from_str(r#"[{"label":"x","extra":"y"}]"#).unwrap();
