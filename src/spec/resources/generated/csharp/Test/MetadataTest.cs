@@ -625,7 +625,7 @@ public class MetadataTest
         string.Concat(text.Where(character => !char.IsWhiteSpace(character)));
 
     [Fact]
-    public void BhvExamples001TheQuickstartBuildsAClientCallsAnOperationAndClosesIt()
+    public void BhvLangcsharp075TheQuickstartBuildsAClientCallsAnOperationAndClosesIt()
     {
         var quickstart = Quickstart();
 
@@ -642,7 +642,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvExamples002TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment()
+    public void BhvLangcsharp076TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment()
     {
         var quickstart = Quickstart();
         var readme = ReadRootFile("README.md");
@@ -666,7 +666,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvExamples003TheUsageFenceAndTheQuickstartHoldTheSameStatements()
+    public void BhvLangcsharp077TheUsageFenceAndTheQuickstartHoldTheSameStatements()
     {
         /* The quickstart is formatted by CSharpier and the README is not, so the
            statements are compared with the whitespace taken out. */
@@ -697,7 +697,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvExamples004EveryCSharpFenceDeclaresItsKind()
+    public void BhvLangcsharp078EveryCSharpFenceDeclaresItsKind()
     {
         foreach (var name in new[] { "README.md", "SKILLS.md" })
         {
@@ -709,7 +709,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvExamples005NoCSharpFenceHoldsAPlaceholderOrAModelBuiltFromNothing()
+    public void BhvLangcsharp079NoCSharpFenceHoldsAPlaceholderOrAModelBuiltFromNothing()
     {
         foreach (var name in new[] { "README.md", "SKILLS.md" })
         {
@@ -740,7 +740,7 @@ public class MetadataTest
     }
 
     [Fact]
-    public void BhvExamples006TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
+    public void BhvLangcsharp080TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
     {
         var makefile = ReadRootFile("Makefile");
 

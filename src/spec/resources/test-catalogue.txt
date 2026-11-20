@@ -2081,6 +2081,12 @@ langkotlin051 | A query value carries the raw JSON text
 langkotlin052 | The client routes each operation to the first declared scheme it holds a credential for
 langkotlin053 | A partial time value is sent in its shortened form
 langkotlin054 | A password grant wrapper whose refresh is rejected falls back to the original grant
+langkotlin055 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langkotlin056 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langkotlin057 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langkotlin058 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langkotlin059 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langkotlin060 | The SDK Makefile has an examples target that builds every file under examples
 langdart001 | a path or query value holding reserved punctuation is refused before any request is sent
 langdart002 | operation prose from the spec appears verbatim in the generated documentation
 langdart003 | a server variant substitutes each of its variables into the URL when selected
@@ -2616,6 +2622,12 @@ langphp067 | Non-ASCII text in a serialized string is written literally and neve
 langphp068 | A hook that returns no observer is skipped while the other hooks still finish.
 langphp069 | The chain returns no observer when no hook returns one.
 langphp070 | Headers edited by one hook are handed on to the next hook.
+langphp071 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langphp072 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langphp073 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langphp074 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langphp075 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langphp076 | The SDK Makefile has an examples target that builds every file under examples
 langjava001 | Closing a client leaves a transport the caller injected open, so another client can reuse it.
 langjava002 | A default header the caller sets wins over the SDK header of the same name, whatever the case of the name.
 langjava003 | The sensitive header names the SDK masks are stored lowercased so that lookups ignore case.
@@ -2629,6 +2641,12 @@ langjava010 | A connection closed after the headers raises a network exception t
 langjava011 | A zstd body whose decoder library is missing raises an error naming the unavailable library, never the encoded bytes.
 langjava012 | A corrupt zstd body raises a decoding error that does not blame a missing library.
 langjava013 | A request sent without default headers carries only the headers the caller passed for that request.
+langjava068 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langjava069 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langjava070 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langjava071 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langjava072 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langjava073 | The SDK Makefile has an examples target that builds every file under examples
 langcsharp065 | Cancelling the client-level token aborts a slow endpoint and reports the cancellation
 langcsharp066 | The builder sets the call hook and the default is none
 langcsharp067 | The string form of a configuration does not print the call hook
@@ -2843,6 +2861,12 @@ langpython206 | A date value is written as year, month and day with no time part
 langpython207 | Each model property is written under its own name as the key.
 langpython208 | A nested object used as a leaf value is a serialization error.
 langpython209 | A cookie value is fully percent-encoded on the wire.
+langpython210 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langpython211 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langpython212 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langpython213 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langpython214 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langpython215 | The SDK Makefile has an examples target that builds every file under examples
 langruby001 | The generated YARD documentation shows operation prose without literal escape sequences
 langruby002 | The generated YARD options documentation shows prose without literal escape sequences
 langruby003 | A generated server class built from enum-valued variables resolves its URL from those values
@@ -2933,6 +2957,12 @@ langruby087 | A supplied connection is kept as the transport connection
 langruby088 | Transport options default to no connection
 langruby089 | A value that is not a connection object is rejected as a connection
 langruby090 | A password refused at construction for containing a NUL byte names the password in its error
+langruby091 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langruby092 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langruby093 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langruby094 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langruby095 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langruby096 | The SDK Makefile has an examples target that builds every file under examples
 langgo001 | Multipart model part uses wire keys.
 langgo002 | Multipart file part content type from extension.
 langgo003 | Upload field accepts an io reader.
@@ -3058,6 +3088,12 @@ langgo123 | Each per-scheme authenticator behaves the same way for its scheme
 langgo124 | Each per-scheme authenticator behaves the same way for its scheme
 langgo125 | Each per-scheme authenticator behaves the same way for its scheme
 langgo126 | A typed error matches every level of its hierarchy above it
+langgo127 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langgo128 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langgo129 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langgo130 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langgo131 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langgo132 | The SDK Makefile has an examples target that builds every file under examples
 langelixir001 | A server variable keeps its declared enum values after construction, so they can be checked later.
 langelixir002 | A server variable must declare a default value, and omitting it is an error.
 langelixir003 | An array body where an object is expected raises a serialization error rather than an access error.
@@ -3156,9 +3192,9 @@ langcsharp071 | A oneOf without a discriminator throws when no member matches
 langcsharp072 | A token provider also serves the synchronous header getter
 langcsharp073 | A typed value carries its data unchanged
 langcsharp074 | Every HTTP status maps to the exception class for that status
-examples001 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
-examples002 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
-examples003 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
-examples004 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
-examples005 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
-examples006 | The SDK Makefile has an examples target that builds every file under examples
+langcsharp075 | A generated SDK ships examples/quickstart, one complete program that builds a client, calls one operation and closes the client
+langcsharp076 | The quickstart takes the host and the token from the environment variables its README names and holds no literal credential
+langcsharp077 | The README Usage fence and the quickstart hold the same statements, line for line, whatever the imports
+langcsharp078 | Every fence in README.md and SKILLS.md tagged with the SDK language declares its kind, file or statements
+langcsharp079 | No fence tagged with the SDK language holds a placeholder line such as an ellipsis or a model built from nothing
+langcsharp080 | The SDK Makefile has an examples target that builds every file under examples

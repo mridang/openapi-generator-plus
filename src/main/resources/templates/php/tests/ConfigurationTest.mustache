@@ -497,7 +497,7 @@ function examplesRootFile(string $name): string
     return (string) file_get_contents(dirname(__DIR__) . '/' . $name);
 }
 
-test('bhv examples 001 the quickstart builds a client, calls an operation and closes it', function (): void {
+test('bhv langphp 071 the quickstart builds a client, calls an operation and closes it', function (): void {
     $quickstart = examplesRootFile('examples/quickstart.php');
 
     expect($quickstart)->toContain("require __DIR__ . '/../vendor/autoload.php';");
@@ -508,7 +508,7 @@ test('bhv examples 001 the quickstart builds a client, calls an operation and cl
     expect($quickstart)->toContain('$client->close();');
 });
 
-test('bhv examples 002 the quickstart reads the host and the token from the environment the README names', function (): void {
+test('bhv langphp 072 the quickstart reads the host and the token from the environment the README names', function (): void {
     $quickstart = examplesRootFile('examples/quickstart.php');
     $readme = examplesRootFile('README.md');
 
@@ -519,7 +519,7 @@ test('bhv examples 002 the quickstart reads the host and the token from the envi
     expect($quickstart)->not->toContain('your-token');
 });
 
-test('bhv examples 003 the README usage fence and the quickstart hold the same statements', function (): void {
+test('bhv langphp 073 the README usage fence and the quickstart hold the same statements', function (): void {
     $readme = examplesRootFile('README.md');
     $start = strpos($readme, "\n## Usage\n");
     expect($start)->toBeInt();
@@ -543,7 +543,7 @@ test('bhv examples 003 the README usage fence and the quickstart hold the same s
     }
 });
 
-test('bhv examples 004 every php fence of the README and SKILLS declares its kind', function (): void {
+test('bhv langphp 074 every php fence of the README and SKILLS declares its kind', function (): void {
     foreach (['README.md', 'SKILLS.md'] as $name) {
         $fences = examplesPhpFences(examplesRootFile($name));
         expect($fences)->not->toBeEmpty();
@@ -553,7 +553,7 @@ test('bhv examples 004 every php fence of the README and SKILLS declares its kin
     }
 });
 
-test('bhv examples 005 no php fence holds a placeholder or an undeclared value', function (): void {
+test('bhv langphp 075 no php fence holds a placeholder or an undeclared value', function (): void {
     foreach (['README.md', 'SKILLS.md'] as $name) {
         foreach (examplesPhpFences(examplesRootFile($name)) as [, $body]) {
             foreach (explode("\n", $body) as $line) {
@@ -568,7 +568,7 @@ test('bhv examples 005 no php fence holds a placeholder or an undeclared value',
     }
 });
 
-test('bhv examples 006 the Makefile has an examples target that checks the examples directory', function (): void {
+test('bhv langphp 076 the Makefile has an examples target that checks the examples directory', function (): void {
     $makefile = examplesRootFile('Makefile');
 
     expect($makefile)->toContain("\nexamples: install\n");

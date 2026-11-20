@@ -172,7 +172,7 @@ class ReadmeTest {
   }
 
   @Test
-  void bhvExamples001TheQuickstartBuildsAClientCallsAnOperationAndClosesIt() throws IOException {
+  void bhvLangjava068TheQuickstartBuildsAClientCallsAnOperationAndClosesIt() throws IOException {
     String quickstart = quickstart();
     assertTrue(quickstart.contains("public static void main(String[] args)"));
     assertTrue(quickstart.contains("Client.withToken(host, token)"));
@@ -181,7 +181,7 @@ class ReadmeTest {
   }
 
   @Test
-  void bhvExamples002TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() throws IOException {
+  void bhvLangjava069TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() throws IOException {
     String quickstart = quickstart();
     String readme = readme();
     for (String name :
@@ -195,7 +195,7 @@ class ReadmeTest {
   }
 
   @Test
-  void bhvExamples003TheUsageFenceAndTheQuickstartHoldTheSameStatements() throws IOException {
+  void bhvLangjava070TheUsageFenceAndTheQuickstartHoldTheSameStatements() throws IOException {
     String readme = readme();
     String usage = readme.substring(readme.indexOf("\n## Usage\n"));
     usage = usage.substring(0, usage.indexOf("\n### "));
@@ -215,7 +215,7 @@ class ReadmeTest {
   }
 
   @Test
-  void bhvExamples004EveryJavaFenceDeclaresItsKind() throws IOException {
+  void bhvLangjava071EveryJavaFenceDeclaresItsKind() throws IOException {
     for (String name : new String[] {"README.md", "SKILLS.md"}) {
       for (String[] fence : javaFences(read(name))) {
         assertTrue(
@@ -226,7 +226,7 @@ class ReadmeTest {
   }
 
   @Test
-  void bhvExamples005NoJavaFenceHoldsAPlaceholderOrAModelBuiltFromNothing() throws IOException {
+  void bhvLangjava072NoJavaFenceHoldsAPlaceholderOrAModelBuiltFromNothing() throws IOException {
     Pattern fromNothing = Pattern.compile("new [A-Z][A-Za-z0-9]*\\(\\)(?! \\{)");
     for (String name : new String[] {"README.md", "SKILLS.md"}) {
       for (String[] fence : javaFences(read(name))) {
@@ -241,7 +241,7 @@ class ReadmeTest {
   }
 
   @Test
-  void bhvExamples006TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
+  void bhvLangjava073TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
       throws IOException {
     String makefile = read("Makefile");
     assertTrue(makefile.contains("\nexamples:\n"));

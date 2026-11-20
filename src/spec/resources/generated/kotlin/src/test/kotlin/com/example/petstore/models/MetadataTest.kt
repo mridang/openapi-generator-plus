@@ -584,8 +584,8 @@ class MetadataTest {
             .toList()
 
     @Test
-    @DisplayName("bhvExamples001 the quickstart builds a client, calls an operation and closes the client")
-    fun bhvExamples001TheQuickstartBuildsAClientCallsAnOperationAndClosesIt() {
+    @DisplayName("bhvLangkotlin055 the quickstart builds a client, calls an operation and closes the client")
+    fun bhvLangkotlin055TheQuickstartBuildsAClientCallsAnOperationAndClosesIt() {
         val quickstart = quickstart()
         assertTrue(quickstart.contains("fun main()"), "the quickstart must have a main function")
         assertTrue(quickstart.contains("Client.withToken(host, token).use { client ->"), "the client must be closed by use")
@@ -594,8 +594,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("bhvExamples002 the quickstart reads the host and the token from the environment variables the README names")
-    fun bhvExamples002TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() {
+    @DisplayName("bhvLangkotlin056 the quickstart reads the host and the token from the environment variables the README names")
+    fun bhvLangkotlin056TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() {
         val quickstart = quickstart()
         val readme = java.io.File("README.md").readText()
         for (name in listOf("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")) {
@@ -606,8 +606,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("bhvExamples003 the README Usage fence and the quickstart hold the same statements")
-    fun bhvExamples003TheUsageFenceAndTheQuickstartHoldTheSameStatements() {
+    @DisplayName("bhvLangkotlin057 the README Usage fence and the quickstart hold the same statements")
+    fun bhvLangkotlin057TheUsageFenceAndTheQuickstartHoldTheSameStatements() {
         val usage =
             java.io
                 .File("README.md")
@@ -630,8 +630,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("bhvExamples004 every kotlin fence of the README and SKILLS files declares its kind")
-    fun bhvExamples004EveryKotlinFenceDeclaresItsKind() {
+    @DisplayName("bhvLangkotlin058 every kotlin fence of the README and SKILLS files declares its kind")
+    fun bhvLangkotlin058EveryKotlinFenceDeclaresItsKind() {
         for (name in listOf("README.md", "SKILLS.md")) {
             for ((info, _) in kotlinFences(java.io.File(name).readText())) {
                 assertTrue(info == "kotlin file" || info == "kotlin statements", "$name: $info")
@@ -640,8 +640,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("bhvExamples005 no kotlin fence holds a placeholder line or a model built from nothing")
-    fun bhvExamples005NoKotlinFenceHoldsAPlaceholderOrAModelBuiltFromNothing() {
+    @DisplayName("bhvLangkotlin059 no kotlin fence holds a placeholder line or a model built from nothing")
+    fun bhvLangkotlin059NoKotlinFenceHoldsAPlaceholderOrAModelBuiltFromNothing() {
         for (name in listOf("README.md", "SKILLS.md")) {
             for ((_, body) in kotlinFences(java.io.File(name).readText())) {
                 for (line in body.lines()) {
@@ -656,8 +656,8 @@ class MetadataTest {
     }
 
     @Test
-    @DisplayName("bhvExamples006 the Makefile has an examples target that builds the examples directory")
-    fun bhvExamples006TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory() {
+    @DisplayName("bhvLangkotlin060 the Makefile has an examples target that builds the examples directory")
+    fun bhvLangkotlin060TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory() {
         val makefile = java.io.File("Makefile").readText()
         assertTrue(makefile.contains("\nexamples:\n"), "the Makefile must have an examples target")
         assertTrue(makefile.contains("\nexamples-run: examples\n"), "the Makefile must have an examples-run target")

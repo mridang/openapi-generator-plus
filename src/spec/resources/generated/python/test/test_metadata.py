@@ -494,7 +494,7 @@ class TestReadmeAndSkillsText:
         pattern = re.compile(r"^```(python[^\n]*)\n(.*?)^```", re.S | re.M)
         return [(match.group(1), match.group(2)) for match in pattern.finditer(text)]
 
-    def test_bhv_examples_001_the_quickstart_builds_a_client_calls_an_operation_and_closes_it(
+    def test_bhv_lang_python_210_the_quickstart_builds_a_client_calls_an_operation_and_closes_it(
         self,
     ) -> None:
         quickstart = self._read("examples/quickstart.py")
@@ -503,7 +503,7 @@ class TestReadmeAndSkillsText:
         assert " as client:" in quickstart
         assert "await client.store.get_defaults(" in quickstart
 
-    def test_bhv_examples_002_the_quickstart_reads_the_host_and_the_token_from_the_environment(
+    def test_bhv_lang_python_211_the_quickstart_reads_the_host_and_the_token_from_the_environment(
         self,
     ) -> None:
         quickstart = self._read("examples/quickstart.py")
@@ -516,7 +516,7 @@ class TestReadmeAndSkillsText:
             assert name in readme
         assert "your-token" not in quickstart
 
-    def test_bhv_examples_003_the_usage_fence_and_the_quickstart_hold_the_same_statements(
+    def test_bhv_lang_python_212_the_usage_fence_and_the_quickstart_hold_the_same_statements(
         self,
     ) -> None:
         readme = self._read("README.md")
@@ -533,12 +533,12 @@ class TestReadmeAndSkillsText:
             assert found >= 0, stripped
             position = found + len(stripped)
 
-    def test_bhv_examples_004_every_python_fence_declares_its_kind(self) -> None:
+    def test_bhv_lang_python_213_every_python_fence_declares_its_kind(self) -> None:
         for name in ("README.md", "SKILLS.md"):
             for info, _ in self._fences(self._read(name)):
                 assert info in ("python file", "python statements"), (name, info)
 
-    def test_bhv_examples_005_no_python_fence_holds_a_placeholder_or_a_model_built_from_nothing(
+    def test_bhv_lang_python_214_no_python_fence_holds_a_placeholder_or_a_model_built_from_nothing(
         self,
     ) -> None:
         for name in ("README.md", "SKILLS.md"):
@@ -552,7 +552,7 @@ class TestReadmeAndSkillsText:
                     )
                     assert "model_construct(" not in line, (name, line)
 
-    def test_bhv_examples_006_the_makefile_has_an_examples_target_that_checks_the_examples_directory(
+    def test_bhv_lang_python_215_the_makefile_has_an_examples_target_that_checks_the_examples_directory(
         self,
     ) -> None:
         makefile = self._read("Makefile")

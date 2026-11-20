@@ -172,7 +172,7 @@ func goFences(text string) (infos []string, bodies [][]string) {
 	return infos, bodies
 }
 
-func TestBhvExamples001_Quickstart_BuildsACallsAnOperationAndClosesTheClient(t *testing.T) {
+func TestBhvLanggo127_Quickstart_BuildsACallsAnOperationAndClosesTheClient(t *testing.T) {
 	t.Parallel()
 	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
 	for _, want := range []string{"package main", "{{packageName}}.New{{clientClassName}}WithToken(", "defer func() { _ = client.Close() }()"} {
@@ -187,7 +187,7 @@ func TestBhvExamples001_Quickstart_BuildsACallsAnOperationAndClosesTheClient(t *
 {{/hasExampleOperation}}
 }
 
-func TestBhvExamples002_Quickstart_ReadsTheHostAndTheTokenFromTheEnvironment(t *testing.T) {
+func TestBhvLanggo128_Quickstart_ReadsTheHostAndTheTokenFromTheEnvironment(t *testing.T) {
 	t.Parallel()
 	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
 	readme := readSourceFile(t, "../README.md")
@@ -204,7 +204,7 @@ func TestBhvExamples002_Quickstart_ReadsTheHostAndTheTokenFromTheEnvironment(t *
 	}
 }
 
-func TestBhvExamples003_Readme_UsageFenceAndQuickstartHoldTheSameStatements(t *testing.T) {
+func TestBhvLanggo129_Readme_UsageFenceAndQuickstartHoldTheSameStatements(t *testing.T) {
 	t.Parallel()
 	readme := readSourceFile(t, "../README.md")
 	quickstart := readSourceFile(t, "../examples/quickstart/main.go")
@@ -237,7 +237,7 @@ func TestBhvExamples003_Readme_UsageFenceAndQuickstartHoldTheSameStatements(t *t
 	}
 }
 
-func TestBhvExamples004_Fences_EveryGoFenceDeclaresItsKind(t *testing.T) {
+func TestBhvLanggo130_Fences_EveryGoFenceDeclaresItsKind(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"../README.md", "../SKILLS.md"} {
 		infos, _ := goFences(readSourceFile(t, name))
@@ -249,7 +249,7 @@ func TestBhvExamples004_Fences_EveryGoFenceDeclaresItsKind(t *testing.T) {
 	}
 }
 
-func TestBhvExamples005_Fences_NoGoFenceHoldsAPlaceholderOrAModelBuiltFromNothing(t *testing.T) {
+func TestBhvLanggo131_Fences_NoGoFenceHoldsAPlaceholderOrAModelBuiltFromNothing(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"../README.md", "../SKILLS.md"} {
 		_, bodies := goFences(readSourceFile(t, name))
@@ -266,7 +266,7 @@ func TestBhvExamples005_Fences_NoGoFenceHoldsAPlaceholderOrAModelBuiltFromNothin
 	}
 }
 
-func TestBhvExamples006_Makefile_HasAnExamplesTargetThatBuildsTheExamplesDirectory(t *testing.T) {
+func TestBhvLanggo132_Makefile_HasAnExamplesTargetThatBuildsTheExamplesDirectory(t *testing.T) {
 	t.Parallel()
 	makefile := readSourceFile(t, "../Makefile")
 	for _, want := range []string{"\nexamples:\n", "\nexamples-run:", "./examples/..."} {
