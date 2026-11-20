@@ -221,7 +221,8 @@ class DefaultApiClientTest {
             val bundle = java.io.File(tempDir.toFile(), "bundle.pem")
             bundle.writeText(ca.resolveSibling("server.pem").readText() + ca.readText())
             val issuers = loadCaCertTrustManager(bundle.absolutePath).acceptedIssuers
-            assertEquals(2, issuers.size, "both bundle certificates must be trust anchors")
+            val expected = Regex("BEGIN CERTIFICATE").findAll(bundle.readText()).count()
+            assertEquals(expected, issuers.size, "every bundle certificate must be a trust anchor")
         }
 
         @Test
