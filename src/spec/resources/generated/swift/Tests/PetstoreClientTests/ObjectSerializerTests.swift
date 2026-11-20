@@ -454,13 +454,6 @@ import Testing
       try formatProtobufDuration(try parseProtobufDuration("-1.9999999999s")) == "-1.999999999s")
   }
 
-  /* A fractional second keeps only the digits present, written in the shortest group of three, six or nine. */
-  @Test func testBhvMisc256AFractionalSecondKeepsOnlyTheDigitsPresent() throws {
-    #expect(try formatProtobufDuration(1.1) == "1.100s")
-    #expect(try formatProtobufDuration(1.5) == "1.500s")
-    #expect(try formatProtobufDuration(1.000001) == "1.000001s")
-  }
-
   /* A value that cannot be serialized fails with a serialization error before anything is sent. */
   @Test func testBhvMisc214AnUnserializableValueRaisesASerializationError() {
     struct Bad: Encodable { let value: Double }

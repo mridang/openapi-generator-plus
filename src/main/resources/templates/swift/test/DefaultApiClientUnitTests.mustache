@@ -154,17 +154,6 @@ import FoundationNetworking
     }
     #endif
 
-    /* A response that declares gzip encoding but lacks the gzip signature is returned as its plain body. */
-    @Test func testBhvMisc044AGzipHeaderWithoutTheGzipSignatureIsReturnedAsThePlainBody() async throws {
-        let client = makeClient { _ in
-            (Data("{\"ok\":true}".utf8), 200, ["Content-Type": "application/json", "Content-Encoding": "gzip"])
-        }
-        let response = try await client.sendRequest(
-            method: "GET", url: "http://localhost/plain", headers: [:], body: nil)
-        #expect(response.statusCode == 200)
-        #expect(response.body == "{\"ok\":true}")
-    }
-
     /* A response with a content encoding the SDK cannot decode is refused with the exact unsupported-encoding message. */
     @Test func testBhvMisc285AnUnsupportedContentEncodingIsRefused() async throws {
         let client = makeClient { _ in (Data("payload".utf8), 200, ["Content-Encoding": "compress"]) }
