@@ -56,6 +56,14 @@ class TransportOptionsTest {
         }
 
         @Test
+        @DisplayName("bhvMisc056 clearing the proxy with null removes a proxy set earlier and an empty string is rejected")
+        fun clearingTheProxyWithNullRemovesAnEarlierProxy() {
+            val opts = TransportOptions.builder().proxy("http://proxy:8080").proxy(null).build()
+            assertNull(opts.proxy)
+            assertThrowsExactly(IllegalArgumentException::class.java) { TransportOptions.builder().proxy("").build() }
+        }
+
+        @Test
         @DisplayName("bhvOptions032 proxy defaults to null")
         fun proxyDefaultsToNull() {
             val opts = TransportOptions.builder().build()
