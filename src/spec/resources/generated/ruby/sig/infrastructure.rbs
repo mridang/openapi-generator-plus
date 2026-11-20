@@ -514,6 +514,7 @@ module Petstore::Client
 
     module HttpAwareAuthenticator
       def api_client=: (ApiClient) -> void
+      def invalidate_access_token: () -> void
     end
 
     class AllOfAuthenticator < Authenticator

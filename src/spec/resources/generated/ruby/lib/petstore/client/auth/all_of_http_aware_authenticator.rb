@@ -21,7 +21,11 @@ module Petstore::Client
 
       # @return [void]
       def invalidate_access_token
-        parts.each { |part| part.public_send(:invalidate_access_token) if part.respond_to?(:invalidate_access_token) }
+        parts.each do |part|
+          next unless part.is_a?(HttpAwareAuthenticator) && part.respond_to?(:invalidate_access_token)
+
+          part.invalidate_access_token
+        end
       end
     end
   end
