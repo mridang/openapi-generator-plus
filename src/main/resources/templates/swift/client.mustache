@@ -217,6 +217,10 @@ public final class {{clientClassName}}: {{clientClassName}}Protocol, Sendable {
             throw ConfigurationError.invalidArgument(
                 "No API host: pass host or set the {{envVarPrefix}}_HOST environment variable")
         }
+        if let token = token, token.isEmpty {
+            throw ConfigurationError.invalidArgument(
+                "The token passed is empty: pass a non-empty token, or leave it out to read the {{envVarPrefix}}_TOKEN environment variable")
+        }
         if let tokenProvider = tokenProvider {
             return try {{clientClassName}}(
                 authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),

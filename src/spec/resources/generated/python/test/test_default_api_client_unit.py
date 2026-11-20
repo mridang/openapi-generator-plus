@@ -996,9 +996,13 @@ class TestMultipartFieldNameUtf8:
     ) -> None:
         assert _sanitize_multipart_field_name('a"b\\c') == 'a\\"b\\\\c'
 
-    def test_bhv_serialization_123_field_name_helper_rejects_nul(self) -> None:
-        with pytest.raises(ValueError):
-            _sanitize_multipart_field_name("a\x00b")
+    def test_bhv_serialization_123_field_name_helper_rejects_cr_lf_and_nul_and_escapes_a_quote(
+        self,
+    ) -> None:
+        for unsafe in ("a\x00b", "a\rb", "a\nb"):
+            with pytest.raises(ValueError):
+                _sanitize_multipart_field_name(unsafe)
+        assert _sanitize_multipart_field_name('a"b') == 'a\\"b'
 
     def test_bhv_serializationwire_046_multipart_body_preserves_non_ascii_field_name_as_utf8(
         self,

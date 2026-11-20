@@ -3448,6 +3448,33 @@ void main() {
     });
 
     test(
+      'bhv misc 188 a client reports itself as closed only after close has been called on it',
+      () async {
+        final custom = MockClient((_) async => http.Response('', 200));
+        final client = DefaultApiClient(
+          transportOptions: TransportOptionsBuilder()
+              .httpClient(custom)
+              .build(),
+        );
+
+        final before = await client.sendRequest(
+          'GET',
+          'http://custom.test/open',
+          {},
+          null,
+        );
+        expect(before.statusCode, equals(200));
+
+        client.close();
+
+        await expectLater(
+          client.sendRequest('GET', 'http://custom.test/open', {}, null),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
+
+    test(
       'bhv lifecycle 021 closing the client lets a running request finish',
       () async {
         final gate = Completer<void>();

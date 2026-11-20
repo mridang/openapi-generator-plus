@@ -550,6 +550,20 @@ fn test_bhv_models_017_a_copy_can_set_or_clear_an_optional_field_and_the_origina
 }
 
 #[test]
+fn test_bhv_serialization_079_a_copy_with_named_changes_changes_only_those_fields() {
+    use {{packageName}}::models::Defaults;
+    let original = Defaults::new();
+    let changed = original.clone().with_label("changed".to_string());
+    assert_eq!(changed.label.as_deref(), Some("changed"));
+    assert_eq!(original.label.as_deref(), Some("untitled"), "the original is untouched");
+    assert_eq!(changed.ratio, original.ratio, "unnamed fields are kept");
+    let base: Metadata = serde_json::from_str(r#"{"extra":"kept"}"#).expect("decodes");
+    let stamp = chrono::DateTime::parse_from_rfc3339("2024-01-02T03:04:05Z").expect("a valid instant");
+    let copy = base.clone().with_created_at({{packageName}}::date_time::DateTime::new(stamp));
+    assert_eq!(copy.additional_properties.get("extra").map(String::as_str), Some("kept"));
+}
+
+#[test]
 fn test_bhv_models_018_models_whose_decimal_fields_differ_only_in_trailing_zeros_compare_equal() {
     use {{packageName}}::models::Defaults;
     let plain = Defaults::new();

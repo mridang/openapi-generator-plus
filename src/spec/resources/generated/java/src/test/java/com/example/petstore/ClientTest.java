@@ -412,6 +412,8 @@ class ClientTest {
     assertTrue(petListed.contains("addPetPhotosWithHttpInfo"));
     assertTrue(petListed.contains("addPetTreatment"));
     assertTrue(petListed.contains("addPetTreatmentWithHttpInfo"));
+    assertTrue(petListed.contains("attachPetFiles"));
+    assertTrue(petListed.contains("attachPetFilesWithHttpInfo"));
     assertTrue(petListed.contains("deletePet"));
     assertTrue(petListed.contains("deletePetWithHttpInfo"));
     assertTrue(petListed.contains("downloadPetDocument"));
@@ -488,6 +490,8 @@ class ClientTest {
     assertTrue(storeListed.contains("createAccountWithHttpInfo"));
     assertTrue(storeListed.contains("deleteOrder"));
     assertTrue(storeListed.contains("deleteOrderWithHttpInfo"));
+    assertTrue(storeListed.contains("getAuditTrail"));
+    assertTrue(storeListed.contains("getAuditTrailWithHttpInfo"));
     assertTrue(storeListed.contains("getBySwatch"));
     assertTrue(storeListed.contains("getBySwatchWithHttpInfo"));
     assertTrue(storeListed.contains("getDefaults"));

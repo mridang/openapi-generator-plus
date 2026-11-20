@@ -253,6 +253,8 @@ public class PetApi : BaseApi, IPetApi
 
     private static readonly string[] AddPetTreatmentAccepts = ["application/json"];
 
+    private static readonly string[] AttachPetFilesAccepts = ["application/json"];
+
     private static readonly string[] DownloadPetDocumentAccepts = ["application/octet-stream"];
 
     private static readonly string[] FindPetsBornOnAccepts = ["application/json"];
@@ -630,6 +632,129 @@ public class PetApi : BaseApi, IPetApi
                 operationName: "PetApi.AddPetTreatment",
                 operationId: "addPetTreatment",
                 urlTemplate: "/pet/{petId}/treatment",
+                timeout: options?.Timeout,
+                extraHeaders: options?.Headers,
+                maxRetries: options?.MaxRetries
+            )
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Attach files in a multipart/mixed request
+    /// </summary>
+    /// <remarks>Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns><![CDATA[ApiResponse]]></returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResponse> AttachPetFilesAsync(
+        long petId,
+        AttachPetFilesOptions options,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Task<ApiResult<ApiResponse>> task = AttachPetFilesWithHttpInfoAsync(
+            petId,
+            options,
+            cancellationToken
+        );
+        ApiResult<ApiResponse> result = await task.ConfigureAwait(false);
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body surfaces the same typed, catchable
+         * ApiException as any other API failure (carrying the status code,
+         * headers and raw body) — never a silent null or a non-SDK
+         * exception type. Matches the harmonised cross-SDK canonical. The
+         * presence of a body is gated on the raw payload rather than on
+         * `Data`: for a value-type return (e.g. a bare enum), `default(T)`
+         * is the zero member — never null — so a `Data`-based null check
+         * would silently return the zero value for a 204/empty body. A bare
+         * JSON null payload is an absent body too: its raw text is non-empty
+         * but it decodes to a null reference, so reference-type returns also
+         * check the decoded value (boxed, so a value-type return compiles). */
+        if (string.IsNullOrEmpty(result.RawBody) || (object?)result.Data is null)
+        {
+            throw new ApiException(
+                result.StatusCode,
+                "Expected a response body for AttachPetFiles but received none",
+                new Dictionary<string, string>(result.Headers),
+                result.RawBody
+            );
+        }
+        return result.Data!;
+    }
+
+    /// <summary>
+    /// Attach files in a multipart/mixed request (with HTTP info)
+    /// </summary>
+    /// <remarks>Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.</remarks>
+    /// <param name="petId"></param>
+    /// <param name="options">Options for query, header, form, and cookie parameters.</param>
+    /// <param name="cancellationToken">Token that cancels the request. Cancellation surfaces as <see cref="OperationCanceledException"/>, distinct from <see cref="NetworkTimeoutException"/>.</param>
+    /// <returns>ApiResult containing the response data, status code, raw body, and headers.</returns>
+    /// <exception cref="ApiException">Thrown when the API call fails.</exception>
+    public async Task<ApiResult<ApiResponse>> AttachPetFilesWithHttpInfoAsync(
+        long petId,
+        AttachPetFilesOptions options,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (options is null)
+        {
+            /* A null Options object reads as its first missing required
+             * field: the first call below throws with the canonical message. */
+            RequireOption(
+                null,
+                nameof(options) + ".File",
+                "Missing the required parameter 'file' when calling PetApi.AttachPetFiles"
+            );
+        }
+        ArgumentNullException.ThrowIfNull(options);
+        RequireOption(
+            options.File,
+            nameof(options) + "." + nameof(options.File),
+            "Missing the required parameter 'file' when calling PetApi.AttachPetFiles"
+        );
+        string path = "/pet/{petId}/attachments";
+
+        path = path.Replace(
+            "{" + nameof(petId) + "}",
+            (string)
+                ValueSerializer.SerializeStyled(
+                    nameof(petId),
+                    petId,
+                    "path",
+                    "long",
+                    null,
+                    "simple",
+                    false
+                )!,
+            StringComparison.Ordinal
+        );
+
+        Dictionary<string, object?> queryParams = [];
+        Dictionary<string, string> headerParams = [];
+        Dictionary<string, object> formBody = [];
+        formBody["file"] = options.File;
+        if (options != null && options.Caption != null)
+        {
+            formBody["caption"] = options.Caption;
+        }
+
+        return await InvokeApiForResultAsync<ApiResponse>(
+                "POST",
+                path,
+                queryParams,
+                headerParams,
+                formBody,
+                AttachPetFilesAccepts,
+                "multipart/mixed",
+                typeof(ApiResponse),
+                null,
+                cancellationToken: cancellationToken,
+                operationName: "PetApi.AttachPetFiles",
+                operationId: "attachPetFiles",
+                urlTemplate: "/pet/{petId}/attachments",
                 timeout: options?.Timeout,
                 extraHeaders: options?.Headers,
                 maxRetries: options?.MaxRetries
@@ -3122,6 +3247,22 @@ public class PetApi : BaseApi, IPetApi
         if (options != null && options.Reminder != null)
         {
             formBody["reminder"] = options.Reminder;
+        }
+        if (options != null && options.IntervalDays != null)
+        {
+            formBody["intervalDays"] = options.IntervalDays;
+        }
+        if (options != null && options.Ratio != null)
+        {
+            formBody["ratio"] = options.Ratio;
+        }
+        if (options != null && options.Urgent != null)
+        {
+            formBody["urgent"] = options.Urgent;
+        }
+        if (options != null && options.Snooze != null)
+        {
+            formBody["snooze"] = options.Snooze;
         }
 
         return await InvokeApiForResultAsync<ApiResponse>(

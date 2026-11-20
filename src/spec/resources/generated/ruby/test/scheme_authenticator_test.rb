@@ -370,7 +370,7 @@ describe 'scheme authenticators' do
     _(api_key.auth_headers).must_equal('X-Api-Key' => 'first')
   end
 
-  it 'bhv_langruby_078 takes the token provider of a Bearer wrapper after the variable' do
+  it 'bhv_langruby_078 takes the token provider of a Bearer wrapper before the variable' do
     environment_schemes.each do |name, base, credentials|
       next unless base == 'BearerAuthenticator'
 
@@ -378,7 +378,7 @@ describe 'scheme authenticators' do
       auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: {})
       _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-provider' }, name)
       auth = scheme_class(name).new('https://api.example.com', token_provider: -> { 'from-provider' }, env: { variable => 'from-env' })
-      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-env' }, name)
+      _(auth.auth_headers).must_equal({ 'Authorization' => 'Bearer from-provider' }, name)
     end
   end
 

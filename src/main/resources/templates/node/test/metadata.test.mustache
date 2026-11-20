@@ -19,6 +19,24 @@ describe('Metadata', () => {
       expect(pkg.description!.length).toBeGreaterThan(0);
     });
 
+    test('bhv mocking 009 the README has a Testing your code section naming the group interface and the client interface', () => {
+      const readme = fs.readFileSync(path.resolve(__dirname, '..', 'README.md'), 'utf-8');
+      const start = readme.indexOf('\n### Testing your code\n');
+      expect(start).toBeGreaterThanOrEqual(0);
+      const end = readme.indexOf('\n### ', start + 4);
+      const section = end < 0 ? readme.slice(start) : readme.slice(start, end);
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+      expect(section).toContain('{{classname}}Interface');
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+      expect(section).toContain('{{clientClassName}}Interface');
+    });
+
     test('bhv langnode 082 declares sideEffects so a bundler can drop unused operations', () => {
       // The only module with an import-time side effect is the serializer, which
       // loads reflect-metadata; everything else may be tree-shaken.

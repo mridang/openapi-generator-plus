@@ -1750,6 +1750,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_bhv_misc_171_a_per_call_retry_count_above_the_client_limit_allows_more_attempts() {
+        let client = ScriptedClient::custom(500, false, 1);
+        let api = api_for(client.clone());
+
+        let result = api
+            .invoke_api(call_params(CallOptions { max_retries: Some(3), ..CallOptions::default() }))
+            .await;
+
+        assert!(result.is_err());
+        assert_eq!(4, client.calls());
+    }
+
+    #[tokio::test]
     async fn test_bhv_retries_033_the_last_network_error_is_reported_once_the_retries_are_spent() {
         let client = ScriptedClient::custom(200, true, 2);
         let api = api_for(client.clone());

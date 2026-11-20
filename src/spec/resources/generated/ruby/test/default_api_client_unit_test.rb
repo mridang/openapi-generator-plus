@@ -94,6 +94,41 @@ describe 'DefaultApiClientUnit' do
     file.unlink
   end
 
+  it 'bhv_misc_100 a multipart request keeps its declared subtype and falls back to form-data when it is unsafe' do
+    [[nil, 'multipart/form-data'], ['multipart/related', 'multipart/related'],
+     ['multipart/bad subtype', 'multipart/form-data']].each do |declared, expected|
+      sent = nil
+      stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+        stub.post('/upload') do |env|
+          sent = env.request_headers['Content-Type']
+          [200, { 'content-type' => 'text/plain' }, 'ok']
+        end
+      end
+      headers = declared ? { 'Content-Type' => declared } : {}
+      client = Petstore::Client::DefaultApiClient.new
+      client.stub(:build_connection, stub_connection(stubs)) do
+        client.send_request(:POST, 'http://localhost/upload', headers, { 'field' => 'value' })
+      end
+
+      _(sent).must_match(/\A#{Regexp.escape(expected.to_s)}; boundary=/)
+    end
+  end
+
+  it 'bhv_misc_267 the default headers of a caller supplied connection are sent with each request' do
+    seen = nil
+    stubs = Faraday::Adapter::Test::Stubs.new do |stub|
+      stub.get('/x') do |env|
+        seen = env.request_headers['X-Caller']
+        [200, { 'content-type' => 'text/plain' }, 'ok']
+      end
+    end
+    conn = Faraday.new('http://localhost', headers: { 'X-Caller' => 'yes' }) { |f| f.adapter :test, stubs }
+    client = Petstore::Client::DefaultApiClient.new(Petstore::Client::TransportOptions.builder.connection(conn).build)
+
+    _(client.send_request(:GET, 'http://localhost/x', {}, nil).status_code).must_equal 200
+    _(seen).must_equal 'yes'
+  end
+
   it 'bhv_langruby_033 sends a method Faraday does not know, such as QUERY, with its body' do
     seen = nil
     stubs = Faraday::Adapter::Test::Stubs.new
@@ -623,7 +658,7 @@ describe 'DefaultApiClientUnit' do
 
   # ── Multipart filename sanitization (Gap F) ──
 
-  it 'bhv_serialization_123 multipart field names and filenames with CR, LF, NUL or quote characters are rejected' do
+  it 'bhv_serialization_123 a multipart name with CR, LF or NUL is rejected and a quote is backslash-escaped' do
     require 'stringio'
     client = Petstore::Client::DefaultApiClient.new
     io = StringIO.new('payload')
@@ -631,6 +666,10 @@ describe 'DefaultApiClientUnit' do
     assert_raises(ArgumentError) do
       client.send_request('POST', 'http://localhost/upload', {}, { 'file' => io })
     end
+    ["a\r\nb", "a\nb", "a\0b"].each do |bad|
+      _(proc { client.send(:build_multipart_body, { bad => 'v' }, 'b') }).must_raise ArgumentError
+    end
+    _(client.send(:build_multipart_body, { 'a"b' => 'v' }, 'b')).must_include 'name="a\\"b"'
   end
 
   it 'bhv_serializationwire_043 rejects multipart filename containing CRLF (header injection)' do

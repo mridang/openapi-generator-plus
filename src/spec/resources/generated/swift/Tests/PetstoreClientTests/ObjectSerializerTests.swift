@@ -3171,16 +3171,17 @@ import Testing
     }
   }
 
-  /* Read-only properties are not sent and write-only properties are not returned, so they have no wire effect. */
-  @Test func testBhvMisc242AReadOnlyPropertyIsNotSentAndAWriteOnlyPropertyIsNotReturned() throws {
+  /* A readOnly or writeOnly property has no wire effect: it is written and decoded like any other property. */
+  @Test func testBhvMisc242AReadOnlyOrWriteOnlyPropertyHasNoWireEffect() throws {
     let decoded = try #require(
       try ObjectSerializer.deserialize(
         Data("{\"id\":7,\"username\":\"u\",\"password\":\"p\"}".utf8), as: Account.self))
     #expect(decoded.id == 7)
-    let json = try ObjectSerializer.serialize(Account(username: "u", password: "p"))
+    #expect(decoded.password == "p")
+    let json = try ObjectSerializer.serialize(Account(username: "u", id: 7, password: "p"))
     let fields = try #require(
       try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
-    #expect(Set(fields.keys) == ["username", "password"])
+    #expect(Set(fields.keys) == ["id", "username", "password"])
   }
 
   /* A date-time inside a JSON query parameter keeps its wire date-time form. */

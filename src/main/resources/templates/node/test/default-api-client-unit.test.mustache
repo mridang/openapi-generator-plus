@@ -1179,6 +1179,44 @@ describe('cross-origin redirect strips API-key headers', () => {
     expect(lastReceivedHeaders['accept']).toBe('application/json');
   });
 
+  it('bhv redirects 044 a cross-origin redirect keeps the proxy credential and removes the caller authorization headers', async () => {
+    const seen: Array<string | undefined> = [];
+    const proxy = http.createServer((_req, res) => {
+      res.writeHead(405);
+      res.end();
+    });
+    proxy.on('connect', (req, clientSocket, head) => {
+      seen.push(req.headers['proxy-authorization']);
+      const target = new URL(`http://${req.url!}`);
+      const upstream = net.connect(Number(target.port), target.hostname, () => {
+        clientSocket.write('HTTP/1.1 200 Connection Established\r\n\r\n');
+        upstream.write(head);
+        clientSocket.pipe(upstream);
+        upstream.pipe(clientSocket);
+      });
+      clientSocket.on('error', () => upstream.destroy());
+      upstream.on('error', () => clientSocket.destroy());
+    });
+    await new Promise<void>(resolve => proxy.listen(0, '127.0.0.1', resolve));
+    const port = (proxy.address() as { port: number }).port;
+    const userinfo = ['proxy-user', 'proxy-pass'].join(':');
+    const client = new DefaultApiClient(
+      TransportOptions.builder().followRedirects(true).proxy(`http://${userinfo}@127.0.0.1:${port}`).build(),
+    );
+    try {
+      await client.sendRequest('GET', `${srcUrl}/start`, { Authorization: 'Bearer secret', Cookie: 'session=xyz' }, null);
+      const credential = `Basic ${Buffer.from(userinfo, 'utf-8').toString('base64')}`;
+      expect(seen).toEqual([credential, credential]);
+      expect(lastReceivedHeaders['authorization']).toBeUndefined();
+      expect(lastReceivedHeaders['cookie']).toBeUndefined();
+      expect(lastReceivedHeaders['proxy-authorization']).toBeUndefined();
+    } finally {
+      await client.close();
+      proxy.closeAllConnections();
+      await new Promise<void>(resolve => proxy.close(() => resolve()));
+    }
+  });
+
   it('bhv redirects 052 a cross-origin redirect removes Authorization, Cookie, Proxy-Authorization and a secret-named header', async () => {
     const client = new DefaultApiClient(
       TransportOptions.builder().followRedirects(true).defaultHeaders({ 'X-Client-Secret': 'shh' }).build(),
@@ -3531,12 +3569,6 @@ describe('DefaultApiClient misc transport behaviours', () => {
     const customFetch = (async () => new Response('')) as unknown as typeof fetch;
     expect(() => TransportOptions.builder().fetch(customFetch).verifySsl(false).build()).toThrow(/verifySsl\(false\)/);
   });
-
-  it('bhv misc 044 a body that declares gzip but lacks the gzip signature is returned as its plain body', async () => {
-    const plain = Buffer.from('{"userId":1}', 'utf-8');
-    const out = await DefaultApiClient.ensureDecoded(plain, 'gzip');
-    expect(out.toString('utf-8')).toBe('{"userId":1}');
-  });
 });
 
 describe('DefaultApiClient multipart parts and bodies (misc behaviours)', () => {
@@ -4028,11 +4060,12 @@ describe('DefaultApiClient transport and multipart behaviours', () => {
     expect(DefaultApiClient.mimeTypeForFilename('data.zzzunknownext')).toBe('application/octet-stream');
   });
 
-  it('bhv serialization 123 multipart field names and filenames containing CR, LF or NUL are rejected rather than written into the header', () => {
+  it('bhv serialization 123 multipart field names and filenames containing CR, LF or NUL are rejected and a double quote is backslash-escaped', () => {
     for (const unsafe of ['a\r\nb', 'a\x00b']) {
       expect(() => DefaultApiClient.buildContentDisposition(unsafe, 'file.txt')).toThrow(TypeError);
       expect(() => DefaultApiClient.buildContentDisposition('file', unsafe)).toThrow(TypeError);
     }
+    expect(DefaultApiClient.buildContentDisposition('a"b', 'c"d.txt')).toContain('name="a\\"b"; filename="c\\"d.txt"');
   });
 
   it('bhv serialization 124 a non-ASCII multipart filename is sent with an ASCII fallback and an RFC 5987 form', async () => {

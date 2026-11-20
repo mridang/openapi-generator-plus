@@ -221,8 +221,8 @@ func TestBhvSerialization122_BaseApi_AFormBodyRepeatsTheKeyPerElementInOrder(t *
 	}
 }
 
-// Multipart field names and filenames containing carriage returns, line feeds, NUL or quote characters are rejected.
-func TestBhvSerialization123_BaseApi_UnsafeMultipartNamesAreRejected(t *testing.T) {
+// Multipart field names and filenames containing carriage returns, line feeds or NUL are rejected; a quote is backslash-escaped.
+func TestBhvSerialization123_BaseApi_UnsafeMultipartNamesAreRejectedAndQuotesEscaped(t *testing.T) {
 	t.Parallel()
 	for _, name := range []string{"a\r\nb", "a\x00b"} {
 		if err := validateMultipartFieldName(name); err == nil {
@@ -231,6 +231,16 @@ func TestBhvSerialization123_BaseApi_UnsafeMultipartNamesAreRejected(t *testing.
 		if err := validateMultipartFilename(name); err == nil {
 			t.Errorf("filename %q: expected rejection", name)
 		}
+	}
+	if err := validateMultipartFieldName(`a"b`); err != nil {
+		t.Errorf("a quote must not be rejected: %v", err)
+	}
+	body, err := buildMultipartBodyOrdered(map[string]any{`a"b`: "x"}, "bnd", []string{`a"b`})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(string(body), `name="a\"b"`) {
+		t.Errorf("expected the quote backslash-escaped, got %s", body)
 	}
 }
 

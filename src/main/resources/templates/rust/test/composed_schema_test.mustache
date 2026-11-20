@@ -386,6 +386,13 @@ fn test_bhv_unions_009_pet_treatment_retains_all_matching_variants_losslessly() 
 }
 
 #[test]
+fn test_bhv_misc_291_a_payload_matching_several_variants_decodes_to_the_first_declared_one() {
+    let both = r#"{"reservationId":1,"quantity":2,"receiptCode":"r","expiresAt":"2024-01-01T00:00:00.000+00:00"}"#;
+    let decoded: ReserveStockResponse = serde_json::from_str(both).expect("an ambiguous payload decodes");
+    assert!(matches!(decoded, ReserveStockResponse::Reservation(_)), "got {:?}", decoded);
+}
+
+#[test]
 fn test_bhv_misc_293_any_of_fills_every_matching_variant_and_skips_the_rest() {
     let surgery_only: PetTreatment =
         serde_json::from_str(r#"{"procedureName":"Spay"}"#).expect("a surgery-only payload");

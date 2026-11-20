@@ -393,13 +393,18 @@ private final class InvalidationProbe: NSObject, URLSessionDelegate, @unchecked 
     #expect(error == ProviderBoom())
   }
 
-  /* An empty token counts as not passed, so the environment supplies the credential. */
-  @Test func testBhvMisc068AnEmptyCredentialReadsTheEnvironment() async throws {
-    let client = try environmentClient(
-      host: "https://empty-068.example.com", token: "",
-      environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token"])
-    let auth = try #require(firstApiAuthenticator(of: client))
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer env-token"])
+  /* An empty environment variable counts as unset; an explicitly passed empty token is refused, never replaced by the environment. */
+  @Test func testBhvMisc068AnEmptyVariableIsUnsetAndAnEmptyArgumentIsRefused() throws {
+    #expect(throws: ConfigurationError.self) {
+      _ = try environmentClient(
+        host: "https://empty-068.example.com",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": ""])
+    }
+    #expect(throws: ConfigurationError.self) {
+      _ = try environmentClient(
+        host: "https://empty-068.example.com", token: "",
+        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN": "env-token"])
+    }
   }
 
   private struct ProviderBoom: Error, Equatable {}
@@ -1430,6 +1435,28 @@ private final class FakePetApi: PetApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResponse
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "attachPetFiles(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResult<ApiResponse>
+  {
+    var parts: [String] = []
+    parts.append(String(describing: petId))
+    var call = "attachPetFilesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func deletePet(petId: Int64, options: DeletePetOptions?) async throws {
     var parts: [String] = []
     parts.append(String(describing: petId))
@@ -2113,6 +2140,24 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func getAuditTrail(options: GetAuditTrailOptions?) async throws -> ApiResponse {
+    var parts: [String] = []
+    var call = "getAuditTrail(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func getAuditTrailWithHTTPInfo(options: GetAuditTrailOptions?) async throws -> ApiResult<
+    ApiResponse
+  > {
+    var parts: [String] = []
+    var call = "getAuditTrailWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws -> Category
   {
     var parts: [String] = []
@@ -2510,6 +2555,8 @@ private func environmentClient(
     #expect(petListed.contains("addPetPhotosWithHTTPInfo"))
     #expect(petListed.contains("addPetTreatment"))
     #expect(petListed.contains("addPetTreatmentWithHTTPInfo"))
+    #expect(petListed.contains("attachPetFiles"))
+    #expect(petListed.contains("attachPetFilesWithHTTPInfo"))
     #expect(petListed.contains("deletePet"))
     #expect(petListed.contains("deletePetWithHTTPInfo"))
     #expect(petListed.contains("downloadPetDocument"))
@@ -2580,6 +2627,8 @@ private func environmentClient(
     #expect(storeListed.contains("createAccountWithHTTPInfo"))
     #expect(storeListed.contains("deleteOrder"))
     #expect(storeListed.contains("deleteOrderWithHTTPInfo"))
+    #expect(storeListed.contains("getAuditTrail"))
+    #expect(storeListed.contains("getAuditTrailWithHTTPInfo"))
     #expect(storeListed.contains("getBySwatch"))
     #expect(storeListed.contains("getBySwatchWithHTTPInfo"))
     #expect(storeListed.contains("getDefaults"))

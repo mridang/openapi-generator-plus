@@ -319,12 +319,15 @@ import Testing
     }
   }
 
-  @Test func testBhvLangswift072EmptyProxyStringClearsTheProxy() throws {
+  @Test func testBhvLangswift072NilProxyClearsTheProxyAndAnEmptyStringIsRejected() throws {
     let opts = try TransportOptionsBuilder()
       .proxy("http://proxy.example.com:8080")
-      .proxy("")
+      .proxy(nil)
       .build()
     #expect(opts.proxy == nil)
+    #expect(throws: ConfigurationError.self) {
+      try TransportOptionsBuilder().proxy("").build()
+    }
   }
 
   @Test func testBhvOptions068SocksProxySchemesAreRejectedWhenTheProxyIsSet() throws {

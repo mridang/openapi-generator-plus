@@ -47,13 +47,10 @@ class ApiKeyAuthenticator extends BaseAuthenticator
         if ($apiKey !== null && $apiKeyProvider instanceof \Closure) {
             throw new \InvalidArgumentException('Pass either an API key or an API key provider, not both');
         }
-        if ($apiKey === null) {
-            /* Order: explicit key, then the environment variable, then the provider. A set
-             * variable wins over a provider; an empty or unset one falls through to it. */
+        if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
+            /* Order: explicit key or provider, then the environment variable. A provider that
+             * is passed wins over a set variable; an empty or unset variable is the fallback. */
             $apiKey = static::environmentCredential('apiKey');
-            if ($apiKey !== null) {
-                $apiKeyProvider = null;
-            }
         }
         if ($apiKey === null && !$apiKeyProvider instanceof \Closure) {
             throw new \InvalidArgumentException(

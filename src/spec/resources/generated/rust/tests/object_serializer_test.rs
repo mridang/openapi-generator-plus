@@ -1059,6 +1059,33 @@ fn test_bhv_serialization_046_a_duration_fraction_uses_the_shortest_group_of_thr
 }
 
 #[test]
+fn test_bhv_misc_256_a_duration_fraction_is_never_trimmed_below_three_digits() {
+    use chrono::Duration;
+    use petstore::proto_duration;
+    assert_eq!(
+        proto_duration::format(&Duration::milliseconds(1500)),
+        "1.500s"
+    );
+    assert_eq!(
+        proto_duration::format(&Duration::milliseconds(1100)),
+        "1.100s"
+    );
+}
+
+// D104: readOnly and writeOnly have no wire effect, a readOnly id is written like any field.
+#[test]
+fn test_bhv_misc_242_read_only_and_write_only_properties_have_no_wire_effect() {
+    use petstore::models::Account;
+
+    let mut outgoing = Account::new("u".to_string());
+    outgoing.id = Some(7);
+    outgoing.password = Some("p".to_string());
+    let body = serde_json::to_string(&outgoing).unwrap();
+    assert!(body.contains(r#""id":7"#), "body: {}", body);
+    assert!(body.contains(r#""password":"p""#), "body: {}", body);
+}
+
+#[test]
 fn test_bhv_serialization_050_a_property_whose_name_starts_with_a_digit_keeps_its_exact_wire_name()
 {
     use petstore::models::*;

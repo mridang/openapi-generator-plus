@@ -83,6 +83,7 @@ Pass options with `--additional-properties` or a config file. Options that apply
 - Declared-charset decoding handles latin1, ascii, utf-16 and windows-1252 only. Other charsets such as `shift_jis` fall back to lenient UTF-8, because Dart has no multi-charset standard library.
 - Bare `number` is a lossy `double`, and `int64` beyond 2^53 is lossy on the web.
 - Uploads and downloads are fully buffered.
+- A union holding a value that is not one of its variants fails to serialize with a `SerializationException` naming the union. A string result under a binary content type is the decoded body. A deadline that passes while credentials are being obtained is a `NetworkTimeoutException` and the request is never sent.
 - SOCKS proxies are rejected.
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope; the generated README lists them under "Not supported". OpenAPI 3.1 support is tracked in epic #96, and 3.2 in epic #49.
 - The warnings-fatal `make docs` target is in the generated Makefile but no test runs it.

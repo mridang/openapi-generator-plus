@@ -1689,6 +1689,28 @@ public class BetterRustCodegen extends AbstractBetterCodegen implements BarrelFi
         }
         entry.put("explicitArgs", String.join(", ", explicitArgs));
         entry.put("bareArgs", String.join(", ", bareArgs));
+        /* A scheme with two or more credential fields also gets a mixed call (catalogue auth024):
+         * the first field is passed, the others come from their own variables. */
+        final boolean mixedOnce = envParams.size() >= 2 && bhvIdsClaimed.add("mixed_fields");
+        entry.put("mixedOnce", mixedOnce);
+        if (mixedOnce) {
+            final List<String> mixedArgs = new ArrayList<>();
+            boolean firstDone = false;
+            for (final Map<String, String> param : credentialParams) {
+                final String name = param.get("name");
+                if ("true".equals(param.get("isCredential"))) {
+                    mixedArgs.add(firstDone ? "None" : "Some(\"explicit-" + name + "\")");
+                    firstDone = true;
+                } else if ("host".equals(name)) {
+                    mixedArgs.add("\"https://api.example.com\"");
+                } else {
+                    mixedArgs.add("\"https://app.example.com/callback\"");
+                }
+            }
+            entry.put("mixedArgs", String.join(", ", mixedArgs));
+            entry.put("restEnvParams", new ArrayList<>(envParams.subList(1, envParams.size())));
+            entry.put("secondEnvName", envParams.get(1).get("envName"));
+        }
         perSchemeAuthEntries.add(entry);
         ctx.put("superArgs", superArgs);
         // API-key schemes name an ApiKeyLocation variant in their superArgs, so

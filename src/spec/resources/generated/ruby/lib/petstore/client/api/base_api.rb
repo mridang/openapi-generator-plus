@@ -114,6 +114,7 @@ module Petstore::Client
         accepts, content_type, return_type, auth = nil, raw_body: false, operation_id: nil, request_options: nil,
         error_schemas: nil, spec_operation_id: nil, url_template: nil
       )
+        started_at = Process.clock_gettime(Process::CLOCK_MONOTONIC)
         url = if path.start_with?('http://', 'https://')
                 path
               else
@@ -188,6 +189,7 @@ module Petstore::Client
             rebuilt_headers(headers, effective_auth, serialized_body.nil?, hook_delta, replay)
           end
           call_options = transport_call_options(request_options)
+          call_options = remaining_deadline(call_options, started_at)
           response = dispatch_request(method, url, request_headers, serialized_body, fresh_headers, call_options)
           if response.status_code == 401 && effective_auth.respond_to?(:invalidate_access_token) && replayable_body?(serialized_body)
             # A revoked or rotated token keeps failing while it is cached. Drop it,
@@ -417,7 +419,9 @@ module Petstore::Client
         elsif !resp_content_type || @header_selector.json_mime?(resp_content_type)
           ::Petstore::Client::ObjectSerializer.deserialize(response.body, decode_type)
         elsif decode_type == 'String'
-          response.body
+          # The transport base64-encodes a binary content type as its carrier;
+          # a string result is the decoded body, never that carrier text.
+          text_response_content_type?(resp_content_type) ? response.body : decode_carrier(response.body)
         else
           # A non-JSON body can only be returned verbatim for a String
           # return type (the transport base64-encodes binary types);
@@ -452,6 +456,19 @@ module Petstore::Client
 
         ::Petstore::Client::TransportOptions.validate_max_retries!(max_retries) unless max_retries.nil?
         { timeout: timeout, max_retries: max_retries }.compact
+      end
+
+      # The call options with the per-call timeout reduced by what credential
+      # lookup already used. A timeout that has run out raises the network
+      # timeout error before the transport is touched.
+      def remaining_deadline(call_options, started_at)
+        timeout = call_options[:timeout]
+        return call_options unless timeout
+
+        elapsed_ms = ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - started_at) * 1000).floor
+        raise ::Petstore::Client::Errors::NetworkTimeoutError.new(message: "Request timed out after #{timeout} ms") if elapsed_ms >= timeout
+
+        call_options.merge(timeout: timeout - elapsed_ms)
       end
 
       # Adds the headers of one call to +headers+; a name replaces one of the
@@ -600,6 +617,16 @@ module Petstore::Client
       # JSON-deserialized.
       def binary_return_type?(return_type)
         return_type == 'File'
+      end
+
+      # The bytes a binary body's base64 carrier holds, as text where they are
+      # valid UTF-8; a body that is not base64 is returned as it came.
+      def decode_carrier(body)
+        decoded = Base64.strict_decode64(body)
+        text = decoded.dup.force_encoding(Encoding::UTF_8)
+        text.valid_encoding? ? text : decoded
+      rescue ArgumentError
+        body
       end
 
       # Mirror of the transport's text/binary content-type classification.

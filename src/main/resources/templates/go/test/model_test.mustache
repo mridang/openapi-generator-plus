@@ -171,6 +171,15 @@ func TestBhvSerializationobject029_Model_ConstructionNeverValidatesAnEnumValue(t
 	}
 }
 
+// Copying a model never validates the values it is given.
+func TestBhvMisc105_Model_CopyingNeverValidatesTheValuesItIsGiven(t *testing.T) {
+	t.Parallel()
+	copied := models.NewStockItem(models.Priority(1)).WithAvailability(models.Availability("not-a-member")).WithAvailability(models.Availability(""))
+	if copied.Availability == nil || *copied.Availability != "" {
+		t.Errorf("expected the copy to hold the value as given, got %v", copied.Availability)
+	}
+}
+
 func TestBhvSerializationobject182_Model_DecodingAnUnknownEnumValueFailsLoudly(t *testing.T) {
 	t.Parallel()
 	var item models.StockItem

@@ -11,9 +11,10 @@ package com.example.petstore.auth
  * Authenticator for API key authentication. Supports sending the key
  * as a header, query parameter, or cookie.
  *
- * The key is the first of: [apiKey], the environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY` (read
- * once, here; an empty value counts as unset), then whatever [apiKeyProvider] returns on every
- * request, for a key that rotates. When none of the three is given, building the authenticator
+ * The key is [apiKey], or whatever [apiKeyProvider] returns on every
+ * request, for a key that rotates, or else the environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY` (read
+ * once, here; an empty value counts as unset; a provider that is passed wins over it). When none of
+ * them is given, building the authenticator
  * fails.
  *
  * @param host the base URL of the API
@@ -50,10 +51,11 @@ open class ApiKeyAuthenticator internal constructor(
     ) : this(host, keyParamName, apiKey, location, apiKeyProvider, "SWAGGER_PETSTORE_OPEN_API_3_0_API_KEY")
 
     private val apiKey: String? =
-        apiKey ?: CredentialEnvironment.read(environmentVariable) ?: if (apiKeyProvider != null) {
+        if (apiKeyProvider != null) {
+            require(apiKey == null) { "Pass either apiKey or apiKeyProvider, not both" }
             null
         } else {
-            throw IllegalArgumentException(
+            apiKey ?: CredentialEnvironment.read(environmentVariable) ?: throw IllegalArgumentException(
                 "An API key for '$keyParamName' is required: pass one, pass an apiKeyProvider or set $environmentVariable",
             )
         }

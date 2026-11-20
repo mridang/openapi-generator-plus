@@ -2958,6 +2958,38 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerialization130 a failed serialize reports its detail under the canonical serialize message prefix")
+        fun bhvSerialization130FailedSerializeUsesTheCanonicalPrefix() {
+            val ex =
+                assertThrows(
+                    com.example.petstore.errors.SerializationException::class.java,
+                ) { serializer.serialize(object {}) }
+            assertTrue(ex.message!!.startsWith("Failed to serialize object to JSON: "), ex.message)
+        }
+
+        @Test
+        @DisplayName("bhvMisc215 an input object with no fields is filled with every declared default value")
+        fun bhvMisc215EmptyObjectIsFilledWithDefaults() {
+            val order = serializer.deserialize<com.example.petstore.models.Order>("{}")
+            assertEquals(com.example.petstore.models.Order.StatusEnum.PLACED, order!!.status)
+        }
+
+        @Test
+        @DisplayName("bhvMisc242 a readOnly and a writeOnly property are written and decoded like any other")
+        fun bhvMisc242ReadOnlyAndWriteOnlyHaveNoWireEffect() {
+            val json =
+                serializer.serialize(
+                    com.example.petstore.models
+                        .Account(id = 7, username = "u", password = "p"),
+                )
+            assertTrue(json.contains("\"id\":7"), json)
+            assertTrue(json.contains("\"password\":\"p\""), json)
+            val back = serializer.deserialize<com.example.petstore.models.Account>(json)
+            assertEquals(7L, back!!.id)
+            assertEquals("p", back.password)
+        }
+
+        @Test
         @DisplayName("bhvSerializationobject014 a readOnly property is decoded from a response")
         fun readOnlyPropertyIsDecoded() {
             val decoded = serializer.deserialize<com.example.petstore.models.Account>("{\"id\":7,\"username\":\"u\"}")
@@ -4302,9 +4334,9 @@ class ObjectSerializerTest {
     }
 
     @Test
-    @DisplayName("bhvMisc256 a fractional second keeps only the digits present, trailing zeros trimmed")
-    fun bhvMisc256FractionalSecondTrimsTrailingZeros() {
-        assertEquals("1.000001s", serializer.stringify(java.time.Duration.ofNanos(1_000_001_000L)))
+    @DisplayName("bhvMisc256 a duration fraction is never trimmed below three digits")
+    fun bhvMisc256FractionalSecondKeepsThreeDigits() {
+        assertEquals("1.500s", serializer.stringify(java.time.Duration.ofMillis(1500)))
     }
 }
 

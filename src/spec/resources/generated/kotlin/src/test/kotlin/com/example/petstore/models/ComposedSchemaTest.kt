@@ -233,6 +233,37 @@ class ComposedSchemaTest {
         }
 
         @Test
+        @DisplayName("bhvMisc291 a payload matching several variants decodes to the first declared one")
+        fun bhvMisc291SeveralMatchesResolveToTheFirstDeclared() {
+            val both = """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}"""
+            assertTrue(json.decodeFromString<PetTreatment>(both).actualInstance is Medication)
+        }
+
+        @Test
+        @DisplayName("bhvMisc293 an anyOf value keeps every matching variant and skips the ones that do not match")
+        fun bhvMisc293AnyOfKeepsEveryMatchAndSkipsTheRest() {
+            val both = """{"drugName":"Amoxicillin","dosage":"500mg","procedureName":"Spay","durationMinutes":45}"""
+            val matched = json.decodeFromString<PetTreatment>(both).matchedInstances
+            assertEquals(2, matched.size)
+            assertTrue(matched[0] is Medication)
+            assertTrue(matched[1] is Surgery)
+            val only = json.decodeFromString<PetTreatment>("""{"procedureName":"Spay","durationMinutes":45}""")
+            assertEquals(1, only.matchedInstances.size)
+            assertTrue(only.matchedInstances[0] is Surgery)
+        }
+
+        @Test
+        @DisplayName("bhvMisc295 a byte-string oneOf round-trips through base64 and rejects a non-list for the array variant")
+        fun bhvMisc295ByteOneOfRoundTripsAndRejectsAnObject() {
+            val decoded = json.decodeFromString<SetPetAvatarThumbnailRequest>("\"aGk=\"")
+            assertTrue(decoded.actualInstance is ByteArray)
+            assertEquals("\"aGk=\"", json.encodeToString(decoded))
+            assertThrows(kotlinx.serialization.SerializationException::class.java) {
+                json.decodeFromString<SetPetAvatarThumbnailRequest>("""{"a":1}""")
+            }
+        }
+
+        @Test
         @DisplayName("bhvUnions011 anyOf wrappers have value equality and a matching hash")
         fun testAnyOfValueEquality() {
             val payload = """{"drugName":"Amoxicillin","dosage":"500mg"}"""

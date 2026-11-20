@@ -4210,3 +4210,174 @@ async fn test_bhv_misc_237_an_iso_8859_1_error_body_decodes_to_utf8_text() {
     assert_eq!(404, response.status_code());
     assert_eq!("caf\u{e9}", response.body());
 }
+
+/// Starts a server that reads one request and then never answers. The receiver
+/// yields once the client has closed the connection, and the counter holds the
+/// number of connections accepted.
+fn start_observed_silent_server() -> (String, std::sync::mpsc::Receiver<()>, Arc<std::sync::atomic::AtomicUsize>) {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("failed to bind");
+    let base_url = format!("http://{}", listener.local_addr().unwrap());
+    let (tx, rx) = std::sync::mpsc::channel();
+    let accepted = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = accepted.clone();
+    thread::spawn(move || {
+        for stream in listener.incoming() {
+            let mut stream = stream.unwrap();
+            counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let tx = tx.clone();
+            thread::spawn(move || {
+                let mut buf = [0u8; 4096];
+                loop {
+                    match stream.read(&mut buf) {
+                        Ok(0) | Err(_) => {
+                            let _ = tx.send(());
+                            break;
+                        }
+                        Ok(_) => {}
+                    }
+                }
+            });
+        }
+    });
+    (base_url, rx, accepted)
+}
+
+/// Dropping the future of a call in flight cancels its request: the connection
+/// is closed and the client is still usable afterwards (S7).
+#[tokio::test]
+async fn test_bhv_transport_083_dropping_the_future_aborts_a_request_already_in_flight() {
+    let (base_url, closed, _) = start_observed_silent_server();
+    let client = Arc::new(DefaultApiClient::new(None));
+    let caller = client.clone();
+    let task = tokio::spawn(async move {
+        caller.send_request("GET", &format!("{}/x", base_url), &HashMap::new(), None).await
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+    task.abort();
+    let joined = task.await;
+    assert!(joined.expect_err("the task was aborted").is_cancelled());
+    assert!(closed.recv_timeout(std::time::Duration::from_secs(5)).is_ok(), "the connection must be closed");
+    let echo = start_echo_server();
+    let response = client
+        .send_request("GET", &format!("{}/y", echo), &HashMap::new(), None)
+        .await
+        .expect("the client stays usable");
+    assert_eq!(200, response.status_code());
+}
+
+/// The cancellation reaches the transport request, not only the caller's task.
+#[tokio::test]
+async fn test_bhv_transport_069_cancelling_the_call_cancels_the_transport_request() {
+    let (base_url, closed, accepted) = start_observed_silent_server();
+    let client = DefaultApiClient::new(None);
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        client.send_request("GET", &format!("{}/x", base_url), &HashMap::new(), None),
+    )
+    .await;
+    assert!(outcome.is_err(), "the caller's own deadline fired first");
+    assert_eq!(1, accepted.load(std::sync::atomic::Ordering::SeqCst));
+    /* Yield so the runtime can close the connection before the blocking wait. */
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert!(closed.recv_timeout(std::time::Duration::from_secs(5)).is_ok(), "the connection must be closed");
+}
+
+/// A cancellation is the caller's own: it is never rewrapped in the SDK's error.
+#[tokio::test]
+async fn test_bhv_misc_029_a_caller_cancellation_is_never_wrapped_in_the_sdks_error() {
+    let (base_url, _closed, _) = start_observed_silent_server();
+    let client = DefaultApiClient::new(None);
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        client.send_request("GET", &format!("{}/x", base_url), &HashMap::new(), None),
+    )
+    .await;
+    let elapsed: tokio::time::error::Elapsed = outcome.expect_err("the caller's deadline fires");
+    assert!(!elapsed.to_string().is_empty());
+}
+
+/// A call whose future is dropped before it is first polled never reaches the
+/// transport.
+#[tokio::test]
+async fn test_bhv_misc_035_a_call_cancelled_before_it_starts_sends_nothing() {
+    let (base_url, _closed, accepted) = start_observed_silent_server();
+    let client = DefaultApiClient::new(None);
+    let pending = client.send_request("GET", &format!("{}/x", base_url), &HashMap::new(), None);
+    drop(pending);
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(0, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// Same rule through the per-request options path.
+#[tokio::test]
+async fn test_bhv_misc_152_a_call_dropped_before_it_starts_is_rejected_without_sending() {
+    let (base_url, _closed, accepted) = start_observed_silent_server();
+    let client = DefaultApiClient::new(None);
+    let options = RequestOptions::new();
+    let pending = client.send_request_with_options(
+        "GET",
+        &format!("{}/x", base_url),
+        &HashMap::new(),
+        None,
+        &options,
+    );
+    drop(pending);
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(0, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// A caller-side cancellation future that never fires does not stop the SDK's
+/// own timeout from raising the network timeout error.
+#[tokio::test]
+async fn test_bhv_transport_085_a_timeout_still_fires_when_a_cancellation_never_does() {
+    let (base_url, _closed, _) = start_observed_silent_server();
+    let transport = TransportOptionsBuilder::new().timeout(Some(500)).build().expect("valid options");
+    let client = DefaultApiClient::new(Some(transport));
+    let never = std::future::pending::<()>();
+    let err = tokio::select! {
+        result = client.send_request("GET", &format!("{}/x", base_url), &HashMap::new(), None) => {
+            result.expect_err("the server never answers")
+        }
+        _ = never => unreachable!("the cancellation never fires"),
+    };
+    assert!(err.downcast_ref::<NetworkTimeoutError>().is_some(), "got: {}", err);
+}
+
+/// A request whose deadline has already passed raises the timeout error and
+/// never reaches the transport.
+#[tokio::test]
+async fn test_bhv_misc_030_a_deadline_that_has_already_passed_is_a_timeout_that_sends_nothing() {
+    let (base_url, _closed, accepted) = start_observed_silent_server();
+    let client = DefaultApiClient::new(None);
+    let past = std::time::Instant::now() - std::time::Duration::from_secs(1);
+    let err = client
+        .send_request_with_options(
+            "GET",
+            &format!("{}/x", base_url),
+            &HashMap::new(),
+            None,
+            &RequestOptions::new().deadline(Some(past)),
+        )
+        .await
+        .expect_err("the budget is spent");
+    assert!(err.downcast_ref::<NetworkTimeoutError>().is_some(), "got: {}", err);
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    assert_eq!(0, accepted.load(std::sync::atomic::Ordering::SeqCst));
+}
+
+/// Cancelling a pending request reaches the caller as the runtime's own
+/// cancellation, never as an SDK error.
+#[tokio::test]
+async fn test_bhv_misc_262_cancelling_a_pending_request_surfaces_the_cancellation_unwrapped() {
+    let (base_url, _closed, _) = start_observed_silent_server();
+    let client = Arc::new(DefaultApiClient::new(None));
+    let caller = client.clone();
+    let task = tokio::spawn(async move {
+        caller.send_request("GET", &format!("{}/x", base_url), &HashMap::new(), None).await
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    task.abort();
+    let join_error = task.await.expect_err("the task was cancelled");
+    assert!(join_error.is_cancelled());
+    assert!(!join_error.is_panic());
+}

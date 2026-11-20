@@ -434,19 +434,6 @@ class OAuth2ClientCredentialsAuthenticatorTest {
   }
 
   @Test
-  void bhvLangjava067ExplicitClientIdIsKeptAndEmptySecretIsNotPassed() {
-    MachineAuthClientCredentialsAuthenticator auth =
-        new MachineAuthClientCredentialsAuthenticator(
-            "https://api.example.com",
-            "explicit-id",
-            "",
-            Map.of(CLIENT_ID_VARIABLE, "env-id", CLIENT_SECRET_VARIABLE, "env-client-secret"));
-    String body = requestBodyOf(auth);
-    assertTrue(body.contains("client_id=explicit-id"), body);
-    assertTrue(body.contains("client_secret=env-client-secret"), body);
-  }
-
-  @Test
   void bhvAuthScheme013AnEmptyClientIdVariableIsUnsetAndNamesIt() {
     {
       IllegalArgumentException ex =

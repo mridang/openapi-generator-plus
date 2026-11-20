@@ -10,6 +10,14 @@ class SetPetPreferencesOptions {
 
   final DateTime? reminder;
 
+  final int? intervalDays;
+
+  final double? ratio;
+
+  final bool? urgent;
+
+  final Duration? snooze;
+
   /// End-to-end timeout in milliseconds for this call only. When non-null it
   /// replaces the transport's timeout; null keeps it. Must not be negative.
   final int? timeout;
@@ -29,6 +37,10 @@ class SetPetPreferencesOptions {
     this.note,
     this.renewalDate,
     this.reminder,
+    this.intervalDays,
+    this.ratio,
+    this.urgent,
+    this.snooze,
     this.timeout,
     this.headers,
     this.maxRetries,

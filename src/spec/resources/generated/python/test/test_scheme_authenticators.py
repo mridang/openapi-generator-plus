@@ -182,6 +182,67 @@ def _assert_each_empty_variable_is_unset(
             _scheme_class(module, name)(HOST)
 
 
+def test_bhv_misc_068_an_empty_environment_variable_counts_as_unset_and_an_empty_argument_is_refused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, name, variables, _bearer, _basic, _api_key = next(
+        entry for entry in SCHEMES if entry[3]
+    )
+    _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+    monkeypatch.setenv(variables[0][1], "from-environment")
+    with pytest.raises(ValueError, match="must not be empty"):
+        _scheme_class(module, name)(HOST, "")
+
+
+def _scheme_by_name(class_name: str) -> Tuple[str, str, List[Tuple[str, str]]]:
+    for module, name, variables, _bearer, _basic, _api_key in SCHEMES:
+        if name == class_name:
+            return module, name, variables
+    raise AssertionError(class_name + " is not a generated scheme authenticator")
+
+
+def test_bhv_authscheme_003_a_scheme_authenticator_fails_naming_the_variable_when_it_is_empty(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for module, name, variables, _bearer, _basic, _api_key in SCHEMES:
+        _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+def test_bhv_authscheme_004_the_adminbasic_scheme_treats_an_empty_variable_as_unset_and_names_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, name, variables = _scheme_by_name("AdminBasicAuthenticator")
+    _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+def test_bhv_authscheme_005_the_apikeyheader_scheme_treats_an_empty_variable_as_unset_and_names_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, name, variables = _scheme_by_name("ApiKeyHeaderAuthenticator")
+    _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+def test_bhv_authscheme_006_the_apikeyquery_scheme_treats_an_empty_variable_as_unset_and_names_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, name, variables = _scheme_by_name("ApiKeyQueryAuthenticator")
+    _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+def test_bhv_authscheme_007_the_sessioncookie_scheme_treats_an_empty_variable_as_unset_and_names_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, name, variables = _scheme_by_name("SessionCookieAuthenticator")
+    _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
+def test_bhv_authscheme_008_the_ssoauth_scheme_treats_an_empty_variable_as_unset_and_names_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module, name, variables = _scheme_by_name("SsoAuthAuthenticator")
+    _assert_each_empty_variable_is_unset(monkeypatch, module, name, variables)
+
+
 def test_bhv_misc_073_a_wrapper_class_exists_for_every_declared_scheme() -> None:
     for module, name, _variables, _bearer, _basic, _api_key in SCHEMES:
         assert _scheme_class(module, name) is not None

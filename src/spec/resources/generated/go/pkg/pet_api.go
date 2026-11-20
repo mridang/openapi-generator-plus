@@ -211,6 +211,8 @@ type PetApiInterface interface {
 	AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, options *opts.AddPetPhotosOptions, callOptions ...RequestOption) (*ApiResult[[]Photo], error)
 	AddPetTreatment(ctx context.Context, petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions, callOptions ...RequestOption) (*PetTreatment, error)
 	AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, petTreatment PetTreatment, options *opts.AddPetTreatmentOptions, callOptions ...RequestOption) (*ApiResult[PetTreatment], error)
+	AttachPetFiles(ctx context.Context, petId int64, options *opts.AttachPetFilesOptions, callOptions ...RequestOption) (*ApiResponse, error)
+	AttachPetFilesWithHTTPInfo(ctx context.Context, petId int64, options *opts.AttachPetFilesOptions, callOptions ...RequestOption) (*ApiResult[ApiResponse], error)
 	DeletePet(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) error
 	DeletePetWithHTTPInfo(ctx context.Context, petId int64, options *opts.DeletePetOptions, callOptions ...RequestOption) (*ApiResult[any], error)
 	DownloadPetDocument(ctx context.Context, petId int64, documentId int64, callOptions ...RequestOption) ([]byte, error)
@@ -371,6 +373,15 @@ func (a *PetApi) AddPetWithHTTPInfo(ctx context.Context, pet Pet, options *opts.
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -519,6 +530,15 @@ func (a *PetApi) AddPetPhotosWithHTTPInfo(ctx context.Context, petId int64, opti
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -651,6 +671,15 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -660,6 +689,161 @@ func (a *PetApi) AddPetTreatmentWithHTTPInfo(ctx context.Context, petId int64, p
 	}
 
 	return &ApiResult[PetTreatment]{
+		StatusCode: response.StatusCode,
+		Data:       dataPtr,
+		RawBody:    response.Body,
+		Headers:    response.Headers,
+	}, nil
+}
+
+// AttachPetFiles Attach files in a multipart/mixed request
+// Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+//
+// param ctx: Context for cancellation and deadlines; cancelling it aborts the request.
+// param options: Options for query, header, form, and cookie parameters.
+// param callOptions: Per-call options: WithTimeout, WithHeaders, WithMaxRetries.
+//
+// POST /pet/{petId}/attachments
+func (a *PetApi) AttachPetFiles(ctx context.Context, petId int64, options *opts.AttachPetFilesOptions, callOptions ...RequestOption) (*ApiResponse, error) {
+	result, err := a.AttachPetFilesWithHTTPInfo(ctx, petId, options, callOptions...)
+	if err != nil {
+		return nil, err
+	}
+	/* A body-returning operation that receives no decodable body must surface
+	 * a typed ApiError rather than hand back a silent nil / zero-value,
+	 * matching the throw-on-empty canonical of the other SDKs. */
+	if result.Data == nil {
+		return nil, newEmptyBodyError("AttachPetFiles", result.StatusCode, result.RawBody, result.Headers)
+	}
+	return result.Data, nil
+}
+
+// AttachPetFilesWithHTTPInfo performs the AttachPetFiles operation and returns the full API result.
+func (a *PetApi) AttachPetFilesWithHTTPInfo(ctx context.Context, petId int64, options *opts.AttachPetFilesOptions, callOptions ...RequestOption) (_ *ApiResult[ApiResponse], callErr error) {
+	/* The call hook follows the call to its end, the decoding of the response
+	 * included: it is told how the call ended when this method returns. */
+	call := &callState{}
+	defer call.end(&callErr)
+	settings, err := newCallSettings(callOptions)
+	if err != nil {
+		return nil, err
+	}
+	if err := requirePathParam("petId", petId); err != nil {
+		return nil, fmt.Errorf("%w when calling PetApi.AttachPetFiles", err)
+	}
+	if options == nil {
+		return nil, fmt.Errorf("%w: options are required when calling PetApi.AttachPetFiles", ErrMissingRequiredParameter)
+	}
+	if options.File == nil {
+		return nil, fmt.Errorf("%w '%s' when calling PetApi.AttachPetFiles", ErrMissingRequiredParameter, "file")
+	}
+
+	path := "/pet/{petId}/attachments"
+	/* Path params route through serializeStyled so OAS path styles
+	 * (simple/matrix/label) and arrays are applied, and each value is
+	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
+	 * preserves the OAS sub-delimiters). */
+	path = replacePathParam(path, "petId", fmt.Sprintf("%v", serializeStyled("petId", petId, "path", "int64", "", "simple", false)))
+
+	queryParams := make(map[string]any)
+
+	headerParams := make(map[string]string)
+
+	formBody := make(map[string]any)
+	if options != nil {
+		formBody["file"] = options.File
+		if options.Caption != nil {
+			formBody["caption"] = *options.Caption
+		}
+	}
+	var requestBody any = formBody
+
+	response, err := a.invokeApi(invokeApiParams{
+		ctx:          ctx,
+		settings:     settings,
+		operationID:  "attachPetFiles",
+		urlTemplate:  "/pet/{petId}/attachments",
+		call:         call,
+		order:        []string{"file", "caption"},
+		method:       "POST",
+		path:         path,
+		queryParams:  queryParams,
+		headerParams: headerParams,
+		body:         requestBody,
+		accepts:      []string{"application/json"},
+		contentType:  "multipart/mixed",
+		returnType:   "ApiResponse",
+		auth:         nil,
+		schemes:      []string{},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var data ApiResponse
+	/* dataPtr stays nil when the response carried no body, so the convenience
+	 * method can distinguish "no content" from a zero-valued struct and raise
+	 * the typed empty-body ApiError (convenience-empty-body-handling). */
+	var dataPtr *ApiResponse
+	if response.Body != "" {
+		respContentType := ""
+		// Response header keys are normalised to lowercase by the transport.
+		if ct, ok := response.Headers["content-type"]; ok {
+			respContentType = ct
+		}
+		isJSON := respContentType == "" || newHeaderSelector().isJSONMIME(respContentType)
+		if isJSON {
+			/* A bare JSON null is an absent body, not a value to decode: decoding
+			 * it would fabricate a default-valued model (or trip the model's
+			 * required-field check). Leave dataPtr nil so the convenience method
+			 * raises the empty-body ApiError like the other SDKs. */
+			if isJSONNull([]byte(response.Body)) {
+				return &ApiResult[ApiResponse]{
+					StatusCode: response.StatusCode,
+					Data:       nil,
+					RawBody:    response.Body,
+					Headers:    response.Headers,
+				}, nil
+			}
+			if bytesPtr, isBytes := any(&data).(*[]byte); isBytes && looksLikeJSONDocument(response.Body) {
+				/* A binary operation answered with a JSON document (content
+				 * negotiation): the caller gets its raw bytes. */
+				*bytesPtr = []byte(response.Body)
+			} else if err := deserialize([]byte(response.Body), &data); err != nil {
+				return nil, attachResponseContext(err, response, "POST", path)
+			}
+		} else if bytesPtr, ok := any(&data).(*[]byte); ok {
+			/* Binary return type: the transport base64-encoded the body so it
+			 * could be carried in ApiHttpResponse.Body (a string); decode it back
+			 * to the original raw bytes for the caller. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*bytesPtr = decoded
+		} else if strPtr, ok := any(&data).(*string); ok && newHeaderSelector().isTextMIME(respContentType) {
+			/* A string return type with a text-class Content-Type (for example
+			 * text/plain): the transport kept the text as-is, so hand it back
+			 * verbatim. */
+			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
+		} else {
+			/* Any other non-JSON Content-Type on a non-binary return type is a
+			 * contract violation: never a zero-valued model with a nil error. */
+			return nil, attachResponseContext(newSerializationError(fmt.Sprintf("unexpected response Content-Type '%s' for PetApi.AttachPetFiles: expected a JSON body", newHeaderSelector().mediaType(respContentType)), nil), response, "POST", path)
+		}
+		dataPtr = &data
+	}
+
+	return &ApiResult[ApiResponse]{
 		StatusCode: response.StatusCode,
 		Data:       dataPtr,
 		RawBody:    response.Body,
@@ -887,6 +1071,15 @@ func (a *PetApi) DownloadPetDocumentWithHTTPInfo(ctx context.Context, petId int6
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1018,6 +1211,15 @@ func (a *PetApi) FindPetsBornOnWithHTTPInfo(ctx context.Context, bornOn string, 
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1179,6 +1381,15 @@ func (a *PetApi) FindPetsByStatusWithHTTPInfo(ctx context.Context, options *opts
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1316,6 +1527,15 @@ func (a *PetApi) GetExternalPetInfoWithHTTPInfo(ctx context.Context, petId int64
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1453,6 +1673,15 @@ func (a *PetApi) GetMultiServerPetInfoWithHTTPInfo(ctx context.Context, petId in
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1589,6 +1818,15 @@ func (a *PetApi) GetPetAvatarWithHTTPInfo(ctx context.Context, petId int64, call
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1725,6 +1963,15 @@ func (a *PetApi) GetPetAvatarThumbnailWithHTTPInfo(ctx context.Context, petId in
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -1874,6 +2121,15 @@ func (a *PetApi) GetPetByIdWithHTTPInfo(ctx context.Context, petId int64, server
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2020,6 +2276,15 @@ func (a *PetApi) GetPetByNameWithHTTPInfo(ctx context.Context, name string, opti
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2166,6 +2431,15 @@ func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.Get
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2301,6 +2575,15 @@ func (a *PetApi) GetPetPassportWithHTTPInfo(ctx context.Context, petId int64, ca
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2445,6 +2728,15 @@ func (a *PetApi) GetPetPhotoWithHTTPInfo(ctx context.Context, petId int64, photo
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2617,6 +2909,15 @@ func (a *PetApi) GetPetSummaryWithHTTPInfo(ctx context.Context, petId int64, asO
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2798,6 +3099,15 @@ func (a *PetApi) GetPetTagWithHTTPInfo(ctx context.Context, petId int64, tagName
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -2935,6 +3245,15 @@ func (a *PetApi) GetStagingPetInfoWithHTTPInfo(ctx context.Context, petId int64,
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "GET", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -3208,6 +3527,18 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		if options.Reminder != nil {
 			formBody["reminder"] = *options.Reminder
 		}
+		if options.IntervalDays != nil {
+			formBody["intervalDays"] = *options.IntervalDays
+		}
+		if options.Ratio != nil {
+			formBody["ratio"] = *options.Ratio
+		}
+		if options.Urgent != nil {
+			formBody["urgent"] = *options.Urgent
+		}
+		if options.Snooze != nil {
+			formBody["snooze"] = *options.Snooze
+		}
 	}
 	var requestBody any = formBody
 
@@ -3217,7 +3548,7 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 		operationID:  "setPetPreferences",
 		urlTemplate:  "/pet/{petId}/preferences",
 		call:         call,
-		order:        []string{"nickname", "tags", "note", "renewalDate", "reminder"},
+		order:        []string{"nickname", "tags", "note", "renewalDate", "reminder", "intervalDays", "ratio", "urgent", "snooze"},
 		method:       "POST",
 		path:         path,
 		queryParams:  queryParams,
@@ -3279,6 +3610,15 @@ func (a *PetApi) SetPetPreferencesWithHTTPInfo(ctx context.Context, petId int64,
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -3416,6 +3756,15 @@ func (a *PetApi) UpdatePetWithHTTPInfo(ctx context.Context, petId int64, pet Pet
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "PUT", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -3562,6 +3911,15 @@ func (a *PetApi) UploadPetCertificateWithHTTPInfo(ctx context.Context, petId int
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */
@@ -3768,6 +4126,15 @@ func (a *PetApi) UploadPetDocumentWithHTTPInfo(ctx context.Context, petId int64,
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "POST", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */

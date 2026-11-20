@@ -2,6 +2,8 @@ mod account;
 pub use account::*;
 mod api_response;
 pub use api_response::*;
+mod attach_pet_files_request;
+pub use attach_pet_files_request::*;
 mod availability;
 pub use availability::*;
 mod base64_serde;

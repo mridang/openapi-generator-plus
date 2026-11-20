@@ -40,6 +40,18 @@ public final class PetStoreBearerAuthenticator extends BaseAuthenticator {
     this(host, null, System.getenv());
   }
 
+  /**
+   * Creates an authenticator whose token comes from a callback that runs before every request. The
+   * callback outranks the environment variable, which is never read here (D108).
+   *
+   * @param host the API base URL (never read from the environment)
+   * @param tokenProvider returns the current bearer token
+   */
+  public PetStoreBearerAuthenticator(
+      String host, java.util.function.Supplier<String> tokenProvider) {
+    this.delegate = new BearerAuthenticator(host, tokenProvider);
+  }
+
   /* Package-private so a test can supply the environment instead of the process one. */
   PetStoreBearerAuthenticator(
       String host, @Nullable String token, Map<String, String> environment) {
@@ -85,11 +97,18 @@ public final class PetStoreBearerAuthenticator extends BaseAuthenticator {
     return getClass().getSimpleName() + repr.substring(repr.indexOf('('));
   }
 
-  /* A credential comes from the caller first, then from its environment variable; an explicit
-   * empty value counts as not passed, so the environment is consulted; a credential found nowhere is refused. */
+  /* A credential comes from the caller first, then from its environment variable (empty counts as
+   * unset); an explicit empty value is refused and never replaced by the environment (auth023);
+   * a credential found nowhere is refused. */
   private static String resolveCredential(
       @Nullable String explicit, String field, String envName, Map<String, String> environment) {
-    if (explicit != null && !explicit.isEmpty()) {
+    if (explicit != null) {
+      if (explicit.isEmpty()) {
+        throw new IllegalArgumentException(
+            "The '"
+                + field
+                + "' credential of the 'petStoreBearer' security scheme must not be empty");
+      }
       return explicit;
     }
     String fromEnvironment = environment.get(envName);

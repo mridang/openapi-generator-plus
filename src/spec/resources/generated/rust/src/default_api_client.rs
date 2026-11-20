@@ -344,6 +344,25 @@ impl ApiClient for DefaultApiClient {
                     .map(|ms| std::time::Instant::now() + Duration::from_millis(ms))
             });
 
+            /* A budget that is already spent is a timeout: nothing is sent. */
+            if deadline.is_some_and(|d| std::time::Instant::now() >= d) {
+                let cause = std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "the deadline has already passed",
+                );
+                let api_error = ApiError::transport(
+                    TransportFailure::Timeout,
+                    "request timed out".to_string(),
+                    Arc::new(cause),
+                );
+                let failure: Box<dyn std::error::Error + Send + Sync> =
+                    match NetworkError::try_from(api_error) {
+                        Ok(network) => Box::new(NetworkTimeoutError::from(network)),
+                        Err(other) => Box::new(other),
+                    };
+                return Err(failure);
+            }
+
             let mut request_builder = http_client.request(http_method, parsed_url);
             if let Some(deadline) = deadline {
                 request_builder = request_builder.timeout(remaining_budget(deadline));
@@ -2445,6 +2464,9 @@ mod tests {
                 bad
             );
         }
+        let quoted = [("a\"b".to_string(), MultipartValue::Text("x".to_string()))];
+        let body = String::from_utf8(serialize_multipart_body(&quoted, "B").unwrap()).unwrap();
+        assert!(body.contains("name=\"a\\\"b\""), "got: {}", body);
     }
 
     #[test]

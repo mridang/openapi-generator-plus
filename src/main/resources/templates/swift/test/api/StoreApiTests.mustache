@@ -343,6 +343,21 @@ import Testing
     }
 
     /* A time parameter goes on the wire with its fractional seconds when they are non-zero. */
+    /* A time written into a query keeps non-zero milliseconds, and a whole second stays HH:MM:SS. */
+    @Test func testBhvMisc241ATimeQueryKeepsNonZeroMillisecondsAndAWholeSecondHasNone() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[]"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        _ = try await api.searchStore(options: SearchStoreOptions(at: "10:20:30.999"))
+        #expect(mockClient.lastURL.contains("at=10%3A20%3A30.999"))
+        _ = try await api.searchStore(options: SearchStoreOptions(at: "10:20:30"))
+        #expect(mockClient.lastURL.contains("at=10%3A20%3A30"))
+        #expect(!mockClient.lastURL.contains("30."))
+    }
+
     @Test func testBhvOperations139SearchStoreTimeQueryKeepsNonZeroMilliseconds() async throws {
         let mockClient = MockApiClient()
         mockClient.responseStatusCode = 200

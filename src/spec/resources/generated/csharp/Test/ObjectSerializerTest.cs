@@ -834,6 +834,16 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc047SerializingAUnionHoldingANonVariantFailsNamingTheUnion()
+        {
+            var ex = Assert.Throws<SerializationException>(() =>
+                _serializer.Serialize(new ReserveStockResponse("raw"))
+            );
+
+            Assert.Contains("ReserveStockResponse", ex.Message, StringComparison.Ordinal);
+        }
+
+        [Fact]
         public void BhvUnions042BuildingAUnionFromANullVariantDoesNotThrow()
         {
             var union = ReserveStockResponse.FromReservation(null!);
@@ -946,6 +956,23 @@ public static class ObjectSerializerTest
                 _serializer.Serialize(durations),
                 StringComparison.Ordinal
             );
+        }
+
+        [Fact]
+        public void BhvMisc256ADurationFractionIsNeverTrimmedBelowThreeDigits()
+        {
+            Assert.Equal("1.500s", ObjectSerializer.Stringify(TimeSpan.FromMilliseconds(1500)));
+            Assert.Equal("1.100s", ObjectSerializer.Stringify(TimeSpan.FromMilliseconds(1100)));
+        }
+
+        [Fact]
+        public void BhvMisc241ATimeOfDayKeepsNonZeroMillisecondsAndDropsFinerPrecision()
+        {
+            Assert.Equal(
+                "10:20:30.999",
+                ObjectSerializer.Stringify(new TimeOnly(10, 20, 30, 999, 999))
+            );
+            Assert.Equal("10:20:30", ObjectSerializer.Stringify(new TimeOnly(10, 20, 30, 0, 500)));
         }
 
         [Fact]
@@ -3417,6 +3444,20 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
+        public void BhvMisc242AReadOnlyAndAWriteOnlyPropertyHaveNoWireEffect()
+        {
+            string json = _serializer.Serialize(new Account("u") { Id = 7, Password = "p" });
+
+            Assert.Contains("\"id\":7", json, StringComparison.Ordinal);
+            Assert.Contains("\"password\":\"p\"", json, StringComparison.Ordinal);
+            Account? decoded = _serializer.Deserialize<Account>(
+                "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
+            );
+            Assert.Equal(7L, decoded!.Id);
+            Assert.Equal("p", decoded.Password);
+        }
+
+        [Fact]
         public void BhvSerializationobject014ReadOnlyPropertyIsStillDecoded()
         {
             Account? decoded = _serializer.Deserialize<Account>("{\"id\":7,\"username\":\"u\"}");
@@ -4249,6 +4290,26 @@ public static class ObjectSerializerTest
             Assert.Equal(
                 "[\"a\",\"b\",\"c\"]",
                 _serializer.Serialize(new HashSet<string> { "c", "a", "b" })
+            );
+        }
+
+        [Fact]
+        public void BhvSerializationobject015AUniqueItemsArrayOfStringsIsWrittenInSortedOrder()
+        {
+            string json = _serializer.Serialize(
+                new Pet("x", new HashSet<string> { "c", "a", "b" })
+            );
+
+            Assert.Contains("\"photoUrls\":[\"a\",\"b\",\"c\"]", json, StringComparison.Ordinal);
+        }
+
+        [Fact]
+        public void BhvMisc085ANonCanonicalUuidIsRefusedWhenADocumentIsDecoded()
+        {
+            Assert.Throws<SerializationException>(() =>
+                _serializer.Deserialize<Order>(
+                    "{\"trackingId\":\"{550e8400-e29b-41d4-a716-446655440000}\"}"
+                )
             );
         }
 

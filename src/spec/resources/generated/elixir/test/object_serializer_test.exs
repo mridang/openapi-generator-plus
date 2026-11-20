@@ -1388,9 +1388,47 @@ defmodule PetstoreClient.ObjectSerializerTest do
       assert PetstoreClient.ObjectSerializer.stringify(~T[10:30:00.000999]) == "10:30:00"
     end
 
-    test "bhv misc 256 a fractional second keeps only the digits present up to its precision" do
-      assert PetstoreClient.ObjectSerializer.stringify(~N[2024-01-02 03:04:05.12]) ==
-               "2024-01-02T03:04:05.12"
+    test "bhv misc 092 a property is read only by its wire name, never by the SDK attribute name" do
+      model =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"taken_at":"2024-01-02T03:04:05.000+00:00"}),
+          "PhotoMetadata"
+        )
+
+      assert model.taken_at == nil
+    end
+
+    test "bhv misc 256 a duration fraction is never trimmed below three digits" do
+      assert PetstoreClient.ObjectSerializer.stringify(
+               Duration.new!(second: 1, microsecond: {500_000, 6})
+             ) == "1.500s"
+
+      assert PetstoreClient.ObjectSerializer.stringify(
+               Duration.new!(second: 1, microsecond: {100_000, 6})
+             ) == "1.100s"
+    end
+
+    test "bhv misc 241 a time of day keeps non-zero milliseconds and drops finer precision" do
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:20:30.999999]) == "10:20:30.999"
+      assert PetstoreClient.ObjectSerializer.stringify(~T[10:20:30.000000]) == "10:20:30"
+    end
+
+    test "bhv misc 242 a readOnly and a writeOnly property have no wire effect" do
+      json =
+        PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.Account{
+          id: 7,
+          username: "u",
+          password: "p"
+        })
+
+      decoded = Jason.decode!(json)
+
+      assert decoded["id"] == 7
+      assert decoded["password"] == "p"
+
+      round = PetstoreClient.ObjectSerializer.deserialize(json, "Account")
+      assert round.id == 7
+      assert round.password == "p"
     end
 
     test "bhv serializationobject 219 serialize keeps the millisecond part of a Time inside a map" do
@@ -3242,11 +3280,6 @@ defmodule PetstoreClient.ObjectSerializerTest do
   end
 
   describe "misc wire behaviours" do
-    test "bhv misc 081 a base64 body under a binary type is decoded before it is returned" do
-      assert PetstoreClient.ObjectSerializer.convert_to_type(Base.encode64("hello"), "ByteArray") ==
-               "hello"
-    end
-
     test "bhv misc 085 a non-canonical UUID is refused with a serialization error" do
       assert_raise PetstoreClient.Errors.SerializationError, fn ->
         PetstoreClient.ObjectSerializer.convert_to_type(

@@ -58,6 +58,7 @@ __all__ = [
     "OAuth2TokenException",
     "Account",
     "ApiResponse",
+    "AttachPetFilesRequest",
     "Availability",
     "BinaryVault",
     "Blobs",
@@ -191,6 +192,9 @@ from petstore_client.models.account import (
 )
 from petstore_client.models.api_response import (
     ApiResponse as ApiResponse,
+)
+from petstore_client.models.attach_pet_files_request import (
+    AttachPetFilesRequest as AttachPetFilesRequest,
 )
 from petstore_client.models.availability import (
     Availability as Availability,

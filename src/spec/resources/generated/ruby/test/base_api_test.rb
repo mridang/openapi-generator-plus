@@ -1374,8 +1374,18 @@ describe Petstore::Client::Api::BaseApi do
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
                            ['application/octet-stream'], 'application/octet-stream', 'String')
-    decoded = Base64.strict_decode64(result)
-    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+    assert_equal original_bytes, result.b, 'binary roundtrip must preserve bytes exactly'
+  end
+
+  it 'bhv_misc_081 a string result under a binary content type is the decoded body, not the base64 carrier' do
+    require 'base64'
+    client = FixedResponseApiClient.new(
+      Petstore::Client::ApiHttpResponse.new(status_code: 200, body: Base64.strict_encode64('hello'), headers: { 'Content-Type' => 'application/pdf' })
+    )
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    test_api = TestableApi.new(client, config)
+    result = test_api.call('GET', '/test/echo', {}, {}, nil, ['application/pdf'], 'application/pdf', 'String')
+    _(result).must_equal 'hello'
   end
 
   it 'bhv_serializationwire_017 octet-stream binary response decodes to original bytes (roundtrip)' do
@@ -1389,8 +1399,7 @@ describe Petstore::Client::Api::BaseApi do
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
                            ['application/octet-stream'], 'application/octet-stream', 'String')
-    decoded = Base64.strict_decode64(result)
-    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+    assert_equal original_bytes, result.b, 'binary roundtrip must preserve bytes exactly'
   end
 
   it 'bhv_operations_012 image/png binary response decodes to original bytes (roundtrip)' do
@@ -1404,8 +1413,7 @@ describe Petstore::Client::Api::BaseApi do
     test_api = TestableApi.new(client, config)
     result = test_api.call('GET', '/test/echo', {}, {}, nil,
                            ['image/png'], 'image/png', 'String')
-    decoded = Base64.strict_decode64(result)
-    assert_equal original_bytes, decoded.b, 'binary roundtrip must preserve bytes exactly'
+    assert_equal original_bytes, result.b, 'binary roundtrip must preserve bytes exactly'
   end
 
   it 'bhv_serializationwire_060 a binary return type gets the raw bytes of a JSON body' do
@@ -2007,6 +2015,59 @@ describe Petstore::Client::Api::BaseApi do
       test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
       _(client.captured_headers['traceparent']).must_equal base_api_traceparent(span)
     end
+  end
+
+  it 'bhv_tracing_014 the span still reaches traceparent when building the headers first waits on the credentials' do
+    tracer = base_api_sdk_tracer
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    slow = Class.new(TestAuthenticator) do
+      def auth_headers
+        sleep 0.05
+        super
+      end
+    end.new(headers: { 'X-Auth' => 'late' })
+    test_api = TestableApi.new(client, config, slow)
+    tracer.in_span('caller') do |span|
+      test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+      _(client.captured_headers['traceparent']).must_equal base_api_traceparent(span)
+      _(client.captured_headers['X-Auth']).must_equal 'late'
+    end
+  end
+
+  it 'bhv_misc_030 a request whose timeout ran out while credentials were obtained raises a timeout error and never reaches the transport' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    slow = Class.new(TestAuthenticator) do
+      def auth_headers
+        sleep 0.05
+        super
+      end
+    end.new(headers: { 'X-Auth' => 'late' })
+    test_api = TestableApi.new(client, config, slow)
+
+    _ do
+      test_api.call_for_result('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil,
+                               request_options: CallOptions.new(5, nil, nil))
+    end.must_raise Petstore::Client::Errors::NetworkTimeoutError
+    _(client.captured_url).must_be_nil
+  end
+
+  it 'bhv_misc_061 an authenticator runs in the callers thread and sees the context values the caller set' do
+    client = CapturingApiClient.new
+    config = Petstore::Client::Configuration.builder.base_url('http://localhost').build
+    contextual = Class.new(TestAuthenticator) do
+      def auth_headers
+        { 'X-Context' => Thread.current[:caller_context].to_s }
+      end
+    end.new
+    test_api = TestableApi.new(client, config, contextual)
+    Thread.current[:caller_context] = 'ctx-7'
+    test_api.call('GET', '/test/echo', {}, {}, nil, ['application/json'], 'application/json', nil)
+
+    _(client.captured_headers['X-Context']).must_equal 'ctx-7'
+  ensure
+    Thread.current[:caller_context] = nil
   end
 
   it 'bhv_tracing_015 concurrent operations each send the traceparent of their own caller span' do

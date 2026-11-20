@@ -254,6 +254,18 @@ fn test_bhv_config_025_client_with_token_treats_an_empty_variable_as_unset() {
 }
 
 #[test]
+fn test_bhv_misc_068_an_empty_variable_is_unset_and_an_explicit_empty_token_is_refused() {
+    with_environment(Some("/api/v3"), Some(""), || {
+        let text = invalid_argument_text(Client::with_token(None, None, None));
+        assert!(text.contains("PETSTORE_ACCESS_TOKEN"), "{}", text);
+    });
+    with_environment(Some("/api/v3"), Some("env-token"), || {
+        let text = invalid_argument_text(Client::with_token(None, Some(""), None));
+        assert!(!text.is_empty());
+    });
+}
+
+#[test]
 fn test_bhv_lifecycle_016_client_with_token_provider_needs_a_host_but_no_token_variable() {
     with_environment(Some("/api/v3"), None, || {
         let provider: TokenProvider = std::sync::Arc::new(|| "provider-token".to_string());
@@ -536,6 +548,34 @@ impl PetApiTrait for FakePetApi {
     {
         self.calls.lock().expect("calls lock").push(format!(
             "add_pet_treatment_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn attach_pet_files(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "attach_pet_files({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn attach_pet_files_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "attach_pet_files_with_http_info({:?}, options={})",
             pet_id,
             options.is_some()
         ));
@@ -1468,6 +1508,30 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn get_audit_trail(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("get_audit_trail( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn get_audit_trail_with_http_info(
+        &self,
+        options: Option<&GetAuditTrailOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "get_audit_trail_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn get_by_swatch(
         &self,
         path_swatch: Swatch,
@@ -1970,6 +2034,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(pet_listed.contains(&"add_pet_photos_with_http_info".to_string()));
     assert!(pet_listed.contains(&"add_pet_treatment".to_string()));
     assert!(pet_listed.contains(&"add_pet_treatment_with_http_info".to_string()));
+    assert!(pet_listed.contains(&"attach_pet_files".to_string()));
+    assert!(pet_listed.contains(&"attach_pet_files_with_http_info".to_string()));
     assert!(pet_listed.contains(&"delete_pet".to_string()));
     assert!(pet_listed.contains(&"delete_pet_with_http_info".to_string()));
     assert!(pet_listed.contains(&"download_pet_document".to_string()));
@@ -2036,6 +2102,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"create_account_with_http_info".to_string()));
     assert!(store_listed.contains(&"delete_order".to_string()));
     assert!(store_listed.contains(&"delete_order_with_http_info".to_string()));
+    assert!(store_listed.contains(&"get_audit_trail".to_string()));
+    assert!(store_listed.contains(&"get_audit_trail_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_by_swatch".to_string()));
     assert!(store_listed.contains(&"get_by_swatch_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_defaults".to_string()));
@@ -2070,6 +2138,28 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"reserve_stock_with_http_info".to_string()));
     assert!(store_listed.contains(&"search_store".to_string()));
     assert!(store_listed.contains(&"search_store_with_http_info".to_string()));
+}
+
+#[test]
+fn test_bhv_mocking_009_the_readme_testing_your_code_section_names_the_group_and_client_interfaces()
+{
+    let readme = std::fs::read_to_string("README.md").expect("the README");
+    let start = readme
+        .find("\n### Testing your code\n")
+        .expect("the section heading");
+    let rest = &readme[start + 1..];
+    let section = match rest[4..].find("\n### ") {
+        Some(end) => &rest[..end + 4],
+        None => rest,
+    };
+    assert!(
+        section.contains("PetApiTrait"),
+        "the section names the group interface"
+    );
+    assert!(
+        section.contains("ClientTrait"),
+        "the section names the client interface"
+    );
 }
 
 #[test]

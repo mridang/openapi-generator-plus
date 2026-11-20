@@ -12,11 +12,10 @@ bool _isAsciiBlank(String value) =>
 ///
 /// The API key can be sent as a header, query parameter, or cookie,
 /// depending on the location specified at construction. It comes from, in
-/// order: the explicit [apiKey] argument, then the environment variable named
-/// by [environmentVariable], then the [apiKeyProvider] callback (a key and a
-/// provider cannot both be passed). A provider is used only when neither of
-/// the other two is set. A key that is found nowhere fails the constructor
-/// unless a provider is given.
+/// order: the explicit [apiKey] argument or the [apiKeyProvider] callback (a
+/// key and a provider cannot both be passed), then the environment variable
+/// named by [environmentVariable]. A provider that is passed always wins over
+/// the environment variable. A key that is found nowhere fails the constructor.
 class ApiKeyAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [apiKey] nor [apiKeyProvider]
   /// is given and no [environmentVariable] names another one.
@@ -81,12 +80,12 @@ class ApiKeyAuthenticator extends BaseAuthenticator {
     if (apiKey != null) {
       return apiKey;
     }
+    if (apiKeyProvider != null) {
+      return null;
+    }
     final fromEnvironment = readEnvironmentVariable(environmentVariable, environment);
     if (fromEnvironment != null) {
       return fromEnvironment;
-    }
-    if (apiKeyProvider != null) {
-      return null;
     }
     throw ArgumentError(
       "An API key for '$keyParamName' is required: pass apiKey or "

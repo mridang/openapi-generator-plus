@@ -495,7 +495,19 @@ public class BaseApi: @unchecked Sendable {
         if isJsonResponse {
           data = try ObjectSerializer.deserialize(response.body, as: type)
         } else if type == String.self {
-          data = response.body as? T
+          /* A string result under a binary content type is the decoded
+             body: the transport's base64 text is an internal carrier. */
+          if BaseApi.isTextContentType(responseContentType),
+            !responseContentType.isEmpty
+          {
+            data = response.body as? T
+          } else if let raw = Data(base64Encoded: response.body),
+            let text = String(data: raw, encoding: .utf8)
+          {
+            data = text as? T
+          } else {
+            data = response.body as? T
+          }
         } else {
           let mediaType =
             responseContentType.split(separator: ";").first

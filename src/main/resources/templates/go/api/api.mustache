@@ -675,6 +675,15 @@ func (a *{{classname}}) {{operationId}}WithHTTPInfo(ctx context.Context, {{#vend
 			 * text/plain): the transport kept the text as-is, so hand it back
 			 * verbatim. */
 			*strPtr = response.Body
+		} else if strPtr, ok := any(&data).(*string); ok && !isTextContentType(respContentType) && respContentType != "" {
+			/* A string return type under a binary Content-Type: the transport
+			 * carried the body as base64 text, which is an internal detail (D107);
+			 * the caller gets the decoded body. */
+			decoded, decErr := decodeBinaryResponse(response.Body)
+			if decErr != nil {
+				return nil, attachResponseContext(decErr, response, "{{httpMethod}}", path)
+			}
+			*strPtr = string(decoded)
 		} else {
 			/* Any other non-JSON Content-Type on a non-binary return type is a
 			 * contract violation: never a zero-valued model with a nil error. */

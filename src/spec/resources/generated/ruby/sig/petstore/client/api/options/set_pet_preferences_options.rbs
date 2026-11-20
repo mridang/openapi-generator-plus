@@ -11,7 +11,11 @@ module Petstore::Client
         attr_reader note: String?
         attr_reader renewal_date: Date?
         attr_reader reminder: Time?
-        def initialize: (nickname: String, ?tags: Array[String]?, ?note: String?, ?renewal_date: Date?, ?reminder: Time?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
+        attr_reader interval_days: Integer?
+        attr_reader ratio: Float?
+        attr_reader urgent: bool?
+        attr_reader snooze: ISO8601::Duration?
+        def initialize: (nickname: String, ?tags: Array[String]?, ?note: String?, ?renewal_date: Date?, ?reminder: Time?, ?interval_days: Integer?, ?ratio: Float?, ?urgent: bool?, ?snooze: ISO8601::Duration?, ?timeout: Numeric?, ?headers: Hash[String, String]?, ?max_retries: Integer?) -> void
       end
     end
   end

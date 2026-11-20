@@ -1781,6 +1781,12 @@ describe('ObjectSerializer', () => {
         });
       });
 
+      test('bhv misc 090 a duration field of a record writes its fractional seconds in the wire form', () => {
+        const edge = new EdgeCases({ retryAfter: Temporal.Duration.from({ seconds: 1, milliseconds: 500 }) });
+
+        expect(JSON.parse(ObjectSerializer.serialize(edge))).toMatchObject({ retryAfter: '1.500s' });
+      });
+
       test('bhv serializationobject 212 a sub-0.0001s or negative duration is written without scientific notation', () => {
         expect(durationToProtoJson(Temporal.Duration.from({ microseconds: 10 }))).toBe('0.000010s');
         expect(durationToProtoJson(Temporal.Duration.from({ microseconds: -10 }))).toBe('-0.000010s');
@@ -2846,6 +2852,15 @@ describe('toBinary', () => {
         username: 'u',
         password: 'p',
       });
+    });
+
+    test('bhv misc 242 a readOnly and a writeOnly property have no wire effect: both are written and decoded like any other', () => {
+      const account = new Account({ id: 7, username: 'u', password: 'p' });
+
+      expect(JSON.parse(ObjectSerializer.serialize(account))).toEqual({ id: 7, username: 'u', password: 'p' });
+      const decoded = ObjectSerializer.deserialize({ id: 7, username: 'u', password: 'p' }, Account)!;
+      expect(decoded.id).toBe(7);
+      expect(decoded.password).toBe('p');
     });
 
     test('bhv serializationobject 007 a format: password field is masked in the string form and kept on the wire', () => {

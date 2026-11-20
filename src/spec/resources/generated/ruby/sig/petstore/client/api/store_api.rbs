@@ -5,6 +5,8 @@ module Petstore::Client
       def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
       def delete_order: (Integer order_id, ?Options::DeleteOrderOptions? options) -> void
       def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def get_audit_trail: (?Options::GetAuditTrailOptions? options) -> Models::ApiResponse
+      def get_audit_trail_with_http_info: (?Options::GetAuditTrailOptions? options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
       def get_by_swatch_with_http_info: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Category]
       def get_defaults: (?Options::GetDefaultsOptions? options) -> Models::Defaults
@@ -46,6 +48,8 @@ module Petstore::Client
       def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
       def delete_order: (Integer order_id, ?Options::DeleteOrderOptions? options) -> void
       def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def get_audit_trail: (?Options::GetAuditTrailOptions? options) -> Models::ApiResponse
+      def get_audit_trail_with_http_info: (?Options::GetAuditTrailOptions? options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
       def get_by_swatch_with_http_info: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> ::Petstore::Client::ApiResult[Models::Category]
       def get_defaults: (?Options::GetDefaultsOptions? options) -> Models::Defaults

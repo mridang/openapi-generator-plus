@@ -57,6 +57,20 @@ module Petstore::Client
           @token_expiry = nil
           @token_margin = 0
           @exchanged = false
+          @stopped = false
+        end
+
+        # Stop the manager: the tokens it holds are dropped and every later token
+        # request fails with an OAuth2TokenError. Stopping again does nothing.
+        #
+        # @return [void]
+        def stop
+          @mutex.synchronize do
+            @stopped = true
+            @access_token = nil
+            @refresh_token = nil
+            @token_expiry = nil
+          end
         end
 
         # Record that an authorization code was exchanged for this session.
@@ -94,6 +108,7 @@ module Petstore::Client
         # @raise [::Petstore::Client::Errors::OAuth2TokenError] if the token endpoint answers 2xx with an unusable body
         def get_access_token(token_url, params, extra_headers = {}, refresh_url: nil)
           @mutex.synchronize do
+            raise_if_stopped
             return @access_token if token_still_valid?
 
             return @access_token if params['grant_type'] != 'refresh_token' && try_refresh_token(refresh_url || token_url, params, extra_headers)
@@ -113,6 +128,7 @@ module Petstore::Client
         # @return [String] the newly issued access token
         def exchange(token_url, params, extra_headers = {})
           @mutex.synchronize do
+            raise_if_stopped
             previous = [@access_token, @refresh_token, @token_expiry]
             @access_token = nil
             @refresh_token = nil
@@ -153,6 +169,10 @@ module Petstore::Client
         private
 
         # @return [Boolean] true when the cached access token is still valid
+        def raise_if_stopped
+          raise ::Petstore::Client::Errors::OAuth2TokenError, 'The token manager has been stopped.' if @stopped
+        end
+
         def token_still_valid?
           @access_token && (@token_expiry.nil? || Time.now.to_f < (@token_expiry - @token_margin))
         end
@@ -166,8 +186,8 @@ module Petstore::Client
 
           fetch_token(token_url, build_refresh_params(refresh, params), extra_headers)
           !@access_token.nil?
-        rescue StandardError
-          false # refresh failed; caller will retry the original grant
+        rescue ::Petstore::Client::Errors::OpenAPIError
+          false # refresh failed; caller will retry the original grant. A cancellation raised into the thread is not rescued.
         end
 
         def build_refresh_params(refresh, original_params)

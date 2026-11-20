@@ -3300,16 +3300,54 @@ void main() {
       expect(client.capturedBody, equals('tags=a&tags=b&id=1'));
     });
 
-    test('bhv serialization 123 a multipart field name containing a NUL character is rejected', () {
-      expect(
-        _RecordingApi(_BodyCapturingApiClient()).invokeApi(
-          method: 'POST',
-          path: '/test/echo',
-          body: {'a\x00b': 'x'},
-          contentType: 'multipart/form-data',
-        ),
-        throwsArgumentError,
+    test('bhv serialization 123 a multipart name with NUL, CR or LF is rejected and a double quote is backslash-escaped', () async {
+      for (final name in ['a\x00b', 'a\rb', 'a\nb']) {
+        expect(
+          _RecordingApi(_BodyCapturingApiClient()).invokeApi(
+            method: 'POST',
+            path: '/test/echo',
+            body: {name: 'x'},
+            contentType: 'multipart/form-data',
+          ),
+          throwsArgumentError,
+        );
+      }
+      final client = _BodyCapturingApiClient();
+      await _RecordingApi(client).invokeApi(
+        method: 'POST',
+        path: '/test/echo',
+        body: {'a"b': 'x'},
+        contentType: 'multipart/form-data',
       );
+      expect(client.capturedBody, contains(r'name="a\"b"'));
+    });
+
+    test('bhv misc 030 a deadline that passed before the request is built is a timeout and never reaches the transport', () async {
+      final client = _ScriptedApiClient([_reply(200)]);
+      final api = _RecordingApi(client, authenticator: _SlowAuth());
+
+      await expectLater(
+        api.invokeApi(method: 'GET', path: '/api/x', timeout: 1),
+        throwsA(isA<NetworkTimeoutException>()),
+      );
+      expect(client.sentHeaders, isEmpty);
+    });
+
+    test('bhv misc 081 a string result under a binary content type is the decoded body', () async {
+      final client = _ScriptedApiClient([
+        ApiHttpResponse(
+          statusCode: 200,
+          body: 'aGVsbG8=',
+          headers: {'content-type': 'application/pdf'},
+        ),
+      ]);
+      final result = await _RecordingApi(client).invokeApiForResult<String>(
+        method: 'GET',
+        path: '/api/doc',
+        accepts: const ['application/pdf'],
+        returnType: 'String',
+      );
+      expect(result.data, equals('hello'));
     });
 
     test('bhv serialization 124 a non-ASCII multipart filename has an RFC 5987 form with percent-encoding', () async {

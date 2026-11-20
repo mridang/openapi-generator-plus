@@ -22,6 +22,9 @@ public protocol PetApiProtocol: Sendable {
   func addPetTreatmentWithHTTPInfo(
     petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?
   ) async throws -> ApiResult<PetTreatment>
+  func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws -> ApiResponse
+  func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResult<ApiResponse>
   func deletePet(petId: Int64, options: DeletePetOptions?) async throws
   func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions?) async throws -> ApiResult<
     Void
@@ -157,6 +160,20 @@ extension PetApiProtocol {
     -> ApiResult<PetTreatment>
   {
     try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, options: nil)
+  }
+
+  /// The `attachPetFiles` operation with every optional parameter left out.
+  public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResponse
+  {
+    try await attachPetFiles(petId: petId, options: options)
+  }
+
+  /// The `attachPetFilesWithHTTPInfo` operation with every optional parameter left out.
+  public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
+    -> ApiResult<ApiResponse>
+  {
+    try await attachPetFilesWithHTTPInfo(petId: petId, options: options)
   }
 
   /// The `deletePet` operation with every optional parameter left out.

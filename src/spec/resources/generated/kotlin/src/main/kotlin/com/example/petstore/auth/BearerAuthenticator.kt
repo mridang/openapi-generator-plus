@@ -10,10 +10,10 @@ package com.example.petstore.auth
 /**
  * Authenticator for HTTP Bearer token authentication.
  *
- * The token is the first of: [token], the environment variable `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` (read
- * once, here; an empty value counts as unset), then whatever [tokenProvider] returns on every
- * request, for a token that rotates. When none of the three is given, building the authenticator
- * fails.
+ * The token is [token], or whatever [tokenProvider] returns on every request (for a token that
+ * rotates; a provider that is passed wins over the environment variable), or else the environment
+ * variable `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN` (read once, here; an empty value counts as unset). When none
+ * of them is given, building the authenticator fails.
  *
  * @param host the base URL of the API
  * @param token the bearer token
@@ -44,10 +44,10 @@ open class BearerAuthenticator internal constructor(
     // below rather than replaced by the environment. Scheme wrappers pass an empty argument as
     // null (not passed), which is what reads the environment.
     private val token: String? =
-        token ?: CredentialEnvironment.read(environmentVariable) ?: if (tokenProvider != null) {
-            null
+        if (tokenProvider != null) {
+            token
         } else {
-            throw IllegalArgumentException(
+            token ?: CredentialEnvironment.read(environmentVariable) ?: throw IllegalArgumentException(
                 "A bearer token is required: pass one, pass a tokenProvider or set $environmentVariable",
             )
         }

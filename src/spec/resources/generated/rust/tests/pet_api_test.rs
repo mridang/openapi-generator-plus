@@ -2452,6 +2452,34 @@ impl PetApiTrait for FakePetApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn attach_pet_files(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResponse, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls.lock().expect("calls lock").push(format!(
+            "attach_pet_files({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn attach_pet_files_with_http_info(
+        &self,
+        pet_id: i64,
+        options: Option<&AttachPetFilesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<ApiResponse>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "attach_pet_files_with_http_info({:?}, options={})",
+            pet_id,
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn delete_pet(
         &self,
         pet_id: i64,

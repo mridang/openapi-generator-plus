@@ -514,6 +514,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     expect($petListed)->toContain('addPet')->toContain('addPetWithHttpInfo');
     expect($petListed)->toContain('addPetPhotos')->toContain('addPetPhotosWithHttpInfo');
     expect($petListed)->toContain('addPetTreatment')->toContain('addPetTreatmentWithHttpInfo');
+    expect($petListed)->toContain('attachPetFiles')->toContain('attachPetFilesWithHttpInfo');
     expect($petListed)->toContain('deletePet')->toContain('deletePetWithHttpInfo');
     expect($petListed)->toContain('downloadPetDocument')->toContain('downloadPetDocumentWithHttpInfo');
     expect($petListed)->toContain('findPetsBornOn')->toContain('findPetsBornOnWithHttpInfo');
@@ -548,6 +549,7 @@ test('bhv mocking 001 every group has an interface the class implements', functi
     $storeListed = get_class_methods(\PetstoreClient\Api\StoreApiInterface::class);
     expect($storeListed)->toContain('createAccount')->toContain('createAccountWithHttpInfo');
     expect($storeListed)->toContain('deleteOrder')->toContain('deleteOrderWithHttpInfo');
+    expect($storeListed)->toContain('getAuditTrail')->toContain('getAuditTrailWithHttpInfo');
     expect($storeListed)->toContain('getBySwatch')->toContain('getBySwatchWithHttpInfo');
     expect($storeListed)->toContain('getDefaults')->toContain('getDefaultsWithHttpInfo');
     expect($storeListed)->toContain('getDepartment')->toContain('getDepartmentWithHttpInfo');

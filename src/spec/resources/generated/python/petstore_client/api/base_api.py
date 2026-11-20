@@ -647,6 +647,21 @@ class BaseApi:
                             "StrictStr",
                         ) and self._is_text_media_type(resp_content_type):
                             data = response.body
+                        elif return_type in ("str", "StrictStr"):
+                            # A binary content type reaches the transport as base64 text; a
+                            # string result is the decoded body, never that carrier text.
+                            import base64
+                            import binascii
+
+                            try:
+                                data = base64.b64decode(
+                                    response.body, validate=True
+                                ).decode("utf-8", errors="replace")
+                            except (binascii.Error, ValueError) as decode_error:
+                                raise SerializationException(
+                                    f"Unexpected response Content-Type '{resp_content_type}' "
+                                    f"for {self._operation_label(operation_name)}: the body is not base64"
+                                ) from decode_error
                         else:
                             raise SerializationException(
                                 f"Unexpected response Content-Type '{resp_content_type}' "

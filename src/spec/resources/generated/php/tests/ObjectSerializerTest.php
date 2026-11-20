@@ -1080,6 +1080,12 @@ test('bhv serializationobject 179 serialize DateInterval trims fraction to three
     expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('0.500s');
 });
 
+test('bhv misc 256 a duration fraction is never trimmed below three digits', function (): void {
+    $interval = new \DateInterval('PT1S');
+    $interval->f = 0.5;
+    expect(ObjectSerializer::formatProtobufDuration($interval))->toBe('1.500s');
+});
+
 test('bhv serializationobject 212 a sub ten thousandth or negative duration is written without scientific notation', function (float $fraction, int $invert, string $wire): void {
     $interval = new \PetstoreClient\PreciseDuration();
     $interval->f = $fraction;
@@ -2221,6 +2227,17 @@ test('bhv serializationobject 230 a time value survives a stringify and parse ro
     $restored = ObjectSerializer::deserialize($wire, \DateTimeImmutable::class);
 
     expect($restored->format('H:i:s'))->toBe('07:30:15');
+});
+
+test('bhv misc 242 a readOnly property is written and a writeOnly property is decoded like any other', function (): void {
+    $json = ObjectSerializer::serialize(new Account('ada', 7, 'hunter2'));
+    expect($json)->toContain('"id":7');
+    expect($json)->toContain('"password":"hunter2"');
+
+    $account = ObjectSerializer::deserialize($json, Account::class);
+    \assert($account instanceof Account);
+    expect($account->id)->toBe(7);
+    expect($account->password)->toBe('hunter2');
 });
 
 test('bhv serializationobject 018 a writeOnly property is serialized', function (): void {

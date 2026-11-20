@@ -15,6 +15,7 @@ import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.CreateAccountOptions
 import com.example.petstore.api.options.DeleteOrderOptions
+import com.example.petstore.api.options.GetAuditTrailOptions
 import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetDefaultsOptions
 import com.example.petstore.api.options.GetDepartmentOptions
@@ -36,6 +37,7 @@ import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
 import com.example.petstore.models.Account
+import com.example.petstore.models.ApiResponse
 import com.example.petstore.models.Category
 import com.example.petstore.models.Defaults
 import com.example.petstore.models.Department
@@ -177,6 +179,51 @@ class StoreApi :
             callMaxRetries = callMaxRetries,
             operationId = "deleteOrder",
             urlTemplate = "/store/order/{orderId}",
+        )
+    }
+
+    /**
+     * Read the audit trail, which needs a bearer token and an API key together
+     * One security requirement that names two schemes, so a request carries both credentials.
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @return ApiResponse
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun getAuditTrail(options: GetAuditTrailOptions?): ApiResponse =
+        getAuditTrailWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for getAuditTrail but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [getAuditTrail] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun getAuditTrailWithHttpInfo(options: GetAuditTrailOptions?): ApiResult<ApiResponse> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/audit"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<ApiResponse>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/json"),
+            "application/json",
+            schemeAuthenticator("petStoreBearer", "apiKeyHeader"),
+            "StoreApi.getAuditTrail",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "getAuditTrail",
+            urlTemplate = "/store/audit",
         )
     }
 

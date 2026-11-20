@@ -787,6 +787,8 @@ void main() {
         expect(petInterface, contains(' addPetPhotosWithHttpInfo('));
         expect(petInterface, contains(' addPetTreatment('));
         expect(petInterface, contains(' addPetTreatmentWithHttpInfo('));
+        expect(petInterface, contains(' attachPetFiles('));
+        expect(petInterface, contains(' attachPetFilesWithHttpInfo('));
         expect(petInterface, contains(' deletePet('));
         expect(petInterface, contains(' deletePetWithHttpInfo('));
         expect(petInterface, contains(' downloadPetDocument('));
@@ -867,6 +869,8 @@ void main() {
         expect(storeInterface, contains(' createAccountWithHttpInfo('));
         expect(storeInterface, contains(' deleteOrder('));
         expect(storeInterface, contains(' deleteOrderWithHttpInfo('));
+        expect(storeInterface, contains(' getAuditTrail('));
+        expect(storeInterface, contains(' getAuditTrailWithHttpInfo('));
         expect(storeInterface, contains(' getBySwatch('));
         expect(storeInterface, contains(' getBySwatchWithHttpInfo('));
         expect(storeInterface, contains(' getDefaults('));

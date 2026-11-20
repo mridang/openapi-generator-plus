@@ -687,6 +687,38 @@ describe {{moduleName}}::Api::StoreApi do
       end
     end
 
+    it 'bhv_misc_114 a success response is decoded by the decoder for the status actually received' do
+      api, server, thread, = capture_wire_request(
+        '{"receiptCode":"R-9","expiresAt":"2030-01-01T00:00:00Z"}', status_line: '201 Created'
+      )
+      begin
+        result = api.reserve_stock
+
+        _(result).must_be_kind_of({{moduleName}}::Models::ReservationReceipt)
+        _(result.receipt_code).must_equal('R-9')
+      ensure
+        server.close
+        thread.join(2)
+      end
+    end
+
+    it 'bhv_misc_052 when the same per-call option is given twice the last one takes effect' do
+      first = { timeout: 1000 }
+      options = {{moduleName}}::Api::Options::GetInventoryOptions.new(**first, timeout: 2500)
+
+      _(options.timeout).must_equal 2500
+    end
+
+    it 'bhv_misc_054 per-call headers are a read-only copy that later changes to the callers map do not reach' do
+      mine = { 'X-Tenant' => 'a' }
+      options = {{moduleName}}::Api::Options::GetInventoryOptions.new(headers: mine)
+      mine['X-Tenant'] = 'changed'
+      mine['X-Other'] = 'added'
+
+      _(options.headers).must_equal({ 'X-Tenant' => 'a' })
+      _(options.headers).must_be :frozen?
+    end
+
     it 'bhv_misc_079 each success status decodes as the type declared for the status it arrived with' do
       api, server, thread, = capture_wire_request(
         '{"receiptCode":"R-1","expiresAt":"2030-01-01T00:00:00Z"}', status_line: '201 Created'

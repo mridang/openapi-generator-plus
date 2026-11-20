@@ -240,6 +240,18 @@ fn test_bhv_config_025_client_with_token_treats_an_empty_variable_as_unset() {
 }
 
 #[test]
+fn test_bhv_misc_068_an_empty_variable_is_unset_and_an_explicit_empty_token_is_refused() {
+    with_environment(Some("{{{basePath}}}"), Some(""), || {
+        let text = invalid_argument_text({{clientClassName}}::with_token(None, None, None));
+        assert!(text.contains("{{envPrefix}}_ACCESS_TOKEN"), "{}", text);
+    });
+    with_environment(Some("{{{basePath}}}"), Some("env-token"), || {
+        let text = invalid_argument_text({{clientClassName}}::with_token(None, Some(""), None));
+        assert!(!text.is_empty());
+    });
+}
+
+#[test]
 fn test_bhv_lifecycle_016_client_with_token_provider_needs_a_host_but_no_token_variable() {
     with_environment(Some("{{{basePath}}}"), None, || {
         let provider: TokenProvider = std::sync::Arc::new(|| "provider-token".to_string());
@@ -437,6 +449,27 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
 {{/operations}}
 {{/apis}}
 {{/apiInfo}}
+}
+
+#[test]
+fn test_bhv_mocking_009_the_readme_testing_your_code_section_names_the_group_and_client_interfaces() {
+    let readme = std::fs::read_to_string("README.md").expect("the README");
+    let start = readme.find("\n### Testing your code\n").expect("the section heading");
+    let rest = &readme[start + 1..];
+    let section = match rest[4..].find("\n### ") {
+        Some(end) => &rest[..end + 4],
+        None => rest,
+    };
+{{#apiInfo}}
+{{#apis}}
+{{#-first}}
+{{#operations}}
+    assert!(section.contains("{{classname}}Trait"), "the section names the group interface");
+{{/operations}}
+{{/-first}}
+{{/apis}}
+{{/apiInfo}}
+    assert!(section.contains("{{clientClassName}}Trait"), "the section names the client interface");
 }
 
 #[test]

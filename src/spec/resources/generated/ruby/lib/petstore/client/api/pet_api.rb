@@ -364,6 +364,66 @@ module Petstore::Client
         )
       end
 
+      # Attach files in a multipart/mixed request
+      # Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
+      # @param pet_id [Integer]
+      # @param options [AttachPetFilesOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
+      # @return [ApiResponse]
+      # @raise [ApiError] if fails to make API call
+      def attach_pet_files(pet_id, options)
+        result = attach_pet_files_with_http_info(pet_id, options)
+        # This operation declares a non-void return type. When the server
+        # responds with an empty/undecodable body (204, empty 200), the
+        # unwrapped convenience method has no value to return. Surface this
+        # loudly as a typed ApiError instead of handing back a silent nil,
+        # so callers see the same catchable error across all SDKs.
+        if result.data.nil?
+          raise ::Petstore::Client::Errors::ApiError.new(
+            message: 'Expected a response body for attach_pet_files but received none',
+            status_code: result.status_code,
+            response_headers: result.headers,
+            response_body: result.raw_body
+          )
+        end
+        result.data
+      end
+
+      # @return [ApiResult]
+      # @raise [ApiError] if fails to make API call
+      def attach_pet_files_with_http_info(pet_id, options)
+        if pet_id.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'pet_id' when calling PetApi.attach_pet_files"
+        end
+
+        if options.nil? || options.file.nil?
+          raise ArgumentError,
+                "Missing the required parameter 'file' when calling PetApi.attach_pet_files"
+        end
+
+        path = '/pet/{petId}/attachments'
+        path = path.gsub('{petId}', ::Petstore::Client::ValueSerializer.serialize_styled('petId', pet_id, :path, 'Integer', nil, 'simple', false).to_s)
+        # @type var query_params: Hash[String, untyped]
+        query_params = {}
+        # @type var header_params: Hash[String, String]
+        header_params = {}
+        # @type var request_body: Hash[String, untyped]
+        request_body = {}
+        request_body['file'] = options.file
+        request_body['caption'] = options.caption unless options.caption.nil?
+        invoke_api_for_result(
+          :POST, path, query_params, header_params, request_body,
+          ['application/json'],
+          'multipart/mixed',
+          'ApiResponse',
+          scheme_authenticator('petStoreBasic', 'petStoreBearer'),
+          operation_id: 'PetApi.attach_pet_files',
+          spec_operation_id: 'attachPetFiles',
+          url_template: '/pet/{petId}/attachments',
+          request_options: options
+        )
+      end
+
       # Deletes a pet
       # @param pet_id [Integer] Pet id to delete
       # @param options [DeletePetOptions] per-call options: the optional timeout, headers and max_retries, plus the query, header, form and cookie parameters
@@ -1616,6 +1676,10 @@ module Petstore::Client
         request_body['note'] = options.note unless options.note.nil?
         request_body['renewalDate'] = options.renewal_date unless options.renewal_date.nil?
         request_body['reminder'] = options.reminder unless options.reminder.nil?
+        request_body['intervalDays'] = options.interval_days unless options.interval_days.nil?
+        request_body['ratio'] = options.ratio unless options.ratio.nil?
+        request_body['urgent'] = options.urgent unless options.urgent.nil?
+        request_body['snooze'] = options.snooze unless options.snooze.nil?
         invoke_api_for_result(
           :POST, path, query_params, header_params, request_body,
           ['application/json'],
