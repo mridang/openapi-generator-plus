@@ -1549,7 +1549,7 @@ void main() {
   );
 
   test(
-    'bhv auth 022 an explicit argument is used first, then the environment, then the provider',
+    'bhv auth 022 an explicit argument is used first, then the token provider, then the environment',
     () {
       final explicit = BearerAuthenticator(
         host: '/api/v3',
@@ -1558,17 +1558,18 @@ void main() {
           BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
         },
       );
-      final fromEnv = BearerAuthenticator(
+      final fromProvider = BearerAuthenticator(
         host: '/api/v3',
         environment: {
           BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
         },
         tokenProvider: () => 'from-provider',
       );
-      final fromProvider = BearerAuthenticator(
+      final fromEnv = BearerAuthenticator(
         host: '/api/v3',
-        environment: {BearerAuthenticator.defaultEnvironmentVariable: ''},
-        tokenProvider: () => 'from-provider',
+        environment: {
+          BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
+        },
       );
 
       expect(
@@ -1578,6 +1579,24 @@ void main() {
       expect(fromEnv.authHeaders()['Authorization'], equals('Bearer from-env'));
       expect(
         fromProvider.authHeaders()['Authorization'],
+        equals('Bearer from-provider'),
+      );
+    },
+  );
+
+  test(
+    'bhv auth 038 a token provider passed to the authenticator is used even when the environment holds a token',
+    () {
+      final auth = BearerAuthenticator(
+        host: '/api/v3',
+        environment: {
+          BearerAuthenticator.defaultEnvironmentVariable: 'from-env',
+        },
+        tokenProvider: () => 'from-provider',
+      );
+
+      expect(
+        auth.authHeaders()['Authorization'],
         equals('Bearer from-provider'),
       );
     },

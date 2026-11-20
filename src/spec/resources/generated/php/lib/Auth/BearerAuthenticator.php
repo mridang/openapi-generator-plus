@@ -40,13 +40,10 @@ class BearerAuthenticator extends BaseAuthenticator
         if ($token !== null && $tokenProvider instanceof \Closure) {
             throw new \InvalidArgumentException('Pass either a bearer token or a token provider, not both');
         }
-        if ($token === null) {
-            /* Order: explicit token, then the environment variable, then the provider. A set
-             * variable wins over a provider; an empty or unset one falls through to it. */
+        if ($token === null && !$tokenProvider instanceof \Closure) {
+            /* Order: explicit token or provider, then the environment variable. A provider that
+             * is passed wins over a set variable; an empty or unset variable is the fallback. */
             $token = static::environmentCredential('token');
-            if ($token !== null) {
-                $tokenProvider = null;
-            }
         }
         if ($token === null && !$tokenProvider instanceof \Closure) {
             throw new \InvalidArgumentException(

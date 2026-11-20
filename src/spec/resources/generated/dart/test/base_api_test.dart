@@ -3899,24 +3899,9 @@ void main() {
     );
 
     test(
-      'bhv serialization 123 a multipart field name containing a NUL character is rejected',
-      () {
-        expect(
-          _RecordingApi(_BodyCapturingApiClient()).invokeApi(
-            method: 'POST',
-            path: '/test/echo',
-            body: {'a\x00b': 'x'},
-            contentType: 'multipart/form-data',
-          ),
-          throwsArgumentError,
-        );
-      },
-    );
-
-    test(
-      'bhv serialization 123 a multipart field name containing CR or LF is rejected',
-      () {
-        for (final name in ['a\rb', 'a\nb']) {
+      'bhv serialization 123 a multipart name with NUL, CR or LF is rejected and a double quote is backslash-escaped',
+      () async {
+        for (final name in ['a\x00b', 'a\rb', 'a\nb']) {
           expect(
             _RecordingApi(_BodyCapturingApiClient()).invokeApi(
               method: 'POST',
@@ -3927,12 +3912,6 @@ void main() {
             throwsArgumentError,
           );
         }
-      },
-    );
-
-    test(
-      'bhv serialization 123 a double quote in a multipart field name is backslash-escaped',
-      () async {
         final client = _BodyCapturingApiClient();
         await _RecordingApi(client).invokeApi(
           method: 'POST',
