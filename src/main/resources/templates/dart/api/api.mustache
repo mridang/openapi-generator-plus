@@ -169,7 +169,12 @@ class {{classname}} extends BaseApi implements {{classname}}Interface {
 {{#hasAuthMethods}}
     {{! The credential of the security scheme this operation's spec names, set }}
     {{! on the client; a scheme without a credential fails the call. }}
+{{#vendorExtensions.op.hasAllOfGroup}}
+    final Authenticator? auth = requirementAuthenticator(const <List<String>>[{{#vendorExtensions.op.securityGroups}}[{{#schemes}}'{{name}}'{{^-last}}, {{/-last}}{{/schemes}}]{{^-last}}, {{/-last}}{{/vendorExtensions.op.securityGroups}}]);
+{{/vendorExtensions.op.hasAllOfGroup}}
+{{^vendorExtensions.op.hasAllOfGroup}}
     final Authenticator? auth = schemeAuthenticator(const [{{#authMethods}}'{{name}}'{{^-last}}, {{/-last}}{{/authMethods}}]);
+{{/vendorExtensions.op.hasAllOfGroup}}
 {{/hasAuthMethods}}
 {{! Cross-cutting `required-nested-param-validation`: a REQUIRED query/header/ }}
 {{! form/cookie param carried on the Options object must be rejected at }}

@@ -7,14 +7,14 @@ class HeaderSelector {
   /// Select headers for an API request.
   ///
   /// Parameters:
-  ///   - [accept]: list of acceptable MIME types for the response
-  ///   - [contentType]: the Content-Type for the request body
+  ///   - [accept]: list of acceptable MIME types for the response; null sends none
+  ///   - [contentType]: the Content-Type for the request body; null or empty is JSON
   ///   - [isMultipart]: whether this is a multipart request
   ///
   /// Returns a map of header names to values.
   Map<String, String> selectHeaders(
-    List<String> accept,
-    String contentType,
+    List<String>? accept,
+    String? contentType,
     bool isMultipart,
   ) {
     final headers = <String, String>{};
@@ -25,7 +25,8 @@ class HeaderSelector {
     }
 
     if (!isMultipart) {
-      headers['Content-Type'] = contentType.isEmpty ? 'application/json' : contentType;
+      headers['Content-Type'] =
+          contentType == null || contentType.isEmpty ? 'application/json' : contentType;
     }
 
     return headers;
@@ -39,7 +40,8 @@ class HeaderSelector {
   ///
   /// Returns the Accept header value, or an empty string if there is nothing
   /// to send.
-  String _selectAcceptHeader(List<String> accept) {
+  String _selectAcceptHeader(List<String>? accept) {
+    if (accept == null) return '';
     final filtered = accept.where((s) => s.trim().isNotEmpty).toList();
 
     if (filtered.isEmpty) return '';
@@ -50,11 +52,11 @@ class HeaderSelector {
   /// Detects whether a string contains a valid JSON mime type.
   ///
   /// Parameters:
-  ///   - [searchString]: the MIME type string to check
+  ///   - [searchString]: the MIME type string to check; null is not a JSON type
   ///
   /// Returns true if the string represents a JSON MIME type.
-  bool isJsonMime(String searchString) {
-    if (searchString.isEmpty) return false;
+  bool isJsonMime(String? searchString) {
+    if (searchString == null || searchString.isEmpty) return false;
     return _jsonMIMEPattern.hasMatch(searchString);
   }
 }

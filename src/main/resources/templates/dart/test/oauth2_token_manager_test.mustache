@@ -94,6 +94,26 @@ void main() {
       expect(token, equals('tok123'));
     });
 
+    test('bhv misc 185 stopping twice is a no-op and a token request after stop fails with a fixed message', () async {
+      final client = _FakeApiClient();
+      client.enqueue('{"access_token":"tok1","expires_in":3600}');
+      final manager = OAuth2TokenManager();
+      manager.setApiClient(client);
+
+      manager.stop();
+      manager.stop();
+
+      await expectLater(
+        manager.getAccessToken(
+          'https://auth.example.com/token',
+          {'grant_type': 'client_credentials'},
+        ),
+        throwsA(isA<OAuth2TokenException>().having(
+            (e) => e.message, 'message', 'The token manager has been stopped.')),
+      );
+      expect(client.requestCount, equals(0));
+    });
+
     test('bhv authoauthtwotokenmgr 028 stores refresh token', () async {
       final client = _FakeApiClient();
       client.enqueue(

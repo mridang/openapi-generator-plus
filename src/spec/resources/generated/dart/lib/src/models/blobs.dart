@@ -16,10 +16,17 @@ import '../object_serializer.dart';
 class Blobs {
   final String? label;
 
-  /// Additional properties not defined in the schema.
-  final Map<String, Uint8List> additionalProperties;
+  /// Additional properties not defined in the schema. Reading them returns a
+  /// copy, so changing it leaves this model unchanged.
+  Map<String, Uint8List> get additionalProperties =>
+      Map.of(_additionalProperties);
 
-  const Blobs({this.label, this.additionalProperties = const {}});
+  final Map<String, Uint8List> _additionalProperties;
+
+  const Blobs({
+    this.label,
+    Map<String, Uint8List> additionalProperties = const {},
+  }) : _additionalProperties = additionalProperties;
 
   /// Creates a [Blobs] from a JSON map.
   factory Blobs.fromJson(Map<String, dynamic> json) {
