@@ -2075,10 +2075,10 @@ describe Petstore::Client::ObjectSerializer do
       _(result).must_be_kind_of(Integer)
     end
 
-    it 'bhv_serializationobject_193 rejects an unknown integer enum value on deserialize' do
-      _(proc {
-        Petstore::Client::ObjectSerializer.deserialize('99', 'Priority')
-      }).must_raise(Petstore::Client::Errors::SerializationError)
+    it 'bhv_serializationobject_193 decodes an unknown integer enum value to the catch-all member' do
+      _(Petstore::Client::ObjectSerializer.deserialize('99', 'Priority')).must_equal(
+        Petstore::Client::Models::Priority::UNKNOWN_DEFAULT_OPEN_API
+      )
     end
 
     it 'bhv_serializationobject_176 round-trips an integer-enum-typed model field as a number' do
@@ -2119,10 +2119,10 @@ describe Petstore::Client::ObjectSerializer do
       _(Petstore::Client::ObjectSerializer.serialize(Petstore::Client::Models::Availability::ON_HOLD)).must_equal('"on-hold"')
     end
 
-    it 'bhv_serializationobject_059 rejects an unknown string enum value on deserialize' do
-      _(proc {
-        Petstore::Client::ObjectSerializer.deserialize('"available"', 'Availability')
-      }).must_raise(Petstore::Client::Errors::SerializationError)
+    it 'bhv_serializationobject_059 decodes an unknown string enum value to the catch-all member' do
+      _(Petstore::Client::ObjectSerializer.deserialize('"available"', 'Availability')).must_equal(
+        Petstore::Client::Models::Availability::UNKNOWN_DEFAULT_OPEN_API
+      )
     end
   end
 
@@ -2133,11 +2133,10 @@ describe Petstore::Client::ObjectSerializer do
   # field must surface the SDK serialization error rather than coercing to a
   # default or sentinel — the referenced-enum-as-model-field path.
   describe 'referenced enum model field rejects unknown value' do
-    it 'bhv_serializationobject_119 raises when a referenced-enum field carries an unknown value' do
+    it 'bhv_serializationobject_119 decodes a referenced-enum field with an unknown value to the catch-all member' do
       json = '{"priority":1,"availability":"liquidated"}'
-      _(proc {
-        Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')
-      }).must_raise(Petstore::Client::Errors::SerializationError)
+      item = Petstore::Client::ObjectSerializer.deserialize(json, 'StockItem')
+      _(item.availability).must_equal Petstore::Client::Models::Availability::UNKNOWN_DEFAULT_OPEN_API
     end
 
     it 'bhv_serializationobject_196 an explicit value on the wire replaces the declared default' do

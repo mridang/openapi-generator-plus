@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Rank do
   integer form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Rank."
-  @type t :: :low | :medium | :high | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for Rank."
+  @type declared :: :low | :medium | :high
+
+  @typedoc "One of the allowed enum atoms for Rank, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc """
   The lowest rank.
   """
@@ -33,13 +36,13 @@ defmodule PetstoreClient.Models.Rank do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [low(), medium(), high()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: 1 | 2 | 3
+  @spec value(declared()) :: 1 | 2 | 3
   def value(:low), do: 1
   def value(:medium), do: 2
   def value(:high), do: 3
@@ -53,7 +56,7 @@ defmodule PetstoreClient.Models.Rank do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value(1), do: :low
   def from_value(2), do: :medium
   def from_value(3), do: :high

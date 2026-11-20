@@ -2537,7 +2537,7 @@ mod tests {
         assert_eq!(
             object_serializer::deserialize::<crate::models::Separator>(br#""banana""#)
                 .expect("decodes"),
-            crate::models::Separator::UnknownDefaultOpenApi
+            Some(crate::models::Separator::UnknownDefaultOpenApi)
         );
     }
 
@@ -2547,7 +2547,10 @@ mod tests {
         let decoded =
             object_serializer::deserialize::<crate::models::Separator>(br#""teleported""#)
                 .expect("an enum value outside the schema decodes to the catch-all variant");
-        assert_eq!(decoded, crate::models::Separator::UnknownDefaultOpenApi);
+        assert_eq!(
+            decoded,
+            Some(crate::models::Separator::UnknownDefaultOpenApi)
+        );
     }
 
     #[test]

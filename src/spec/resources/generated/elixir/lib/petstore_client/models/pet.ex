@@ -18,8 +18,11 @@ defmodule PetstoreClient.Models.Pet do
   defmodule StatusEnum do
     @moduledoc "Allowed values of Pet.status"
 
-    @typedoc "One of the allowed enum atoms for Pet.status."
-    @type t :: :available | :pending | :sold | :unknown_default_open_api
+    @typedoc "One of the declared enum atoms for Pet.status."
+    @type declared :: :available | :pending | :sold
+
+    @typedoc "One of the allowed enum atoms for Pet.status, or the catch-all `:unknown_default_open_api`."
+    @type t :: declared() | :unknown_default_open_api
 
     @doc "Enum value `available`"
     def available, do: :available
@@ -34,13 +37,13 @@ defmodule PetstoreClient.Models.Pet do
     def unknown_default_open_api, do: :unknown_default_open_api
 
     @doc "All declared values as atoms; the catch-all member is not one of them."
-    @spec all_values() :: [t(), ...]
+    @spec all_values() :: [declared(), ...]
     def all_values do
       [available(), pending(), sold()]
     end
 
     @doc "Map an atom to its wire value."
-    @spec value(t()) :: String.t()
+    @spec value(declared()) :: String.t()
     def value(:available), do: "available"
     def value(:pending), do: "pending"
     def value(:sold), do: "sold"
@@ -50,7 +53,7 @@ defmodule PetstoreClient.Models.Pet do
 
     Returns `{:error, value}` for an unrecognised wire value.
     """
-    @spec from_value(term()) :: t() | {:error, term()}
+    @spec from_value(term()) :: declared() | {:error, term()}
     def from_value("available"), do: :available
     def from_value("pending"), do: :pending
     def from_value("sold"), do: :sold

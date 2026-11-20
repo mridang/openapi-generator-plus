@@ -3164,11 +3164,10 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerializationobject024InlineEnumRejectsAnUnknownWireValue()
+        public void BhvSerializationobject024InlineEnumGivesTheCatchAllMemberForAnUnknownWireValue()
         {
-            Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<EdgeCases>("{\"phase\":\"in-stock\"}")
-            );
+            var decoded = _serializer.Deserialize<EdgeCases>("{\"phase\":\"in-stock\"}");
+            Assert.Equal(EdgeCases.PhaseEnum.UnknownDefaultOpenApi, decoded!.Phase);
         }
 
         [Fact]
@@ -3682,11 +3681,10 @@ public static class ObjectSerializerTest
         }
 
         [Fact]
-        public void BhvSerialization004ValueOutsideTheDeclaredMembersIsRefused()
+        public void BhvSerialization004ValueOutsideTheDeclaredMembersGivesTheCatchAllMember()
         {
-            Assert.Throws<SerializationException>(() =>
-                _serializer.Deserialize<Order>("{\"status\":\"lost\"}")
-            );
+            var order = _serializer.Deserialize<Order>("{\"status\":\"lost\"}");
+            Assert.Equal(Order.StatusEnum.UnknownDefaultOpenApi, order!.Status);
         }
 
         [Fact]

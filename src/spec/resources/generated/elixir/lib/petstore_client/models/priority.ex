@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Priority do
   integer form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Priority."
-  @type t :: :number_1 | :number_2 | :number_3 | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for Priority."
+  @type declared :: :number_1 | :number_2 | :number_3
+
+  @typedoc "One of the allowed enum atoms for Priority, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc "Enum value `number_1`"
   def number_1, do: :number_1
 
@@ -29,13 +32,13 @@ defmodule PetstoreClient.Models.Priority do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [number_1(), number_2(), number_3()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: 1 | 2 | 3
+  @spec value(declared()) :: 1 | 2 | 3
   def value(:number_1), do: 1
   def value(:number_2), do: 2
   def value(:number_3), do: 3
@@ -49,7 +52,7 @@ defmodule PetstoreClient.Models.Priority do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value(1), do: :number_1
   def from_value(2), do: :number_2
   def from_value(3), do: :number_3

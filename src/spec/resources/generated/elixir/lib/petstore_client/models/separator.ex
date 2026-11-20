@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Separator do
   string form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Separator."
-  @type t :: :space_1 | :value_0040_0040 | :a_b | :a_b_2 | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for Separator."
+  @type declared :: :space_1 | :value_0040_0040 | :a_b | :a_b_2
+
+  @typedoc "One of the allowed enum atoms for Separator, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc "Enum value `space_1`"
   def space_1, do: :space_1
 
@@ -32,13 +35,13 @@ defmodule PetstoreClient.Models.Separator do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [space_1(), value_0040_0040(), a_b(), a_b_2()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: String.t()
+  @spec value(declared()) :: String.t()
   def value(:space_1), do: " "
   def value(:value_0040_0040), do: "@@"
   def value(:a_b), do: "a-b"
@@ -53,7 +56,7 @@ defmodule PetstoreClient.Models.Separator do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value(" "), do: :space_1
   def from_value("@@"), do: :value_0040_0040
   def from_value("a-b"), do: :a_b

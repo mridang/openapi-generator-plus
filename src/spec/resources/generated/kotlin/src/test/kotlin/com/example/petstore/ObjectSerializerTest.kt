@@ -2108,19 +2108,17 @@ class ObjectSerializerTest {
                 assertTrue(serializer.serialize(decoded).contains("\"phase\":\"$wire\""), wire)
             }
             assertEquals(3, members.size)
-            assertThrows(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"in-stock\"}")
-            }
+            assertEquals(
+                com.example.petstore.models.EdgeCases.PhaseEnum.UNKNOWN_DEFAULT_OPEN_API,
+                serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"in-stock\"}")!!.phase,
+            )
         }
 
         @Test
-        @DisplayName("bhvSerializationobject024 an unknown inline enum value is rejected")
-        fun unknownInlineEnumValueIsRejected() {
-            val ex =
-                assertThrowsExactly(com.example.petstore.errors.SerializationException::class.java) {
-                    serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"sold-out\"}")
-                }
-            assertInstanceOf(OpenAPIException::class.java, ex)
+        @DisplayName("bhvSerializationobject024 an unknown inline enum value decodes to the catch-all member")
+        fun unknownInlineEnumValueDecodesToTheCatchAllMember() {
+            val decoded = serializer.deserialize<com.example.petstore.models.EdgeCases>("{\"phase\":\"sold-out\"}")
+            assertEquals(com.example.petstore.models.EdgeCases.PhaseEnum.UNKNOWN_DEFAULT_OPEN_API, decoded!!.phase)
         }
 
         @Test
@@ -3096,11 +3094,10 @@ class ObjectSerializerTest {
         }
 
         @Test
-        @DisplayName("bhvSerialization004 an enum refuses a wire value outside its declared members")
-        fun enumRefusesAValueOutsideItsMembers() {
-            assertThrows(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"lost\"}")
-            }
+        @DisplayName("bhvSerialization004 an enum gives the catch-all member for a wire value outside its declared members")
+        fun enumGivesTheCatchAllMemberForAValueOutsideItsMembers() {
+            val pet = serializer.deserialize<com.example.petstore.models.Pet>("{\"name\":\"dog\",\"photoUrls\":[],\"status\":\"lost\"}")
+            assertEquals(com.example.petstore.models.Pet.StatusEnum.UNKNOWN_DEFAULT_OPEN_API, pet!!.status)
         }
 
         @Test
@@ -3627,8 +3624,8 @@ class ObjectSerializerTest {
         @Test
         @DisplayName("bhvEnums009 a member with a description carries it as the one-line comment directly above it")
         fun descriptionIsTheCommentAboveTheMember() {
-            assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n    @SerialName(\"s\")\n    SMALL("))
-            assertTrue(modelSource("Tier").contains("/** The medium tier. */\n    @SerialName(\"m\")\n    MEDIUM("))
+            assertTrue(modelSource("Tier").contains("/** The smallest tier. */\n    SMALL("))
+            assertTrue(modelSource("Tier").contains("/** The medium tier. */\n    MEDIUM("))
         }
 
         @Test
@@ -3641,7 +3638,7 @@ class ObjectSerializerTest {
         @DisplayName("bhvEnums011 a description with comment terminators still yields a compiling comment")
         fun hostileDescriptionStaysAComment() {
             val source = modelSource("Tier")
-            assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n    @SerialName(\"l\")"))
+            assertTrue(source.contains("/** The largest tier. Ends with * / and #{x} and \$x. */\n    LARGE("))
         }
     }
 
@@ -4210,11 +4207,12 @@ class ObjectSerializerTest {
         }
 
     @Test
-    fun bhvSerialization105AnEnumValueOutsideTheMembersRaisesAnError() =
+    fun bhvSerialization105AnEnumValueOutsideTheMembersGivesTheCatchAllMember() =
         runBlocking<Unit> {
-            assertThrows(SerializationException::class.java) {
-                serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"DELIVERED\"}")
-            }
+            assertEquals(
+                com.example.petstore.models.Order.StatusEnum.UNKNOWN_DEFAULT_OPEN_API,
+                serializer.deserialize<com.example.petstore.models.Order>("{\"status\":\"DELIVERED\"}")!!.status,
+            )
         }
 
     @Test

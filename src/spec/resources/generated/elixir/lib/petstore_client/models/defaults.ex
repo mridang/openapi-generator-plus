@@ -15,8 +15,11 @@ defmodule PetstoreClient.Models.Defaults do
   defmodule ModeEnum do
     @moduledoc "Allowed values of Defaults.mode"
 
-    @typedoc "One of the allowed enum atoms for Defaults.mode."
-    @type t :: :low | :medium | :high | :unknown_default_open_api
+    @typedoc "One of the declared enum atoms for Defaults.mode."
+    @type declared :: :low | :medium | :high
+
+    @typedoc "One of the allowed enum atoms for Defaults.mode, or the catch-all `:unknown_default_open_api`."
+    @type t :: declared() | :unknown_default_open_api
 
     @doc "Enum value `low`"
     def low, do: :low
@@ -31,13 +34,13 @@ defmodule PetstoreClient.Models.Defaults do
     def unknown_default_open_api, do: :unknown_default_open_api
 
     @doc "All declared values as atoms; the catch-all member is not one of them."
-    @spec all_values() :: [t(), ...]
+    @spec all_values() :: [declared(), ...]
     def all_values do
       [low(), medium(), high()]
     end
 
     @doc "Map an atom to its wire value."
-    @spec value(t()) :: String.t()
+    @spec value(declared()) :: String.t()
     def value(:low), do: "low"
     def value(:medium), do: "medium"
     def value(:high), do: "high"
@@ -47,7 +50,7 @@ defmodule PetstoreClient.Models.Defaults do
 
     Returns `{:error, value}` for an unrecognised wire value.
     """
-    @spec from_value(term()) :: t() | {:error, term()}
+    @spec from_value(term()) :: declared() | {:error, term()}
     def from_value("low"), do: :low
     def from_value("medium"), do: :medium
     def from_value("high"), do: :high

@@ -2184,8 +2184,14 @@ class TestConstructionKeepsWhatItIsGiven:
     def test_bhv_serialization_068_a_wrong_type_is_kept_as_given(self) -> None:
         assert self._built(name=123).name == 123
 
-    def test_bhv_lang_python_138_an_unknown_enum_string_is_kept_as_given(self) -> None:
-        assert self._built(status="bogus").status == "bogus"
+    def test_bhv_lang_python_138_an_unknown_enum_string_becomes_the_catch_all_member(
+        self,
+    ) -> None:
+        from petstore_client.models.pet import PetStatusEnum
+
+        assert (
+            self._built(status="bogus").status is PetStatusEnum.UNKNOWN_DEFAULT_OPEN_API
+        )
 
     def test_bhv_lang_python_139_a_valid_value_is_still_coerced(self) -> None:
         assert self._built(photoUrls=["a", "b"]).photo_urls == {"a", "b"}
@@ -2201,9 +2207,9 @@ class TestConstructionKeepsWhatItIsGiven:
     def test_bhv_lang_python_141_a_kept_value_goes_out_on_the_wire_as_given(
         self,
     ) -> None:
-        wire = ObjectSerializer().serialize(self._built(status="bogus"))
+        wire = ObjectSerializer().serialize(self._built(name=123))
 
-        assert json.loads(wire)["status"] == "bogus"
+        assert json.loads(wire)["name"] == 123
 
     def test_bhv_lang_python_142_a_required_argument_left_out_raises_a_type_error(
         self,
@@ -2825,11 +2831,15 @@ class TestIntegerBackedEnum:
         assert result == Priority(2)
         assert isinstance(result, Priority)
 
-    def test_bhv_serializationobject_193_unknown_int_value_rejected(self) -> None:
+    def test_bhv_serializationobject_193_unknown_int_value_gives_the_catch_all_member(
+        self,
+    ) -> None:
         from petstore_client.models.priority import Priority
 
-        with pytest.raises(SerializationException):
+        assert (
             ObjectSerializer().deserialize("99", Priority)
+            is Priority.UNKNOWN_DEFAULT_OPEN_API
+        )
 
     def test_bhv_serializationobject_176_round_trip_preserves_member(self) -> None:
         from petstore_client.models.priority import Priority
@@ -2896,11 +2906,15 @@ class TestNonLowercaseStringEnum:
         result = ObjectSerializer().deserialize('"Available"', Availability)
         assert result == Availability("Available")
 
-    def test_bhv_serializationobject_059_unknown_value_rejected(self) -> None:
+    def test_bhv_serializationobject_059_unknown_value_gives_the_catch_all_member(
+        self,
+    ) -> None:
         from petstore_client.models.availability import Availability
 
-        with pytest.raises(SerializationException):
+        assert (
             ObjectSerializer().deserialize('"unavailable"', Availability)
+            is Availability.UNKNOWN_DEFAULT_OPEN_API
+        )
 
 
 class TestByteFormatBase64RoundTrip:

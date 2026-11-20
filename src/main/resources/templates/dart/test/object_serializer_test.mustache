@@ -881,7 +881,7 @@ void main() {
       expect(jsonDecode(serialize(decoded)), equals(wire));
     });
 
-    test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values and refuses an unknown one', () {
+    test('bhv serializationobject 024 an inline enum keeps its mixed-case wire values and gives the catch-all member for an unknown one', () {
       for (final wire in ['In-Stock', 'on-hold', 'OUT_OF_STOCK']) {
         final decoded =
             deserialize<EdgeCases>('{"phase":"$wire"}', EdgeCases.fromJson)!;
@@ -890,8 +890,8 @@ void main() {
             equals(<String, Object?>{'phase': wire}));
       }
       expect(
-        () => deserialize<EdgeCases>('{"phase":"in-stock"}', EdgeCases.fromJson),
-        throwsA(isA<SerializationException>()),
+        deserialize<EdgeCases>('{"phase":"in-stock"}', EdgeCases.fromJson)!.phase,
+        equals(EdgeCasesPhaseEnum.unknownDefaultOpenApi),
       );
     });
 
@@ -2642,9 +2642,9 @@ void main() {
       expect(Defaults.fromJson({'swatch': 'green'}).swatch, equals(Swatch.green));
     });
 
-    test('bhv serialization 004 a generated enum refuses any value outside its declared members', () {
-      expect(() => Defaults.fromJson({'swatch': 'purple'}),
-          throwsA(isA<ArgumentError>()));
+    test('bhv serialization 004 a generated enum gives the catch-all member for any value outside its declared members', () {
+      expect(Defaults.fromJson({'swatch': 'purple'}).swatch,
+          equals(Swatch.unknownDefaultOpenApi));
     });
 
     group('native value formats', () {
@@ -2862,10 +2862,10 @@ void main() {
       expect(order?.trackingId.toString(), equals('0f8fad5b-d9cb-469f-a165-70867728950e'));
     });
 
-    test('bhv serialization 105 an enum value with the wrong case raises a serialization error', () {
+    test('bhv serialization 105 an enum value with the wrong case gives the catch-all member', () {
       expect(
-        () => deserialize<Order>('{"status":"PLACED"}', Order.fromJson),
-        throwsA(isA<SerializationException>()),
+        deserialize<Order>('{"status":"PLACED"}', Order.fromJson)!.status,
+        equals(OrderStatusEnum.unknownDefaultOpenApi),
       );
     });
 

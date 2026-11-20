@@ -1353,7 +1353,7 @@ void main() {
     );
 
     test(
-      'bhv serializationobject 024 an inline enum keeps its mixed-case wire values and refuses an unknown one',
+      'bhv serializationobject 024 an inline enum keeps its mixed-case wire values and gives the catch-all member for an unknown one',
       () {
         for (final wire in ['In-Stock', 'on-hold', 'OUT_OF_STOCK']) {
           final decoded = deserialize<EdgeCases>(
@@ -1367,11 +1367,11 @@ void main() {
           );
         }
         expect(
-          () => deserialize<EdgeCases>(
+          deserialize<EdgeCases>(
             '{"phase":"in-stock"}',
             EdgeCases.fromJson,
-          ),
-          throwsA(isA<SerializationException>()),
+          )!.phase,
+          equals(EdgeCasesPhaseEnum.unknownDefaultOpenApi),
         );
       },
     );
@@ -4175,11 +4175,11 @@ void main() {
     );
 
     test(
-      'bhv serialization 004 a generated enum refuses any value outside its declared members',
+      'bhv serialization 004 a generated enum gives the catch-all member for any value outside its declared members',
       () {
         expect(
-          () => Defaults.fromJson({'swatch': 'purple'}),
-          throwsA(isA<ArgumentError>()),
+          Defaults.fromJson({'swatch': 'purple'}).swatch,
+          equals(Swatch.unknownDefaultOpenApi),
         );
       },
     );
@@ -4604,11 +4604,11 @@ void main() {
     );
 
     test(
-      'bhv serialization 105 an enum value with the wrong case raises a serialization error',
+      'bhv serialization 105 an enum value with the wrong case gives the catch-all member',
       () {
         expect(
-          () => deserialize<Order>('{"status":"PLACED"}', Order.fromJson),
-          throwsA(isA<SerializationException>()),
+          deserialize<Order>('{"status":"PLACED"}', Order.fromJson)!.status,
+          equals(OrderStatusEnum.unknownDefaultOpenApi),
         );
       },
     );

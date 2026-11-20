@@ -825,13 +825,20 @@ defmodule PetstoreClient.ObjectSerializerTest do
     end
 
     test "bhv serializationobject 076 the member name is not accepted as a wire value" do
+      decoded = PetstoreClient.ObjectSerializer.deserialize(~s({"phase":"on_hold"}), "EdgeCases")
+
+      assert decoded.phase == :unknown_default_open_api
+    end
+
+    test "bhv serializationobject 078 the catch-all member of an inline enum is refused when written" do
       err =
         assert_raise PetstoreClient.Errors.SerializationError, fn ->
-          PetstoreClient.ObjectSerializer.deserialize(~s({"phase":"on_hold"}), "EdgeCases")
+          PetstoreClient.ObjectSerializer.serialize(%PetstoreClient.Models.EdgeCases{
+            phase: :unknown_default_open_api
+          })
         end
 
-      assert err.message ==
-               ~s(Unknown enum value "on_hold"; allowed values: ["In-Stock", "on-hold", "OUT_OF_STOCK"])
+      assert err.message =~ "Unknown enum value"
     end
   end
 

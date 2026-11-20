@@ -3394,12 +3394,12 @@ class ObjectSerializerTest {
       assertEquals(
           com.example.petstore.models.Availability.SOLD,
           com.example.petstore.models.Availability.fromValue("Sold"));
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> com.example.petstore.models.Availability.fromValue("Gone"));
-      assertThrows(
-          SerializationException.class,
-          () -> serializer.deserialize("\"Gone\"", com.example.petstore.models.Availability.class));
+      assertEquals(
+          com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API,
+          com.example.petstore.models.Availability.fromValue("Gone"));
+      assertEquals(
+          com.example.petstore.models.Availability.UNKNOWN_DEFAULT_OPEN_API,
+          serializer.deserialize("\"Gone\"", com.example.petstore.models.Availability.class));
     }
 
     @Test

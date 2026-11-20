@@ -1408,14 +1408,14 @@ describe('ObjectSerializer', () => {
       expect(item.priority).toBe(2);
     });
 
-    test('bhv serializationobject 030 builds a model with an out-of-range integer and rejects it when decoded', () => {
+    test('bhv serializationobject 030 builds a model with an out-of-range integer and decodes it to the catch-all member', () => {
       expect(() => new StockItem({ priority: 99 as unknown as Priority })).not.toThrow();
-      expect(() => ObjectSerializer.deserialize({ priority: 99 }, StockItem)).toThrow(SerializationError);
+      expect(ObjectSerializer.deserialize({ priority: 99 }, StockItem)!.priority).toBe(Priority.UNKNOWN_DEFAULT_OPEN_API);
     });
 
-    test('bhv serializationobject 193 an unknown integer enum value is rejected on decode', () => {
+    test('bhv serializationobject 193 an unknown integer enum value decodes to the catch-all member', () => {
       for (const priority of [0, 4, 99]) {
-        expect(() => ObjectSerializer.deserialize({ priority }, StockItem)).toThrow(SerializationError);
+        expect(ObjectSerializer.deserialize({ priority }, StockItem)!.priority).toBe(Priority.UNKNOWN_DEFAULT_OPEN_API);
       }
     });
   });
@@ -2052,10 +2052,10 @@ describe('ObjectSerializer', () => {
       expect(hyphen!.availability).toBe(Availability.OnHold);
     });
 
-    test('bhv serializationobject 059 deserialize rejects an unknown availability wire value', () => {
-      expect(() =>
-        ObjectSerializer.deserialize({ priority: 1, availability: 'available' }, StockItem),
-      ).toThrow(SerializationError);
+    test('bhv serializationobject 059 deserialize gives the catch-all member for an unknown availability wire value', () => {
+      expect(
+        ObjectSerializer.deserialize({ priority: 1, availability: 'available' }, StockItem)!.availability,
+      ).toBe(Availability.UNKNOWN_DEFAULT_OPEN_API);
     });
 
     test('bhv serializationobject 176 round-trip preserves the member through serialize then deserialize', () => {

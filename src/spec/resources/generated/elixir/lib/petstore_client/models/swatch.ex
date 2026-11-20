@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Swatch do
   string form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Swatch."
-  @type t :: :red | :green | :blue | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for Swatch."
+  @type declared :: :red | :green | :blue
+
+  @typedoc "One of the allowed enum atoms for Swatch, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc "Enum value `red`"
   def red, do: :red
 
@@ -29,13 +32,13 @@ defmodule PetstoreClient.Models.Swatch do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [red(), green(), blue()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: String.t()
+  @spec value(declared()) :: String.t()
   def value(:red), do: "red"
   def value(:green), do: "green"
   def value(:blue), do: "blue"
@@ -49,7 +52,7 @@ defmodule PetstoreClient.Models.Swatch do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value("red"), do: :red
   def from_value("green"), do: :green
   def from_value("blue"), do: :blue

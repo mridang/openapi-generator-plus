@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Availability do
   string form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Availability."
-  @type t :: :available | :sold | :on_hold | :oclock | :a_b | :eq | :x | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for Availability."
+  @type declared :: :available | :sold | :on_hold | :oclock | :a_b | :eq | :x
+
+  @typedoc "One of the allowed enum atoms for Availability, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc "Enum value `available`"
   def available, do: :available
 
@@ -41,13 +44,13 @@ defmodule PetstoreClient.Models.Availability do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [available(), sold(), on_hold(), oclock(), a_b(), eq(), x()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: String.t()
+  @spec value(declared()) :: String.t()
   def value(:available), do: "Available"
   def value(:sold), do: "Sold"
   def value(:on_hold), do: "on-hold"
@@ -65,7 +68,7 @@ defmodule PetstoreClient.Models.Availability do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value("Available"), do: :available
   def from_value("Sold"), do: :sold
   def from_value("on-hold"), do: :on_hold

@@ -1755,7 +1755,6 @@ func TestBhvSerializationobject077_ObjectSerializer_Deserialize_WireShapeFailure
 		target func() any
 	}{
 		"wrong primitive type":    {`{"name":7,"photoUrls":[]}`, func() any { return &models.Pet{} }},
-		"unknown enum":            {`{"status":"lost"}`, func() any { return &models.Order{} }},
 		"missing required field":  {`{"photoUrls":[]}`, func() any { return &models.Pet{} }},
 		"null required field":     {`{"name":null,"photoUrls":[]}`, func() any { return &models.Pet{} }},
 		"malformed date-time":     {`{"shipDate":"not-a-date"}`, func() any { return &models.Order{} }},
@@ -2301,11 +2300,14 @@ func TestBhvSerializationobject092_ObjectSerializer_PriorityEnum_DeserializesFro
 	}
 }
 
-func TestBhvSerializationobject193_ObjectSerializer_PriorityEnum_RejectsUnknownNumber(t *testing.T) {
+func TestBhvSerializationobject193_ObjectSerializer_PriorityEnum_GivesTheCatchAllMemberForAnUnknownNumber(t *testing.T) {
 	t.Parallel()
 	var p models.Priority
-	if err := deserialize([]byte("99"), &p); err == nil {
-		t.Fatal("expected an error deserializing an undeclared integer enum value 99")
+	if err := deserialize([]byte("99"), &p); err != nil {
+		t.Fatalf("expected the undeclared integer enum value 99 to decode, got %v", err)
+	}
+	if p != models.PriorityUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %d", p)
 	}
 }
 
@@ -2398,9 +2400,12 @@ func TestBhvSerializationobject022_ObjectSerializer_EdgeCases_InlinePhaseEnumRou
 			t.Errorf("expected %s on the wire, got %s", wire, data)
 		}
 	}
-	var rejected models.EdgeCases
-	if err := deserialize([]byte(`{"phase":"in-stock"}`), &rejected); err == nil {
-		t.Error("expected an undeclared phase spelling to be rejected")
+	var other models.EdgeCases
+	if err := deserialize([]byte(`{"phase":"in-stock"}`), &other); err != nil {
+		t.Fatalf("expected an undeclared phase spelling to decode, got %v", err)
+	}
+	if other.Phase == nil || *other.Phase != models.EdgeCasesPhaseEnumUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %v", other.Phase)
 	}
 }
 
@@ -2527,11 +2532,14 @@ func TestBhvSerializationobject069_ObjectSerializer_AvailabilityEnum_Deserialize
 	}
 }
 
-func TestBhvSerializationobject059_ObjectSerializer_AvailabilityEnum_RejectsUnknownValue(t *testing.T) {
+func TestBhvSerializationobject059_ObjectSerializer_AvailabilityEnum_GivesTheCatchAllMemberForAnUnknownValue(t *testing.T) {
 	t.Parallel()
 	var a models.Availability
-	if err := deserialize([]byte("\"available\""), &a); err == nil {
-		t.Fatal("expected an error for the undeclared (wrong-cased) value \"available\"")
+	if err := deserialize([]byte("\"available\""), &a); err != nil {
+		t.Fatalf("expected the undeclared (wrong-cased) value to decode, got %v", err)
+	}
+	if a != models.AvailabilityUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %q", a)
 	}
 }
 
@@ -3326,13 +3334,14 @@ func TestBhvSerializationobject018_ObjectSerializer_Serialize_WriteOnlyPropertyI
 }
 
 // An inline enum rejects a value that is not one of its declared wire values.
-func TestBhvSerializationobject024_ObjectSerializer_EdgeCases_UnknownInlineEnumValueIsRejected(t *testing.T) {
+func TestBhvSerializationobject024_ObjectSerializer_EdgeCases_UnknownInlineEnumValueDecodesToTheCatchAllMember(t *testing.T) {
 	t.Parallel()
 	var model models.EdgeCases
-	err := deserialize([]byte(`{"phase":"Gone"}`), &model)
-	var serErr *SerializationError
-	if !errors.As(err, &serErr) {
-		t.Errorf("expected *SerializationError, got %T: %v", err, err)
+	if err := deserialize([]byte(`{"phase":"Gone"}`), &model); err != nil {
+		t.Fatalf("expected the value to decode, got %v", err)
+	}
+	if model.Phase == nil || *model.Phase != models.EdgeCasesPhaseEnumUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %v", model.Phase)
 	}
 }
 
@@ -4417,14 +4426,16 @@ func TestBhvSerialization104_ObjectSerializer_AUuidIsLowercaseOnTheWireAndInMemo
 }
 
 // An enum value outside the declared members, including a wrong-case match of a declared member, raises a serialization error.
-func TestBhvSerialization105_ObjectSerializer_AnUndeclaredEnumValueIsRefused(t *testing.T) {
+func TestBhvSerialization105_ObjectSerializer_AnUndeclaredEnumValueGivesTheCatchAllMember(t *testing.T) {
 	t.Parallel()
 	for _, payload := range []string{`{"priority":1,"availability":"sold"}`, `{"priority":1,"availability":"not-a-member"}`} {
 		var item models.StockItem
-		err := deserialize([]byte(payload), &item)
-		var serErr *SerializationError
-		if !errors.As(err, &serErr) {
-			t.Errorf("%s: expected a *SerializationError, got %T: %v", payload, err, err)
+		if err := deserialize([]byte(payload), &item); err != nil {
+			t.Errorf("%s: expected the value to decode, got %v", payload, err)
+			continue
+		}
+		if item.Availability == nil || *item.Availability != models.AvailabilityUnknownDefaultOpenApi {
+			t.Errorf("%s: expected the catch-all member, got %v", payload, item.Availability)
 		}
 	}
 }
@@ -4820,10 +4831,11 @@ func TestBhvEnums008_ObjectSerializer_OnlyTheWireValueIsOnTheWire(t *testing.T) 
 		t.Errorf("expected the wire value, got %s (%v)", data, err)
 	}
 	var item models.Subscription
-	err = deserialize([]byte(`{"rank":1,"tier":"Medium"}`), &item)
-	var serializationError *SerializationError
-	if !errors.As(err, &serializationError) || !strings.Contains(err.Error(), "Medium") {
-		t.Errorf("expected a SerializationError naming Medium, got %v", err)
+	if err = deserialize([]byte(`{"rank":1,"tier":"Medium"}`), &item); err != nil {
+		t.Fatalf("expected the supplied name to decode, got %v", err)
+	}
+	if item.Tier == nil || *item.Tier != models.TierUnknownDefaultOpenApi {
+		t.Errorf("expected the catch-all member, got %v", item.Tier)
 	}
 }
 

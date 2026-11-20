@@ -2341,7 +2341,7 @@ mod tests {
     fn test_bhv_serializationobject_172_unknown_enum_value_decodes_to_the_catch_all_variant() {
         assert_eq!(
             object_serializer::deserialize::<crate::models::Separator>(br#""banana""#).expect("decodes"),
-            crate::models::Separator::UnknownDefaultOpenApi
+            Some(crate::models::Separator::UnknownDefaultOpenApi)
         );
     }
 
@@ -2349,7 +2349,7 @@ mod tests {
     fn test_bhv_serializationobject_182_unknown_enum_value_on_deserialize_gives_the_catch_all_variant() {
         let decoded = object_serializer::deserialize::<crate::models::Separator>(br#""teleported""#)
             .expect("an enum value outside the schema decodes to the catch-all variant");
-        assert_eq!(decoded, crate::models::Separator::UnknownDefaultOpenApi);
+        assert_eq!(decoded, Some(crate::models::Separator::UnknownDefaultOpenApi));
     }
 
     #[test]

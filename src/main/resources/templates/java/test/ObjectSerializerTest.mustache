@@ -2885,12 +2885,10 @@ class ObjectSerializerTest {
     @Test
     void bhvSerialization004EnumRefusesAValueOutsideItsMembers() {
         assertEquals({{modelPackage}}.Availability.SOLD, {{modelPackage}}.Availability.fromValue("Sold"));
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> {{modelPackage}}.Availability.fromValue("Gone"));
-        assertThrows(
-                SerializationException.class,
-                () -> serializer.deserialize("\"Gone\"", {{modelPackage}}.Availability.class));
+        assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API,
+                {{modelPackage}}.Availability.fromValue("Gone"));
+        assertEquals({{modelPackage}}.Availability.UNKNOWN_DEFAULT_OPEN_API,
+                serializer.deserialize("\"Gone\"", {{modelPackage}}.Availability.class));
     }
 
     @Test

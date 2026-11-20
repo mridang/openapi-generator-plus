@@ -14,8 +14,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   {{#isInteger}}integer{{/isInteger}}{{#isLong}}integer{{/isLong}}{{^isInteger}}{{^isLong}}string{{/isLong}}{{/isInteger}} form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for {{classname}}."
-  @type t :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}} | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for {{classname}}."
+  @type declared :: {{#allowableValues}}{{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}
+
+  @typedoc "One of the allowed enum atoms for {{classname}}, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
 {{#allowableValues}}
 {{#enumVars}}
 {{#enumDescription}}
@@ -34,13 +37,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [{{#allowableValues}}{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}{{/allowableValues}}]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: {{#isInteger}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isInteger}}{{#isLong}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
+  @spec value(declared()) :: {{#isInteger}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isInteger}}{{#isLong}}{{#allowableValues}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/allowableValues}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
 {{#allowableValues}}
 {{#enumVars}}
   def value(:"{{nameLowercase}}"), do: {{{value}}}
@@ -56,7 +59,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
 {{#allowableValues}}
 {{#enumVars}}
   def from_value({{{value}}}), do: :"{{nameLowercase}}"
@@ -460,8 +463,11 @@ defmodule {{moduleName}}.Models.{{classname}} do
   defmodule {{enumName}} do
     @moduledoc "Allowed values of {{classname}}.{{baseName}}"
 
-    @typedoc "One of the allowed enum atoms for {{classname}}.{{baseName}}."
-    @type t :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}} | :unknown_default_open_api
+    @typedoc "One of the declared enum atoms for {{classname}}.{{baseName}}."
+    @type declared :: {{#enumVars}}:"{{nameLowercase}}"{{^-last}} | {{/-last}}{{/enumVars}}
+
+    @typedoc "One of the allowed enum atoms for {{classname}}.{{baseName}}, or the catch-all `:unknown_default_open_api`."
+    @type t :: declared() | :unknown_default_open_api
 {{#enumVars}}
 
 {{#enumDescription}}
@@ -479,13 +485,13 @@ defmodule {{moduleName}}.Models.{{classname}} do
     def unknown_default_open_api, do: :unknown_default_open_api
 
     @doc "All declared values as atoms; the catch-all member is not one of them."
-    @spec all_values() :: [t(), ...]
+    @spec all_values() :: [declared(), ...]
     def all_values do
       [{{#enumVars}}{{nameLowercase}}(){{^-last}}, {{/-last}}{{/enumVars}}]
     end
 
     @doc "Map an atom to its wire value."
-    @spec value(t()) :: {{#isInteger}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isInteger}}{{#isLong}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
+    @spec value(declared()) :: {{#isInteger}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isInteger}}{{#isLong}}{{#enumVars}}{{{value}}}{{^-last}} | {{/-last}}{{/enumVars}}{{/isLong}}{{^isInteger}}{{^isLong}}String.t(){{/isLong}}{{/isInteger}}
 {{#enumVars}}
     def value(:"{{nameLowercase}}"), do: {{{value}}}
 {{/enumVars}}
@@ -495,7 +501,7 @@ defmodule {{moduleName}}.Models.{{classname}} do
 
     Returns `{:error, value}` for an unrecognised wire value.
     """
-    @spec from_value(term()) :: t() | {:error, term()}
+    @spec from_value(term()) :: declared() | {:error, term()}
 {{#enumVars}}
     def from_value({{{value}}}), do: :"{{nameLowercase}}"
 {{/enumVars}}

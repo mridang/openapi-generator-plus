@@ -14,8 +14,11 @@ defmodule PetstoreClient.Models.Stage do
   string form via `value/1` when wire interop is needed.
   """
 
-  @typedoc "One of the allowed enum atoms for Stage."
-  @type t :: :on_hold | :active | :active2 | :unknown_default_open_api
+  @typedoc "One of the declared enum atoms for Stage."
+  @type declared :: :on_hold | :active | :active2
+
+  @typedoc "One of the allowed enum atoms for Stage, or the catch-all `:unknown_default_open_api`."
+  @type t :: declared() | :unknown_default_open_api
   @doc """
   Waiting.
   """
@@ -33,13 +36,13 @@ defmodule PetstoreClient.Models.Stage do
   def unknown_default_open_api, do: :unknown_default_open_api
 
   @doc "All declared values as atoms; the catch-all member is not one of them."
-  @spec all_values() :: [t(), ...]
+  @spec all_values() :: [declared(), ...]
   def all_values do
     [on_hold(), active(), active2()]
   end
 
   @doc "Map an atom to its wire string value."
-  @spec value(t()) :: String.t()
+  @spec value(declared()) :: String.t()
   def value(:on_hold), do: "paused"
   def value(:active), do: "active"
   def value(:active2), do: "live"
@@ -53,7 +56,7 @@ defmodule PetstoreClient.Models.Stage do
   raw string. Returns `{:error, value}` for an unrecognised wire value so
   the caller can raise instead of minting an arbitrary atom.
   """
-  @spec from_value(term()) :: t() | {:error, term()}
+  @spec from_value(term()) :: declared() | {:error, term()}
   def from_value("paused"), do: :on_hold
   def from_value("active"), do: :active
   def from_value("live"), do: :active2

@@ -15,8 +15,11 @@ defmodule PetstoreClient.Models.Subscription do
   defmodule IntervalEnum do
     @moduledoc "Allowed values of Subscription.interval"
 
-    @typedoc "One of the allowed enum atoms for Subscription.interval."
-    @type t :: :monthly | :yearly | :unknown_default_open_api
+    @typedoc "One of the declared enum atoms for Subscription.interval."
+    @type declared :: :monthly | :yearly
+
+    @typedoc "One of the allowed enum atoms for Subscription.interval, or the catch-all `:unknown_default_open_api`."
+    @type t :: declared() | :unknown_default_open_api
 
     @doc """
     Billed every month.
@@ -32,13 +35,13 @@ defmodule PetstoreClient.Models.Subscription do
     def unknown_default_open_api, do: :unknown_default_open_api
 
     @doc "All declared values as atoms; the catch-all member is not one of them."
-    @spec all_values() :: [t(), ...]
+    @spec all_values() :: [declared(), ...]
     def all_values do
       [monthly(), yearly()]
     end
 
     @doc "Map an atom to its wire value."
-    @spec value(t()) :: String.t()
+    @spec value(declared()) :: String.t()
     def value(:monthly), do: "month"
     def value(:yearly), do: "year"
 
@@ -47,7 +50,7 @@ defmodule PetstoreClient.Models.Subscription do
 
     Returns `{:error, value}` for an unrecognised wire value.
     """
-    @spec from_value(term()) :: t() | {:error, term()}
+    @spec from_value(term()) :: declared() | {:error, term()}
     def from_value("month"), do: :monthly
     def from_value("year"), do: :yearly
     def from_value(value), do: {:error, value}
