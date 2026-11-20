@@ -9,7 +9,7 @@ describe 'SKILLS' do
   def error_handling_example
     skills = File.read(File.join(File.expand_path('..', File.dirname(__FILE__)), 'SKILLS.md'))
     section = skills.split('## Error Handling', 2).last.to_s
-    section.match(/```ruby\n(.*?)```/m)&.captures&.first.to_s
+    section.match(/```ruby file\n(.*?)```/m)&.captures&.first.to_s
   end
 
   it 'bhv_langruby_080 defines the Error Handling example as a method taking the operation arguments' do

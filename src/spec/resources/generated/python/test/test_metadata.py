@@ -462,13 +462,22 @@ class TestReadmeAndSkillsText:
     ) -> None:
         skills = self._read("SKILLS.md")
         section = skills.split("## Error Handling", 1)[1].split("\n## ", 1)[0]
-        block = section.split("```python\n", 1)[1].split("```", 1)[0]
+        block = section.split("```python file\n", 1)[1].split("```", 1)[0]
         tree = ast.parse(block)
+        functions = [
+            node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
+        ]
+        assert len(functions) == 1
+        parameters = [argument.arg for argument in functions[0].args.args]
+        assert parameters[0] == "client"
         awaits = [node for node in ast.walk(tree) if isinstance(node, ast.Await)]
         assert len(awaits) == 1
-        assert (
-            ast.unparse(awaits[0].value) == "client.pet.add_pet(Pet.model_construct())"
-        )
+        call = awaits[0].value
+        assert isinstance(call, ast.Call)
+        assert ast.unparse(call.func).startswith("client.")
+        passed = [ast.unparse(argument) for argument in call.args]
+        passed += [ast.unparse(keyword.value) for keyword in call.keywords]
+        assert passed == parameters[1:]
         for node in tree.body:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 exec(
@@ -477,6 +486,79 @@ class TestReadmeAndSkillsText:
                     ),
                     {},
                 )
+
+    @staticmethod
+    def _fences(text: str) -> list[tuple[str, str]]:
+        import re
+
+        pattern = re.compile(r"^```(python[^\n]*)\n(.*?)^```", re.S | re.M)
+        return [(match.group(1), match.group(2)) for match in pattern.finditer(text)]
+
+    def test_bhv_lang_python_210_the_quickstart_builds_a_client_calls_an_operation_and_closes_it(
+        self,
+    ) -> None:
+        quickstart = self._read("examples/quickstart.py")
+        assert "asyncio.run(main())" in quickstart
+        assert "Client.with_token(" in quickstart
+        assert " as client:" in quickstart
+        assert "await client.store.get_defaults(" in quickstart
+
+    def test_bhv_lang_python_211_the_quickstart_reads_the_host_and_the_token_from_the_environment(
+        self,
+    ) -> None:
+        quickstart = self._read("examples/quickstart.py")
+        readme = self._read("README.md")
+        for name in (
+            "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL",
+            "SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN",
+        ):
+            assert f'os.environ["{name}"]' in quickstart
+            assert name in readme
+        assert "your-token" not in quickstart
+
+    def test_bhv_lang_python_212_the_usage_fence_and_the_quickstart_hold_the_same_statements(
+        self,
+    ) -> None:
+        readme = self._read("README.md")
+        quickstart = self._read("examples/quickstart.py")
+        usage = readme.split("\n## Usage\n", 1)[1].split("\n## ", 1)[0]
+        fences = self._fences(usage)
+        assert fences
+        position = 0
+        for line in fences[0][1].splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith(("import ", "from ")):
+                continue
+            found = quickstart.find(stripped, position)
+            assert found >= 0, stripped
+            position = found + len(stripped)
+
+    def test_bhv_lang_python_213_every_python_fence_declares_its_kind(self) -> None:
+        for name in ("README.md", "SKILLS.md"):
+            for info, _ in self._fences(self._read(name)):
+                assert info in ("python file", "python statements"), (name, info)
+
+    def test_bhv_lang_python_214_no_python_fence_holds_a_placeholder_or_a_model_built_from_nothing(
+        self,
+    ) -> None:
+        for name in ("README.md", "SKILLS.md"):
+            for _, body in self._fences(self._read(name)):
+                for line in body.splitlines():
+                    stripped = line.strip()
+                    assert stripped not in ("...", "# ..."), (name, line)
+                    assert not (stripped.startswith("<") and stripped.endswith(">")), (
+                        name,
+                        line,
+                    )
+                    assert "model_construct(" not in line, (name, line)
+
+    def test_bhv_lang_python_215_the_makefile_has_an_examples_target_that_checks_the_examples_directory(
+        self,
+    ) -> None:
+        makefile = self._read("Makefile")
+        assert "\nexamples: install\n" in makefile
+        assert "\nexamples-run: install\n" in makefile
+        assert "mypy examples/" in makefile
 
 
 class TestOptionsImmutability:
@@ -784,6 +866,13 @@ class TestEveryOperationTakesOptions:
         (
             "petstore_client.api.store_api",
             "StoreApi",
+            "export_orders",
+            "ExportOrdersOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
             "get_by_swatch",
             "GetBySwatchOptions",
             False,
@@ -898,6 +987,20 @@ class TestEveryOperationTakesOptions:
             "StoreApi",
             "search_store",
             "SearchStoreOptions",
+            False,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "watch_notices",
+            "WatchNoticesOptions",
+            True,
+        ),
+        (
+            "petstore_client.api.store_api",
+            "StoreApi",
+            "watch_orders",
+            "WatchOrdersOptions",
             False,
         ),
     ]

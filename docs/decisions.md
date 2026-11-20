@@ -82,6 +82,10 @@ A schema whose `additionalProperties` declares a value type (a string, an `int32
 
 The minimum version of each language is the oldest release that its maintainers still support, and it is written in the build manifest of the generated SDK (`pom.xml`, `build.gradle.kts`, the `.csproj`, `package.json`, `pyproject.toml`, the gemspec, `composer.json`, `go.mod`, `Cargo.toml`, `Package.swift`, `pubspec.yaml` and `mix.exs`). A generated README states the same floor as its manifest, and the language page for each SDK is the single place where the floor is explained. The generated READMEs describe how a floor moves: the Node.js, C# and Swift READMEs say that dropping a runtime is a major release, and the Ruby README says that dropping an end-of-life Ruby is a minor release. The current floors are in the table in the [README](../README.md#languages).
 
+## Examples are compiled
+
+Every code fence in a generated README or SKILLS file that is tagged with the SDK language is built by the SDK's own compiler or type checker in the test suite, and every SDK ships one complete program, `examples/quickstart`, that is built and run against the mock server. A fence is therefore self-contained: it declares its kind (`file` or `statements`) after the language, imports what it uses and builds no model from nothing. The oldest supported runtime of node, rust, elixir, python, kotlin and csharp is also exercised by running that SDK's test suite in its image.
+
 ## Out of scope
 
 These OpenAPI features are not supported: callbacks and webhooks, Link Objects, XML bodies and the `xml` object, and mutual TLS. Callbacks and links are ignored when the specification contains them. The reasons are in [What is not supported and why](#what-is-not-supported-and-why).

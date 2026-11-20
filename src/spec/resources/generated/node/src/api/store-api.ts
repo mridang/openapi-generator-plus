@@ -34,6 +34,7 @@ import type { GetBySwatchOptions } from "./options/get-by-swatch-options.js";
 import type { GetNativeValuesOptions } from "./options/get-native-values-options.js";
 import type { GetStockItemOptions } from "./options/get-stock-item-options.js";
 import type { SearchStoreOptions } from "./options/search-store-options.js";
+import type { WatchOrdersOptions } from "./options/watch-orders-options.js";
 
 /**
  * The contract of {@link StoreApi}: every operation of the Store API group and its
@@ -54,6 +55,10 @@ export interface StoreApiInterface {
     orderId: number,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<void>>;
+  exportOrders(requestOptions?: RequestOptions): Promise<Order>;
+  exportOrdersWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>>;
   getBySwatch(
     pathSwatch: Swatch,
     options?: GetBySwatchOptions,
@@ -160,6 +165,18 @@ export interface StoreApiInterface {
     options?: SearchStoreOptions,
     requestOptions?: RequestOptions,
   ): Promise<ApiResult<Array<Order>>>;
+  watchNotices(requestOptions?: RequestOptions): Promise<string>;
+  watchNoticesWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<string>>;
+  watchOrders(
+    options?: WatchOrdersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Order>;
+  watchOrdersWithHttpInfo(
+    options?: WatchOrdersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>>;
 }
 
 /**
@@ -307,6 +324,61 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "deleteOrder",
       "/store/order/{orderId}",
+    );
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return Order
+   * @throws {ApiError} if fails to make API call
+   */
+  async exportOrders(requestOptions?: RequestOptions): Promise<Order> {
+    const exportOrdersResult =
+      await this.exportOrdersWithHttpInfo(requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (exportOrdersResult.data == null) {
+      throw new ApiError(
+        exportOrdersResult.statusCode,
+        "Expected a response body for exportOrders but received none",
+        exportOrdersResult.headers,
+        exportOrdersResult.rawBody,
+        null,
+      );
+    }
+    return exportOrdersResult.data as Order;
+  }
+
+  /**
+   * Exports every order as JSON Lines (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async exportOrdersWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>> {
+    const path = `/store/orders/export`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["application/x-ndjson"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      NO_AUTH,
+      false,
+      "model",
+      "exportOrders",
+      requestOptions,
+      undefined,
+      "exportOrders",
+      "/store/orders/export",
     );
   }
 
@@ -1556,6 +1628,138 @@ export class StoreApi extends BaseApi implements StoreApiInterface {
       undefined,
       "searchStore",
       "/store/search",
+    );
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return string
+   * @throws {ApiError} if fails to make API call
+   */
+  async watchNotices(requestOptions?: RequestOptions): Promise<string> {
+    const watchNoticesResult =
+      await this.watchNoticesWithHttpInfo(requestOptions);
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (watchNoticesResult.data == null) {
+      throw new ApiError(
+        watchNoticesResult.statusCode,
+        "Expected a response body for watchNotices but received none",
+        watchNoticesResult.headers,
+        watchNoticesResult.rawBody,
+        null,
+      );
+    }
+    return watchNoticesResult.data as string;
+  }
+
+  /**
+   * Streams plain text notices as server-sent events (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async watchNoticesWithHttpInfo(
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<string>> {
+    const path = `/store/notices`;
+    const queryParams: Record<string, unknown> = {};
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["text/event-stream"],
+      "application/json",
+      (json: unknown) => json as string,
+      NO_AUTH,
+      false,
+      "string",
+      "watchNotices",
+      requestOptions,
+      undefined,
+      "watchNotices",
+      "/store/notices",
+    );
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   * @param options options for query, header, form, and cookie parameters
+   * @param options.status  (optional)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @return Order
+   * @throws {ApiError} if fails to make API call
+   */
+  async watchOrders(
+    options?: WatchOrdersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<Order> {
+    const watchOrdersResult = await this.watchOrdersWithHttpInfo(
+      options,
+      requestOptions,
+    );
+    /* convenience-empty-body-handling: a body-returning operation that
+     * receives no decodable body (204 / empty / null) must surface a
+     * typed ApiError, never a silently-cast `undefined`. */
+    if (watchOrdersResult.data == null) {
+      throw new ApiError(
+        watchOrdersResult.statusCode,
+        "Expected a response body for watchOrders but received none",
+        watchOrdersResult.headers,
+        watchOrdersResult.rawBody,
+        null,
+      );
+    }
+    return watchOrdersResult.data as Order;
+  }
+
+  /**
+   * Streams order changes as server-sent events (with HTTP info)
+   * @param requestOptions optional per-call options: `signal` cancels this call, `timeout`, `maxRetries` and `headers` apply to this call only
+   * @throws {ApiError} if fails to make API call
+   */
+  async watchOrdersWithHttpInfo(
+    options?: WatchOrdersOptions,
+    requestOptions?: RequestOptions,
+  ): Promise<ApiResult<Order>> {
+    const path = `/store/orders/events`;
+    const queryParams: Record<string, unknown> = {};
+    if (options?.status != null) {
+      queryParams["status"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "status",
+          options.status,
+          "query",
+          "string",
+          null,
+          "form",
+          true,
+        ),
+        false,
+      );
+    }
+    const headerParams: Record<string, string> = {};
+    return await this.invokeApiForResult(
+      "GET",
+      path,
+      queryParams,
+      headerParams,
+      null,
+      ["text/event-stream"],
+      "application/json",
+      (json: unknown) => ObjectSerializer.deserialize(json, Order)!,
+      NO_AUTH,
+      false,
+      "model",
+      "watchOrders",
+      requestOptions,
+      undefined,
+      "watchOrders",
+      "/store/orders/events",
     );
   }
 }

@@ -249,6 +249,87 @@ impl StoreApi {
         self.base.invoke_api_for_empty_result(params).await
     }
 
+    /// Exports every order as JSON Lines
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn export_orders(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.export_orders_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for export_orders but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the export_orders operation and returns the full API result.
+    pub async fn export_orders_with_http_info(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.export_orders_invoke(options, "application/json").await
+    }
+
+    /// Shared implementation for the export_orders operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn export_orders_invoke(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/orders/export".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.export_orders",
+            method: "GET",
+            path: &path,
+            operation_id: "exportOrders",
+            url_template: "/store/orders/export",
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["application/x-ndjson"],
+            content_type: request_content_type,
+            return_type: "Order",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Order>(params).await
+    }
+
     /// Echoes a swatch supplied via path, query and header parameters.
     /// * `options`: Options for query, header, form, and cookie parameters.
     pub async fn get_by_swatch(
@@ -2045,6 +2126,198 @@ impl StoreApi {
 
         self.base.invoke_api_for_result::<Vec<Order>>(params).await
     }
+
+    /// Streams plain text notices as server-sent events
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn watch_notices(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.watch_notices_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for watch_notices but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the watch_notices operation and returns the full API result.
+    pub async fn watch_notices_with_http_info(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.watch_notices_invoke(options, "application/json").await
+    }
+
+    /// Shared implementation for the watch_notices operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn watch_notices_invoke(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/notices".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.watch_notices",
+            method: "GET",
+            path: &path,
+            operation_id: "watchNotices",
+            url_template: "/store/notices",
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["text/event-stream"],
+            content_type: request_content_type,
+            return_type: "String",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<String>(params).await
+    }
+
+    /// Streams order changes as server-sent events
+    /// * `options`: Options for query, header, form, and cookie parameters.
+    pub async fn watch_orders(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> Result<Order, Box<dyn std::error::Error + Send + Sync>> {
+        let result = self.watch_orders_with_http_info(options).await?;
+        /* convenience-empty-body-handling: a body-returning operation that
+         * receives no decodable body must surface the SDK's typed ApiError
+         * (not a silent null / zero value), matching the other SDKs. */
+        let status_code = result.status_code();
+        let raw_body = result.raw_body().to_string();
+        let headers = result.headers().clone();
+        match result.into_data() {
+            Some(data) => Ok(data),
+            None => Err(Box::new(ApiError::new(
+                status_code,
+                "Expected a response body for watch_orders but received none".to_string(),
+                Some(headers),
+                Some(raw_body),
+            )) as Box<dyn std::error::Error + Send + Sync>),
+        }
+    }
+
+    /// Performs the watch_orders operation and returns the full API result.
+    pub async fn watch_orders_with_http_info(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        /* The shared implementation below takes the resolved Content-Type as an
+         * argument. The first declared request content-type,
+         * application/json, is the default
+         * and this operation declares no alternative to select. */
+        self.watch_orders_invoke(options, "application/json").await
+    }
+
+    /// Shared implementation for the watch_orders operation. The resolved
+    /// request Content-Type is taken as an argument so the public entry points
+    /// can either default to the first declared content-type or honour an
+    /// explicit selection.
+    async fn watch_orders_invoke(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+
+        request_content_type: &str,
+    ) -> Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut path = "/store/orders/events".to_string();
+
+        let mut query_params: Vec<(String, String, bool)> = Vec::new();
+        if let Some(opts) = options {
+            if let Some(ref val) = opts.status {
+                let object_pairs = object_serializer::object_query_pairs(val, "form", true)?;
+                if let Some(pairs) = object_pairs {
+                    for (k, v) in pairs {
+                        query_params.push((k, v, false));
+                    }
+                } else if let Some(serialized) = value_serializer::serialize_styled(
+                    "status",
+                    Some(&object_serializer::stringify_param(val, "form", true)?),
+                    None,
+                    "query",
+                    "String",
+                    "",
+                    "form",
+                    true,
+                ) {
+                    match serialized {
+                        SerializedValue::Single(v) => {
+                            query_params.push(("status".to_string(), v, false));
+                        }
+                        SerializedValue::Multi(values) => {
+                            for v in values {
+                                query_params.push(("status".to_string(), v, false));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut header_params: HashMap<String, String> = HashMap::new();
+
+        let request_body: Option<Vec<u8>> = None;
+        let multipart: Option<Vec<(String, MultipartValue)>> = None;
+
+        let params = InvokeApiParams {
+            operation: "StoreApi.watch_orders",
+            method: "GET",
+            path: &path,
+            operation_id: "watchOrders",
+            url_template: "/store/orders/events",
+            query_params,
+            header_params,
+            body: request_body,
+            multipart,
+            accepts: vec!["text/event-stream"],
+            content_type: request_content_type,
+            return_type: "Order",
+            call: options.map(|o| o.call_options()).unwrap_or_default(),
+            error_schemas: &[],
+            /* security-none suppression: this operation is declared
+             * `security: []` (explicitly unauthenticated). Pass the no-auth
+             * sentinel — NOT None — so BaseApi suppresses auth entirely rather
+             * than falling back to the client-level authenticator, which would
+             * leak the client credential on reflect-style endpoints. */
+            auth: Some(crate::api::base_api::no_auth_sentinel()),
+        };
+
+        self.base.invoke_api_for_result::<Order>(params).await
+    }
 }
 
 /// The contract of [`StoreApi`]: every operation of the Store API group and its
@@ -2072,6 +2345,14 @@ pub trait StoreApiTrait {
         order_id: i64,
         options: Option<&DeleteOrderOptions>,
     ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn export_orders(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    fn export_orders_with_http_info(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
     fn get_by_swatch(
         &self,
         path_swatch: Swatch,
@@ -2258,6 +2539,22 @@ pub trait StoreApiTrait {
         &self,
         options: Option<&SearchStoreOptions>,
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn watch_notices(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>>;
+    fn watch_notices_with_http_info(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>;
+    fn watch_orders(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>>;
+    fn watch_orders_with_http_info(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>;
 }
 
 impl StoreApiTrait for StoreApi {
@@ -2291,6 +2588,20 @@ impl StoreApiTrait for StoreApi {
         options: Option<&DeleteOrderOptions>,
     ) -> impl Future<Output = Result<ApiResult<()>, Box<dyn std::error::Error + Send + Sync>>> {
         StoreApi::delete_order_with_http_info(self, order_id, options)
+    }
+    fn export_orders(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::export_orders(self, options)
+    }
+
+    fn export_orders_with_http_info(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::export_orders_with_http_info(self, options)
     }
     fn get_by_swatch(
         &self,
@@ -2575,5 +2886,33 @@ impl StoreApiTrait for StoreApi {
     ) -> impl Future<Output = Result<ApiResult<Vec<Order>>, Box<dyn std::error::Error + Send + Sync>>>
     {
         StoreApi::search_store_with_http_info(self, options)
+    }
+    fn watch_notices(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::watch_notices(self, options)
+    }
+
+    fn watch_notices_with_http_info(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::watch_notices_with_http_info(self, options)
+    }
+    fn watch_orders(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        StoreApi::watch_orders(self, options)
+    }
+
+    fn watch_orders_with_http_info(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        StoreApi::watch_orders_with_http_info(self, options)
     }
 }

@@ -18,6 +18,8 @@ public protocol StoreApiProtocol: Sendable {
   func deleteOrder(orderId: Int64, options: DeleteOrderOptions?) async throws
   func deleteOrderWithHTTPInfo(orderId: Int64, options: DeleteOrderOptions?) async throws
     -> ApiResult<Void>
+  func exportOrders(options: ExportOrdersOptions?) async throws -> Order
+  func exportOrdersWithHTTPInfo(options: ExportOrdersOptions?) async throws -> ApiResult<Order>
   func getBySwatch(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws -> Category
   func getBySwatchWithHTTPInfo(pathSwatch: Swatch, options: GetBySwatchOptions?) async throws
     -> ApiResult<Category>
@@ -71,6 +73,10 @@ public protocol StoreApiProtocol: Sendable {
   >
   func searchStore(options: SearchStoreOptions?) async throws -> [Order]
   func searchStoreWithHTTPInfo(options: SearchStoreOptions?) async throws -> ApiResult<[Order]>
+  func watchNotices(options: WatchNoticesOptions?) async throws -> String
+  func watchNoticesWithHTTPInfo(options: WatchNoticesOptions?) async throws -> ApiResult<String>
+  func watchOrders(options: WatchOrdersOptions?) async throws -> Order
+  func watchOrdersWithHTTPInfo(options: WatchOrdersOptions?) async throws -> ApiResult<Order>
 }
 
 extension StoreApiProtocol {
@@ -93,6 +99,16 @@ extension StoreApiProtocol {
   /// The `deleteOrderWithHTTPInfo` operation with every optional parameter left out.
   public func deleteOrderWithHTTPInfo(orderId: Int64) async throws -> ApiResult<Void> {
     try await deleteOrderWithHTTPInfo(orderId: orderId, options: nil)
+  }
+
+  /// The `exportOrders` operation with every optional parameter left out.
+  public func exportOrders() async throws -> Order {
+    try await exportOrders(options: nil)
+  }
+
+  /// The `exportOrdersWithHTTPInfo` operation with every optional parameter left out.
+  public func exportOrdersWithHTTPInfo() async throws -> ApiResult<Order> {
+    try await exportOrdersWithHTTPInfo(options: nil)
   }
 
   /// The `getBySwatch` operation with every optional parameter left out.
@@ -263,5 +279,25 @@ extension StoreApiProtocol {
   /// The `searchStoreWithHTTPInfo` operation with every optional parameter left out.
   public func searchStoreWithHTTPInfo() async throws -> ApiResult<[Order]> {
     try await searchStoreWithHTTPInfo(options: nil)
+  }
+
+  /// The `watchNotices` operation with every optional parameter left out.
+  public func watchNotices() async throws -> String {
+    try await watchNotices(options: nil)
+  }
+
+  /// The `watchNoticesWithHTTPInfo` operation with every optional parameter left out.
+  public func watchNoticesWithHTTPInfo() async throws -> ApiResult<String> {
+    try await watchNoticesWithHTTPInfo(options: nil)
+  }
+
+  /// The `watchOrders` operation with every optional parameter left out.
+  public func watchOrders() async throws -> Order {
+    try await watchOrders(options: nil)
+  }
+
+  /// The `watchOrdersWithHTTPInfo` operation with every optional parameter left out.
+  public func watchOrdersWithHTTPInfo() async throws -> ApiResult<Order> {
+    try await watchOrdersWithHTTPInfo(options: nil)
   }
 }

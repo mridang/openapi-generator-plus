@@ -580,6 +580,10 @@ describe 'Client' do
     _(listed).must_include 'delete_order_with_http_info'
     _(group).must_respond_to :delete_order
     _(group).must_respond_to :delete_order_with_http_info
+    _(listed).must_include 'export_orders'
+    _(listed).must_include 'export_orders_with_http_info'
+    _(group).must_respond_to :export_orders
+    _(group).must_respond_to :export_orders_with_http_info
     _(listed).must_include 'get_by_swatch'
     _(listed).must_include 'get_by_swatch_with_http_info'
     _(group).must_respond_to :get_by_swatch
@@ -648,6 +652,14 @@ describe 'Client' do
     _(listed).must_include 'search_store_with_http_info'
     _(group).must_respond_to :search_store
     _(group).must_respond_to :search_store_with_http_info
+    _(listed).must_include 'watch_notices'
+    _(listed).must_include 'watch_notices_with_http_info'
+    _(group).must_respond_to :watch_notices
+    _(group).must_respond_to :watch_notices_with_http_info
+    _(listed).must_include 'watch_orders'
+    _(listed).must_include 'watch_orders_with_http_info'
+    _(group).must_respond_to :watch_orders
+    _(group).must_respond_to :watch_orders_with_http_info
   end
 
   it 'bhv_mocking_002 the group interface lists exactly the public operations of the class' do

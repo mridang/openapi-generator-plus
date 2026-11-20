@@ -11,6 +11,7 @@ package com.example.petstore.api;
 import com.example.petstore.ApiResult;
 import com.example.petstore.api.options.CreateAccountOptions;
 import com.example.petstore.api.options.DeleteOrderOptions;
+import com.example.petstore.api.options.ExportOrdersOptions;
 import com.example.petstore.api.options.GetBySwatchOptions;
 import com.example.petstore.api.options.GetDefaultsOptions;
 import com.example.petstore.api.options.GetDepartmentOptions;
@@ -28,6 +29,8 @@ import com.example.petstore.api.options.GetTreeOptions;
 import com.example.petstore.api.options.PlaceOrderOptions;
 import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
+import com.example.petstore.api.options.WatchNoticesOptions;
+import com.example.petstore.api.options.WatchOrdersOptions;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Account;
 import com.example.petstore.models.Category;
@@ -159,6 +162,52 @@ public interface StoreApiInterface {
    * @throws com.example.petstore.errors.NotFoundException on HTTP 404
    */
   ApiResult<Void> deleteOrderWithHttpInfo(Long orderId, @Nullable DeleteOrderOptions options);
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  default Order exportOrders() {
+    return exportOrders(null);
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Order> exportOrdersWithHttpInfo() {
+    return exportOrdersWithHttpInfo(null);
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  Order exportOrders(@Nullable ExportOrdersOptions options);
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Order> exportOrdersWithHttpInfo(@Nullable ExportOrdersOptions options);
 
   /**
    * Echoes a swatch supplied via path, query and header parameters.
@@ -1009,4 +1058,96 @@ public interface StoreApiInterface {
    * @throws ApiException if fails to make API call
    */
   ApiResult<List<Order>> searchStoreWithHttpInfo(@Nullable SearchStoreOptions options);
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  default String watchNotices() {
+    return watchNotices(null);
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<String> watchNoticesWithHttpInfo() {
+    return watchNoticesWithHttpInfo(null);
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  String watchNotices(@Nullable WatchNoticesOptions options);
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<String> watchNoticesWithHttpInfo(@Nullable WatchNoticesOptions options);
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  default Order watchOrders() {
+    return watchOrders(null);
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  default ApiResult<Order> watchOrdersWithHttpInfo() {
+    return watchOrdersWithHttpInfo(null);
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  Order watchOrders(@Nullable WatchOrdersOptions options);
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  ApiResult<Order> watchOrdersWithHttpInfo(@Nullable WatchOrdersOptions options);
 }

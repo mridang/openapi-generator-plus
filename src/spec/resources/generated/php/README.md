@@ -42,14 +42,18 @@ composer require openapi/petstoreclient
 
 ## Usage
 
-```php
+```php statements
 use PetstoreClient\Client;
 
-$client = Client::withToken('https://api.example.com', 'your-token');
-
-/* $body is the \PetstoreClient\Models\Pet you want to send. */
-$result = $client->pet->addPet($body);
-$client->close();
+$host = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL is not set');
+$token = getenv('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN') ?: throw new \RuntimeException('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set');
+$client = Client::withToken($host, $token);
+try {
+    $result = $client->store->getDefaults();
+    print_r($result);
+} finally {
+    $client->close();
+}
 ```
 
 Closing the client is graceful: a request already sent finishes, every later request fails with a `\LogicException` (`client closed`), and only the transport the SDK built is released, never a client you supplied. Calling `close()` twice is harmless. Errors derive from `OpenAPIException`; `NetworkException` and `NetworkTimeoutException` mean no HTTP response arrived, and `TooManyRequestsException` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
@@ -66,7 +70,7 @@ Every operation has a `...WithHttpInfo` variant returning an `ApiResult` with th
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions::builder()->maxRetries()` sets how many times (default 2, so up to three attempts); `maxRetries(0)` disables retrying.
 
-```php
+```php statements
 use PetstoreClient\TransportOptions;
 
 $transport = TransportOptions::builder()->maxRetries(4)->build();
@@ -82,8 +86,14 @@ When an OAuth2 or OpenID Connect call is answered with 401, the cached access to
 
 Every operation takes an options object as its last argument, even one with no query, header, form or cookie parameter and no security scheme (`$api->operation()` with no argument still works). It accepts three fields for that one call: `timeout` (milliseconds, positive), `headers` (a name to value map that wins over a configured header of the same name) and `maxRetries` (0 or more). They replace the transport settings for that call only.
 
-```php
-$api->operation($required, new OperationOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+```php file
+use PetstoreClient\Client;
+use PetstoreClient\Api\Options\GetDefaultsOptions;
+
+function getDefaultsWithinTwoSeconds(Client $client): void
+{
+    $client->store->getDefaults(new GetDefaultsOptions(timeout: 2000, headers: ['X-Tenant' => 'acme'], maxRetries: 0));
+}
 ```
 
 `timeout` and `maxRetries` need the bundled transport or a subclass of `AbstractApiClient`; a transport you wrote yourself against `ApiClient` sends the headers and ignores the other two.
@@ -137,7 +147,7 @@ The SDK sends `Accept-Encoding` for the encodings it can decode and decompresses
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
 
-```php
+```php file
 use PetstoreClient\CallHook;
 use PetstoreClient\CallInfo;
 use PetstoreClient\CallObserver;
@@ -146,7 +156,7 @@ use PetstoreClient\Client;
 
 final class TimingHook implements CallHook
 {
-    public function start(CallInfo $info, array &$headers): ?CallObserver
+    public function start(CallInfo $info, array &$headers): CallObserver
     {
         $headers['X-Caller'] = 'billing';
         $started = hrtime(true);
@@ -171,7 +181,8 @@ $client = Client::withToken('https://api.example.com', 'your-token', callHook: n
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `open-telemetry/api` to your `composer.json` (the SDK itself does not need it) and configure the OpenTelemetry SDK in your application, then pass `OpenTelemetryCallHook::create()` for the global providers or `OpenTelemetryCallHook::create($tracerProvider, $meterProvider)` for your own. A PHP process runs one request at a time, so a metric only reaches a backend when your application flushes its meter provider.
 
-```php
+```php statements
+use PetstoreClient\Client;
 use PetstoreClient\OpenTelemetryCallHook;
 
 $client = Client::withToken('https://api.example.com', 'your-token', callHook: OpenTelemetryCallHook::create());
@@ -191,12 +202,23 @@ own framework-managed HTTP stack instead — Guzzle, Symfony's PSR-18 adapter,
 Laravel's client, or a test double — wrap any [PSR-18](https://www.php-fig.org/psr/psr-18/)
 `ClientInterface` in `Psr18ApiClient` and pass it to the client facade:
 
-```php
+```php file
+use PetstoreClient\Client;
 use PetstoreClient\Psr18ApiClient;
+use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 
 /* $httpClient is any PSR-18 client; $psr17 is any PSR-17 request/stream factory. */
-$apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
-$client = Client::withToken('/api/v3', $token, null, $apiClient);
+function clientWithHttpClient(
+    ClientInterface $httpClient,
+    RequestFactoryInterface&StreamFactoryInterface $psr17,
+    string $token
+): Client {
+    $apiClient = new Psr18ApiClient($httpClient, $psr17, $psr17);
+
+    return Client::withToken('https://api.example.com', $token, null, $apiClient);
+}
 ```
 
 The facade also offers a shortcut that builds the adapter for you:
@@ -225,9 +247,7 @@ follow from PSR-18 being a deliberately minimal, send-only contract:
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```php
-<?php
-
+```php file
 use PetstoreClient\Api\PetApiInterface;
 use PetstoreClient\ClientInterface;
 
@@ -238,18 +258,23 @@ function useGroup(PetApiInterface $api): void
 
 // A fake is any class that implements the interface; this one is generated once for every
 // group and records each call it receives.
+/**
+ * @template T of object
+ * @param class-string<T> $interface
+ * @return T
+ */
 function fake(string $interface): object
 {
     $methods = '';
-    foreach ((new ReflectionClass($interface))->getMethods() as $method) {
+    foreach ((new \ReflectionClass($interface))->getMethods() as $method) {
         $params = [];
         foreach ($method->getParameters() as $param) {
             $default = $param->isDefaultValueAvailable() ? ' = ' . var_export($param->getDefaultValue(), true) : '';
             $params[] = ($param->getType() === null ? '' : $param->getType() . ' ') . '$' . $param->getName() . $default;
         }
         $returnType = $method->hasReturnType() ? ': ' . $method->getReturnType() : '';
-        $body = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new LogicException();';
-        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')' . $returnType . ' { ' . $body . ' }';
+        $stub = (string) $method->getReturnType() === 'void' ? '$this->calls[] = __FUNCTION__;' : 'throw new \\LogicException();';
+        $methods .= 'public function ' . $method->getName() . '(' . implode(', ', $params) . ')' . $returnType . ' { ' . $stub . ' }';
     }
 
     return eval('return new class implements \\' . ltrim($interface, '\\') . ' { public array $calls = []; ' . $methods . ' };');

@@ -506,7 +506,7 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
          * image and fails at runtime. */
         final String nativeImageFolder = Path.of(
             "src/main/resources", "META-INF", "native-image", pkg.replace(".", "/")).toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("reflect_config.mustache", nativeImageFolder, "reflect-config.json"),
@@ -572,7 +572,16 @@ public class BetterJavaCodegen extends AbstractBetterCodegen {
                 "junit_platform_properties.mustache",
                 "src/test/resources",
                 "junit-platform.properties")
-        );
+        ));
+        if (generateExamples) {
+            /* The examples are a test source root of their own (the pom adds it with
+             * build-helper), so they compile with the tests and never ship in the jar. */
+            specs.add(new SupportingFileSpec(
+                "examples/Quickstart.mustache",
+                Path.of("src", "examples", "java", pkg.replace(".", "/"), "examples").toString(),
+                "Quickstart.java"));
+        }
+        return specs;
     }
 
     /**

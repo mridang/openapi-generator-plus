@@ -14,6 +14,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /** Guards the claims the README makes about the SDK's own API. */
@@ -143,5 +147,105 @@ class ReadmeTest {
       assertTrue(readme.contains(row), "expected the README to contain " + row);
     }
     assertTrue(flattened().contains("counts as not set"));
+  }
+
+  private static String read(String name) throws IOException {
+    return Files.readString(Path.of(name));
+  }
+
+  private static String quickstart() throws IOException {
+    Path folder =
+        Path.of("src", "examples", "java").resolve("com.example.petstore".replace('.', '/'));
+    return Files.readString(folder.resolve("examples").resolve("Quickstart.java"));
+  }
+
+  /** The info string and the body of every fence tagged java, in file order. */
+  private static List<String[]> javaFences(String text) {
+    List<String[]> fences = new ArrayList<>();
+    Matcher matcher =
+        Pattern.compile("^```(java[^\\n]*)\\n(.*?)^```$", Pattern.MULTILINE | Pattern.DOTALL)
+            .matcher(text);
+    while (matcher.find()) {
+      fences.add(new String[] {matcher.group(1), matcher.group(2)});
+    }
+    return fences;
+  }
+
+  @Test
+  void bhvLangjava068TheQuickstartBuildsAClientCallsAnOperationAndClosesIt() throws IOException {
+    String quickstart = quickstart();
+    assertTrue(quickstart.contains("public static void main(String[] args)"));
+    assertTrue(quickstart.contains("Client.withToken(host, token)"));
+    assertTrue(quickstart.contains("try (Client client = Client.withToken(host, token))"));
+    assertTrue(quickstart.contains("client.store.getDefaults()"));
+  }
+
+  @Test
+  void bhvLangjava069TheQuickstartReadsTheHostAndTheTokenFromTheEnvironment() throws IOException {
+    String quickstart = quickstart();
+    String readme = readme();
+    for (String name :
+        new String[] {
+          "SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL", "SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"
+        }) {
+      assertTrue(quickstart.contains("System.getenv(\"" + name + "\")"), name);
+      assertTrue(readme.contains(name), name);
+    }
+    assertFalse(quickstart.contains("your-token"));
+  }
+
+  @Test
+  void bhvLangjava070TheUsageFenceAndTheQuickstartHoldTheSameStatements() throws IOException {
+    String readme = readme();
+    String usage = readme.substring(readme.indexOf("\n## Usage\n"));
+    usage = usage.substring(0, usage.indexOf("\n### "));
+    List<String[]> fences = javaFences(usage);
+    assertFalse(fences.isEmpty(), "expected a java fence in the Usage section");
+    String quickstart = quickstart();
+    int position = 0;
+    for (String line : fences.get(0)[1].split("\n", -1)) {
+      String statement = line.strip();
+      if (statement.isEmpty() || statement.startsWith("import ")) {
+        continue;
+      }
+      int found = quickstart.indexOf(statement, position);
+      assertTrue(found >= 0, "expected the quickstart to hold, in order: " + statement);
+      position = found + statement.length();
+    }
+  }
+
+  @Test
+  void bhvLangjava071EveryJavaFenceDeclaresItsKind() throws IOException {
+    for (String name : new String[] {"README.md", "SKILLS.md"}) {
+      for (String[] fence : javaFences(read(name))) {
+        assertTrue(
+            fence[0].equals("java file") || fence[0].equals("java statements"),
+            name + ": " + fence[0]);
+      }
+    }
+  }
+
+  @Test
+  void bhvLangjava072NoJavaFenceHoldsAPlaceholderOrAModelBuiltFromNothing() throws IOException {
+    Pattern fromNothing = Pattern.compile("new [A-Z][A-Za-z0-9]*\\(\\)(?! \\{)");
+    for (String name : new String[] {"README.md", "SKILLS.md"}) {
+      for (String[] fence : javaFences(read(name))) {
+        for (String line : fence[1].split("\n", -1)) {
+          String stripped = line.strip();
+          assertFalse(stripped.equals("...") || line.contains("(...)"), name + ": " + line);
+          assertFalse(stripped.startsWith("<") && stripped.endsWith(">"), name + ": " + line);
+          assertFalse(fromNothing.matcher(line).find(), name + ": " + line);
+        }
+      }
+    }
+  }
+
+  @Test
+  void bhvLangjava073TheMakefileHasAnExamplesTargetThatBuildsTheExamplesDirectory()
+      throws IOException {
+    String makefile = read("Makefile");
+    assertTrue(makefile.contains("\nexamples:\n"));
+    assertTrue(makefile.contains("\nexamples-run: examples\n"));
+    assertTrue(makefile.contains("src/examples/java"));
   }
 }

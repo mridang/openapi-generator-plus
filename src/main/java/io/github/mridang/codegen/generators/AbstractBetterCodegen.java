@@ -70,7 +70,12 @@ import org.openapitools.codegen.utils.ModelUtils;
 import io.github.mridang.codegen.rules.ContentEncodingRule;
 import io.github.mridang.codegen.rules.DropInternalOperationsRule;
 import io.github.mridang.codegen.rules.MultipleSuccessResponsesRule;
+import io.github.mridang.codegen.rules.InlinePathItemReferencesRule;
+import io.github.mridang.codegen.rules.NormalizeConstRule;
+import io.github.mridang.codegen.rules.NormalizeNullTypeRule;
 import io.github.mridang.codegen.rules.NormalizePrefixItemsRule;
+import io.github.mridang.codegen.rules.NormalizeTypeArrayRule;
+import io.github.mridang.codegen.rules.WarnUnsupportedKeywordsRule;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,6 +207,7 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
     protected boolean hasAnyOAuth2;
     protected boolean generateTests;
     protected boolean generateUnitTests;
+    protected boolean generateExamples;
 
     /**
      * Initializes shared codegen defaults by clearing the
@@ -240,6 +246,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                         + "client) that compile against any generated SDK. Real "
                         + "clients enable this to ship a harmonized unit-test suite "
                         + "without the petstore-coupled tests (default: false).")
+                .defaultValue("false"));
+        cliOptions.add(CliOption.newBoolean("generateExamples",
+                "Whether to generate examples/quickstart, one complete program that "
+                        + "builds a client, calls one operation and closes the client, "
+                        + "built by the SDK's own Makefile target. A real client opts in "
+                        + "when it is ready to keep the directory (default: false).")
                 .defaultValue("false"));
 
         modifyFeatureSet(features -> features
@@ -547,6 +559,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         additionalProperties.put("generateUnitTests", generateUnitTests);
         additionalProperties.put("hasOpenTelemetryAdapter", hasOpenTelemetryAdapter());
 
+        if (additionalProperties.containsKey("generateExamples")) {
+            generateExamples =
+                    Boolean.parseBoolean(additionalProperties.get("generateExamples").toString());
+        }
+        additionalProperties.put("generateExamples", generateExamples);
+
         getPropertyOrDefault("clientClassName", "Client");
 
         /* The root error type is named from this prefix plus each language's
@@ -568,6 +586,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
            gemspec saying MIT alongside an Apache-2.0 LICENSE file. The value is
            an SPDX identifier, and licenseUrl is derived from it for the manifests
            that want a link rather than an identifier. */
+        licenseIdExplicit = additionalProperties.get("licenseId") != null;
+        licenseUrlExplicit = additionalProperties.get("licenseUrl") != null;
         final String licenseId = getPropertyOrDefault("licenseId", "MIT");
         getPropertyOrDefault("licenseUrl", "https://opensource.org/licenses/" + licenseId);
 
@@ -601,6 +621,73 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
      */
     protected List<SupportingFileSpec> getSupportingFileSpecs() {
         return List.of();
+    }
+
+    /**
+     * Hands the templates the example operation: the first operation, in the order the
+     * documents are generated, that needs no path, query, header, cookie or body parameter and
+     * no security, is not a stream operation and is not deprecated (an example must not teach a deprecated call, and the
+     * deprecation linters of several languages reject one). It is exposed as {@code exampleOperation} (the operation itself, so a
+     * template reads {@code operationId} and {@code vendorExtensions.op.signatureArgs} from it),
+     * {@code exampleOperationApi} (the name of its API group), {@code exampleOperationGroup} (the
+     * operations map of that group, for a template that needs a per-language field of it) and {@code hasExampleOperation}.
+     * When no operation qualifies, {@code hasExampleOperation} is false and the quickstart
+     * builds the client and closes it.
+     */
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> postProcessSupportingFileData(Map<String, Object> objs) {
+        CodegenOperation example = null;
+        String exampleApi = null;
+        Object exampleGroup = null;
+        final Object apiInfo = objs.get("apiInfo");
+        if (apiInfo instanceof Map) {
+            final Object apis = ((Map<String, Object>) apiInfo).get("apis");
+            if (apis instanceof List) {
+                for (final Object api : (List<Object>) apis) {
+                    final Object operations = ((Map<String, Object>) api).get("operations");
+                    if (!(operations instanceof Map)) {
+                        continue;
+                    }
+                    final Object list = ((Map<String, Object>) operations).get("operation");
+                    if (!(list instanceof List)) {
+                        continue;
+                    }
+                    for (final Object candidate : (List<Object>) list) {
+                        final CodegenOperation op = (CodegenOperation) candidate;
+                        if (example == null && needsNoInput(op)) {
+                            example = op;
+                            exampleGroup = operations;
+                            exampleApi = String.valueOf(((Map<String, Object>) operations).get("baseName"));
+                            if ("null".equals(exampleApi)) {
+                                exampleApi = String.valueOf(((Map<String, Object>) api).get("baseName"));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        objs.put("hasExampleOperation", example != null);
+        if (example != null) {
+            objs.put("exampleOperation", example);
+            objs.put("exampleOperationApi", exampleApi);
+            objs.put("exampleOperationGroup", exampleGroup);
+        }
+        return super.postProcessSupportingFileData(objs);
+    }
+
+    private static boolean needsNoInput(final CodegenOperation op) {
+        final boolean security = op.authMethods != null && !op.authMethods.isEmpty();
+        final boolean required = op.requiredParams != null && !op.requiredParams.isEmpty();
+        return !security && !required && op.bodyParam == null && !op.isDeprecated && !hasStreamMethod(op);
+    }
+
+    /** Whether the operation has a stream method, so the buffered call a quickstart makes does not apply to it. */
+    @SuppressWarnings("unchecked")
+    private static boolean hasStreamMethod(final CodegenOperation op) {
+        final Object decorators = op.vendorExtensions == null ? null : op.vendorExtensions.get(OP_DECORATOR_NS);
+        return decorators instanceof Map
+                && Boolean.TRUE.equals(((Map<String, Object>) decorators).get("hasStreamMethod"));
     }
 
     /**
@@ -677,6 +764,35 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 "appNameBase",
                 appNameBase(openAPI.getInfo() == null ? null : openAPI.getInfo().getTitle()));
         computeSchemeEnvVars(openAPI);
+        // Webhooks are out of scope (S11); the stock generator would write each one into an API
+        // class as an ordinary operation and overwrite the untagged operations of the document.
+        if (openAPI.getWebhooks() != null && !openAPI.getWebhooks().isEmpty()) {
+            LOGGER.warn(
+                    "Spec warning: webhooks ({}) are not supported and are ignored, pointer"
+                            + " #/webhooks.",
+                    String.join(", ", openAPI.getWebhooks().keySet()));
+            openAPI.setWebhooks(null);
+        }
+        if (openAPI.getInfo() != null
+                && openAPI.getInfo().getLicense() != null
+                && !licenseIdExplicit
+                && openAPI.getInfo().getLicense().getIdentifier() != null) {
+            final String identifier = openAPI.getInfo().getLicense().getIdentifier();
+            additionalProperties.put("licenseId", identifier);
+            if (!licenseUrlExplicit) {
+                additionalProperties.put(
+                        "licenseUrl",
+                        openAPI.getInfo().getLicense().getUrl() != null
+                                ? openAPI.getInfo().getLicense().getUrl()
+                                : "https://spdx.org/licenses/" + identifier + ".html");
+            }
+        }
+        WarnUnsupportedKeywordsRule.check(openAPI, LOGGER);
+        new InlinePathItemReferencesRule()
+                .apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeNullTypeRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeTypeArrayRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
+        new NormalizeConstRule().apply(openAPI, java.util.Collections.emptyMap(), LOGGER);
         // Gap AZ — degrade OAS 3.1 `prefixItems` tuple arrays to plain
         // array-of-Object before the rest of the pipeline inspects schemas.
         // See NormalizePrefixItemsRule for the chosen cross-language strategy.
@@ -1737,6 +1853,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         if (typeMapping.containsKey(type)) {
             return typeMapping.get(type);
         }
+        if (schema != null && schema.get$ref() != null && type != null) {
+            // A reference names a model by its component name; the model is declared under
+            // toModelName of that name, so the reference must go through it too (a component
+            // such as my_widget or an inline name such as Holder_loc otherwise matches no class).
+            return toModelName(type);
+        }
         return type;
     }
 
@@ -1766,6 +1888,12 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return Path.of(outputFolder, getSourceFolder(),
                 apiPackage.replace('.', '/')).toString();
     }
+
+    /** Whether the user supplied {@code licenseId}; if not, {@code info.license.identifier} wins. */
+    private boolean licenseIdExplicit;
+
+    /** Whether the user supplied {@code licenseUrl}. */
+    private boolean licenseUrlExplicit;
 
     /** HTTP methods that never change server state (RFC 9110 and the QUERY draft). */
     private static final Set<String> SAFE_HTTP_METHODS =
@@ -3882,6 +4010,103 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         return created;
     }
 
+    /** Response media types that are server-sent events. */
+    private static final Set<String> SSE_MEDIA_TYPES = Set.of("text/event-stream");
+
+    /** Response media types that are JSON Lines (one kind, three spellings). */
+    private static final Set<String> JSON_LINES_MEDIA_TYPES =
+            Set.of("application/x-ndjson", "application/jsonl", "application/jsonlines");
+
+    /**
+     * Computes the streaming decorators of an operation from its spec signals: the 2xx
+     * response media types and the request body kind. Written under non-{@code x-} names:
+     * {@code streamKind} ({@code sse | jsonlines | binary | none}, the response side),
+     * {@code hasStreamMethod}, {@code streamOnly} (no buffered method is generated),
+     * {@code streamItemType} (the item or event schema type, null for binary),
+     * {@code streamEventIsText} (the event data is the raw string), {@code hasStreamRequestBody}
+     * and {@code streamMethodName}.
+     */
+    private void populateStreamDecorators(CodegenOperation op, Map<String, Object> d) {
+        String kind = "none";
+        boolean hasJsonSuccess = false;
+        boolean hasBinarySuccess = false;
+        org.openapitools.codegen.CodegenProperty itemSchema = null;
+        if (op.responses != null) {
+            for (final org.openapitools.codegen.CodegenResponse r : op.responses) {
+                if (r == null || r.code == null || !r.code.startsWith("2")
+                        || r.getContent() == null) {
+                    continue;
+                }
+                for (final Map.Entry<String, org.openapitools.codegen.CodegenMediaType> e
+                        : r.getContent().entrySet()) {
+                    final String mt = baseMediaType(e.getKey());
+                    final org.openapitools.codegen.CodegenProperty schema =
+                            e.getValue() == null ? null : e.getValue().getSchema();
+                    if (SSE_MEDIA_TYPES.contains(mt)) {
+                        if ("none".equals(kind) || "binary".equals(kind)) {
+                            kind = "sse";
+                            itemSchema = schema;
+                        }
+                    } else if (JSON_LINES_MEDIA_TYPES.contains(mt)) {
+                        if ("none".equals(kind) || "binary".equals(kind)) {
+                            kind = "jsonlines";
+                            itemSchema = schema;
+                        }
+                    } else if ("application/octet-stream".equals(mt)
+                            || (schema != null && schema.isBinary)) {
+                        hasBinarySuccess = true;
+                        if ("none".equals(kind)) {
+                            kind = "binary";
+                        }
+                    } else if (mt.contains("json")) {
+                        hasJsonSuccess = true;
+                    }
+                }
+            }
+        }
+        if (("sse".equals(kind) || "jsonlines".equals(kind)) && (hasJsonSuccess || hasBinarySuccess)) {
+            LOGGER.warn(
+                    "Operation {} mixes a streaming 2xx media type with another one; no stream"
+                            + " method is generated for it.",
+                    op.operationId);
+            kind = "none";
+            itemSchema = null;
+        }
+        final boolean requestBody = "binary".equals(deriveRequestBodyKind(op));
+        final boolean streamOnly = "sse".equals(kind) || "jsonlines".equals(kind);
+        final boolean textEvent =
+                "sse".equals(kind) && (itemSchema == null || (itemSchema.isString
+                        && !itemSchema.isModel && !itemSchema.isEnum));
+        d.put("streamKind", kind);
+        d.put("hasStreamMethod", !"none".equals(kind) || requestBody);
+        d.put("streamOnly", streamOnly);
+        d.put("streamItemType", streamOnly && itemSchema != null ? itemSchema.dataType : null);
+        d.put("streamEventIsText", textEvent);
+        d.put("hasStreamRequestBody", requestBody);
+        d.put("streamMethodName", streamMethodName(op));
+    }
+
+    private static String baseMediaType(String mediaType) {
+        if (mediaType == null) {
+            return "";
+        }
+        final int semicolon = mediaType.indexOf(';');
+        final String bare = semicolon < 0 ? mediaType : mediaType.substring(0, semicolon);
+        return bare.trim().toLowerCase(Locale.ROOT);
+    }
+
+    /** The stream method name: the method name of the operation plus the language's Stream suffix. */
+    private static String streamMethodName(CodegenOperation op) {
+        final String base = op.nickname == null ? op.operationId : op.nickname;
+        if (base == null || base.isEmpty()) {
+            return "";
+        }
+        if (base.contains("_")) {
+            return base + "_stream";
+        }
+        return base + "Stream";
+    }
+
     /**
      * Exposes the status-to-variant mapping recorded by
      * {@link MultipleSuccessResponsesRule}: {@code hasMultiple2xx},
@@ -4217,6 +4442,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
 
         // F1062 — per-status success variants for multi-2xx operations.
         populateSuccessResponses(op, d);
+
+        // Streaming (#114): which stream method, if any, the operation gets.
+        populateStreamDecorators(op, d);
 
         // Declared error responses: the status class and schema of each non-2xx response.
         populateErrorResponses(op, d);
@@ -5146,6 +5374,14 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
                 }
                 item.setSummary(htmlUnescape(item.getSummary()));
                 item.setDescription(htmlUnescape(item.getDescription()));
+                for (Operation operation : item.readOperations()) {
+                    if (operation.getSummary() == null && item.getSummary() != null) {
+                        operation.setSummary(item.getSummary());
+                    }
+                    if (operation.getDescription() == null && item.getDescription() != null) {
+                        operation.setDescription(item.getDescription());
+                    }
+                }
                 for (Operation op : item.readOperations()) {
                     unescapeOperationDocText(op, seen);
                 }

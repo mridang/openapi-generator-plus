@@ -867,6 +867,8 @@ void main() {
         expect(storeInterface, contains(' createAccountWithHttpInfo('));
         expect(storeInterface, contains(' deleteOrder('));
         expect(storeInterface, contains(' deleteOrderWithHttpInfo('));
+        expect(storeInterface, contains(' exportOrders('));
+        expect(storeInterface, contains(' exportOrdersWithHttpInfo('));
         expect(storeInterface, contains(' getBySwatch('));
         expect(storeInterface, contains(' getBySwatchWithHttpInfo('));
         expect(storeInterface, contains(' getDefaults('));
@@ -901,6 +903,10 @@ void main() {
         expect(storeInterface, contains(' reserveStockWithHttpInfo('));
         expect(storeInterface, contains(' searchStore('));
         expect(storeInterface, contains(' searchStoreWithHttpInfo('));
+        expect(storeInterface, contains(' watchNotices('));
+        expect(storeInterface, contains(' watchNoticesWithHttpInfo('));
+        expect(storeInterface, contains(' watchOrders('));
+        expect(storeInterface, contains(' watchOrdersWithHttpInfo('));
       },
     );
 

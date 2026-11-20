@@ -33,12 +33,14 @@ Add the dependency to your `pom.xml`:
 
 ## Usage
 
-```java
+```java statements
 import com.example.petstore.Client;
-import com.example.petstore.models.Pet;
 
-try (Client client = Client.withToken("https://api.example.com", "your-token")) {
-    var result = client.pet.addPet(new Pet());
+String host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL");
+String token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN");
+try (Client client = Client.withToken(host, token)) {
+    var result = client.store.getDefaults();
+    System.out.println(result);
 }
 ```
 
@@ -113,14 +115,16 @@ at `build()`, as does a client whose redirect policy is not `Redirect.NEVER`.
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```java
+```java file
 import com.example.petstore.api.PetApiInterface;
+import com.example.petstore.api.ProblemsApiInterface;
+import com.example.petstore.api.StoreApiInterface;
 import com.example.petstore.ClientInterface;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
-public final class FakeExample {
+final class FakeExample {
     // Code under test takes the group interface, never the generated class.
     static void use(PetApiInterface api) {}
 
@@ -183,7 +187,10 @@ from the client, as described next.
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport.
 
-```java
+```java statements
+import com.example.petstore.CallHook;
+import com.example.petstore.Client;
+
 CallHook hook = (info, headers) -> {
     headers.put("X-Caller", "billing");
     long started = System.nanoTime();
@@ -200,7 +207,10 @@ Client client = Client.builder("https://api.example.com")
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `opentelemetry-api` to your build (the SDK itself does not need it), then pass `OpenTelemetryCallHook.create()` for the global instance or `OpenTelemetryCallHook.create(openTelemetry)` for your own.
 
-```java
+```java statements
+import com.example.petstore.Client;
+import com.example.petstore.OpenTelemetryCallHook;
+
 Client client = Client.builder("https://api.example.com")
         .callHook(OpenTelemetryCallHook.create())
         .build();
@@ -213,23 +223,57 @@ The span is named with the operation id, has kind client and carries `http.reque
 `Client.builder(host)` takes one optional credential per security scheme,
 named after the scheme, so a client can hold several at once:
 
-```java
-var client = Client.builder("https://api.example.com")
-    .petStoreBasic(...)
-    .adminBasic(...)
-    .petStoreBearer(...)
-    .serviceToken(...)
-    .apiKeyHeader(...)
-    .internalApiKey(...)
-    .apiKeyQuery(...)
-    .sessionCookie(...)
-    .machineAuth(...)
-    .legacyAuth(...)
-    .userAuth(...)
-    .browserAuth(...)
-    .ssoAuth(...)
-    .transportOptions(transportOptions)
-    .build();
+```java file
+import com.example.petstore.Client;
+import com.example.petstore.TransportOptions;
+import com.example.petstore.auth.PetStoreBasicAuthenticator;
+import com.example.petstore.auth.AdminBasicAuthenticator;
+import com.example.petstore.auth.PetStoreBearerAuthenticator;
+import com.example.petstore.auth.ServiceTokenAuthenticator;
+import com.example.petstore.auth.ApiKeyHeaderAuthenticator;
+import com.example.petstore.auth.InternalApiKeyAuthenticator;
+import com.example.petstore.auth.ApiKeyQueryAuthenticator;
+import com.example.petstore.auth.SessionCookieAuthenticator;
+import com.example.petstore.auth.oauth.MachineAuthClientCredentialsAuthenticator;
+import com.example.petstore.auth.oauth.LegacyAuthPasswordAuthenticator;
+import com.example.petstore.auth.oauth.UserAuthAuthorizationCodeAuthenticator;
+import com.example.petstore.auth.oauth.BrowserAuthImplicitAuthenticator;
+import com.example.petstore.auth.oauth.SsoAuthAuthenticator;
+
+class Credentials {
+    static Client build(
+            PetStoreBasicAuthenticator petStoreBasic,
+            AdminBasicAuthenticator adminBasic,
+            PetStoreBearerAuthenticator petStoreBearer,
+            ServiceTokenAuthenticator serviceToken,
+            ApiKeyHeaderAuthenticator apiKeyHeader,
+            InternalApiKeyAuthenticator internalApiKey,
+            ApiKeyQueryAuthenticator apiKeyQuery,
+            SessionCookieAuthenticator sessionCookie,
+            MachineAuthClientCredentialsAuthenticator machineAuth,
+            LegacyAuthPasswordAuthenticator legacyAuth,
+            UserAuthAuthorizationCodeAuthenticator userAuth,
+            BrowserAuthImplicitAuthenticator browserAuth,
+            SsoAuthAuthenticator ssoAuth,
+            TransportOptions transportOptions) {
+        return Client.builder("https://api.example.com")
+            .petStoreBasic(petStoreBasic)
+            .adminBasic(adminBasic)
+            .petStoreBearer(petStoreBearer)
+            .serviceToken(serviceToken)
+            .apiKeyHeader(apiKeyHeader)
+            .internalApiKey(internalApiKey)
+            .apiKeyQuery(apiKeyQuery)
+            .sessionCookie(sessionCookie)
+            .machineAuth(machineAuth)
+            .legacyAuth(legacyAuth)
+            .userAuth(userAuth)
+            .browserAuth(browserAuth)
+            .ssoAuth(ssoAuth)
+            .transportOptions(transportOptions)
+            .build();
+    }
+}
 ```
 
 Each operation uses the credential of the first scheme in its own security list that

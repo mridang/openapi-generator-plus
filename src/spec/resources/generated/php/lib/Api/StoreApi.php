@@ -22,6 +22,7 @@ use PetstoreClient\ValueSerializer;
 use PetstoreClient\Auth\NoAuth;
 use PetstoreClient\Api\Options\CreateAccountOptions;
 use PetstoreClient\Api\Options\DeleteOrderOptions;
+use PetstoreClient\Api\Options\ExportOrdersOptions;
 use PetstoreClient\Api\Options\GetBySwatchOptions;
 use PetstoreClient\Api\Options\GetDefaultsOptions;
 use PetstoreClient\Api\Options\GetDepartmentOptions;
@@ -39,6 +40,8 @@ use PetstoreClient\Api\Options\GetTreeOptions;
 use PetstoreClient\Api\Options\PlaceOrderOptions;
 use PetstoreClient\Api\Options\ReserveStockOptions;
 use PetstoreClient\Api\Options\SearchStoreOptions;
+use PetstoreClient\Api\Options\WatchNoticesOptions;
+use PetstoreClient\Api\Options\WatchOrdersOptions;
 use PetstoreClient\Models\Swatch;
 
 /**
@@ -51,6 +54,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Create an account
      * @param CreateAccountOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function createAccount(\PetstoreClient\Models\Account $account, ?CreateAccountOptions $options = null): \PetstoreClient\Models\Account
     {
@@ -77,6 +81,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param CreateAccountOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Account>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function createAccountWithHttpInfo(\PetstoreClient\Models\Account $account, ?CreateAccountOptions $options = null): ApiResult
     {
@@ -122,6 +127,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param int $orderId ID of the order to delete
      * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -135,6 +141,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param DeleteOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<null>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -196,9 +203,82 @@ class StoreApi extends BaseApi implements StoreApiInterface
     }
 
     /**
+     * Exports every order as JSON Lines
+     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function exportOrders(?ExportOrdersOptions $options = null): \PetstoreClient\Models\Order
+    {
+        $apiResult = $this->exportOrdersWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for exportOrders but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param ExportOrdersOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function exportOrdersWithHttpInfo(?ExportOrdersOptions $options = null): ApiResult
+    {
+        $path = '/store/orders/export';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['application/x-ndjson'],
+            'application/json',
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'exportOrders',
+            urlTemplate: '/store/orders/export',
+        );
+        return $result;
+    }
+
+    /**
      * Echoes a swatch supplied via path, query and header parameters.
      * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getBySwatch(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): \PetstoreClient\Models\Category
     {
@@ -225,6 +305,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetBySwatchOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\Category>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getBySwatchWithHttpInfo(Swatch $pathSwatch, ?GetBySwatchOptions $options = null): ApiResult
     {
@@ -312,6 +393,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Returns a model exercising schema defaults on deserialize.
      * @param GetDefaultsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getDefaults(?GetDefaultsOptions $options = null): \PetstoreClient\Models\Defaults
     {
@@ -338,6 +420,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetDefaultsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Defaults>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getDefaultsWithHttpInfo(?GetDefaultsOptions $options = null): ApiResult
     {
@@ -382,6 +465,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Returns a department (mutual-recursion codegen fixture).
      * @param GetDepartmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getDepartment(?GetDepartmentOptions $options = null): \PetstoreClient\Models\Department
     {
@@ -408,6 +492,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetDepartmentOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Department>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getDepartmentWithHttpInfo(?GetDepartmentOptions $options = null): ApiResult
     {
@@ -453,6 +538,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetGroupedCategoriesOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getGroupedCategories(?GetGroupedCategoriesOptions $options = null): \Ds\Vector
     {
@@ -479,6 +565,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetGroupedCategoriesOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Category>>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getGroupedCategoriesWithHttpInfo(?GetGroupedCategoriesOptions $options = null): ApiResult
     {
@@ -524,6 +611,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetInventoryOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Map<string, int>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getInventory(?GetInventoryOptions $options = null): \Ds\Map
     {
@@ -550,6 +638,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetInventoryOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Map<string, int>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getInventoryWithHttpInfo(?GetInventoryOptions $options = null): ApiResult
     {
@@ -595,6 +684,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetMatrixOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Vector<int>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getMatrix(?GetMatrixOptions $options = null): \Ds\Vector
     {
@@ -621,6 +711,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetMatrixOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Vector<int>>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getMatrixWithHttpInfo(?GetMatrixOptions $options = null): ApiResult
     {
@@ -665,6 +756,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Reads values of the formats the SDKs type natively.
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getNativeValues(?GetNativeValuesOptions $options = null): \PetstoreClient\Models\NativeValues
     {
@@ -691,6 +783,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetNativeValuesOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\NativeValues>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getNativeValuesWithHttpInfo(?GetNativeValuesOptions $options = null): ApiResult
     {
@@ -782,6 +875,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param int $orderId ID of order to return
      * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -811,6 +905,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetOrderByIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      * @throws \PetstoreClient\Errors\NotFoundException on HTTP 404
      */
@@ -875,6 +970,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Find purchase order by tracking id
      * @param GetOrderByTrackingIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getOrderByTrackingId(\Symfony\Component\Uid\Uuid $trackingId, ?GetOrderByTrackingIdOptions $options = null): \PetstoreClient\Models\Order
     {
@@ -901,6 +997,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetOrderByTrackingIdOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getOrderByTrackingIdWithHttpInfo(\Symfony\Component\Uid\Uuid $trackingId, ?GetOrderByTrackingIdOptions $options = null): ApiResult
     {
@@ -964,6 +1061,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Returns a stock item exercising int-enum, non-lowercase enum and nested-container fields.
      * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getStockItem(?GetStockItemOptions $options = null): \PetstoreClient\Models\StockItem
     {
@@ -990,6 +1088,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetStockItemOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\StockItem>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getStockItemWithHttpInfo(?GetStockItemOptions $options = null): ApiResult
     {
@@ -1045,6 +1144,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Returns a bare enum (value-type response codegen fixture).
      * @param GetSwatchOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getSwatch(?GetSwatchOptions $options = null): \PetstoreClient\Models\Swatch
     {
@@ -1071,6 +1171,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetSwatchOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Swatch>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getSwatchWithHttpInfo(?GetSwatchOptions $options = null): ApiResult
     {
@@ -1116,6 +1217,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetSwatchGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getSwatchGroups(?GetSwatchGroupsOptions $options = null): \Ds\Vector
     {
@@ -1142,6 +1244,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetSwatchGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \PetstoreClient\Models\Swatch>>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getSwatchGroupsWithHttpInfo(?GetSwatchGroupsOptions $options = null): ApiResult
     {
@@ -1187,6 +1290,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetTimestampGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return \Ds\Vector<\Ds\Map<string, \DateTime>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getTimestampGroups(?GetTimestampGroupsOptions $options = null): \Ds\Vector
     {
@@ -1213,6 +1317,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetTimestampGroupsOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\Ds\Vector<\Ds\Map<string, \DateTime>>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getTimestampGroupsWithHttpInfo(?GetTimestampGroupsOptions $options = null): ApiResult
     {
@@ -1257,6 +1362,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Returns a self-referential tree (recursive-type codegen fixture)
      * @param GetTreeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getTree(?GetTreeOptions $options = null): \PetstoreClient\Models\TreeNode
     {
@@ -1283,6 +1389,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param GetTreeOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\TreeNode>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function getTreeWithHttpInfo(?GetTreeOptions $options = null): ApiResult
     {
@@ -1327,6 +1434,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Place an order for a pet
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function placeOrder(\PetstoreClient\Models\Order|null $order = null, ?PlaceOrderOptions $options = null): \PetstoreClient\Models\Order
@@ -1354,6 +1462,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param PlaceOrderOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function placeOrderWithHttpInfo(\PetstoreClient\Models\Order|null $order = null, ?PlaceOrderOptions $options = null): ApiResult
@@ -1399,6 +1508,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * Answers 200 with the existing Reservation, or 201 with a ReservationReceipt for a newly created one; the two success bodies have different schemas.
      * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function reserveStock(?ReserveStockOptions $options = null): \PetstoreClient\Models\ReserveStockResponse
@@ -1426,6 +1536,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param ReserveStockOptions|null $options Options carrying the per-call timeout, headers and retry count
      * @return ApiResult<\PetstoreClient\Models\ReserveStockResponse>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      * @throws \PetstoreClient\Errors\BadRequestException on HTTP 400
      */
     public function reserveStockWithHttpInfo(?ReserveStockOptions $options = null): ApiResult
@@ -1476,6 +1587,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param SearchStoreOptions|null $options Options for query, header, form, and cookie parameters
      * @return \Ds\Vector<\PetstoreClient\Models\Order>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function searchStore(?SearchStoreOptions $options = null): \Ds\Vector
     {
@@ -1502,6 +1614,7 @@ class StoreApi extends BaseApi implements StoreApiInterface
      * @param SearchStoreOptions|null $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\Ds\Vector<\PetstoreClient\Models\Order>>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function searchStoreWithHttpInfo(?SearchStoreOptions $options = null): ApiResult
     {
@@ -1567,6 +1680,161 @@ class StoreApi extends BaseApi implements StoreApiInterface
             securityRequirements: [],
             operationId: 'searchStore',
             urlTemplate: '/store/search',
+        );
+        return $result;
+    }
+
+    /**
+     * Streams plain text notices as server-sent events
+     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchNotices(?WatchNoticesOptions $options = null): string
+    {
+        $apiResult = $this->watchNoticesWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for watchNotices but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var string $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param WatchNoticesOptions|null $options Options carrying the per-call timeout, headers and retry count
+     * @return ApiResult<string>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchNoticesWithHttpInfo(?WatchNoticesOptions $options = null): ApiResult
+    {
+        $path = '/store/notices';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<string> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['text/event-stream'],
+            'application/json',
+            'string',
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'watchNotices',
+            urlTemplate: '/store/notices',
+        );
+        return $result;
+    }
+
+    /**
+     * Streams order changes as server-sent events
+     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchOrders(?WatchOrdersOptions $options = null): \PetstoreClient\Models\Order
+    {
+        $apiResult = $this->watchOrdersWithHttpInfo($options);
+        if ($apiResult->data === null) {
+            /* This operation declares a non-void return type, so an empty /
+             * undecodable response body is a contract violation. Surface it
+             * as the SDK's typed ApiException (with the status, body and
+             * headers) instead of returning a silent null, matching the
+             * throwing SDKs. */
+            throw new \PetstoreClient\Errors\ApiException(
+                $apiResult->statusCode,
+                'Expected a response body for watchOrders but received none',
+                $apiResult->headers,
+                $apiResult->rawBody
+            );
+        }
+        /** @var \PetstoreClient\Models\Order $result */
+        $result = $apiResult->data;
+        return $result;
+    }
+
+    /**
+     * @param WatchOrdersOptions|null $options Options for query, header, form, and cookie parameters
+     * @return ApiResult<\PetstoreClient\Models\Order>
+     * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
+     */
+    public function watchOrdersWithHttpInfo(?WatchOrdersOptions $options = null): ApiResult
+    {
+        $path = '/store/orders/events';
+        $queryParams = [];
+        /* OAS allowReserved: query parameters declared `allowReserved: true`
+         * keep RFC 3986 reserved characters literal on the wire. Their names
+         * are collected here and threaded to the query-string builder, which
+         * swaps in the reserved-preserving encoder for exactly those values.
+         * The set is empty for every other operation, so encoding is
+         * unchanged. */
+        $allowReservedKeys = [];
+        if ($options instanceof \PetstoreClient\Api\Options\WatchOrdersOptions && $options->status !== null) {
+            $queryParams = ValueSerializer::putQueryParam($queryParams, 'status', ValueSerializer::serializeStyled(
+                'status',
+                $options->status,
+                'query',
+                'string',
+                null,
+                'form',
+                true,
+            ));
+        }
+        $headerParams = [];
+        $requestBody = null;
+
+        /** @var ApiResult<\PetstoreClient\Models\Order> $result */
+        $result = $this->invokeApiForResult(
+            'GET',
+            $path,
+            $queryParams,
+            $headerParams,
+            $requestBody,
+            ['text/event-stream'],
+            'application/json',
+            \PetstoreClient\Models\Order::class,
+            /* security:[] — explicitly unauthenticated; pass the NoAuth
+             * sentinel so BaseApi suppresses the client credential instead
+             * of falling back to it. */
+            NoAuth::instance(),
+            $allowReservedKeys,
+            timeout: $options?->timeout,
+            headers: $options?->headers,
+            maxRetries: $options?->maxRetries,
+            securityRequirements: [],
+            operationId: 'watchOrders',
+            urlTemplate: '/store/orders/events',
         );
         return $result;
     }

@@ -1305,6 +1305,8 @@ describe("mockable client", () => {
       "createAccountWithHttpInfo",
       "deleteOrder",
       "deleteOrderWithHttpInfo",
+      "exportOrders",
+      "exportOrdersWithHttpInfo",
       "getBySwatch",
       "getBySwatchWithHttpInfo",
       "getDefaults",
@@ -1339,6 +1341,10 @@ describe("mockable client", () => {
       "reserveStockWithHttpInfo",
       "searchStore",
       "searchStoreWithHttpInfo",
+      "watchNotices",
+      "watchNoticesWithHttpInfo",
+      "watchOrders",
+      "watchOrdersWithHttpInfo",
     ];
     for (const name of storeListed) {
       expect(
@@ -1433,6 +1439,8 @@ describe("mockable client", () => {
         "createAccountWithHttpInfo",
         "deleteOrder",
         "deleteOrderWithHttpInfo",
+        "exportOrders",
+        "exportOrdersWithHttpInfo",
         "getBySwatch",
         "getBySwatchWithHttpInfo",
         "getDefaults",
@@ -1467,6 +1475,10 @@ describe("mockable client", () => {
         "reserveStockWithHttpInfo",
         "searchStore",
         "searchStoreWithHttpInfo",
+        "watchNotices",
+        "watchNoticesWithHttpInfo",
+        "watchOrders",
+        "watchOrdersWithHttpInfo",
       ].sort(),
     );
   });

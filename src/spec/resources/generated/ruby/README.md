@@ -11,20 +11,26 @@ Auto-generated Ruby SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Installation
 
-Add the gem to your `Gemfile` and run `bundle install`:
+Add the gem to your `Gemfile` and install it with Bundler:
 
-```ruby
-gem 'petstore_client'
+```bash
+bundle add petstore_client
 ```
 
 ## Usage
 
-```ruby
+```ruby statements
 require 'petstore_client'
 
-client = Petstore::Client::Petstore.with_token('https://api.example.com', 'your-token')
-# Call an operation through an API group, e.g. client.<group>.<operation>(...), and read fields off the result.
-client.close
+host = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL')
+token = ENV.fetch('SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN')
+client = Petstore::Client::Petstore.with_token(host, token)
+begin
+  result = client.store.get_defaults
+  pp result
+ensure
+  client.close
+end
 ```
 
 ### Credentials
@@ -85,18 +91,15 @@ A cookie parameter is sent as it is, without percent-encoding, when every charac
 
 Every API group has an interface (`_PetApiInterface`, an RBS interface) and the client has one (`_PetstoreInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```ruby
-# Code under test takes anything that satisfies the group interface, never the generated class.
-def use(api)
-  api
-end
-
+```ruby statements
 # A fake is any object that responds to the operations you use; Ruby needs no base class.
-fake = Object.new
-def fake.close; end
+fake = Class.new do
+  def close; end
+end.new
 
-use(fake)
-fake.close
+# Code under test takes anything that satisfies the group interface, never the generated class.
+use = ->(api) { api }
+use.call(fake)
 ```
 
 A new operation in the API adds a method to the interface, so a fake that must satisfy the whole interface for Steep fails to type-check after you regenerate; fake only the operations your code calls, or delegate the rest to a base fake.
@@ -109,8 +112,13 @@ A new operation in the API adds a method to the interface, so a fake that must s
 
 Every operation takes an optional Options object, which accepts three members that apply to that call alone: `timeout` (milliseconds, replacing the client's end-to-end timeout), `headers` (sent in addition to the default headers, and replacing a default of the same name) and `max_retries` (replacing the client's retry count). A member left `nil` keeps the client's value. A client built with your own `ApiClient` receives the headers only. An operation that has no query, header, form or cookie parameter and no security has an Options object that carries only these three members.
 
-```ruby
-options = Petstore::Client::Api::Options::<Operation>Options.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+```ruby file
+require 'petstore_client'
+
+def get_defaults_within_two_seconds(client)
+  options = Petstore::Client::Api::Options::GetDefaultsOptions.new(timeout: 2_000, headers: { 'X-Tenant' => 'a' }, max_retries: 0)
+  client.store.get_defaults(options)
+end
 ```
 
 ### `Configuration` and `TransportOptions`
@@ -147,22 +155,24 @@ A hook is any object that responds to `start(info, headers)`. `info` is a `CallI
 
 `start` runs once per operation call, however many times the transport sends the request, and `finish` runs exactly once on every way the call can end. A header the hook sets is on every send of the call, and the fresh credentials of the one replay after a 401 still replace a header of the same name. An error raised by `start` reaches the caller unchanged and nothing is sent. An error raised by `finish` is swallowed. The hook runs above the transport, so it also runs when you supply your own, and it runs inline on the calling thread, so it must not block. Headers are a plain `Hash`: reuse the spelling of an existing name to replace it.
 
-```ruby
-class TenantHook
+```ruby statements
+require 'petstore_client'
+
+tenant_hook = Class.new do
   def start(_info, headers)
     headers['X-Tenant'] = 'a'
     nil
   end
-end
+end.new
 
-client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TenantHook.new)
+client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: tenant_hook)
 ```
 
 #### OpenTelemetry
 
 This SDK ships no OpenTelemetry adapter and the SDK itself depends on no OpenTelemetry gem: the Ruby OpenTelemetry metrics API is not stable yet, so the same hook is shown as a recipe instead. It records one span per call, named with the operation id, of kind client, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (the status code as text for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). It also records the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) with the same attributes, under an instrumentation scope named after the gem and carrying its version. It injects the `traceparent` header itself, so the span sent to the server is the client span. Add `opentelemetry-api` and `opentelemetry-metrics-api` to your own `Gemfile`; without an OpenTelemetry SDK it does nothing.
 
-```ruby
+```rb
 require 'opentelemetry-api'
 require 'opentelemetry-metrics-api'
 
@@ -228,7 +238,7 @@ class TelemetryCallHook
 end
 ```
 
-```ruby
+```rb
 client = Petstore::Client::Petstore.with_token('/api/v3', 'token', call_hook: TelemetryCallHook.new)
 ```
 
@@ -272,7 +282,9 @@ binary-encoded Ruby `String`s on the model surface — **not** as the
 base64 text from the wire. The transport layer base64-decodes on
 read and base64-encodes (strict, no line breaks) on write.
 
-```ruby
+```ruby statements
+require 'petstore_client'
+
 json = '{"seal":"aGVsbG8="}'
 model = Petstore::Client::ObjectSerializer.deserialize(json, 'BinaryVault')
 model.seal.encoding  # => #<Encoding:ASCII-8BIT>

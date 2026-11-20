@@ -55,7 +55,14 @@ class OperationDecoratorTest {
             "hasFormParams",
             "hasCookieParams",
             "hasPathParams",
-            "hasBodyParam");
+            "hasBodyParam",
+            "streamKind",
+            "hasStreamMethod",
+            "streamOnly",
+            "streamItemType",
+            "streamEventIsText",
+            "hasStreamRequestBody",
+            "streamMethodName");
 
     /**
      * Catalog of parameter-level decorator keys this test guards.
@@ -167,6 +174,76 @@ class OperationDecoratorTest {
         assertEquals("NotImplementedStatusException", csharp.statusClassName("NotImplemented"));
         assertEquals("NotFoundException", csharp.statusClassName("NotFound"));
         assertEquals("NotImplementedException", ((AbstractBetterCodegen) new BetterJavaCodegen()).statusClassName("NotImplemented"));
+    }
+
+    @Test
+    void streamingSignalsSelectTheStreamKindAndStreamOnly() {
+        assertStream("text/event-stream", "Event", false, "sse", true, "Event", false);
+        assertStream("text/event-stream", "String", true, "sse", true, "String", true);
+        assertStream("application/x-ndjson", "Row", false, "jsonlines", true, "Row", false);
+        assertStream("application/jsonl", "Row", false, "jsonlines", true, "Row", false);
+        assertStream("application/jsonlines", "Row", false, "jsonlines", true, "Row", false);
+        assertStream("application/octet-stream", "File", false, "binary", false, null, false);
+        assertStream("application/json", "Row", false, "none", false, null, false);
+    }
+
+    @Test
+    void anOperationMixingAStreamingAndAJsonSuccessTypeGetsNoStreamMethod() {
+        final CodegenOperation op = bareOperation();
+        final org.openapitools.codegen.CodegenResponse r = new org.openapitools.codegen.CodegenResponse();
+        r.code = "200";
+        final java.util.LinkedHashMap<String, org.openapitools.codegen.CodegenMediaType> content =
+                new java.util.LinkedHashMap<>();
+        content.put("text/event-stream", media("Event", false));
+        content.put("application/json", media("Event", false));
+        r.setContent(content);
+        op.responses = new ArrayList<>(List.of(r));
+        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+        assertEquals("none", decorator(op).get("streamKind"));
+        assertEquals(false, decorator(op).get("streamOnly"));
+    }
+
+    @Test
+    void aRawBinaryRequestBodyGivesTheOperationAStreamMethodAndTheNameFollowsTheCasing() {
+        final CodegenOperation op = bareOperation();
+        op.nickname = "replaceBlob";
+        op.bodyParam = new CodegenParameter();
+        op.bodyParam.isBinary = true;
+        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+        assertEquals(true, decorator(op).get("hasStreamRequestBody"));
+        assertEquals(true, decorator(op).get("hasStreamMethod"));
+        assertEquals("none", decorator(op).get("streamKind"));
+        assertEquals("replaceBlobStream", decorator(op).get("streamMethodName"));
+        op.nickname = "replace_blob";
+        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+        assertEquals("replace_blob_stream", decorator(op).get("streamMethodName"));
+    }
+
+    private static org.openapitools.codegen.CodegenMediaType media(String type, boolean isString) {
+        final CodegenProperty p = new CodegenProperty();
+        p.dataType = type;
+        p.isString = isString;
+        p.isBinary = "File".equals(type);
+        return new org.openapitools.codegen.CodegenMediaType(p, new java.util.LinkedHashMap<>(), new java.util.HashMap<>());
+    }
+
+    private static void assertStream(String mediaType, String type, boolean isString,
+            String kind, boolean only, @javax.annotation.Nullable String item, boolean text) {
+        final CodegenOperation op = bareOperation();
+        final org.openapitools.codegen.CodegenResponse r = new org.openapitools.codegen.CodegenResponse();
+        r.code = "200";
+        final java.util.LinkedHashMap<String, org.openapitools.codegen.CodegenMediaType> content =
+                new java.util.LinkedHashMap<>();
+        content.put(mediaType, media(type, isString));
+        r.setContent(content);
+        op.responses = new ArrayList<>(List.of(r));
+        ((AbstractBetterCodegen) new BetterJavaCodegen()).populateOperationDecorators(op);
+        final Map<String, Object> deco = decorator(op);
+        assertEquals(kind, deco.get("streamKind"), mediaType);
+        assertEquals(only, deco.get("streamOnly"), mediaType);
+        assertEquals(item, deco.get("streamItemType"), mediaType);
+        assertEquals(text, deco.get("streamEventIsText"), mediaType);
+        assertEquals(!"none".equals(kind), deco.get("hasStreamMethod"), mediaType);
     }
 
     private static org.openapitools.codegen.CodegenResponse response(String code, String dataType, boolean model) {
