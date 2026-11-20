@@ -52,6 +52,7 @@ from .get_upstream_options import GetUpstreamOptions as GetUpstreamOptions
 from .take_lock_options import TakeLockOptions as TakeLockOptions
 from .create_account_options import CreateAccountOptions as CreateAccountOptions
 from .delete_order_options import DeleteOrderOptions as DeleteOrderOptions
+from .export_orders_options import ExportOrdersOptions as ExportOrdersOptions
 from .get_audit_trail_options import GetAuditTrailOptions as GetAuditTrailOptions
 from .get_by_swatch_options import GetBySwatchOptions as GetBySwatchOptions
 from .get_defaults_options import GetDefaultsOptions as GetDefaultsOptions
@@ -76,3 +77,5 @@ from .get_tree_options import GetTreeOptions as GetTreeOptions
 from .place_order_options import PlaceOrderOptions as PlaceOrderOptions
 from .reserve_stock_options import ReserveStockOptions as ReserveStockOptions
 from .search_store_options import SearchStoreOptions as SearchStoreOptions
+from .watch_notices_options import WatchNoticesOptions as WatchNoticesOptions
+from .watch_orders_options import WatchOrdersOptions as WatchOrdersOptions

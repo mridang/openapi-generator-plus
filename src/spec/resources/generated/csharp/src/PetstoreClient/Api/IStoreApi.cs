@@ -46,6 +46,18 @@ public interface IStoreApi
         CancellationToken cancellationToken = default
     );
 
+    /// <summary>The <c>ExportOrders</c> operation.</summary>
+    Task<Order> ExportOrdersAsync(
+        ExportOrdersOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>ExportOrders</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<Order>> ExportOrdersWithHttpInfoAsync(
+        ExportOrdersOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
     /// <summary>The <c>GetAuditTrail</c> operation.</summary>
     Task<ApiResponse> GetAuditTrailAsync(
         GetAuditTrailOptions? options = null,
@@ -267,6 +279,30 @@ public interface IStoreApi
     /// <summary>The <c>SearchStore</c> operation with its status code, headers and body.</summary>
     Task<ApiResult<List<Order>>> SearchStoreWithHttpInfoAsync(
         SearchStoreOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>WatchNotices</c> operation.</summary>
+    Task<string> WatchNoticesAsync(
+        WatchNoticesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>WatchNotices</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<string>> WatchNoticesWithHttpInfoAsync(
+        WatchNoticesOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>WatchOrders</c> operation.</summary>
+    Task<Order> WatchOrdersAsync(
+        WatchOrdersOptions? options = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>The <c>WatchOrders</c> operation with its status code, headers and body.</summary>
+    Task<ApiResult<Order>> WatchOrdersWithHttpInfoAsync(
+        WatchOrdersOptions? options = null,
         CancellationToken cancellationToken = default
     );
 }

@@ -13,6 +13,7 @@ import com.example.petstore.ApiResult;
 import com.example.petstore.Configuration;
 import com.example.petstore.api.options.CreateAccountOptions;
 import com.example.petstore.api.options.DeleteOrderOptions;
+import com.example.petstore.api.options.ExportOrdersOptions;
 import com.example.petstore.api.options.GetAuditTrailOptions;
 import com.example.petstore.api.options.GetBySwatchOptions;
 import com.example.petstore.api.options.GetDefaultsOptions;
@@ -31,6 +32,8 @@ import com.example.petstore.api.options.GetTreeOptions;
 import com.example.petstore.api.options.PlaceOrderOptions;
 import com.example.petstore.api.options.ReserveStockOptions;
 import com.example.petstore.api.options.SearchStoreOptions;
+import com.example.petstore.api.options.WatchNoticesOptions;
+import com.example.petstore.api.options.WatchOrdersOptions;
 import com.example.petstore.auth.Authenticator;
 import com.example.petstore.errors.ApiException;
 import com.example.petstore.models.Account;
@@ -58,6 +61,9 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
 
   private static final java.lang.reflect.Type createAccountTypeRef =
       new TypeReference<Account>() {}.getType();
+
+  private static final java.lang.reflect.Type exportOrdersTypeRef =
+      new TypeReference<Order>() {}.getType();
 
   private static final java.lang.reflect.Type getAuditTrailTypeRef =
       new TypeReference<ApiResponse>() {}.getType();
@@ -112,6 +118,12 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
 
   private static final java.lang.reflect.Type searchStoreTypeRef =
       new TypeReference<List<Order>>() {}.getType();
+
+  private static final java.lang.reflect.Type watchNoticesTypeRef =
+      new TypeReference<String>() {}.getType();
+
+  private static final java.lang.reflect.Type watchOrdersTypeRef =
+      new TypeReference<Order>() {}.getType();
 
   /** Creates an instance with the default client and configuration. */
   public StoreApi() {
@@ -344,6 +356,85 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         "deleteOrder",
         "/store/order/{orderId}");
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Order exportOrders() {
+    return exportOrders(null);
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Order> exportOrdersWithHttpInfo() {
+    return exportOrdersWithHttpInfo(null);
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Order exportOrders(@Nullable ExportOrdersOptions options) {
+    return requireBody(exportOrdersWithHttpInfo(options), "exportOrders");
+  }
+
+  /**
+   * Exports every order as JSON Lines
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Order> exportOrdersWithHttpInfo(@Nullable ExportOrdersOptions options) {
+    String path = "/store/orders/export";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "exportOrders",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"application/x-ndjson"},
+        "application/json",
+        exportOrdersTypeRef,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "exportOrders",
+        "/store/orders/export");
   }
 
   /**
@@ -1973,6 +2064,172 @@ public class StoreApi extends BaseApi implements StoreApiInterface {
         null,
         "searchStore",
         "/store/search");
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public String watchNotices() {
+    return watchNotices(null);
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<String> watchNoticesWithHttpInfo() {
+    return watchNoticesWithHttpInfo(null);
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public String watchNotices(@Nullable WatchNoticesOptions options) {
+    return requireBody(watchNoticesWithHttpInfo(options), "watchNotices");
+  }
+
+  /**
+   * Streams plain text notices as server-sent events
+   *
+   * @param options options carrying the per-call timeout, retry count and headers
+   * @return the API result wrapping {@code String}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<String> watchNoticesWithHttpInfo(@Nullable WatchNoticesOptions options) {
+    String path = "/store/notices";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "watchNotices",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"text/event-stream"},
+        "application/json",
+        watchNoticesTypeRef,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "watchNotices",
+        "/store/notices");
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Order watchOrders() {
+    return watchOrders(null);
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * <p>Convenience overload that omits the optional {@code options} argument; any optional
+   * parameters and the per-call timeout, retry count and headers stay unset, so the client's
+   * configured settings apply.
+   *
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Order> watchOrdersWithHttpInfo() {
+    return watchOrdersWithHttpInfo(null);
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public Order watchOrders(@Nullable WatchOrdersOptions options) {
+    return requireBody(watchOrdersWithHttpInfo(options), "watchOrders");
+  }
+
+  /**
+   * Streams order changes as server-sent events
+   *
+   * @param options options for query, header, form, and cookie parameters
+   * @return the API result wrapping {@code Order}
+   * @throws ApiException if fails to make API call
+   */
+  @Override
+  public ApiResult<Order> watchOrdersWithHttpInfo(@Nullable WatchOrdersOptions options) {
+    String path = "/store/orders/events";
+    Map<String, Object> queryParams = new LinkedHashMap<>();
+    if (options != null && options.status() != null) {
+      ValueSerializer.putQuery(
+          queryParams,
+          "status",
+          ValueSerializer.serializeStyled(
+              "status", options.status(), "query", "String", null, "form", true),
+          false);
+    }
+    Map<String, String> headerParams = new HashMap<>();
+    Integer callTimeout = options != null ? options.timeout() : null;
+    Integer callMaxRetries = options != null ? options.maxRetries() : null;
+    Map<String, String> callHeaders = options != null ? options.headers() : null;
+    if (callHeaders != null) {
+      headerParams.putAll(callHeaders);
+    }
+    return invokeApiForResult(
+        "watchOrders",
+        "GET",
+        path,
+        queryParams,
+        headerParams,
+        null,
+        new String[] {"text/event-stream"},
+        "application/json",
+        watchOrdersTypeRef,
+        NO_AUTH,
+        callTimeout,
+        callMaxRetries,
+        null,
+        null,
+        "watchOrders",
+        "/store/orders/events");
   }
 
   /**

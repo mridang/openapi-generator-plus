@@ -13,3 +13,4 @@ export * from './get-by-swatch-options.js';
 export * from './get-native-values-options.js';
 export * from './get-stock-item-options.js';
 export * from './search-store-options.js';
+export * from './watch-orders-options.js';

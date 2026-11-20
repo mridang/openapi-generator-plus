@@ -321,6 +321,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * Declares multipart/mixed so a declared multipart subtype other than form-data must reach the transport.
      * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function attachPetFiles(int $petId, AttachPetFilesOptions $options): \PetstoreClient\Models\ApiResponse
     {
@@ -347,6 +348,7 @@ class PetApi extends BaseApi implements PetApiInterface
      * @param AttachPetFilesOptions $options Options for query, header, form, and cookie parameters
      * @return ApiResult<\PetstoreClient\Models\ApiResponse>
      * @throws \PetstoreClient\Errors\ApiException
+     * @throws \PetstoreClient\Errors\SerializationException when the request or response body cannot be encoded or decoded
      */
     public function attachPetFilesWithHttpInfo(int $petId, AttachPetFilesOptions $options): ApiResult
     {

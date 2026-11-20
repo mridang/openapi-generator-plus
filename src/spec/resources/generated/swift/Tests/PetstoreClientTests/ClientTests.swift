@@ -2140,6 +2140,24 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     throw NotFoundError(message: "missing")
   }
 
+  public func exportOrders(options: ExportOrdersOptions?) async throws -> Order {
+    var parts: [String] = []
+    var call = "exportOrders(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func exportOrdersWithHTTPInfo(options: ExportOrdersOptions?) async throws -> ApiResult<
+    Order
+  > {
+    var parts: [String] = []
+    var call = "exportOrdersWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
   public func getAuditTrail(options: GetAuditTrailOptions?) async throws -> ApiResponse {
     var parts: [String] = []
     var call = "getAuditTrail(" + parts.joined(separator: ",") + ")"
@@ -2470,6 +2488,41 @@ private final class FakeStoreApi: StoreApiProtocol, @unchecked Sendable {
     record(call)
     throw NotFoundError(message: "missing")
   }
+
+  public func watchNotices(options: WatchNoticesOptions?) async throws -> String {
+    var parts: [String] = []
+    var call = "watchNotices(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func watchNoticesWithHTTPInfo(options: WatchNoticesOptions?) async throws -> ApiResult<
+    String
+  > {
+    var parts: [String] = []
+    var call = "watchNoticesWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func watchOrders(options: WatchOrdersOptions?) async throws -> Order {
+    var parts: [String] = []
+    var call = "watchOrders(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
+
+  public func watchOrdersWithHTTPInfo(options: WatchOrdersOptions?) async throws -> ApiResult<Order>
+  {
+    var parts: [String] = []
+    var call = "watchOrdersWithHTTPInfo(" + parts.joined(separator: ",") + ")"
+    call += options == nil ? " options=none" : " options=set"
+    record(call)
+    throw NotFoundError(message: "missing")
+  }
 }
 
 private final class FakeClient: ClientProtocol, @unchecked Sendable {
@@ -2627,6 +2680,8 @@ private func environmentClient(
     #expect(storeListed.contains("createAccountWithHTTPInfo"))
     #expect(storeListed.contains("deleteOrder"))
     #expect(storeListed.contains("deleteOrderWithHTTPInfo"))
+    #expect(storeListed.contains("exportOrders"))
+    #expect(storeListed.contains("exportOrdersWithHTTPInfo"))
     #expect(storeListed.contains("getAuditTrail"))
     #expect(storeListed.contains("getAuditTrailWithHTTPInfo"))
     #expect(storeListed.contains("getBySwatch"))
@@ -2663,6 +2718,10 @@ private func environmentClient(
     #expect(storeListed.contains("reserveStockWithHTTPInfo"))
     #expect(storeListed.contains("searchStore"))
     #expect(storeListed.contains("searchStoreWithHTTPInfo"))
+    #expect(storeListed.contains("watchNotices"))
+    #expect(storeListed.contains("watchNoticesWithHTTPInfo"))
+    #expect(storeListed.contains("watchOrders"))
+    #expect(storeListed.contains("watchOrdersWithHTTPInfo"))
   }
 
   @Test func testBhvMocking002GroupProtocolListsExactlyThePublicOperationsOfTheClass() throws {

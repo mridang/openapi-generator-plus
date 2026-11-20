@@ -2263,7 +2263,7 @@ class TestDecodeValidates:
                 '{"name":"Fido","photoUrls":[],"status":"bogus"}', "Pet"
             )
 
-    def test_bhv_lang_python_210_a_value_outside_the_declared_constraints_is_rejected(
+    def test_bhv_lang_python_216_a_value_outside_the_declared_constraints_is_rejected(
         self,
     ) -> None:
         with pytest.raises(SerializationException):

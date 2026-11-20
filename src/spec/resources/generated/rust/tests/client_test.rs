@@ -1508,6 +1508,30 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn export_orders(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("export_orders( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn export_orders_with_http_info(
+        &self,
+        options: Option<&ExportOrdersOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "export_orders_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
     fn get_audit_trail(
         &self,
         options: Option<&GetAuditTrailOptions>,
@@ -1992,6 +2016,54 @@ impl StoreApiTrait for FakeStoreApi {
         let failure = self.failure();
         async move { Err(failure) }
     }
+    fn watch_notices(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> impl Future<Output = Result<String, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("watch_notices( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn watch_notices_with_http_info(
+        &self,
+        options: Option<&WatchNoticesOptions>,
+    ) -> impl Future<Output = Result<ApiResult<String>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "watch_notices_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+    fn watch_orders(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> impl Future<Output = Result<Order, Box<dyn std::error::Error + Send + Sync>>> {
+        self.calls
+            .lock()
+            .expect("calls lock")
+            .push(format!("watch_orders( options={})", options.is_some()));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
+
+    fn watch_orders_with_http_info(
+        &self,
+        options: Option<&WatchOrdersOptions>,
+    ) -> impl Future<Output = Result<ApiResult<Order>, Box<dyn std::error::Error + Send + Sync>>>
+    {
+        self.calls.lock().expect("calls lock").push(format!(
+            "watch_orders_with_http_info( options={})",
+            options.is_some()
+        ));
+        let failure = self.failure();
+        async move { Err(failure) }
+    }
 }
 
 /// Reads the interface block (the trait) and the group class of one API source file.
@@ -2102,6 +2174,8 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"create_account_with_http_info".to_string()));
     assert!(store_listed.contains(&"delete_order".to_string()));
     assert!(store_listed.contains(&"delete_order_with_http_info".to_string()));
+    assert!(store_listed.contains(&"export_orders".to_string()));
+    assert!(store_listed.contains(&"export_orders_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_audit_trail".to_string()));
     assert!(store_listed.contains(&"get_audit_trail_with_http_info".to_string()));
     assert!(store_listed.contains(&"get_by_swatch".to_string()));
@@ -2138,6 +2212,10 @@ fn test_bhv_mocking_001_every_group_has_a_trait_the_class_implements() {
     assert!(store_listed.contains(&"reserve_stock_with_http_info".to_string()));
     assert!(store_listed.contains(&"search_store".to_string()));
     assert!(store_listed.contains(&"search_store_with_http_info".to_string()));
+    assert!(store_listed.contains(&"watch_notices".to_string()));
+    assert!(store_listed.contains(&"watch_notices_with_http_info".to_string()));
+    assert!(store_listed.contains(&"watch_orders".to_string()));
+    assert!(store_listed.contains(&"watch_orders_with_http_info".to_string()));
 }
 
 #[test]

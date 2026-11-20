@@ -5,6 +5,8 @@ module Petstore::Client
       def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
       def delete_order: (Integer order_id, ?Options::DeleteOrderOptions? options) -> void
       def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def export_orders: (?Options::ExportOrdersOptions? options) -> Models::Order
+      def export_orders_with_http_info: (?Options::ExportOrdersOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
       def get_audit_trail: (?Options::GetAuditTrailOptions? options) -> Models::ApiResponse
       def get_audit_trail_with_http_info: (?Options::GetAuditTrailOptions? options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
@@ -41,6 +43,10 @@ module Petstore::Client
       def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+      def watch_notices: (?Options::WatchNoticesOptions? options) -> String
+      def watch_notices_with_http_info: (?Options::WatchNoticesOptions? options) -> ::Petstore::Client::ApiResult[String]
+      def watch_orders: (?Options::WatchOrdersOptions? options) -> Models::Order
+      def watch_orders_with_http_info: (?Options::WatchOrdersOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
     end
     class StoreApi < BaseApi
       def initialize: (?::Petstore::Client::ApiClient? api_client, ?::Petstore::Client::Configuration config, ?::Petstore::Client::Auth::Authenticator? authenticator, ?Hash[String, ::Petstore::Client::Auth::Authenticator] scheme_authenticators) -> void
@@ -48,6 +54,8 @@ module Petstore::Client
       def create_account_with_http_info: (Models::Account account, ?Options::CreateAccountOptions? options) -> ::Petstore::Client::ApiResult[Models::Account]
       def delete_order: (Integer order_id, ?Options::DeleteOrderOptions? options) -> void
       def delete_order_with_http_info: (Integer order_id, ?Options::DeleteOrderOptions? options) -> ::Petstore::Client::ApiResult[nil]
+      def export_orders: (?Options::ExportOrdersOptions? options) -> Models::Order
+      def export_orders_with_http_info: (?Options::ExportOrdersOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
       def get_audit_trail: (?Options::GetAuditTrailOptions? options) -> Models::ApiResponse
       def get_audit_trail_with_http_info: (?Options::GetAuditTrailOptions? options) -> ::Petstore::Client::ApiResult[Models::ApiResponse]
       def get_by_swatch: (Models::Swatch path_swatch, ?Options::GetBySwatchOptions? options) -> Models::Category
@@ -84,6 +92,10 @@ module Petstore::Client
       def reserve_stock_with_http_info: (?Options::ReserveStockOptions? options) -> ::Petstore::Client::ApiResult[Models::ReserveStockResponse]
       def search_store: (?Options::SearchStoreOptions? options) -> Array[Models::Order]
       def search_store_with_http_info: (?Options::SearchStoreOptions? options) -> ::Petstore::Client::ApiResult[Array[Models::Order]]
+      def watch_notices: (?Options::WatchNoticesOptions? options) -> String
+      def watch_notices_with_http_info: (?Options::WatchNoticesOptions? options) -> ::Petstore::Client::ApiResult[String]
+      def watch_orders: (?Options::WatchOrdersOptions? options) -> Models::Order
+      def watch_orders_with_http_info: (?Options::WatchOrdersOptions? options) -> ::Petstore::Client::ApiResult[Models::Order]
     end
   end
 end

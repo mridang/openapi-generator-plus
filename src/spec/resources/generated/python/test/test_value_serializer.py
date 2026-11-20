@@ -1101,7 +1101,7 @@ class TestUuidParameterTypedAsString:
                 "token_id", "not-a-uuid", "path", "uuid.UUID", None, "simple", False
             )
 
-    def test_bhv_lang_python_211_a_canonical_uuid_string_is_written_lowercase(
+    def test_bhv_lang_python_217_a_canonical_uuid_string_is_written_lowercase(
         self,
     ) -> None:
         written = ValueSerializer.serialize_styled(

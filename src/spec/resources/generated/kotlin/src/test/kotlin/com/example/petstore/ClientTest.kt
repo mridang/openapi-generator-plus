@@ -651,6 +651,8 @@ class ClientTest {
         assertTrue("createAccountWithHttpInfo" in storeListed)
         assertTrue("deleteOrder" in storeListed)
         assertTrue("deleteOrderWithHttpInfo" in storeListed)
+        assertTrue("exportOrders" in storeListed)
+        assertTrue("exportOrdersWithHttpInfo" in storeListed)
         assertTrue("getAuditTrail" in storeListed)
         assertTrue("getAuditTrailWithHttpInfo" in storeListed)
         assertTrue("getBySwatch" in storeListed)
@@ -687,6 +689,10 @@ class ClientTest {
         assertTrue("reserveStockWithHttpInfo" in storeListed)
         assertTrue("searchStore" in storeListed)
         assertTrue("searchStoreWithHttpInfo" in storeListed)
+        assertTrue("watchNotices" in storeListed)
+        assertTrue("watchNoticesWithHttpInfo" in storeListed)
+        assertTrue("watchOrders" in storeListed)
+        assertTrue("watchOrdersWithHttpInfo" in storeListed)
     }
 
     private fun publicMethodNames(methods: Array<java.lang.reflect.Method>): Set<String> =

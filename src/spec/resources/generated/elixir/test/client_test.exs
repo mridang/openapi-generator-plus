@@ -867,6 +867,9 @@ defmodule PetstoreClient.ClientTest do
     assert :delete_order in store_listed
     assert :delete_order! in store_listed
     assert :delete_order_with_http_info in store_listed
+    assert :export_orders in store_listed
+    assert :export_orders! in store_listed
+    assert :export_orders_with_http_info in store_listed
     assert :get_audit_trail in store_listed
     assert :get_audit_trail! in store_listed
     assert :get_audit_trail_with_http_info in store_listed
@@ -921,6 +924,12 @@ defmodule PetstoreClient.ClientTest do
     assert :search_store in store_listed
     assert :search_store! in store_listed
     assert :search_store_with_http_info in store_listed
+    assert :watch_notices in store_listed
+    assert :watch_notices! in store_listed
+    assert :watch_notices_with_http_info in store_listed
+    assert :watch_orders in store_listed
+    assert :watch_orders! in store_listed
+    assert :watch_orders_with_http_info in store_listed
   end
 
   test "bhv mocking 002 the group behaviour lists exactly the public operations of the module" do
