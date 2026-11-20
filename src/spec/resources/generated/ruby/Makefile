@@ -1,4 +1,4 @@
-.PHONY: install build test lint format typecheck docs clean
+.PHONY: install build test lint format typecheck docs clean examples examples-run
 
 install:
 	bundle install --quiet
@@ -22,3 +22,12 @@ docs: install
 
 clean:
 	rm -rf .bundle vendor doc .out .yardoc
+
+# Checks the syntax of every file under examples and type-checks the directory with the
+# Steepfile's examples target.
+examples: install
+	find examples -name '*.rb' -print0 | xargs -0 -n1 ruby -wc
+	bundle exec steep check --group=examples
+
+examples-run: examples
+	SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL="$(API_BASE_URL)" SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN=placeholder bundle exec ruby -Ilib examples/quickstart.rb

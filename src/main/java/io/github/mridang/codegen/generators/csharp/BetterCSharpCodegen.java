@@ -432,7 +432,7 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
                 .orElse(packageName);
         final String invokerFolder = Path.of(sf, pkg.replace(".", "/")).toString();
         final String errorsFolder = Path.of(invokerFolder, "Errors").toString();
-        return List.of(
+        final List<SupportingFileSpec> specs = new ArrayList<>(List.of(
             new SupportingFileSpec("readme.mustache", "", "README.md"),
             new SupportingFileSpec("skills.mustache", "", "SKILLS.md"),
             new SupportingFileSpec("api_client.mustache", invokerFolder, "ApiClient.cs"),
@@ -496,7 +496,17 @@ public class BetterCSharpCodegen extends AbstractBetterCodegen {
             new SupportingFileSpec("makefile.mustache", "", "Makefile"),
             new SupportingFileSpec(
                 "dev_dependencies.mustache", ".openapi-generator", "DEV-DEPENDENCIES")
-        );
+        ));
+        if (generateExamples) {
+            /* The quickstart is a project of its own next to the test project, which leaves
+             * examples/** out of its compile items so the two entry points never meet. */
+            final String quickstartFolder = Path.of("examples", "Quickstart").toString();
+            specs.add(new SupportingFileSpec(
+                "examples/Quickstart.csproj.mustache", quickstartFolder, "Quickstart.csproj"));
+            specs.add(new SupportingFileSpec(
+                "examples/Program.cs.mustache", quickstartFolder, "Program.cs"));
+        }
+        return specs;
     }
 
     @Override

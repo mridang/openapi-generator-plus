@@ -28,7 +28,7 @@ Java 21 is a long-term-support release, and it is the floor because the generate
 | `string`, `format: decimal` | `BigDecimal` | read from a JSON string only and written as a JSON string |
 | `integer`, `format: int32` | `Integer` | |
 | `integer`, `format: int64` | `Long` | |
-| `integer`, no format | `Integer` | 32 bits; see Under review |
+| `integer`, no format | `Integer` | 32 bits; see Known limits |
 | `number`, `format: float` | `Float` | |
 | `number`, `format: double` | `Double` | binary floating point, so not for money |
 | `number`, no format, or `format: decimal` | `java.math.BigDecimal` | exact; the serializer round-trips the JSON number so no precision is lost |
@@ -96,9 +96,71 @@ HTTP is the JDK's own `java.net.http.HttpClient`, so there is no HTTP library to
 - **OpenTelemetry adapter.** `OpenTelemetryCallHook.create()` (the global instance) or `create(openTelemetry)` is a `CallHook` that records one span (named with the operation id, kind client), the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) per call, with `http.request.method`, `url.template`, `server.address`, `http.response.status_code` and `error.type`. It uses the OpenTelemetry API only, writes `traceparent` itself and needs `opentelemetry-api` on the class path; the rest of the SDK does not.
 - **GraalVM.** The SDK ships reflection metadata for every model, so it works in a `native-image` build; the optional brotli and zstd decoders do not.
 - Testing your code: `<Group>ApiInterface` (a `...Interface.java` file per group, registered in `BetterJavaCodegen` with the suffix `Interface.java`) and `ClientInterface extends AutoCloseable` with `get<Group>()` accessors beside the public fields. The convenience overloads are `default` methods that delegate to the full form, so a fake implements one form per operation; every class method carries `@Override` because Error Prone's `MissingOverride` is an error at `failOnWarning`.
+- With `generateExamples` on, the project ships `src/examples/java/<package>/examples/Quickstart.java`, a `main` that builds a client from `{PREFIX}_BASE_URL` and `{PREFIX}_ACCESS_TOKEN`, calls the example operation in a try-with-resources block and closes the client. The pom adds `src/examples/java` as a test source root, so `make examples` (`mvn test-compile`) builds it with Error Prone and NullAway, Checkstyle and Spotless cover it, and it never ships in the jar; `make examples-run` runs it with `mvn exec:java`.
+
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```java
+CallHook hook = (info, headers) -> {
+    headers.put("X-Caller", "billing");
+    long started = System.nanoTime();
+    return outcome -> System.out.println(
+            info.operationId() + " " + outcome.statusCode() + " "
+                    + (System.nanoTime() - started) / 1_000_000 + " ms");
+};
+Client client = Client.builder("https://api.example.com")
+        .callHook(hook)
+        .build();
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```java
+try (Client eu = Client.withToken("https://eu.api.example.com", "eu-token");
+     Client us = Client.withToken("https://us.api.example.com", "us-token")) {
+    eu.pet.addPet(new Pet());
+    us.pet.addPet(new Pet());
+}
+```
+
+Closing one client does not affect the other.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `models/Animal.java`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```java
+ApiResult<Pet> result = client.pet.addPetWithHttpInfo(new Pet());
+int status = result.statusCode();
+String etag = result.headers().get("etag");
+String raw = result.rawBody();
+
+try {
+    client.pet.addPet(new Pet());
+} catch (ApiException e) {
+    int failed = e.getStatusCode();
+    Map<String, String> headers = e.getResponseHeaders();
+    String body = e.getResponseBody();
+}
+```
 
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - Request and response bodies are read whole into memory. There is no streaming and no server-sent events API.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked on the client; the server validates them.
 - `dependentRequired` and `dependentSchemas` are not enforced.
@@ -113,7 +175,6 @@ HTTP is the JDK's own `java.net.http.HttpClient`, so there is no HTTP library to
 
 These are proposals from a review of the type mapping against current Java. None of them is decided, and none changes what the generator produces today.
 
-- Map `type: integer` with no format to `Long` (or `BigInteger`) instead of `Integer`. This would be a public API change, so it is a single decision for all twelve languages together with Kotlin and C#.
 - Model unions as a sealed interface with record variants. The floor of 21 already allows `sealed` types and pattern-matching `switch`, so the floor would not change, but the public shape of every union would.
 - Build maps as `LinkedHashMap` instead of `HashMap` so that `additionalProperties` keep their wire order. This is an implementation detail, not a type change.
 - Keep `java.time` types as they are. The review found nothing in newer JDKs that replaces `LocalDate`, `OffsetDateTime`, `LocalTime` or `Duration`. Adding `java.time.Period` for calendar durations would need a format decision, not a newer JDK.

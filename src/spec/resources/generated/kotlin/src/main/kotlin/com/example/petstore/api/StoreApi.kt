@@ -15,6 +15,7 @@ import com.example.petstore.Configuration
 import com.example.petstore.ValueSerializer
 import com.example.petstore.api.options.CreateAccountOptions
 import com.example.petstore.api.options.DeleteOrderOptions
+import com.example.petstore.api.options.ExportOrdersOptions
 import com.example.petstore.api.options.GetAuditTrailOptions
 import com.example.petstore.api.options.GetBySwatchOptions
 import com.example.petstore.api.options.GetDefaultsOptions
@@ -33,6 +34,8 @@ import com.example.petstore.api.options.GetTreeOptions
 import com.example.petstore.api.options.PlaceOrderOptions
 import com.example.petstore.api.options.ReserveStockOptions
 import com.example.petstore.api.options.SearchStoreOptions
+import com.example.petstore.api.options.WatchNoticesOptions
+import com.example.petstore.api.options.WatchOrdersOptions
 import com.example.petstore.auth.Authenticator
 import com.example.petstore.auth.NoAuth
 import com.example.petstore.errors.ApiException
@@ -179,6 +182,50 @@ class StoreApi :
             callMaxRetries = callMaxRetries,
             operationId = "deleteOrder",
             urlTemplate = "/store/order/{orderId}",
+        )
+    }
+
+    /**
+     * Exports every order as JSON Lines
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @return Order
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun exportOrders(options: ExportOrdersOptions?): Order =
+        exportOrdersWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for exportOrders but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [exportOrders] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun exportOrdersWithHttpInfo(options: ExportOrdersOptions?): ApiResult<Order> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/orders/export"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Order>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("application/x-ndjson"),
+            "application/json",
+            NoAuth,
+            "StoreApi.exportOrders",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "exportOrders",
+            urlTemplate = "/store/orders/export",
         )
     }
 
@@ -1116,6 +1163,102 @@ class StoreApi :
             callMaxRetries = callMaxRetries,
             operationId = "searchStore",
             urlTemplate = "/store/search",
+        )
+    }
+
+    /**
+     * Streams plain text notices as server-sent events
+     * @param options the per-call timeout, headers and maxRetries
+
+     * @return String
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun watchNotices(options: WatchNoticesOptions?): String =
+        watchNoticesWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for watchNotices but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [watchNotices] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun watchNoticesWithHttpInfo(options: WatchNoticesOptions?): ApiResult<String> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/notices"
+        val queryParams = mutableMapOf<String, Any?>()
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<String>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("text/event-stream"),
+            "application/json",
+            NoAuth,
+            "StoreApi.watchNotices",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "watchNotices",
+            urlTemplate = "/store/notices",
+        )
+    }
+
+    /**
+     * Streams order changes as server-sent events
+     * @param options options for query, header, form, cookie parameters and the per-call timeout, headers and maxRetries
+
+     * @return Order
+     * @throws ApiException if fails to make API call
+     */
+    override suspend fun watchOrders(options: WatchOrdersOptions?): Order =
+        watchOrdersWithHttpInfo(options).let { result ->
+            result.data ?: throw ApiException(
+                result.statusCode,
+                "Expected a response body for watchOrders but received none",
+                result.headers,
+                result.rawBody,
+            )
+        }
+
+    /** Same as [watchOrders] but returns the full [ApiResult] (status code, headers and body). */
+    override suspend fun watchOrdersWithHttpInfo(options: WatchOrdersOptions?): ApiResult<Order> {
+        val callTimeout: Long? = options?.timeout
+        val callHeaders: Map<String, String>? = options?.headers
+        val callMaxRetries: Int? = options?.maxRetries
+        var path = "/store/orders/events"
+        val queryParams = mutableMapOf<String, Any?>()
+        if (options?.status != null) {
+            ValueSerializer.putQuery(
+                queryParams,
+                "status",
+                ValueSerializer.serializeStyled("status", options!!.status, "query", "String", null, "form", true),
+                false,
+            )
+        }
+        val headerParams = mutableMapOf<String, String>()
+
+        return invokeApiForResult<Order>(
+            "GET",
+            path,
+            queryParams,
+            headerParams,
+            null,
+            arrayOf("text/event-stream"),
+            "application/json",
+            NoAuth,
+            "StoreApi.watchOrders",
+            callTimeout = callTimeout,
+            callHeaders = callHeaders,
+            callMaxRetries = callMaxRetries,
+            operationId = "watchOrders",
+            urlTemplate = "/store/orders/events",
         )
     }
 }

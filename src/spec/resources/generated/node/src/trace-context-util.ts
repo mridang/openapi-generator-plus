@@ -28,17 +28,24 @@ type ModuleLoader = (id: string) => unknown;
  * the function no-ops. The loader is resolved once, at module load.
  */
 function resolveModuleLoader(): ModuleLoader | null {
-  if (typeof require === 'function') {
+  if (typeof require === "function") {
     return require;
   }
-  const proc = (globalThis as { process?: { getBuiltinModule?: ModuleLoader; cwd?: () => string } }).process;
-  if (typeof proc?.getBuiltinModule !== 'function' || typeof proc.cwd !== 'function') {
+  const proc = (
+    globalThis as {
+      process?: { getBuiltinModule?: ModuleLoader; cwd?: () => string };
+    }
+  ).process;
+  if (
+    typeof proc?.getBuiltinModule !== "function" ||
+    typeof proc.cwd !== "function"
+  ) {
     return null;
   }
-  const nodeModule = proc.getBuiltinModule('node:module') as {
+  const nodeModule = proc.getBuiltinModule("node:module") as {
     createRequire?: (filename: string) => ModuleLoader;
   } | null;
-  if (typeof nodeModule?.createRequire !== 'function') {
+  if (typeof nodeModule?.createRequire !== "function") {
     return null;
   }
   /* Resolve from the working directory: @opentelemetry/api is a peer
@@ -63,7 +70,7 @@ export function injectTraceContext(headers: Record<string, string>): void {
     return;
   }
   try {
-    const otel = loadModule('@opentelemetry/api') as OtelApi;
+    const otel = loadModule("@opentelemetry/api") as OtelApi;
     otel.propagation.inject(otel.context.active(), headers);
   } catch {
     /* empty */

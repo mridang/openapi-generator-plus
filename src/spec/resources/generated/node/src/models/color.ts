@@ -9,8 +9,8 @@
  * A standalone, reusable colour enumeration
  */
 export const Color = {
-  Red: 'red',
-  Green: 'green',
-  Blue: 'blue',
+  Red: "red",
+  Green: "green",
+  Blue: "blue",
 } as const;
 export type Color = (typeof Color)[keyof typeof Color];

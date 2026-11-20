@@ -16,7 +16,7 @@
  * Construct one via {@link uuid}, which validates the canonical RFC 4122
  * 8-4-4-4-12 hex form. Use {@link isUuid} as a type guard when narrowing.
  */
-export type UUID = string & { readonly __brand: 'UUID' };
+export type UUID = string & { readonly __brand: "UUID" };
 
 /**
  * Canonical OpenAPI/RFC 4122 UUID shape. Case-insensitive; matches all
@@ -24,14 +24,15 @@ export type UUID = string & { readonly __brand: 'UUID' };
  * `format: uuid` is intentionally permissive about which variant is on the
  * wire, so we only insist on the structural shape.
  */
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Type guard for {@link UUID}. Use to narrow an arbitrary string before
  * passing it to APIs expecting a UUID-shaped value.
  */
 export function isUuid(value: unknown): value is UUID {
-  return typeof value === 'string' && UUID_PATTERN.test(value);
+  return typeof value === "string" && UUID_PATTERN.test(value);
 }
 
 /**
@@ -51,7 +52,7 @@ export function uuid(value: string): UUID {
  * runtime boxing, no interop tax. `uri-reference` and `uri-template` stay
  * plain strings because neither is guaranteed absolute.
  */
-export type URI = string & { readonly __brand: 'URI' };
+export type URI = string & { readonly __brand: "URI" };
 
 /**
  * Brand a raw string as a {@link URI}. Zero-cost cast; callers asserting
@@ -69,7 +70,7 @@ export { makeUri as URI };
  * Branded string type for OpenAPI `format: email` values. The brand exists
  * only at the type level; runtime is still a plain string.
  */
-export type Email = string & { readonly __brand: 'Email' };
+export type Email = string & { readonly __brand: "Email" };
 
 /**
  * Brand a raw string as an {@link Email}. Zero-cost cast; callers asserting
@@ -84,7 +85,7 @@ export { makeEmail as Email };
  * `type: string, format: decimal` — arbitrary-precision numeric values
  * that must be carried as strings on the wire to avoid IEEE 754 loss.
  */
-export type Decimal = string & { readonly __brand: 'Decimal' };
+export type Decimal = string & { readonly __brand: "Decimal" };
 
 /**
  * Brand a raw string as a {@link Decimal}. Zero-cost cast; callers

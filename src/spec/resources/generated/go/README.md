@@ -30,14 +30,18 @@ go get petstore
 
 ## Usage
 
-```go
-import "petstore/pkg"
+```go statements
+import (
+	"os"
 
-client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil)
+	"petstore/pkg"
+)
+
+client, err := petstore.NewClientWithToken(os.Getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"), os.Getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN"), nil)
 if err != nil {
-    return err
+	return err
 }
-defer client.Close()
+defer func() { _ = client.Close() }()
 ```
 
 Close the client to release its connections: requests already in flight finish, a request sent afterwards returns `ErrClientClosed`, and a second `Close` does nothing. Cancel a single request through its context. Errors satisfy the `OpenAPIError` interface; `NetworkError` and `NetworkTimeoutError` mean no HTTP response arrived, and `TooManyRequestsError` is HTTP 429. See [SKILLS.md](SKILLS.md) for authentication, servers and error handling.
@@ -56,10 +60,14 @@ Every operation has a `...WithHTTPInfo` variant returning an `*ApiResult[T]` wit
 
 A failed request is retried automatically, up to `MaxRetries` times (default 2; `MaxRetries(0)` disables retries). The retry applies to a network error that happened before a response and to the statuses 408, 409, 429 and 500-599 except 501. The wait starts at 0.5 seconds, doubles up to 8 seconds and loses up to 25% to jitter; a `Retry-After` header (seconds or an HTTP date, capped at 60 seconds) replaces it. The retries never extend the end-to-end `Timeout`: a wait that would outlast it ends the retries and the last failure is returned. Cancelling the context stops them. Every retry is a fresh request, so the authentication headers are applied again. A `multipart/form-data` request is sent once and never retried, because its file parts are streams.
 
-```go
-transport, err := petstore.NewTransportOptionsBuilder().
-    MaxRetries(5).
-    Build()
+```go file
+import "petstore/pkg"
+
+func newTransport() (*petstore.TransportOptions, error) {
+	return petstore.NewTransportOptionsBuilder().
+		MaxRetries(5).
+		Build()
+}
 ```
 
 ### Expired tokens
@@ -93,7 +101,9 @@ transport with `Proxy`, `CACertPath` or `VerifySsl(false)` is rejected by
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`Client`, a struct whose group fields are typed as those interfaces), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```go
+```go file
+import "petstore/pkg"
+
 // Code under test takes the group interface, never the generated struct.
 func use(api petstore.PetApiInterface) {}
 
@@ -146,21 +156,38 @@ Each security scheme has an authenticator of its own in `pkg/auth` (`pkg/auth/oa
 | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_CLIENT_SECRET` | `userAuth` | `clientSecret` |
 | `SWAGGER_PETSTORE_OPEN_API_3_0_USER_AUTH_REDIRECT_URI` | `userAuth` | `redirectUri` |
 
-```go
-client, err := petstore.NewClientWithTokenProvider("https://api.example.com", func(ctx context.Context) (string, error) {
-    return os.Getenv("API_TOKEN"), nil
-}, nil)
+```go file
+import (
+	"context"
+	"os"
+
+	"petstore/pkg"
+)
+
+func newClient() (*petstore.Client, error) {
+	return petstore.NewClientWithTokenProvider("https://api.example.com", func(ctx context.Context) (string, error) {
+		return os.Getenv("API_TOKEN"), nil
+	}, nil)
+}
 ```
 
 ### Per-call options
 
 Every operation takes any number of `RequestOption` values as its last arguments, including an operation with no parameters and no security, which has no options struct of its own: `WithTimeout` (one end-to-end budget of at least one millisecond, retries included), `WithHeaders` (they replace a default header of the same name) and `WithMaxRetries` (at least 0; `0` turns retrying off for the call). An operation that declares several request content types also takes `WithRequestContentType`. An option you leave out keeps the client's setting.
 
-```go
-callOptions := []petstore.RequestOption{
-    petstore.WithTimeout(2 * time.Second),
-    petstore.WithHeaders(map[string]string{"X-Trace": "abc"}),
-    petstore.WithMaxRetries(0),
+```go file
+import (
+	"time"
+
+	"petstore/pkg"
+)
+
+func newCallOptions() []petstore.RequestOption {
+	return []petstore.RequestOption{
+		petstore.WithTimeout(2 * time.Second),
+		petstore.WithHeaders(map[string]string{"X-Trace": "abc"}),
+		petstore.WithMaxRetries(0),
+	}
 }
 ```
 
@@ -170,7 +197,15 @@ Pass them with `callOptions...` after the other arguments of any operation. A cl
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHTTPInfo` variant alike, and also when you supply your own transport.
 
-```go
+```go file
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"petstore/pkg"
+)
+
 type timing struct {
     operation string
     started   time.Time
@@ -180,19 +215,28 @@ func (t timing) Finish(outcome petstore.CallOutcome) {
     fmt.Println(t.operation, outcome.StatusCode, time.Since(t.started))
 }
 
-hook := petstore.CallHookFunc(func(ctx context.Context, info petstore.CallInfo, headers map[string]string) (petstore.CallObserver, error) {
-    headers["X-Caller"] = "billing"
-    return timing{operation: info.OperationID, started: time.Now()}, nil
-})
-client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(hook))
+func newHooked() (*petstore.Client, error) {
+    hook := petstore.CallHookFunc(func(ctx context.Context, info petstore.CallInfo, headers map[string]string) (petstore.CallObserver, error) {
+        headers["X-Caller"] = "billing"
+        return timing{operation: info.OperationID, started: time.Now()}, nil
+    })
+    return petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(hook))
+}
 ```
 
 `Start(ctx, info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `OperationID` (as written in the spec), `Method`, `URLTemplate`, `URL` (without query string and fragment) and `ServerAddress`. It returns the observer to call when the call ends, or `nil`. `Finish(outcome)` runs exactly once on every way the call can end, with `StatusCode` (`0` when no response arrived), the lower-cased response `Headers` (`nil` when no response arrived) and the `Error` the caller receives (`nil` on success). An error returned by `Start` reaches the caller unchanged, nothing is sent and `Finish` is not called; a panic in `Finish` is recovered. The hook never changes the result or the error of the call. Combine several hooks with `ChainCallHooks(first, second)`: they start in the order given and finish in the reverse order. The hook is also set with `NewConfigurationBuilder().CallHook(hook)`.
 
 `otelhook.New()` in the package `pkg/otelhook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Add `go.opentelemetry.io/otel` to your module (the SDK core does not import it), then pass `otelhook.New()` for the global providers or `otelhook.New(otelhook.WithTracerProvider(tp), otelhook.WithMeterProvider(mp))` for your own.
 
-```go
-client, err := petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(otelhook.New()))
+```go file
+import (
+	"petstore/pkg"
+	"petstore/pkg/otelhook"
+)
+
+func newTraced() (*petstore.Client, error) {
+	return petstore.NewClientWithToken("https://api.example.com", "your-token", nil, petstore.WithCallHook(otelhook.New()))
+}
 ```
 
 The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.

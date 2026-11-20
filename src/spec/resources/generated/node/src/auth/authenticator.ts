@@ -60,7 +60,7 @@ export interface Authenticator {
  */
 export const NO_AUTH: Authenticator = Object.freeze({
   getHost(): string {
-    return '';
+    return "";
   },
   getAuthHeaders(): Record<string, string> {
     return {};

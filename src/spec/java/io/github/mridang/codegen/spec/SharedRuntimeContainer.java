@@ -117,8 +117,9 @@ final class SharedRuntimeContainer {
 
   static GenericContainer<?> getOrCreate(LanguageSpec spec, Path outputDir) {
     return pool.computeIfAbsent(
-        spec.getGeneratorName(),
-        name -> {
+        spec.getGeneratorName() + spec.getImageVariant(),
+        key -> {
+          String name = spec.getGeneratorName();
           logger.info("Creating shared container for {}", name);
 
           /* Host-side cache root. On GitHub Actions runners the workflow
@@ -131,7 +132,10 @@ final class SharedRuntimeContainer {
            * compile, hot thereafter. */
           String language = name.replace("-plus", "");
           String hostCacheRoot =
-              System.getProperty("user.home") + "/.cache/openapi-gen/" + language;
+              System.getProperty("user.home")
+                  + "/.cache/openapi-gen/"
+                  + language
+                  + spec.getImageVariant();
           if (CACHE_ON_HOST_PATH) {
             try {
               java.nio.file.Files.createDirectories(java.nio.file.Path.of(hostCacheRoot));
@@ -193,7 +197,12 @@ final class SharedRuntimeContainer {
             container.withFileSystemBind(hostCacheRoot, containerCacheRoot, BindMode.READ_WRITE);
           } else {
             Bind cacheBind =
-                Bind.parse("openapi-gen-cache-" + language + ":" + containerCacheRoot);
+                Bind.parse(
+                    "openapi-gen-cache-"
+                        + language
+                        + spec.getImageVariant()
+                        + ":"
+                        + containerCacheRoot);
             container.withCreateContainerCmdModifier(
                 cmd -> {
                   HostConfig hostConfig = cmd.getHostConfig();
@@ -283,11 +292,12 @@ final class SharedRuntimeContainer {
 
       for (String command : commands) {
         logger.info("Executing: {}", command);
+        String shown = command.length() > 240 ? command.substring(0, 240) + " ..." : command;
 
         org.testcontainers.containers.Container.ExecResult result =
             container.execInContainer("sh", "-c", "cd /work && " + command);
 
-        output.append("=== ").append(command).append(" ===\n");
+        output.append("=== ").append(shown).append(" ===\n");
         output.append(result.getStdout());
         if (!result.getStderr().isEmpty()) {
           output.append("STDERR:\n").append(result.getStderr());

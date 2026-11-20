@@ -22,6 +22,6 @@ export class OpenAPIError extends Error {
     /* ES2022 cause option preserves any underlying error so callers can
      * drill down via `err.cause` without losing the original stack trace. */
     super(message, options);
-    this.name = 'OpenAPIError';
+    this.name = "OpenAPIError";
   }
 }

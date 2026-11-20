@@ -98,9 +98,67 @@ Only `invokerPackage` and `packageVersion` are declared as options in the genera
 - **Call hook.** `CallHook::start(CallInfo $info, array &$headers): ?CallObserver` runs once per operation call, after the trace context is injected, and may edit the headers (the array is passed by reference, as `TraceContextUtil::injectTraceContext()` does). The returned `CallObserver::finish(CallOutcome $outcome)` runs exactly once on every exit path with the status (`0` when none arrived), the lower-cased headers (`null` when none arrived) and the error the caller receives. Set it with `Configuration::builder()->callHook($hook)` (read with `getCallHook()`) or the trailing `callHook` argument of the client constructor and factories; `CallHookChain::chain($a, $b)` starts in order and finishes in reverse. It sits above the transport, so it also fires with a supplied PSR-18 or `ApiClient` transport. An exception from `start` reaches the caller and nothing is sent; one from `finish` is swallowed. PHP has no cancellation, so no outcome carries one.
 - **OpenTelemetry.** `OpenTelemetryCallHook::create(?TracerProviderInterface, ?MeterProviderInterface, ?TextMapPropagatorInterface)` records a client span named with the operation id, `http.client.request.count` and `http.client.request.duration` per call, with the scope named after the Composer package and the SDK version. It uses only `open-telemetry/api` and does nothing when the package is absent. A PHP process runs one request at a time, so a metric reaches a backend only when the application flushes its meter provider.
 - **Close and retries.** `close()` while a call runs lets that call finish, including its retries; only a new call is refused with the closed-client `LogicException`. A call whose time budget is already spent raises `NetworkTimeoutException` before anything is sent, and a response body with bytes that are not valid in its charset decodes with each bad byte replaced by U+FFFD.
+- With `generateExamples` on, the project ships `examples/quickstart.php`, a script that requires `vendor/autoload.php`, builds a client with `Client::withToken` from `{PREFIX}_BASE_URL` and `{PREFIX}_TOKEN`, calls the example operation and closes the client in a `finally` block. `make examples` lints it with `php -l` and analyses it with PHPStan at level 9, and `make examples-run` runs it.
+
+## Recipes
+
+These are answers to questions that come up often, each built from what the generated SDK already has. None of them adds API.
+
+### Hooks around every call
+
+The call hook added by [#158](https://github.com/mridang/openapi-generator-plus/issues/158) is the one place to edit the request headers before the send and to observe the status or the error afterwards, for every operation and for the client as a whole. It is optional and does nothing when it is not set. It runs once per operation call however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfo` variant alike, and also when you supply your own transport. `start` receives the call information (`operationId` as written in the spec, `method`, `urlTemplate`, `url` without its query string, `serverAddress`) and the final headers, which it can read and replace, and it returns the observer to call when the call ends or nothing. The observer's `finish` receives the status code (0 when no response arrived), the lower-cased response headers (none when no response arrived) and the error the caller receives (none on success). An error thrown by `start` reaches the caller and nothing is sent; an error thrown by `finish` is swallowed; the hook never changes the result or the error. `CallHook` is the name to look for in this SDK.
+
+```php
+final class TenantHook implements CallHook
+{
+    public function start(CallInfo $info, array &$headers): ?CallObserver
+    {
+        $headers['X-Tenant'] = 'a';
+
+        return null;
+    }
+}
+
+$client = Client::withToken('https://api.example.com', 'your-token', callHook: new TenantHook());
+```
+
+To see every send of a call rather than the call as a whole (for example each retry), wrap the transport you hand to the SDK instead: see "Custom HTTP client" in the generated README. A transport you supply is never closed by the SDK, and the hook above still fires with it.
+
+### Serving another region or tenant
+
+A client is cheap, and its host, credentials, retry settings and connections belong to it. To call another region or another tenant, build another client; there is no per-call server URL or per-call HTTP client, and the per-call options stay `timeout`, `headers` and `maxRetries`.
+
+```php
+$eu = Client::withToken('https://eu.api.example.com', 'eu-token');
+$us = Client::withToken('https://us.api.example.com', 'us-token');
+```
+
+Call `close()` on each when you are done.
+
+### Renaming types, fields and parameters
+
+The names come from the specification, so the seam is the normaliser: the `RUN_SCRIPT` rule runs your own JavaScript over the document before generation (see [how it works](../how-it-works.md#renaming-with-a-script)). A schema renamed to `Animal` is generated as `lib/Models/Animal.php`, and this language's own casing, escaping of reserved words and file naming are applied to the new name like to any other. The SDK has no configuration map of names and never reads a vendor extension for a name. The name of a property or a parameter is also its name on the wire, so renaming one in the script renames it in the requests and responses as well: there is no rename that changes only the SDK name.
+
+### Status, headers and the raw body
+
+Every operation has a `...WithHttpInfo` variant that returns the status code, the lower-cased response headers, the raw body and the decoded data. Every failure that carries an HTTP response is an `ApiException` that holds the status code, the response headers and the response body. A live response object is not exposed, because that would need streaming (see [decisions](../decisions.md)); to see or change what goes over the wire, use the call hook above or the transport you supply.
+
+```php
+$result = $client->pet->addPetWithHttpInfo($body);
+$status = $result->statusCode;
+$etag = $result->headers['etag'] ?? null;
+$raw = $result->rawBody;
+
+try {
+    $client->pet->addPet($body);
+} catch (\PetstoreClient\Errors\ApiException $e) {
+    $failed = [$e->getStatusCode(), $e->getResponseHeaders(), $e->getResponseBody()];
+}
+```
 
 ## Known limits
 
+- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into a PHP `int`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - The generated README states that the Symfony serializer takes `int64` values through `float`, so values above 2^53 may lose precision on 64-bit PHP. See Under review.
 - `number` values, including `format: decimal`, are `float`, so `0.1 + 0.2` is not exact. Use BCMath on the raw value when you need exact arithmetic.
 - `date` and `date-time` are mutable `\DateTime` objects, which can be changed in place even inside a `readonly` model.

@@ -8,7 +8,7 @@
 - Repository root: `/AGENTS.md` (workflow, commands, guardrails)
 - Codegen class: `BetterGoCodegen.java` (this folder)
 - Templates: `src/main/resources/templates/go/`
-- Specs: `src/spec/java/io/github/mridang/codegen/spec/go/` (`GoSpec`, `GoBuildSpec`, `GoClientSpec`, `GoFormattingSpec`, `GoLintingSpec`, `GoReservedWordsSpec`, `GoWasmSpec`)
+- Specs: `src/spec/java/io/github/mridang/codegen/spec/go/` (`GoSpec`, `GoBuildSpec`, `GoClientSpec`, `GoExamplesSpec`, `GoFormattingSpec`, `GoLintingSpec`, `GoReservedWordsSpec`, `GoWasmSpec`)
 - Golden: `src/spec/resources/generated/go/`
 
 ## Layout
@@ -427,3 +427,10 @@ Inside the generated module: `make lint`, `make vet`, `make staticcheck`, `make 
 - `devbox run` hijacks `go` and golangci-lint is not installed locally, so Go is checked in Docker through the specs. Redirect guards compare against the previous hop, not `via[0]`.
 
 - **F15 (typed `additionalProperties`, #103).** `AdditionalProperties` is `map[string]V` (`*V` when nullable); `UnmarshalJSON` decodes each extra into `V`, and rejects a raw `null` unless nullable.
+
+## Compiled examples (#111)
+
+- `examples/quickstart/main.go` (`templates/go/examples/quickstart.mustache`, registered by `BetterGoCodegen` when `generateExamples` is on) is a `package main` whose `run() error` holds the README Usage statements, so it can `return err`; `main` turns the error into `log.Fatal`. The Usage statements live once in `usage_statements.mustache`, included by the README Usage fence, the SKILLS Quick Start fence and the quickstart (`langgo129`). The example operation passes `nil` for its options struct and server: it has no required option by construction.
+- `GoExamplesSpec` gives every fence its own package `fences` under `.out/fences/<file>_<nn>/` and builds them with one `go build`. A `file` fence is the file body after the package clause; a `statements` fence has its `import` lines hoisted and the rest placed in `func fence() error`, so `return err` is legal in it and an unused variable or import is a compile error, as in any Go code. The harness adds nothing else.
+- A fence that calls an operation is a function taking the client and the operation's `signatureArgs` as typed arguments (`addPetOrReport(ctx, client, pet models.Pet, options *opts.AddPetOptions)`); the `models` and `opts` imports are emitted only when the first operation has a model body or an options struct, because Go rejects an unused import. Behaviours `langgo127` to `langgo132` are in `test/readme_test.mustache`.
+- `make examples` runs `go vet ./examples/...` and builds every `package main` under `examples/` into `.out/examples/`; `make docs` excludes `./examples/...` because gomarkdoc documents libraries.

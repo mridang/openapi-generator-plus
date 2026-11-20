@@ -1,0 +1,21 @@
+$host = getenv('{{envVarPrefix}}_BASE_URL') ?: throw new \RuntimeException('{{envVarPrefix}}_BASE_URL is not set');
+$token = getenv('{{envVarPrefix}}_TOKEN') ?: throw new \RuntimeException('{{envVarPrefix}}_TOKEN is not set');
+$client = {{clientClassName}}::withToken($host, $token);
+{{#hasExampleOperation}}
+{{#exampleOperation}}
+try {
+{{#returnType}}
+    $result = $client->{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}->{{operationId}}();
+    print_r($result);
+{{/returnType}}
+{{^returnType}}
+    $client->{{#exampleOperationGroup}}{{clientPropertyName}}{{/exampleOperationGroup}}->{{operationId}}();
+{{/returnType}}
+} finally {
+    $client->close();
+}
+{{/exampleOperation}}
+{{/hasExampleOperation}}
+{{^hasExampleOperation}}
+$client->close();
+{{/hasExampleOperation}}

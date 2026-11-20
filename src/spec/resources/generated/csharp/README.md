@@ -22,10 +22,18 @@ dotnet add package PetstoreClient
 
 ## Usage
 
-```csharp
+```csharp statements
 using PetstoreClient;
 
-using var client = Client.WithToken("https://api.example.com", "your-token");
+var host =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_HOST")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_HOST is not set");
+var token =
+    Environment.GetEnvironmentVariable("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+    ?? throw new InvalidOperationException("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN is not set");
+using var client = Client.WithToken(host, token);
+var result = await client.Store.GetDefaultsAsync();
+Console.WriteLine(result);
 ```
 
 The client is `IDisposable`: dispose it to release its connections. A disposed
@@ -73,11 +81,15 @@ no security requirement has an options object too, with only these three setting
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `WithHttpInfoAsync` variant alike, and also when you supply your own transport.
 
-```csharp
+```csharp file
 using System.Diagnostics;
 using PetstoreClient;
 
-using var client = Client.WithToken("https://api.example.com", "your-token", callHook: new TimingHook());
+public static class TimingExample
+{
+    public static Client Create() =>
+        Client.WithToken("https://api.example.com", "your-token", callHook: new TimingHook());
+}
 
 internal sealed class TimingObserver(CallInfo info, long started) : ICallObserver
 {
@@ -100,7 +112,9 @@ internal sealed class TimingHook : ICallHook
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. It is built on the `ActivitySource` and `Meter` types of the base class library, so there is nothing to install: pass `new OpenTelemetryCallHook()`, and add the source and the meter named `PetstoreClient` to your OpenTelemetry setup (`AddSource` and `AddMeter`).
 
-```csharp
+```csharp statements
+using PetstoreClient;
+
 using var client = Client.WithToken(
     "https://api.example.com", "your-token", callHook: new OpenTelemetryCallHook());
 ```
@@ -236,9 +250,17 @@ is linked with every call's token, so either one cancels the request. Pass
 the built options as the second constructor argument:
 `new Client(authenticator, transport)`.
 
-```csharp
-using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
-await client.Store.GetInventoryAsync(cancellationToken: cts.Token);
+```csharp file
+using PetstoreClient;
+
+public static class Cancellation
+{
+    public static async Task GetDefaultsWithinTwoSecondsAsync(Client client)
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await client.Store.GetDefaultsAsync(cancellationToken: cts.Token);
+    }
+}
 ```
 
 ### Custom HTTP transport
@@ -256,7 +278,7 @@ a stock handler with `AllowAutoRedirect` turned on.
 
 Every API group has an interface (`IPetApi`) and the client has one (`IClient`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```csharp
+```csharp file
 using System.Reflection;
 using PetstoreClient;
 using PetstoreClient.Api;

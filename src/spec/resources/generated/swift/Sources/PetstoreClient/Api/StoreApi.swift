@@ -129,6 +129,56 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     return try await invokeAPIForEmptyResult(params)
   }
 
+  /// Exports every order as JSON Lines
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func exportOrders(options: ExportOrdersOptions? = nil) async throws -> Order {
+    let result = try await exportOrdersWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for exportOrders but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the exportOrders operation and returns the full API result.
+  public func exportOrdersWithHTTPInfo(options: ExportOrdersOptions? = nil) async throws
+    -> ApiResult<Order>
+  {
+
+    let path = "/store/orders/export"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["application/x-ndjson"],
+      contentType: "application/json",
+      returnType: "Order",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.exportOrders",
+      operationId: "exportOrders",
+      urlTemplate: "/store/orders/export",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: Order.self)
+  }
+
   /// Read the audit trail, which needs a bearer token and an API key together
   /// One security requirement that names two schemes, so a request carries both credentials.
   ///
@@ -1184,5 +1234,111 @@ public final class StoreApi: BaseApi, StoreApiProtocol, @unchecked Sendable {
     )
 
     return try await invokeAPIForResult(params, as: [Order].self)
+  }
+
+  /// Streams plain text notices as server-sent events
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func watchNotices(options: WatchNoticesOptions? = nil) async throws -> String {
+    let result = try await watchNoticesWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for watchNotices but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the watchNotices operation and returns the full API result.
+  public func watchNoticesWithHTTPInfo(options: WatchNoticesOptions? = nil) async throws
+    -> ApiResult<String>
+  {
+
+    let path = "/store/notices"
+
+    let queryParams: OrderedParams<Any?> = [:]
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["text/event-stream"],
+      contentType: "application/json",
+      returnType: "String",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.watchNotices",
+      operationId: "watchNotices",
+      urlTemplate: "/store/notices",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: String.self)
+  }
+
+  /// Streams order changes as server-sent events
+  ///
+  /// - Parameters:
+  ///   - options: Per-call settings (`timeout`, `headers` and `maxRetries`) and, where the operation has them, its query, header, form and cookie parameters.
+  public func watchOrders(options: WatchOrdersOptions? = nil) async throws -> Order {
+    let result = try await watchOrdersWithHTTPInfo(options: options)
+    guard let data = result.data else {
+      throw ApiError(
+        statusCode: result.statusCode,
+        message: "Expected a response body for watchOrders but received none",
+        responseBody: result.rawBody,
+        responseHeaders: result.headers
+      )
+    }
+    return data
+  }
+
+  /// Performs the watchOrders operation and returns the full API result.
+  public func watchOrdersWithHTTPInfo(options: WatchOrdersOptions? = nil) async throws -> ApiResult<
+    Order
+  > {
+
+    let path = "/store/orders/events"
+
+    var queryParams: OrderedParams<Any?> = [:]
+    if let options = options, let val = options.status {
+      queryParams["status"] = ValueSerializer.maybeAllowReserved(
+        ValueSerializer.serializeStyled(
+          "status", value: val, location: "query", schemaType: "String", collectionFormat: "",
+          style: "form", explode: true), allowReserved: false)
+    }
+
+    let headerParams: [String: String] = [:]
+
+    let requestBody: Any? = nil
+    let params = InvokeAPIParams(
+      method: "GET",
+      path: path,
+      queryParams: queryParams,
+      headerParams: headerParams,
+      body: requestBody,
+      accepts: ["text/event-stream"],
+      contentType: "application/json",
+      returnType: "Order",
+      auth: BaseApi.noAuthSentinel,
+      operation: "StoreApi.watchOrders",
+      operationId: "watchOrders",
+      urlTemplate: "/store/orders/events",
+      timeout: options?.timeout,
+      requestHeaders: options?.headers,
+      maxRetries: options?.maxRetries
+    )
+
+    return try await invokeAPIForResult(params, as: Order.self)
   }
 }

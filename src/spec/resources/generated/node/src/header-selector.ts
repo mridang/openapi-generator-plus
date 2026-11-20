@@ -10,7 +10,8 @@
  * types declared in the OpenAPI specification.
  */
 export class HeaderSelector {
-  private static readonly JSON_MIME_PATTERN = /^application\/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)/i;
+  private static readonly JSON_MIME_PATTERN =
+    /^application\/(json|[\w!#$&.+\-^_]+\+json)\s*(;|$)/i;
 
   /**
    * Select headers for an API request.
@@ -20,19 +21,23 @@ export class HeaderSelector {
    * @param isMultipart  whether this is a multipart request
    * @returns map of header names to values
    */
-  public selectHeaders(accept: string[], contentType: string | null, isMultipart: boolean): Record<string, string> {
+  public selectHeaders(
+    accept: string[],
+    contentType: string | null,
+    isMultipart: boolean,
+  ): Record<string, string> {
     const headers: Record<string, string> = {};
 
     const acceptHeader = this.selectAcceptHeader(accept);
-    if (acceptHeader !== '') {
-      headers['Accept'] = acceptHeader;
+    if (acceptHeader !== "") {
+      headers["Accept"] = acceptHeader;
     }
 
     if (!isMultipart) {
-      if (contentType === null || contentType === '') {
-        contentType = 'application/json';
+      if (contentType === null || contentType === "") {
+        contentType = "application/json";
       }
-      headers['Content-Type'] = contentType;
+      headers["Content-Type"] = contentType;
     }
 
     return headers;
@@ -50,16 +55,16 @@ export class HeaderSelector {
    */
   private selectAcceptHeader(accept: string[] | null): string {
     if (accept === null) {
-      return '';
+      return "";
     }
 
-    const filteredAccept = accept.filter((s) => s !== null && s.trim() !== '');
+    const filteredAccept = accept.filter((s) => s !== null && s.trim() !== "");
 
     if (filteredAccept.length === 0) {
-      return '';
+      return "";
     }
 
-    return filteredAccept.join(', ');
+    return filteredAccept.join(", ");
   }
 
   /**

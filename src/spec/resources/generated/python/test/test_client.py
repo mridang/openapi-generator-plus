@@ -837,6 +837,8 @@ class TestMocking:
         assert "create_account_with_http_info" in store_listed
         assert "delete_order" in store_listed
         assert "delete_order_with_http_info" in store_listed
+        assert "export_orders" in store_listed
+        assert "export_orders_with_http_info" in store_listed
         assert "get_audit_trail" in store_listed
         assert "get_audit_trail_with_http_info" in store_listed
         assert "get_by_swatch" in store_listed
@@ -873,6 +875,10 @@ class TestMocking:
         assert "reserve_stock_with_http_info" in store_listed
         assert "search_store" in store_listed
         assert "search_store_with_http_info" in store_listed
+        assert "watch_notices" in store_listed
+        assert "watch_notices_with_http_info" in store_listed
+        assert "watch_orders" in store_listed
+        assert "watch_orders_with_http_info" in store_listed
         client.close()
 
     def test_bhv_mocking_002_group_protocol_lists_exactly_the_public_operations_of_the_class(

@@ -62,6 +62,27 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 
+  @callback export_orders(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.ExportOrdersOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
+
+  @callback export_orders!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.ExportOrdersOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Order.t()
+
+  @callback export_orders_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.ExportOrdersOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
   @callback get_audit_trail(
               PetstoreClient.Api.StoreApi.t(),
               PetstoreClient.Api.Options.GetAuditTrailOptions.t() | nil,
@@ -451,6 +472,48 @@ defmodule PetstoreClient.Api.StoreApiBehaviour do
               keyword()
             ) ::
               {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback watch_notices(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.WatchNoticesOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, String.t()} | {:error, Exception.t()}
+
+  @callback watch_notices!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.WatchNoticesOptions.t() | nil,
+              keyword()
+            ) ::
+              String.t()
+
+  @callback watch_notices_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.WatchNoticesOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+
+  @callback watch_orders(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.WatchOrdersOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
+
+  @callback watch_orders!(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.WatchOrdersOptions.t() | nil,
+              keyword()
+            ) ::
+              PetstoreClient.Models.Order.t()
+
+  @callback watch_orders_with_http_info(
+              PetstoreClient.Api.StoreApi.t(),
+              PetstoreClient.Api.Options.WatchOrdersOptions.t() | nil,
+              keyword()
+            ) ::
+              {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
 end
 
 defmodule PetstoreClient.Api.StoreApi do
@@ -757,6 +820,112 @@ defmodule PetstoreClient.Api.StoreApi do
       nil,
       auth,
       Keyword.put(call, :operation, {"deleteOrder", "/store/order/{orderId}"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Exports every order as JSON Lines
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, Order}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec export_orders(t(), PetstoreClient.Api.Options.ExportOrdersOptions.t() | nil, keyword()) ::
+          {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
+  @impl true
+  def export_orders(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case export_orders_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for export_orders but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `export_orders`. Raises on error.
+  """
+  @spec export_orders!(t(), PetstoreClient.Api.Options.ExportOrdersOptions.t() | nil, keyword()) ::
+          PetstoreClient.Models.Order.t()
+  @impl true
+  def export_orders!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case export_orders(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `export_orders` but returns the full `ApiResult`.
+  """
+  @spec export_orders_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.ExportOrdersOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def export_orders_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/orders/export"
+    query_params = []
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["application/x-ndjson"],
+      "application/json",
+      "Order",
+      auth,
+      Keyword.put(call, :operation, {"exportOrders", "/store/orders/export"}),
       %{}
     )
   end
@@ -3069,6 +3238,241 @@ defmodule PetstoreClient.Api.StoreApi do
       "[Order]",
       auth,
       Keyword.put(call, :operation, {"searchStore", "/store/search"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Streams plain text notices as server-sent events
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, String.t()}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec watch_notices(t(), PetstoreClient.Api.Options.WatchNoticesOptions.t() | nil, keyword()) ::
+          {:ok, String.t()} | {:error, Exception.t()}
+  @impl true
+  def watch_notices(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case watch_notices_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for watch_notices but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `watch_notices`. Raises on error.
+  """
+  @spec watch_notices!(t(), PetstoreClient.Api.Options.WatchNoticesOptions.t() | nil, keyword()) ::
+          String.t()
+  @impl true
+  def watch_notices!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case watch_notices(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `watch_notices` but returns the full `ApiResult`.
+  """
+  @spec watch_notices_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.WatchNoticesOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def watch_notices_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/notices"
+    query_params = []
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["text/event-stream"],
+      "application/json",
+      "String.t()",
+      auth,
+      Keyword.put(call, :operation, {"watchNotices", "/store/notices"}),
+      %{}
+    )
+  end
+
+  @doc """
+  Streams order changes as server-sent events
+
+  ## Parameters
+
+    * `options` - Optional per-call settings (`timeout`, `headers`, `max_retries`), the optional parameters (query, header, form, cookie).
+
+    * `opts` - Keyword list.
+
+  `opts` also takes the per-call settings `:timeout` (milliseconds), `:headers` (a map added to this call's headers) and `:max_retries`. Each overrides the same field of the options struct and the client's transport for this call only.
+
+  ## Returns
+
+    * `{:ok, Order}` on success.
+    * `{:error, exception}` on failure.
+
+  """
+  @spec watch_orders(t(), PetstoreClient.Api.Options.WatchOrdersOptions.t() | nil, keyword()) ::
+          {:ok, PetstoreClient.Models.Order.t()} | {:error, Exception.t()}
+  @impl true
+  def watch_orders(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case watch_orders_with_http_info(api, options, opts) do
+      # convenience-empty-body-handling: a body-returning operation that
+      # comes back with no decodable body surfaces a typed ApiError rather
+      # than silently handing back nil, so callers never get a silent
+      # null for a declared-non-null return.
+      {:ok, %{data: nil} = result} ->
+        {:error,
+         PetstoreClient.Errors.ApiError.exception(
+           message: "Expected a response body for watch_orders but received none",
+           status_code: result.status_code,
+           response_body: result.raw_body,
+           response_headers: result.headers
+         )}
+
+      {:ok, result} ->
+        {:ok, result.data}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Bang version of `watch_orders`. Raises on error.
+  """
+  @spec watch_orders!(t(), PetstoreClient.Api.Options.WatchOrdersOptions.t() | nil, keyword()) ::
+          PetstoreClient.Models.Order.t()
+  @impl true
+  def watch_orders!(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    case watch_orders(api, options, opts) do
+      {:ok, data} -> data
+      {:error, error} -> raise error
+    end
+  end
+
+  @doc """
+  Same as `watch_orders` but returns the full `ApiResult`.
+  """
+  @spec watch_orders_with_http_info(
+          t(),
+          PetstoreClient.Api.Options.WatchOrdersOptions.t() | nil,
+          keyword()
+        ) ::
+          {:ok, PetstoreClient.ApiResult.t()} | {:error, Exception.t()}
+  @impl true
+  def watch_orders_with_http_info(%__MODULE__{} = api, options \\ nil, opts \\ []) do
+    # `opts` carries only the keys this operation reads: the per-call settings
+    # `:timeout`, `:headers` and `:max_retries`, `:server` when it declares
+    # operation-level servers and `:content_type` when it declares more than
+    # one request content-type. Any other key (a misspelling, or a key the
+    # operation does not support) is rejected rather than silently ignored.
+    _ = Keyword.validate!(opts, [:timeout, :headers, :max_retries])
+
+    # The per-call settings: the options struct's `timeout`, `headers` and
+    # `max_retries`, overridden by the same keys of `opts`.
+    call = PetstoreClient.Api.BaseApi.call_settings(options, opts)
+
+    # Operation declared `security: []` — no auth applied even if the client
+    # has a default authenticator configured (OpenAPI 3.0 spec). Pass the
+    # BaseApi no-auth SENTINEL (not nil) so BaseApi suppresses the client
+    # credential instead of falling back to it; nil would re-acquire the
+    # client-level authenticator and leak the credential on this unauthenticated
+    # operation.
+    auth = PetstoreClient.Api.BaseApi.no_auth()
+    path = "/store/orders/events"
+    query_params = []
+
+    query_params =
+      if not is_nil(options) and not is_nil(options.status) and options.status != [] do
+        query_params ++
+          [
+            {"status",
+             PetstoreClient.ValueSerializer.maybe_allow_reserved(
+               PetstoreClient.ValueSerializer.serialize_styled(
+                 "status",
+                 options.status,
+                 :query,
+                 "String.t()",
+                 nil,
+                 "form",
+                 true
+               ),
+               false
+             )}
+          ]
+      else
+        query_params
+      end
+
+    header_params = %{}
+    request_body = nil
+
+    PetstoreClient.Api.BaseApi.invoke_api_for_result(
+      api,
+      :GET,
+      path,
+      query_params,
+      header_params,
+      request_body,
+      ["text/event-stream"],
+      "application/json",
+      "Order",
+      auth,
+      Keyword.put(call, :operation, {"watchOrders", "/store/orders/events"}),
       %{}
     )
   end

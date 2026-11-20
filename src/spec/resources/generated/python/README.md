@@ -15,18 +15,16 @@ pip install petstore-client
 
 ## Usage
 
-```python
-import asyncio
+```python statements
+import os
 
 from petstore_client.client import Client
-from petstore_client.models import Pet
 
-async def main() -> None:
-    with Client.with_token("https://api.example.com", "your-token") as client:
-        result = await client.pet.add_pet(Pet.model_construct())
-        print(result)
-
-asyncio.run(main())
+host = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL"]
+token = os.environ["SWAGGER_PETSTORE_OPEN_API_3_0_ACCESS_TOKEN"]
+with Client.with_token(host, token) as client:
+    result = await client.store.get_defaults()
+    print(result)
 ```
 
 See [SKILLS.md](SKILLS.md) for authentication, errors, transport options and a worked example.
@@ -49,7 +47,7 @@ settings belong to the pool manager you built.
 
 Every API group has an interface (`PetApiProtocol`) and the client has one (`ClientProtocol`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```python
+```python file
 from typing import cast
 
 from petstore_client import PetApiProtocol
@@ -71,8 +69,11 @@ A new operation in the API adds a method to the interface, so a fake that implem
 
 A request that fails with a transient error is retried by the SDK. `TransportOptions.builder().max_retries(n)` sets how many times (default 2, so up to three attempts); `max_retries(0)` disables retrying.
 
-```python
-transport = TransportOptions.builder().max_retries(4).build()
+```python file
+from petstore_client.transport_options import TransportOptions
+
+def make_transport() -> TransportOptions:
+    return TransportOptions.builder().max_retries(4).build()
 ```
 
 A request is retried after a network error that happened before a response arrived, and after a 408, 409, 429 or 5xx response (not 501). The wait starts at 0.5 s, doubles up to 8 s and is shortened by up to 25% at random; a `Retry-After` header (seconds or an HTTP date, at most 60 s) replaces it. Retries never extend the request timeout: when the next wait would outlast what is left of it, the last failure is reported, and a timeout itself is not retried. A stream or multipart body is never retried, and every retry is a new request with freshly built authentication headers.
@@ -148,8 +149,12 @@ Set `envVarPrefix` when generating to change the `SWAGGER_PETSTORE_OPEN_API_3_0`
 
 `Client` takes one optional credential for each security scheme of the API, as a keyword argument named after the scheme: `pet_store_basic`, `admin_basic`, `pet_store_bearer`, `service_token`, `api_key_header`, `internal_api_key`, `api_key_query`, `session_cookie`, `machine_auth`, `legacy_auth`, `user_auth`, `browser_auth`, `sso_auth`. Each operation uses the credential of the first scheme its spec lists that you configured; there is no per-call override. A single `authenticator` is the default for an operation none of whose schemes you configured, and a call with no matching credential and no default sends none. The base URL comes from the first credential given, `authenticator` first, and a client built with no credential at all raises `ValueError`.
 
-```python
-client = Client(pet_store_basic=PetStoreBasicAuthenticator())
+```python file
+from petstore_client.client import Client
+from petstore_client.auth.pet_store_basic_authenticator import PetStoreBasicAuthenticator
+
+def make_client() -> Client:
+    return Client(pet_store_basic=PetStoreBasicAuthenticator("https://api.example.com"))
 ```
 
 ### Cookie parameters
@@ -160,8 +165,12 @@ A cookie parameter is sent exactly as you give it when every character is a lega
 
 Every operation takes an optional `options` argument, an Options object that also carries three settings for that one call: `timeout` (milliseconds, one end-to-end budget of at least 1), `headers` (they replace a default header of the same name) and `max_retries` (at least 0; `0` turns retrying off). `None` keeps the client's setting.
 
-```python
-await client.pet.add_pet(Pet.model_construct(), options=AddPetOptions(timeout=2000, max_retries=0))
+```python file
+from petstore_client.api.options import GetDefaultsOptions
+from petstore_client.client import Client
+
+async def call(client: Client) -> object:
+    return await client.store.get_defaults(options=GetDefaultsOptions(timeout=2000, max_retries=0))
 ```
 
 A custom `ApiClient` owns its own timeout, so only the headers and the retry budget reach it.
@@ -186,7 +195,7 @@ Models are frozen pydantic models: assigning a field raises `pydantic.Validation
 
 One optional hook runs around every operation call. It can edit the request headers before the send and observe the status or the error afterwards, and it does nothing when none is set. It runs once per call, however many sends happen inside it (retries, the one replay after a `401`), once for the plain and the `with_http_info` variant alike, and also when you supply your own transport.
 
-```python
+```python file
 import time
 
 from petstore_client import CallInfo, CallOutcome, Client
@@ -202,17 +211,18 @@ class TimingHook:
 
         return Observer()
 
-client = Client(authenticator, call_hook=TimingHook())
+client = Client.with_token("https://api.example.com", "your-token", call_hook=TimingHook())
 ```
 
 `start(info, headers)` runs after the headers are final (defaults, operation headers, per-call headers, authentication, cookies and the propagated trace context), so it can read and replace any of them; reuse the spelling a header already has. A header it sets is on every send of the call. `info` carries `operation_id` (as written in the spec), `method`, `url_template`, `url` (without query string and fragment) and `server_address`. It returns the observer to call when the call ends, or `None`. `finish(outcome)` runs exactly once on every way the call can end, with `status_code` (`0` when no response arrived), the lower-cased response `headers` (`None` when no response arrived) and the `error` the caller receives (`None` on success). An error raised by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error raised by `finish` is swallowed. The hook never changes the result or the error of the call. Combine several hooks with `chain(first, second)`: they start in the order given and finish in the reverse order. `start` and `finish` are plain functions called on the event loop, so they must not block.
 
 `OpenTelemetryCallHook` is the hook that records one span, one request count and one duration histogram per call with the OpenTelemetry API. Install `petstore-client[opentelemetry]` (the SDK itself does not need it), then pass `OpenTelemetryCallHook()` for the global providers or `OpenTelemetryCallHook(tracer_provider, meter_provider)` for your own.
 
-```python
+```python statements
+from petstore_client import Client
 from petstore_client.opentelemetry_call_hook import OpenTelemetryCallHook
 
-client = Client(authenticator, call_hook=OpenTelemetryCallHook())
+client = Client.with_token("https://api.example.com", "your-token", call_hook=OpenTelemetryCallHook())
 ```
 
 The span is named with the operation id, has kind client and carries `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure: the status code for a status of 400 or more, otherwise `timeout`, `network_error`, `serialization_error`, `cancelled` or `_OTHER`). The counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`) carry the same attributes; the histogram's own count equals the request count. The instrumentation scope is the published package name and the SDK version. The hook writes `traceparent` itself, so it names the client span as its parent. No attribute carries a query string, a header value or a credential.

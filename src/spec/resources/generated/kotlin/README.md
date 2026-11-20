@@ -10,7 +10,7 @@ Auto-generated Kotlin SDK client for the Swagger Petstore - OpenAPI 3.0 API.
 
 ## Installation
 
-```kotlin
+```kts
 implementation("com.example.petstore:petstore-client:1.0.0")
 ```
 
@@ -20,10 +20,16 @@ Create a client from an authenticator and call the operations from a coroutine
 (every operation is a `suspend` function). `SKILLS.md` has the full reference:
 every authentication scheme, transport options, error handling and models.
 
-```kotlin
+```kotlin statements
 import com.example.petstore.Client
+import kotlinx.coroutines.runBlocking
 
-val client = Client.withToken("https://api.example.com", "your-token")
+val host = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_BASE_URL")
+val token = System.getenv("SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN")
+Client.withToken(host, token).use { client ->
+    val result = runBlocking { client.store.getDefaults() }
+    println(result)
+}
 ```
 
 ## Build
@@ -73,10 +79,13 @@ The call then raises `kotlinx.coroutines.CancellationException`, never a
 `TransportOptions` timeout elapses. The SDK has no cancellation API of its own
 and needs none.
 
-```kotlin
+```kotlin file
+import com.example.petstore.Client
 import kotlinx.coroutines.withTimeout
 
-withTimeout(2_000) { client.someApi.someOperation() }
+suspend fun getDefaultsWithinTwoSeconds(client: Client) {
+    withTimeout(2_000) { client.store.getDefaults() }
+}
 ```
 
 ## Custom HTTP client
@@ -93,8 +102,10 @@ TLS on the client you supply.
 
 Every API group has an interface (`PetApiInterface`) and the client has one (`ClientInterface`), so a test can replace the SDK with a hand-written fake: no mocking library, no network.
 
-```kotlin
+```kotlin file
 import com.example.petstore.api.PetApiInterface
+import com.example.petstore.api.ProblemsApiInterface
+import com.example.petstore.api.StoreApiInterface
 import com.example.petstore.ClientInterface
 import java.lang.reflect.Proxy
 
@@ -153,7 +164,9 @@ the last answer or error is reported. A timeout is never retried, and
 cancelling the calling coroutine stops the wait. Every retry is a new request:
 its headers are built again (a new `X-Request-ID`), and the body is sent again.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.TransportOptions
+
 val transport = TransportOptions.builder().maxRetries(0).build()
 ```
 
@@ -201,8 +214,11 @@ called on every request and its result is checked like a static value. The order
 the argument, then the environment variable, then the provider, so a provider is
 used only when neither of the other two is set.
 
-```kotlin
-val auth = BearerAuthenticator("https://api.example.com", tokenProvider = { vault.currentToken() })
+```kotlin file
+import com.example.petstore.auth.BearerAuthenticator
+
+fun rotatingAuthenticator(currentToken: suspend () -> String): BearerAuthenticator =
+    BearerAuthenticator("https://api.example.com", tokenProvider = currentToken)
 ```
 
 ## Credentials per security scheme
@@ -236,8 +252,13 @@ of the same name set anywhere else is replaced) and `maxRetries` (`0` turns the
 retries of this call off). Each replaces the client-wide setting for that call
 and leaves it as it was for every other.
 
-```kotlin
-client.someApi.someOperation(options = SomeOperationOptions(timeout = 2_000, maxRetries = 0))
+```kotlin file
+import com.example.petstore.Client
+import com.example.petstore.api.options.GetDefaultsOptions
+
+suspend fun getDefaultsWithOptions(client: Client) {
+    client.store.getDefaults(options = GetDefaultsOptions(timeout = 2_000, maxRetries = 0))
+}
 ```
 
 ## Errors
@@ -272,7 +293,11 @@ Every operation calls one small, optional hook around the call. The hook can edi
 
 `start` runs once per operation call, however many sends happen inside it (retries, the one replay after a `401`), after the request headers are final and before the body is encoded. It receives the call (`operationId` as written in the spec, `method`, `urlTemplate`, the `url` without its query string and `serverAddress`) and the headers, which it may read and replace; what it sets is on every send of the call. It returns an observer, or nothing. The observer's `finish` runs exactly once, whatever way the call ends, with the `statusCode` (0 when no response arrived), the lower-cased response `headers` (nothing when no response arrived) and the very error the caller receives. An error thrown by `start` reaches the caller unchanged, nothing is sent and `finish` is not called; an error thrown by `finish` is swallowed. A hook never changes the result or the error of a call, and it also runs when you supply your own transport. Several hooks are combined with `chain`, which starts them in the order given and finishes them in the reverse order.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.CallHook
+import com.example.petstore.CallObserver
+import com.example.petstore.Client
+
 val hook = CallHook { info, headers ->
     headers["X-Request-Source"] = "reports"
     CallObserver { outcome -> println("${info.operationId} ended with ${outcome.statusCode}") }
@@ -284,7 +309,10 @@ The hook runs inline on the calling coroutine, so it must not block.
 
 The optional `OpenTelemetryCallHook` records one span, one request count and one duration value per call. It is built on the OpenTelemetry API package only; add `io.opentelemetry:opentelemetry-api` to your project to use it. The span is named with the operation id, has kind client and is a child of the active span; the hook injects `traceparent` itself. Attributes are `http.request.method`, `url.template`, `server.address`, `http.response.status_code` (only when a response arrived) and `error.type` (only on failure); the instruments are the counter `http.client.request.count` (unit `{request}`) and the histogram `http.client.request.duration` (unit `s`), whose own count equals the counter. The instrumentation scope is `petstore-client` with the SDK version. Without a configured provider the hook does nothing.
 
-```kotlin
+```kotlin statements
+import com.example.petstore.Client
+import com.example.petstore.OpenTelemetryCallHook
+
 val client = Client.withToken("https://api.example.com", "token", callHook = OpenTelemetryCallHook.create())
 ```
 

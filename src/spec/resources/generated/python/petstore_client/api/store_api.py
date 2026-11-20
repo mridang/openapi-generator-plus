@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from typing import Any, Dict, List, Mapping, Optional, Protocol
-from pydantic import AwareDatetime, StrictInt
+from pydantic import AwareDatetime, StrictInt, StrictStr
 
 from petstore_client.models.account import Account
 from petstore_client.models.api_response import ApiResponse
@@ -33,6 +33,7 @@ from ..auth.authenticator import Authenticator
 from ..errors import ApiException
 from .options.create_account_options import CreateAccountOptions
 from .options.delete_order_options import DeleteOrderOptions
+from .options.export_orders_options import ExportOrdersOptions
 from .options.get_audit_trail_options import GetAuditTrailOptions
 from .options.get_by_swatch_options import GetBySwatchOptions
 from .options.get_defaults_options import GetDefaultsOptions
@@ -51,6 +52,8 @@ from .options.get_tree_options import GetTreeOptions
 from .options.place_order_options import PlaceOrderOptions
 from .options.reserve_stock_options import ReserveStockOptions
 from .options.search_store_options import SearchStoreOptions
+from .options.watch_notices_options import WatchNoticesOptions
+from .options.watch_orders_options import WatchOrdersOptions
 
 
 class StoreApiProtocol(Protocol):
@@ -89,6 +92,20 @@ class StoreApiProtocol(Protocol):
         options: Optional[DeleteOrderOptions] = None,
     ) -> "ApiResult[None]":
         """The ``delete_order`` operation with its status code, headers and body."""
+        ...
+
+    async def export_orders(
+        self,
+        options: Optional[ExportOrdersOptions] = None,
+    ) -> Order:
+        """The ``export_orders`` operation."""
+        ...
+
+    async def export_orders_with_http_info(
+        self,
+        options: Optional[ExportOrdersOptions] = None,
+    ) -> "ApiResult[Order]":
+        """The ``export_orders`` operation with its status code, headers and body."""
         ...
 
     async def get_audit_trail(
@@ -351,6 +368,34 @@ class StoreApiProtocol(Protocol):
         """The ``search_store`` operation with its status code, headers and body."""
         ...
 
+    async def watch_notices(
+        self,
+        options: Optional[WatchNoticesOptions] = None,
+    ) -> StrictStr:
+        """The ``watch_notices`` operation."""
+        ...
+
+    async def watch_notices_with_http_info(
+        self,
+        options: Optional[WatchNoticesOptions] = None,
+    ) -> "ApiResult[StrictStr]":
+        """The ``watch_notices`` operation with its status code, headers and body."""
+        ...
+
+    async def watch_orders(
+        self,
+        options: Optional[WatchOrdersOptions] = None,
+    ) -> Order:
+        """The ``watch_orders`` operation."""
+        ...
+
+    async def watch_orders_with_http_info(
+        self,
+        options: Optional[WatchOrdersOptions] = None,
+    ) -> "ApiResult[Order]":
+        """The ``watch_orders`` operation with its status code, headers and body."""
+        ...
+
 
 class StoreApi(BaseApi):
     """StoreApi provides methods for the store API group.
@@ -495,6 +540,62 @@ class StoreApi(BaseApi):
             operation_name="delete_order",
             operation_id="deleteOrder",
             url_template="/store/order/{orderId}",
+            request_options=options,
+        )
+
+    async def export_orders(
+        self,
+        options: Optional[ExportOrdersOptions] = None,
+    ) -> Order:
+        """Exports every order as JSON Lines
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: Order
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.export_orders_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for export_orders but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def export_orders_with_http_info(
+        self,
+        options: Optional[ExportOrdersOptions] = None,
+    ) -> "ApiResult[Order]":
+        """Exports every order as JSON Lines (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/orders/export"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["application/x-ndjson"],
+            "application/json",
+            "Order",
+            NO_AUTH,
+            operation_name="export_orders",
+            operation_id="exportOrders",
+            url_template="/store/orders/export",
             request_options=options,
         )
 
@@ -1753,5 +1854,135 @@ class StoreApi(BaseApi):
             operation_name="search_store",
             operation_id="searchStore",
             url_template="/store/search",
+            request_options=options,
+        )
+
+    async def watch_notices(
+        self,
+        options: Optional[WatchNoticesOptions] = None,
+    ) -> StrictStr:
+        """Streams plain text notices as server-sent events
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: StrictStr
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.watch_notices_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for watch_notices but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def watch_notices_with_http_info(
+        self,
+        options: Optional[WatchNoticesOptions] = None,
+    ) -> "ApiResult[StrictStr]":
+        """Streams plain text notices as server-sent events (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/notices"
+        query_params: Dict[str, Any] = {}
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["text/event-stream"],
+            "application/json",
+            "StrictStr",
+            NO_AUTH,
+            operation_name="watch_notices",
+            operation_id="watchNotices",
+            url_template="/store/notices",
+            request_options=options,
+        )
+
+    async def watch_orders(
+        self,
+        options: Optional[WatchOrdersOptions] = None,
+    ) -> Order:
+        """Streams order changes as server-sent events
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: Order
+        :raises ApiException: if fails to make API call
+        """
+        result = await self.watch_orders_with_http_info(
+            options=options,
+        )
+
+        if result.data is None:
+            # This operation declares a non-void return type, so an empty /
+            # undecodable response body is a contract violation. Raise the
+            # SDK's typed ApiException (rather than an assert that vanishes
+            # under -O, or a silent None) so callers get one catchable error.
+            raise ApiException(
+                status_code=result.status_code,
+                message="Expected a response body for watch_orders but received none",
+                response_body=result.raw_body,
+                response_headers=result.headers,
+            )
+        return result.data
+
+    async def watch_orders_with_http_info(
+        self,
+        options: Optional[WatchOrdersOptions] = None,
+    ) -> "ApiResult[Order]":
+        """Streams order changes as server-sent events (with HTTP info)
+        :param options: per-call options: the query, header, form and cookie parameters, and an optional timeout, extra headers and retry budget for this call
+        :return: ApiResult containing the response data, status code, raw body, and headers
+        :raises ApiException: if fails to make API call
+        """
+        path = "/store/orders/events"
+        query_params: Dict[str, Any] = {}
+        if options is not None and options.status is not None:
+            query_params.update(
+                ValueSerializer.query_entries(
+                    "status",
+                    ValueSerializer.maybe_allow_reserved(
+                        ValueSerializer.serialize_styled(
+                            "status",
+                            options.status,
+                            "query",
+                            "StrictStr",
+                            None,
+                            "form",
+                            True,
+                        ),
+                        False,
+                    ),
+                )
+            )
+        header_params: Dict[str, str] = {}
+        body = None
+
+        return await self._invoke_api_for_result(
+            "GET",
+            path,
+            query_params,
+            header_params,
+            body,
+            ["text/event-stream"],
+            "application/json",
+            "Order",
+            NO_AUTH,
+            operation_name="watch_orders",
+            operation_id="watchOrders",
+            url_template="/store/orders/events",
             request_options=options,
         )

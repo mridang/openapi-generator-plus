@@ -83,6 +83,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
      * @return {{{vendorExtensions.phpDocReturnType}}}
 {{/returnType}}
      * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when the request or response body cannot be encoded or decoded
 {{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
@@ -152,6 +153,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<{{{vendorExtensions.phpDocReturnType}}}>
      * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when the request or response body cannot be encoded or decoded
 {{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.
@@ -527,6 +529,7 @@ class {{classname}} extends BaseApi implements {{classname}}Interface
 {{/vendorExtensions.op.hasMultipleConsumes}}
      * @return ApiResult<null>
      * @throws \{{invokerPackage}}\Errors\ApiException
+     * @throws \{{invokerPackage}}\Errors\SerializationException when the request or response body cannot be encoded or decoded
 {{>api/operation_doc_throws}}
 {{#isDeprecated}}
      * @deprecated This operation is deprecated.

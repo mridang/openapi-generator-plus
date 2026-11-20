@@ -9,12 +9,12 @@
  * Stock availability, non-lowercase string enum
  */
 export const Availability = {
-  Available: 'Available',
-  Sold: 'Sold',
-  OnHold: 'on-hold',
-  Oclock: 'o\'clock',
-  AB: 'a\\b',
-  Eq: '$eq',
-  X: '#{x}',
+  Available: "Available",
+  Sold: "Sold",
+  OnHold: "on-hold",
+  Oclock: "o'clock",
+  AB: "a\\b",
+  Eq: "$eq",
+  X: "#{x}",
 } as const;
 export type Availability = (typeof Availability)[keyof typeof Availability];

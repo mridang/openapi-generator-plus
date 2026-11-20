@@ -71,6 +71,10 @@ class FileRoleNormaliserTest {
             row("java", "src/spec/java/com/example/petstore/PetstoreSpec.java", Kind.TEST, "petstorespec"),
             row("swift", "Tests/PetstoreClientTests/ApiClientTests.swift", Kind.TEST, "apiclienttests"),
             row("ruby", "sig/petstore/client/api_client.rbs", Kind.TYPE_DECLARATION, "apiclient"),
+            row("go", "examples/quickstart/main.go", Kind.EXAMPLE, "main"),
+            row("php", "examples/quickstart.php", Kind.EXAMPLE, "quickstart"),
+            row("csharp", "examples/Quickstart/Quickstart.csproj", Kind.EXAMPLE, "quickstart"),
+            row("java", "src/examples/java/com/example/petstore/examples/Quickstart.java", Kind.EXAMPLE, "quickstart"),
             row("java", "pom.xml", Kind.MANIFEST, "pomxml"),
             row("go", "go.mod", Kind.MANIFEST, "gomod"),
             row("java", "stray-build-output.log", Kind.UNKNOWN, "straybuildoutput"))

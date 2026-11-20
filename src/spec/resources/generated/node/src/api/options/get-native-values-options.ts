@@ -1,4 +1,4 @@
-import type { Temporal } from 'temporal-polyfill';
+import type { Temporal } from "temporal-polyfill";
 
 /**
  * Options for the getNativeValues operation.
