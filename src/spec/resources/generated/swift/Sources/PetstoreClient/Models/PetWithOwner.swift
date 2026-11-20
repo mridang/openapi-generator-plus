@@ -9,189 +9,167 @@ import Foundation
 
 /// PetWithOwner A pet record extended with owner information
 /// Typed enum for PetWithOwner.status.
-public enum PetWithOwnerStatusEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible
-{
-  case available = "available"
-  case pending = "pending"
-  case sold = "sold"
-  /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-  case unknownDefaultOpenApi = "__unknown_default_open_api__"
+public enum PetWithOwnerStatusEnum: String, Codable, Sendable, CaseIterable, CustomStringConvertible {
+    case available = "available"
+    case pending = "pending"
+    case sold = "sold"
+    /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+    case unknownDefaultOpenApi = "__unknown_default_open_api__"
 
-  /// The declared cases; the catch-all case is not one of them.
-  public static var allCases: [PetWithOwnerStatusEnum] {
-    return [
-      .available,
-      .pending,
-      .sold,
-    ]
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    let raw = try container.decode(RawValue.self)
-    self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
-  }
-
-  public func encode(to encoder: Encoder) throws {
-    if self == .unknownDefaultOpenApi {
-      throw EncodingError.invalidValue(
-        self,
-        EncodingError.Context(
-          codingPath: encoder.codingPath,
-          debugDescription:
-            "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written")
-      )
+    /// The declared cases; the catch-all case is not one of them.
+    public static var allCases: [PetWithOwnerStatusEnum] {
+        return [
+            .available,
+            .pending,
+            .sold,
+        ]
     }
-    var container = encoder.singleValueContainer()
-    try container.encode(rawValue)
-  }
 
-  /// The wire value (`"active"`, `2`), not the case name, so interpolating
-  /// the enum prints what the server sees.
-  public var description: String {
-    return "\(rawValue)"
-  }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(RawValue.self)
+        self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        if self == .unknownDefaultOpenApi {
+            throw EncodingError.invalidValue(
+                self,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written"))
+        }
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    /// The wire value (`"active"`, `2`), not the case name, so interpolating
+    /// the enum prints what the server sees.
+    public var description: String {
+        return "\(rawValue)"
+    }
 }
 
 public struct PetWithOwner: Codable, Sendable, Equatable, Hashable {
-  /// Example: 10
-  public let id: Int64?
-  /// Example: doggie
-  public let name: String
-  public let category: Category?
-  public let photoUrls: Set<String>
-  public let tags: [Tag]?
-  /// pet status in the store
-  @available(*, deprecated, message: "This property is deprecated.")
-  public let status: PetWithOwnerStatusEnum?
-  public let location: [AnyCodable]?
-  /// Absolute URL to the pet's public profile page
-  /// Example: https://example.com/pets/fido
-  public let homepageUrl: String?
-  /// Optionally-relative thumbnail location
-  /// Example: /assets/thumb-fido.png
-  public let thumbnailRef: String?
-  /// RFC 6570 template for related-resource links
-  /// Example: https://example.com/pets/{id}/photos{?size}
-  public let linkTemplate: String?
-  public let ownerEmail: String?
-  /// Pet weight in kilograms (decimal precision)
-  /// Example: 12.345
-  public let weightKg: Double?
-  /// Example: rex
-  public let nickname: String?
-  public let ownerName: String
+    /// Example: 10
+    public let id: Int64?
+    /// Example: doggie
+    public let name: String
+    public let category: Category?
+    public let photoUrls: Set<String>
+    public let tags: [Tag]?
+    /// pet status in the store
+    @available(*, deprecated, message: "This property is deprecated.")
+    public let status: PetWithOwnerStatusEnum?
+    public let location: [AnyCodable]?
+    /// Absolute URL to the pet's public profile page
+    /// Example: https://example.com/pets/fido
+    public let homepageUrl: String?
+    /// Optionally-relative thumbnail location
+    /// Example: /assets/thumb-fido.png
+    public let thumbnailRef: String?
+    /// RFC 6570 template for related-resource links
+    /// Example: https://example.com/pets/{id}/photos{?size}
+    public let linkTemplate: String?
+    public let ownerEmail: String?
+    /// Pet weight in kilograms (decimal precision)
+    /// Example: 12.345
+    public let weightKg: Double?
+    /// Example: rex
+    public let nickname: String?
+    public let ownerName: String
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case id = "id"
-    case name = "name"
-    case category = "category"
-    case photoUrls = "photoUrls"
-    case tags = "tags"
-    case status = "status"
-    case location = "location"
-    case homepageUrl = "homepageUrl"
-    case thumbnailRef = "thumbnailRef"
-    case linkTemplate = "linkTemplate"
-    case ownerEmail = "ownerEmail"
-    case weightKg = "weightKg"
-    case nickname = "nickname"
-    case ownerName = "ownerName"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case id = "id"
+        case name = "name"
+        case category = "category"
+        case photoUrls = "photoUrls"
+        case tags = "tags"
+        case status = "status"
+        case location = "location"
+        case homepageUrl = "homepageUrl"
+        case thumbnailRef = "thumbnailRef"
+        case linkTemplate = "linkTemplate"
+        case ownerEmail = "ownerEmail"
+        case weightKg = "weightKg"
+        case nickname = "nickname"
+        case ownerName = "ownerName"
+    }
 
-  /// Creates a new PetWithOwner instance.
-  public init(
-    name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil,
-    category: Category? = nil, tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil,
-    location: [AnyCodable]? = nil, homepageUrl: String? = nil, thumbnailRef: String? = nil,
-    linkTemplate: String? = nil, ownerEmail: String? = nil, weightKg: Double? = nil,
-    nickname: String? = nil
-  ) {
-    self.name = name
-    self.photoUrls = photoUrls
-    self.ownerName = ownerName
-    self.id = id
-    self.category = category
-    self.tags = tags
-    self.status = status
-    self.location = location
-    self.homepageUrl = homepageUrl
-    self.thumbnailRef = thumbnailRef
-    self.linkTemplate = linkTemplate
-    self.ownerEmail = ownerEmail
-    self.weightKg = weightKg
-    self.nickname = nickname
-  }
+    /// Creates a new PetWithOwner instance.
+    public init(name: String, photoUrls: Set<String>, ownerName: String, id: Int64? = nil, category: Category? = nil, tags: [Tag]? = nil, status: PetWithOwnerStatusEnum? = nil, location: [AnyCodable]? = nil, homepageUrl: String? = nil, thumbnailRef: String? = nil, linkTemplate: String? = nil, ownerEmail: String? = nil, weightKg: Double? = nil, nickname: String? = nil) {
+        self.name = name
+        self.photoUrls = photoUrls
+        self.ownerName = ownerName
+        self.id = id
+        self.category = category
+        self.tags = tags
+        self.status = status
+        self.location = location
+        self.homepageUrl = homepageUrl
+        self.thumbnailRef = thumbnailRef
+        self.linkTemplate = linkTemplate
+        self.ownerEmail = ownerEmail
+        self.weightKg = weightKg
+        self.nickname = nickname
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(
-    name: String? = nil, photoUrls: Set<String>? = nil, ownerName: String? = nil,
-    id: Int64?? = .none, category: Category?? = .none, tags: [Tag]?? = .none,
-    status: PetWithOwnerStatusEnum?? = .none, location: [AnyCodable]?? = .none,
-    homepageUrl: String?? = .none, thumbnailRef: String?? = .none, linkTemplate: String?? = .none,
-    ownerEmail: String?? = .none, weightKg: Double?? = .none, nickname: String?? = .none
-  ) -> PetWithOwner {
-    return PetWithOwner(
-      name: name ?? self.name, photoUrls: photoUrls ?? self.photoUrls,
-      ownerName: ownerName ?? self.ownerName, id: id ?? self.id,
-      category: category ?? self.category, tags: tags ?? self.tags, status: status ?? self.status,
-      location: location ?? self.location, homepageUrl: homepageUrl ?? self.homepageUrl,
-      thumbnailRef: thumbnailRef ?? self.thumbnailRef,
-      linkTemplate: linkTemplate ?? self.linkTemplate, ownerEmail: ownerEmail ?? self.ownerEmail,
-      weightKg: weightKg ?? self.weightKg, nickname: nickname ?? self.nickname)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(name: String? = nil, photoUrls: Set<String>? = nil, ownerName: String? = nil, id: Int64?? = .none, category: Category?? = .none, tags: [Tag]?? = .none, status: PetWithOwnerStatusEnum?? = .none, location: [AnyCodable]?? = .none, homepageUrl: String?? = .none, thumbnailRef: String?? = .none, linkTemplate: String?? = .none, ownerEmail: String?? = .none, weightKg: Double?? = .none, nickname: String?? = .none) -> PetWithOwner {
+        return PetWithOwner(name: name ?? self.name, photoUrls: photoUrls ?? self.photoUrls, ownerName: ownerName ?? self.ownerName, id: id ?? self.id, category: category ?? self.category, tags: tags ?? self.tags, status: status ?? self.status, location: location ?? self.location, homepageUrl: homepageUrl ?? self.homepageUrl, thumbnailRef: thumbnailRef ?? self.thumbnailRef, linkTemplate: linkTemplate ?? self.linkTemplate, ownerEmail: ownerEmail ?? self.ownerEmail, weightKg: weightKg ?? self.weightKg, nickname: nickname ?? self.nickname)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-    self.name = try container.decode(String.self, forKey: .name)
-    self.category = try container.decodeIfPresent(Category.self, forKey: .category)
-    self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
-    self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
-    self.status = try container.decodeIfPresent(PetWithOwnerStatusEnum.self, forKey: .status)
-    self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
-    self.homepageUrl = try container.decodeIfPresent(String.self, forKey: .homepageUrl)
-    self.thumbnailRef = try container.decodeIfPresent(String.self, forKey: .thumbnailRef)
-    self.linkTemplate = try container.decodeIfPresent(String.self, forKey: .linkTemplate)
-    self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
-    self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
-    self.nickname = try container.decodeIfPresent(String.self, forKey: .nickname)
-    self.ownerName = try container.decode(String.self, forKey: .ownerName)
-    try ObjectSerializer.requireAbsoluteUri(self.homepageUrl, property: "homepageUrl")
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.category = try container.decodeIfPresent(Category.self, forKey: .category)
+        self.photoUrls = try container.decode(Set<String>.self, forKey: .photoUrls)
+        self.tags = try container.decodeIfPresent([Tag].self, forKey: .tags)
+        self.status = try container.decodeIfPresent(PetWithOwnerStatusEnum.self, forKey: .status)
+        self.location = try container.decodeIfPresent([AnyCodable].self, forKey: .location)
+        self.homepageUrl = try container.decodeIfPresent(String.self, forKey: .homepageUrl)
+        self.thumbnailRef = try container.decodeIfPresent(String.self, forKey: .thumbnailRef)
+        self.linkTemplate = try container.decodeIfPresent(String.self, forKey: .linkTemplate)
+        self.ownerEmail = try container.decodeIfPresent(String.self, forKey: .ownerEmail)
+        self.weightKg = try container.decodeIfPresent(Double.self, forKey: .weightKg)
+        self.nickname = try container.decodeIfPresent(String.self, forKey: .nickname)
+        self.ownerName = try container.decode(String.self, forKey: .ownerName)
+        try ObjectSerializer.requireAbsoluteUri(self.homepageUrl, property: "homepageUrl")
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
-    try container.encode(ObjectSerializer.ordered(name), forKey: .name)
-    try container.encodeIfPresent(ObjectSerializer.ordered(category), forKey: .category)
-    try container.encode(ObjectSerializer.ordered(photoUrls), forKey: .photoUrls)
-    try container.encodeIfPresent(ObjectSerializer.ordered(tags), forKey: .tags)
-    try container.encodeIfPresent(ObjectSerializer.ordered(status), forKey: .status)
-    try container.encodeIfPresent(ObjectSerializer.ordered(location), forKey: .location)
-    try container.encodeIfPresent(ObjectSerializer.ordered(homepageUrl), forKey: .homepageUrl)
-    try container.encodeIfPresent(ObjectSerializer.ordered(thumbnailRef), forKey: .thumbnailRef)
-    try container.encodeIfPresent(ObjectSerializer.ordered(linkTemplate), forKey: .linkTemplate)
-    try container.encodeIfPresent(ObjectSerializer.ordered(ownerEmail), forKey: .ownerEmail)
-    try container.encodeIfPresent(ObjectSerializer.ordered(weightKg), forKey: .weightKg)
-    try container.encodeIfPresent(ObjectSerializer.ordered(nickname), forKey: .nickname)
-    try container.encode(ObjectSerializer.ordered(ownerName), forKey: .ownerName)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
+        try container.encode(ObjectSerializer.ordered(name), forKey: .name)
+        try container.encodeIfPresent(ObjectSerializer.ordered(category), forKey: .category)
+        try container.encode(ObjectSerializer.ordered(photoUrls), forKey: .photoUrls)
+        try container.encodeIfPresent(ObjectSerializer.ordered(tags), forKey: .tags)
+        try container.encodeIfPresent(ObjectSerializer.ordered(status), forKey: .status)
+        try container.encodeIfPresent(ObjectSerializer.ordered(location), forKey: .location)
+        try container.encodeIfPresent(ObjectSerializer.ordered(homepageUrl), forKey: .homepageUrl)
+        try container.encodeIfPresent(ObjectSerializer.ordered(thumbnailRef), forKey: .thumbnailRef)
+        try container.encodeIfPresent(ObjectSerializer.ordered(linkTemplate), forKey: .linkTemplate)
+        try container.encodeIfPresent(ObjectSerializer.ordered(ownerEmail), forKey: .ownerEmail)
+        try container.encodeIfPresent(ObjectSerializer.ordered(weightKg), forKey: .weightKg)
+        try container.encodeIfPresent(ObjectSerializer.ordered(nickname), forKey: .nickname)
+        try container.encode(ObjectSerializer.ordered(ownerName), forKey: .ownerName)
+    }
 }

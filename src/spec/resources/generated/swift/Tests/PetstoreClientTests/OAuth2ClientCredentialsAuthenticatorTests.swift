@@ -7,432 +7,411 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class OAuth2ClientCredentialsAuthenticatorTests {
 
-  // MARK: - Mock ApiClient
+    // MARK: - Mock ApiClient
 
-  private final class MockApiClient: ApiClient, @unchecked Sendable {
-    var responses: [ApiHttpResponse] = []
-    var lastMethod: String = ""
-    var lastURL: String = ""
-    var lastHeaders: [String: String] = [:]
-    var lastBody: Data? = nil
+    private final class MockApiClient: ApiClient, @unchecked Sendable {
+        var responses: [ApiHttpResponse] = []
+        var lastMethod: String = ""
+        var lastURL: String = ""
+        var lastHeaders: [String: String] = [:]
+        var lastBody: Data? = nil
 
-    var failure: Error? = nil
+        var failure: Error? = nil
 
-    /// Satisfies the ApiClient requirement that carries no request options.
-    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-      async throws -> ApiHttpResponse
-    {
-      try await sendRequest(
-        method: method, url: url, headers: headers, body: body, noRedirect: false)
+        /// Satisfies the ApiClient requirement that carries no request options.
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+            async throws -> ApiHttpResponse
+        {
+            try await sendRequest(
+                method: method, url: url, headers: headers, body: body, noRedirect: false)
+        }
+
+        func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool) async throws -> ApiHttpResponse {
+            lastMethod = method
+            lastURL = url
+            lastHeaders = headers
+            lastBody = body as? Data
+            if let failure { throw failure }
+            return responses.removeFirst()
+        }
     }
 
-    func sendRequest(
-      method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-    ) async throws -> ApiHttpResponse {
-      lastMethod = method
-      lastURL = url
-      lastHeaders = headers
-      lastBody = body as? Data
-      if let failure { throw failure }
-      return responses.removeFirst()
+    private func makeResponse(body: String, statusCode: Int = 200) -> ApiHttpResponse {
+        return ApiHttpResponse(statusCode: statusCode, body: body, headers: [:])
     }
-  }
 
-  private func makeResponse(body: String, statusCode: Int = 200) -> ApiHttpResponse {
-    return ApiHttpResponse(statusCode: statusCode, body: body, headers: [:])
-  }
-
-  private func createAuthenticator() -> OAuth2ClientCredentialsAuthenticator {
-    return OAuth2ClientCredentialsAuthenticator(
-      host: "https://api.example.com",
-      clientID: "my-client-id",
-      clientSecret: "my-client-secret",
-      tokenURL: "https://auth.example.com/token",
-      scopes: ["read", "write"]
-    )
-  }
-
-  // MARK: - Tests
-
-  @Test func testBhvAuthoauthtwoclientcred010SendsClientCredentialsGrantType() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-    #expect(bodyString.contains("grant_type=client_credentials"))
-  }
-
-  @Test func testBhvAuthoauthtwoclientcred011SendsClientIdAndSecret() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-    #expect(bodyString.contains("client_id=my-client-id"))
-    #expect(bodyString.contains("client_secret=my-client-secret"))
-  }
-
-  @Test func testBhvAuthoauthtwoclientcred016TokenBodyUsesFixedParameterOrder() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-    #expect(
-      bodyString
-        == "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write"
-    )
-  }
-
-  /* The token request goes to the token URL that the security scheme declares. */
-  @Test func testBhvMisc063TheTokenRequestGoesToTheDeclaredTokenUrl() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-    let auth = try MachineAuthClientCredentialsAuthenticator(
-      host: "https://api.example.com", clientId: "cid", clientSecret: "sec", environment: [:])
-    auth.setApiClient(client)
-    _ = try await auth.authHeaders()
-    #expect(client.lastURL == "https://auth.example.com/oauth/token")
-  }
-
-  /* The client-credentials grant posts grant_type client_credentials and the scopes joined by a plus to the token URL. */
-  @Test func testBhvAuth050ClientCredentialsPostsItsGrantAndJoinedScopesToTheTokenUrl() async throws
-  {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    #expect(client.lastMethod == "POST")
-    #expect(client.lastURL == "https://auth.example.com/token")
-    let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
-    #expect(body.split(separator: "&").contains("grant_type=client_credentials"))
-    #expect(body.split(separator: "&").contains("scope=read+write"))
-  }
-
-  /* A non-success token response surfaces as an OAuth2 server error that names the status and the body. */
-  @Test func testBhvAuth054NonSuccessTokenResponseIsAnOAuth2ServerErrorNamingStatusAndBody()
-    async throws
-  {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "denied by policy", statusCode: 403))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    var caught: Error? = nil
-    do {
-      _ = try await auth.authHeaders()
-    } catch {
-      caught = error
+    private func createAuthenticator() -> OAuth2ClientCredentialsAuthenticator {
+        return OAuth2ClientCredentialsAuthenticator(
+            host: "https://api.example.com",
+            clientID: "my-client-id",
+            clientSecret: "my-client-secret",
+            tokenURL: "https://auth.example.com/token",
+            scopes: ["read", "write"]
+        )
     }
-    let serverError = try #require(caught as? OAuth2ServerError)
-    #expect("\(serverError)".contains("403"))
-    #expect("\(serverError)".contains("denied by policy"))
-  }
 
-  /* A network failure during the token request reaches the caller unchanged. */
-  @Test func testBhvAuth055NetworkFailureDuringTokenRequestReachesTheCallerUnchanged() async {
-    let client = MockApiClient()
-    client.failure = NetworkDown()
+    // MARK: - Tests
 
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
+    @Test func testBhvAuthoauthtwoclientcred010SendsClientCredentialsGrantType() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-    await #expect(throws: NetworkDown.self) {
-      _ = try await auth.authHeaders()
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+        #expect(bodyString.contains("grant_type=client_credentials"))
     }
-  }
 
-  private struct NetworkDown: Error, Equatable {}
+    @Test func testBhvAuthoauthtwoclientcred011SendsClientIdAndSecret() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-  /* An expires_in is honoured only as a decimal number: a numeric one caches the token, any other value marks it stale. */
-  @Test func testBhvAuth056ExpiresInIsHonouredAsDecimalSecondsAndAnythingElseMarksTheTokenStale()
-    async throws
-  {
-    do {
-      let client = MockApiClient()
-      client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-      client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
 
-      let auth = createAuthenticator()
-      auth.setApiClient(client)
+        _ = try await auth.authHeaders()
 
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
-      #expect(client.responses.count == 1)
+        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+        #expect(bodyString.contains("client_id=my-client-id"))
+        #expect(bodyString.contains("client_secret=my-client-secret"))
     }
-    /* An expires_in that is not a decimal number marks the token as stale, so the next call fetches again. */
-    do {
-      let client = MockApiClient()
-      client.responses.append(
-        makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":\"soon\"}"))
-      client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-      let auth = createAuthenticator()
-      auth.setApiClient(client)
+    @Test func testBhvAuthoauthtwoclientcred016TokenBodyUsesFixedParameterOrder() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
-      #expect(client.responses.isEmpty)
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+        #expect(bodyString
+            == "grant_type=client_credentials&client_id=my-client-id&client_secret=my-client-secret&scope=read+write")
     }
-  }
 
-  @Test func testBhvAuthoauthtwoclientcred013SendsScopes() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
-    /* The scopes are one parameter, separated by a form-encoded space. */
-    #expect(bodyString.split(separator: "&").contains("scope=read+write"))
-  }
-
-  @Test func testBhvAuthoauthtwoclientcred008ReturnsAuthorizationBearerHeader() async throws {
-    let client = MockApiClient()
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok-abc\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    let headers = try await auth.authHeaders()
-
-    #expect(headers["Authorization"] == "Bearer tok-abc")
-  }
-
-  @Test func testBhvAuthoauthtwoclientcred012SendsRequestToTokenURL() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    #expect(client.lastURL == "https://auth.example.com/token")
-  }
-
-  /* Invalidating the token drops the cached one, so the next call asks the
-   * token endpoint again and sends the fresh token. */
-  @Test func testBhvAuthoauthtwoclientcred005InvalidateAccessTokenDropsTheCachedTokenOnTheNextCall()
-    async throws
-  {
-    let client = MockApiClient()
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok-old\",\"expires_in\":3600}"))
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"tok-new\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    #expect(try await auth.authHeaders()["Authorization"] == "Bearer tok-old")
-    auth.invalidateAccessToken()
-    #expect(try await auth.authHeaders()["Authorization"] == "Bearer tok-new")
-    #expect(client.responses.isEmpty)
-  }
-
-  /* RFC 3986 unreserved set: the tilde stays literal in the token request
-   * body, while * ! ' ( ) are percent-encoded and a space is sent as +. */
-  @Test func testBhvAuthoauthtwoclientcred006TokenBodyKeepsTildeAndPercentEncodesSubDelimiters()
-    async throws
-  {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
-
-    let auth = OAuth2ClientCredentialsAuthenticator(
-      host: "https://api.example.com",
-      clientID: "id~*!'()",
-      clientSecret: "sec ret~*!'()",
-      tokenURL: "https://auth.example.com/token"
-    )
-    auth.setApiClient(client)
-
-    _ = try await auth.authHeaders()
-
-    let bodyString = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
-    #expect(bodyString.split(separator: "&").contains("client_id=id~%2A%21%27%28%29"))
-    #expect(bodyString.split(separator: "&").contains("client_secret=sec+ret~%2A%21%27%28%29"))
-  }
-
-  @Test func testBhvAuthoauthtwoclientcred004GetHostReturnsConfiguredHost() {
-    let auth = createAuthenticator()
-
-    #expect(auth.host() == "https://api.example.com")
-  }
-
-  @Test func testBhvAuthoauthtwoclientcred003CachesTokenAcrossCalls() async throws {
-    // The token manager caches the access token until expiry, so two
-    // consecutive header requests reuse the same token and issue only a
-    // single token request. Only one response is enqueued; a second token
-    // fetch would removeFirst() from an empty array and trap, proving
-    // single-flight.
-    let client = MockApiClient()
-    client.responses.append(
-      makeResponse(body: "{\"access_token\":\"cached-cc-token\",\"expires_in\":3600}"))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    let headers1 = try await auth.authHeaders()
-    let headers2 = try await auth.authHeaders()
-
-    #expect(headers1["Authorization"] == "Bearer cached-cc-token")
-    #expect(headers2["Authorization"] == "Bearer cached-cc-token")
-  }
-
-  // oauth-cc-authheaders-error-swallow: a failed client-credentials token
-  // exchange must surface to the caller as a thrown error — NOT be swallowed
-  // into an empty header map that would send the API request
-  // unauthenticated and produce a confusing downstream 401.
-  @Test func testBhvAuthoauthtwoclientcred015TokenFetchErrorIsSurfacedNotSwallowed() async {
-    let client = MockApiClient()
-    // Token endpoint returns a 500 — getAccessToken throws.
-    client.responses.append(makeResponse(body: "internal error", statusCode: 500))
-
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
-
-    let error = await #expect(throws: OAuth2ServerError.self) {
-      _ = try await auth.authHeaders()
+    /* The token request goes to the token URL that the security scheme declares. */
+    @Test func testBhvMisc063TheTokenRequestGoesToTheDeclaredTokenUrl() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+        let auth = try MachineAuthClientCredentialsAuthenticator(
+            host: "https://api.example.com", clientId: "cid", clientSecret: "sec", environment: [:])
+        auth.setApiClient(client)
+        _ = try await auth.authHeaders()
+        #expect(client.lastURL == "https://auth.example.com/oauth/token")
     }
-    #expect(error?.statusCode == 500)
-    #expect(error?.rawBody == "internal error")
-  }
 
-  /* RFC 6749 section 2.3.1: only letters, digits and - . _ ~ stay literal
-   * in the Basic credentials, and * ! ' ( ) are percent-encoded. */
-  @Test func testBhvAuthoauthtwoclientcred001BasicAuthEncodesTildeAndTheSubDelimitersInCredentials()
-    async throws
-  {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+    /* The client-credentials grant posts grant_type client_credentials and the scopes joined by a plus to the token URL. */
+    @Test func testBhvAuth050ClientCredentialsPostsItsGrantAndJoinedScopesToTheTokenUrl() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
 
-    let auth = OAuth2ClientCredentialsAuthenticator(
-      host: "https://api.example.com",
-      clientID: "id~*!'()",
-      clientSecret: "sec ret~*!'()",
-      tokenURL: "https://auth.example.com/token",
-      clientAuthMethod: .basic
-    )
-    auth.setApiClient(client)
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
 
-    _ = try await auth.authHeaders()
+        _ = try await auth.authHeaders()
 
-    let authHeader = client.lastHeaders["Authorization"] ?? ""
-    let b64 = String(authHeader.dropFirst("Basic ".count))
-    let decoded = String(data: Data(base64Encoded: b64) ?? Data(), encoding: .utf8)
-    #expect(decoded == "id~%2A%21%27%28%29:sec+ret~%2A%21%27%28%29")
-  }
+        #expect(client.lastMethod == "POST")
+        #expect(client.lastURL == "https://auth.example.com/token")
+        let body = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(body.split(separator: "&").contains("grant_type=client_credentials"))
+        #expect(body.split(separator: "&").contains("scope=read+write"))
+    }
 
-  @Test func testBhvAuthoauthtwoclientcred002BasicAuthUrlEncodesClientIdAndSecret() async throws {
-    // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
-    // client_id and client_secret MUST be application/x-www-form-
-    // urlencoded BEFORE being joined with ':' and base64-encoded.
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+    /* A non-success token response surfaces as an OAuth2 server error that names the status and the body. */
+    @Test func testBhvAuth054NonSuccessTokenResponseIsAnOAuth2ServerErrorNamingStatusAndBody() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "denied by policy", statusCode: 403))
 
-    let auth = OAuth2ClientCredentialsAuthenticator(
-      host: "https://api.example.com",
-      clientID: "id+with/special",
-      clientSecret: "secret&with=stuff",
-      tokenURL: "https://auth.example.com/token",
-      scopes: ["read"],
-      clientAuthMethod: .basic
-    )
-    auth.setApiClient(client)
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
 
-    _ = try await auth.authHeaders()
+        var caught: Error? = nil
+        do {
+            _ = try await auth.authHeaders()
+        } catch {
+            caught = error
+        }
+        let serverError = try #require(caught as? OAuth2ServerError)
+        #expect("\(serverError)".contains("403"))
+        #expect("\(serverError)".contains("denied by policy"))
+    }
 
-    let authHeader = client.lastHeaders["Authorization"] ?? ""
-    #expect(authHeader.hasPrefix("Basic "))
-    let b64 = String(authHeader.dropFirst("Basic ".count))
-    let decodedData = Data(base64Encoded: b64) ?? Data()
-    let decoded = String(data: decodedData, encoding: .utf8) ?? ""
-    // Expected: form-urlencoded id ':' form-urlencoded secret
-    #expect(decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff")
-  }
+    /* A network failure during the token request reaches the caller unchanged. */
+    @Test func testBhvAuth055NetworkFailureDuringTokenRequestReachesTheCallerUnchanged() async {
+        let client = MockApiClient()
+        client.failure = NetworkDown()
 
-  @Test func testBhvAuthoauthtwoclientcred007RedactsSecret() async {
-    let auth = createAuthenticator()
-    let description = String(describing: auth)
-    #expect(!description.contains("my-client-secret"))
-    #expect(description.contains("***"))
-    /* Everything except the secret stays visible. */
-    #expect(
-      description
-        == "OAuth2ClientCredentialsAuthenticator(host: https://api.example.com, clientID: my-client-id, clientSecret: ***, tokenURL: https://auth.example.com/token, scopes: [\"read\", \"write\"], clientAuthMethod: body)"
-    )
-    #expect(String(reflecting: auth) == description)
-    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
-     * so the redacted description is not enough: the reflection must hide the secret too. */
-    var dumped = ""
-    dump(auth, to: &dumped)
-    #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
-    #expect(Mirror(reflecting: auth).children.isEmpty)
-  }
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
 
-  // MARK: - Generated scheme wrapper
+        await #expect(throws: NetworkDown.self) {
+            _ = try await auth.authHeaders()
+        }
+    }
 
-  /* The client-credentials securityScheme's wrapper carries the spec's
-   * token URL and scopes and masks the client secret. */
-  @Test func testBhvAuthoauthtwoclientcred009SchemeWrapperCarriesTheSpecTokenUrlAndScopes() throws {
-    let auth = try MachineAuthClientCredentialsAuthenticator(
-      host: "https://api.example.com", clientId: "cid", clientSecret: "csecret")
-    #expect(
-      String(describing: auth)
-        == "MachineAuthClientCredentialsAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, tokenURL: https://auth.example.com/oauth/token, scopes: [\"pets:read\", \"pets:write\"], clientAuthMethod: \(ClientAuthMethod.body))"
-    )
-  }
+    private struct NetworkDown: Error, Equatable {}
 
-  @Test func testBhvAuthoauthtwoclientcred014ReprShowsNonSecretFieldsAndMasksSecret() throws {
-    let auth = OAuth2ClientCredentialsAuthenticator(
-      host: "https://api.example.com", clientID: "client-1", clientSecret: "masked-client-secret",
-      tokenURL: "https://auth.example.com/token")
-    #expect(auth.description.contains("clientID: client-1"))
-    #expect(auth.description.contains("tokenURL: https://auth.example.com/token"))
-    #expect(!auth.description.contains("masked-client-secret"))
-  }
+    /* An expires_in is honoured only as a decimal number: a numeric one caches the token, any other value marks it stale. */
+    @Test func testBhvAuth056ExpiresInIsHonouredAsDecimalSecondsAndAnythingElseMarksTheTokenStale() async throws {
+        do {
+            let client = MockApiClient()
+            client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+            client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-  /* A new grant without expires_in clears the expiry of the previous token, so the new token is kept until invalidated. */
-  @Test func testBhvMisc198ANewGrantWithoutExpiresInClearsThePreviousExpiry() async throws {
-    let client = MockApiClient()
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
-    client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\"}"))
+            let auth = createAuthenticator()
+            auth.setApiClient(client)
 
-    let auth = createAuthenticator()
-    auth.setApiClient(client)
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+            #expect(client.responses.count == 1)
+        }
+        /* An expires_in that is not a decimal number marks the token as stale, so the next call fetches again. */
+        do {
+            let client = MockApiClient()
+            client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":\"soon\"}"))
+            client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\",\"expires_in\":3600}"))
 
-    _ = try await auth.authHeaders()
-    _ = try await auth.authHeaders()
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
-    #expect(client.responses.isEmpty)
-  }
+            let auth = createAuthenticator()
+            auth.setApiClient(client)
+
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok1"])
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
+            #expect(client.responses.isEmpty)
+        }
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred013SendsScopes() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        let bodyString = String(data: client.lastBody!, encoding: .utf8) ?? ""
+        /* The scopes are one parameter, separated by a form-encoded space. */
+        #expect(bodyString.split(separator: "&").contains("scope=read+write"))
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred008ReturnsAuthorizationBearerHeader() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok-abc\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let headers = try await auth.authHeaders()
+
+        #expect(headers["Authorization"] == "Bearer tok-abc")
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred012SendsRequestToTokenURL() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        #expect(client.lastURL == "https://auth.example.com/token")
+    }
+
+    /* Invalidating the token drops the cached one, so the next call asks the
+     * token endpoint again and sends the fresh token. */
+    @Test func testBhvAuthoauthtwoclientcred005InvalidateAccessTokenDropsTheCachedTokenOnTheNextCall() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok-old\",\"expires_in\":3600}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok-new\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        #expect(try await auth.authHeaders()["Authorization"] == "Bearer tok-old")
+        auth.invalidateAccessToken()
+        #expect(try await auth.authHeaders()["Authorization"] == "Bearer tok-new")
+        #expect(client.responses.isEmpty)
+    }
+
+    /* RFC 3986 unreserved set: the tilde stays literal in the token request
+     * body, while * ! ' ( ) are percent-encoded and a space is sent as +. */
+    @Test func testBhvAuthoauthtwoclientcred006TokenBodyKeepsTildeAndPercentEncodesSubDelimiters() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+
+        let auth = OAuth2ClientCredentialsAuthenticator(
+            host: "https://api.example.com",
+            clientID: "id~*!'()",
+            clientSecret: "sec ret~*!'()",
+            tokenURL: "https://auth.example.com/token"
+        )
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        let bodyString = String(data: client.lastBody ?? Data(), encoding: .utf8) ?? ""
+        #expect(bodyString.split(separator: "&").contains("client_id=id~%2A%21%27%28%29"))
+        #expect(bodyString.split(separator: "&").contains("client_secret=sec+ret~%2A%21%27%28%29"))
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred004GetHostReturnsConfiguredHost() {
+        let auth = createAuthenticator()
+
+        #expect(auth.host() == "https://api.example.com")
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred003CachesTokenAcrossCalls() async throws {
+        // The token manager caches the access token until expiry, so two
+        // consecutive header requests reuse the same token and issue only a
+        // single token request. Only one response is enqueued; a second token
+        // fetch would removeFirst() from an empty array and trap, proving
+        // single-flight.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"cached-cc-token\",\"expires_in\":3600}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let headers1 = try await auth.authHeaders()
+        let headers2 = try await auth.authHeaders()
+
+        #expect(headers1["Authorization"] == "Bearer cached-cc-token")
+        #expect(headers2["Authorization"] == "Bearer cached-cc-token")
+    }
+
+    // oauth-cc-authheaders-error-swallow: a failed client-credentials token
+    // exchange must surface to the caller as a thrown error — NOT be swallowed
+    // into an empty header map that would send the API request
+    // unauthenticated and produce a confusing downstream 401.
+    @Test func testBhvAuthoauthtwoclientcred015TokenFetchErrorIsSurfacedNotSwallowed() async {
+        let client = MockApiClient()
+        // Token endpoint returns a 500 — getAccessToken throws.
+        client.responses.append(makeResponse(body: "internal error", statusCode: 500))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        let error = await #expect(throws: OAuth2ServerError.self) {
+            _ = try await auth.authHeaders()
+        }
+        #expect(error?.statusCode == 500)
+        #expect(error?.rawBody == "internal error")
+    }
+
+    /* RFC 6749 section 2.3.1: only letters, digits and - . _ ~ stay literal
+     * in the Basic credentials, and * ! ' ( ) are percent-encoded. */
+    @Test func testBhvAuthoauthtwoclientcred001BasicAuthEncodesTildeAndTheSubDelimitersInCredentials() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+
+        let auth = OAuth2ClientCredentialsAuthenticator(
+            host: "https://api.example.com",
+            clientID: "id~*!'()",
+            clientSecret: "sec ret~*!'()",
+            tokenURL: "https://auth.example.com/token",
+            clientAuthMethod: .basic
+        )
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        let authHeader = client.lastHeaders["Authorization"] ?? ""
+        let b64 = String(authHeader.dropFirst("Basic ".count))
+        let decoded = String(data: Data(base64Encoded: b64) ?? Data(), encoding: .utf8)
+        #expect(decoded == "id~%2A%21%27%28%29:sec+ret~%2A%21%27%28%29")
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred002BasicAuthUrlEncodesClientIdAndSecret() async throws {
+        // Gap R: RFC 6749 §2.3.1 — when using client_secret_basic, both
+        // client_id and client_secret MUST be application/x-www-form-
+        // urlencoded BEFORE being joined with ':' and base64-encoded.
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"at\",\"expires_in\":3600}"))
+
+        let auth = OAuth2ClientCredentialsAuthenticator(
+            host: "https://api.example.com",
+            clientID: "id+with/special",
+            clientSecret: "secret&with=stuff",
+            tokenURL: "https://auth.example.com/token",
+            scopes: ["read"],
+            clientAuthMethod: .basic
+        )
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+
+        let authHeader = client.lastHeaders["Authorization"] ?? ""
+        #expect(authHeader.hasPrefix("Basic "))
+        let b64 = String(authHeader.dropFirst("Basic ".count))
+        let decodedData = Data(base64Encoded: b64) ?? Data()
+        let decoded = String(data: decodedData, encoding: .utf8) ?? ""
+        // Expected: form-urlencoded id ':' form-urlencoded secret
+        #expect(decoded == "id%2Bwith%2Fspecial:secret%26with%3Dstuff")
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred007RedactsSecret() async {
+        let auth = createAuthenticator()
+        let description = String(describing: auth)
+        #expect(!description.contains("my-client-secret"))
+        #expect(description.contains("***"))
+        /* Everything except the secret stays visible. */
+        #expect(
+            description
+                == "OAuth2ClientCredentialsAuthenticator(host: https://api.example.com, clientID: my-client-id, clientSecret: ***, tokenURL: https://auth.example.com/token, scopes: [\"read\", \"write\"], clientAuthMethod: body)"
+        )
+        #expect(String(reflecting: auth) == description)
+        /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones included,
+         * so the redacted description is not enough: the reflection must hide the secret too. */
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("my-client-secret"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
+    }
+
+    // MARK: - Generated scheme wrapper
+
+    /* The client-credentials securityScheme's wrapper carries the spec's
+     * token URL and scopes and masks the client secret. */
+    @Test func testBhvAuthoauthtwoclientcred009SchemeWrapperCarriesTheSpecTokenUrlAndScopes() throws {
+        let auth = try MachineAuthClientCredentialsAuthenticator(
+            host: "https://api.example.com", clientId: "cid", clientSecret: "csecret")
+        #expect(
+            String(describing: auth)
+                == "MachineAuthClientCredentialsAuthenticator(host: https://api.example.com, clientID: cid, clientSecret: ***, tokenURL: https://auth.example.com/oauth/token, scopes: [\"pets:read\", \"pets:write\"], clientAuthMethod: \(ClientAuthMethod.body))"
+        )
+    }
+
+    @Test func testBhvAuthoauthtwoclientcred014ReprShowsNonSecretFieldsAndMasksSecret() throws {
+        let auth = OAuth2ClientCredentialsAuthenticator(
+            host: "https://api.example.com", clientID: "client-1", clientSecret: "masked-client-secret",
+            tokenURL: "https://auth.example.com/token")
+        #expect(auth.description.contains("clientID: client-1"))
+        #expect(auth.description.contains("tokenURL: https://auth.example.com/token"))
+        #expect(!auth.description.contains("masked-client-secret"))
+    }
+
+    /* A new grant without expires_in clears the expiry of the previous token, so the new token is kept until invalidated. */
+    @Test func testBhvMisc198ANewGrantWithoutExpiresInClearsThePreviousExpiry() async throws {
+        let client = MockApiClient()
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok1\",\"expires_in\":0}"))
+        client.responses.append(makeResponse(body: "{\"access_token\":\"tok2\"}"))
+
+        let auth = createAuthenticator()
+        auth.setApiClient(client)
+
+        _ = try await auth.authHeaders()
+        _ = try await auth.authHeaders()
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer tok2"])
+        #expect(client.responses.isEmpty)
+    }
 
 }

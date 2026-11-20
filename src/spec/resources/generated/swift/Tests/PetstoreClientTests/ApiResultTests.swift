@@ -7,68 +7,65 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class ApiResultTests {
 
-  @Test func testBhvResults001DataMayBeNilForNoContent() {
-    let result = ApiResult<String>(
-      statusCode: 204,
-      data: nil,
-      rawBody: "",
-      headers: [:]
-    )
-    #expect(result.statusCode == 204)
-    #expect(result.data == nil)
-    #expect(result.rawBody == "")
-    #expect(result.headers.isEmpty)
-  }
+    @Test func testBhvResults001DataMayBeNilForNoContent() {
+        let result = ApiResult<String>(
+            statusCode: 204,
+            data: nil,
+            rawBody: "",
+            headers: [:]
+        )
+        #expect(result.statusCode == 204)
+        #expect(result.data == nil)
+        #expect(result.rawBody == "")
+        #expect(result.headers.isEmpty)
+    }
 
-  @Test func testBhvResults007PreservesAllHeaders() {
-    let result = ApiResult<Int>(
-      statusCode: 200,
-      data: 42,
-      rawBody: "42",
-      headers: ["X-Request-Id": "abc", "X-RateLimit-Remaining": "99"]
-    )
-    #expect(result.headers.count == 2)
-    #expect(result.headers["X-Request-Id"] == "abc")
-    #expect(result.headers["X-RateLimit-Remaining"] == "99")
-  }
+    @Test func testBhvResults007PreservesAllHeaders() {
+        let result = ApiResult<Int>(
+            statusCode: 200,
+            data: 42,
+            rawBody: "42",
+            headers: ["X-Request-Id": "abc", "X-RateLimit-Remaining": "99"]
+        )
+        #expect(result.headers.count == 2)
+        #expect(result.headers["X-Request-Id"] == "abc")
+        #expect(result.headers["X-RateLimit-Remaining"] == "99")
+    }
 
-  @Test func testBhvResults002ExposesHeaders() {
-    let result = ApiResult(statusCode: 200, data: 1, rawBody: "1", headers: ["X-Trace": "abc"])
-    #expect(result.headers == ["X-Trace": "abc"])
-  }
+    @Test func testBhvResults002ExposesHeaders() {
+        let result = ApiResult(statusCode: 200, data: 1, rawBody: "1", headers: ["X-Trace": "abc"])
+        #expect(result.headers == ["X-Trace": "abc"])
+    }
 
-  @Test func testBhvResults004ExposesTheDeserializedData() {
-    let result = ApiResult<String>(
-      statusCode: 200, data: "payload", rawBody: "\"payload\"", headers: [:])
-    #expect(result.data == "payload")
-  }
+    @Test func testBhvResults004ExposesTheDeserializedData() {
+        let result = ApiResult<String>(statusCode: 200, data: "payload", rawBody: "\"payload\"", headers: [:])
+        #expect(result.data == "payload")
+    }
 
-  @Test func testBhvResults005ExposesTheRawResponseBody() {
-    let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "{\"id\":1}", headers: [:])
-    #expect(result.rawBody == "{\"id\":1}")
-  }
+    @Test func testBhvResults005ExposesTheRawResponseBody() {
+        let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "{\"id\":1}", headers: [:])
+        #expect(result.rawBody == "{\"id\":1}")
+    }
 
-  @Test func testBhvResults003ExposesStatusCodeDataRawBodyAndHeaders() {
-    let result = ApiResult(
-      statusCode: 201, data: "payload", rawBody: "\"payload\"", headers: ["X-A": "1"])
-    #expect(result.statusCode == 201)
-    #expect(result.data == "payload")
-    #expect(result.rawBody == "\"payload\"")
-    #expect(result.headers == ["X-A": "1"])
-  }
+    @Test func testBhvResults003ExposesStatusCodeDataRawBodyAndHeaders() {
+        let result = ApiResult(statusCode: 201, data: "payload", rawBody: "\"payload\"", headers: ["X-A": "1"])
+        #expect(result.statusCode == 201)
+        #expect(result.data == "payload")
+        #expect(result.rawBody == "\"payload\"")
+        #expect(result.headers == ["X-A": "1"])
+    }
 
-  // MARK: - Behaviour catalogue: result headers
+    // MARK: - Behaviour catalogue: result headers
 
-  /* The headers a result exposes are a copy taken when it is built, so later source changes do not show. */
-  @Test func testBhvResults006ResultHeadersAreAReadOnlyCopyAtBuildTime() {
-    var source = ["X-Trace": "1"]
-    let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "", headers: source)
-    source["X-Trace"] = "2"
-    #expect(result.headers["X-Trace"] == "1")
-  }
+    /* The headers a result exposes are a copy taken when it is built, so later source changes do not show. */
+    @Test func testBhvResults006ResultHeadersAreAReadOnlyCopyAtBuildTime() {
+        var source = ["X-Trace": "1"]
+        let result = ApiResult<String>(statusCode: 200, data: nil, rawBody: "", headers: source)
+        source["X-Trace"] = "2"
+        #expect(result.headers["X-Trace"] == "1")
+    }
 }

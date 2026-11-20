@@ -9,62 +9,59 @@ import Foundation
 
 /// BinaryVault is a model class generated from the OpenAPI schema.
 public struct BinaryVault: Codable, Sendable, Equatable, Hashable {
-  /// A bare byte array; equality compares its contents.
-  public let seal: Data?
-  /// A list of byte arrays; equality compares element contents.
-  public let shards: [Data]?
-  /// A map of byte arrays; equality compares each value's contents.
-  public let labels: [String: Data]?
+    /// A bare byte array; equality compares its contents.
+    public let seal: Data?
+    /// A list of byte arrays; equality compares element contents.
+    public let shards: [Data]?
+    /// A map of byte arrays; equality compares each value's contents.
+    public let labels: [String: Data]?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case seal = "seal"
-    case shards = "shards"
-    case labels = "labels"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case seal = "seal"
+        case shards = "shards"
+        case labels = "labels"
+    }
 
-  /// Creates a new BinaryVault instance.
-  public init(seal: Data? = nil, shards: [Data]? = nil, labels: [String: Data]? = nil) {
-    self.seal = seal
-    self.shards = shards
-    self.labels = labels
-  }
+    /// Creates a new BinaryVault instance.
+    public init(seal: Data? = nil, shards: [Data]? = nil, labels: [String: Data]? = nil) {
+        self.seal = seal
+        self.shards = shards
+        self.labels = labels
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(seal: Data?? = .none, shards: [Data]?? = .none, labels: [String: Data]?? = .none)
-    -> BinaryVault
-  {
-    return BinaryVault(
-      seal: seal ?? self.seal, shards: shards ?? self.shards, labels: labels ?? self.labels)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(seal: Data?? = .none, shards: [Data]?? = .none, labels: [String: Data]?? = .none) -> BinaryVault {
+        return BinaryVault(seal: seal ?? self.seal, shards: shards ?? self.shards, labels: labels ?? self.labels)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.seal = try container.decodeIfPresent(Data.self, forKey: .seal)
-    self.shards = try container.decodeIfPresent([Data].self, forKey: .shards)
-    self.labels = try container.decodeIfPresent([String: Data].self, forKey: .labels)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.seal = try container.decodeIfPresent(Data.self, forKey: .seal)
+        self.shards = try container.decodeIfPresent([Data].self, forKey: .shards)
+        self.labels = try container.decodeIfPresent([String: Data].self, forKey: .labels)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ObjectSerializer.ordered(seal), forKey: .seal)
-    try container.encodeIfPresent(ObjectSerializer.ordered(shards), forKey: .shards)
-    try container.encodeIfPresent(ObjectSerializer.ordered(labels), forKey: .labels)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ObjectSerializer.ordered(seal), forKey: .seal)
+        try container.encodeIfPresent(ObjectSerializer.ordered(shards), forKey: .shards)
+        try container.encodeIfPresent(ObjectSerializer.ordered(labels), forKey: .labels)
+    }
 }

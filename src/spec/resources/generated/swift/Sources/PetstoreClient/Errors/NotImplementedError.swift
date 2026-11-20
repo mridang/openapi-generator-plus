@@ -9,27 +9,27 @@ import Foundation
 
 /// Error for HTTP 501 Not Implemented.
 public class NotImplementedError: ServerError, @unchecked Sendable {
-  /// Creates the error. The status is fixed at 501, so this type never
-  /// reports another one; ``ApiError/fromResponse(statusCode:headers:body:requestMethod:requestPath:)``
-  /// is the only place a status is mapped to a type.
-  public init(
-    message: String = "",
-    responseBody: String? = nil,
-    responseHeaders: [String: String]? = nil,
-    errorBody: Any? = nil,
-    underlyingError: Error? = nil,
-    requestMethod: String? = nil,
-    requestPath: String? = nil
-  ) {
-    super.init(
-      statusCode: 501,
-      message: message,
-      responseBody: responseBody,
-      responseHeaders: responseHeaders,
-      errorBody: errorBody,
-      underlyingError: underlyingError,
-      requestMethod: requestMethod,
-      requestPath: requestPath
-    )
-  }
+    /// Creates the error. The status is fixed at 501, so this type never
+    /// reports another one; ``ApiError/fromResponse(statusCode:headers:body:requestMethod:requestPath:)``
+    /// is the only place a status is mapped to a type.
+    public init(
+        message: String = "",
+        responseBody: String? = nil,
+        responseHeaders: [String: String]? = nil,
+        errorBody: Any? = nil,
+        underlyingError: Error? = nil,
+        requestMethod: String? = nil,
+        requestPath: String? = nil
+    ) {
+        super.init(
+            statusCode: 501,
+            message: message,
+            responseBody: responseBody,
+            responseHeaders: responseHeaders,
+            errorBody: errorBody,
+            underlyingError: underlyingError,
+            requestMethod: requestMethod,
+            requestPath: requestPath
+        )
+    }
 }

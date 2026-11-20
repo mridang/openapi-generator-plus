@@ -7,7 +7,6 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 /* Bearer token handling is validated here. Negative scenarios
@@ -17,436 +16,380 @@ import Testing
  * redaction guarantee. */
 @Suite final class BearerAuthenticatorTests {
 
-  @Test func testBhvAuthbearer009RawTokenIsPrefixedWithBearer() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
-    let headers = try await auth.authHeaders()
-    #expect(headers["Authorization"] == "Bearer xyz")
-  }
-
-  @Test func testBhvAuthbearer003AlreadyPrefixedTokenIsNotDoubled() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
-    let headers = try await auth.authHeaders()
-    #expect(headers["Authorization"] == "Bearer xyz")
-  }
-
-  @Test func testBhvAuthbearer007LowercaseBearerPrefixIsStripped() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
-    let headers = try await auth.authHeaders()
-    #expect(headers["Authorization"] == "Bearer xyz")
-  }
-
-  @Test func testBhvAuthbearer008MixedCaseBearerPrefixIsStripped() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
-    let headers = try await auth.authHeaders()
-    #expect(headers["Authorization"] == "Bearer xyz")
-  }
-
-  /* authenticator-secret-in-default-string-repr: the default string
-   * representation must never expose the stored token and must show the
-   * `***` redaction marker. */
-  @Test func testBhvAuthbearer011RedactsSecret() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
-    let description = String(describing: auth)
-    #expect(!description.contains("token=xyz"))
-    #expect(description.contains("***"))
-    /* Everything except the secret stays visible. */
-    #expect(description == "BearerAuthenticator(host: https://api.example.com, token: ***)")
-    #expect(String(reflecting: auth) == description)
-  }
-
-  /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
-   * included, so the redacted description is not enough: the reflection
-   * must hide the secret too. */
-  @Test func testBhvAuth016DumpDoesNotLeakSecret() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "dump-secret-token")
-    var dumped = ""
-    dump(auth, to: &dumped)
-    #expect(!dumped.contains("dump-secret-token"), "dump leaked the secret: \(dumped)")
-    #expect(Mirror(reflecting: auth).children.isEmpty)
-  }
-
-  /* An empty or whitespace-only token would emit a bare
-   * `Authorization: Bearer ` header, and CR/LF or non-ASCII bytes would
-   * inject or mangle it: each is rejected at construction with
-   * ConfigurationError.invalidArgument, never a trap. */
-  @Test(arguments: ["", "   ", "tok\r\nInjected: yes", "ñoño"])
-  func testBhvAuthbearer005InvalidTokenIsRejectedAtConstruction(token: String) {
-    let error = #expect(throws: ConfigurationError.self) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
+    @Test func testBhvAuthbearer009RawTokenIsPrefixedWithBearer() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer xyz")
     }
-    guard case .invalidArgument(let message)? = error else {
-      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
-      return
+
+    @Test func testBhvAuthbearer003AlreadyPrefixedTokenIsNotDoubled() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer xyz")
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer xyz")
     }
-    if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-      #expect(message.contains("Bearer token must not be empty"))
+
+    @Test func testBhvAuthbearer007LowercaseBearerPrefixIsStripped() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearer xyz")
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer xyz")
     }
-  }
 
-  /* A token with a NUL byte is refused at construction, like a line break. */
-  @Test func testBhvAuth009ATokenHoldingANulByteIsRefusedAtConstruction() {
-    #expect(throws: ConfigurationError.self) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\u{0}en")
+    @Test func testBhvAuthbearer008MixedCaseBearerPrefixIsStripped() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "BeArEr xyz")
+        let headers = try await auth.authHeaders()
+        #expect(headers["Authorization"] == "Bearer xyz")
     }
-  }
 
-  /* Each rejection branch reports its own exact message. A token of Unicode
-   * spaces only is blank to a reader but not to the empty guard, so it is
-   * refused by the printable ASCII rule. */
-  @Test(arguments: [
-    ("", "Bearer token must not be empty"),
-    ("  \n", "Bearer token must not be empty"),
-    (
-      "tok\r\nInjected: yes",
-      "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
-    ),
-    ("ñoño", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
-    (
-      "\u{2003}\u{3000}",
-      "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"
-    ),
-  ])
-  func testBhvAuthbearer001RejectionMessagesNameTheBranch(token: String, message: String) {
-    #expect(throws: ConfigurationError.invalidArgument(message)) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
+    /* authenticator-secret-in-default-string-repr: the default string
+     * representation must never expose the stored token and must show the
+     * `***` redaction marker. */
+    @Test func testBhvAuthbearer011RedactsSecret() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "xyz")
+        let description = String(describing: auth)
+        #expect(!description.contains("token=xyz"))
+        #expect(description.contains("***"))
+        /* Everything except the secret stays visible. */
+        #expect(description == "BearerAuthenticator(host: https://api.example.com, token: ***)")
+        #expect(String(reflecting: auth) == description)
     }
-  }
 
-  /* The prefix is removed once and only as a whole word: a token that
-   * merely starts with the letters is left alone. */
-  @Test func testBhvAuthbearer004PrefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
-    let twice = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer Bearer xyz")
-    #expect(try await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
-    let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
-    #expect(try await lookalike.authHeaders()["Authorization"] == "Bearer bearerxyz")
-  }
-
-  // MARK: - Generated scheme wrappers
-
-  /* Each HTTP bearer securityScheme generates a wrapper that sends the same
-   * Bearer header, validates eagerly and masks the token in its repr. */
-  @Test(arguments: ["PetStoreBearer", "ServiceToken"])
-  func testBhvAuthbearer006SchemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String)
-    async throws
-  {
-    let auth = try Self.schemeWrapper(scheme, token: "xyz")
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
-    #expect(auth.queryParams().isEmpty)
-    #expect(auth.cookieParams().isEmpty)
-    #expect(
-      String(describing: auth)
-        == "\(scheme)Authenticator(host: https://api.example.com, token: ***)")
-    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
-      _ = try Self.schemeWrapper(scheme, token: "")
+    /* dump(_:) and Mirror(reflecting:) walk the stored properties, private ones
+     * included, so the redacted description is not enough: the reflection
+     * must hide the secret too. */
+    @Test func testBhvAuth016DumpDoesNotLeakSecret() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "dump-secret-token")
+        var dumped = ""
+        dump(auth, to: &dumped)
+        #expect(!dumped.contains("dump-secret-token"), "dump leaked the secret: \(dumped)")
+        #expect(Mirror(reflecting: auth).children.isEmpty)
     }
-  }
 
-  /* Each HTTP bearer wrapper emits a Bearer header and keeps its own name in its description. */
-  @Test(arguments: ["PetStoreBearer", "ServiceToken"])
-  func testBhvAuthbearer023SchemeWrapperEmitsABearerHeaderUnderItsOwnName(scheme: String)
-    async throws
-  {
-    let auth = try Self.schemeWrapper(scheme, token: "wrapper-token-value")
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer wrapper-token-value"])
-    #expect(String(describing: auth).hasPrefix("\(scheme)Authenticator("))
-  }
-
-  // MARK: - Token provider
-
-  private final class TokenBox: @unchecked Sendable {
-    private let lock = NSLock()
-    private var count = 0
-
-    func next() -> String {
-      lock.lock()
-      defer { lock.unlock() }
-      count += 1
-      return "provided-\(count)"
+    /* An empty or whitespace-only token would emit a bare
+     * `Authorization: Bearer ` header, and CR/LF or non-ASCII bytes would
+     * inject or mangle it: each is rejected at construction with
+     * ConfigurationError.invalidArgument, never a trap. */
+    @Test(arguments: ["", "   ", "tok\r\nInjected: yes", "ñoño"])
+    func testBhvAuthbearer005InvalidTokenIsRejectedAtConstruction(token: String) {
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            #expect(message.contains("Bearer token must not be empty"))
+        }
     }
-  }
 
-  private struct ProviderFailure: Error {}
-
-  /* The callback runs before every request, so a token refreshed elsewhere is
-   * picked up. */
-  @Test func testBhvAuthbearer014TokenProviderIsCalledBeforeEveryRequest() async throws {
-    let box = TokenBox()
-    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
-  }
-
-  @Test func testBhvAuthbearer002TokenProviderResultIsValidatedLikeAStaticToken() async throws {
-    let empty = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "  " })
-    await #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
-      _ = try await empty.authHeaders()
+    /* A token with a NUL byte is refused at construction, like a line break. */
+    @Test func testBhvAuth009ATokenHoldingANulByteIsRefusedAtConstruction() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\u{0}en")
+        }
     }
-    let injected = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "a\r\nb" })
-    await #expect(throws: ConfigurationError.self) {
-      _ = try await injected.authHeaders()
+
+    /* Each rejection branch reports its own exact message. A token of Unicode
+     * spaces only is blank to a reader but not to the empty guard, so it is
+     * refused by the printable ASCII rule. */
+    @Test(arguments: [
+        ("", "Bearer token must not be empty"),
+        ("  \n", "Bearer token must not be empty"),
+        ("tok\r\nInjected: yes", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+        ("ñoño", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+        ("\u{2003}\u{3000}", "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)"),
+    ])
+    func testBhvAuthbearer001RejectionMessagesNameTheBranch(token: String, message: String) {
+        #expect(throws: ConfigurationError.invalidArgument(message)) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: token)
+        }
     }
-  }
 
-  @Test func testBhvLangswift013TokenProviderFailureFailsTheRequest() async throws {
-    let auth = BearerAuthenticator(
-      host: "https://api.example.com", tokenProvider: { throw ProviderFailure() })
-    await #expect(throws: ProviderFailure.self) {
-      _ = try await auth.authHeaders()
+    /* The prefix is removed once and only as a whole word: a token that
+     * merely starts with the letters is left alone. */
+    @Test func testBhvAuthbearer004PrefixIsStrippedOnceAndOnlyAsWholeWord() async throws {
+        let twice = try BearerAuthenticator(host: "https://api.example.com", token: "Bearer Bearer xyz")
+        #expect(try await twice.authHeaders()["Authorization"] == "Bearer Bearer xyz")
+        let lookalike = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
+        #expect(try await lookalike.authHeaders()["Authorization"] == "Bearer bearerxyz")
     }
-  }
 
-  @Test func testBhvLangswift014TokenProviderAuthenticatorKeepsTheTokenOutOfItsDescription() {
-    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "provided-1" })
-    #expect(!String(describing: auth).contains("provided-1"))
-  }
+    // MARK: - Generated scheme wrappers
 
-  /* The credentials provider is asked again for each request, so the value it returns now is the one sent. */
-  @Test func testBhvAuth037TokenProviderIsAskedAgainForEachRequest() async throws {
-    let box = TokenBox()
-    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-3"])
-  }
-
-  /* Each bearer authenticator reads its token from the environment when none is passed, and an explicit token wins over the environment. */
-  @Test
-  func testBhvAuthbearer010BearerAuthenticatorsSendTheTokenFromTheEnvironmentUnlessOneIsPassed()
-    async throws
-  {
-    do {
-      let fromEnvironment = try PetStoreBearerAuthenticator(
-        host: "https://api.example.com", token: nil,
-        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
-      #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
-      let explicit = try PetStoreBearerAuthenticator(
-        host: "https://api.example.com", token: "explicit-token",
-        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
-      #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    /* Each HTTP bearer securityScheme generates a wrapper that sends the same
+     * Bearer header, validates eagerly and masks the token in its repr. */
+    @Test(arguments: ["PetStoreBearer", "ServiceToken"])
+    func testBhvAuthbearer006SchemeWrapperSendsBearerHeaderAndMasksTheToken(scheme: String) async throws {
+        let auth = try Self.schemeWrapper(scheme, token: "xyz")
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
+        #expect(auth.queryParams().isEmpty)
+        #expect(auth.cookieParams().isEmpty)
+        #expect(String(describing: auth) == "\(scheme)Authenticator(host: https://api.example.com, token: ***)")
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+            _ = try Self.schemeWrapper(scheme, token: "")
+        }
     }
-    do {
-      let fromEnvironment = try ServiceTokenAuthenticator(
-        host: "https://api.example.com", token: nil,
-        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
-      #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
-      let explicit = try ServiceTokenAuthenticator(
-        host: "https://api.example.com", token: "explicit-token",
-        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
-      #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+
+    /* Each HTTP bearer wrapper emits a Bearer header and keeps its own name in its description. */
+    @Test(arguments: ["PetStoreBearer", "ServiceToken"])
+    func testBhvAuthbearer023SchemeWrapperEmitsABearerHeaderUnderItsOwnName(scheme: String) async throws {
+        let auth = try Self.schemeWrapper(scheme, token: "wrapper-token-value")
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer wrapper-token-value"])
+        #expect(String(describing: auth).hasPrefix("\(scheme)Authenticator("))
     }
-  }
 
-  /* An explicit token wins over the environment, whatever the variable holds. */
-  @Test func testBhvAuthbearer018BearerAuthenticatorsAnExplicitTokenWinsOverTheEnvironment()
-    async throws
-  {
-    do {
-      let auth = try PetStoreBearerAuthenticator(
-        host: "https://api.example.com", token: "explicit-token",
-        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "from-environment"])
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+    // MARK: - Token provider
+
+    private final class TokenBox: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count = 0
+
+        func next() -> String {
+            lock.lock()
+            defer { lock.unlock() }
+            count += 1
+            return "provided-\(count)"
+        }
     }
-    do {
-      let auth = try ServiceTokenAuthenticator(
-        host: "https://api.example.com", token: "explicit-token",
-        environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "from-environment"])
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+
+    private struct ProviderFailure: Error {}
+
+    /* The callback runs before every request, so a token refreshed elsewhere is
+     * picked up. */
+    @Test func testBhvAuthbearer014TokenProviderIsCalledBeforeEveryRequest() async throws {
+        let box = TokenBox()
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
     }
-  }
 
-  /* The variable is read once, when the authenticator is built: a later change to
-     the environment does not reach a token that is already held. */
-  /* A token provider that is passed is used even when the environment variable holds a token. */
-  @Test func testBhvAuth038AProviderPassedInIsUsedAheadOfTheEnvironment() async throws {
-    let name = "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"
-    setenv(name, "from-env", 1)
-    defer { unsetenv(name) }
-    let auth = PetStoreBearerAuthenticator(
-      host: "https://api.example.com", tokenProvider: { "from-provider" })
-    #expect(try await auth.authHeaders()["Authorization"] == "Bearer from-provider")
-  }
-
-  @Test func testBhvLifecycle025BearerAuthenticatorsReadTheEnvironmentOnceWhenBuilt() async throws {
-    do {
-      var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first"]
-      let auth = try PetStoreBearerAuthenticator(
-        host: "https://api.example.com", token: nil, environment: environment)
-      environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+    @Test func testBhvAuthbearer002TokenProviderResultIsValidatedLikeAStaticToken() async throws {
+        let empty = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "  " })
+        await #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+            _ = try await empty.authHeaders()
+        }
+        let injected = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "a\r\nb" })
+        await #expect(throws: ConfigurationError.self) {
+            _ = try await injected.authHeaders()
+        }
     }
-    do {
-      var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "first"]
-      let auth = try ServiceTokenAuthenticator(
-        host: "https://api.example.com", token: nil, environment: environment)
-      environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "second"]
-      #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+
+    @Test func testBhvLangswift013TokenProviderFailureFailsTheRequest() async throws {
+        let auth = BearerAuthenticator(
+            host: "https://api.example.com", tokenProvider: { throw ProviderFailure() })
+        await #expect(throws: ProviderFailure.self) {
+            _ = try await auth.authHeaders()
+        }
     }
-  }
 
-  /* The variable is read once at construction, under the behaviour id of the first bearer scheme. */
-  @Test func testBhvAuthbearer025PetStoreBearerAuthenticatorReadsItsVariableOnceAtConstruction()
-    async throws
-  {
-    var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first"]
-    let auth = try PetStoreBearerAuthenticator(
-      host: "https://api.example.com", token: nil, environment: environment)
-    environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second"]
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
-  }
-  private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {
-    let host = "https://api.example.com"
-    switch scheme {
-    case "PetStoreBearer": return try PetStoreBearerAuthenticator(host: host, token: token)
-    default: return try ServiceTokenAuthenticator(host: host, token: token)
+    @Test func testBhvLangswift014TokenProviderAuthenticatorKeepsTheTokenOutOfItsDescription() {
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "provided-1" })
+        #expect(!String(describing: auth).contains("provided-1"))
     }
-  }
 
-  @Test func testBhvAuthbearer028ATokenWithCrlfIsRejectedAtConstruction() {
-    #expect(
-      throws: ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
-    ) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "abc\r\nX-Forwarded: yes")
+    /* The credentials provider is asked again for each request, so the value it returns now is the one sent. */
+    @Test func testBhvAuth037TokenProviderIsAskedAgainForEachRequest() async throws {
+        let box = TokenBox()
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { box.next() })
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-1"])
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-2"])
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer provided-3"])
     }
-  }
 
-  @Test func testBhvAuthbearer012RejectsCrLfAtConstruction() {
-    #expect(
-      throws: ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
-    ) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\r\nInjected: yes")
+    /* Each bearer authenticator reads its token from the environment when none is passed, and an explicit token wins over the environment. */
+    @Test func testBhvAuthbearer010BearerAuthenticatorsSendTheTokenFromTheEnvironmentUnlessOneIsPassed() async throws {
+        do {
+            let fromEnvironment = try PetStoreBearerAuthenticator(host: "https://api.example.com", token: nil, environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
+            #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
+            let explicit = try PetStoreBearerAuthenticator(host: "https://api.example.com", token: "explicit-token", environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "env-token"])
+            #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+        }
+        do {
+            let fromEnvironment = try ServiceTokenAuthenticator(host: "https://api.example.com", token: nil, environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
+            #expect(try await fromEnvironment.authHeaders() == ["Authorization": "Bearer env-token"])
+            let explicit = try ServiceTokenAuthenticator(host: "https://api.example.com", token: "explicit-token", environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "env-token"])
+            #expect(try await explicit.authHeaders() == ["Authorization": "Bearer explicit-token"])
+        }
     }
-  }
 
-  @Test func testBhvAuthbearer013DescriptionShowsHostAndMasksToken() throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "masked-token-value")
-    #expect(auth.description.contains("host: https://api.example.com"))
-    #expect(!auth.description.contains("masked-token-value"))
-  }
-
-  @Test func testBhvAuthbearer015TokenThatOnlyStartsWithBearerIsKeptWhole() async throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer bearerxyz"])
-  }
-
-  @Test func testBhvAuthbearer016UnicodeSpaceOnlyTokenIsRejectedAsNonAscii() {
-    #expect(
-      throws: ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
-    ) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "\u{2003}")
+    /* An explicit token wins over the environment, whatever the variable holds. */
+    @Test func testBhvAuthbearer018BearerAuthenticatorsAnExplicitTokenWinsOverTheEnvironment() async throws {
+        do {
+            let auth = try PetStoreBearerAuthenticator(host: "https://api.example.com", token: "explicit-token", environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "from-environment", ])
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+        }
+        do {
+            let auth = try ServiceTokenAuthenticator(host: "https://api.example.com", token: "explicit-token", environment: ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "from-environment", ])
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer explicit-token"])
+        }
     }
-  }
 
-  @Test func testBhvAuthbearer017WhitespaceOnlyTokenIsRejectedAsEmpty() {
-    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "   ")
+    /* The variable is read once, when the authenticator is built: a later change to
+       the environment does not reach a token that is already held. */
+    /* A token provider that is passed is used even when the environment variable holds a token. */
+    @Test func testBhvAuth038AProviderPassedInIsUsedAheadOfTheEnvironment() async throws {
+        let name = "SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN"
+        setenv(name, "from-env", 1)
+        defer { unsetenv(name) }
+        let auth = PetStoreBearerAuthenticator(host: "https://api.example.com", tokenProvider: { "from-provider" })
+        #expect(try await auth.authHeaders()["Authorization"] == "Bearer from-provider")
     }
-  }
 
-  /* A non-ASCII token is refused at construction, before any request is sent. */
-  @Test func testBhvAuthbearer022NonAsciiTokenIsRejectedAtConstruction() {
-    #expect(
-      throws: ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
-    ) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "caf\u{E9}-token")
+    @Test func testBhvLifecycle025BearerAuthenticatorsReadTheEnvironmentOnceWhenBuilt() async throws {
+        do {
+            var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first", ]
+            let auth = try PetStoreBearerAuthenticator(host: "https://api.example.com", token: nil, environment: environment)
+            environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second", ]
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+        }
+        do {
+            var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "first", ]
+            let auth = try ServiceTokenAuthenticator(host: "https://api.example.com", token: nil, environment: environment)
+            environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN": "second", ]
+            #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
+        }
     }
-  }
 
-  /* A whitespace-only token is refused at construction as an empty token. */
-  @Test func testBhvAuthbearer027WhitespaceOnlyTokenIsRejectedAtConstruction() {
-    #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: " \t\n ")
+    /* The variable is read once at construction, under the behaviour id of the first bearer scheme. */
+    @Test func testBhvAuthbearer025PetStoreBearerAuthenticatorReadsItsVariableOnceAtConstruction() async throws {
+        var environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "first", ]
+        let auth = try PetStoreBearerAuthenticator(host: "https://api.example.com", token: nil, environment: environment)
+        environment = ["SWAGGER_PETSTORE_OPEN_API_3_0_PET_STORE_BEARER_TOKEN": "second", ]
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer first"])
     }
-  }
-
-  @Test func testBhvLifecycle006RejectsNonAsciiTokenAtConstruction() {
-    #expect(
-      throws: ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")
-    ) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "ñoño")
+    private static func schemeWrapper(_ scheme: String, token: String) throws -> BearerAuthenticator {
+        let host = "https://api.example.com"
+        switch scheme {
+        case "PetStoreBearer": return try PetStoreBearerAuthenticator(host: host, token: token)
+        default: return try ServiceTokenAuthenticator(host: host, token: token)
+        }
     }
-  }
 
-  /* A rejected token is refused with a message that never repeats the value. */
-  @Test func testBhvMisc017ARejectionNeverEchoesTheValue() {
-    let secret = "bad-token-value-42"
-    let error = #expect(throws: ConfigurationError.self) {
-      _ = try BearerAuthenticator(host: "https://api.example.com", token: "bad\n" + secret)
+    @Test func testBhvAuthbearer028ATokenWithCrlfIsRejectedAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "abc\r\nX-Forwarded: yes")
+        }
     }
-    guard case .invalidArgument(let message)? = error else {
-      Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
-      return
+
+    @Test func testBhvAuthbearer012RejectsCrLfAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "tok\r\nInjected: yes")
+        }
     }
-    #expect(!message.contains(secret))
-  }
 
-  /* Printed output of the authenticator hides the secret. */
-  @Test func testBhvMisc190PrintedOutputOfTheAuthenticatorHidesTheSecret() throws {
-    let auth = try BearerAuthenticator(host: "https://api.example.com", token: "secret-token-value")
-    #expect(!"\(auth)".contains("secret-token-value"))
-    #expect(!auth.description.contains("secret-token-value"))
-  }
-
-  /* A required credential that is neither passed nor in the environment fails immediately with a missing-credential error. */
-  @Test func testBhvMisc204AMissingRequiredCredentialFailsImmediately() {
-    #expect(throws: ConfigurationError.self) {
-      _ = try BaseAuthenticator.credential(
-        nil, name: "host", variable: "EXAMPLE_HOST", environment: [:])
+    @Test func testBhvAuthbearer013DescriptionShowsHostAndMasksToken() throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "masked-token-value")
+        #expect(auth.description.contains("host: https://api.example.com"))
+        #expect(!auth.description.contains("masked-token-value"))
     }
-  }
 
-  /* When a credential is found nowhere, the missing-credential error names the variable that should have supplied it. */
-  @Test func testBhvMisc205TheMissingCredentialErrorNamesTheVariable() {
-    do {
-      _ = try BaseAuthenticator.credential(
-        nil, name: "token", variable: "EXAMPLE_TOKEN", environment: [:])
-      Issue.record("A missing credential must be refused")
-    } catch {
-      #expect(error.localizedDescription.contains("EXAMPLE_TOKEN"))
+    @Test func testBhvAuthbearer015TokenThatOnlyStartsWithBearerIsKeptWhole() async throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "bearerxyz")
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer bearerxyz"])
     }
-  }
 
-  /* A credential that is not passed is read from the matching environment variable. */
-  @Test func testBhvMisc207ACredentialNotPassedIsReadFromItsEnvironmentVariable() throws {
-    let value = try BaseAuthenticator.credential(
-      nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": "t1"])
-    #expect(value == "t1")
-  }
-
-  /* An environment variable set to an empty value is treated the same as an unset one. */
-  @Test func testBhvMisc208AnEmptyEnvironmentVariableCountsAsUnset() {
-    #expect(throws: ConfigurationError.self) {
-      _ = try BaseAuthenticator.credential(
-        nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+    @Test func testBhvAuthbearer016UnicodeSpaceOnlyTokenIsRejectedAsNonAscii() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "\u{2003}")
+        }
     }
-  }
 
-  /* A token returned by a token provider is sent under the same Bearer prefix rule as a static token. */
-  @Test func testBhvMisc194AProviderTokenIsNotDoublePrefixed() async throws {
-    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "Bearer xyz" })
-    #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
-  }
-
-  /* A whitespace-only token returned by a token provider is rejected when the request is made. */
-  @Test func testBhvMisc195AWhitespaceOnlyProviderTokenIsRejectedWhenTheRequestIsMade() async throws
-  {
-    let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "   " })
-    let error = await #expect(throws: ConfigurationError.self) {
-      _ = try await auth.authHeaders()
+    @Test func testBhvAuthbearer017WhitespaceOnlyTokenIsRejectedAsEmpty() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "   ")
+        }
     }
-    #expect(error == ConfigurationError.invalidArgument("Bearer token must not be empty"))
-  }
 
-  /* A scheme wrapper with no token from its argument or environment fails with an error. */
-  @Test func testBhvMisc196ASchemeWrapperWithNoTokenFromItsEnvironmentFails() {
-    #expect(throws: ConfigurationError.self) {
-      _ = try PetStoreBearerAuthenticator(
-        host: "https://api.example.com", token: nil, environment: [:])
+    /* A non-ASCII token is refused at construction, before any request is sent. */
+    @Test func testBhvAuthbearer022NonAsciiTokenIsRejectedAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "caf\u{E9}-token")
+        }
     }
-  }
+
+    /* A whitespace-only token is refused at construction as an empty token. */
+    @Test func testBhvAuthbearer027WhitespaceOnlyTokenIsRejectedAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must not be empty")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: " \t\n ")
+        }
+    }
+
+    @Test func testBhvLifecycle006RejectsNonAsciiTokenAtConstruction() {
+        #expect(throws: ConfigurationError.invalidArgument("Bearer token must contain only printable ASCII characters (RFC 7230 \u{A7}3.2.6)")) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "ñoño")
+        }
+    }
+
+    /* A rejected token is refused with a message that never repeats the value. */
+    @Test func testBhvMisc017ARejectionNeverEchoesTheValue() {
+        let secret = "bad-token-value-42"
+        let error = #expect(throws: ConfigurationError.self) {
+            _ = try BearerAuthenticator(host: "https://api.example.com", token: "bad\n" + secret)
+        }
+        guard case .invalidArgument(let message)? = error else {
+            Issue.record("expected ConfigurationError.invalidArgument, got \(String(describing: error))")
+            return
+        }
+        #expect(!message.contains(secret))
+    }
+
+    /* Printed output of the authenticator hides the secret. */
+    @Test func testBhvMisc190PrintedOutputOfTheAuthenticatorHidesTheSecret() throws {
+        let auth = try BearerAuthenticator(host: "https://api.example.com", token: "secret-token-value")
+        #expect(!"\(auth)".contains("secret-token-value"))
+        #expect(!auth.description.contains("secret-token-value"))
+    }
+
+    /* A required credential that is neither passed nor in the environment fails immediately with a missing-credential error. */
+    @Test func testBhvMisc204AMissingRequiredCredentialFailsImmediately() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BaseAuthenticator.credential(nil, name: "host", variable: "EXAMPLE_HOST", environment: [:])
+        }
+    }
+
+    /* When a credential is found nowhere, the missing-credential error names the variable that should have supplied it. */
+    @Test func testBhvMisc205TheMissingCredentialErrorNamesTheVariable() {
+        do {
+            _ = try BaseAuthenticator.credential(nil, name: "token", variable: "EXAMPLE_TOKEN", environment: [:])
+            Issue.record("A missing credential must be refused")
+        } catch {
+            #expect(error.localizedDescription.contains("EXAMPLE_TOKEN"))
+        }
+    }
+
+    /* A credential that is not passed is read from the matching environment variable. */
+    @Test func testBhvMisc207ACredentialNotPassedIsReadFromItsEnvironmentVariable() throws {
+        let value = try BaseAuthenticator.credential(nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": "t1"])
+        #expect(value == "t1")
+    }
+
+    /* An environment variable set to an empty value is treated the same as an unset one. */
+    @Test func testBhvMisc208AnEmptyEnvironmentVariableCountsAsUnset() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try BaseAuthenticator.credential(nil, name: "token", variable: "EXAMPLE_TOKEN", environment: ["EXAMPLE_TOKEN": ""])
+        }
+    }
+
+    /* A token returned by a token provider is sent under the same Bearer prefix rule as a static token. */
+    @Test func testBhvMisc194AProviderTokenIsNotDoublePrefixed() async throws {
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "Bearer xyz" })
+        #expect(try await auth.authHeaders() == ["Authorization": "Bearer xyz"])
+    }
+
+    /* A whitespace-only token returned by a token provider is rejected when the request is made. */
+    @Test func testBhvMisc195AWhitespaceOnlyProviderTokenIsRejectedWhenTheRequestIsMade() async throws {
+        let auth = BearerAuthenticator(host: "https://api.example.com", tokenProvider: { "   " })
+        let error = await #expect(throws: ConfigurationError.self) {
+            _ = try await auth.authHeaders()
+        }
+        #expect(error == ConfigurationError.invalidArgument("Bearer token must not be empty"))
+    }
+
+    /* A scheme wrapper with no token from its argument or environment fails with an error. */
+    @Test func testBhvMisc196ASchemeWrapperWithNoTokenFromItsEnvironmentFails() {
+        #expect(throws: ConfigurationError.self) {
+            _ = try PetStoreBearerAuthenticator(host: "https://api.example.com", token: nil, environment: [:])
+        }
+    }
 
 }

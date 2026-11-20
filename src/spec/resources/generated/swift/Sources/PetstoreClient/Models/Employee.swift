@@ -9,51 +9,51 @@ import Foundation
 
 /// Employee is a model class generated from the OpenAPI schema.
 public struct Employee: Codable, Sendable, Equatable, Hashable {
-  public let name: String
-  @Indirect public private(set) var department: Department?
+    public let name: String
+    @Indirect public private(set) var department: Department?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case name = "name"
-    case department = "department"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case name = "name"
+        case department = "department"
+    }
 
-  /// Creates a new Employee instance.
-  public init(name: String, department: Department? = nil) {
-    self.name = name
-    self.department = department
-  }
+    /// Creates a new Employee instance.
+    public init(name: String, department: Department? = nil) {
+        self.name = name
+        self.department = department
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(name: String? = nil, department: Department?? = .none) -> Employee {
-    return Employee(name: name ?? self.name, department: department ?? self.department)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(name: String? = nil, department: Department?? = .none) -> Employee {
+        return Employee(name: name ?? self.name, department: department ?? self.department)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.name = try container.decode(String.self, forKey: .name)
-    self.department = try container.decodeIfPresent(Department.self, forKey: .department)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.name = try container.decode(String.self, forKey: .name)
+        self.department = try container.decodeIfPresent(Department.self, forKey: .department)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(ObjectSerializer.ordered(name), forKey: .name)
-    try container.encodeIfPresent(ObjectSerializer.ordered(department), forKey: .department)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ObjectSerializer.ordered(name), forKey: .name)
+        try container.encodeIfPresent(ObjectSerializer.ordered(department), forKey: .department)
+    }
 }

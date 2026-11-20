@@ -18,39 +18,19 @@ import Foundation
 /// - `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET`
 /// - `username`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME`
 /// - `password`: `SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD`
-public final class LegacyAuthPasswordAuthenticator: OAuth2PasswordAuthenticator, @unchecked Sendable
-{
-  /// Creates the authenticator from explicit credentials and the process environment.
-  public convenience init(
-    host: String, clientId: String? = nil, clientSecret: String? = nil, username: String? = nil,
-    password: String? = nil
-  ) throws {
-    try self.init(
-      host: host, clientId: clientId, clientSecret: clientSecret, username: username,
-      password: password, environment: ProcessInfo.processInfo.environment)
-  }
+public final class LegacyAuthPasswordAuthenticator: OAuth2PasswordAuthenticator, @unchecked Sendable {
+    /// Creates the authenticator from explicit credentials and the process environment.
+    public convenience init(host: String, clientId: String? = nil, clientSecret: String? = nil, username: String? = nil, password: String? = nil) throws {
+        try self.init(host: host, clientId: clientId, clientSecret: clientSecret, username: username, password: password, environment: ProcessInfo.processInfo.environment)
+    }
 
-  /// The same over a given environment, so the lookup can be exercised without touching
-  /// the process's own.
-  init(
-    host: String, clientId: String?, clientSecret: String?, username: String?, password: String?,
-    environment: [String: String]
-  ) throws {
-    let clientId = try BaseAuthenticator.credential(
-      clientId, name: "clientId", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID",
-      environment: environment)
-    let clientSecret = try BaseAuthenticator.credential(
-      clientSecret, name: "clientSecret",
-      variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET", environment: environment)
-    let username = try BaseAuthenticator.credential(
-      username, name: "username", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME",
-      environment: environment)
-    let password = try BaseAuthenticator.credential(
-      password, name: "password", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD",
-      environment: environment)
-    super.init(
-      host: host, clientID: clientId, clientSecret: clientSecret,
-      tokenURL: "https://auth.example.com/oauth/token", username: username, password: password,
-      scopes: ["read"], refreshURL: "https://auth.example.com/oauth/refresh")
-  }
+    /// The same over a given environment, so the lookup can be exercised without touching
+    /// the process's own.
+    init(host: String, clientId: String?, clientSecret: String?, username: String?, password: String?, environment: [String: String]) throws {
+        let clientId = try BaseAuthenticator.credential(clientId, name: "clientId", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_ID", environment: environment)
+        let clientSecret = try BaseAuthenticator.credential(clientSecret, name: "clientSecret", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_CLIENT_SECRET", environment: environment)
+        let username = try BaseAuthenticator.credential(username, name: "username", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_USERNAME", environment: environment)
+        let password = try BaseAuthenticator.credential(password, name: "password", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_LEGACY_AUTH_PASSWORD", environment: environment)
+        super.init(host: host, clientID: clientId, clientSecret: clientSecret, tokenURL: "https://auth.example.com/oauth/token", username: username, password: password, scopes: ["read"], refreshURL: "https://auth.example.com/oauth/refresh")
+    }
 }

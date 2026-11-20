@@ -17,28 +17,28 @@ import Foundation
 ///
 /// See also ``ServerConfiguration``.
 public struct ServerVariable: Sendable, Equatable {
-  /// The default value for this variable.
-  public let defaultValue: String
+    /// The default value for this variable.
+    public let defaultValue: String
 
-  /// Human-readable description of this variable.
-  public let description: String
+    /// Human-readable description of this variable.
+    public let description: String
 
-  /// The allowed values for this variable.
-  ///
-  /// An empty array means any value is accepted.
-  public let enumValues: [String]
+    /// The allowed values for this variable.
+    ///
+    /// An empty array means any value is accepted.
+    public let enumValues: [String]
 
-  /// Create a new server variable.
-  ///
-  /// - Parameters:
-  ///   - defaultValue: The default value used when no override is provided.
-  ///   - description: Human-readable description of the variable.
-  ///   - enumValues: Allowed values, or an empty array if any value is accepted.
-  public init(defaultValue: String, description: String = "", enumValues: [String] = []) {
-    self.defaultValue = defaultValue
-    self.description = description
-    self.enumValues = enumValues
-  }
+    /// Create a new server variable.
+    ///
+    /// - Parameters:
+    ///   - defaultValue: The default value used when no override is provided.
+    ///   - description: Human-readable description of the variable.
+    ///   - enumValues: Allowed values, or an empty array if any value is accepted.
+    public init(defaultValue: String, description: String = "", enumValues: [String] = []) {
+        self.defaultValue = defaultValue
+        self.description = description
+        self.enumValues = enumValues
+    }
 }
 
 /// Represents a single server entry from the OpenAPI specification.
@@ -52,76 +52,74 @@ public struct ServerVariable: Sendable, Equatable {
 ///
 /// See also ``ServerVariable``.
 public struct ServerConfiguration: Sendable {
-  /// The raw URL template before variable substitution.
-  public let urlTemplate: String
+    /// The raw URL template before variable substitution.
+    public let urlTemplate: String
 
-  /// Human-readable description of this server.
-  public let description: String
+    /// Human-readable description of this server.
+    public let description: String
 
-  /// The server variables and their definitions.
-  public let variables: [String: ServerVariable]
+    /// The server variables and their definitions.
+    public let variables: [String: ServerVariable]
 
-  /// Create a new server configuration.
-  ///
-  /// - Parameters:
-  ///   - urlTemplate: The URL template, possibly containing `{variable}` placeholders.
-  ///   - description: Human-readable description of this server.
-  ///   - variables: Map of variable names to their definitions.
-  public init(
-    urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:]
-  ) {
-    self.urlTemplate = urlTemplate
-    self.description = description
-    self.variables = variables
-  }
+    /// Create a new server configuration.
+    ///
+    /// - Parameters:
+    ///   - urlTemplate: The URL template, possibly containing `{variable}` placeholders.
+    ///   - description: Human-readable description of this server.
+    ///   - variables: Map of variable names to their definitions.
+    public init(urlTemplate: String, description: String = "", variables: [String: ServerVariable] = [:]) {
+        self.urlTemplate = urlTemplate
+        self.description = description
+        self.variables = variables
+    }
 
-  /// Resolve the URL template, substituting the given variable overrides.
-  ///
-  /// Variables not present in `overrides` use their default values.
-  /// If a variable has an enum constraint, the override value is validated
-  /// against the allowed values.
-  ///
-  /// - Parameter overrides: Variable name to value overrides (may be nil for defaults).
-  /// - Returns: The fully resolved URL.
-  /// - Throws: ``ConfigurationError/invalidServerVariable(variable:value:allowed:)``
-  ///   if an override value is not in the variable's enum.
-  public func url(variables overrides: [String: String]? = nil) throws -> String {
-    var resolved: [String: String] = [:]
-    for (varName, variable) in variables {
-      var value = variable.defaultValue
-      if let override = overrides?[varName] {
-        value = override
-      }
+    /// Resolve the URL template, substituting the given variable overrides.
+    ///
+    /// Variables not present in `overrides` use their default values.
+    /// If a variable has an enum constraint, the override value is validated
+    /// against the allowed values.
+    ///
+    /// - Parameter overrides: Variable name to value overrides (may be nil for defaults).
+    /// - Returns: The fully resolved URL.
+    /// - Throws: ``ConfigurationError/invalidServerVariable(variable:value:allowed:)``
+    ///   if an override value is not in the variable's enum.
+    public func url(variables overrides: [String: String]? = nil) throws -> String {
+        var resolved: [String: String] = [:]
+        for (varName, variable) in variables {
+            var value = variable.defaultValue
+            if let override = overrides?[varName] {
+                value = override
+            }
 
-      if !variable.enumValues.isEmpty {
-        guard variable.enumValues.contains(value) else {
-          throw ConfigurationError.invalidServerVariable(
-            variable: varName, value: value, allowed: variable.enumValues
-          )
+            if !variable.enumValues.isEmpty {
+                guard variable.enumValues.contains(value) else {
+                    throw ConfigurationError.invalidServerVariable(
+                        variable: varName, value: value, allowed: variable.enumValues
+                    )
+                }
+            }
+
+            resolved[varName] = value
         }
-      }
 
-      resolved[varName] = value
+        /* One pass over the template, so a placeholder that a substituted
+         * value introduces is never expanded again. */
+        var result = ""
+        var rest = urlTemplate[...]
+        while let open = rest.firstIndex(of: "{") {
+            result += rest[..<open]
+            let afterOpen = rest.index(after: open)
+            if let close = rest[afterOpen...].firstIndex(of: "}"),
+                let value = resolved[String(rest[afterOpen..<close])]
+            {
+                result += value
+                rest = rest[rest.index(after: close)...]
+            } else {
+                result += "{"
+                rest = rest[afterOpen...]
+            }
+        }
+        result += rest
+        return result
     }
-
-    /* One pass over the template, so a placeholder that a substituted
-     * value introduces is never expanded again. */
-    var result = ""
-    var rest = urlTemplate[...]
-    while let open = rest.firstIndex(of: "{") {
-      result += rest[..<open]
-      let afterOpen = rest.index(after: open)
-      if let close = rest[afterOpen...].firstIndex(of: "}"),
-        let value = resolved[String(rest[afterOpen..<close])]
-      {
-        result += value
-        rest = rest[rest.index(after: close)...]
-      } else {
-        result += "{"
-        rest = rest[afterOpen...]
-      }
-    }
-    result += rest
-    return result
-  }
 }

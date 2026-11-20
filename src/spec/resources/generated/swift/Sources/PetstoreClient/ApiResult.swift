@@ -12,23 +12,23 @@ import Foundation
 ///
 /// `T` is the type of the deserialized response data.
 public struct ApiResult<T: Sendable>: Sendable {
-  /// The HTTP status code of the response.
-  public let statusCode: Int
+    /// The HTTP status code of the response.
+    public let statusCode: Int
 
-  /// The deserialized response body (nil for void responses).
-  public let data: T?
+    /// The deserialized response body (nil for void responses).
+    public let data: T?
 
-  /// The raw response body string (never nil; empty for no body).
-  public let rawBody: String
+    /// The raw response body string (never nil; empty for no body).
+    public let rawBody: String
 
-  /// The response headers.
-  public let headers: [String: String]
+    /// The response headers.
+    public let headers: [String: String]
 
-  /// Creates an ApiResult.
-  public init(statusCode: Int, data: T?, rawBody: String, headers: [String: String]) {
-    self.statusCode = statusCode
-    self.data = data
-    self.rawBody = rawBody
-    self.headers = headers
-  }
+    /// Creates an ApiResult.
+    public init(statusCode: Int, data: T?, rawBody: String, headers: [String: String]) {
+        self.statusCode = statusCode
+        self.data = data
+        self.rawBody = rawBody
+        self.headers = headers
+    }
 }

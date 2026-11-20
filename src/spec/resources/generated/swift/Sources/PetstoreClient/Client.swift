@@ -30,292 +30,290 @@ import Foundation
 /// let client = try Client(authenticator: authenticator, transportOptions: transport)
 /// ```
 public final class Client: ClientProtocol, Sendable {
-  /* The transport this client built; kept so ``close()`` can release it. */
-  private let ownedClient: DefaultApiClient
+    /* The transport this client built; kept so ``close()`` can release it. */
+    private let ownedClient: DefaultApiClient
 
-  /// API operations for the PetApi group.
-  public let pet: PetApi
-  /// API operations for the ProblemsApi group.
-  public let problems: ProblemsApi
-  /// API operations for the StoreApi group.
-  public let store: StoreApi
+    /// API operations for the PetApi group.
+    public let pet: PetApi
+    /// API operations for the ProblemsApi group.
+    public let problems: ProblemsApi
+    /// API operations for the StoreApi group.
+    public let store: StoreApi
 
-  /// Creates a new client with the given authenticator and transport options.
-  ///
-  /// The authenticator is the credential for every operation that is not
-  /// declared without security. If it conforms to ``HttpAwareAuthenticator``,
-  /// the shared ``ApiClient`` is injected so that token exchange and discovery
-  /// requests use the same proxy, TLS, and timeout settings.
-  ///
-  /// - Parameters:
-  ///   - authenticator: Provides host URL and auth headers.
-  ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
-  ///     default transport settings when omitted.
-  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
-  /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
-  ///   be read or parsed.
-  public convenience init(
-    authenticator: Authenticator, transportOptions: TransportOptions? = nil,
-    callHook: (any CallHook)? = nil
-  ) throws {
-    try self.init(
-      baseURL: authenticator.host(), authenticator: authenticator, schemes: [:],
-      transportOptions: transportOptions, callHook: callHook)
-  }
-
-  /// Creates a new client that holds one optional credential per security scheme
-  /// the API declares, each named after its scheme.
-  ///
-  /// An operation uses the credential of the first scheme its spec lists that
-  /// you gave here; a call cannot pick another scheme. An operation none of
-  /// whose schemes has a credential is sent without one. A credential that
-  /// conforms to ``HttpAwareAuthenticator`` gets the shared ``ApiClient``, as the
-  /// authenticator of ``init(authenticator:transportOptions:callHook:)`` does.
-  ///
-  /// - Parameters:
-  ///   - host: API base URL.
-  ///   - petStoreBasic: Credential for the `petStoreBasic` security scheme (typically ``PetStoreBasicAuthenticator``), or nil for none.
-  ///   - adminBasic: Credential for the `adminBasic` security scheme (typically ``AdminBasicAuthenticator``), or nil for none.
-  ///   - petStoreBearer: Credential for the `petStoreBearer` security scheme (typically ``PetStoreBearerAuthenticator``), or nil for none.
-  ///   - serviceToken: Credential for the `serviceToken` security scheme (typically ``ServiceTokenAuthenticator``), or nil for none.
-  ///   - apiKeyHeader: Credential for the `apiKeyHeader` security scheme (typically ``ApiKeyHeaderAuthenticator``), or nil for none.
-  ///   - internalApiKey: Credential for the `internalApiKey` security scheme (typically ``InternalApiKeyAuthenticator``), or nil for none.
-  ///   - apiKeyQuery: Credential for the `apiKeyQuery` security scheme (typically ``ApiKeyQueryAuthenticator``), or nil for none.
-  ///   - sessionCookie: Credential for the `sessionCookie` security scheme (typically ``SessionCookieAuthenticator``), or nil for none.
-  ///   - machineAuth: Credential for the `machineAuth` security scheme (typically ``MachineAuthClientCredentialsAuthenticator``), or nil for none.
-  ///   - legacyAuth: Credential for the `legacyAuth` security scheme (typically ``LegacyAuthPasswordAuthenticator``), or nil for none.
-  ///   - userAuth: Credential for the `userAuth` security scheme (typically ``UserAuthAuthorizationCodeAuthenticator``), or nil for none.
-  ///   - browserAuth: Credential for the `browserAuth` security scheme (typically ``BrowserAuthImplicitAuthenticator``), or nil for none.
-  ///   - ssoAuth: Credential for the `ssoAuth` security scheme (typically ``SsoAuthAuthenticator``), or nil for none.
-  ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
-  ///     default transport settings when omitted.
-  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
-  /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
-  ///   be read or parsed.
-  public convenience init(
-    host: String,
-    petStoreBasic: Authenticator? = nil,
-    adminBasic: Authenticator? = nil,
-    petStoreBearer: Authenticator? = nil,
-    serviceToken: Authenticator? = nil,
-    apiKeyHeader: Authenticator? = nil,
-    internalApiKey: Authenticator? = nil,
-    apiKeyQuery: Authenticator? = nil,
-    sessionCookie: Authenticator? = nil,
-    machineAuth: Authenticator? = nil,
-    legacyAuth: Authenticator? = nil,
-    userAuth: Authenticator? = nil,
-    browserAuth: Authenticator? = nil,
-    ssoAuth: Authenticator? = nil,
-    transportOptions: TransportOptions? = nil,
-    callHook: (any CallHook)? = nil
-  ) throws {
-    var schemes: [String: Authenticator] = [:]
-    if let credential = petStoreBasic {
-      schemes["petStoreBasic"] = credential
-    }
-    if let credential = adminBasic {
-      schemes["adminBasic"] = credential
-    }
-    if let credential = petStoreBearer {
-      schemes["petStoreBearer"] = credential
-    }
-    if let credential = serviceToken {
-      schemes["serviceToken"] = credential
-    }
-    if let credential = apiKeyHeader {
-      schemes["apiKeyHeader"] = credential
-    }
-    if let credential = internalApiKey {
-      schemes["internalApiKey"] = credential
-    }
-    if let credential = apiKeyQuery {
-      schemes["apiKeyQuery"] = credential
-    }
-    if let credential = sessionCookie {
-      schemes["sessionCookie"] = credential
-    }
-    if let credential = machineAuth {
-      schemes["machineAuth"] = credential
-    }
-    if let credential = legacyAuth {
-      schemes["legacyAuth"] = credential
-    }
-    if let credential = userAuth {
-      schemes["userAuth"] = credential
-    }
-    if let credential = browserAuth {
-      schemes["browserAuth"] = credential
-    }
-    if let credential = ssoAuth {
-      schemes["ssoAuth"] = credential
-    }
-    try self.init(
-      baseURL: host, authenticator: nil, schemes: schemes, transportOptions: transportOptions,
-      callHook: callHook)
-  }
-
-  private init(
-    baseURL: String,
-    authenticator: Authenticator?,
-    schemes: [String: Authenticator],
-    transportOptions: TransportOptions?,
-    callHook: (any CallHook)?
-  ) throws {
-    let opts = transportOptions ?? TransportOptions.defaults
-    let apiClient = try DefaultApiClient(transportOptions: opts)
-    self.ownedClient = apiClient
-
-    if let httpAware = authenticator as? HttpAwareAuthenticator {
-      httpAware.setApiClient(apiClient)
-    }
-    for credential in schemes.values {
-      if let httpAware = credential as? HttpAwareAuthenticator {
-        httpAware.setApiClient(apiClient)
-      }
+    /// Creates a new client with the given authenticator and transport options.
+    ///
+    /// The authenticator is the credential for every operation that is not
+    /// declared without security. If it conforms to ``HttpAwareAuthenticator``,
+    /// the shared ``ApiClient`` is injected so that token exchange and discovery
+    /// requests use the same proxy, TLS, and timeout settings.
+    ///
+    /// - Parameters:
+    ///   - authenticator: Provides host URL and auth headers.
+    ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
+    ///     default transport settings when omitted.
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+    ///   be read or parsed.
+    public convenience init(
+        authenticator: Authenticator, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws {
+        try self.init(
+            baseURL: authenticator.host(), authenticator: authenticator, schemes: [:],
+            transportOptions: transportOptions, callHook: callHook)
     }
 
-    let config = ConfigurationBuilder()
-      .baseURL(baseURL)
-      .callHook(callHook)
-      .build()
-
-    self.pet = PetApi(
-      apiClient: apiClient, config: config, authenticator: authenticator,
-      schemeAuthenticators: schemes)
-    self.problems = ProblemsApi(
-      apiClient: apiClient, config: config, authenticator: authenticator,
-      schemeAuthenticators: schemes)
-    self.store = StoreApi(
-      apiClient: apiClient, config: config, authenticator: authenticator,
-      schemeAuthenticators: schemes)
-  }
-
-  /// Closes the client. It is graceful and idempotent: a request already in flight
-  /// finishes, the HTTP stack this client built is released when the last of them
-  /// completes, and a request made afterwards throws
-  /// ``ConfigurationError/invalidState(_:)`` (`ApiClient has been closed and can no
-  /// longer send requests`). A second call does nothing. A `URLSession` supplied
-  /// through ``TransportOptionsBuilder/session(_:)`` belongs to the caller and is
-  /// never invalidated.
-  public func close() {
-    ownedClient.close()
-  }
-
-  /// Creates a client authenticated with a static Bearer token.
-  ///
-  /// - Parameters:
-  ///   - host: API base URL.
-  ///   - accessToken: Bearer token.
-  ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
-  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
-  /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
-  ///   be read or parsed.
-  public convenience init(
-    host: String, accessToken: String, transportOptions: TransportOptions? = nil,
-    callHook: (any CallHook)? = nil
-  ) throws {
-    try self.init(
-      authenticator: BearerAuthenticator(host: host, token: accessToken),
-      transportOptions: transportOptions, callHook: callHook)
-  }
-
-  /// Creates a client from explicit arguments first and the environment second.
-  ///
-  /// The host is the `host` argument, else the environment variable
-  /// `SWAGGER_PETSTORE_OPEN_API_3_0_HOST`; the credential is the `tokenProvider` callback, else the
-  /// `token` argument, else `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`. The environment is read once, here,
-  /// and an empty value counts as unset. A missing host or credential fails the call
-  /// that builds the client, not a later request. The callback runs before every
-  /// request, so a token refreshed elsewhere is picked up.
-  ///
-  /// - Parameters:
-  ///   - host: API base URL, or nil to read it from the environment.
-  ///   - token: Bearer token, or nil to read it from the environment.
-  ///   - tokenProvider: Returns the current bearer token before each request.
-  ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
-  ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
-  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when no host or no credential
-  ///   is available, or the token is not valid.
-  public static func fromEnvironment(
-    host: String? = nil,
-    token: String? = nil,
-    tokenProvider: (@Sendable () async throws -> String)? = nil,
-    transportOptions: TransportOptions? = nil,
-    callHook: (any CallHook)? = nil
-  ) throws -> Client {
-    return try fromEnvironment(
-      host: host, token: token, tokenProvider: tokenProvider,
-      transportOptions: transportOptions, callHook: callHook,
-      environment: ProcessInfo.processInfo.environment)
-  }
-
-  /// The same as ``fromEnvironment(host:token:tokenProvider:transportOptions:callHook:)`` over a
-  /// given environment, so the lookup can be exercised without touching the process's own.
-  static func fromEnvironment(
-    host: String?,
-    token: String?,
-    tokenProvider: (@Sendable () async throws -> String)?,
-    transportOptions: TransportOptions?,
-    callHook: (any CallHook)? = nil,
-    environment: [String: String]
-  ) throws -> Client {
-    func firstSet(_ explicit: String?, _ variable: String) -> String? {
-      if let explicit = explicit, !explicit.isEmpty {
-        return explicit
-      }
-      if let value = environment[variable], !value.isEmpty {
-        return value
-      }
-      return nil
+    /// Creates a new client that holds one optional credential per security scheme
+    /// the API declares, each named after its scheme.
+    ///
+    /// An operation uses the credential of the first scheme its spec lists that
+    /// you gave here; a call cannot pick another scheme. An operation none of
+    /// whose schemes has a credential is sent without one. A credential that
+    /// conforms to ``HttpAwareAuthenticator`` gets the shared ``ApiClient``, as the
+    /// authenticator of ``init(authenticator:transportOptions:callHook:)`` does.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL.
+    ///   - petStoreBasic: Credential for the `petStoreBasic` security scheme (typically ``PetStoreBasicAuthenticator``), or nil for none.
+    ///   - adminBasic: Credential for the `adminBasic` security scheme (typically ``AdminBasicAuthenticator``), or nil for none.
+    ///   - petStoreBearer: Credential for the `petStoreBearer` security scheme (typically ``PetStoreBearerAuthenticator``), or nil for none.
+    ///   - serviceToken: Credential for the `serviceToken` security scheme (typically ``ServiceTokenAuthenticator``), or nil for none.
+    ///   - apiKeyHeader: Credential for the `apiKeyHeader` security scheme (typically ``ApiKeyHeaderAuthenticator``), or nil for none.
+    ///   - internalApiKey: Credential for the `internalApiKey` security scheme (typically ``InternalApiKeyAuthenticator``), or nil for none.
+    ///   - apiKeyQuery: Credential for the `apiKeyQuery` security scheme (typically ``ApiKeyQueryAuthenticator``), or nil for none.
+    ///   - sessionCookie: Credential for the `sessionCookie` security scheme (typically ``SessionCookieAuthenticator``), or nil for none.
+    ///   - machineAuth: Credential for the `machineAuth` security scheme (typically ``MachineAuthClientCredentialsAuthenticator``), or nil for none.
+    ///   - legacyAuth: Credential for the `legacyAuth` security scheme (typically ``LegacyAuthPasswordAuthenticator``), or nil for none.
+    ///   - userAuth: Credential for the `userAuth` security scheme (typically ``UserAuthAuthorizationCodeAuthenticator``), or nil for none.
+    ///   - browserAuth: Credential for the `browserAuth` security scheme (typically ``BrowserAuthImplicitAuthenticator``), or nil for none.
+    ///   - ssoAuth: Credential for the `ssoAuth` security scheme (typically ``SsoAuthAuthenticator``), or nil for none.
+    ///   - transportOptions: HTTP transport configuration (proxy, TLS, timeouts, etc.);
+    ///     default transport settings when omitted.
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+    ///   be read or parsed.
+    public convenience init(
+        host: String,
+        petStoreBasic: Authenticator? = nil,
+        adminBasic: Authenticator? = nil,
+        petStoreBearer: Authenticator? = nil,
+        serviceToken: Authenticator? = nil,
+        apiKeyHeader: Authenticator? = nil,
+        internalApiKey: Authenticator? = nil,
+        apiKeyQuery: Authenticator? = nil,
+        sessionCookie: Authenticator? = nil,
+        machineAuth: Authenticator? = nil,
+        legacyAuth: Authenticator? = nil,
+        userAuth: Authenticator? = nil,
+        browserAuth: Authenticator? = nil,
+        ssoAuth: Authenticator? = nil,
+        transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws {
+        var schemes: [String: Authenticator] = [:]
+        if let credential = petStoreBasic {
+            schemes["petStoreBasic"] = credential
+        }
+        if let credential = adminBasic {
+            schemes["adminBasic"] = credential
+        }
+        if let credential = petStoreBearer {
+            schemes["petStoreBearer"] = credential
+        }
+        if let credential = serviceToken {
+            schemes["serviceToken"] = credential
+        }
+        if let credential = apiKeyHeader {
+            schemes["apiKeyHeader"] = credential
+        }
+        if let credential = internalApiKey {
+            schemes["internalApiKey"] = credential
+        }
+        if let credential = apiKeyQuery {
+            schemes["apiKeyQuery"] = credential
+        }
+        if let credential = sessionCookie {
+            schemes["sessionCookie"] = credential
+        }
+        if let credential = machineAuth {
+            schemes["machineAuth"] = credential
+        }
+        if let credential = legacyAuth {
+            schemes["legacyAuth"] = credential
+        }
+        if let credential = userAuth {
+            schemes["userAuth"] = credential
+        }
+        if let credential = browserAuth {
+            schemes["browserAuth"] = credential
+        }
+        if let credential = ssoAuth {
+            schemes["ssoAuth"] = credential
+        }
+        try self.init(
+            baseURL: host, authenticator: nil, schemes: schemes, transportOptions: transportOptions,
+            callHook: callHook)
     }
-    guard let resolvedHost = firstSet(host, "SWAGGER_PETSTORE_OPEN_API_3_0_HOST") else {
-      throw ConfigurationError.invalidArgument(
-        "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
-    }
-    if let token = token, token.isEmpty {
-      throw ConfigurationError.invalidArgument(
-        "The token passed is empty: pass a non-empty token, or leave it out to read the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
-      )
-    }
-    if let tokenProvider = tokenProvider {
-      return try Client(
-        authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
-        transportOptions: transportOptions, callHook: callHook)
-    }
-    guard let resolvedToken = firstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN") else {
-      throw ConfigurationError.invalidArgument(
-        "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable"
-      )
-    }
-    return try Client(
-      authenticator: BearerAuthenticator(host: resolvedHost, token: resolvedToken),
-      transportOptions: transportOptions, callHook: callHook)
-  }
 
-  /// Creates a client authenticated with a static Bearer token. The named
-  /// factory form of ``init(host:accessToken:transportOptions:callHook:)``, the
-  /// counterpart of ``withAuthenticator(_:transportOptions:callHook:)`` and the
-  /// `withToken` factory the other SDKs expose.
-  public static func withToken(
-    host: String, accessToken: String, transportOptions: TransportOptions? = nil,
-    callHook: (any CallHook)? = nil
-  ) throws -> Client {
-    try Client(
-      host: host, accessToken: accessToken, transportOptions: transportOptions, callHook: callHook)
-  }
+    private init(
+        baseURL: String,
+        authenticator: Authenticator?,
+        schemes: [String: Authenticator],
+        transportOptions: TransportOptions?,
+        callHook: (any CallHook)?
+    ) throws {
+        let opts = transportOptions ?? TransportOptions.defaults
+        let apiClient = try DefaultApiClient(transportOptions: opts)
+        self.ownedClient = apiClient
 
-  /// Creates a client from any ``Authenticator``, with optional transport options.
-  ///
-  /// This is the generic entry point for bespoke authentication strategies such as
-  /// client credentials, JWT private key, or personal access tokens (PAT). Pass any
-  /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
-  /// customize the underlying transport (proxy, TLS, timeouts).
-  public static func withAuthenticator(
-    _ authenticator: Authenticator, transportOptions: TransportOptions? = nil,
-    callHook: (any CallHook)? = nil
-  ) throws -> Client {
-    try Client(
-      authenticator: authenticator, transportOptions: transportOptions, callHook: callHook)
-  }
+        if let httpAware = authenticator as? HttpAwareAuthenticator {
+            httpAware.setApiClient(apiClient)
+        }
+        for credential in schemes.values {
+            if let httpAware = credential as? HttpAwareAuthenticator {
+                httpAware.setApiClient(apiClient)
+            }
+        }
+
+        let config = ConfigurationBuilder()
+            .baseURL(baseURL)
+            .callHook(callHook)
+            .build()
+
+        self.pet = PetApi(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemes)
+        self.problems = ProblemsApi(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemes)
+        self.store = StoreApi(
+            apiClient: apiClient, config: config, authenticator: authenticator,
+            schemeAuthenticators: schemes)
+    }
+
+    /// Closes the client. It is graceful and idempotent: a request already in flight
+    /// finishes, the HTTP stack this client built is released when the last of them
+    /// completes, and a request made afterwards throws
+    /// ``ConfigurationError/invalidState(_:)`` (`ApiClient has been closed and can no
+    /// longer send requests`). A second call does nothing. A `URLSession` supplied
+    /// through ``TransportOptionsBuilder/session(_:)`` belongs to the caller and is
+    /// never invalidated.
+    public func close() {
+        ownedClient.close()
+    }
+
+    /// Creates a client authenticated with a static Bearer token.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL.
+    ///   - accessToken: Bearer token.
+    ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError`` if a configured custom CA certificate cannot
+    ///   be read or parsed.
+    public convenience init(
+        host: String, accessToken: String, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws {
+        try self.init(
+            authenticator: BearerAuthenticator(host: host, token: accessToken),
+            transportOptions: transportOptions, callHook: callHook)
+    }
+
+    /// Creates a client from explicit arguments first and the environment second.
+    ///
+    /// The host is the `host` argument, else the environment variable
+    /// `SWAGGER_PETSTORE_OPEN_API_3_0_HOST`; the credential is the `tokenProvider` callback, else the
+    /// `token` argument, else `SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN`. The environment is read once, here,
+    /// and an empty value counts as unset. A missing host or credential fails the call
+    /// that builds the client, not a later request. The callback runs before every
+    /// request, so a token refreshed elsewhere is picked up.
+    ///
+    /// - Parameters:
+    ///   - host: API base URL, or nil to read it from the environment.
+    ///   - token: Bearer token, or nil to read it from the environment.
+    ///   - tokenProvider: Returns the current bearer token before each request.
+    ///   - transportOptions: Optional HTTP transport configuration (proxy, TLS, timeouts, etc.).
+    ///   - callHook: Hook called around every operation call (see ``CallHook``); none when omitted.
+    /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when no host or no credential
+    ///   is available, or the token is not valid.
+    public static func fromEnvironment(
+        host: String? = nil,
+        token: String? = nil,
+        tokenProvider: (@Sendable () async throws -> String)? = nil,
+        transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws -> Client {
+        return try fromEnvironment(
+            host: host, token: token, tokenProvider: tokenProvider,
+            transportOptions: transportOptions, callHook: callHook,
+            environment: ProcessInfo.processInfo.environment)
+    }
+
+    /// The same as ``fromEnvironment(host:token:tokenProvider:transportOptions:callHook:)`` over a
+    /// given environment, so the lookup can be exercised without touching the process's own.
+    static func fromEnvironment(
+        host: String?,
+        token: String?,
+        tokenProvider: (@Sendable () async throws -> String)?,
+        transportOptions: TransportOptions?,
+        callHook: (any CallHook)? = nil,
+        environment: [String: String]
+    ) throws -> Client {
+        func firstSet(_ explicit: String?, _ variable: String) -> String? {
+            if let explicit = explicit, !explicit.isEmpty {
+                return explicit
+            }
+            if let value = environment[variable], !value.isEmpty {
+                return value
+            }
+            return nil
+        }
+        guard let resolvedHost = firstSet(host, "SWAGGER_PETSTORE_OPEN_API_3_0_HOST") else {
+            throw ConfigurationError.invalidArgument(
+                "No API host: pass host or set the SWAGGER_PETSTORE_OPEN_API_3_0_HOST environment variable")
+        }
+        if let token = token, token.isEmpty {
+            throw ConfigurationError.invalidArgument(
+                "The token passed is empty: pass a non-empty token, or leave it out to read the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable")
+        }
+        if let tokenProvider = tokenProvider {
+            return try Client(
+                authenticator: BearerAuthenticator(host: resolvedHost, tokenProvider: tokenProvider),
+                transportOptions: transportOptions, callHook: callHook)
+        }
+        guard let resolvedToken = firstSet(token, "SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN") else {
+            throw ConfigurationError.invalidArgument(
+                "No credential: pass token or tokenProvider, or set the SWAGGER_PETSTORE_OPEN_API_3_0_TOKEN environment variable")
+        }
+        return try Client(
+            authenticator: BearerAuthenticator(host: resolvedHost, token: resolvedToken),
+            transportOptions: transportOptions, callHook: callHook)
+    }
+
+    /// Creates a client authenticated with a static Bearer token. The named
+    /// factory form of ``init(host:accessToken:transportOptions:callHook:)``, the
+    /// counterpart of ``withAuthenticator(_:transportOptions:callHook:)`` and the
+    /// `withToken` factory the other SDKs expose.
+    public static func withToken(
+        host: String, accessToken: String, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws -> Client {
+        try Client(
+            host: host, accessToken: accessToken, transportOptions: transportOptions, callHook: callHook)
+    }
+
+    /// Creates a client from any ``Authenticator``, with optional transport options.
+    ///
+    /// This is the generic entry point for bespoke authentication strategies such as
+    /// client credentials, JWT private key, or personal access tokens (PAT). Pass any
+    /// type conforming to ``Authenticator`` and, optionally, ``TransportOptions`` to
+    /// customize the underlying transport (proxy, TLS, timeouts).
+    public static func withAuthenticator(
+        _ authenticator: Authenticator, transportOptions: TransportOptions? = nil,
+        callHook: (any CallHook)? = nil
+    ) throws -> Client {
+        try Client(
+            authenticator: authenticator, transportOptions: transportOptions, callHook: callHook)
+    }
 }

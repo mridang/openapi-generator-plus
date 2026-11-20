@@ -25,54 +25,54 @@ import Foundation
 /// let url = try Servers.server1.url(variables: ["environment": "staging"])
 /// ```
 public enum Servers {
-  /// Server 0: `/api/v3`
-  ///
-  /// Relative URL (no variables)
-  public static let server0 = ServerConfiguration(
-    urlTemplate: "/api/v3",
-    description: "Relative URL (no variables)",
-    variables: [:]
-  )
+    /// Server 0: `/api/v3`
+    ///
+    /// Relative URL (no variables)
+    public static let server0 = ServerConfiguration(
+        urlTemplate: "/api/v3",
+        description: "Relative URL (no variables)",
+        variables: [:]
+    )
 
-  /// Server 1: `https://{environment}.example.com/api/{version}`
-  ///
-  /// Main API server with variables
-  public static let server1 = ServerConfiguration(
-    urlTemplate: "https://{environment}.example.com/api/{version}",
-    description: "Main API server with variables",
-    variables: [
-      "environment": ServerVariable(
-        defaultValue: "api",
-        description: "API environment",
-        enumValues: ["api", "staging", "sandbox"]
-      ),
-      "version": ServerVariable(
-        defaultValue: "v3",
-        description: "API version",
-        enumValues: ["v2", "v3"]
-      ),
+    /// Server 1: `https://{environment}.example.com/api/{version}`
+    ///
+    /// Main API server with variables
+    public static let server1 = ServerConfiguration(
+        urlTemplate: "https://{environment}.example.com/api/{version}",
+        description: "Main API server with variables",
+        variables: [
+            "environment": ServerVariable(
+                defaultValue: "api",
+                description: "API environment",
+                enumValues: ["api", "staging", "sandbox"]
+            ),
+            "version": ServerVariable(
+                defaultValue: "v3",
+                description: "API version",
+                enumValues: ["v2", "v3"]
+            )
+        ]
+    )
+
+    /// Server 2: `https://{tenant}.example.com/api`
+    ///
+    /// Bob's "sandbox" & co: $5 #{x} a*/b
+    public static let server2 = ServerConfiguration(
+        urlTemplate: "https://{tenant}.example.com/api",
+        description: "Bob's \"sandbox\" & co: $5 #{x} a*/b",
+        variables: [
+            "tenant": ServerVariable(
+                defaultValue: "o'neil",
+                description: "Tenant's \"id\"",
+                enumValues: ["o'neil", "a&b"]
+            )
+        ]
+    )
+
+    /// All server configurations in declaration order.
+    public static let all: [ServerConfiguration] = [
+        server0,
+        server1,
+        server2
     ]
-  )
-
-  /// Server 2: `https://{tenant}.example.com/api`
-  ///
-  /// Bob's "sandbox" & co: $5 #{x} a*/b
-  public static let server2 = ServerConfiguration(
-    urlTemplate: "https://{tenant}.example.com/api",
-    description: "Bob's \"sandbox\" & co: $5 #{x} a*/b",
-    variables: [
-      "tenant": ServerVariable(
-        defaultValue: "o'neil",
-        description: "Tenant's \"id\"",
-        enumValues: ["o'neil", "a&b"]
-      )
-    ]
-  )
-
-  /// All server configurations in declaration order.
-  public static let all: [ServerConfiguration] = [
-    server0,
-    server1,
-    server2,
-  ]
 }

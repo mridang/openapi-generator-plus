@@ -9,64 +9,61 @@ import Foundation
 
 /// Car is a model class generated from the OpenAPI schema.
 public struct Car: Codable, Sendable, Equatable, Hashable {
-  public let vehicleType: String
-  public let plate: String
-  public let doorCount: Int
+    public let vehicleType: String
+    public let plate: String
+    public let doorCount: Int
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case vehicleType = "vehicleType"
-    case plate = "plate"
-    case doorCount = "doorCount"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case vehicleType = "vehicleType"
+        case plate = "plate"
+        case doorCount = "doorCount"
+    }
 
-  /// Creates a new Car instance.
-  public init(vehicleType: String = "car", plate: String, doorCount: Int) {
-    self.vehicleType = vehicleType
-    self.plate = plate
-    self.doorCount = doorCount
-  }
+    /// Creates a new Car instance.
+    public init(vehicleType: String = "car", plate: String, doorCount: Int) {
+        self.vehicleType = vehicleType
+        self.plate = plate
+        self.doorCount = doorCount
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(vehicleType: String? = nil, plate: String? = nil, doorCount: Int? = nil) -> Car {
-    return Car(
-      vehicleType: vehicleType ?? self.vehicleType, plate: plate ?? self.plate,
-      doorCount: doorCount ?? self.doorCount)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(vehicleType: String? = nil, plate: String? = nil, doorCount: Int? = nil) -> Car {
+        return Car(vehicleType: vehicleType ?? self.vehicleType, plate: plate ?? self.plate, doorCount: doorCount ?? self.doorCount)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    /* A required property that carries a default (a discriminator value, for
-       one) is filled with that default when the key is absent. */
-    self.vehicleType =
-      container.contains(.vehicleType)
-      ? try container.decode(String.self, forKey: .vehicleType)
-      : "car"
-    self.plate = try container.decode(String.self, forKey: .plate)
-    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
-    self.doorCount = try container.decodeInt32(forKey: .doorCount)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        /* A required property that carries a default (a discriminator value, for
+           one) is filled with that default when the key is absent. */
+        self.vehicleType = container.contains(.vehicleType)
+            ? try container.decode(String.self, forKey: .vehicleType)
+            : "car"
+        self.plate = try container.decode(String.self, forKey: .plate)
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+        self.doorCount = try container.decodeInt32(forKey: .doorCount)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(ObjectSerializer.ordered(vehicleType), forKey: .vehicleType)
-    try container.encode(ObjectSerializer.ordered(plate), forKey: .plate)
-    try container.encode(ObjectSerializer.ordered(doorCount), forKey: .doorCount)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ObjectSerializer.ordered(vehicleType), forKey: .vehicleType)
+        try container.encode(ObjectSerializer.ordered(plate), forKey: .plate)
+        try container.encode(ObjectSerializer.ordered(doorCount), forKey: .doorCount)
+    }
 }

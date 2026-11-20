@@ -23,127 +23,125 @@ import Foundation
 ///     .build()
 /// ```
 public final class Configuration: Sendable {
-  /// The base URL for all API requests.
-  ///
-  /// Defaults to the first server URL from the OpenAPI specification.
-  public let baseURL: String
+    /// The base URL for all API requests.
+    ///
+    /// Defaults to the first server URL from the OpenAPI specification.
+    public let baseURL: String
 
-  /// Default headers included in every API request.
-  ///
-  /// These headers are merged after transport-level headers from
-  /// ``TransportOptions`` but before operation-specific headers and
-  /// authentication headers.
-  public let defaultHeaders: [String: String]
+    /// Default headers included in every API request.
+    ///
+    /// These headers are merged after transport-level headers from
+    /// ``TransportOptions`` but before operation-specific headers and
+    /// authentication headers.
+    public let defaultHeaders: [String: String]
 
-  /// The hook called around every operation call, or nil for none.
-  ///
-  /// It runs above the transport, so it also fires with a transport the
-  /// caller supplied. See ``CallHook``.
-  public let callHook: (any CallHook)?
+    /// The hook called around every operation call, or nil for none.
+    ///
+    /// It runs above the transport, so it also fires with a transport the
+    /// caller supplied. See ``CallHook``.
+    public let callHook: (any CallHook)?
 
-  fileprivate init(baseURL: String, defaultHeaders: [String: String], callHook: (any CallHook)?) {
-    self.baseURL = baseURL
-    self.defaultHeaders = defaultHeaders
-    self.callHook = callHook
-  }
+    fileprivate init(baseURL: String, defaultHeaders: [String: String], callHook: (any CallHook)?) {
+        self.baseURL = baseURL
+        self.defaultHeaders = defaultHeaders
+        self.callHook = callHook
+    }
 
-  /// Create a new builder for constructing ``Configuration`` instances.
-  ///
-  /// - Returns: A new builder.
-  public static func builder() -> ConfigurationBuilder {
-    return ConfigurationBuilder()
-  }
+    /// Create a new builder for constructing ``Configuration`` instances.
+    ///
+    /// - Returns: A new builder.
+    public static func builder() -> ConfigurationBuilder {
+        return ConfigurationBuilder()
+    }
 
-  /// Return a ``Configuration`` with default values.
-  ///
-  /// A fresh instance every call: the SDK keeps no process-wide default
-  /// a caller could swap out from under another caller.
-  ///
-  /// - Returns: A configuration with the spec-defined base URL and no default headers.
-  public static func `default`() -> Configuration {
-    return ConfigurationBuilder().build()
-  }
+    /// Return a ``Configuration`` with default values.
+    ///
+    /// A fresh instance every call: the SDK keeps no process-wide default
+    /// a caller could swap out from under another caller.
+    ///
+    /// - Returns: A configuration with the spec-defined base URL and no default headers.
+    public static func `default`() -> Configuration {
+        return ConfigurationBuilder().build()
+    }
 }
 
 /// Builder for creating immutable ``Configuration`` instances.
 public final class ConfigurationBuilder {
-  private var baseURL: String = "/api/v3"
-  private var defaultHeaders: [String: String] = [:]
-  private var callHook: (any CallHook)?
+    private var baseURL: String = "/api/v3"
+    private var defaultHeaders: [String: String] = [:]
+    private var callHook: (any CallHook)?
 
-  public init() {}
+    public init() {}
 
-  /// Set the base URL for all API requests.
-  @discardableResult
-  public func baseURL(_ val: String) -> ConfigurationBuilder {
-    self.baseURL = val
-    return self
-  }
-
-  /// Add a single default header to include in every API request.
-  @discardableResult
-  public func defaultHeader(name: String, value: String) -> ConfigurationBuilder {
-    self.defaultHeaders[name] = value
-    return self
-  }
-
-  /// Add multiple default headers to include in every API request.
-  @discardableResult
-  public func defaultHeaders(_ headers: [String: String]) -> ConfigurationBuilder {
-    for (k, v) in headers {
-      self.defaultHeaders[k] = v
+    /// Set the base URL for all API requests.
+    @discardableResult
+    public func baseURL(_ val: String) -> ConfigurationBuilder {
+        self.baseURL = val
+        return self
     }
-    return self
-  }
 
-  /// Set the hook called around every operation call, or nil for none.
-  ///
-  /// Combine several hooks with ``CallHooks``.
-  @discardableResult
-  public func callHook(_ hook: (any CallHook)?) -> ConfigurationBuilder {
-    self.callHook = hook
-    return self
-  }
+    /// Add a single default header to include in every API request.
+    @discardableResult
+    public func defaultHeader(name: String, value: String) -> ConfigurationBuilder {
+        self.defaultHeaders[name] = value
+        return self
+    }
 
-  /// Use a server configuration with variable overrides to set the base URL.
-  ///
-  /// Resolves the server URL template with the given variable overrides
-  /// and uses the result as the base URL. Variables not present in the map
-  /// use their default values. Enum validation is performed by
-  /// ``ServerConfiguration/url(variables:)``.
-  ///
-  /// - Parameters:
-  ///   - server: The server configuration to use.
-  ///   - variables: Variable overrides (may be nil for defaults).
-  /// - Throws: ``ConfigurationError/invalidServerVariable(variable:value:allowed:)`` if a variable override is not in the allowed enum values.
-  @discardableResult
-  public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws
-    -> ConfigurationBuilder
-  {
-    self.baseURL = try server.url(variables: variables)
-    return self
-  }
+    /// Add multiple default headers to include in every API request.
+    @discardableResult
+    public func defaultHeaders(_ headers: [String: String]) -> ConfigurationBuilder {
+        for (k, v) in headers {
+            self.defaultHeaders[k] = v
+        }
+        return self
+    }
 
-  /// Build and return an immutable ``Configuration`` instance.
-  public func build() -> Configuration {
-    return Configuration(
-      baseURL: baseURL,
-      defaultHeaders: defaultHeaders,
-      callHook: callHook
-    )
-  }
+    /// Set the hook called around every operation call, or nil for none.
+    ///
+    /// Combine several hooks with ``CallHooks``.
+    @discardableResult
+    public func callHook(_ hook: (any CallHook)?) -> ConfigurationBuilder {
+        self.callHook = hook
+        return self
+    }
+
+    /// Use a server configuration with variable overrides to set the base URL.
+    ///
+    /// Resolves the server URL template with the given variable overrides
+    /// and uses the result as the base URL. Variables not present in the map
+    /// use their default values. Enum validation is performed by
+    /// ``ServerConfiguration/url(variables:)``.
+    ///
+    /// - Parameters:
+    ///   - server: The server configuration to use.
+    ///   - variables: Variable overrides (may be nil for defaults).
+    /// - Throws: ``ConfigurationError/invalidServerVariable(variable:value:allowed:)`` if a variable override is not in the allowed enum values.
+    @discardableResult
+    public func server(_ server: ServerConfiguration, variables: [String: String]? = nil) throws -> ConfigurationBuilder {
+        self.baseURL = try server.url(variables: variables)
+        return self
+    }
+
+    /// Build and return an immutable ``Configuration`` instance.
+    public func build() -> Configuration {
+        return Configuration(
+            baseURL: baseURL,
+            defaultHeaders: defaultHeaders,
+            callHook: callHook
+        )
+    }
 }
 
 extension Configuration: CustomStringConvertible, CustomDebugStringConvertible {
-  /// The configuration with every credential-bearing default header shown as `***`
-  /// (the same rule ``ApiError`` applies to response headers).
-  public var description: String {
-    let headers = ApiError.compactJson(ApiError.maskingSecrets(defaultHeaders))
-    return "\(type(of: self))(baseURL: \(baseURL), defaultHeaders: \(headers))"
-  }
+    /// The configuration with every credential-bearing default header shown as `***`
+    /// (the same rule ``ApiError`` applies to response headers).
+    public var description: String {
+        let headers = ApiError.compactJson(ApiError.maskingSecrets(defaultHeaders))
+        return "\(type(of: self))(baseURL: \(baseURL), defaultHeaders: \(headers))"
+    }
 
-  /// The same text as ``description``, so `String(reflecting:)` never shows a secret either.
-  public var debugDescription: String {
-    description
-  }
+    /// The same text as ``description``, so `String(reflecting:)` never shows a secret either.
+    public var debugDescription: String {
+        description
+    }
 }

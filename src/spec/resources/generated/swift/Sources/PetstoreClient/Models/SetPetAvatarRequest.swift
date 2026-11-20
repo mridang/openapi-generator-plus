@@ -9,53 +9,53 @@ import Foundation
 
 /// SetPetAvatarRequest is a model class generated from the OpenAPI schema.
 public struct SetPetAvatarRequest: Codable, Sendable, Equatable, Hashable {
-  /// Base64-encoded image data
-  public let data: Data
-  /// Example: image/jpeg
-  public let mimeType: String
+    /// Base64-encoded image data
+    public let data: Data
+    /// Example: image/jpeg
+    public let mimeType: String
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case data = "data"
-    case mimeType = "mimeType"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case data = "data"
+        case mimeType = "mimeType"
+    }
 
-  /// Creates a new SetPetAvatarRequest instance.
-  public init(data: Data, mimeType: String) {
-    self.data = data
-    self.mimeType = mimeType
-  }
+    /// Creates a new SetPetAvatarRequest instance.
+    public init(data: Data, mimeType: String) {
+        self.data = data
+        self.mimeType = mimeType
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(data: Data? = nil, mimeType: String? = nil) -> SetPetAvatarRequest {
-    return SetPetAvatarRequest(data: data ?? self.data, mimeType: mimeType ?? self.mimeType)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(data: Data? = nil, mimeType: String? = nil) -> SetPetAvatarRequest {
+        return SetPetAvatarRequest(data: data ?? self.data, mimeType: mimeType ?? self.mimeType)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.data = try container.decode(Data.self, forKey: .data)
-    self.mimeType = try container.decode(String.self, forKey: .mimeType)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.data = try container.decode(Data.self, forKey: .data)
+        self.mimeType = try container.decode(String.self, forKey: .mimeType)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(ObjectSerializer.ordered(data), forKey: .data)
-    try container.encode(ObjectSerializer.ordered(mimeType), forKey: .mimeType)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ObjectSerializer.ordered(data), forKey: .data)
+        try container.encode(ObjectSerializer.ordered(mimeType), forKey: .mimeType)
+    }
 }

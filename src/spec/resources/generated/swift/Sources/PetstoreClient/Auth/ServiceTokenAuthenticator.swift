@@ -16,24 +16,22 @@ import Foundation
 ///
 /// - `token`: `SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN`
 public final class ServiceTokenAuthenticator: BearerAuthenticator, @unchecked Sendable {
-  /// Creates the authenticator from explicit credentials and the process environment.
-  override public convenience init(host: String, token: String? = nil) throws {
-    try self.init(host: host, token: token, environment: ProcessInfo.processInfo.environment)
-  }
+    /// Creates the authenticator from explicit credentials and the process environment.
+    override public convenience init(host: String, token: String? = nil) throws {
+        try self.init(host: host, token: token, environment: ProcessInfo.processInfo.environment)
+    }
 
-  /// The same over a given environment, so the lookup can be exercised without touching
-  /// the process's own.
-  init(host: String, token: String?, environment: [String: String]) throws {
-    let token = try BaseAuthenticator.credential(
-      token, name: "token", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN",
-      environment: environment)
-    try super.init(host: host, token: token)
-  }
+    /// The same over a given environment, so the lookup can be exercised without touching
+    /// the process's own.
+    init(host: String, token: String?, environment: [String: String]) throws {
+        let token = try BaseAuthenticator.credential(token, name: "token", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_SERVICE_TOKEN_TOKEN", environment: environment)
+        try super.init(host: host, token: token)
+    }
 
-  /// Creates the authenticator with a token provider. The provider runs before every
-  /// request and is used even when the environment variable holds a token: the
-  /// environment only fills a credential that was not passed.
-  override public init(host: String, tokenProvider: @escaping @Sendable () async throws -> String) {
-    super.init(host: host, tokenProvider: tokenProvider)
-  }
+    /// Creates the authenticator with a token provider. The provider runs before every
+    /// request and is used even when the environment variable holds a token: the
+    /// environment only fills a credential that was not passed.
+    override public init(host: String, tokenProvider: @escaping @Sendable () async throws -> String) {
+        super.init(host: host, tokenProvider: tokenProvider)
+    }
 }

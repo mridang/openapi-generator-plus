@@ -7,517 +7,506 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite(.serialized) final class StoreApiTests {
 
-  init() async throws {
-    if chasmUrl.isEmpty {
-      try await setUpContainers()
+    init() async throws {
+        if chasmUrl.isEmpty {
+            try await setUpContainers()
+        }
     }
-  }
 
-  // MARK: - Helpers
+    // MARK: - Helpers
 
-  private func storeApiForIntegration() -> StoreApi {
-    let config = ConfigurationBuilder()
-      .baseURL(chasmUrl)
-      .defaultHeader(name: "Authorization", value: "Bearer test-token")
-      .build()
-    let client = DefaultApiClient()
-    return StoreApi(apiClient: client, config: config)
-  }
-
-  // MARK: - Integration Tests
-
-  @Test func testBhvOperations117PlaceOrder() async throws {
-    let api = storeApiForIntegration()
-
-    let order = Order()
-
-    let result = try await api.placeOrder(order: order)
-    _ = result
-  }
-
-  @Test func testBhvOperations119PlaceOrderWithHTTPInfo() async throws {
-    let api = storeApiForIntegration()
-
-    let order = Order()
-
-    let result = try await api.placeOrderWithHTTPInfo(order: order)
-    #expect(result.statusCode >= 200)
-    #expect(result.statusCode < 300)
-    #expect(!(result.rawBody.isEmpty))
-  }
-
-  @Test func testBhvOperations104GetOrderById() async throws {
-    let api = storeApiForIntegration()
-
-    let result = try await api.getOrderById(orderId: 1)
-    _ = result
-  }
-
-  @Test func testBhvOperations105GetOrderByIdWithHTTPInfo() async throws {
-    let api = storeApiForIntegration()
-
-    let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
-    #expect(result.statusCode == 200)
-    _ = result.headers
-  }
-
-  @Test func testBhvOperations099DeleteOrder() async throws {
-    let api = storeApiForIntegration()
-
-    try await api.deleteOrder(orderId: 1)
-  }
-
-  @Test func testBhvOperations102GetInventory() async throws {
-    let api = storeApiForIntegration()
-
-    let result = try await api.getInventory()
-    _ = result
-  }
-
-  @Test func testBhvOperations103GetInventoryWithHTTPInfo() async throws {
-    let api = storeApiForIntegration()
-
-    let result = try await api.getInventoryWithHTTPInfo()
-    #expect(result.statusCode == 200)
-  }
-
-  // MARK: - Mock Helpers
-
-  private func storeApiForMock(
-    statusCode: Int,
-    body: String,
-    contentType: String = "application/json"
-  ) -> StoreApi {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = statusCode
-    mockClient.responseBody = body
-    mockClient.responseHeaders = ["Content-Type": contentType]
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    return StoreApi(apiClient: mockClient, config: config)
-  }
-
-  // MARK: - Mock Tests
-
-  @Test func testBhvOperations106GetOrderNotFound() async throws {
-    let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
-    let error = await #expect(throws: NotFoundError.self) {
-      _ = try await mockApi.getOrderById(orderId: 99999)
+    private func storeApiForIntegration() -> StoreApi {
+        let config = ConfigurationBuilder()
+            .baseURL(chasmUrl)
+            .defaultHeader(name: "Authorization", value: "Bearer test-token")
+            .build()
+        let client = DefaultApiClient()
+        return StoreApi(apiClient: client, config: config)
     }
-    #expect(error?.statusCode == 404)
-  }
 
-  /* An optional request body can be left out of the call altogether. */
-  @Test func testBhvOperations126PlaceOrderBodyCanBeOmitted() async throws {
-    let mockApi = storeApiForMock(statusCode: 200, body: "{\"id\":1}")
-    let result = try await mockApi.placeOrder()
-    #expect(result.id == 1)
-    let info = try await mockApi.placeOrderWithHTTPInfo()
-    #expect(info.statusCode == 200)
-  }
+    // MARK: - Integration Tests
 
-  /* A success status that no declared response row names decodes as the operation's union return type. */
-  @Test func testBhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnion() async throws {
-    let mockApi = storeApiForMock(statusCode: 202, body: "{\"reservationId\":7,\"quantity\":2}")
-    let result = try await mockApi.reserveStock()
-    #expect(result.asReservation?.reservationId == 7)
-  }
+    @Test func testBhvOperations117PlaceOrder() async throws {
+        let api = storeApiForIntegration()
 
-  /* Per-call headers are a copy: a later change to the caller's own map does not reach the request. */
-  @Test func testBhvMisc054PerCallHeadersAreACopy() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 200
-    mockClient.responseBody = "{\"available\":1}"
-    mockClient.responseHeaders = ["Content-Type": "application/json"]
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-    var headers = ["X-Per-Call": "original"]
-    let options = GetInventoryOptions(headers: headers)
-    headers["X-Per-Call"] = "changed"
-    _ = try await api.getInventory(options: options)
-    #expect(mockClient.lastHeaders["X-Per-Call"] == "original")
-  }
+        let order = Order()
 
-  /* A 200 from reserveStock is the existing reservation, not a new receipt. */
-  @Test func testBhvOperations129ReserveStockDecodesA200AsTheExistingReservation() async throws {
-    let mockApi = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
-    let result = try await mockApi.reserveStock()
-    #expect(result.isReservation)
-    #expect(!result.isReservationReceipt)
-    #expect(result.asReservation?.reservationId == 31)
-    #expect(result.asReservationReceipt == nil)
-  }
-
-  /* A 201 from reserveStock is decoded as the receipt the status declares. */
-  @Test func testBhvMisc079EachSuccessStatusDecodesItsOwnDeclaredType() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 201, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
-    let result = try await mockApi.reserveStock()
-    #expect(result.asReservationReceipt?.receiptCode == "C1")
-  }
-
-  /* Per-call options are values: changing a copy of a field leaves the built options as they were. */
-  @Test func testBhvOptions063ChangingACopyOfABuiltOptionsFieldLeavesTheOptionsUnchanged() {
-    let options = GetInventoryOptions(headers: ["X-Per-Call": "1"])
-    var copy = options.headers
-    copy?["X-Per-Call"] = "2"
-    #expect(options.headers == ["X-Per-Call": "1"])
-  }
-
-  /* The generated server list is a constant: changing a copy of it leaves it as it was. */
-  @Test func testBhvServers028ChangingACopyOfTheServerListLeavesTheListUnchanged() {
-    let before = Servers.all.count
-    var copy = Servers.all
-    copy.removeAll()
-    #expect(Servers.all.count == before)
-  }
-
-  /* A success response is decoded by the decoder for the status code actually received. */
-  @Test func testBhvMisc114ASuccessResponseIsDecodedByTheDecoderForTheStatusActuallyReceived()
-    async throws
-  {
-    let created = storeApiForMock(
-      statusCode: 201, body: "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}")
-    let receipt = try await created.reserveStock()
-    #expect(receipt.isReservationReceipt)
-    #expect(receipt.asReservationReceipt?.receiptCode == "R-1")
-    let existing = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
-    let reservation = try await existing.reserveStock()
-    #expect(reservation.isReservation)
-    #expect(reservation.asReservation?.reservationId == 31)
-  }
-
-  /* A 200 body that fits only the 201 receipt is refused: it is decoded with its own status's schema. */
-  @Test func testBhvMisc080ABodyIsDecodedWithItsOwnStatusSchema() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
-    await #expect(throws: (any Error).self) {
-      _ = try await mockApi.reserveStock()
+        let result = try await api.placeOrder(order: order)
+        _ = result
     }
-  }
 
-  /* A malformed 2xx JSON body is not returned raw: the decoding error propagates. */
-  @Test func testBhvOperations130MalformedJsonSuccessBodyPropagatesTheDeserializationError()
-    async throws
-  {
-    let mockApi = storeApiForMock(statusCode: 200, body: "{ this is not valid json ::: }")
-    await #expect(throws: SerializationError.self) {
-      _ = try await mockApi.getOrderById(orderId: 1)
+    @Test func testBhvOperations119PlaceOrderWithHTTPInfo() async throws {
+        let api = storeApiForIntegration()
+
+        let order = Order()
+
+        let result = try await api.placeOrderWithHTTPInfo(order: order)
+        #expect(result.statusCode >= 200)
+        #expect(result.statusCode < 300)
+        #expect(!(result.rawBody.isEmpty))
     }
-  }
 
-  /* readOnly and writeOnly have no wire effect: the writeOnly password is
-     sent and the readOnly id is decoded from the response. */
-  @Test func testBhvOperations098CreateAccountSendsWriteOnlyAndDecodesReadOnly() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 200
-    mockClient.responseBody = "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
+    @Test func testBhvOperations104GetOrderById() async throws {
+        let api = storeApiForIntegration()
 
-    let result = try await api.createAccount(account: Account(username: "u", password: "p"))
-
-    let sent =
-      try JSONSerialization.jsonObject(with: mockClient.lastBody ?? Data()) as? [String: Any]
-    #expect(sent?["password"] as? String == "p")
-    #expect(result.id == 7)
-    #expect(result.password == "p")
-  }
-
-  /* A format: password property never reaches a log; the wire form is
-     unchanged. */
-  @Test func testBhvSerialization112PasswordPropertyIsMaskedInTheStringForms() throws {
-    let marker = ["hid", "den"].joined()
-    let account = Account(username: "u", password: marker)
-    #expect(!String(describing: account).contains(marker))
-    #expect(!String(reflecting: account).contains(marker))
-    var dumped = ""
-    dump(account, to: &dumped)
-    #expect(!dumped.contains(marker))
-    #expect(String(describing: account).contains("***"))
-    #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"\(marker)\""))
-  }
-
-  @Test func testBhvOperations118PlaceOrderServerError() async throws {
-    let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
-    let error = await #expect(throws: InternalServerError.self) {
-      _ = try await mockApi.placeOrder(order: Order())
+        let result = try await api.getOrderById(orderId: 1)
+        _ = result
     }
-    #expect(error?.statusCode == 500)
-  }
 
-  // nested-container deserialise (array of map of Category): the
-  // getGroupedCategories operation returns [[String: Category]]. Each leaf
-  // value must decode into a TYPED Category instance (id/name accessible),
-  // not a raw [String: Any] map. The mock server returns a two-element array
-  // whose maps key onto Category objects.
-  @Test func testBhvOperations101GetGroupedCategoriesDeserializesNestedTypedLeaves() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200,
-      body: "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]"
-    )
-    let result = try await mockApi.getGroupedCategories()
-    #expect(result.count == 2)
-    let first: PetstoreClient.Category? = result[0]["a"]
-    #expect(first != nil)
-    #expect(first?.id == 1)
-    #expect(first?.name == "Dogs")
-    let second: PetstoreClient.Category? = result[1]["b"]
-    #expect(second?.id == 2)
-    #expect(second?.name == "Cats")
-  }
+    @Test func testBhvOperations105GetOrderByIdWithHTTPInfo() async throws {
+        let api = storeApiForIntegration()
 
-  /* A named enum travels as its wire value in the path, the query and a
-   * header, never as the case name or a type-qualified description. */
-  @Test func testBhvOperations122GetBySwatchSendsEnumWireValuesInPathQueryAndHeader() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseBody = "{\"id\":1}"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-
-    _ = try await api.getBySwatch(
-      pathSwatch: .red,
-      options: GetBySwatchOptions(querySwatch: .green, preferredSwatch: .blue))
-
-    #expect(mockClient.lastMethod == "GET")
-    #expect(mockClient.lastURL == "https://example.com/store/by-swatch/red?querySwatch=green")
-    #expect(mockClient.lastHeaders["Preferred-Swatch"] == "blue")
-  }
-
-  @Test func testBhvOperations107GetBySwatchOmitsUnsetQueryAndHeader() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseBody = "{\"id\":1}"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-
-    _ = try await api.getBySwatch(pathSwatch: .blue)
-
-    #expect(mockClient.lastURL == "https://example.com/store/by-swatch/blue")
-    #expect(mockClient.lastHeaders["Preferred-Swatch"] == nil)
-  }
-
-  /* Nested containers decode their leaves into the declared element type. */
-  @Test func testBhvOperations109GetMatrixDeserializesNestedIntegers() async throws {
-    let mockApi = storeApiForMock(statusCode: 200, body: "[[1,2],[3,4,5]]")
-    let result = try await mockApi.getMatrix()
-    #expect(result == [[1, 2], [3, 4, 5]])
-  }
-
-  /* A content-encoded parameter goes through the SDK's own serializer in
-     every location: the query value is the JSON text, the header is the
-     JSON text verbatim, and neither is dropped. */
-  @Test func testBhvOperations097SearchStoreSendsContentQueryAsTheObjectSerializerOutput()
-    async throws
-  {
-    let mockClient = MockApiClient()
-    mockClient.responseBody = "[]"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-
-    _ = try await api.searchStore(options: SearchStoreOptions(q: PhotoMetadata(caption: "plain")))
-
-    let components = URLComponents(string: mockClient.lastURL)
-    let q = components?.queryItems?.first { $0.name == "q" }?.value
-    #expect(q == "{\"caption\":\"plain\"}")
-  }
-
-  @Test func testBhvOperations121SearchStoreEncodesContentParametersAsJson() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseBody = "[]"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-
-    _ = try await api.searchStore(
-      options: SearchStoreOptions(
-        q: PhotoMetadata(caption: "a<b>&c"), xFilter: ["k": "v"]))
-
-    let components = URLComponents(string: mockClient.lastURL)
-    let q = components?.queryItems?.first { $0.name == "q" }?.value
-    #expect(q == "{\"caption\":\"a<b>&c\"}")
-    #expect(mockClient.lastHeaders["X-Filter"] == "{\"k\":\"v\"}")
-  }
-
-  /* A content-encoded parameter that cannot be serialized is an error and
-     no request is sent. */
-  @Test func testBhvOperations128SearchStoreRejectsUnserializableContentParameter() async throws {
-    let mockClient = MockApiClient()
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-
-    await #expect(throws: SerializationError.self) {
-      _ = try await api.searchStore(
-        options: SearchStoreOptions(
-          q: PhotoMetadata(location: PhotoMetadataLocation(lat: Double.nan))))
+        let result = try await api.getOrderByIdWithHTTPInfo(orderId: 1)
+        #expect(result.statusCode == 200)
+        _ = result.headers
     }
-    #expect(mockClient.lastURL.isEmpty)
-  }
 
-  /* A time parameter goes on the wire with its fractional seconds when they are non-zero. */
-  /* A time written into a query keeps non-zero milliseconds, and a whole second stays HH:MM:SS. */
-  @Test func testBhvMisc241ATimeQueryKeepsNonZeroMillisecondsAndAWholeSecondHasNone() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 200
-    mockClient.responseBody = "[]"
-    mockClient.responseHeaders = ["Content-Type": "application/json"]
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-    _ = try await api.searchStore(options: SearchStoreOptions(at: "10:20:30.999"))
-    #expect(mockClient.lastURL.contains("at=10%3A20%3A30.999"))
-    _ = try await api.searchStore(options: SearchStoreOptions(at: "10:20:30"))
-    #expect(mockClient.lastURL.contains("at=10%3A20%3A30"))
-    #expect(!mockClient.lastURL.contains("30."))
-  }
+    @Test func testBhvOperations099DeleteOrder() async throws {
+        let api = storeApiForIntegration()
 
-  @Test func testBhvOperations139SearchStoreTimeQueryKeepsNonZeroMilliseconds() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 200
-    mockClient.responseBody = "[]"
-    mockClient.responseHeaders = ["Content-Type": "application/json"]
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-    _ = try await api.searchStore(options: SearchStoreOptions(at: "10:30:00.123"))
-    #expect(mockClient.lastURL.contains("at=10%3A30%3A00.123"))
-  }
-
-  @Test func testBhvOperations114GetSwatchGroupsDeserializesEnumLeaves() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200, body: "[{\"a\":\"red\"},{\"b\":\"blue\",\"c\":\"green\"}]")
-    let result = try await mockApi.getSwatchGroups()
-    #expect(result.count == 2)
-    #expect(result[0]["a"] == Swatch.red)
-    #expect(result[1]["b"] == Swatch.blue)
-    #expect(result[1]["c"] == Swatch.green)
-  }
-
-  @Test func testBhvOperations115GetTimestampGroupsDeserializesDateLeaves() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200, body: "[{\"t\":\"2024-01-02T03:04:05Z\"}]")
-    let result = try await mockApi.getTimestampGroups()
-    #expect(result.count == 1)
-    #expect(result[0]["t"] == Date(timeIntervalSince1970: 1_704_164_645))
-  }
-
-  /* A uuid path parameter is written in lowercase whatever the caller's case. */
-  @Test func testBhvOperations124GetOrderByTrackingIdPutsTheLowercaseUuidInThePath() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseBody = "{\"id\":1}"
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-    let id = try #require(UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
-
-    _ = try await api.getOrderByTrackingId(trackingId: id)
-
-    #expect(
-      mockClient.lastURL
-        == "https://example.com/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
-  }
-
-  /* The response-shape operations decode a bare enum, a mutually recursive
-     pair, a self-recursive model, schema defaults and an integer-backed enum
-     with nested arrays. */
-  @Test func testBhvOperations113GetSwatchDecodesABareEnum() async throws {
-    let mockApi = storeApiForMock(statusCode: 200, body: "\"green\"")
-    #expect(try await mockApi.getSwatch() == Swatch.green)
-  }
-
-  @Test func testBhvOperations108GetDepartmentDecodesMutuallyRecursiveModels() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200,
-      body: "{\"name\":\"d\",\"lead\":{\"name\":\"e\",\"department\":{\"name\":\"d2\"}}}")
-    let result = try await mockApi.getDepartment()
-    #expect(result.name == "d")
-    #expect(result.lead?.name == "e")
-    #expect(result.lead?.department?.name == "d2")
-  }
-
-  @Test func testBhvOperations116GetTreeDecodesASelfRecursiveModel() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200,
-      body: "{\"value\":\"a\",\"child\":{\"value\":\"b\",\"child\":{\"value\":\"c\"}}}")
-    let result = try await mockApi.getTree()
-    #expect(result.value == "a")
-    #expect(result.child?.child?.value == "c")
-  }
-
-  @Test func testBhvOperations123GetDefaultsAppliesSchemaDefaults() async throws {
-    let mockApi = storeApiForMock(statusCode: 200, body: "{}")
-    let result = try await mockApi.getDefaults()
-    #expect(result.retries == 3)
-    #expect(result.ratio == 1.5)
-    #expect(result.ceiling == 9_000_000_000)
-  }
-
-  @Test func testBhvOperations112GetStockItemDecodesAnIntegerEnumAndNestedArrays() async throws {
-    let mockApi = storeApiForMock(
-      statusCode: 200, body: "{\"priority\":2,\"matrix\":[[1],[2,3]]}")
-    let result = try await mockApi.getStockItem()
-    #expect(result.priority == .number2)
-    #expect(result.matrix == [[1], [2, 3]])
-  }
-
-  @Test func testBhvOperations100DeleteOrderNotFound() async throws {
-    let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
-    let error = await #expect(throws: NotFoundError.self) {
-      try await mockApi.deleteOrder(orderId: 99999)
+        try await api.deleteOrder(orderId: 1)
     }
-    #expect(error?.statusCode == 404)
-  }
 
-  /* An operation with no parameters can be called with no argument and returns its decoded result. */
-  @Test func testBhvMisc013ANoParameterOperationReturnsItsResult() async throws {
-    let api = storeApiForMock(statusCode: 200, body: "{\"available\":3}")
-    let inventory = try await api.getInventory()
-    #expect(inventory["available"] == 3)
-  }
+    @Test func testBhvOperations102GetInventory() async throws {
+        let api = storeApiForIntegration()
 
-  /* An options object for an operation with no parameters carries the per-call header to the request. */
-  @Test func testBhvMisc011ANoParameterOperationAcceptsCallSettings() async throws {
-    let mockClient = MockApiClient()
-    mockClient.responseStatusCode = 200
-    mockClient.responseBody = "{\"available\":1}"
-    mockClient.responseHeaders = ["Content-Type": "application/json"]
-    let config = ConfigurationBuilder().baseURL("https://example.com").build()
-    let api = StoreApi(apiClient: mockClient, config: config)
-    _ = try await api.getInventory(
-      options: GetInventoryOptions(timeout: 1000, headers: ["X-Per-Call": "yes"], maxRetries: 0))
-    #expect(mockClient.lastHeaders["X-Per-Call"] == "yes")
-  }
+        let result = try await api.getInventory()
+        _ = result
+    }
+
+    @Test func testBhvOperations103GetInventoryWithHTTPInfo() async throws {
+        let api = storeApiForIntegration()
+
+        let result = try await api.getInventoryWithHTTPInfo()
+        #expect(result.statusCode == 200)
+    }
+
+    // MARK: - Mock Helpers
+
+    private func storeApiForMock(
+        statusCode: Int,
+        body: String,
+        contentType: String = "application/json"
+    ) -> StoreApi {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = statusCode
+        mockClient.responseBody = body
+        mockClient.responseHeaders = ["Content-Type": contentType]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        return StoreApi(apiClient: mockClient, config: config)
+    }
+
+    // MARK: - Mock Tests
+
+    @Test func testBhvOperations106GetOrderNotFound() async throws {
+        let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
+        let error = await #expect(throws: NotFoundError.self) {
+            _ = try await mockApi.getOrderById(orderId: 99999)
+        }
+        #expect(error?.statusCode == 404)
+    }
+
+    /* An optional request body can be left out of the call altogether. */
+    @Test func testBhvOperations126PlaceOrderBodyCanBeOmitted() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "{\"id\":1}")
+        let result = try await mockApi.placeOrder()
+        #expect(result.id == 1)
+        let info = try await mockApi.placeOrderWithHTTPInfo()
+        #expect(info.statusCode == 200)
+    }
+
+    /* A success status that no declared response row names decodes as the operation's union return type. */
+    @Test func testBhvMisc048AnUndeclaredSuccessStatusDecodesAsTheUnion() async throws {
+        let mockApi = storeApiForMock(statusCode: 202, body: "{\"reservationId\":7,\"quantity\":2}")
+        let result = try await mockApi.reserveStock()
+        #expect(result.asReservation?.reservationId == 7)
+    }
+
+    /* Per-call headers are a copy: a later change to the caller's own map does not reach the request. */
+    @Test func testBhvMisc054PerCallHeadersAreACopy() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"available\":1}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        var headers = ["X-Per-Call": "original"]
+        let options = GetInventoryOptions(headers: headers)
+        headers["X-Per-Call"] = "changed"
+        _ = try await api.getInventory(options: options)
+        #expect(mockClient.lastHeaders["X-Per-Call"] == "original")
+    }
+
+    /* A 200 from reserveStock is the existing reservation, not a new receipt. */
+    @Test func testBhvOperations129ReserveStockDecodesA200AsTheExistingReservation() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
+        let result = try await mockApi.reserveStock()
+        #expect(result.isReservation)
+        #expect(!result.isReservationReceipt)
+        #expect(result.asReservation?.reservationId == 31)
+        #expect(result.asReservationReceipt == nil)
+    }
+
+    /* A 201 from reserveStock is decoded as the receipt the status declares. */
+    @Test func testBhvMisc079EachSuccessStatusDecodesItsOwnDeclaredType() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 201, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
+        let result = try await mockApi.reserveStock()
+        #expect(result.asReservationReceipt?.receiptCode == "C1")
+    }
+
+    /* Per-call options are values: changing a copy of a field leaves the built options as they were. */
+    @Test func testBhvOptions063ChangingACopyOfABuiltOptionsFieldLeavesTheOptionsUnchanged() {
+        let options = GetInventoryOptions(headers: ["X-Per-Call": "1"])
+        var copy = options.headers
+        copy?["X-Per-Call"] = "2"
+        #expect(options.headers == ["X-Per-Call": "1"])
+    }
+
+    /* The generated server list is a constant: changing a copy of it leaves it as it was. */
+    @Test func testBhvServers028ChangingACopyOfTheServerListLeavesTheListUnchanged() {
+        let before = Servers.all.count
+        var copy = Servers.all
+        copy.removeAll()
+        #expect(Servers.all.count == before)
+    }
+
+    /* A success response is decoded by the decoder for the status code actually received. */
+    @Test func testBhvMisc114ASuccessResponseIsDecodedByTheDecoderForTheStatusActuallyReceived() async throws {
+        let created = storeApiForMock(
+            statusCode: 201, body: "{\"receiptCode\":\"R-1\",\"expiresAt\":\"2030-01-01T00:00:00Z\"}")
+        let receipt = try await created.reserveStock()
+        #expect(receipt.isReservationReceipt)
+        #expect(receipt.asReservationReceipt?.receiptCode == "R-1")
+        let existing = storeApiForMock(statusCode: 200, body: "{\"reservationId\":31,\"quantity\":4}")
+        let reservation = try await existing.reserveStock()
+        #expect(reservation.isReservation)
+        #expect(reservation.asReservation?.reservationId == 31)
+    }
+
+    /* A 200 body that fits only the 201 receipt is refused: it is decoded with its own status's schema. */
+    @Test func testBhvMisc080ABodyIsDecodedWithItsOwnStatusSchema() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "{\"receiptCode\":\"C1\",\"expiresAt\":\"2026-01-02T03:04:05Z\"}")
+        await #expect(throws: (any Error).self) {
+            _ = try await mockApi.reserveStock()
+        }
+    }
+
+    /* A malformed 2xx JSON body is not returned raw: the decoding error propagates. */
+    @Test func testBhvOperations130MalformedJsonSuccessBodyPropagatesTheDeserializationError() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "{ this is not valid json ::: }")
+        await #expect(throws: SerializationError.self) {
+            _ = try await mockApi.getOrderById(orderId: 1)
+        }
+    }
+
+    /* readOnly and writeOnly have no wire effect: the writeOnly password is
+       sent and the readOnly id is decoded from the response. */
+    @Test func testBhvOperations098CreateAccountSendsWriteOnlyAndDecodesReadOnly() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"id\":7,\"username\":\"u\",\"password\":\"p\"}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        let result = try await api.createAccount(account: Account(username: "u", password: "p"))
+
+        let sent = try JSONSerialization.jsonObject(with: mockClient.lastBody ?? Data()) as? [String: Any]
+        #expect(sent?["password"] as? String == "p")
+        #expect(result.id == 7)
+        #expect(result.password == "p")
+    }
+
+    /* A format: password property never reaches a log; the wire form is
+       unchanged. */
+    @Test func testBhvSerialization112PasswordPropertyIsMaskedInTheStringForms() throws {
+        let marker = ["hid", "den"].joined()
+        let account = Account(username: "u", password: marker)
+        #expect(!String(describing: account).contains(marker))
+        #expect(!String(reflecting: account).contains(marker))
+        var dumped = ""
+        dump(account, to: &dumped)
+        #expect(!dumped.contains(marker))
+        #expect(String(describing: account).contains("***"))
+        #expect(try ObjectSerializer.serialize(account).contains("\"password\":\"\(marker)\""))
+    }
+
+    @Test func testBhvOperations118PlaceOrderServerError() async throws {
+        let mockApi = storeApiForMock(statusCode: 500, body: "{\"message\":\"Internal server error\"}")
+        let error = await #expect(throws: InternalServerError.self) {
+            _ = try await mockApi.placeOrder(order: Order())
+        }
+        #expect(error?.statusCode == 500)
+    }
+
+    // nested-container deserialise (array of map of Category): the
+    // getGroupedCategories operation returns [[String: Category]]. Each leaf
+    // value must decode into a TYPED Category instance (id/name accessible),
+    // not a raw [String: Any] map. The mock server returns a two-element array
+    // whose maps key onto Category objects.
+    @Test func testBhvOperations101GetGroupedCategoriesDeserializesNestedTypedLeaves() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200,
+            body: "[{\"a\":{\"id\":1,\"name\":\"Dogs\"}},{\"b\":{\"id\":2,\"name\":\"Cats\"}}]"
+        )
+        let result = try await mockApi.getGroupedCategories()
+        #expect(result.count == 2)
+        let first: PetstoreClient.Category? = result[0]["a"]
+        #expect(first != nil)
+        #expect(first?.id == 1)
+        #expect(first?.name == "Dogs")
+        let second: PetstoreClient.Category? = result[1]["b"]
+        #expect(second?.id == 2)
+        #expect(second?.name == "Cats")
+    }
+
+    /* A named enum travels as its wire value in the path, the query and a
+     * header, never as the case name or a type-qualified description. */
+    @Test func testBhvOperations122GetBySwatchSendsEnumWireValuesInPathQueryAndHeader() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getBySwatch(
+            pathSwatch: .red,
+            options: GetBySwatchOptions(querySwatch: .green, preferredSwatch: .blue))
+
+        #expect(mockClient.lastMethod == "GET")
+        #expect(mockClient.lastURL == "https://example.com/store/by-swatch/red?querySwatch=green")
+        #expect(mockClient.lastHeaders["Preferred-Swatch"] == "blue")
+    }
+
+    @Test func testBhvOperations107GetBySwatchOmitsUnsetQueryAndHeader() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        _ = try await api.getBySwatch(pathSwatch: .blue)
+
+        #expect(mockClient.lastURL == "https://example.com/store/by-swatch/blue")
+        #expect(mockClient.lastHeaders["Preferred-Swatch"] == nil)
+    }
+
+    /* Nested containers decode their leaves into the declared element type. */
+    @Test func testBhvOperations109GetMatrixDeserializesNestedIntegers() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "[[1,2],[3,4,5]]")
+        let result = try await mockApi.getMatrix()
+        #expect(result == [[1, 2], [3, 4, 5]])
+    }
+
+    /* A content-encoded parameter goes through the SDK's own serializer in
+       every location: the query value is the JSON text, the header is the
+       JSON text verbatim, and neither is dropped. */
+    @Test func testBhvOperations097SearchStoreSendsContentQueryAsTheObjectSerializerOutput() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "[]"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        _ = try await api.searchStore(options: SearchStoreOptions(q: PhotoMetadata(caption: "plain")))
+
+        let components = URLComponents(string: mockClient.lastURL)
+        let q = components?.queryItems?.first { $0.name == "q" }?.value
+        #expect(q == "{\"caption\":\"plain\"}")
+    }
+
+    @Test func testBhvOperations121SearchStoreEncodesContentParametersAsJson() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "[]"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        _ = try await api.searchStore(
+            options: SearchStoreOptions(
+                q: PhotoMetadata(caption: "a<b>&c"), xFilter: ["k": "v"]))
+
+        let components = URLComponents(string: mockClient.lastURL)
+        let q = components?.queryItems?.first { $0.name == "q" }?.value
+        #expect(q == "{\"caption\":\"a<b>&c\"}")
+        #expect(mockClient.lastHeaders["X-Filter"] == "{\"k\":\"v\"}")
+    }
+
+    /* A content-encoded parameter that cannot be serialized is an error and
+       no request is sent. */
+    @Test func testBhvOperations128SearchStoreRejectsUnserializableContentParameter() async throws {
+        let mockClient = MockApiClient()
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+
+        await #expect(throws: SerializationError.self) {
+            _ = try await api.searchStore(
+                options: SearchStoreOptions(
+                    q: PhotoMetadata(location: PhotoMetadataLocation(lat: Double.nan))))
+        }
+        #expect(mockClient.lastURL.isEmpty)
+    }
+
+    /* A time parameter goes on the wire with its fractional seconds when they are non-zero. */
+    /* A time written into a query keeps non-zero milliseconds, and a whole second stays HH:MM:SS. */
+    @Test func testBhvMisc241ATimeQueryKeepsNonZeroMillisecondsAndAWholeSecondHasNone() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[]"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        _ = try await api.searchStore(options: SearchStoreOptions(at: "10:20:30.999"))
+        #expect(mockClient.lastURL.contains("at=10%3A20%3A30.999"))
+        _ = try await api.searchStore(options: SearchStoreOptions(at: "10:20:30"))
+        #expect(mockClient.lastURL.contains("at=10%3A20%3A30"))
+        #expect(!mockClient.lastURL.contains("30."))
+    }
+
+    @Test func testBhvOperations139SearchStoreTimeQueryKeepsNonZeroMilliseconds() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "[]"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        _ = try await api.searchStore(options: SearchStoreOptions(at: "10:30:00.123"))
+        #expect(mockClient.lastURL.contains("at=10%3A30%3A00.123"))
+    }
+
+    @Test func testBhvOperations114GetSwatchGroupsDeserializesEnumLeaves() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "[{\"a\":\"red\"},{\"b\":\"blue\",\"c\":\"green\"}]")
+        let result = try await mockApi.getSwatchGroups()
+        #expect(result.count == 2)
+        #expect(result[0]["a"] == Swatch.red)
+        #expect(result[1]["b"] == Swatch.blue)
+        #expect(result[1]["c"] == Swatch.green)
+    }
+
+    @Test func testBhvOperations115GetTimestampGroupsDeserializesDateLeaves() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "[{\"t\":\"2024-01-02T03:04:05Z\"}]")
+        let result = try await mockApi.getTimestampGroups()
+        #expect(result.count == 1)
+        #expect(result[0]["t"] == Date(timeIntervalSince1970: 1_704_164_645))
+    }
+
+    /* A uuid path parameter is written in lowercase whatever the caller's case. */
+    @Test func testBhvOperations124GetOrderByTrackingIdPutsTheLowercaseUuidInThePath() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseBody = "{\"id\":1}"
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        let id = try #require(UUID(uuidString: "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"))
+
+        _ = try await api.getOrderByTrackingId(trackingId: id)
+
+        #expect(
+            mockClient.lastURL
+                == "https://example.com/store/order/by-tracking/e621e1f8-c36c-495a-93fc-0c247a3e6e5f")
+    }
+
+    /* The response-shape operations decode a bare enum, a mutually recursive
+       pair, a self-recursive model, schema defaults and an integer-backed enum
+       with nested arrays. */
+    @Test func testBhvOperations113GetSwatchDecodesABareEnum() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "\"green\"")
+        #expect(try await mockApi.getSwatch() == Swatch.green)
+    }
+
+    @Test func testBhvOperations108GetDepartmentDecodesMutuallyRecursiveModels() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200,
+            body: "{\"name\":\"d\",\"lead\":{\"name\":\"e\",\"department\":{\"name\":\"d2\"}}}")
+        let result = try await mockApi.getDepartment()
+        #expect(result.name == "d")
+        #expect(result.lead?.name == "e")
+        #expect(result.lead?.department?.name == "d2")
+    }
+
+    @Test func testBhvOperations116GetTreeDecodesASelfRecursiveModel() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "{\"value\":\"a\",\"child\":{\"value\":\"b\",\"child\":{\"value\":\"c\"}}}")
+        let result = try await mockApi.getTree()
+        #expect(result.value == "a")
+        #expect(result.child?.child?.value == "c")
+    }
+
+    @Test func testBhvOperations123GetDefaultsAppliesSchemaDefaults() async throws {
+        let mockApi = storeApiForMock(statusCode: 200, body: "{}")
+        let result = try await mockApi.getDefaults()
+        #expect(result.retries == 3)
+        #expect(result.ratio == 1.5)
+        #expect(result.ceiling == 9_000_000_000)
+    }
+
+    @Test func testBhvOperations112GetStockItemDecodesAnIntegerEnumAndNestedArrays() async throws {
+        let mockApi = storeApiForMock(
+            statusCode: 200, body: "{\"priority\":2,\"matrix\":[[1],[2,3]]}")
+        let result = try await mockApi.getStockItem()
+        #expect(result.priority == .number2)
+        #expect(result.matrix == [[1], [2, 3]])
+    }
+
+    @Test func testBhvOperations100DeleteOrderNotFound() async throws {
+        let mockApi = storeApiForMock(statusCode: 404, body: "{\"message\":\"Order not found\"}")
+        let error = await #expect(throws: NotFoundError.self) {
+            try await mockApi.deleteOrder(orderId: 99999)
+        }
+        #expect(error?.statusCode == 404)
+    }
+
+    /* An operation with no parameters can be called with no argument and returns its decoded result. */
+    @Test func testBhvMisc013ANoParameterOperationReturnsItsResult() async throws {
+        let api = storeApiForMock(statusCode: 200, body: "{\"available\":3}")
+        let inventory = try await api.getInventory()
+        #expect(inventory["available"] == 3)
+    }
+
+    /* An options object for an operation with no parameters carries the per-call header to the request. */
+    @Test func testBhvMisc011ANoParameterOperationAcceptsCallSettings() async throws {
+        let mockClient = MockApiClient()
+        mockClient.responseStatusCode = 200
+        mockClient.responseBody = "{\"available\":1}"
+        mockClient.responseHeaders = ["Content-Type": "application/json"]
+        let config = ConfigurationBuilder().baseURL("https://example.com").build()
+        let api = StoreApi(apiClient: mockClient, config: config)
+        _ = try await api.getInventory(
+            options: GetInventoryOptions(timeout: 1000, headers: ["X-Per-Call": "yes"], maxRetries: 0))
+        #expect(mockClient.lastHeaders["X-Per-Call"] == "yes")
+    }
 }
 
 private final class MockApiClient: ApiClient, @unchecked Sendable {
-  var lastMethod: String = ""
-  var lastURL: String = ""
-  var lastHeaders: [String: String] = [:]
-  var lastBody: Data? = nil
-  var responseStatusCode: Int = 200
-  var responseBody: String = "{}"
-  var responseHeaders: [String: String] = ["Content-Type": "application/json"]
+    var lastMethod: String = ""
+    var lastURL: String = ""
+    var lastHeaders: [String: String] = [:]
+    var lastBody: Data? = nil
+    var responseStatusCode: Int = 200
+    var responseBody: String = "{}"
+    var responseHeaders: [String: String] = ["Content-Type": "application/json"]
 
-  /// Satisfies the ApiClient requirement that carries no request options.
-  func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
-    async throws -> ApiHttpResponse
-  {
-    try await sendRequest(
-      method: method, url: url, headers: headers, body: body, noRedirect: false)
-  }
+    /// Satisfies the ApiClient requirement that carries no request options.
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?)
+        async throws -> ApiHttpResponse
+    {
+        try await sendRequest(
+            method: method, url: url, headers: headers, body: body, noRedirect: false)
+    }
 
-  func sendRequest(
-    method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool
-  )
-    async throws -> ApiHttpResponse
-  {
-    lastMethod = method
-    lastURL = url
-    lastHeaders = headers
-    lastBody = body as? Data
-    return ApiHttpResponse(
-      statusCode: responseStatusCode,
-      body: responseBody,
-      headers: responseHeaders
-    )
-  }
+    func sendRequest(method: String, url: String, headers: [String: String], body: Any?, noRedirect: Bool)
+        async throws -> ApiHttpResponse
+    {
+        lastMethod = method
+        lastURL = url
+        lastHeaders = headers
+        lastBody = body as? Data
+        return ApiHttpResponse(
+            statusCode: responseStatusCode,
+            body: responseBody,
+            headers: responseHeaders
+        )
+    }
 }

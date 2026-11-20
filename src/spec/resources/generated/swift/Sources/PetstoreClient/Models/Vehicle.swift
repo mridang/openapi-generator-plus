@@ -9,125 +9,125 @@ import Foundation
 
 /// Vehicle is a union type (oneOf).
 public struct Vehicle: Codable, @unchecked Sendable {
-  private let _value: Any
+    private let _value: Any
 
-  /// Wraps a `Car` as this union's value, so a request body can be
-  /// built in code and not only decoded from JSON.
-  public init(_ value: Car) {
-    self._value = value
-  }
-
-  /// Wraps a `Truck` as this union's value, so a request body can be
-  /// built in code and not only decoded from JSON.
-  public init(_ value: Truck) {
-    self._value = value
-  }
-
-  /// Wraps a `Car` as this union's value; the named form of `init(_:)`.
-  public static func fromCar(_ value: Car) -> Vehicle {
-    return Vehicle(value)
-  }
-
-  /// Whether this union holds a `Car`.
-  public var isCar: Bool {
-    return _value is Car
-  }
-
-  /// The held value as a `Car`, or nil when this union holds another variant.
-  public var asCar: Car? {
-    return _value as? Car
-  }
-
-  /// Wraps a `Truck` as this union's value; the named form of `init(_:)`.
-  public static func fromTruck(_ value: Truck) -> Vehicle {
-    return Vehicle(value)
-  }
-
-  /// Whether this union holds a `Truck`.
-  public var isTruck: Bool {
-    return _value is Truck
-  }
-
-  /// The held value as a `Truck`, or nil when this union holds another variant.
-  public var asTruck: Truck? {
-    return _value as? Truck
-  }
-
-  public init(from decoder: Decoder) throws {
-    /* Use discriminator to determine type */
-    let container = try decoder.singleValueContainer()
-    let data = try container.decode(AnyCodable.self)
-
-    struct DiscriminatorHelper: Decodable {
-      let vehicleType: String
+    /// Wraps a `Car` as this union's value, so a request body can be
+    /// built in code and not only decoded from JSON.
+    public init(_ value: Car) {
+        self._value = value
     }
-    let rawData = try ObjectSerializer.encodeToData(data)
-    let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
 
-    switch disc.vehicleType {
-    case "car":
-      let v = try ObjectSerializer.decodeFromData(rawData, as: Car.self)
-      self._value = v
-      return
-    case "truck":
-      let v = try ObjectSerializer.decodeFromData(rawData, as: Truck.self)
-      self._value = v
-      return
-    default:
-      throw DecodingError.dataCorrupted(
-        DecodingError.Context(
-          codingPath: decoder.codingPath,
-          debugDescription: "Unknown discriminator value: \(disc.vehicleType)"
-        )
-      )
+    /// Wraps a `Truck` as this union's value, so a request body can be
+    /// built in code and not only decoded from JSON.
+    public init(_ value: Truck) {
+        self._value = value
     }
-  }
 
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    /* A `format: byte` variant is represented as Data (scalar) or [Data]
-       (array). Encoding Data through its own Encodable conformance
-       (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
-       encoder's base64 data strategy. Routing it through the single-value
-       container instead applies the configured .base64 strategy, so a byte
-       variant rides the wire as a base64 string (and an array of byte values
-       as an array of base64 strings), matching the bare format:byte field. */
-    switch _value {
-    case let bytes as Data:
-      try container.encode(bytes)
-    case let byteArrays as [Data]:
-      try container.encode(byteArrays)
-    case let encodable as Encodable:
-      try encodable.encode(to: encoder)
-    default:
-      try container.encodeNil()
+    /// Wraps a `Car` as this union's value; the named form of `init(_:)`.
+    public static func fromCar(_ value: Car) -> Vehicle {
+        return Vehicle(value)
     }
-  }
 
-  /// Returns the matched value of the union type.
-  public func actualInstance() -> Any {
-    return _value
-  }
+    /// Whether this union holds a `Car`.
+    public var isCar: Bool {
+        return _value is Car
+    }
 
-  /// Returns the matched value cast to the specified type.
-  public func actualInstance<T>(as type: T.Type) -> T? {
-    return _value as? T
-  }
+    /// The held value as a `Car`, or nil when this union holds another variant.
+    public var asCar: Car? {
+        return _value as? Car
+    }
+
+    /// Wraps a `Truck` as this union's value; the named form of `init(_:)`.
+    public static func fromTruck(_ value: Truck) -> Vehicle {
+        return Vehicle(value)
+    }
+
+    /// Whether this union holds a `Truck`.
+    public var isTruck: Bool {
+        return _value is Truck
+    }
+
+    /// The held value as a `Truck`, or nil when this union holds another variant.
+    public var asTruck: Truck? {
+        return _value as? Truck
+    }
+
+    public init(from decoder: Decoder) throws {
+        /* Use discriminator to determine type */
+        let container = try decoder.singleValueContainer()
+        let data = try container.decode(AnyCodable.self)
+
+        struct DiscriminatorHelper: Decodable {
+            let vehicleType: String
+        }
+        let rawData = try ObjectSerializer.encodeToData(data)
+        let disc = try ObjectSerializer.decodeFromData(rawData, as: DiscriminatorHelper.self)
+
+        switch disc.vehicleType {
+        case "car":
+            let v = try ObjectSerializer.decodeFromData(rawData, as: Car.self)
+            self._value = v
+            return
+        case "truck":
+            let v = try ObjectSerializer.decodeFromData(rawData, as: Truck.self)
+            self._value = v
+            return
+        default:
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Unknown discriminator value: \(disc.vehicleType)"
+                )
+            )
+        }
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        /* A `format: byte` variant is represented as Data (scalar) or [Data]
+           (array). Encoding Data through its own Encodable conformance
+           (encodable.encode(to:)) emits a raw [UInt8] JSON array and BYPASSES the
+           encoder's base64 data strategy. Routing it through the single-value
+           container instead applies the configured .base64 strategy, so a byte
+           variant rides the wire as a base64 string (and an array of byte values
+           as an array of base64 strings), matching the bare format:byte field. */
+        switch _value {
+        case let bytes as Data:
+            try container.encode(bytes)
+        case let byteArrays as [Data]:
+            try container.encode(byteArrays)
+        case let encodable as Encodable:
+            try encodable.encode(to: encoder)
+        default:
+            try container.encodeNil()
+        }
+    }
+
+    /// Returns the matched value of the union type.
+    public func actualInstance() -> Any {
+        return _value
+    }
+
+    /// Returns the matched value cast to the specified type.
+    public func actualInstance<T>(as type: T.Type) -> T? {
+        return _value as? T
+    }
 }
 
 /* Union wrappers compare by value: two wrappers are equal when they encode to
    the same canonical JSON, and hash the same bytes. */
 extension Vehicle: Hashable {
-  private var canonicalJson: Data? {
-    return try? ObjectSerializer.encodeToData(self)
-  }
+    private var canonicalJson: Data? {
+        return try? ObjectSerializer.encodeToData(self)
+    }
 
-  public static func == (lhs: Vehicle, rhs: Vehicle) -> Bool {
-    guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
-    return left == right
-  }
+    public static func == (lhs: Vehicle, rhs: Vehicle) -> Bool {
+        guard let left = lhs.canonicalJson, let right = rhs.canonicalJson else { return false }
+        return left == right
+    }
 
-  public func hash(into hasher: inout Hasher) {
-    hasher.combine(canonicalJson)
-  }
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(canonicalJson)
+    }
 }

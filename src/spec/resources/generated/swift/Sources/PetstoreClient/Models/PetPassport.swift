@@ -9,78 +9,70 @@ import Foundation
 
 /// PetPassport is a model class generated from the OpenAPI schema.
 public struct PetPassport: Codable, Sendable, Equatable, Hashable {
-  public let pet: Pet?
-  /// Base64-encoded primary thumbnail
-  /// Example: dGVzdC10aHVtYm5haWw=
-  public let thumbnail: Data?
-  /// Base64-encoded scans of each passport page
-  public let scans: [Data]?
-  public let issuedAt: Date?
-  /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
-  public let biometricChip: Data?
+    public let pet: Pet?
+    /// Base64-encoded primary thumbnail
+    /// Example: dGVzdC10aHVtYm5haWw=
+    public let thumbnail: Data?
+    /// Base64-encoded scans of each passport page
+    public let scans: [Data]?
+    public let issuedAt: Date?
+    /// Embedded chip data (OAS 3.1 contentEncoding form) Content media type: application/octet-stream
+    public let biometricChip: Data?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case pet = "pet"
-    case thumbnail = "thumbnail"
-    case scans = "scans"
-    case issuedAt = "issuedAt"
-    case biometricChip = "biometricChip"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case pet = "pet"
+        case thumbnail = "thumbnail"
+        case scans = "scans"
+        case issuedAt = "issuedAt"
+        case biometricChip = "biometricChip"
+    }
 
-  /// Creates a new PetPassport instance.
-  public init(
-    pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil,
-    biometricChip: Data? = nil
-  ) {
-    self.pet = pet
-    self.thumbnail = thumbnail
-    self.scans = scans
-    self.issuedAt = issuedAt
-    self.biometricChip = biometricChip
-  }
+    /// Creates a new PetPassport instance.
+    public init(pet: Pet? = nil, thumbnail: Data? = nil, scans: [Data]? = nil, issuedAt: Date? = nil, biometricChip: Data? = nil) {
+        self.pet = pet
+        self.thumbnail = thumbnail
+        self.scans = scans
+        self.issuedAt = issuedAt
+        self.biometricChip = biometricChip
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(
-    pet: Pet?? = .none, thumbnail: Data?? = .none, scans: [Data]?? = .none,
-    issuedAt: Date?? = .none, biometricChip: Data?? = .none
-  ) -> PetPassport {
-    return PetPassport(
-      pet: pet ?? self.pet, thumbnail: thumbnail ?? self.thumbnail, scans: scans ?? self.scans,
-      issuedAt: issuedAt ?? self.issuedAt, biometricChip: biometricChip ?? self.biometricChip)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(pet: Pet?? = .none, thumbnail: Data?? = .none, scans: [Data]?? = .none, issuedAt: Date?? = .none, biometricChip: Data?? = .none) -> PetPassport {
+        return PetPassport(pet: pet ?? self.pet, thumbnail: thumbnail ?? self.thumbnail, scans: scans ?? self.scans, issuedAt: issuedAt ?? self.issuedAt, biometricChip: biometricChip ?? self.biometricChip)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.pet = try container.decodeIfPresent(Pet.self, forKey: .pet)
-    self.thumbnail = try container.decodeIfPresent(Data.self, forKey: .thumbnail)
-    self.scans = try container.decodeIfPresent([Data].self, forKey: .scans)
-    self.issuedAt = try container.decodeIfPresent(Date.self, forKey: .issuedAt)
-    self.biometricChip = try container.decodeIfPresent(Data.self, forKey: .biometricChip)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.pet = try container.decodeIfPresent(Pet.self, forKey: .pet)
+        self.thumbnail = try container.decodeIfPresent(Data.self, forKey: .thumbnail)
+        self.scans = try container.decodeIfPresent([Data].self, forKey: .scans)
+        self.issuedAt = try container.decodeIfPresent(Date.self, forKey: .issuedAt)
+        self.biometricChip = try container.decodeIfPresent(Data.self, forKey: .biometricChip)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ObjectSerializer.ordered(pet), forKey: .pet)
-    try container.encodeIfPresent(ObjectSerializer.ordered(thumbnail), forKey: .thumbnail)
-    try container.encodeIfPresent(ObjectSerializer.ordered(scans), forKey: .scans)
-    try container.encodeIfPresent(ObjectSerializer.ordered(issuedAt), forKey: .issuedAt)
-    try container.encodeIfPresent(ObjectSerializer.ordered(biometricChip), forKey: .biometricChip)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ObjectSerializer.ordered(pet), forKey: .pet)
+        try container.encodeIfPresent(ObjectSerializer.ordered(thumbnail), forKey: .thumbnail)
+        try container.encodeIfPresent(ObjectSerializer.ordered(scans), forKey: .scans)
+        try container.encodeIfPresent(ObjectSerializer.ordered(issuedAt), forKey: .issuedAt)
+        try container.encodeIfPresent(ObjectSerializer.ordered(biometricChip), forKey: .biometricChip)
+    }
 }

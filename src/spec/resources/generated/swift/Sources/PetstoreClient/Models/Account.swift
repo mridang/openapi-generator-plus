@@ -10,76 +10,73 @@ import Foundation
 /// Account is a model class generated from the OpenAPI schema.
 /// See https://example.com/docs/account Account <docs> & "notes" it's here
 public struct Account: Codable, Sendable, Equatable, Hashable {
-  /// - Note: This property is read-only; it is still sent and received.
-  public let id: Int64?
-  public let username: String
-  /// - Note: This property is write-only; it is still sent and received.
-  public let password: String?
+    /// - Note: This property is read-only; it is still sent and received.
+    public let id: Int64?
+    public let username: String
+    /// - Note: This property is write-only; it is still sent and received.
+    public let password: String?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case id = "id"
-    case username = "username"
-    case password = "password"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case id = "id"
+        case username = "username"
+        case password = "password"
+    }
 
-  /// Creates a new Account instance.
-  public init(username: String, id: Int64? = nil, password: String? = nil) {
-    self.username = username
-    self.id = id
-    self.password = password
-  }
+    /// Creates a new Account instance.
+    public init(username: String, id: Int64? = nil, password: String? = nil) {
+        self.username = username
+        self.id = id
+        self.password = password
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(username: String? = nil, id: Int64?? = .none, password: String?? = .none)
-    -> Account
-  {
-    return Account(
-      username: username ?? self.username, id: id ?? self.id, password: password ?? self.password)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(username: String? = nil, id: Int64?? = .none, password: String?? = .none) -> Account {
+        return Account(username: username ?? self.username, id: id ?? self.id, password: password ?? self.password)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-    self.username = try container.decode(String.self, forKey: .username)
-    self.password = try container.decodeIfPresent(String.self, forKey: .password)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+        self.username = try container.decode(String.self, forKey: .username)
+        self.password = try container.decodeIfPresent(String.self, forKey: .password)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
-    try container.encode(ObjectSerializer.ordered(username), forKey: .username)
-    try container.encodeIfPresent(ObjectSerializer.ordered(password), forKey: .password)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
+        try container.encode(ObjectSerializer.ordered(username), forKey: .username)
+        try container.encodeIfPresent(ObjectSerializer.ordered(password), forKey: .password)
+    }
 }
 
 /* A `format: password` property never reaches a log: reflection, print and
    dump show it as ***. The wire form is unchanged. */
 extension Account: CustomReflectable {
-  public var customMirror: Mirror {
-    return Mirror(
-      self,
-      children: [
-        (label: "id", value: id as Any),
-        (label: "username", value: username as Any),
-        (label: "password", value: "***" as Any),
-      ],
-      displayStyle: .struct)
-  }
+    public var customMirror: Mirror {
+        return Mirror(
+            self,
+            children: [
+                (label: "id", value: id as Any),
+                (label: "username", value: username as Any),
+                (label: "password", value: "***" as Any),
+            ],
+            displayStyle: .struct)
+    }
 }

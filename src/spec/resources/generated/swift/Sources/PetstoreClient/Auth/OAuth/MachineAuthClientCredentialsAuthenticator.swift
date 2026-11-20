@@ -16,30 +16,17 @@ import Foundation
 ///
 /// - `clientId`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID`
 /// - `clientSecret`: `SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET`
-public final class MachineAuthClientCredentialsAuthenticator: OAuth2ClientCredentialsAuthenticator,
-  @unchecked Sendable
-{
-  /// Creates the authenticator from explicit credentials and the process environment.
-  public convenience init(host: String, clientId: String? = nil, clientSecret: String? = nil) throws
-  {
-    try self.init(
-      host: host, clientId: clientId, clientSecret: clientSecret,
-      environment: ProcessInfo.processInfo.environment)
-  }
+public final class MachineAuthClientCredentialsAuthenticator: OAuth2ClientCredentialsAuthenticator, @unchecked Sendable {
+    /// Creates the authenticator from explicit credentials and the process environment.
+    public convenience init(host: String, clientId: String? = nil, clientSecret: String? = nil) throws {
+        try self.init(host: host, clientId: clientId, clientSecret: clientSecret, environment: ProcessInfo.processInfo.environment)
+    }
 
-  /// The same over a given environment, so the lookup can be exercised without touching
-  /// the process's own.
-  init(host: String, clientId: String?, clientSecret: String?, environment: [String: String]) throws
-  {
-    let clientId = try BaseAuthenticator.credential(
-      clientId, name: "clientId", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID",
-      environment: environment)
-    let clientSecret = try BaseAuthenticator.credential(
-      clientSecret, name: "clientSecret",
-      variable: "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET", environment: environment
-    )
-    super.init(
-      host: host, clientID: clientId, clientSecret: clientSecret,
-      tokenURL: "https://auth.example.com/oauth/token", scopes: ["pets:read", "pets:write"])
-  }
+    /// The same over a given environment, so the lookup can be exercised without touching
+    /// the process's own.
+    init(host: String, clientId: String?, clientSecret: String?, environment: [String: String]) throws {
+        let clientId = try BaseAuthenticator.credential(clientId, name: "clientId", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_ID", environment: environment)
+        let clientSecret = try BaseAuthenticator.credential(clientSecret, name: "clientSecret", variable: "SWAGGER_PETSTORE_OPEN_API_3_0_MACHINE_AUTH_CLIENT_SECRET", environment: environment)
+        super.init(host: host, clientID: clientId, clientSecret: clientSecret, tokenURL: "https://auth.example.com/oauth/token", scopes: ["pets:read", "pets:write"])
+    }
 }

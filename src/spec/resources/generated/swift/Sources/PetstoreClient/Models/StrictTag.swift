@@ -9,74 +9,74 @@ import Foundation
 
 /// StrictTag is a model class generated from the OpenAPI schema.
 public struct StrictTag: Codable, Sendable, Equatable, Hashable {
-  public let id: Int64?
-  public let name: String?
+    public let id: Int64?
+    public let name: String?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case id = "id"
-    case name = "name"
-  }
-
-  /// Creates a new StrictTag instance.
-  public init(id: Int64? = nil, name: String? = nil) {
-    self.id = id
-    self.name = name
-  }
-
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(id: Int64?? = .none, name: String?? = .none) -> StrictTag {
-    return StrictTag(id: id ?? self.id, name: name ?? self.name)
-  }
-
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are REJECTED — the schema declares
-  /// `unevaluatedProperties: false`, so any property not in `CodingKeys`
-  /// fails decoding loudly, matching the other SDKs' strict behavior.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
-    self.name = try container.decodeIfPresent(String.self, forKey: .name)
-    /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
-       Re-open the payload with a dynamic-keyed container so we can detect
-       any JSON key not present in CodingKeys and fail loudly. */
-    struct AnyKey: CodingKey {
-      var stringValue: String
-      init?(stringValue: String) { self.stringValue = stringValue }
-      var intValue: Int? { return nil }
-      init?(intValue: Int) { return nil }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case id = "id"
+        case name = "name"
     }
-    let allowed: Set<String> = ["id", "name"]
-    let extras = try decoder.container(keyedBy: AnyKey.self)
-    for key in extras.allKeys where !allowed.contains(key.stringValue) {
-      /* Throw a CATCHABLE DecodingError rather than crashing the process
-         with preconditionFailure/fatalError. Untrusted server data must
-         never be able to abort the host application, and a thrown error
-         also lets oneOf/anyOf `try?` fallthrough work correctly. */
-      throw DecodingError.dataCorrupted(
-        DecodingError.Context(
-          codingPath: extras.codingPath + [key],
-          debugDescription:
-            "Unknown property '\(key.stringValue)' on StrictTag (unevaluatedProperties:false)"))
-    }
-  }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
-    try container.encodeIfPresent(ObjectSerializer.ordered(name), forKey: .name)
-  }
+    /// Creates a new StrictTag instance.
+    public init(id: Int64? = nil, name: String? = nil) {
+        self.id = id
+        self.name = name
+    }
+
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(id: Int64?? = .none, name: String?? = .none) -> StrictTag {
+        return StrictTag(id: id ?? self.id, name: name ?? self.name)
+    }
+
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are REJECTED — the schema declares
+    /// `unevaluatedProperties: false`, so any property not in `CodingKeys`
+    /// fails decoding loudly, matching the other SDKs' strict behavior.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decodeIfPresent(Int64.self, forKey: .id)
+        self.name = try container.decodeIfPresent(String.self, forKey: .name)
+        /* Gap AX.1 — OAS 3.1 / JSON Schema 2020-12 unevaluatedProperties:false.
+           Re-open the payload with a dynamic-keyed container so we can detect
+           any JSON key not present in CodingKeys and fail loudly. */
+        struct AnyKey: CodingKey {
+            var stringValue: String
+            init?(stringValue: String) { self.stringValue = stringValue }
+            var intValue: Int? { return nil }
+            init?(intValue: Int) { return nil }
+        }
+        let allowed: Set<String> = ["id", "name"]
+        let extras = try decoder.container(keyedBy: AnyKey.self)
+        for key in extras.allKeys where !allowed.contains(key.stringValue) {
+            /* Throw a CATCHABLE DecodingError rather than crashing the process
+               with preconditionFailure/fatalError. Untrusted server data must
+               never be able to abort the host application, and a thrown error
+               also lets oneOf/anyOf `try?` fallthrough work correctly. */
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: extras.codingPath + [key],
+                    debugDescription:
+                        "Unknown property '\(key.stringValue)' on StrictTag (unevaluatedProperties:false)"))
+        }
+    }
+
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ObjectSerializer.ordered(id), forKey: .id)
+        try container.encodeIfPresent(ObjectSerializer.ordered(name), forKey: .name)
+    }
 }

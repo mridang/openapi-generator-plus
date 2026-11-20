@@ -9,60 +9,56 @@ import Foundation
 
 /// Medication is a model class generated from the OpenAPI schema.
 public struct Medication: Codable, Sendable, Equatable, Hashable {
-  public let drugName: String
-  public let dosage: String?
-  public let notes: String?
+    public let drugName: String
+    public let dosage: String?
+    public let notes: String?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case drugName = "drugName"
-    case dosage = "dosage"
-    case notes = "notes"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case drugName = "drugName"
+        case dosage = "dosage"
+        case notes = "notes"
+    }
 
-  /// Creates a new Medication instance.
-  public init(drugName: String, dosage: String? = nil, notes: String? = nil) {
-    self.drugName = drugName
-    self.dosage = dosage
-    self.notes = notes
-  }
+    /// Creates a new Medication instance.
+    public init(drugName: String, dosage: String? = nil, notes: String? = nil) {
+        self.drugName = drugName
+        self.dosage = dosage
+        self.notes = notes
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(drugName: String? = nil, dosage: String?? = .none, notes: String?? = .none)
-    -> Medication
-  {
-    return Medication(
-      drugName: drugName ?? self.drugName, dosage: dosage ?? self.dosage, notes: notes ?? self.notes
-    )
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(drugName: String? = nil, dosage: String?? = .none, notes: String?? = .none) -> Medication {
+        return Medication(drugName: drugName ?? self.drugName, dosage: dosage ?? self.dosage, notes: notes ?? self.notes)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.drugName = try container.decode(String.self, forKey: .drugName)
-    self.dosage = try container.decodeIfPresent(String.self, forKey: .dosage)
-    self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.drugName = try container.decode(String.self, forKey: .drugName)
+        self.dosage = try container.decodeIfPresent(String.self, forKey: .dosage)
+        self.notes = try container.decodeIfPresent(String.self, forKey: .notes)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(ObjectSerializer.ordered(drugName), forKey: .drugName)
-    try container.encodeIfPresent(ObjectSerializer.ordered(dosage), forKey: .dosage)
-    try container.encodeIfPresent(ObjectSerializer.ordered(notes), forKey: .notes)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ObjectSerializer.ordered(drugName), forKey: .drugName)
+        try container.encodeIfPresent(ObjectSerializer.ordered(dosage), forKey: .dosage)
+        try container.encodeIfPresent(ObjectSerializer.ordered(notes), forKey: .notes)
+    }
 }

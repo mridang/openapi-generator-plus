@@ -9,66 +9,61 @@ import Foundation
 
 /// Truck is a model class generated from the OpenAPI schema.
 public struct Truck: Codable, Sendable, Equatable, Hashable {
-  public let vehicleType: String
-  public let plate: String
-  public let payloadKg: Int?
+    public let vehicleType: String
+    public let plate: String
+    public let payloadKg: Int?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case vehicleType = "vehicleType"
-    case plate = "plate"
-    case payloadKg = "payloadKg"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case vehicleType = "vehicleType"
+        case plate = "plate"
+        case payloadKg = "payloadKg"
+    }
 
-  /// Creates a new Truck instance.
-  public init(vehicleType: String = "truck", plate: String, payloadKg: Int? = nil) {
-    self.vehicleType = vehicleType
-    self.plate = plate
-    self.payloadKg = payloadKg
-  }
+    /// Creates a new Truck instance.
+    public init(vehicleType: String = "truck", plate: String, payloadKg: Int? = nil) {
+        self.vehicleType = vehicleType
+        self.plate = plate
+        self.payloadKg = payloadKg
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(vehicleType: String? = nil, plate: String? = nil, payloadKg: Int?? = .none)
-    -> Truck
-  {
-    return Truck(
-      vehicleType: vehicleType ?? self.vehicleType, plate: plate ?? self.plate,
-      payloadKg: payloadKg ?? self.payloadKg)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(vehicleType: String? = nil, plate: String? = nil, payloadKg: Int?? = .none) -> Truck {
+        return Truck(vehicleType: vehicleType ?? self.vehicleType, plate: plate ?? self.plate, payloadKg: payloadKg ?? self.payloadKg)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    /* A required property that carries a default (a discriminator value, for
-       one) is filled with that default when the key is absent. */
-    self.vehicleType =
-      container.contains(.vehicleType)
-      ? try container.decode(String.self, forKey: .vehicleType)
-      : "truck"
-    self.plate = try container.decode(String.self, forKey: .plate)
-    /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
-    self.payloadKg = try container.decodeInt32IfPresent(forKey: .payloadKg)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        /* A required property that carries a default (a discriminator value, for
+           one) is filled with that default when the key is absent. */
+        self.vehicleType = container.contains(.vehicleType)
+            ? try container.decode(String.self, forKey: .vehicleType)
+            : "truck"
+        self.plate = try container.decode(String.self, forKey: .plate)
+        /* An integer property is an Int, but it is read as 32 bits, so a value past the 32-bit range or a fraction is refused. */
+        self.payloadKg = try container.decodeInt32IfPresent(forKey: .payloadKg)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(ObjectSerializer.ordered(vehicleType), forKey: .vehicleType)
-    try container.encode(ObjectSerializer.ordered(plate), forKey: .plate)
-    try container.encodeIfPresent(ObjectSerializer.ordered(payloadKg), forKey: .payloadKg)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ObjectSerializer.ordered(vehicleType), forKey: .vehicleType)
+        try container.encode(ObjectSerializer.ordered(plate), forKey: .plate)
+        try container.encodeIfPresent(ObjectSerializer.ordered(payloadKg), forKey: .payloadKg)
+    }
 }

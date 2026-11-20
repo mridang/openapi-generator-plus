@@ -10,66 +10,66 @@ import Foundation
 /// Error for a response that declares the ``StateConflict`` schema: it is a
 /// ``ClientError`` and carries the decoded body as ``typedErrorBody``.
 public class StateConflictError: ClientError, @unchecked Sendable {
-  /// Creates the error.
-  public init(
-    statusCode: Int,
-    message: String = "",
-    responseBody: String? = nil,
-    responseHeaders: [String: String]? = nil,
-    errorBody: StateConflict? = nil,
-    underlyingError: Error? = nil,
-    requestMethod: String? = nil,
-    requestPath: String? = nil
-  ) {
-    super.init(
-      statusCode: statusCode,
-      message: message,
-      responseBody: responseBody,
-      responseHeaders: responseHeaders,
-      errorBody: errorBody,
-      underlyingError: underlyingError,
-      requestMethod: requestMethod,
-      requestPath: requestPath
-    )
-  }
-
-  /// The response body decoded as ``StateConflict``, or nil when there is none.
-  public var typedErrorBody: StateConflict? {
-    return errorBody as? StateConflict
-  }
-
-  /// Builds the error for a response of an operation that declares the
-  /// ``StateConflict`` schema. A body that does not match the schema never
-  /// hides the real error: the status error is returned with the raw body and
-  /// the decoding failure as its ``ApiError/underlyingError``.
-  public static func fromErrorResponse(
-    statusCode: Int,
-    headers: [String: String]?,
-    body: String,
-    requestMethod: String?,
-    requestPath: String?
-  ) -> ApiError {
-    let status = ApiError.fromResponse(
-      statusCode: statusCode, headers: headers, body: body,
-      requestMethod: requestMethod, requestPath: requestPath)
-    if body.isEmpty {
-      return status
+    /// Creates the error.
+    public init(
+        statusCode: Int,
+        message: String = "",
+        responseBody: String? = nil,
+        responseHeaders: [String: String]? = nil,
+        errorBody: StateConflict? = nil,
+        underlyingError: Error? = nil,
+        requestMethod: String? = nil,
+        requestPath: String? = nil
+    ) {
+        super.init(
+            statusCode: statusCode,
+            message: message,
+            responseBody: responseBody,
+            responseHeaders: responseHeaders,
+            errorBody: errorBody,
+            underlyingError: underlyingError,
+            requestMethod: requestMethod,
+            requestPath: requestPath
+        )
     }
-    do {
-      guard let decoded = try ObjectSerializer.deserialize(body, as: StateConflict.self) else {
-        throw SerializationError(message: "Error body is empty")
-      }
-      return StateConflictError(
-        statusCode: statusCode,
-        message: status.message,
-        responseBody: body,
-        responseHeaders: headers,
-        errorBody: decoded,
-        requestMethod: status.requestMethod,
-        requestPath: status.requestPath
-      )
-    } catch {
-      return ApiError.statusFallback(status, cause: error)
+
+    /// The response body decoded as ``StateConflict``, or nil when there is none.
+    public var typedErrorBody: StateConflict? {
+        return errorBody as? StateConflict
     }
-  }
+
+    /// Builds the error for a response of an operation that declares the
+    /// ``StateConflict`` schema. A body that does not match the schema never
+    /// hides the real error: the status error is returned with the raw body and
+    /// the decoding failure as its ``ApiError/underlyingError``.
+    public static func fromErrorResponse(
+        statusCode: Int,
+        headers: [String: String]?,
+        body: String,
+        requestMethod: String?,
+        requestPath: String?
+    ) -> ApiError {
+        let status = ApiError.fromResponse(
+            statusCode: statusCode, headers: headers, body: body,
+            requestMethod: requestMethod, requestPath: requestPath)
+        if body.isEmpty {
+            return status
+        }
+        do {
+            guard let decoded = try ObjectSerializer.deserialize(body, as: StateConflict.self) else {
+                throw SerializationError(message: "Error body is empty")
+            }
+            return StateConflictError(
+                statusCode: statusCode,
+                message: status.message,
+                responseBody: body,
+                responseHeaders: headers,
+                errorBody: decoded,
+                requestMethod: status.requestMethod,
+                requestPath: status.requestPath
+            )
+        } catch {
+            return ApiError.statusFallback(status, cause: error)
+        }
+    }
 }

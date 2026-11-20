@@ -16,35 +16,35 @@ import Foundation
 /// `rawBody` preserves the original response payload for diagnostics when
 /// the body is not a well-formed OAuth2 error object.
 public struct OAuth2ServerError: OpenAPIError, Equatable {
-  /// The HTTP status code of the error response.
-  public let statusCode: Int
-  /// The RFC 6749 §5.2 error code, if present.
-  public let code: String?
-  /// The human-readable error description, if present.
-  public let description: String?
-  /// A URI describing the error, if present.
-  public let uri: String?
-  /// The original response payload.
-  public let rawBody: String
+    /// The HTTP status code of the error response.
+    public let statusCode: Int
+    /// The RFC 6749 §5.2 error code, if present.
+    public let code: String?
+    /// The human-readable error description, if present.
+    public let description: String?
+    /// A URI describing the error, if present.
+    public let uri: String?
+    /// The original response payload.
+    public let rawBody: String
 
-  /// Creates a typed OAuth2 error response.
-  public init(statusCode: Int, code: String?, description: String?, uri: String?, rawBody: String) {
-    self.statusCode = statusCode
-    self.code = code
-    self.description = description
-    self.uri = uri
-    self.rawBody = rawBody
-  }
+    /// Creates a typed OAuth2 error response.
+    public init(statusCode: Int, code: String?, description: String?, uri: String?, rawBody: String) {
+        self.statusCode = statusCode
+        self.code = code
+        self.description = description
+        self.uri = uri
+        self.rawBody = rawBody
+    }
 }
 
 extension OAuth2ServerError: LocalizedError {
-  public var errorDescription: String? {
-    if code == nil {
-      return "Token request failed with status \(statusCode): \(rawBody)"
+    public var errorDescription: String? {
+        if code == nil {
+            return "Token request failed with status \(statusCode): \(rawBody)"
+        }
+        if let description = description {
+            return "Token request failed with status \(statusCode): \(code ?? "") -- \(description)"
+        }
+        return "Token request failed with status \(statusCode): \(code ?? "")"
     }
-    if let description = description {
-      return "Token request failed with status \(statusCode): \(code ?? "") -- \(description)"
-    }
-    return "Token request failed with status \(statusCode): \(code ?? "")"
-  }
 }

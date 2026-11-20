@@ -7,153 +7,141 @@
 
 import Foundation
 import Testing
-
 @testable import PetstoreClient
 
 @Suite final class CallHookTests {
 
-  /// Writes its name into the shared log when it starts and when its observer finishes.
-  private final class LoggingHook: CallHook, @unchecked Sendable {
-    let name: String
-    let log: Log
-    let observes: Bool
-    var startError: (any Error)?
-    var finishError: (any Error)?
+    /// Writes its name into the shared log when it starts and when its observer finishes.
+    private final class LoggingHook: CallHook, @unchecked Sendable {
+        let name: String
+        let log: Log
+        let observes: Bool
+        var startError: (any Error)?
+        var finishError: (any Error)?
 
-    init(_ name: String, log: Log, observes: Bool = true) {
-      self.name = name
-      self.log = log
-      self.observes = observes
-    }
-
-    func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
-      log.add("\(name).start")
-      if let startError = startError {
-        throw startError
-      }
-      headers["X-Order"] = (headers["X-Order"] ?? "") + name
-      return observes ? Watcher(hook: self) : nil
-    }
-
-    private struct Watcher: CallObserver {
-      let hook: LoggingHook
-
-      func finish(_ outcome: CallOutcome) throws {
-        hook.log.add("\(hook.name).finish")
-        if let failure = hook.finishError {
-          throw failure
+        init(_ name: String, log: Log, observes: Bool = true) {
+            self.name = name
+            self.log = log
+            self.observes = observes
         }
-      }
-    }
-  }
 
-  private final class Log: @unchecked Sendable {
-    private let lock = NSLock()
-    private var lines: [String] = []
+        func start(info: CallInfo, headers: inout [String: String]) throws -> (any CallObserver)? {
+            log.add("\(name).start")
+            if let startError = startError {
+                throw startError
+            }
+            headers["X-Order"] = (headers["X-Order"] ?? "") + name
+            return observes ? Watcher(hook: self) : nil
+        }
 
-    func add(_ line: String) { lock.withLock { lines.append(line) } }
-    var entries: [String] { lock.withLock { lines } }
-  }
+        private struct Watcher: CallObserver {
+            let hook: LoggingHook
 
-  private enum Refusal: Error, Equatable {
-    case refused
-    case failed
-  }
-
-  private let info = CallInfo(
-    operationId: "listItems", method: "GET", urlTemplate: "/items",
-    url: "https://example.com/items",
-    serverAddress: "example.com")
-  private let outcome = CallOutcome(statusCode: 200, headers: [:], error: nil)
-
-  @Test
-  func
-    testBhvHooks020ChainStartsTheHooksInOrderFinishesTheirObserversInReverseOrderAndSkipsAHookWithNoObserver()
-    throws
-  {
-    do {
-      let log = Log()
-      let hook = CallHooks.chain(
-        LoggingHook("a", log: log), LoggingHook("b", log: log), LoggingHook("c", log: log))
-      var headers: [String: String] = [:]
-
-      let observer = try #require(try hook.start(info: info, headers: &headers))
-      try observer.finish(outcome)
-
-      #expect(log.entries == ["a.start", "b.start", "c.start", "c.finish", "b.finish", "a.finish"])
-      #expect(headers["X-Order"] == "abc")
-    }
-    do {
-      let log = Log()
-      var headers: [String: String] = [:]
-
-      let some = CallHooks.chain([
-        LoggingHook("a", log: log), LoggingHook("quiet", log: log, observes: false),
-      ])
-      let observer = try #require(try some.start(info: info, headers: &headers))
-      try observer.finish(outcome)
-      #expect(log.entries == ["a.start", "quiet.start", "a.finish"])
-
-      let none = CallHooks.chain([LoggingHook("quiet", log: log, observes: false)])
-      #expect(try none.start(info: info, headers: &headers) == nil)
-      #expect(try CallHooks.chain([]).start(info: info, headers: &headers) == nil)
-    }
-  }
-
-  @Test func testBhvLangswift079AChainStopsAtTheHookWhoseStartThrowsAndStartsNoLaterHook() throws {
-    let log = Log()
-    let refusing = LoggingHook("b", log: log)
-    refusing.startError = Refusal.refused
-    let hook = CallHooks.chain(LoggingHook("a", log: log), refusing, LoggingHook("c", log: log))
-    var headers: [String: String] = [:]
-
-    #expect(throws: Refusal.self) {
-      _ = try hook.start(info: info, headers: &headers)
+            func finish(_ outcome: CallOutcome) throws {
+                hook.log.add("\(hook.name).finish")
+                if let failure = hook.finishError {
+                    throw failure
+                }
+            }
+        }
     }
 
-    #expect(log.entries == ["a.start", "b.start"])
-  }
+    private final class Log: @unchecked Sendable {
+        private let lock = NSLock()
+        private var lines: [String] = []
 
-  @Test func testBhvLangswift080ChainFinishesEveryObserverEvenWhenOneThrowsAndThrowsTheFirstError()
-    throws
-  {
-    let log = Log()
-    let failing = LoggingHook("b", log: log)
-    failing.finishError = Refusal.failed
-    let hook = CallHooks.chain(LoggingHook("a", log: log), failing, LoggingHook("c", log: log))
-    var headers: [String: String] = [:]
-    let observer = try #require(try hook.start(info: info, headers: &headers))
-
-    #expect(throws: Refusal.self) {
-      try observer.finish(outcome)
+        func add(_ line: String) { lock.withLock { lines.append(line) } }
+        var entries: [String] { lock.withLock { lines } }
     }
 
-    #expect(log.entries.suffix(3) == ["c.finish", "b.finish", "a.finish"])
-  }
+    private enum Refusal: Error, Equatable {
+        case refused
+        case failed
+    }
 
-  @Test func testBhvLangswift081CallInfoDropsTheQueryStringAndTheFragmentFromTheUrl() {
-    let built = CallInfo(
-      operationId: "listItems", method: "get", urlTemplate: "/items/{id}",
-      target: "https://Example.com:8443/items/7?key=secret#top")
+    private let info = CallInfo(
+        operationId: "listItems", method: "GET", urlTemplate: "/items", url: "https://example.com/items",
+        serverAddress: "example.com")
+    private let outcome = CallOutcome(statusCode: 200, headers: [:], error: nil)
 
-    #expect(built.url == "https://Example.com:8443/items/7")
-    #expect(built.method == "GET")
-    #expect(built.serverAddress == "example.com")
-  }
+    @Test func testBhvHooks020ChainStartsTheHooksInOrderFinishesTheirObserversInReverseOrderAndSkipsAHookWithNoObserver() throws {
+        do {
+            let log = Log()
+            let hook = CallHooks.chain(
+                LoggingHook("a", log: log), LoggingHook("b", log: log), LoggingHook("c", log: log))
+            var headers: [String: String] = [:]
 
-  @Test(arguments: [
-    ("https://example.com/a", "example.com"),
-    ("https://API.Example.COM:8443/a", "api.example.com"),
-    ("http://[::1]:8080/a", "::1"),
-    ("http://[2001:DB8::1]/a", "2001:db8::1"),
-    ("http://user:pw@host.example:9/a", "host.example"),
-    ("/relative/only", ""),
-  ])
-  func testBhvLangswift082CallInfoServerAddressIsTheLowerCaseHostWithoutPortUserinfoOrBrackets(
-    target: String, host: String
-  ) {
-    let built = CallInfo(operationId: "o", method: "GET", urlTemplate: "/t", target: target)
+            let observer = try #require(try hook.start(info: info, headers: &headers))
+            try observer.finish(outcome)
 
-    #expect(built.serverAddress == host)
-  }
+            #expect(log.entries == ["a.start", "b.start", "c.start", "c.finish", "b.finish", "a.finish"])
+            #expect(headers["X-Order"] == "abc")
+        }
+        do {
+            let log = Log()
+            var headers: [String: String] = [:]
+
+            let some = CallHooks.chain([LoggingHook("a", log: log), LoggingHook("quiet", log: log, observes: false)])
+            let observer = try #require(try some.start(info: info, headers: &headers))
+            try observer.finish(outcome)
+            #expect(log.entries == ["a.start", "quiet.start", "a.finish"])
+
+            let none = CallHooks.chain([LoggingHook("quiet", log: log, observes: false)])
+            #expect(try none.start(info: info, headers: &headers) == nil)
+            #expect(try CallHooks.chain([]).start(info: info, headers: &headers) == nil)
+        }
+    }
+
+    @Test func testBhvLangswift079AChainStopsAtTheHookWhoseStartThrowsAndStartsNoLaterHook() throws {
+        let log = Log()
+        let refusing = LoggingHook("b", log: log)
+        refusing.startError = Refusal.refused
+        let hook = CallHooks.chain(LoggingHook("a", log: log), refusing, LoggingHook("c", log: log))
+        var headers: [String: String] = [:]
+
+        #expect(throws: Refusal.self) {
+            _ = try hook.start(info: info, headers: &headers)
+        }
+
+        #expect(log.entries == ["a.start", "b.start"])
+    }
+
+    @Test func testBhvLangswift080ChainFinishesEveryObserverEvenWhenOneThrowsAndThrowsTheFirstError() throws {
+        let log = Log()
+        let failing = LoggingHook("b", log: log)
+        failing.finishError = Refusal.failed
+        let hook = CallHooks.chain(LoggingHook("a", log: log), failing, LoggingHook("c", log: log))
+        var headers: [String: String] = [:]
+        let observer = try #require(try hook.start(info: info, headers: &headers))
+
+        #expect(throws: Refusal.self) {
+            try observer.finish(outcome)
+        }
+
+        #expect(log.entries.suffix(3) == ["c.finish", "b.finish", "a.finish"])
+    }
+
+    @Test func testBhvLangswift081CallInfoDropsTheQueryStringAndTheFragmentFromTheUrl() {
+        let built = CallInfo(
+            operationId: "listItems", method: "get", urlTemplate: "/items/{id}",
+            target: "https://Example.com:8443/items/7?key=secret#top")
+
+        #expect(built.url == "https://Example.com:8443/items/7")
+        #expect(built.method == "GET")
+        #expect(built.serverAddress == "example.com")
+    }
+
+    @Test(arguments: [
+        ("https://example.com/a", "example.com"),
+        ("https://API.Example.COM:8443/a", "api.example.com"),
+        ("http://[::1]:8080/a", "::1"),
+        ("http://[2001:DB8::1]/a", "2001:db8::1"),
+        ("http://user:pw@host.example:9/a", "host.example"),
+        ("/relative/only", "")
+    ])
+    func testBhvLangswift082CallInfoServerAddressIsTheLowerCaseHostWithoutPortUserinfoOrBrackets(target: String, host: String) {
+        let built = CallInfo(operationId: "o", method: "GET", urlTemplate: "/t", target: target)
+
+        #expect(built.serverAddress == host)
+    }
 }

@@ -10,63 +10,63 @@ import Foundation
 /// Error for a response that declares the ``MemberNotFound`` schema: it is a
 /// ``NotFoundError`` and carries the decoded body as ``typedErrorBody``.
 public class MemberNotFoundError: NotFoundError, @unchecked Sendable {
-  /// Creates the error. The status is fixed by the parent type.
-  public init(
-    message: String = "",
-    responseBody: String? = nil,
-    responseHeaders: [String: String]? = nil,
-    errorBody: MemberNotFound? = nil,
-    underlyingError: Error? = nil,
-    requestMethod: String? = nil,
-    requestPath: String? = nil
-  ) {
-    super.init(
-      message: message,
-      responseBody: responseBody,
-      responseHeaders: responseHeaders,
-      errorBody: errorBody,
-      underlyingError: underlyingError,
-      requestMethod: requestMethod,
-      requestPath: requestPath
-    )
-  }
-
-  /// The response body decoded as ``MemberNotFound``, or nil when there is none.
-  public var typedErrorBody: MemberNotFound? {
-    return errorBody as? MemberNotFound
-  }
-
-  /// Builds the error for a response of an operation that declares the
-  /// ``MemberNotFound`` schema. A body that does not match the schema never
-  /// hides the real error: the status error is returned with the raw body and
-  /// the decoding failure as its ``ApiError/underlyingError``.
-  public static func fromErrorResponse(
-    statusCode: Int,
-    headers: [String: String]?,
-    body: String,
-    requestMethod: String?,
-    requestPath: String?
-  ) -> ApiError {
-    let status = ApiError.fromResponse(
-      statusCode: statusCode, headers: headers, body: body,
-      requestMethod: requestMethod, requestPath: requestPath)
-    if body.isEmpty {
-      return status
+    /// Creates the error. The status is fixed by the parent type.
+    public init(
+        message: String = "",
+        responseBody: String? = nil,
+        responseHeaders: [String: String]? = nil,
+        errorBody: MemberNotFound? = nil,
+        underlyingError: Error? = nil,
+        requestMethod: String? = nil,
+        requestPath: String? = nil
+    ) {
+        super.init(
+            message: message,
+            responseBody: responseBody,
+            responseHeaders: responseHeaders,
+            errorBody: errorBody,
+            underlyingError: underlyingError,
+            requestMethod: requestMethod,
+            requestPath: requestPath
+        )
     }
-    do {
-      guard let decoded = try ObjectSerializer.deserialize(body, as: MemberNotFound.self) else {
-        throw SerializationError(message: "Error body is empty")
-      }
-      return MemberNotFoundError(
-        message: status.message,
-        responseBody: body,
-        responseHeaders: headers,
-        errorBody: decoded,
-        requestMethod: status.requestMethod,
-        requestPath: status.requestPath
-      )
-    } catch {
-      return ApiError.statusFallback(status, cause: error)
+
+    /// The response body decoded as ``MemberNotFound``, or nil when there is none.
+    public var typedErrorBody: MemberNotFound? {
+        return errorBody as? MemberNotFound
     }
-  }
+
+    /// Builds the error for a response of an operation that declares the
+    /// ``MemberNotFound`` schema. A body that does not match the schema never
+    /// hides the real error: the status error is returned with the raw body and
+    /// the decoding failure as its ``ApiError/underlyingError``.
+    public static func fromErrorResponse(
+        statusCode: Int,
+        headers: [String: String]?,
+        body: String,
+        requestMethod: String?,
+        requestPath: String?
+    ) -> ApiError {
+        let status = ApiError.fromResponse(
+            statusCode: statusCode, headers: headers, body: body,
+            requestMethod: requestMethod, requestPath: requestPath)
+        if body.isEmpty {
+            return status
+        }
+        do {
+            guard let decoded = try ObjectSerializer.deserialize(body, as: MemberNotFound.self) else {
+                throw SerializationError(message: "Error body is empty")
+            }
+            return MemberNotFoundError(
+                message: status.message,
+                responseBody: body,
+                responseHeaders: headers,
+                errorBody: decoded,
+                requestMethod: status.requestMethod,
+                requestPath: status.requestPath
+            )
+        } catch {
+            return ApiError.statusFallback(status, cause: error)
+        }
+    }
 }

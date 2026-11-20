@@ -9,104 +9,103 @@ import Foundation
 
 /// Authenticator for HTTP Bearer token authentication.
 public class BearerAuthenticator: BaseAuthenticator, @unchecked Sendable {
-  private let _host: String
-  private let token: String
-  private let tokenProvider: (@Sendable () async throws -> String)?
+    private let _host: String
+    private let token: String
+    private let tokenProvider: (@Sendable () async throws -> String)?
 
-  /// Creates an HTTP Bearer token authenticator.
-  ///
-  /// - Parameters:
-  ///   - host: The base URL of the API.
-  ///   - token: The bearer token.
-  /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the token is
-  ///   empty or holds a character that cannot be sent in a header.
-  public init(host: String, token: String) throws {
-    try BearerAuthenticator.validate(token)
-    self._host = host
-    self.token = token
-    self.tokenProvider = nil
-    super.init()
-  }
-
-  /// Creates an HTTP Bearer authenticator whose token comes from a callback.
-  ///
-  /// The callback runs before every request, so it can hand out a token that
-  /// was refreshed elsewhere; each token it returns is validated like a
-  /// static one, and a failure of either fails that request.
-  ///
-  /// - Parameters:
-  ///   - host: The base URL of the API.
-  ///   - tokenProvider: Returns the current bearer token.
-  public init(host: String, tokenProvider: @escaping @Sendable () async throws -> String) {
-    self._host = host
-    self.token = ""
-    self.tokenProvider = tokenProvider
-    super.init()
-  }
-
-  private static func validate(_ token: String) throws {
-    /* Reject an empty or whitespace-only token: it would otherwise be
-     * sent as the literal header `Authorization: Bearer ` and the
-     * request would go out effectively unauthenticated. This mirrors
-     * the empty-value guard the api-key authenticator already enforces. */
-    if token.unicodeScalars.allSatisfy({ [0x20, 0x09, 0x0A, 0x0D, 0x0C, 0x0B].contains($0.value) })
-    {
-      throw ConfigurationError.invalidArgument(
-        "Bearer token must not be empty"
-      )
+    /// Creates an HTTP Bearer token authenticator.
+    ///
+    /// - Parameters:
+    ///   - host: The base URL of the API.
+    ///   - token: The bearer token.
+    /// - Throws: ``ConfigurationError/invalidArgument(_:)`` when the token is
+    ///   empty or holds a character that cannot be sent in a header.
+    public init(host: String, token: String) throws {
+        try BearerAuthenticator.validate(token)
+        self._host = host
+        self.token = token
+        self.tokenProvider = nil
+        super.init()
     }
-    /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
-     * Reject anything outside printable ASCII + TAB so callers see
-     * a clear error rather than HTTP header injection from CR/LF or
-     * silently-mangled non-ASCII bytes. */
-    if token.unicodeScalars.contains(where: { s in
-      s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
-    }) {
-      throw ConfigurationError.invalidArgument(
-        "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
-      )
-    }
-  }
 
-  /// Returns the base URL of the API.
-  override public func host() -> String {
-    return _host
-  }
+    /// Creates an HTTP Bearer authenticator whose token comes from a callback.
+    ///
+    /// The callback runs before every request, so it can hand out a token that
+    /// was refreshed elsewhere; each token it returns is validated like a
+    /// static one, and a failure of either fails that request.
+    ///
+    /// - Parameters:
+    ///   - host: The base URL of the API.
+    ///   - tokenProvider: Returns the current bearer token.
+    public init(host: String, tokenProvider: @escaping @Sendable () async throws -> String) {
+        self._host = host
+        self.token = ""
+        self.tokenProvider = tokenProvider
+        super.init()
+    }
 
-  /// Returns the authentication headers to include in every request.
-  ///
-  /// - Throws: whatever the token provider throws, and
-  ///   ``ConfigurationError/invalidArgument(_:)`` when it returns a token that
-  ///   is empty or cannot be sent in a header.
-  override public func authHeaders() async throws -> [String: String] {
-    /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
-       from env files are commonly stored already-prefixed; emitting
-       "Bearer Bearer xyz" would otherwise silently break auth. */
-    var value = token
-    if let provider = tokenProvider {
-      value = try await provider()
-      try BearerAuthenticator.validate(value)
+    private static func validate(_ token: String) throws {
+        /* Reject an empty or whitespace-only token: it would otherwise be
+         * sent as the literal header `Authorization: Bearer ` and the
+         * request would go out effectively unauthenticated. This mirrors
+         * the empty-value guard the api-key authenticator already enforces. */
+        if token.unicodeScalars.allSatisfy({ [0x20, 0x09, 0x0A, 0x0D, 0x0C, 0x0B].contains($0.value) }) {
+            throw ConfigurationError.invalidArgument(
+                "Bearer token must not be empty"
+            )
+        }
+        /* RFC 7230 §3.2.6 — field-value is HTAB / SP / VCHAR / obs-text.
+         * Reject anything outside printable ASCII + TAB so callers see
+         * a clear error rather than HTTP header injection from CR/LF or
+         * silently-mangled non-ASCII bytes. */
+        if token.unicodeScalars.contains(where: { s in
+            s.value != 0x09 && (s.value < 0x20 || s.value >= 0x7F)
+        }) {
+            throw ConfigurationError.invalidArgument(
+                "Bearer token must contain only printable ASCII characters (RFC 7230 §3.2.6)"
+            )
+        }
     }
-    if value.count >= 7 {
-      let head = String(value.prefix(7))
-      if head.lowercased() == "bearer " {
-        value = String(value.dropFirst(7))
-      }
+
+    /// Returns the base URL of the API.
+    override public func host() -> String {
+        return _host
     }
-    return ["Authorization": "Bearer \(value)"]
-  }
+
+    /// Returns the authentication headers to include in every request.
+    ///
+    /// - Throws: whatever the token provider throws, and
+    ///   ``ConfigurationError/invalidArgument(_:)`` when it returns a token that
+    ///   is empty or cannot be sent in a header.
+    override public func authHeaders() async throws -> [String: String] {
+        /* Dedupe "Bearer " prefix (case-insensitive ASCII): tokens read
+           from env files are commonly stored already-prefixed; emitting
+           "Bearer Bearer xyz" would otherwise silently break auth. */
+        var value = token
+        if let provider = tokenProvider {
+            value = try await provider()
+            try BearerAuthenticator.validate(value)
+        }
+        if value.count >= 7 {
+            let head = String(value.prefix(7))
+            if head.lowercased() == "bearer " {
+                value = String(value.dropFirst(7))
+            }
+        }
+        return ["Authorization": "Bearer \(value)"]
+    }
 }
 
 extension BearerAuthenticator: CustomStringConvertible, CustomDebugStringConvertible {
-  /// A string representation that redacts the token so credentials never
-  /// leak into logs or stack traces (matching the other SDKs).
-  public var description: String {
-    "\(type(of: self))(host: \(_host), token: ***)"
-  }
+    /// A string representation that redacts the token so credentials never
+    /// leak into logs or stack traces (matching the other SDKs).
+    public var description: String {
+        "\(type(of: self))(host: \(_host), token: ***)"
+    }
 
-  /// A debug string representation that redacts the token so credentials
-  /// never leak into logs or stack traces (matching the other SDKs).
-  public var debugDescription: String {
-    description
-  }
+    /// A debug string representation that redacts the token so credentials
+    /// never leak into logs or stack traces (matching the other SDKs).
+    public var debugDescription: String {
+        description
+    }
 }

@@ -9,44 +9,42 @@ import Foundation
 
 /// Task priority, integer-backed enum
 public enum Priority: Int, Codable, Sendable, CaseIterable, CustomStringConvertible {
-  case number1 = 1
-  case number2 = 2
-  case number3 = 3
-  /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
-  case unknownDefaultOpenApi = -9_223_372_036_854_775_808
+    case number1 = 1
+    case number2 = 2
+    case number3 = 3
+    /// Any wire value this SDK does not list decodes to this case; it has no wire value and cannot be written.
+    case unknownDefaultOpenApi = -9223372036854775808
 
-  /// The declared cases; the catch-all case is not one of them.
-  public static var allCases: [Priority] {
-    return [
-      .number1,
-      .number2,
-      .number3,
-    ]
-  }
-
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    let raw = try container.decode(RawValue.self)
-    self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
-  }
-
-  public func encode(to encoder: Encoder) throws {
-    if self == .unknownDefaultOpenApi {
-      throw EncodingError.invalidValue(
-        self,
-        EncodingError.Context(
-          codingPath: encoder.codingPath,
-          debugDescription:
-            "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written")
-      )
+    /// The declared cases; the catch-all case is not one of them.
+    public static var allCases: [Priority] {
+        return [
+            .number1,
+            .number2,
+            .number3,
+        ]
     }
-    var container = encoder.singleValueContainer()
-    try container.encode(rawValue)
-  }
 
-  /// The wire value (`"active"`, `2`), not the case name, so interpolating
-  /// the enum prints what the server sees.
-  public var description: String {
-    return "\(rawValue)"
-  }
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let raw = try container.decode(RawValue.self)
+        self = Self(rawValue: raw) ?? .unknownDefaultOpenApi
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        if self == .unknownDefaultOpenApi {
+            throw EncodingError.invalidValue(
+                self,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "The catch-all enum case unknownDefaultOpenApi has no wire value and cannot be written"))
+        }
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+
+    /// The wire value (`"active"`, `2`), not the case name, so interpolating
+    /// the enum prints what the server sees.
+    public var description: String {
+        return "\(rawValue)"
+    }
 }

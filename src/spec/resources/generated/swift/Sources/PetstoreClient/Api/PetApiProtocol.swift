@@ -12,420 +12,327 @@ import Foundation
 /// your own tests. A fake implements the full form of each operation; the forms that leave out
 /// the optional parameters are provided by the extension below.
 public protocol PetApiProtocol: Sendable {
-  func addPet(pet: Pet, options: AddPetOptions?) async throws -> Pet
-  func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions?) async throws -> ApiResult<Pet>
-  func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo]
-  func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws
-    -> ApiResult<[Photo]>
-  func addPetTreatment(petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?)
-    async throws -> PetTreatment
-  func addPetTreatmentWithHTTPInfo(
-    petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?
-  ) async throws -> ApiResult<PetTreatment>
-  func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws -> ApiResponse
-  func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
-    -> ApiResult<ApiResponse>
-  func deletePet(petId: Int64, options: DeletePetOptions?) async throws
-  func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions?) async throws -> ApiResult<
-    Void
-  >
-  func downloadPetDocument(petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?)
-    async throws -> Data
-  func downloadPetDocumentWithHTTPInfo(
-    petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?
-  ) async throws -> ApiResult<Data>
-  func findPetsBornOn(bornOn: String, options: FindPetsBornOnOptions?) async throws -> [Pet]
-  func findPetsBornOnWithHTTPInfo(bornOn: String, options: FindPetsBornOnOptions?) async throws
-    -> ApiResult<[Pet]>
-  @available(*, deprecated, message: "This operation is deprecated.")
-  func findPetsByStatus(options: FindPetsByStatusOptions?) async throws -> [Pet]
-  @available(*, deprecated, message: "This operation is deprecated.")
-  func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions?) async throws -> ApiResult<
-    [Pet]
-  >
-  func getExternalPetInfo(
-    petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?
-  ) async throws -> Pet
-  func getExternalPetInfoWithHTTPInfo(
-    petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?
-  ) async throws -> ApiResult<Pet>
-  func getMultiServerPetInfo(
-    petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
-  ) async throws -> Pet
-  func getMultiServerPetInfoWithHTTPInfo(
-    petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?
-  ) async throws -> ApiResult<Pet>
-  func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data
-  func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws
-    -> ApiResult<Data>
-  func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions?) async throws
-    -> Data
-  func getPetAvatarThumbnailWithHTTPInfo(petId: Int64, options: GetPetAvatarThumbnailOptions?)
-    async throws -> ApiResult<Data>
-  @available(*, deprecated, message: "This operation is deprecated.")
-  func getPetById(petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?)
-    async throws -> Pet
-  @available(*, deprecated, message: "This operation is deprecated.")
-  func getPetByIdWithHTTPInfo(
-    petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?
-  ) async throws -> ApiResult<Pet>
-  func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet
-  func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
-    -> ApiResult<Pet>
-  func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet
-  func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
-  func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws -> PetPassport
-  func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions?) async throws
-    -> ApiResult<PetPassport>
-  func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws -> Data
-  func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?)
-    async throws -> ApiResult<Data>
-  func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
-    -> String
-  func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
-    async throws -> ApiResult<String>
-  func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions?) async throws -> Pet
-  func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions?) async throws
-    -> ApiResult<Pet>
-  func getStagingPetInfo(
-    petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?
-  ) async throws -> Pet
-  func getStagingPetInfoWithHTTPInfo(
-    petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?
-  ) async throws -> ApiResult<Pet>
-  func setPetAvatar(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?)
-    async throws
-  func setPetAvatarWithHTTPInfo(
-    petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?
-  ) async throws -> ApiResult<Void>
-  func setPetAvatarThumbnail(
-    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
-    options: SetPetAvatarThumbnailOptions?) async throws
-  func setPetAvatarThumbnailWithHTTPInfo(
-    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest,
-    options: SetPetAvatarThumbnailOptions?
-  ) async throws -> ApiResult<Void>
-  func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
-    -> ApiResponse
-  func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions) async throws
-    -> ApiResult<ApiResponse>
-  func updatePet(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws -> Pet
-  func updatePetWithHTTPInfo(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws
-    -> ApiResult<Pet>
-  func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
-    -> ApiResponse
-  func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions)
-    async throws -> ApiResult<ApiResponse>
-  func uploadPetDocument(
-    petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?
-  ) async throws -> ApiResponse
-  func uploadPetDocumentWithHTTPInfo(
-    petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?
-  ) async throws -> ApiResult<ApiResponse>
+    func addPet(pet: Pet, options: AddPetOptions?) async throws -> Pet
+    func addPetWithHTTPInfo(pet: Pet, options: AddPetOptions?) async throws -> ApiResult<Pet>
+    func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo]
+    func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws -> ApiResult<[Photo]>
+    func addPetTreatment(petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?) async throws -> PetTreatment
+    func addPetTreatmentWithHTTPInfo(petId: Int64, petTreatment: PetTreatment, options: AddPetTreatmentOptions?) async throws -> ApiResult<PetTreatment>
+    func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws -> ApiResponse
+    func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws -> ApiResult<ApiResponse>
+    func deletePet(petId: Int64, options: DeletePetOptions?) async throws
+    func deletePetWithHTTPInfo(petId: Int64, options: DeletePetOptions?) async throws -> ApiResult<Void>
+    func downloadPetDocument(petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?) async throws -> Data
+    func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64, options: DownloadPetDocumentOptions?) async throws -> ApiResult<Data>
+    func findPetsBornOn(bornOn: String, options: FindPetsBornOnOptions?) async throws -> [Pet]
+    func findPetsBornOnWithHTTPInfo(bornOn: String, options: FindPetsBornOnOptions?) async throws -> ApiResult<[Pet]>
+    @available(*, deprecated, message: "This operation is deprecated.")
+    func findPetsByStatus(options: FindPetsByStatusOptions?) async throws -> [Pet]
+    @available(*, deprecated, message: "This operation is deprecated.")
+    func findPetsByStatusWithHTTPInfo(options: FindPetsByStatusOptions?) async throws -> ApiResult<[Pet]>
+    func getExternalPetInfo(petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?) async throws -> Pet
+    func getExternalPetInfoWithHTTPInfo(petId: Int64, server: (any GetExternalPetInfoServer)?, options: GetExternalPetInfoOptions?) async throws -> ApiResult<Pet>
+    func getMultiServerPetInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?) async throws -> Pet
+    func getMultiServerPetInfoWithHTTPInfo(petId: Int64, server: (any GetMultiServerPetInfoServer)?, options: GetMultiServerPetInfoOptions?) async throws -> ApiResult<Pet>
+    func getPetAvatar(petId: Int64, options: GetPetAvatarOptions?) async throws -> Data
+    func getPetAvatarWithHTTPInfo(petId: Int64, options: GetPetAvatarOptions?) async throws -> ApiResult<Data>
+    func getPetAvatarThumbnail(petId: Int64, options: GetPetAvatarThumbnailOptions?) async throws -> Data
+    func getPetAvatarThumbnailWithHTTPInfo(petId: Int64, options: GetPetAvatarThumbnailOptions?) async throws -> ApiResult<Data>
+    @available(*, deprecated, message: "This operation is deprecated.")
+    func getPetById(petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?) async throws -> Pet
+    @available(*, deprecated, message: "This operation is deprecated.")
+    func getPetByIdWithHTTPInfo(petId: Int64, server: (any GetPetByIdServer)?, options: GetPetByIdOptions?) async throws -> ApiResult<Pet>
+    func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet
+    func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws -> ApiResult<Pet>
+    func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet
+    func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
+    func getPetPassport(petId: Int64, options: GetPetPassportOptions?) async throws -> PetPassport
+    func getPetPassportWithHTTPInfo(petId: Int64, options: GetPetPassportOptions?) async throws -> ApiResult<PetPassport>
+    func getPetPhoto(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws -> Data
+    func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64, options: GetPetPhotoOptions?) async throws -> ApiResult<Data>
+    func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws -> String
+    func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws -> ApiResult<String>
+    func getPetTag(petId: Int64, tagName: String, options: GetPetTagOptions?) async throws -> Pet
+    func getPetTagWithHTTPInfo(petId: Int64, tagName: String, options: GetPetTagOptions?) async throws -> ApiResult<Pet>
+    func getStagingPetInfo(petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?) async throws -> Pet
+    func getStagingPetInfoWithHTTPInfo(petId: Int64, server: (any GetStagingPetInfoServer)?, options: GetStagingPetInfoOptions?) async throws -> ApiResult<Pet>
+    func setPetAvatar(petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?) async throws
+    func setPetAvatarWithHTTPInfo(petId: Int64, body: Data, options: SetPetAvatarOptions?, requestContentType: String?) async throws -> ApiResult<Void>
+    func setPetAvatarThumbnail(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest, options: SetPetAvatarThumbnailOptions?) async throws
+    func setPetAvatarThumbnailWithHTTPInfo(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest, options: SetPetAvatarThumbnailOptions?) async throws -> ApiResult<Void>
+    func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws -> ApiResponse
+    func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions) async throws -> ApiResult<ApiResponse>
+    func updatePet(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws -> Pet
+    func updatePetWithHTTPInfo(petId: Int64, pet: Pet, options: UpdatePetOptions?) async throws -> ApiResult<Pet>
+    func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws -> ApiResponse
+    func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions) async throws -> ApiResult<ApiResponse>
+    func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?) async throws -> ApiResponse
+    func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions, requestContentType: String?) async throws -> ApiResult<ApiResponse>
 }
 
 extension PetApiProtocol {
 
-  /// The `addPet` operation with every optional parameter left out.
-  public func addPet(pet: Pet) async throws -> Pet {
-    try await addPet(pet: pet, options: nil)
-  }
+    /// The `addPet` operation with every optional parameter left out.
+    public func addPet(pet: Pet) async throws -> Pet {
+        try await addPet(pet: pet, options: nil)
+    }
 
-  /// The `addPetWithHTTPInfo` operation with every optional parameter left out.
-  public func addPetWithHTTPInfo(pet: Pet) async throws -> ApiResult<Pet> {
-    try await addPetWithHTTPInfo(pet: pet, options: nil)
-  }
+    /// The `addPetWithHTTPInfo` operation with every optional parameter left out.
+    public func addPetWithHTTPInfo(pet: Pet) async throws -> ApiResult<Pet> {
+        try await addPetWithHTTPInfo(pet: pet, options: nil)
+    }
 
-  /// The `addPetPhotos` operation with every optional parameter left out.
-  public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
-    try await addPetPhotos(petId: petId, options: options)
-  }
+    /// The `addPetPhotos` operation with every optional parameter left out.
+    public func addPetPhotos(petId: Int64, options: AddPetPhotosOptions) async throws -> [Photo] {
+        try await addPetPhotos(petId: petId, options: options)
+    }
 
-  /// The `addPetPhotosWithHTTPInfo` operation with every optional parameter left out.
-  public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws
-    -> ApiResult<[Photo]>
-  {
-    try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
-  }
+    /// The `addPetPhotosWithHTTPInfo` operation with every optional parameter left out.
+    public func addPetPhotosWithHTTPInfo(petId: Int64, options: AddPetPhotosOptions) async throws -> ApiResult<[Photo]> {
+        try await addPetPhotosWithHTTPInfo(petId: petId, options: options)
+    }
 
-  /// The `addPetTreatment` operation with every optional parameter left out.
-  public func addPetTreatment(petId: Int64, petTreatment: PetTreatment) async throws -> PetTreatment
-  {
-    try await addPetTreatment(petId: petId, petTreatment: petTreatment, options: nil)
-  }
+    /// The `addPetTreatment` operation with every optional parameter left out.
+    public func addPetTreatment(petId: Int64, petTreatment: PetTreatment) async throws -> PetTreatment {
+        try await addPetTreatment(petId: petId, petTreatment: petTreatment, options: nil)
+    }
 
-  /// The `addPetTreatmentWithHTTPInfo` operation with every optional parameter left out.
-  public func addPetTreatmentWithHTTPInfo(petId: Int64, petTreatment: PetTreatment) async throws
-    -> ApiResult<PetTreatment>
-  {
-    try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, options: nil)
-  }
+    /// The `addPetTreatmentWithHTTPInfo` operation with every optional parameter left out.
+    public func addPetTreatmentWithHTTPInfo(petId: Int64, petTreatment: PetTreatment) async throws -> ApiResult<PetTreatment> {
+        try await addPetTreatmentWithHTTPInfo(petId: petId, petTreatment: petTreatment, options: nil)
+    }
 
-  /// The `attachPetFiles` operation with every optional parameter left out.
-  public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws
-    -> ApiResponse
-  {
-    try await attachPetFiles(petId: petId, options: options)
-  }
+    /// The `attachPetFiles` operation with every optional parameter left out.
+    public func attachPetFiles(petId: Int64, options: AttachPetFilesOptions) async throws -> ApiResponse {
+        try await attachPetFiles(petId: petId, options: options)
+    }
 
-  /// The `attachPetFilesWithHTTPInfo` operation with every optional parameter left out.
-  public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws
-    -> ApiResult<ApiResponse>
-  {
-    try await attachPetFilesWithHTTPInfo(petId: petId, options: options)
-  }
+    /// The `attachPetFilesWithHTTPInfo` operation with every optional parameter left out.
+    public func attachPetFilesWithHTTPInfo(petId: Int64, options: AttachPetFilesOptions) async throws -> ApiResult<ApiResponse> {
+        try await attachPetFilesWithHTTPInfo(petId: petId, options: options)
+    }
 
-  /// The `deletePet` operation with every optional parameter left out.
-  public func deletePet(petId: Int64) async throws {
-    try await deletePet(petId: petId, options: nil)
-  }
+    /// The `deletePet` operation with every optional parameter left out.
+    public func deletePet(petId: Int64) async throws {
+        try await deletePet(petId: petId, options: nil)
+    }
 
-  /// The `deletePetWithHTTPInfo` operation with every optional parameter left out.
-  public func deletePetWithHTTPInfo(petId: Int64) async throws -> ApiResult<Void> {
-    try await deletePetWithHTTPInfo(petId: petId, options: nil)
-  }
+    /// The `deletePetWithHTTPInfo` operation with every optional parameter left out.
+    public func deletePetWithHTTPInfo(petId: Int64) async throws -> ApiResult<Void> {
+        try await deletePetWithHTTPInfo(petId: petId, options: nil)
+    }
 
-  /// The `downloadPetDocument` operation with every optional parameter left out.
-  public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
-    try await downloadPetDocument(petId: petId, documentId: documentId, options: nil)
-  }
+    /// The `downloadPetDocument` operation with every optional parameter left out.
+    public func downloadPetDocument(petId: Int64, documentId: Int64) async throws -> Data {
+        try await downloadPetDocument(petId: petId, documentId: documentId, options: nil)
+    }
 
-  /// The `downloadPetDocumentWithHTTPInfo` operation with every optional parameter left out.
-  public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64) async throws
-    -> ApiResult<Data>
-  {
-    try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId, options: nil)
-  }
+    /// The `downloadPetDocumentWithHTTPInfo` operation with every optional parameter left out.
+    public func downloadPetDocumentWithHTTPInfo(petId: Int64, documentId: Int64) async throws -> ApiResult<Data> {
+        try await downloadPetDocumentWithHTTPInfo(petId: petId, documentId: documentId, options: nil)
+    }
 
-  /// The `findPetsBornOn` operation with every optional parameter left out.
-  public func findPetsBornOn(bornOn: String) async throws -> [Pet] {
-    try await findPetsBornOn(bornOn: bornOn, options: nil)
-  }
+    /// The `findPetsBornOn` operation with every optional parameter left out.
+    public func findPetsBornOn(bornOn: String) async throws -> [Pet] {
+        try await findPetsBornOn(bornOn: bornOn, options: nil)
+    }
 
-  /// The `findPetsBornOnWithHTTPInfo` operation with every optional parameter left out.
-  public func findPetsBornOnWithHTTPInfo(bornOn: String) async throws -> ApiResult<[Pet]> {
-    try await findPetsBornOnWithHTTPInfo(bornOn: bornOn, options: nil)
-  }
+    /// The `findPetsBornOnWithHTTPInfo` operation with every optional parameter left out.
+    public func findPetsBornOnWithHTTPInfo(bornOn: String) async throws -> ApiResult<[Pet]> {
+        try await findPetsBornOnWithHTTPInfo(bornOn: bornOn, options: nil)
+    }
 
-  /// The `findPetsByStatus` operation with every optional parameter left out.
-  @available(*, deprecated, message: "This operation is deprecated.")
-  public func findPetsByStatus() async throws -> [Pet] {
-    try await findPetsByStatus(options: nil)
-  }
+    /// The `findPetsByStatus` operation with every optional parameter left out.
+    @available(*, deprecated, message: "This operation is deprecated.")
+    public func findPetsByStatus() async throws -> [Pet] {
+        try await findPetsByStatus(options: nil)
+    }
 
-  /// The `findPetsByStatusWithHTTPInfo` operation with every optional parameter left out.
-  @available(*, deprecated, message: "This operation is deprecated.")
-  public func findPetsByStatusWithHTTPInfo() async throws -> ApiResult<[Pet]> {
-    try await findPetsByStatusWithHTTPInfo(options: nil)
-  }
+    /// The `findPetsByStatusWithHTTPInfo` operation with every optional parameter left out.
+    @available(*, deprecated, message: "This operation is deprecated.")
+    public func findPetsByStatusWithHTTPInfo() async throws -> ApiResult<[Pet]> {
+        try await findPetsByStatusWithHTTPInfo(options: nil)
+    }
 
-  /// The `getExternalPetInfo` operation with every optional parameter left out.
-  public func getExternalPetInfo(petId: Int64) async throws -> Pet {
-    try await getExternalPetInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getExternalPetInfo` operation with every optional parameter left out.
+    public func getExternalPetInfo(petId: Int64) async throws -> Pet {
+        try await getExternalPetInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getExternalPetInfoWithHTTPInfo` operation with every optional parameter left out.
-  public func getExternalPetInfoWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
-    try await getExternalPetInfoWithHTTPInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getExternalPetInfoWithHTTPInfo` operation with every optional parameter left out.
+    public func getExternalPetInfoWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
+        try await getExternalPetInfoWithHTTPInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getMultiServerPetInfo` operation with every optional parameter left out.
-  public func getMultiServerPetInfo(petId: Int64) async throws -> Pet {
-    try await getMultiServerPetInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getMultiServerPetInfo` operation with every optional parameter left out.
+    public func getMultiServerPetInfo(petId: Int64) async throws -> Pet {
+        try await getMultiServerPetInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getMultiServerPetInfoWithHTTPInfo` operation with every optional parameter left out.
-  public func getMultiServerPetInfoWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
-    try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getMultiServerPetInfoWithHTTPInfo` operation with every optional parameter left out.
+    public func getMultiServerPetInfoWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
+        try await getMultiServerPetInfoWithHTTPInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getPetAvatar` operation with every optional parameter left out.
-  public func getPetAvatar(petId: Int64) async throws -> Data {
-    try await getPetAvatar(petId: petId, options: nil)
-  }
+    /// The `getPetAvatar` operation with every optional parameter left out.
+    public func getPetAvatar(petId: Int64) async throws -> Data {
+        try await getPetAvatar(petId: petId, options: nil)
+    }
 
-  /// The `getPetAvatarWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
-    try await getPetAvatarWithHTTPInfo(petId: petId, options: nil)
-  }
+    /// The `getPetAvatarWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetAvatarWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
+        try await getPetAvatarWithHTTPInfo(petId: petId, options: nil)
+    }
 
-  /// The `getPetAvatarThumbnail` operation with every optional parameter left out.
-  public func getPetAvatarThumbnail(petId: Int64) async throws -> Data {
-    try await getPetAvatarThumbnail(petId: petId, options: nil)
-  }
+    /// The `getPetAvatarThumbnail` operation with every optional parameter left out.
+    public func getPetAvatarThumbnail(petId: Int64) async throws -> Data {
+        try await getPetAvatarThumbnail(petId: petId, options: nil)
+    }
 
-  /// The `getPetAvatarThumbnailWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
-    try await getPetAvatarThumbnailWithHTTPInfo(petId: petId, options: nil)
-  }
+    /// The `getPetAvatarThumbnailWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetAvatarThumbnailWithHTTPInfo(petId: Int64) async throws -> ApiResult<Data> {
+        try await getPetAvatarThumbnailWithHTTPInfo(petId: petId, options: nil)
+    }
 
-  /// The `getPetById` operation with every optional parameter left out.
-  @available(*, deprecated, message: "This operation is deprecated.")
-  public func getPetById(petId: Int64) async throws -> Pet {
-    try await getPetById(petId: petId, server: nil, options: nil)
-  }
+    /// The `getPetById` operation with every optional parameter left out.
+    @available(*, deprecated, message: "This operation is deprecated.")
+    public func getPetById(petId: Int64) async throws -> Pet {
+        try await getPetById(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getPetByIdWithHTTPInfo` operation with every optional parameter left out.
-  @available(*, deprecated, message: "This operation is deprecated.")
-  public func getPetByIdWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
-    try await getPetByIdWithHTTPInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getPetByIdWithHTTPInfo` operation with every optional parameter left out.
+    @available(*, deprecated, message: "This operation is deprecated.")
+    public func getPetByIdWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
+        try await getPetByIdWithHTTPInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getPetByName` operation with every optional parameter left out.
-  public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
-    try await getPetByName(name: name, options: options)
-  }
+    /// The `getPetByName` operation with every optional parameter left out.
+    public func getPetByName(name: String, options: GetPetByNameOptions) async throws -> Pet {
+        try await getPetByName(name: name, options: options)
+    }
 
-  /// The `getPetByNameWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws
-    -> ApiResult<Pet>
-  {
-    try await getPetByNameWithHTTPInfo(name: name, options: options)
-  }
+    /// The `getPetByNameWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetByNameWithHTTPInfo(name: String, options: GetPetByNameOptions) async throws -> ApiResult<Pet> {
+        try await getPetByNameWithHTTPInfo(name: name, options: options)
+    }
 
-  /// The `getPetByNote` operation with every optional parameter left out.
-  public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
-    try await getPetByNote(options: options)
-  }
+    /// The `getPetByNote` operation with every optional parameter left out.
+    public func getPetByNote(options: GetPetByNoteOptions) async throws -> Pet {
+        try await getPetByNote(options: options)
+    }
 
-  /// The `getPetByNoteWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet>
-  {
-    try await getPetByNoteWithHTTPInfo(options: options)
-  }
+    /// The `getPetByNoteWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetByNoteWithHTTPInfo(options: GetPetByNoteOptions) async throws -> ApiResult<Pet> {
+        try await getPetByNoteWithHTTPInfo(options: options)
+    }
 
-  /// The `getPetPassport` operation with every optional parameter left out.
-  public func getPetPassport(petId: Int64) async throws -> PetPassport {
-    try await getPetPassport(petId: petId, options: nil)
-  }
+    /// The `getPetPassport` operation with every optional parameter left out.
+    public func getPetPassport(petId: Int64) async throws -> PetPassport {
+        try await getPetPassport(petId: petId, options: nil)
+    }
 
-  /// The `getPetPassportWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetPassportWithHTTPInfo(petId: Int64) async throws -> ApiResult<PetPassport> {
-    try await getPetPassportWithHTTPInfo(petId: petId, options: nil)
-  }
+    /// The `getPetPassportWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetPassportWithHTTPInfo(petId: Int64) async throws -> ApiResult<PetPassport> {
+        try await getPetPassportWithHTTPInfo(petId: petId, options: nil)
+    }
 
-  /// The `getPetPhoto` operation with every optional parameter left out.
-  public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
-    try await getPetPhoto(petId: petId, photoId: photoId, options: nil)
-  }
+    /// The `getPetPhoto` operation with every optional parameter left out.
+    public func getPetPhoto(petId: Int64, photoId: Int64) async throws -> Data {
+        try await getPetPhoto(petId: petId, photoId: photoId, options: nil)
+    }
 
-  /// The `getPetPhotoWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<Data>
-  {
-    try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, options: nil)
-  }
+    /// The `getPetPhotoWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetPhotoWithHTTPInfo(petId: Int64, photoId: Int64) async throws -> ApiResult<Data> {
+        try await getPetPhotoWithHTTPInfo(petId: petId, photoId: photoId, options: nil)
+    }
 
-  /// The `getPetSummary` operation with every optional parameter left out.
-  public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws
-    -> String
-  {
-    try await getPetSummary(petId: petId, asOf: asOf, options: options)
-  }
+    /// The `getPetSummary` operation with every optional parameter left out.
+    public func getPetSummary(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws -> String {
+        try await getPetSummary(petId: petId, asOf: asOf, options: options)
+    }
 
-  /// The `getPetSummaryWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions)
-    async throws -> ApiResult<String>
-  {
-    try await getPetSummaryWithHTTPInfo(petId: petId, asOf: asOf, options: options)
-  }
+    /// The `getPetSummaryWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetSummaryWithHTTPInfo(petId: Int64, asOf: String, options: GetPetSummaryOptions) async throws -> ApiResult<String> {
+        try await getPetSummaryWithHTTPInfo(petId: petId, asOf: asOf, options: options)
+    }
 
-  /// The `getPetTag` operation with every optional parameter left out.
-  public func getPetTag(petId: Int64, tagName: String) async throws -> Pet {
-    try await getPetTag(petId: petId, tagName: tagName, options: nil)
-  }
+    /// The `getPetTag` operation with every optional parameter left out.
+    public func getPetTag(petId: Int64, tagName: String) async throws -> Pet {
+        try await getPetTag(petId: petId, tagName: tagName, options: nil)
+    }
 
-  /// The `getPetTagWithHTTPInfo` operation with every optional parameter left out.
-  public func getPetTagWithHTTPInfo(petId: Int64, tagName: String) async throws -> ApiResult<Pet> {
-    try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: nil)
-  }
+    /// The `getPetTagWithHTTPInfo` operation with every optional parameter left out.
+    public func getPetTagWithHTTPInfo(petId: Int64, tagName: String) async throws -> ApiResult<Pet> {
+        try await getPetTagWithHTTPInfo(petId: petId, tagName: tagName, options: nil)
+    }
 
-  /// The `getStagingPetInfo` operation with every optional parameter left out.
-  public func getStagingPetInfo(petId: Int64) async throws -> Pet {
-    try await getStagingPetInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getStagingPetInfo` operation with every optional parameter left out.
+    public func getStagingPetInfo(petId: Int64) async throws -> Pet {
+        try await getStagingPetInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `getStagingPetInfoWithHTTPInfo` operation with every optional parameter left out.
-  public func getStagingPetInfoWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
-    try await getStagingPetInfoWithHTTPInfo(petId: petId, server: nil, options: nil)
-  }
+    /// The `getStagingPetInfoWithHTTPInfo` operation with every optional parameter left out.
+    public func getStagingPetInfoWithHTTPInfo(petId: Int64) async throws -> ApiResult<Pet> {
+        try await getStagingPetInfoWithHTTPInfo(petId: petId, server: nil, options: nil)
+    }
 
-  /// The `setPetAvatar` operation with every optional parameter left out.
-  public func setPetAvatar(petId: Int64, body: Data) async throws {
-    try await setPetAvatar(petId: petId, body: body, options: nil, requestContentType: nil)
-  }
+    /// The `setPetAvatar` operation with every optional parameter left out.
+    public func setPetAvatar(petId: Int64, body: Data) async throws {
+        try await setPetAvatar(petId: petId, body: body, options: nil, requestContentType: nil)
+    }
 
-  /// The `setPetAvatarWithHTTPInfo` operation with every optional parameter left out.
-  public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
-    try await setPetAvatarWithHTTPInfo(
-      petId: petId, body: body, options: nil, requestContentType: nil)
-  }
+    /// The `setPetAvatarWithHTTPInfo` operation with every optional parameter left out.
+    public func setPetAvatarWithHTTPInfo(petId: Int64, body: Data) async throws -> ApiResult<Void> {
+        try await setPetAvatarWithHTTPInfo(petId: petId, body: body, options: nil, requestContentType: nil)
+    }
 
-  /// The `setPetAvatarThumbnail` operation with every optional parameter left out.
-  public func setPetAvatarThumbnail(
-    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
-  ) async throws {
-    try await setPetAvatarThumbnail(
-      petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, options: nil)
-  }
+    /// The `setPetAvatarThumbnail` operation with every optional parameter left out.
+    public func setPetAvatarThumbnail(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest) async throws {
+        try await setPetAvatarThumbnail(petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, options: nil)
+    }
 
-  /// The `setPetAvatarThumbnailWithHTTPInfo` operation with every optional parameter left out.
-  public func setPetAvatarThumbnailWithHTTPInfo(
-    petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest
-  ) async throws -> ApiResult<Void> {
-    try await setPetAvatarThumbnailWithHTTPInfo(
-      petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, options: nil)
-  }
+    /// The `setPetAvatarThumbnailWithHTTPInfo` operation with every optional parameter left out.
+    public func setPetAvatarThumbnailWithHTTPInfo(petId: Int64, setPetAvatarThumbnailRequest: SetPetAvatarThumbnailRequest) async throws -> ApiResult<Void> {
+        try await setPetAvatarThumbnailWithHTTPInfo(petId: petId, setPetAvatarThumbnailRequest: setPetAvatarThumbnailRequest, options: nil)
+    }
 
-  /// The `setPetPreferences` operation with every optional parameter left out.
-  public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws
-    -> ApiResponse
-  {
-    try await setPetPreferences(petId: petId, options: options)
-  }
+    /// The `setPetPreferences` operation with every optional parameter left out.
+    public func setPetPreferences(petId: Int64, options: SetPetPreferencesOptions) async throws -> ApiResponse {
+        try await setPetPreferences(petId: petId, options: options)
+    }
 
-  /// The `setPetPreferencesWithHTTPInfo` operation with every optional parameter left out.
-  public func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions)
-    async throws -> ApiResult<ApiResponse>
-  {
-    try await setPetPreferencesWithHTTPInfo(petId: petId, options: options)
-  }
+    /// The `setPetPreferencesWithHTTPInfo` operation with every optional parameter left out.
+    public func setPetPreferencesWithHTTPInfo(petId: Int64, options: SetPetPreferencesOptions) async throws -> ApiResult<ApiResponse> {
+        try await setPetPreferencesWithHTTPInfo(petId: petId, options: options)
+    }
 
-  /// The `updatePet` operation with every optional parameter left out.
-  public func updatePet(petId: Int64, pet: Pet) async throws -> Pet {
-    try await updatePet(petId: petId, pet: pet, options: nil)
-  }
+    /// The `updatePet` operation with every optional parameter left out.
+    public func updatePet(petId: Int64, pet: Pet) async throws -> Pet {
+        try await updatePet(petId: petId, pet: pet, options: nil)
+    }
 
-  /// The `updatePetWithHTTPInfo` operation with every optional parameter left out.
-  public func updatePetWithHTTPInfo(petId: Int64, pet: Pet) async throws -> ApiResult<Pet> {
-    try await updatePetWithHTTPInfo(petId: petId, pet: pet, options: nil)
-  }
+    /// The `updatePetWithHTTPInfo` operation with every optional parameter left out.
+    public func updatePetWithHTTPInfo(petId: Int64, pet: Pet) async throws -> ApiResult<Pet> {
+        try await updatePetWithHTTPInfo(petId: petId, pet: pet, options: nil)
+    }
 
-  /// The `uploadPetCertificate` operation with every optional parameter left out.
-  public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws
-    -> ApiResponse
-  {
-    try await uploadPetCertificate(petId: petId, options: options)
-  }
+    /// The `uploadPetCertificate` operation with every optional parameter left out.
+    public func uploadPetCertificate(petId: Int64, options: UploadPetCertificateOptions) async throws -> ApiResponse {
+        try await uploadPetCertificate(petId: petId, options: options)
+    }
 
-  /// The `uploadPetCertificateWithHTTPInfo` operation with every optional parameter left out.
-  public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions)
-    async throws -> ApiResult<ApiResponse>
-  {
-    try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options)
-  }
+    /// The `uploadPetCertificateWithHTTPInfo` operation with every optional parameter left out.
+    public func uploadPetCertificateWithHTTPInfo(petId: Int64, options: UploadPetCertificateOptions) async throws -> ApiResult<ApiResponse> {
+        try await uploadPetCertificateWithHTTPInfo(petId: petId, options: options)
+    }
 
-  /// The `uploadPetDocument` operation with every optional parameter left out.
-  public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions) async throws
-    -> ApiResponse
-  {
-    try await uploadPetDocument(petId: petId, options: options, requestContentType: nil)
-  }
+    /// The `uploadPetDocument` operation with every optional parameter left out.
+    public func uploadPetDocument(petId: Int64, options: UploadPetDocumentOptions) async throws -> ApiResponse {
+        try await uploadPetDocument(petId: petId, options: options, requestContentType: nil)
+    }
 
-  /// The `uploadPetDocumentWithHTTPInfo` operation with every optional parameter left out.
-  public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions)
-    async throws -> ApiResult<ApiResponse>
-  {
-    try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options, requestContentType: nil)
-  }
+    /// The `uploadPetDocumentWithHTTPInfo` operation with every optional parameter left out.
+    public func uploadPetDocumentWithHTTPInfo(petId: Int64, options: UploadPetDocumentOptions) async throws -> ApiResult<ApiResponse> {
+        try await uploadPetDocumentWithHTTPInfo(petId: petId, options: options, requestContentType: nil)
+    }
 }

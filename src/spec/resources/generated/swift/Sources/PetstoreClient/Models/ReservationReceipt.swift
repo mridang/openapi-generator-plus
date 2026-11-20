@@ -9,54 +9,53 @@ import Foundation
 
 /// ReservationReceipt is a model class generated from the OpenAPI schema.
 public struct ReservationReceipt: Codable, Sendable, Equatable, Hashable {
-  /// Example: rcpt-77
-  public let receiptCode: String
-  /// Example: 2030-01-01T00:00:00Z
-  public let expiresAt: Date
+    /// Example: rcpt-77
+    public let receiptCode: String
+    /// Example: 2030-01-01T00:00:00Z
+    public let expiresAt: Date
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case receiptCode = "receiptCode"
-    case expiresAt = "expiresAt"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case receiptCode = "receiptCode"
+        case expiresAt = "expiresAt"
+    }
 
-  /// Creates a new ReservationReceipt instance.
-  public init(receiptCode: String, expiresAt: Date) {
-    self.receiptCode = receiptCode
-    self.expiresAt = expiresAt
-  }
+    /// Creates a new ReservationReceipt instance.
+    public init(receiptCode: String, expiresAt: Date) {
+        self.receiptCode = receiptCode
+        self.expiresAt = expiresAt
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(receiptCode: String? = nil, expiresAt: Date? = nil) -> ReservationReceipt {
-    return ReservationReceipt(
-      receiptCode: receiptCode ?? self.receiptCode, expiresAt: expiresAt ?? self.expiresAt)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(receiptCode: String? = nil, expiresAt: Date? = nil) -> ReservationReceipt {
+        return ReservationReceipt(receiptCode: receiptCode ?? self.receiptCode, expiresAt: expiresAt ?? self.expiresAt)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.receiptCode = try container.decode(String.self, forKey: .receiptCode)
-    self.expiresAt = try container.decode(Date.self, forKey: .expiresAt)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.receiptCode = try container.decode(String.self, forKey: .receiptCode)
+        self.expiresAt = try container.decode(Date.self, forKey: .expiresAt)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(ObjectSerializer.ordered(receiptCode), forKey: .receiptCode)
-    try container.encode(ObjectSerializer.ordered(expiresAt), forKey: .expiresAt)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ObjectSerializer.ordered(receiptCode), forKey: .receiptCode)
+        try container.encode(ObjectSerializer.ordered(expiresAt), forKey: .expiresAt)
+    }
 }

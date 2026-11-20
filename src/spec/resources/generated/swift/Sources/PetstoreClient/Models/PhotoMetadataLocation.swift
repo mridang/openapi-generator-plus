@@ -9,51 +9,51 @@ import Foundation
 
 /// PhotoMetadataLocation is a model class generated from the OpenAPI schema.
 public struct PhotoMetadataLocation: Codable, Sendable, Equatable, Hashable {
-  public let lat: Double?
-  public let lng: Double?
+    public let lat: Double?
+    public let lng: Double?
 
-  enum CodingKeys: String, CodingKey, CaseIterable {
-    case lat = "lat"
-    case lng = "lng"
-  }
+    enum CodingKeys: String, CodingKey, CaseIterable {
+        case lat = "lat"
+        case lng = "lng"
+    }
 
-  /// Creates a new PhotoMetadataLocation instance.
-  public init(lat: Double? = nil, lng: Double? = nil) {
-    self.lat = lat
-    self.lng = lng
-  }
+    /// Creates a new PhotoMetadataLocation instance.
+    public init(lat: Double? = nil, lng: Double? = nil) {
+        self.lat = lat
+        self.lng = lng
+    }
 
-  /// Returns a copy of this instance with the given properties replaced. A
-  /// property left out keeps its value; to clear an optional property pass
-  /// `.some(nil)`, since a bare `nil` also means "keep".
-  public func copy(lat: Double?? = .none, lng: Double?? = .none) -> PhotoMetadataLocation {
-    return PhotoMetadataLocation(lat: lat ?? self.lat, lng: lng ?? self.lng)
-  }
+    /// Returns a copy of this instance with the given properties replaced. A
+    /// property left out keeps its value; to clear an optional property pass
+    /// `.some(nil)`, since a bare `nil` also means "keep".
+    public func copy(lat: Double?? = .none, lng: Double?? = .none) -> PhotoMetadataLocation {
+        return PhotoMetadataLocation(lat: lat ?? self.lat, lng: lng ?? self.lng)
+    }
 
-  /// Decodes this instance from the given decoder.
-  ///
-  /// Required fields use `decode(_:forKey:)`; optional fields use
-  /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
-  /// payload but the schema declares a `default`, that default is applied —
-  /// matching the cross-language "apply schema default on deserialise"
-  /// expectation. An explicit JSON `null` is a provided value and is
-  /// preserved as `nil` rather than replaced by the default.
-  /// Unknown JSON keys are silently ignored — matching the cross-language
-  /// "discard extras on deserialise" expectation.
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    self.lat = try container.decodeIfPresent(Double.self, forKey: .lat)
-    self.lng = try container.decodeIfPresent(Double.self, forKey: .lng)
-  }
+    /// Decodes this instance from the given decoder.
+    ///
+    /// Required fields use `decode(_:forKey:)`; optional fields use
+    /// `decodeIfPresent(_:forKey:)`. When an optional field is ABSENT from the
+    /// payload but the schema declares a `default`, that default is applied —
+    /// matching the cross-language "apply schema default on deserialise"
+    /// expectation. An explicit JSON `null` is a provided value and is
+    /// preserved as `nil` rather than replaced by the default.
+    /// Unknown JSON keys are silently ignored — matching the cross-language
+    /// "discard extras on deserialise" expectation.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.lat = try container.decodeIfPresent(Double.self, forKey: .lat)
+        self.lng = try container.decodeIfPresent(Double.self, forKey: .lng)
+    }
 
-  /// Encodes this instance, omitting nil optional fields from the JSON output.
-  ///
-  /// Uses `encodeIfPresent` for every optional property so that unset values
-  /// are dropped from the wire payload rather than emitted as `null` — matching
-  /// the cross-language "discard nulls on serialise" expectation.
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encodeIfPresent(ObjectSerializer.ordered(lat), forKey: .lat)
-    try container.encodeIfPresent(ObjectSerializer.ordered(lng), forKey: .lng)
-  }
+    /// Encodes this instance, omitting nil optional fields from the JSON output.
+    ///
+    /// Uses `encodeIfPresent` for every optional property so that unset values
+    /// are dropped from the wire payload rather than emitted as `null` — matching
+    /// the cross-language "discard nulls on serialise" expectation.
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(ObjectSerializer.ordered(lat), forKey: .lat)
+        try container.encodeIfPresent(ObjectSerializer.ordered(lng), forKey: .lng)
+    }
 }
