@@ -136,7 +136,6 @@ result.raw_body
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)), and a value outside the range is meant to fail the decode with a `SerializationError`. This SDK decodes it into the width-less `integer()`, so a larger value is accepted today; closing that gap changes no public type. Declare `format: int64` where a field needs more.
 - `format: date-time` decoding returns UTC. See the table note above.
 - `format: decimal` and `number` are `float()` and lose exactness.
 - Building a struct never validates anything: a wrong-typed scalar or an atom that is no enum member builds fine. The checks run when a response is decoded (a wrong type, a missing required property and an unknown enum string raise `SerializationError`) and when a body is encoded (an inline enum atom outside its members raises).
@@ -148,6 +147,7 @@ result.raw_body
 - Callbacks and webhooks, XML bodies, Link Objects and mutual TLS are out of scope in every language.
 - Operations are blocking only, as a plain function call that blocks the calling process, by decision D111. There is no asynchronous variant of an operation, because each SDK follows the style of its own language. Run the call on your own thread or task when you need concurrency.
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 
 ## Under review
 

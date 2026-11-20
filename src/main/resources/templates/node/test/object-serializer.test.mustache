@@ -14,7 +14,7 @@ import {
   reattachAdditionalProperties,
 } from '../src/object-serializer{{importFileExtension}}';
 import { {{errorPrefix}}Error, SerializationError } from '../src/errors/index{{importFileExtension}}';
-import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
+import { NativeValues, Account, BinaryVault, Category, Department, Employee, EdgeCases, ModelError, ModelResult, Separator, DryFood, WetFood, PetFood, PetPassport, Pet, PetStatusEnum, Order, OrderStatusEnum, TreeNode, Defaults, DefaultsModeEnum, StockItem, Priority, Availability, PhotoMetadata, PhotoMetadataLocation, Metadata, PetWithOwner, StrictTag, Ledger, Tag, RequiredNullable, Tier, Rank, Stage, Subscription, SubscriptionIntervalEnum } from '../src/models/index{{importFileExtension}}';
 // SetPetAvatarThumbnailRequest is a non-discriminated oneOf rendered as a
 // bare type alias (Array<Buffer> | Buffer), so it is a type-only import.
 import type { SetPetAvatarThumbnailRequest } from '../src/models/index{{importFileExtension}}';
@@ -3432,6 +3432,13 @@ describe('ObjectSerializer misc decoding and duration behaviours', () => {
       expect(() => durationFromProtoJson(value)).toThrow();
     }
   });
+
+  test('bhv serialization 131 an integer with no format is 64-bit', () => {
+    const ledger = ObjectSerializer.deserialize({ entryId: 3000000000, entryIds: [4000000000] }, Ledger)!;
+    expect(ledger.entryId).toBe(3000000000);
+    expect(ledger.entryIds).toEqual([4000000000]);
+  });
+
 
   test('bhv misc 252 an enum wire value containing separators round-trips unchanged', () => {
     expect(JSON.parse(ObjectSerializer.serialize('a,b;c d/e:f'))).toBe('a,b;c d/e:f');

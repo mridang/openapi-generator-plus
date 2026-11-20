@@ -139,7 +139,6 @@ try {
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - `Decimal` decode is lossy until a reviver that reads the source text lands. int64 values beyond 2^53 are not preserved.
 - The fetch-only transport cannot do proxies, a custom CA or disabled TLS verification.
 - Downloads are fully buffered into a `Buffer`; there is no streaming.
@@ -147,6 +146,7 @@ try {
 - Callbacks, webhooks, XML bodies, Link Objects and mutual TLS are out of scope. OpenAPI 3.1 support is tracked in epic #96, and 3.2 in epic #49 (the pinned swagger-parser rejects 3.2 documents, #50).
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 - Operations are asynchronous only, as Promises, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 
 ## Under review
 

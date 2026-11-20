@@ -24,7 +24,7 @@ The crate forbids `unsafe` code (`unsafe_code = "forbid"`).
 | `string` / `uri` | `String` | |
 | `integer` / `int32` | `i32` | `short` maps to `i16`. |
 | `integer` / `int64` | `i64` | |
-| `integer` with no format | `i32` | |
+| `integer` with no format | `i64` | |
 | `number` / `float` | `f32` | |
 | `number` / `double`, `number` with no format | `f64` | |
 | `number` / `decimal` | `f64` | Lossy for exact decimal values such as money. |
@@ -172,8 +172,6 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 
 - An operation whose security requirement names two schemes sends both credentials; an alternative is used only when the client holds every scheme in it.
 
-- An unformatted `integer` decodes into `i32`, so a larger value fails to decode. Declare `format: int64` where needed.
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - `format: decimal` and `number` are `f64` and lose exactness.
 - `Vec<u8>` bodies are in memory, so streaming large uploads or downloads is not possible.
 - Typed maps (`HashMap`) do not keep key order, while `JsonValue` does.
@@ -186,12 +184,12 @@ if let Err(err) = client.pet.add_pet(pet, None).await {
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 - The `wasm32-unknown-unknown` browser target is not supported, by decision D110. The client is built on a native HTTP stack and a Tokio runtime, and nothing in the build or the tests targets the browser.
 - Operations are asynchronous only, as `async fn` futures, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 
 ## Under review
 
 These are ideas from a type review in November 2026. None of them is decided, and none changes the generated SDK today.
 
-- Widen an unformatted `integer` to `i64`, because OpenAPI treats it as unbounded. This would be decided together with the other languages.
 - Exact decimals through `rust_decimal` or `bigdecimal`, with a serde adapter. This adds a dependency. The review advises against turning on `serde_json`'s `arbitrary_precision` feature globally.
 - `url::Url` for `uri`. It is already in the dependency tree through `reqwest`, but it normalises on parse, so values would not round trip byte for byte.
 - `#[non_exhaustive]` on generated enums, so a new server value is not a breaking change for callers who match on them.

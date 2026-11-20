@@ -9,7 +9,7 @@ public sealed class GetPetByNoteOptions
 {
     public required string? Note { get; init; }
 
-    public required int? Rank { get; init; }
+    public required long? Rank { get; init; }
 
     /// <summary>
     /// End-to-end timeout in milliseconds for this call only: it replaces

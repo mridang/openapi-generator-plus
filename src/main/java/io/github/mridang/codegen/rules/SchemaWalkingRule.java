@@ -34,7 +34,6 @@ abstract class SchemaWalkingRule implements CustomNormalizationRule {
     @Override
     public final void apply(OpenAPI openAPI, Map<String, String> ruleConfig, Logger logger) {
         visited.clear();
-        System.err.println("WALK " + getClass().getSimpleName());
         if (openAPI.getComponents() != null) {
             if (openAPI.getComponents().getSchemas() != null) {
                 for (Object schema :

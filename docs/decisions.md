@@ -102,6 +102,18 @@ A query parameter that is required and nullable is kept the same way: when its v
 
 **Consequences.** A PATCH API that needs to clear a field with `null` cannot do so through a model; it needs a raw request. Revisit only with one design that works in all twelve languages. Documented in every language page's known limits.
 
+## D113: An integer with no format is 64-bit
+
+**Context.** An unformatted `type: integer` was 32-bit in all twelve SDKs (D54), so a server value above 2,147,483,647, such as a large identifier, failed to decode. The ogen comparison ([docs/comparisons/ogen.md](comparisons/ogen.md), row "Integer without format") found ogen maps it to `int`, which is 64-bit on the platforms that matter, and the progenitor comparison ([#134](https://github.com/mridang/openapi-generator-plus/issues/134)) found the same question. OpenAPI treats an integer without a format as unbounded.
+
+**Options considered.** (1) Keep 32-bit and tell users to declare `int64`. (2) Widen it only where the language's native integer is already 64-bit. (3) Widen it everywhere.
+
+**What was compared.** Option 2 leaves Java, Kotlin, C#, Go, Rust and Swift with a different type from Python, Ruby, PHP, Dart, Elixir and Node for the same schema, which the parity rules forbid. Option 3 changes the public type of every such field in six SDKs (`Integer` to `Long`, `int32` to `int64`, `i32` to `i64`, `Int` to `Int64` and so on), but the other six already hold 64-bit values.
+
+**Decision.** An unformatted `integer` is 64-bit in all twelve SDKs (owner decision of 2026-11-20, supersedes D54 for the unformatted case). The generator writes `format: int64` on the schema before generation, so the range check and the error for a value outside the range are the ones `int64` already has. `format: int32` stays 32-bit.
+
+**Consequences.** This is a breaking change to the type of every unformatted integer field, parameter and response in Java, Kotlin, C#, Go, Rust and Swift. A test in every language decodes a value above 2^31 (serialization131). In Node a value above 2^53 loses precision, as for `int64`. [docs/types.md](types.md) and each language page state the rule.
+
 ## Models are not validated when you build them
 
 Building a model does not check anything: the wrong values are caught where the data crosses the wire. A response with an enum value that the SDK does not know, a missing required property or a `format: uri` that is not absolute fails when it is decoded. The SDK does not enforce schema constraints such as `pattern`, length or range, because the server is the authority. Java also checks that the required properties are set when you call `build()` on a builder.

@@ -2092,7 +2092,7 @@ public class PetApi : BaseApi, IPetApi
                     "rank",
                     options.Rank,
                     "query",
-                    "int",
+                    "long",
                     null,
                     "form",
                     true

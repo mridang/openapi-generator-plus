@@ -1208,6 +1208,16 @@ class ObjectSerializerTest {
     }
 
     @Test
+    @DisplayName("bhvSerialization131 an integer with no format is 64-bit")
+    void bhvSerialization131AnIntegerWithNoFormatIsSixtyFourBit() {
+      com.example.petstore.models.Ledger ledger =
+          serializer.deserialize(
+              "{\"entryId\":3000000000,\"entryIds\":[4000000000]}",
+              com.example.petstore.models.Ledger.class);
+      assertEquals(3000000000L, ledger.entryId.longValue());
+    }
+
+    @Test
     @DisplayName("bhvMisc116 an int32 field accepts its bounds and refuses overflow and fractions")
     void bhvMisc116AnInt32FieldAcceptsItsBoundsAndRefusesOverflowAndFractions() {
       com.example.petstore.models.Order high =

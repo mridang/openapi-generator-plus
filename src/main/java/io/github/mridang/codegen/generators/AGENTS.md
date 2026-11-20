@@ -356,7 +356,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 
 | Id | Rule | Why / forced exceptions |
 |---|---|---|
-| D54 | Integer decode (field, element, top level) rejects fractional, quoted, boolean and out-of-range values for int32 (also format-less) and int64; nothing truncated. | Extended to containers by S1. |
+| D54 | Integer decode (field, element, top level) rejects fractional, quoted, boolean and out-of-range values for int32 and int64 (a format-less integer is int64 since D113); nothing truncated. | Extended to containers by S1. |
 | D55 | No SDK enforces pattern, length, range, multipleOf or item-count keywords; the server is the authority. | S3 allows native enforcement (python). |
 | D56 | `readOnly`/`writeOnly` have no wire effect in any SDK (documentation only); java's inverted Jackson access modes are removed. | go, rust, kotlin, elixir cannot omit per property without custom serializers. |
 | D57 | date-time decode accepts only RFC 3339 with offset; never consults host clock or zone; encode is fixed `.SSS+00:00`. | Forced: swift also accepts a bare `yyyy-MM-dd` (TL-6). |
@@ -420,6 +420,7 @@ Where/Test default applies; owners are `auth/oauth/*` templates. Rows are the ru
 | D110 | The Rust `wasm32-unknown-unknown` browser target is not supported: the crate is built on reqwest with a Tokio runtime and no build or test targets the browser. Documented in the Rust page, the Rust AGENTS.md and the generated Rust README; no code. | Owner decision of 2026-11-20. Go keeps its `wasip1` build (a different target) and Dart keeps its web build. |
 | D111 | No sync/async variants: each SDK follows its language. Async-only: node, python, dart, rust, swift, kotlin, csharp. Blocking-only: java, php, ruby, go, elixir. Documented per language page; no code. | Owner decision of 2026-11-20. Two entry points per operation would double the public surface of every SDK. |
 | D112 | The three-state optional (absent, `null`, value) stays declined: an optional and nullable property keeps the language's own optional type and absent and `null` encode the same (F834). Documented per language page; no code. | Owner decision of 2026-11-20. Revisit only with a design that is identical in all twelve. |
+| D113 | An unformatted `type: integer` is 64-bit in all twelve languages: `NormalizeIntegerWidthRule` writes `format: int64` on it before generation. Supersedes the 32-bit half of D54. Test: serialization131. | Owner decision of 2026-11-20 (#159); a server identifier above 2^31 must decode everywhere. |
 
 ### Forced divergences (FD): do not align these away
 

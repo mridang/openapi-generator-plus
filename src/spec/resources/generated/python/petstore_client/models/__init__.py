@@ -26,6 +26,7 @@ from petstore_client.models.edge_cases import EdgeCases as EdgeCases
 from petstore_client.models.employee import Employee as Employee
 from petstore_client.models.error import Error as Error
 from petstore_client.models.freeform import Freeform as Freeform
+from petstore_client.models.ledger import Ledger as Ledger
 from petstore_client.models.medication import Medication as Medication
 from petstore_client.models.member_not_found import MemberNotFound as MemberNotFound
 from petstore_client.models.metadata import Metadata as Metadata

@@ -6,7 +6,7 @@ import javax.annotation.Nullable;
 /** Options for the getPetByNote operation. */
 public final class GetPetByNoteOptions {
   @Nullable private final String note;
-  @Nullable private final Integer rank;
+  @Nullable private final Long rank;
   @Nullable private Integer timeout;
   @Nullable private Integer maxRetries;
   @Nullable private Map<String, String> headers;
@@ -17,7 +17,7 @@ public final class GetPetByNoteOptions {
    * @param note the {@code note} parameter
    * @param rank the {@code rank} parameter
    */
-  public GetPetByNoteOptions(@Nullable String note, @Nullable Integer rank) {
+  public GetPetByNoteOptions(@Nullable String note, @Nullable Long rank) {
     this.note = note;
     this.rank = rank;
   }
@@ -38,7 +38,7 @@ public final class GetPetByNoteOptions {
    * @return the {@code rank} parameter, or {@code null}
    */
   @Nullable
-  public Integer rank() {
+  public Long rank() {
     return rank;
   }
 

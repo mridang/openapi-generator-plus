@@ -1199,7 +1199,7 @@ public final class PetApi: BaseApi, PetApiProtocol, @unchecked Sendable {
     if let val = options.rank {
       queryParams["rank"] = ValueSerializer.maybeAllowReserved(
         ValueSerializer.serializeStyled(
-          "rank", value: val, location: "query", schemaType: "Int", collectionFormat: "",
+          "rank", value: val, location: "query", schemaType: "Int64", collectionFormat: "",
           style: "form", explode: true), allowReserved: false)
     } else {
       queryParams["rank"] = ValueSerializer.allowEmptyQuery("")

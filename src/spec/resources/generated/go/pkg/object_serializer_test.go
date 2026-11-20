@@ -4942,6 +4942,18 @@ func TestBhvMisc115_ObjectSerializer_Serialize_BareStringIsAQuotedJSONString(t *
 	}
 }
 
+// An integer with no format is 64-bit, so a value above 2^31 decodes exactly.
+func TestBhvSerialization131_ObjectSerializer_Deserialize_UnformattedIntegerIsSixtyFourBit(t *testing.T) {
+	t.Parallel()
+	var ledger models.Ledger
+	if err := deserialize([]byte(`{"entryId":3000000000}`), &ledger); err != nil {
+		t.Fatalf("expected 3000000000 to decode, got %v", err)
+	}
+	if ledger.EntryId != 3000000000 {
+		t.Errorf("expected 3000000000, got %d", ledger.EntryId)
+	}
+}
+
 // An int32 field accepts its minimum and maximum and refuses overflow and fractions.
 func TestBhvMisc116_ObjectSerializer_Deserialize_Int32AcceptsItsBoundsAndRefusesTheRest(t *testing.T) {
 	t.Parallel()

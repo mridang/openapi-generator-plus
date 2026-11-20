@@ -1158,7 +1158,7 @@ func TestBhvOperations157_PetApi_NullRequiredNullableQueryIsAnEmptyValueAndBinar
 		defer server.Close()
 		api := newPetApiForMock(t, server)
 
-		rank := int32(3)
+		rank := int64(3)
 		if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Rank: &rank}); err != nil {
 			t.Fatalf("GetPetByNote failed: %v", err)
 		}
@@ -1241,7 +1241,7 @@ func TestBhvOperations159_PetApi_NonNullRequiredNullableQueryIsSentAndEmptyBodyI
 		api := newPetApiForMock(t, server)
 
 		note := "a b"
-		rank := int32(3)
+		rank := int64(3)
 		if _, err := api.GetPetByNote(context.Background(), &options.GetPetByNoteOptions{Note: &note, Rank: &rank}); err != nil {
 			t.Fatalf("GetPetByNote failed: %v", err)
 		}

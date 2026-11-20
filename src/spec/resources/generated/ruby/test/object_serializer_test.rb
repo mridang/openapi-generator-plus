@@ -2612,6 +2612,12 @@ describe Petstore::Client::ObjectSerializer, 'wire contract for scalars, contain
     end
   end
 
+  it 'bhv_serialization_131 an integer with no format is 64-bit' do
+    ledger = Petstore::Client::ObjectSerializer.deserialize('{"entryId":3000000000,"entryIds":[4000000000]}', 'Ledger')
+    _(ledger.entry_id).must_equal(3_000_000_000)
+    _(ledger.entry_ids).must_equal([4_000_000_000])
+  end
+
   it 'bhv_serialization_031 a whole number at the largest 32-bit and 64-bit values decodes exactly' do
     _(Petstore::Client::ObjectSerializer.deserialize('2147483647', 'Integer')).must_equal(2_147_483_647)
     _(Petstore::Client::ObjectSerializer.deserialize('9223372036854775807', 'Integer')).must_equal(9_223_372_036_854_775_807)

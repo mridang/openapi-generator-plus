@@ -5,5 +5,5 @@ package options
 // GetPetByNoteOptions carries the parameters for the GetPetByNote operation.
 type GetPetByNoteOptions struct {
 	Note *string
-	Rank *int32
+	Rank *int64
 }

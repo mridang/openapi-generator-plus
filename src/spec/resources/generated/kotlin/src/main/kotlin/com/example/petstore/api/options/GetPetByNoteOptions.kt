@@ -6,7 +6,7 @@ package com.example.petstore.api.options
  */
 class GetPetByNoteOptions(
     val note: String?,
-    val rank: Int?,
+    val rank: Long?,
     /**
      * The end-to-end timeout of this call in milliseconds, in place of the client's
      * `TransportOptions.timeout`; null keeps the client's setting.

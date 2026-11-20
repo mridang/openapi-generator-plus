@@ -2643,6 +2643,18 @@ components:
         type: integer
         format: int32
 
+    Ledger:
+      type: object
+      required:
+        - entryId
+      properties:
+        entryId:
+          type: integer
+        entryIds:
+          type: array
+          items:
+            type: integer
+
     Roster:
       type: object
       properties:

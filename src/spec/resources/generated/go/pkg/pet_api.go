@@ -2497,7 +2497,7 @@ func (a *PetApi) GetPetByNoteWithHTTPInfo(ctx context.Context, options *opts.Get
 		queryParams["rank"] = ""
 	} else {
 		{
-			styledValue, styledErr := serializeStyledChecked("rank", options.Rank, "query", "int32", "", "form", true)
+			styledValue, styledErr := serializeStyledChecked("rank", options.Rank, "query", "int64", "", "form", true)
 			if styledErr != nil {
 				return nil, styledErr
 			}

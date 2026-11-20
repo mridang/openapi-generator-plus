@@ -4093,6 +4093,13 @@ class TestEnumMemberNames:
     def test_bhv_misc_115_a_bare_string_is_a_quoted_json_string(self) -> None:
         assert ObjectSerializer().serialize("hello") == '"hello"'
 
+    def test_bhv_serialization_131_an_integer_with_no_format_is_64_bit(self) -> None:
+        ledger = ObjectSerializer().deserialize(
+            '{"entryId":3000000000,"entryIds":[4000000000]}', "Ledger"
+        )
+        assert ledger.entry_id == 3000000000
+        assert ledger.entry_ids == [4000000000]
+
     def test_bhv_misc_116_an_integer_field_accepts_exactly_its_declared_bounds_and_refuses_the_rest(
         self,
     ) -> None:

@@ -2197,6 +2197,12 @@ void main() {
   });
 
   group('integer fields', () {
+    test('bhv serialization 131 an integer with no format is 64-bit', () {
+      final ledger = deserialize<Ledger>('{"entryId":3000000000,"entryIds":[4000000000]}', Ledger.fromJson);
+      expect(ledger!.entryId, 3000000000);
+      expect(ledger.entryIds, [4000000000]);
+    });
+
     test('bhv serializationobject 030 an int32 field outside its range is rejected when decoded', () {
       expect(
         () => deserialize<ApiResponse>('{"code":2147483648}', ApiResponse.fromJson),

@@ -784,7 +784,7 @@ class PetApiTest {
       PetApi petApi =
           new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-      petApi.getPetByNote(new GetPetByNoteOptions(null, 3));
+      petApi.getPetByNote(new GetPetByNoteOptions(null, 3L));
 
       assertThat(capturing.capturedUrl).endsWith("?note=&rank=3");
     }
@@ -847,7 +847,7 @@ class PetApiTest {
       PetApi petApi =
           new PetApi(capturing, Configuration.builder().baseUrl("http://localhost").build());
 
-      petApi.getPetByNote(new GetPetByNoteOptions("a b", 3));
+      petApi.getPetByNote(new GetPetByNoteOptions("a b", 3L));
 
       assertThat(capturing.capturedUrl).endsWith("?note=a%20b&rank=3");
     }

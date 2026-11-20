@@ -2665,6 +2665,17 @@ defmodule PetstoreClient.ObjectSerializerTest do
       end
     end
 
+    test "bhv serialization 131 an integer with no format is 64-bit" do
+      ledger =
+        PetstoreClient.ObjectSerializer.deserialize(
+          ~s({"entryId":3000000000,"entryIds":[4000000000]}),
+          "Ledger"
+        )
+
+      assert ledger.entry_id == 3_000_000_000
+      assert ledger.entry_ids == [4_000_000_000]
+    end
+
     test "bhv serialization 031 a whole number at the top of each integer range decodes exactly" do
       order =
         PetstoreClient.ObjectSerializer.deserialize(

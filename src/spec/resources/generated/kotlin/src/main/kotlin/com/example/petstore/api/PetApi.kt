@@ -1195,7 +1195,7 @@ class PetApi :
             ValueSerializer.putQuery(
                 queryParams,
                 "rank",
-                ValueSerializer.serializeStyled("rank", rankValue, "query", "Int", null, "form", true),
+                ValueSerializer.serializeStyled("rank", rankValue, "query", "Long", null, "form", true),
                 false,
             )
         }

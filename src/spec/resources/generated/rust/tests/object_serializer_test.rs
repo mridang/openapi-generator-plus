@@ -1541,7 +1541,9 @@ fn test_bhv_misc_094_a_free_form_json_object_is_written_with_its_members_unchang
 }
 
 use petstore::json_value::JsonValue;
-use petstore::models::{BinaryVault, Category, Counters, Defaults, Metadata, Rank, StrictTag};
+use petstore::models::{
+    BinaryVault, Category, Counters, Defaults, Ledger, Metadata, Rank, StrictTag,
+};
 
 #[test]
 fn test_bhv_misc_102_a_binary_field_keeps_the_bytes_it_was_given_through_copying() {
@@ -1634,6 +1636,14 @@ fn test_bhv_misc_115_a_bare_string_is_a_quoted_json_string() {
         serde_json::to_string("hello").expect("serializes"),
         r#""hello""#
     );
+}
+
+#[test]
+fn test_bhv_serialization_131_an_integer_with_no_format_is_64_bit() {
+    let ledger: Ledger =
+        serde_json::from_str(r#"{"entryId":3000000000,"entryIds":[4000000000]}"#).expect("decodes");
+    assert_eq!(ledger.entry_id, 3_000_000_000);
+    assert_eq!(ledger.entry_ids, Some(vec![4_000_000_000]));
 }
 
 #[test]

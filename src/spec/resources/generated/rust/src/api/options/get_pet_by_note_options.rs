@@ -5,7 +5,7 @@ use std::time::Duration;
 #[derive(Debug, Clone)]
 pub struct GetPetByNoteOptions {
     pub note: Option<String>,
-    pub rank: Option<i32>,
+    pub rank: Option<i64>,
     /// Replaces the client's end-to-end timeout for this call. Zero is refused
     /// with `ConfigurationError::InvalidTimeout` before anything is sent.
     pub timeout: Option<Duration>,
@@ -24,7 +24,7 @@ impl GetPetByNoteOptions {
     /// Every field of this struct is required and is taken as a constructor
     /// argument so it cannot be silently omitted. The per-call timeout, retry
     /// budget and headers start unset and have chained setters below.
-    pub fn new(note: Option<String>, rank: Option<i32>) -> Self {
+    pub fn new(note: Option<String>, rank: Option<i64>) -> Self {
         Self {
             note,
             rank,

@@ -1239,6 +1239,13 @@ class ObjectSerializerTest {
         }
 
         @Test
+        @DisplayName("bhvSerialization131 an integer with no format is 64-bit")
+        fun bhvSerialization131AnIntegerWithNoFormatIsSixtyFourBit() {
+            val ledger = serializer.deserialize<com.example.petstore.models.Ledger>("{\"entryId\":3000000000,\"entryIds\":[4000000000]}")
+            assertEquals(3000000000L, ledger!!.entryId)
+        }
+
+        @Test
         @DisplayName("bhvMisc116 int32 accepts its bounds and rejects overflow and fractions")
         fun bhvMisc116Int32BoundsOverflowAndFractions() {
             val max = serializer.deserialize<com.example.petstore.models.Order>("{\"quantity\":2147483647}")

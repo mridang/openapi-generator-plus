@@ -28,7 +28,7 @@ The floor is written once, in the project file above. The support policy is that
 | `string`, `format: ipv4`, `ipv6` | `System.Net.IPAddress` | read from the plain address text only (a leading zero, a prefix length, a zone id, brackets, whitespace, shorthand such as `1` and the wrong family fail with `SerializationException`) and written in canonical text; a `decimal` holds about 28 digits, and a larger number fails instead of being rounded |
 | `integer`, `format: int32` | `int` | |
 | `integer`, `format: int64` | `long` | |
-| `integer`, no format | `int` | 32 bits; see Known limits |
+| `integer`, no format | `long` | 64 bits, the same as `int64` |
 | `number`, `format: float` | `float` | |
 | `number`, `format: double` | `double` | binary floating point, so not for money |
 | `number`, no format, or `format: decimal` | `decimal` | exact base-10 arithmetic |
@@ -161,7 +161,6 @@ catch (ApiException e)
 
 ## Known limits
 
-- An `integer` with no format is 32 bits, the same as `int32`, by decision D95 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value outside the range fails the decode with a `SerializationError` and is never wrapped or truncated. Declare `format: int64` where a field needs more.
 - Native AOT is not supported, because the serialization layer relies on reflection and custom converters.
 - Request and response bodies are read and sent whole; there is no streaming of a response body.
 - Schema constraints (`pattern`, `minLength`, `maxLength`, `minimum`, `maximum`, `multipleOf`, `minItems`, `maxItems`) are not checked by the SDK. `System.Text.Json` enforces required members, integer ranges and wire types, and nothing else.
@@ -173,6 +172,7 @@ catch (ApiException e)
 - No `LICENSE` file is generated.
 - An optional and nullable property has no third state: an absent value and an explicit `null` are the same, by decision D112. A three-state type for PATCH-style APIs is declined for now.
 - Operations are asynchronous only, as `Task`-returning `...Async` methods, by decision D111. There is no blocking variant of an operation, because each SDK follows the style of its own language. Call it from your language's async machinery.
+- An `integer` with no format is 64 bits, the same as `int64`, by decision D113 ([#159](https://github.com/mridang/openapi-generator-plus/issues/159)). A value above 2^31, such as a large identifier, decodes exactly.
 
 ## Under review
 
