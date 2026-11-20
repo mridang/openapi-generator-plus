@@ -224,6 +224,32 @@ func checkIPField(data []byte, key string, v6 bool) error {
 	return fmt.Errorf("field %q is not the plain text of an IPv%d address: %q", key, family, text)
 }
 
+// canonicalUuid matches the canonical text of a UUID: 32 hexadecimal digits in
+// the 8-4-4-4-12 grouping. The uuid package also parses braced, urn:uuid: and
+// unhyphenated spellings, which the wire form does not allow.
+var canonicalUuid = regexp.MustCompile(`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`)
+
+// checkUuidField rejects a format:uuid value under key that is not in canonical
+// form. A missing, null or non-string value is left to json.Unmarshal.
+func checkUuidField(data []byte, key string) error {
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(data, &raw) != nil {
+		return nil
+	}
+	value, ok := raw[key]
+	if !ok {
+		return nil
+	}
+	var text string
+	if json.Unmarshal(value, &text) != nil {
+		return nil
+	}
+	if !canonicalUuid.MatchString(text) {
+		return fmt.Errorf("field %q is not a canonical UUID: %q", key, text)
+	}
+	return nil
+}
+
 // absoluteURI matches an absolute RFC 3986 URI: a scheme, ':' and then no
 // whitespace or control character. http, ftp, mailto and urn are all valid;
 // a relative reference has no scheme and does not match.

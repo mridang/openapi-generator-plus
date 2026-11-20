@@ -6038,7 +6038,9 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
         final Map<String, Object> opDecorator = decoratorMap(op.vendorExtensions, OP_DECORATOR_NS);
         opDecorator.put("securitySchemeOrder", schemeOrder);
         opDecorator.put("hasSecuritySchemes", !schemeOrder.isEmpty());
-        opDecorator.put("securityAlternatives", securityAlternatives(operation, openAPI));
+        final List<Map<String, Object>> alternatives = securityAlternatives(operation, openAPI);
+        opDecorator.put("securityAlternatives", alternatives);
+        opDecorator.put("hasSecurityAlternatives", !alternatives.isEmpty());
         final List<Map<String, Object>> groups = securityGroups(operation, openAPI);
         opDecorator.put("securityGroups", groups);
         boolean allOf = false;
@@ -6094,6 +6096,8 @@ public abstract class AbstractBetterCodegen extends DefaultCodegen {
             if (!schemes.isEmpty()) {
                 final Map<String, Object> alternative = new LinkedHashMap<>();
                 alternative.put("schemes", schemes);
+                alternative.put("schemeIds", schemes);
+                alternative.put("isAnd", schemes.size() > 1);
                 alternatives.add(alternative);
             }
         }

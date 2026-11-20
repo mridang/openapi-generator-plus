@@ -31,6 +31,12 @@ type RequestOptions struct {
 	 * this flag is set rather than rely on origin checks alone. */
 	NoRedirect bool
 
+	/* NoDefaultHeaders, when true, leaves the transport's default headers off
+	 * this one request; the next request without it sends them again. A request
+	 * the SDK makes for authentication (a token or discovery request) never
+	 * carries them either. */
+	NoDefaultHeaders bool
+
 	/* Context is the per-call context. Cancelling it aborts the request; the
 	 * error then satisfies errors.Is(err, context.Canceled) and is never a
 	 * *NetworkTimeoutError. A nil Context means context.Background(). It is

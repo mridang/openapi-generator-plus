@@ -74,6 +74,18 @@ func (o Moments) WithAdditionalProperties(value map[string]DateTime) Moments {
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o Moments) GetAdditionalProperties() map[string]DateTime {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]DateTime, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 // NewMoments creates a new Moments instance.
 func NewMoments() *Moments {
 	return &Moments{

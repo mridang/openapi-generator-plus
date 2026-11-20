@@ -2,6 +2,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,8 +17,16 @@ type ApiKeyAuthenticator struct {
 	host         string
 	keyParamName string
 	apiKey       string
+	provider     KeyProvider
 	location     ApiKeyLocation
 }
+
+// KeyProvider returns the API key to send with a request. An authenticator
+// built around one asks it for every request, so a key that rotates is always
+// current; ctx is the context of the API call, and the function should stop
+// when it is cancelled. Return an error when no key can be had: the call then
+// fails with it and no request is sent.
+type KeyProvider func(ctx context.Context) (string, error)
 
 // ErrInvalidApiKey is returned by NewApiKeyAuthenticator when the key is empty,
 // whitespace-only, contains CR, LF or NUL, or — for a header key — contains a
@@ -43,25 +52,8 @@ func (e *invalidApiKeyError) Unwrap() error { return ErrInvalidApiKey }
 //
 // Returns ErrInvalidApiKey when the key cannot be sent safely.
 func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLocation) (*ApiKeyAuthenticator, error) {
-	// Validation applies to ALL locations: empty/whitespace API keys
-	// and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
-	// printable-ASCII rule still applies to HEADER values.
-	// Blank means empty or ASCII whitespace only (space, \t, \n, \r, \f, \v); a
-	// Unicode space such as U+00A0 is a valid key character, so TrimSpace is not used.
-	if strings.Trim(apiKey, " \t\n\r\f\v") == "" {
-		return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' must not be empty", keyParamName)}
-	}
-	for _, c := range apiKey {
-		if c == '\r' || c == '\n' || c == 0 {
-			return nil, &invalidApiKeyError{fmt.Sprintf("API key value for '%s' contains forbidden control characters (CR/LF/NUL)", keyParamName)}
-		}
-	}
-	if location == ApiKeyLocationHeader {
-		for _, c := range apiKey {
-			if c != '\t' && (c < 0x20 || c >= 0x7F) {
-				return nil, &invalidApiKeyError{fmt.Sprintf("API key value for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)", keyParamName)}
-			}
-		}
+	if err := validateApiKey(keyParamName, apiKey, location); err != nil {
+		return nil, err
 	}
 	return &ApiKeyAuthenticator{
 		host:         host,
@@ -69,6 +61,65 @@ func NewApiKeyAuthenticator(host, keyParamName, apiKey string, location ApiKeyLo
 		apiKey:       apiKey,
 		location:     location,
 	}, nil
+}
+
+// NewApiKeyAuthenticatorWithProvider creates an API key authenticator whose
+// key comes from provider, which is asked for every request, whichever
+// location the key is sent in. The provider must not be nil; a key it returns
+// is checked like the one NewApiKeyAuthenticator takes, and a bad one fails the
+// call with ErrInvalidApiKey. A key and a provider are separate constructors,
+// so the two cannot be supplied together.
+func NewApiKeyAuthenticatorWithProvider(host, keyParamName string, provider KeyProvider, location ApiKeyLocation) (*ApiKeyAuthenticator, error) {
+	if provider == nil {
+		return nil, &invalidApiKeyError{fmt.Sprintf("API key provider for '%s' must not be nil", keyParamName)}
+	}
+	return &ApiKeyAuthenticator{
+		host:         host,
+		keyParamName: keyParamName,
+		provider:     provider,
+		location:     location,
+	}, nil
+}
+
+// validateApiKey rejects a key that would not be sent as intended.
+func validateApiKey(keyParamName, apiKey string, location ApiKeyLocation) error {
+	// Validation applies to ALL locations: empty/whitespace API keys
+	// and CR/LF/NUL are always caller mistakes. RFC 7230 §3.2.6
+	// printable-ASCII rule still applies to HEADER values.
+	// Blank means empty or ASCII whitespace only (space, \t, \n, \r, \f, \v); a
+	// Unicode space such as U+00A0 is a valid key character, so TrimSpace is not used.
+	if strings.Trim(apiKey, " \t\n\r\f\v") == "" {
+		return &invalidApiKeyError{fmt.Sprintf("API key value for '%s' must not be empty", keyParamName)}
+	}
+	for _, c := range apiKey {
+		if c == '\r' || c == '\n' || c == 0 {
+			return &invalidApiKeyError{fmt.Sprintf("API key value for '%s' contains forbidden control characters (CR/LF/NUL)", keyParamName)}
+		}
+	}
+	if location == ApiKeyLocationHeader {
+		for _, c := range apiKey {
+			if c != '\t' && (c < 0x20 || c >= 0x7F) {
+				return &invalidApiKeyError{fmt.Sprintf("API key value for header '%s' must contain only printable ASCII characters (RFC 7230 §3.2.6)", keyParamName)}
+			}
+		}
+	}
+	return nil
+}
+
+// resolveKey returns the key to send: the fixed one, or what the provider
+// returns for ctx after the same checks. A provider error is wrapped and returned.
+func (a *ApiKeyAuthenticator) resolveKey(ctx context.Context) (string, error) {
+	if a.provider == nil {
+		return a.apiKey, nil
+	}
+	key, err := a.provider(ctx)
+	if err != nil {
+		return "", fmt.Errorf("API key provider failed: %w", err)
+	}
+	if err := validateApiKey(a.keyParamName, key, a.location); err != nil {
+		return "", err
+	}
+	return key, nil
 }
 
 // Host returns the API base URL.
@@ -89,29 +140,62 @@ func (a ApiKeyAuthenticator) GoString() string {
 	return a.String()
 }
 
-// AuthHeaders returns the API key as a header if the location is Header.
-func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
+// paramsOrError returns the key under its parameter name when the key goes in
+// location, and an empty map otherwise.
+func (a *ApiKeyAuthenticator) paramsOrError(ctx context.Context, location ApiKeyLocation) (map[string]string, error) {
 	result := map[string]string{}
-	if a.location == ApiKeyLocationHeader {
-		result[a.keyParamName] = a.apiKey
+	if a.location != location {
+		return result, nil
+	}
+	key, err := a.resolveKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result[a.keyParamName] = key
+	return result, nil
+}
+
+// AuthHeadersOrErrorContext returns the key as a header if the location is
+// Header, asking the key provider (when there is one) with the call context. A
+// provider error is returned and no request is sent.
+func (a *ApiKeyAuthenticator) AuthHeadersOrErrorContext(ctx context.Context) (map[string]string, error) {
+	return a.paramsOrError(ctx, ApiKeyLocationHeader)
+}
+
+// QueryParamsOrErrorContext is AuthHeadersOrErrorContext for a key sent as a query parameter.
+func (a *ApiKeyAuthenticator) QueryParamsOrErrorContext(ctx context.Context) (map[string]string, error) {
+	return a.paramsOrError(ctx, ApiKeyLocationQuery)
+}
+
+// CookieParamsOrErrorContext is AuthHeadersOrErrorContext for a key sent as a cookie.
+func (a *ApiKeyAuthenticator) CookieParamsOrErrorContext(ctx context.Context) (map[string]string, error) {
+	return a.paramsOrError(ctx, ApiKeyLocationCookie)
+}
+
+// AuthHeaders returns the API key as a header if the location is Header, or an
+// empty map when the key provider fails. Use AuthHeadersOrErrorContext to see why.
+func (a *ApiKeyAuthenticator) AuthHeaders() map[string]string {
+	result, err := a.AuthHeadersOrErrorContext(context.Background())
+	if err != nil {
+		return map[string]string{}
 	}
 	return result
 }
 
 // QueryParams returns the API key as a query parameter if the location is Query.
 func (a *ApiKeyAuthenticator) QueryParams() map[string]string {
-	result := map[string]string{}
-	if a.location == ApiKeyLocationQuery {
-		result[a.keyParamName] = a.apiKey
+	result, err := a.QueryParamsOrErrorContext(context.Background())
+	if err != nil {
+		return map[string]string{}
 	}
 	return result
 }
 
 // CookieParams returns the API key as a cookie if the location is Cookie.
 func (a *ApiKeyAuthenticator) CookieParams() map[string]string {
-	result := map[string]string{}
-	if a.location == ApiKeyLocationCookie {
-		result[a.keyParamName] = a.apiKey
+	result, err := a.CookieParamsOrErrorContext(context.Background())
+	if err != nil {
+		return map[string]string{}
 	}
 	return result
 }

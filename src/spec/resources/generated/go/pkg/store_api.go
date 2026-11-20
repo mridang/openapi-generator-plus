@@ -141,6 +141,7 @@ func (a *StoreApi) CreateAccountWithHTTPInfo(ctx context.Context, account Accoun
 		returnType:   "Account",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -256,7 +257,13 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", serializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("orderId", orderId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "orderId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -281,6 +288,7 @@ func (a *StoreApi) DeleteOrderWithHTTPInfo(ctx context.Context, orderId int64, c
 		returnType:   "",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -352,6 +360,7 @@ func (a *StoreApi) GetAuditTrailWithHTTPInfo(ctx context.Context, options *opts.
 		returnType:   "ApiResponse",
 		auth:         nil,
 		schemes:      []string{"petStoreBearer", "apiKeyHeader"},
+		schemeGroups: [][]string{{"petStoreBearer", "apiKeyHeader"}},
 	})
 	if err != nil {
 		return nil, err
@@ -468,16 +477,34 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "pathSwatch", fmt.Sprintf("%v", serializeStyled("pathSwatch", pathSwatch, "path", "Swatch", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("pathSwatch", pathSwatch, "path", "Swatch", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "pathSwatch", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 	if options != nil && options.QuerySwatch != nil {
-		queryParams["querySwatch"] = maybeAllowReserved(serializeStyled("querySwatch", options.QuerySwatch, "query", "Swatch", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("querySwatch", options.QuerySwatch, "query", "Swatch", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["querySwatch"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
 	if options != nil && options.PreferredSwatch != nil {
-		headerParams["Preferred-Swatch"] = fmt.Sprintf("%v", serializeStyled("Preferred-Swatch", options.PreferredSwatch, "header", "Swatch", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("Preferred-Swatch", options.PreferredSwatch, "header", "Swatch", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["Preferred-Swatch"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 
 	var requestBody any
@@ -499,6 +526,7 @@ func (a *StoreApi) GetBySwatchWithHTTPInfo(ctx context.Context, pathSwatch Swatc
 		returnType:   "Category",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -631,6 +659,7 @@ func (a *StoreApi) GetDefaultsWithHTTPInfo(ctx context.Context, callOptions ...R
 		returnType:   "Defaults",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -763,6 +792,7 @@ func (a *StoreApi) GetDepartmentWithHTTPInfo(ctx context.Context, callOptions ..
 		returnType:   "Department",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -896,6 +926,7 @@ func (a *StoreApi) GetGroupedCategoriesWithHTTPInfo(ctx context.Context, callOpt
 		returnType:   "[]map[string]Category",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1029,6 +1060,7 @@ func (a *StoreApi) GetInventoryWithHTTPInfo(ctx context.Context, callOptions ...
 		returnType:   "map[string]int32",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1162,6 +1194,7 @@ func (a *StoreApi) GetMatrixWithHTTPInfo(ctx context.Context, callOptions ...Req
 		returnType:   "[][]int32",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1274,18 +1307,42 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 
 	queryParams := make(map[string]any)
 	if options != nil && options.Address4 != nil {
-		queryParams["address4"] = maybeAllowReserved(serializeStyled("address4", options.Address4, "query", "netip.Addr", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("address4", options.Address4, "query", "netip.Addr", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["address4"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Delay != nil {
-		queryParams["delay"] = maybeAllowReserved(serializeStyled("delay", options.Delay, "query", "Duration", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("delay", options.Delay, "query", "Duration", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["delay"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.Amount != nil {
-		queryParams["amount"] = maybeAllowReserved(serializeStyled("amount", options.Amount, "query", "float64", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("amount", options.Amount, "query", "float64", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["amount"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
 	if options != nil && options.XAddress6 != nil {
-		headerParams["X-Address6"] = fmt.Sprintf("%v", serializeStyled("X-Address6", options.XAddress6, "header", "netip.Addr", "", "simple", false))
+		{
+			styledValue, styledErr := serializeStyledChecked("X-Address6", options.XAddress6, "header", "netip.Addr", "", "simple", false)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			headerParams["X-Address6"] = fmt.Sprintf("%v", styledValue)
+		}
 	}
 
 	var requestBody any
@@ -1307,6 +1364,7 @@ func (a *StoreApi) GetNativeValuesWithHTTPInfo(ctx context.Context, options *opt
 		returnType:   "NativeValues",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1427,7 +1485,13 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "orderId", fmt.Sprintf("%v", serializeStyled("orderId", orderId, "path", "int64", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("orderId", orderId, "path", "int64", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "orderId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1452,6 +1516,7 @@ func (a *StoreApi) GetOrderByIdWithHTTPInfo(ctx context.Context, orderId int64, 
 		returnType:   "Order",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -1567,7 +1632,13 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 	 * (simple/matrix/label) and arrays are applied, and each value is
 	 * percent-encoded via encodePathSegment (escapes `/` to %2F,
 	 * preserves the OAS sub-delimiters). */
-	path = replacePathParam(path, "trackingId", fmt.Sprintf("%v", serializeStyled("trackingId", trackingId, "path", "uuid.UUID", "", "simple", false)))
+	{
+		styledValue, styledErr := serializeStyledChecked("trackingId", trackingId, "path", "uuid.UUID", "", "simple", false)
+		if styledErr != nil {
+			return nil, styledErr
+		}
+		path = replacePathParam(path, "trackingId", fmt.Sprintf("%v", styledValue))
+	}
 
 	queryParams := make(map[string]any)
 
@@ -1592,6 +1663,7 @@ func (a *StoreApi) GetOrderByTrackingIdWithHTTPInfo(ctx context.Context, trackin
 		returnType:   "Order",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1704,7 +1776,13 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 
 	queryParams := make(map[string]any)
 	if options != nil && options.AsOf != nil {
-		queryParams["asOf"] = maybeAllowReserved(serializeStyled("asOf", options.AsOf, "query", "DateTime", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("asOf", options.AsOf, "query", "DateTime", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["asOf"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -1728,6 +1806,7 @@ func (a *StoreApi) GetStockItemWithHTTPInfo(ctx context.Context, options *opts.G
 		returnType:   "StockItem",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1860,6 +1939,7 @@ func (a *StoreApi) GetSwatchWithHTTPInfo(ctx context.Context, callOptions ...Req
 		returnType:   "Swatch",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -1993,6 +2073,7 @@ func (a *StoreApi) GetSwatchGroupsWithHTTPInfo(ctx context.Context, callOptions 
 		returnType:   "[]map[string]Swatch",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2126,6 +2207,7 @@ func (a *StoreApi) GetTimestampGroupsWithHTTPInfo(ctx context.Context, callOptio
 		returnType:   "[]map[string]DateTime",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2258,6 +2340,7 @@ func (a *StoreApi) GetTreeWithHTTPInfo(ctx context.Context, callOptions ...Reque
 		returnType:   "TreeNode",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2393,6 +2476,7 @@ func (a *StoreApi) PlaceOrderWithHTTPInfo(ctx context.Context, order *Order, cal
 		returnType:   "Order",
 		auth:         nil,
 		schemes:      []string{},
+		schemeGroups: [][]string{{"petStoreBasic"}, {"petStoreBearer"}},
 	})
 	if err != nil {
 		return nil, err
@@ -2529,6 +2613,7 @@ func (a *StoreApi) ReserveStockWithHTTPInfo(ctx context.Context, callOptions ...
 		returnType:   "ReserveStockResponse",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err
@@ -2675,10 +2760,22 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 		queryParams["q"] = string(jsonBytes)
 	}
 	if options != nil && options.Labels != nil {
-		queryParams["labels"] = maybeAllowReserved(serializeStyled("labels", options.Labels, "query", "[]string", "multi", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("labels", options.Labels, "query", "[]string", "multi", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["labels"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 	if options != nil && options.At != nil {
-		queryParams["at"] = maybeAllowReserved(serializeStyled("at", options.At, "query", "string", "", "form", true), false)
+		{
+			styledValue, styledErr := serializeStyledChecked("at", options.At, "query", "string", "", "form", true)
+			if styledErr != nil {
+				return nil, styledErr
+			}
+			queryParams["at"] = maybeAllowReserved(styledValue, false)
+		}
 	}
 
 	headerParams := make(map[string]string)
@@ -2709,6 +2806,7 @@ func (a *StoreApi) SearchStoreWithHTTPInfo(ctx context.Context, options *opts.Se
 		returnType:   "[]Order",
 		auth:         noAuth,
 		schemes:      []string{},
+		schemeGroups: [][]string{},
 	})
 	if err != nil {
 		return nil, err

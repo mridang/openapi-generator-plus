@@ -463,3 +463,37 @@ func TestBhvModels023_Metadata_UndeclaredKeysNamedLikeMethodsStayAdditionalPrope
 		}
 	}
 }
+
+// Declares a non-empty description: Go has no manifest field for it, so the package comment of the module's root package carries it.
+func TestBhvModels002_Metadata_PackageCommentDeclaresANonEmptyDescription(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile(filepath.Join("..", "pkg", "doc.go"))
+	if err != nil {
+		t.Fatalf("expected a package comment file: %v", err)
+	}
+	var comment []string
+	seenPackage := false
+	for _, line := range strings.Split(string(data), "\n") {
+		if strings.HasPrefix(line, "// Package ") {
+			seenPackage = true
+		}
+		if seenPackage && strings.HasPrefix(line, "//") {
+			comment = append(comment, strings.TrimSpace(strings.TrimPrefix(line, "//")))
+		}
+		if strings.HasPrefix(line, "package ") {
+			break
+		}
+	}
+	if !seenPackage {
+		t.Fatal("expected the package comment to start with // Package")
+	}
+	described := false
+	for _, line := range comment[1:] {
+		if line != "" {
+			described = true
+		}
+	}
+	if !described {
+		t.Errorf("expected a description under the package line, got %q", comment)
+	}
+}

@@ -121,6 +121,26 @@ func TestBhvHeaders030_BaseApi_InvokeApi_ALowerCaseDefaultAcceptReplacesTheNegot
 	}
 }
 
+// A text body sent without a declared content type goes out with the JSON media type and no parameters.
+func TestBhvMisc202_BaseApi_InvokeApi_ATextBodyWithNoDeclaredContentTypeIsSentAsJson(t *testing.T) {
+	t.Parallel()
+	client := &acceptCapturingClient{}
+	base := newBaseApi(client, NewConfigurationBuilder().BaseURL("http://localhost").Build(), nil)
+
+	if _, err := base.invokeApi(invokeApiParams{method: "POST", path: "/items", body: "plain text", contentType: ""}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	var got string
+	for header, value := range client.headers {
+		if strings.EqualFold(header, "Content-Type") {
+			got = value
+		}
+	}
+	if got != "application/json" {
+		t.Errorf("expected the bare JSON media type, got %q", got)
+	}
+}
+
 // Accept has three layers: the one negotiated from the operation's responses,
 // the client's default, and a header parameter the caller passes for the call.
 // The parameter beats both of the others, and the default beats the negotiated.
@@ -241,6 +261,28 @@ func TestBhvSerialization123_BaseApi_UnsafeMultipartNamesAreRejectedAndQuotesEsc
 	}
 	if !strings.Contains(string(body), `name="a\"b"`) {
 		t.Errorf("expected the quote backslash-escaped, got %s", body)
+	}
+}
+
+// A multipart request keeps its declared multipart subtype, and falls back to form-data when the declared value is unsafe.
+func TestBhvMisc100_BaseApi_MultipartMediaTypeKeepsASafeSubtypeAndFallsBackOtherwise(t *testing.T) {
+	t.Parallel()
+	for declared, want := range map[string]string{
+		"multipart/form-data":     "multipart/form-data",
+		"multipart/mixed":         "multipart/mixed",
+		"multipart/related":       "multipart/related",
+		"multipart/mixed; x=y":    "multipart/form-data",
+		"multipart/mixed\r\nX: y": "multipart/form-data",
+		"multipart/":              "multipart/form-data",
+		"multipart/a b":           "multipart/form-data",
+	} {
+		got, ok := multipartMediaType(declared)
+		if !ok || got != want {
+			t.Errorf("%q: expected %q, got %q (multipart=%v)", declared, want, got, ok)
+		}
+	}
+	if _, ok := multipartMediaType("application/json"); ok {
+		t.Error("application/json is not multipart")
 	}
 }
 

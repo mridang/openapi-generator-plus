@@ -353,6 +353,18 @@ func (o {{classname}}) WithAdditionalProperties(value map[string]{{#vendorExtens
 	return o
 }
 
+// GetAdditionalProperties returns a copy of the undeclared keys the model carries, so changing the returned map leaves the model unchanged. It is nil when there are none.
+func (o {{classname}}) GetAdditionalProperties() map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}} {
+	if o.AdditionalProperties == nil {
+		return nil
+	}
+	copied := make(map[string]{{#vendorExtensions.additionalPropertiesValue}}{{#isNullable}}*{{/isNullable}}{{{dataType}}}{{/vendorExtensions.additionalPropertiesValue}}{{^vendorExtensions.additionalPropertiesValue}}any{{/vendorExtensions.additionalPropertiesValue}}, len(o.AdditionalProperties))
+	for key, extra := range o.AdditionalProperties {
+		copied[key] = extra
+	}
+	return copied
+}
+
 {{/isAdditionalPropertiesTrue}}
 {{#hasVars}}
 // New{{classname}} creates a new {{classname}} instance.
@@ -430,6 +442,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -538,6 +555,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -632,6 +654,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {
@@ -727,6 +754,11 @@ func (o *{{classname}}) UnmarshalJSON(data []byte) error {
 		return err
 	}
 {{/vendorExtensions.isIpv6}}
+{{#isUuid}}
+	if err := checkUuidField(data, "{{baseName}}"); err != nil {
+		return err
+	}
+{{/isUuid}}
 {{/vars}}
 {{#hasByteFields}}
 	if err := checkBase64Fields(data, aux); err != nil {

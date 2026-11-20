@@ -51,6 +51,7 @@ type OAuth2TokenManager struct {
 	accessToken  string
 	refreshToken string
 	tokenExpiry  time.Time
+	stopped      bool
 }
 
 // NewOAuth2TokenManager creates a new token manager.
@@ -79,6 +80,18 @@ func (m *OAuth2TokenManager) SetApiClient(client auth.ApiClient) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.apiClient = client
+}
+
+// Stop ends the manager: the held tokens are dropped and every later token
+// request fails with an OAuth2TokenError. Stopping a stopped manager does
+// nothing, so Stop is safe to call twice.
+func (m *OAuth2TokenManager) Stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.stopped = true
+	m.accessToken = ""
+	m.refreshToken = ""
+	m.tokenExpiry = time.Time{}
 }
 
 // RefreshToken returns the current refresh token, if any.
@@ -134,6 +147,10 @@ func (m *OAuth2TokenManager) GetAccessTokenWithRefreshContext(ctx context.Contex
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	if m.stopped {
+		return "", errors_pkg.NewOAuth2TokenError("The token manager has been stopped.")
+	}
 
 	if m.accessToken != "" && (m.tokenExpiry.IsZero() || time.Now().Before(m.tokenExpiry)) {
 		return m.accessToken, nil
