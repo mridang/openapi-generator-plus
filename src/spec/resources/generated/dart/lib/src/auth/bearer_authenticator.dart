@@ -17,11 +17,10 @@ bool _isAsciiBlank(String value) =>
 
 /// Authenticator for HTTP Bearer token authentication.
 ///
-/// The token comes from, in order: the explicit [token] argument, then the
-/// environment variable named by [environmentVariable], then the
-/// [tokenProvider] callback (never both of the first two arguments). A
-/// provider is used only when neither of the other two is set. A token that
-/// is found nowhere fails the constructor unless a provider is given.
+/// The token comes from, in order: the explicit [token] argument or the
+/// [tokenProvider] callback (never both), then the environment variable named
+/// by [environmentVariable]. A provider that is passed always wins over the
+/// environment variable. A token that is found nowhere fails the constructor.
 class BearerAuthenticator extends BaseAuthenticator {
   /// The environment variable read when neither [token] nor [tokenProvider] is
   /// given and no [environmentVariable] names another one.
@@ -73,15 +72,15 @@ class BearerAuthenticator extends BaseAuthenticator {
     if (token != null) {
       return token;
     }
+    if (tokenProvider != null) {
+      return null;
+    }
     final fromEnvironment = readEnvironmentVariable(
       environmentVariable,
       environment,
     );
     if (fromEnvironment != null) {
       return fromEnvironment;
-    }
-    if (tokenProvider != null) {
-      return null;
     }
     throw ArgumentError(
       'A bearer token is required: pass token or tokenProvider, or set the '

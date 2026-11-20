@@ -204,15 +204,18 @@ test('bhv authscheme 011 an empty environment variable for a bearer scheme crede
     });
 });
 
-test('bhv auth 022 an explicit token, then the environment variable, then the provider', function (): void {
+test('bhv auth 022 an explicit token, then the provider, then the environment variable', function (): void {
     withBearerTokenEnvironment('from-environment', function (): void {
         $explicit = new {{className}}('https://api.example.com', 'explicit');
         expect($explicit->getAuthHeaders()['Authorization'])->toBe('Bearer explicit');
 
-        $fromEnvironment = new {{className}}('https://api.example.com', null, fn (): string => 'from-provider');
+        $fromEnvironment = new {{className}}('https://api.example.com');
         expect($fromEnvironment->getAuthHeaders()['Authorization'])->toBe('Bearer from-environment');
     });
-    withBearerTokenEnvironment('', function (): void {
+});
+
+test('bhv auth 038 a token provider passed to the authenticator is used even when the environment holds a token', function (): void {
+    withBearerTokenEnvironment('from-environment', function (): void {
         $fromProvider = new {{className}}('https://api.example.com', null, fn (): string => 'from-provider');
         expect($fromProvider->getAuthHeaders()['Authorization'])->toBe('Bearer from-provider');
     });
